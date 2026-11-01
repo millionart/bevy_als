@@ -1,0 +1,106 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 372,
+        "end": 402,
+        "text": "\tPoseState.UnweightedGaitWalkingAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount);\n\tPoseState.UnweightedGaitRunningAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount - 1.0f);\n\tPoseState.UnweightedGaitSprintingAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount - 2.0f);\n}\n\nvoid UAlsAnimationInstance::RefreshViewOnGameThread()\n{\n\tcheck(IsInGameThread())\n\n\tconst auto& View{Character->GetViewState()};\n\n\tViewState.RotationWorldSpace = View.Rotation;\n\tViewState.YawSpeed = View.YawSpeed;\n}\n\nvoid UAlsAnimationInstance::RefreshView(const float DeltaTime)\n{\n\tif (!LocomotionAction.IsValid())\n\t{\n\t\tViewState.YawAngle = FMath::UnwindDegrees(UE_REAL_TO_FLOAT(\n\t\t\tViewState.RotationWorldSpace.Yaw - LocomotionState.RotationWorldSpace.Yaw));\n\n\t\tViewState.PitchAngle = FMath::UnwindDegrees(UE_REAL_TO_FLOAT(\n\t\t\tViewState.RotationWorldSpace.Pitch - LocomotionState.RotationWorldSpace.Pitch));\n\n\t\tViewState.PitchAmount = 0.5f - ViewState.PitchAngle / 180.0f;\n\t}\n\n\tconst auto ViewAmount{1.0f - GetCurveValueClamped01(UAlsConstants::ViewBlockCurveName())};\n\tconst auto AimingAmount{GetCurveValueClamped01(UAlsConstants::PoseAimingCurveName())};\n"
+      },
+      {
+        "start": 528,
+        "end": 600,
+        "text": "void UAlsAnimationInstance::RefreshHead()\n{\n#if WITH_EDITOR\n\tif (!IsValid(GetWorld()) || !GetWorld()->IsGameWorld())\n\t{\n\t\treturn;\n\t}\n#endif\n\n\tDECLARE_SCOPE_CYCLE_COUNTER(TEXT(\"UAlsAnimationInstance::RefreshHead\"), STAT_UAlsAnimationInstance_RefreshHead, STATGROUP_Als)\n\tTRACE_CPUPROFILER_EVENT_SCOPE_STR(__FUNCTION__)\n\n\tif (!IsValid(Settings))\n\t{\n\t\treturn;\n\t}\n\n\tconst auto DeltaTime{GetDeltaSeconds()};\n\tconst auto bFirstPerson{ViewMode == AlsViewModeTags::FirstPerson};\n\n\tif (MovementBase.bHasRelativeRotation)\n\t{\n\t\t// Offset the angle to keep it in the movement base space.\n\t\tHeadState.YawAngle += UE_REAL_TO_FLOAT(MovementBase.DeltaRotation.Yaw);\n\t}\n\n\t// Offset the angle to make it independent of character rotation.\n\tHeadState.YawAngle -= LocomotionState.YawVelocityWorldSpace * DeltaTime;\n\n\t// Clamp the angle instead of using FMath::UnwindDegrees() so that the head does not suddenly change the look side.\n\tHeadState.YawAngle = FMath::Clamp(HeadState.YawAngle, -180.0f, 180.0f);\n\n\tfloat TargetPitchAngle;\n\tfloat TargetYawAngle;\n\tauto bReadyToSwitchLookSides{false};\n\n\tif (RotationMode == AlsRotationModeTags::VelocityDirection)\n\t{\n\t\t// Look towards input direction.\n\n\t\tTargetPitchAngle = 0.0f;\n\n\t\tTargetYawAngle = FMath::UnwindDegrees(UE_REAL_TO_FLOAT(\n\t\t\t(LocomotionState.bHasInput ? LocomotionState.InputYawAngleWorldSpace : LocomotionState.TargetYawAngleWorldSpace) -\n\t\t\tLocomotionState.RotationWorldSpace.Yaw));\n\n\t\tstatic constexpr auto LocomotionYawSpeedThreshold{20.0f};\n\n\t\tif (FMath::Abs(LocomotionState.YawVelocityWorldSpace) > LocomotionYawSpeedThreshold)\n\t\t{\n\t\t\t// Favor the character rotation direction, over the shortest rotation direction, so\n\t\t\t// that the rotation of the head remains synchronized with the rotation of the body.\n\n\t\t\tTargetYawAngle = FMath::Sign(LocomotionState.YawVelocityWorldSpace) * FMath::Abs(TargetYawAngle);\n\t\t}\n\t\telse if (FMath::Abs(TargetYawAngle) > 180.0f - UAlsRotation::CounterClockwiseRotationAngleThreshold)\n\t\t{\n\t\t\t// Do not rotate the head if the character is going to turn 180 degrees, or it may start rotating in the wrong direction.\n\t\t\tTargetYawAngle = HeadState.YawAngle;\n\t\t}\n\n\t\tHeadState.bSwitchingLookSides = false;\n\t}\n\telse\n\t{\n\t\t// Look towards view direction.\n\n\t\tTargetPitchAngle = ViewState.PitchAngle;\n\t\tTargetYawAngle = ViewState.YawAngle;\n\n\t\t// Keep the target angle in the [-175, 175] range, as the character often\n\t\t// tends to break his neck when the target angle is close to 180 degrees.\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Private/AlsCharacter.cpp",
+    "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+    "excerpts": [
+      {
+        "start": 1222,
+        "end": 1266,
+        "text": "void AAlsCharacter::RefreshView(const float DeltaTime)\n{\n\tif (MovementBase.bHasRelativeRotation)\n\t{\n\t\t// Offset the rotations to keep them in the movement base space.\n\n\t\tViewState.Rotation.Pitch += MovementBase.DeltaRotation.Pitch;\n\t\tViewState.Rotation.Yaw += MovementBase.DeltaRotation.Yaw;\n\t\tViewState.Rotation.Normalize();\n\t}\n\n\tViewState.PreviousYawAngle = UE_REAL_TO_FLOAT(ViewState.Rotation.Yaw);\n\n\tif (MovementBase.bHasRelativeRotation)\n\t{\n\t\tif (IsLocallyControlled())\n\t\t{\n\t\t\t// We can't depend on the view rotation sent by the character movement component\n\t\t\t// since it's in world space, so in this case we always send it ourselves.\n\n\t\t\tSetReplicatedViewRotation((MovementBase.Rotation.Inverse() * Super::GetViewRotation().Quaternion()).Rotator(), true);\n\t\t}\n\t}\n\telse\n\t{\n\t\tif (IsLocallyControlled() || (IsReplicatingMovement() && GetLocalRole() >= ROLE_Authority && IsValid(GetController())))\n\t\t{\n\t\t\t// The character movement component already sends the view rotation to the\n\t\t\t// server if movement is replicated, so we don't have to do this ourselves.\n\n\t\t\tSetReplicatedViewRotation(Super::GetViewRotation().GetNormalized(), !IsReplicatingMovement());\n\t\t}\n\t}\n\n\tRefreshViewNetworkSmoothing(DeltaTime);\n\n\tViewState.Rotation = ViewState.NetworkSmoothing.FinalRotation;\n\n\t// Set the yaw speed by comparing the current and previous view yaw angle, divided by\n\t// delta seconds. This represents the speed the camera is rotating from left to right.\n\n\tif (DeltaTime > UE_SMALL_NUMBER)\n\t{\n\t\tViewState.YawSpeed = FMath::Abs(UE_REAL_TO_FLOAT(ViewState.Rotation.Yaw - ViewState.PreviousYawAngle)) / DeltaTime;\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "source:Public/State/AlsViewAnimationState.h",
+    "sha256": "604497a5b2b63ab68b5ff581cc5c9f5b77c8f746f1574dad03c27f35d5be9cf2",
+    "excerpts": [
+      {
+        "start": 6,
+        "end": 22,
+        "text": "struct ALS_API FAlsViewAnimationState\n{\n\tGENERATED_BODY()\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFRotator RotationWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = -180, ClampMax = 180, ForceUnits = \"deg\"))\n\tfloat YawAngle{0.0f};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = 0, ForceUnits = \"deg/s\"))\n\tfloat YawSpeed{0.0f};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = -90, ClampMax = 90, ForceUnits = \"deg\"))\n\tfloat PitchAngle{0.0f};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = 0, ClampMax = 1))"
+      }
+    ]
+  },
+  {
+    "key": "source:Public/State/AlsLocomotionAnimationState.h",
+    "sha256": "26cdecf75ce4e2e86ed11f3f6142c30c52b6c694ef542c5a0725287640eefdf7",
+    "excerpts": [
+      {
+        "start": 43,
+        "end": 54,
+        "text": "\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = -180, ClampMax = 180, ForceUnits = \"deg\"))\n\tfloat TargetYawAngleWorldSpace{0.0f};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFVector LocationWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFRotator RotationWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFQuat RotationQuaternionWorldSpace{ForceInit};\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/ab_als_provider.rs",
+    "sha256": "d18d819f16dd42f94873f08f8f1c7ad1d48dbb37f9e34f45883cb117fb3f8030",
+    "excerpts": [
+      {
+        "start": 272,
+        "end": 305,
+        "text": "            let velocity_yaw_angle_view_space =\n                source_velocity_yaw_angle_view_space(motion, view_yaw.0);\n            let (forward, backward, left, right) =\n                source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);\n            let (yaw_forward, yaw_backward, yaw_left, yaw_right) =\n                standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);\n            let has_input = motion.has_input;\n            let delta_seconds = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);\n            let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());\n            let previous_view = player\n                .get_global_input_data(\"view_state.rotation_yaw\")\n                .and_then(|value| value.as_f32().ok())\n                .unwrap_or(view_degrees);\n            if delta_seconds > 1e-8 {\n                player.set_global_input_data(\n                    \"view_state.yaw_speed\",\n                    (view_degrees - previous_view).abs() / delta_seconds,\n                );\n            }\n            player.set_global_input_data(\"view_state.rotation_yaw\", view_degrees);\n            player.set_global_input_data(\"movement_base.b_has_relative_rotation\", motion.movement_base_snapshot.is_some());\n            player.set_global_input_data(\"movement_base.delta_yaw\", if !virtual_time.is_paused() {\n                motion.movement_base_delta_yaw_degrees\n            } else { 0.0 });\n            let body_degrees =\n                crate::als::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();\n            player.set_global_input_data(\"locomotion_state.input_yaw_angle_world_space\", -motion.input_yaw_degrees);\n            let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input(\"locomotion_action\")).is_some_and(|tag| tag.is_valid());\n            if !action_active {\n                player.set_global_input_data(\n                    \"view_state.yaw_angle\",\n                    crate::turn_layer::character_turn_angle_degrees(view_degrees, body_degrees),\n                );\n            }"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/direction_layer.rs",
+    "sha256": "1e650079ae216a2d2a31159d1623efc5d6939234ef71884be4d2a8dc1b9bfc86",
+    "excerpts": [
+      {
+        "start": 34,
+        "end": 43,
+        "text": "\npub fn view_space_direction_angle_from_radians(\n    velocity_yaw_degrees: f32,\n    view_yaw_radians: f32,\n) -> f32 {\n    view_space_direction_angle(velocity_yaw_degrees, view_yaw_radians.to_degrees())\n}\n\nfn graph_direction_angle(raw: f32) -> f32 {\n    normalize_angle180(raw)"
+      }
+    ]
+  },
+  {
+    "key": "src/als/utility/orientation.rs",
+    "sha256": "422a5e3daded335c683adad6d20be0228aaeea196169e5596c7e55c4c52ae7b8",
+    "excerpts": [
+      {
+        "start": 1,
+        "end": 15,
+        "text": "use bevy::prelude::*;\n\npub fn yaw_to_world_forward(yaw: f32) -> Vec3 {\n    (Quat::from_rotation_y(yaw) * Vec3::NEG_Z).normalize_or_zero()\n}\n\npub fn world_forward_to_yaw(direction: Vec3) -> f32 {\n    let horizontal = Vec2::new(direction.x, direction.z);\n    if horizontal.length_squared() <= f32::EPSILON {\n        0.0\n    } else {\n        f32::atan2(-direction.x, -direction.z)\n    }\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/turn_layer.rs",
+    "sha256": "c91ba9f54d74b0c5eb7445c926dd1d14d0e8bca14c3b87df355416f9d43f2c13",
+    "excerpts": [
+      {
+        "start": 360,
+        "end": 362,
+        "text": "pub(crate) fn character_turn_angle_degrees(view_yaw_degrees: f32, body_yaw_degrees: f32) -> f32 {\n    -wrap_angle_degrees(view_yaw_degrees - body_yaw_degrees)\n}"
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "0e8ed0d30395559a06033e54b88a7f6208bb273891b97bb128e79358fa49b111",
+    "excerpts": [
+      {
+        "start": 1130,
+        "end": 1150,
+        "text": "            Sample->SetObjectField(TEXT(\"additive_accumulation\"), CaptureTransform(BasePose[Bone]));\n        }\n        if ((*Input)->HasField(TEXT(\"yaw_difference\")))\n        {\n            const TSharedPtr<FJsonObject>* Difference = nullptr;\n            double VelocityYawDegrees, ViewYawRadians;\n            if (!(*Input)->TryGetObjectField(TEXT(\"yaw_difference\"), Difference)\n                || !(*Difference)->HasTypedField<EJson::Number>(TEXT(\"velocity_yaw_degrees\"))\n                || !(*Difference)->HasTypedField<EJson::Number>(TEXT(\"view_yaw_radians\"))\n                || !(*Difference)->TryGetNumberField(TEXT(\"velocity_yaw_degrees\"), VelocityYawDegrees)\n                || !(*Difference)->TryGetNumberField(TEXT(\"view_yaw_radians\"), ViewYawRadians)\n                || !FMath::IsFinite(static_cast<float>(VelocityYawDegrees)) || !FMath::IsFinite(ViewYawRadians)) { return nullptr; }\n            const double ViewYawDegrees = FMath::RadiansToDegrees(ViewYawRadians);\n            const float DifferenceAngle = static_cast<float>(static_cast<float>(VelocityYawDegrees) - ViewYawDegrees);\n            if (!FMath::IsFinite(ViewYawDegrees) || !FMath::IsFinite(DifferenceAngle)\n                || (DifferenceAngle > 180.0f && DifferenceAngle - 360.0f == DifferenceAngle)\n                || (DifferenceAngle < -180.0f && DifferenceAngle + 360.0f == DifferenceAngle)) { return nullptr; }\n            const float Angle = FMath::UnwindDegrees(DifferenceAngle);\n            Sample->SetNumberField(TEXT(\"view_yaw_degrees\"), ViewYawDegrees);\n            Sample->SetNumberField(TEXT(\"yaw_difference\"), Angle);\n        }"
+      }
+    ]
+  }
+]

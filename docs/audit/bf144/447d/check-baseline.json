@@ -1,0 +1,2253 @@
+{
+  "gate": "PASS_ACTUAL_VIEW_PRODUCERS_AND_NATIVE_COMMON_INPUT_CAST_FACTOR",
+  "actual_target_producer_rows_exact": 319,
+  "native_actual_source_formula_rows_exact": 318,
+  "native_same_input_late_cast_rows_exact": 319,
+  "view_cast_factor_rows_changed": 319,
+  "first_look": {
+    "target_query": 79,
+    "source_frame": 78,
+    "current": 44.999996185302734,
+    "native_common_input": 45
+  },
+  "source_report": {
+    "path": "docs/audit/bf144/446f/restored.native.json.gz",
+    "sha256": "209b1588d2616dd13321342ed00d3908f7ab669e5747596f02fbc5419832180f"
+  },
+  "negative_fixtures_rejected": [
+    "missing-row",
+    "wrong-input",
+    "wrong-native"
+  ],
+  "recorded_difference": "BF144-D237",
+  "new_differences": [],
+  "actual_body_producer_equivalence_claimed": false,
+  "source_actual_formula_rows": [
+    {
+      "source_frame": 0,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 1,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 2,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 3,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 4,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 5,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 6,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 7,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 8,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 9,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 10,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 11,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 12,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 13,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 14,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 15,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 16,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 17,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 18,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 19,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 20,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 21,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 22,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 23,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 24,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 25,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 26,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 27,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 28,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 29,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 30,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 31,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 32,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 33,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 34,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 35,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 36,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 37,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 38,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 39,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 40,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 41,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 42,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 43,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 44,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 45,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 46,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 47,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 48,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 49,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 50,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 51,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 52,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 53,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 54,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 55,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 56,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 57,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 58,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 59,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 60,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 61,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 62,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 63,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 64,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 65,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 66,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 67,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 68,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 69,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 70,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 71,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 72,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 73,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 74,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 75,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 76,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 77,
+      "actual_view_degrees": -44.99999764637141,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 7.105427357601002e-15,
+      "native": 7.105427357601002e-15
+    },
+    {
+      "source_frame": 78,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 79,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 80,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 81,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 82,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 83,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 84,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 85,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 86,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 87,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 88,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 89,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 90,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 91,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 92,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 93,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 94,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 95,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 96,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 97,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -44.99999764637142,
+      "cast_after_difference": 45.0,
+      "native": 45
+    },
+    {
+      "source_frame": 98,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -42.61727141953418,
+      "cast_after_difference": 42.61727523803711,
+      "native": 42.61727523803711
+    },
+    {
+      "source_frame": 99,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -38.19246291766735,
+      "cast_after_difference": 38.192466735839844,
+      "native": 38.192466735839844
+    },
+    {
+      "source_frame": 100,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -32.73246001893352,
+      "cast_after_difference": 32.73246383666992,
+      "native": 32.73246383666992
+    },
+    {
+      "source_frame": 101,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -28.053104397991486,
+      "cast_after_difference": 28.0531063079834,
+      "native": 28.0531063079834
+    },
+    {
+      "source_frame": 102,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -24.042755124663188,
+      "cast_after_difference": 24.042757034301758,
+      "native": 24.042757034301758
+    },
+    {
+      "source_frame": 103,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -20.6057357768305,
+      "cast_after_difference": 20.605737686157227,
+      "native": 20.605737686157227
+    },
+    {
+      "source_frame": 104,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -17.660053253173828,
+      "cast_after_difference": 17.66005516052246,
+      "native": 17.66005516052246
+    },
+    {
+      "source_frame": 105,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -15.135457991086184,
+      "cast_after_difference": 15.13546085357666,
+      "native": 15.13546085357666
+    },
+    {
+      "source_frame": 106,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -12.971755026509358,
+      "cast_after_difference": 12.971757888793945,
+      "native": 12.971757888793945
+    },
+    {
+      "source_frame": 107,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -11.11735725402832,
+      "cast_after_difference": 11.11736011505127,
+      "native": 11.11736011505127
+    },
+    {
+      "source_frame": 108,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -9.5280504217381,
+      "cast_after_difference": 9.528053283691406,
+      "native": 9.528053283691406
+    },
+    {
+      "source_frame": 109,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -8.165938376582005,
+      "cast_after_difference": 8.16594123840332,
+      "native": 8.16594123840332
+    },
+    {
+      "source_frame": 110,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -6.998545169145474,
+      "cast_after_difference": 6.998547554016113,
+      "native": 6.998547554016113
+    },
+    {
+      "source_frame": 111,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -5.998036861419677,
+      "cast_after_difference": 5.998039245605469,
+      "native": 5.998039245605469
+    },
+    {
+      "source_frame": 112,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -5.1405577654571175,
+      "cast_after_difference": 5.140560150146484,
+      "native": 5.140560150146484
+    },
+    {
+      "source_frame": 113,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -4.405661582946777,
+      "cast_after_difference": 4.405663967132568,
+      "native": 4.405663967132568
+    },
+    {
+      "source_frame": 114,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -3.7758247848624373,
+      "cast_after_difference": 3.775827407836914,
+      "native": 3.775827407836914
+    },
+    {
+      "source_frame": 115,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -3.236028909365928,
+      "cast_after_difference": 3.2360315322875977,
+      "native": 3.2360315322875977
+    },
+    {
+      "source_frame": 116,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -2.773401975359775,
+      "cast_after_difference": 2.773404598236084,
+      "native": 2.773404598236084
+    },
+    {
+      "source_frame": 117,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -2.376912355189859,
+      "cast_after_difference": 2.3769149780273438,
+      "native": 2.3769149780273438
+    },
+    {
+      "source_frame": 118,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -2.0371050832657716,
+      "cast_after_difference": 2.0371077060699463,
+      "native": 2.0371077060699463
+    },
+    {
+      "source_frame": 119,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -1.745877384968253,
+      "cast_after_difference": 1.745879888534546,
+      "native": 1.745879888534546
+    },
+    {
+      "source_frame": 120,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -1.496284008026123,
+      "cast_after_difference": 1.4962865114212036,
+      "native": 1.4962865114212036
+    },
+    {
+      "source_frame": 121,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -1.282372832172484,
+      "cast_after_difference": 1.2823753356933594,
+      "native": 1.2823753356933594
+    },
+    {
+      "source_frame": 122,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -1.0990426539296434,
+      "cast_after_difference": 1.0990451574325562,
+      "native": 1.0990451574325562
+    },
+    {
+      "source_frame": 123,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.9419220089912417,
+      "cast_after_difference": 0.941924512386322,
+      "native": 0.941924512386322
+    },
+    {
+      "source_frame": 124,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.8072638510865887,
+      "cast_after_difference": 0.807266354560852,
+      "native": 0.807266354560852
+    },
+    {
+      "source_frame": 125,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.6918563842773436,
+      "cast_after_difference": 0.6918588876724243,
+      "native": 0.6918588876724243
+    },
+    {
+      "source_frame": 126,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.5929479598417515,
+      "cast_after_difference": 0.5929504632949829,
+      "native": 0.5929504632949829
+    },
+    {
+      "source_frame": 127,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.5081798433758989,
+      "cast_after_difference": 0.5081823468208313,
+      "native": 0.5081823468208313
+    },
+    {
+      "source_frame": 128,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.4355304836799405,
+      "cast_after_difference": 0.43553298711776733,
+      "native": 0.43553298711776733
+    },
+    {
+      "source_frame": 129,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.3732673227420946,
+      "cast_after_difference": 0.37326982617378235,
+      "native": 0.37326982617378235
+    },
+    {
+      "source_frame": 130,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.31990551945409607,
+      "cast_after_difference": 0.3199080228805542,
+      "native": 0.3199080228805542
+    },
+    {
+      "source_frame": 131,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.2741725146770477,
+      "cast_after_difference": 0.2741750180721283,
+      "native": 0.2741750180721283
+    },
+    {
+      "source_frame": 132,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.23497766256332397,
+      "cast_after_difference": 0.23498016595840454,
+      "native": 0.23498016595840454
+    },
+    {
+      "source_frame": 133,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.20138624308515315,
+      "cast_after_difference": 0.20138874650001526,
+      "native": 0.20138874650001526
+    },
+    {
+      "source_frame": 134,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.17259718476032046,
+      "cast_after_difference": 0.1725996881723404,
+      "native": 0.1725996881723404
+    },
+    {
+      "source_frame": 135,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.14792390166263658,
+      "cast_after_difference": 0.14792640507221222,
+      "native": 0.14792640507221222
+    },
+    {
+      "source_frame": 136,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.1267780065536499,
+      "cast_after_difference": 0.12678050994873047,
+      "native": 0.12678050994873047
+    },
+    {
+      "source_frame": 137,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.10865519939784464,
+      "cast_after_difference": 0.10865770280361176,
+      "native": 0.10865770280361176
+    },
+    {
+      "source_frame": 138,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.09312329440393795,
+      "cast_after_difference": 0.09312579780817032,
+      "native": 0.09312579780817032
+    },
+    {
+      "source_frame": 139,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.07981188594510513,
+      "cast_after_difference": 0.07981438934803009,
+      "native": 0.07981438934803009
+    },
+    {
+      "source_frame": 140,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.06840351968332924,
+      "cast_after_difference": 0.06840602308511734,
+      "native": 0.06840602308511734
+    },
+    {
+      "source_frame": 141,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.058626133942823344,
+      "cast_after_difference": 0.058628637343645096,
+      "native": 0.058628637343645096
+    },
+    {
+      "source_frame": 142,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.05024655908346176,
+      "cast_after_difference": 0.05024906247854233,
+      "native": 0.05024906247854233
+    },
+    {
+      "source_frame": 143,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.04306495562195778,
+      "cast_after_difference": 0.043067459017038345,
+      "native": 0.043067459017038345
+    },
+    {
+      "source_frame": 144,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.03691006078952341,
+      "cast_after_difference": 0.03691256418824196,
+      "native": 0.03691256418824196
+    },
+    {
+      "source_frame": 145,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.03163509070873261,
+      "cast_after_difference": 0.03163759410381317,
+      "native": 0.03163759410381317
+    },
+    {
+      "source_frame": 146,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.027114249763201318,
+      "cast_after_difference": 0.02711675502359867,
+      "native": 0.02711675502359867
+    },
+    {
+      "source_frame": 147,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.02323972433578092,
+      "cast_after_difference": 0.023242229595780373,
+      "native": 0.023242229595780373
+    },
+    {
+      "source_frame": 148,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.019919114185427137,
+      "cast_after_difference": 0.019921619445085526,
+      "native": 0.019921619445085526
+    },
+    {
+      "source_frame": 149,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.01707323081626555,
+      "cast_after_difference": 0.017075736075639725,
+      "native": 0.017075736075639725
+    },
+    {
+      "source_frame": 150,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.01463420502699364,
+      "cast_after_difference": 0.014636709354817867,
+      "native": 0.014636709354817867
+    },
+    {
+      "source_frame": 151,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.012543871066213796,
+      "cast_after_difference": 0.012546375393867493,
+      "native": 0.012546375393867493
+    },
+    {
+      "source_frame": 152,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.01075237803053142,
+      "cast_after_difference": 0.010754882358014584,
+      "native": 0.010754882358014584
+    },
+    {
+      "source_frame": 153,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.009217003359481168,
+      "cast_after_difference": 0.009219507686793804,
+      "native": 0.009219507686793804
+    },
+    {
+      "source_frame": 154,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.007901131174662622,
+      "cast_after_difference": 0.007903635501861572,
+      "native": 0.007903635501861572
+    },
+    {
+      "source_frame": 155,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.006773381027642245,
+      "cast_after_difference": 0.006775885354727507,
+      "native": 0.006775885354727507
+    },
+    {
+      "source_frame": 156,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.005806858185110285,
+      "cast_after_difference": 0.0058093625120818615,
+      "native": 0.0058093625120818615
+    },
+    {
+      "source_frame": 157,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.004978512413288171,
+      "cast_after_difference": 0.004981016740202904,
+      "native": 0.004981016740202904
+    },
+    {
+      "source_frame": 158,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.004268590360481995,
+      "cast_after_difference": 0.004271094687283039,
+      "native": 0.004271094687283039
+    },
+    {
+      "source_frame": 159,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0036601610478328435,
+      "cast_after_difference": 0.003662665607407689,
+      "native": 0.003662665607407689
+    },
+    {
+      "source_frame": 160,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.003138714935346343,
+      "cast_after_difference": 0.0031412194948643446,
+      "native": 0.0031412194948643446
+    },
+    {
+      "source_frame": 161,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0026918165382880947,
+      "cast_after_difference": 0.002694321097806096,
+      "native": 0.002694321097806096
+    },
+    {
+      "source_frame": 162,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.002308808267116546,
+      "cast_after_difference": 0.0023113128263503313,
+      "native": 0.0023113128263503313
+    },
+    {
+      "source_frame": 163,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0019805561749421936,
+      "cast_after_difference": 0.001983060734346509,
+      "native": 0.001983060734346509
+    },
+    {
+      "source_frame": 164,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0016992322634905577,
+      "cast_after_difference": 0.0017017367063090205,
+      "native": 0.0017017367063090205
+    },
+    {
+      "source_frame": 165,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0014581274006673082,
+      "cast_after_difference": 0.0014606318436563015,
+      "native": 0.0014606318436563015
+    },
+    {
+      "source_frame": 166,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0012514917178805263,
+      "cast_after_difference": 0.001253996160812676,
+      "native": 0.001253996160812676
+    },
+    {
+      "source_frame": 167,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0010743974706883819,
+      "cast_after_difference": 0.0010769019136205316,
+      "native": 0.0010769019136205316
+    },
+    {
+      "source_frame": 168,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0009226212276871594,
+      "cast_after_difference": 0.0009251257288269699,
+      "native": 0.0009251257288269699
+    },
+    {
+      "source_frame": 169,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0007925434037474588,
+      "cast_after_difference": 0.000795047904830426,
+      "native": 0.000795047904830426
+    },
+    {
+      "source_frame": 170,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 171,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 172,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 173,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 174,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 175,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 176,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 177,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 178,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 179,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 180,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 181,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 182,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 183,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 184,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 185,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 186,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 187,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 188,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 189,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 190,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 191,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 192,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 193,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 194,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 195,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 196,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 197,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 198,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 199,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 200,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 201,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 202,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 203,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 204,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 205,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 206,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 207,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 208,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 209,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 210,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 211,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 212,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 213,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 214,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 215,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 216,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 217,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 218,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 219,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 220,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 221,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 222,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 223,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 224,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 225,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 226,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 227,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 228,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 229,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 230,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 231,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 232,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 233,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 234,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 235,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 236,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 237,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 238,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 239,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 240,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 241,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 242,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 243,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 244,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 245,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 246,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 247,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 248,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 249,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 250,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 251,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 252,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 253,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 254,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 255,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 256,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 257,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 258,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 259,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 260,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 261,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 262,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 263,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 264,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 265,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 266,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 267,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 268,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 269,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 270,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 271,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 272,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 273,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 274,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 275,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 276,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 277,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 278,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 279,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 280,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 281,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 282,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 283,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 284,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 285,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 286,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 287,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 288,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 289,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 290,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 291,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 292,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 293,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 294,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 295,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 296,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 297,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 298,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 299,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 300,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 301,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 302,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 303,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 304,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 305,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 306,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 307,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 308,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 309,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 310,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 311,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 312,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 313,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 314,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 315,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 316,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    },
+    {
+      "source_frame": 317,
+      "actual_view_degrees": 2.5044781608585254e-06,
+      "actual_body_degrees": -0.0006810619960901931,
+      "cast_after_difference": 0.0006835664971731603,
+      "native": 0.0006835664971731603
+    }
+  ]
+}

@@ -1,0 +1,4151 @@
+{
+  "samples": [
+    {
+      "name": "actual-target-query-0",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-1",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-2",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-3",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-4",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-5",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-6",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-7",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-8",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-9",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-10",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-11",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-12",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-13",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-14",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-15",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-16",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-17",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-18",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-19",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-20",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-21",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-22",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-23",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-24",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-25",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-26",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-27",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-28",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-29",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-30",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-31",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-32",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-33",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-34",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-35",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-36",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-37",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-38",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-39",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-40",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-41",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-42",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-43",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-44",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-45",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-46",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-47",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-48",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-49",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-50",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-51",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-52",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-53",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-54",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-55",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-56",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-57",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-58",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-59",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-60",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-61",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-62",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-63",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-64",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-65",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-66",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-67",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-68",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-69",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-70",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-71",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-72",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-73",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-74",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-75",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-76",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-77",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-78",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -0.7853982448577881
+      }
+    },
+    {
+      "name": "actual-target-query-79",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-80",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-81",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-82",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-83",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-84",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-85",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-86",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-87",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-88",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-89",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-90",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-91",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-92",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-93",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-94",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-95",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-96",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-97",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-98",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -45.000003814697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-99",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -47.382728576660156,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-100",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -51.80754470825195,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-101",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -57.26753234863281,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-102",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -61.94690704345703,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-103",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -65.957275390625,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-104",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -69.3943099975586,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-105",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -72.3399887084961,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-106",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -74.8646011352539,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-107",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -77.02830505371094,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-108",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -78.88264465332031,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-109",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -80.47189331054688,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-110",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -81.83402252197266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-111",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -83.00139617919922,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-112",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -84.00189208984375,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-113",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -84.85932922363281,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-114",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -85.59420013427734,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-115",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -86.22400665283203,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-116",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -86.76377868652344,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-117",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -87.22638702392578,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-118",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -87.62284851074219,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-119",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -87.9626235961914,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-120",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -88.25383758544922,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-121",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -88.50341033935547,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-122",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -88.7173080444336,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-123",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -88.90061950683594,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-124",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.05773162841797,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-125",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.1923828125,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-126",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.30778503417969,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-127",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.40669250488281,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-128",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.49144744873047,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-129",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.56409454345703,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-130",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.6263427734375,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-131",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.67969512939453,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-132",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.72543334960938,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-133",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.7646255493164,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-134",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.7982177734375,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-135",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.82701110839844,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-136",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.85167694091797,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-137",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.87281799316406,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-138",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.89093780517578,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-139",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9064712524414,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-140",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9197769165039,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-141",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.93115997314453,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-142",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.94091033935547,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-143",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.94923400878906,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-144",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.95632934570312,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-145",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9624252319336,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-146",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.96763610839844,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-147",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.97210693359375,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-148",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.97594451904297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-149",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9792251586914,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-150",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.98204803466797,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-151",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.98445892333984,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-152",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.98652648925781,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-153",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.98829650878906,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-154",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.98981475830078,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-155",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9911117553711,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-156",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99222564697266,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-157",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99317932128906,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-158",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99400329589844,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-159",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99470520019531,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-160",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99530792236328,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-161",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99581909179688,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-162",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99625396728516,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-163",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99662780761719,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-164",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9969482421875,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-165",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99723052978516,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-166",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99746704101562,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-167",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99767303466797,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-168",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99784851074219,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-169",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99800109863281,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-170",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99813842773438,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-171",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99824523925781,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-172",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99833679199219,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-173",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99842071533203,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-174",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99848175048828,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-175",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99854278564453,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-176",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99858856201172,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-177",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9986343383789,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-178",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9986801147461,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-179",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99871063232422,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-180",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99874877929688,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-181",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99876403808594,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-182",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.998779296875,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-183",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9988021850586,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-184",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-185",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-186",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-187",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-188",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-189",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-190",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-191",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-192",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-193",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-194",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-195",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-196",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-197",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-198",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99889373779297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-199",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99905395507812,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-200",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99919128417969,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-201",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99930572509766,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-202",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9994125366211,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-203",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9994888305664,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-204",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99956512451172,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-205",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99961853027344,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-206",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99967956542969,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-207",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9997329711914,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-208",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99977111816406,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-209",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99980926513672,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-210",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99983215332031,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-211",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.99987030029297,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-212",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9998779296875,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-213",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -89.9999008178711,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-214",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-215",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-216",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-217",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-218",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-219",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-220",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-221",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-222",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-223",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-224",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-225",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-226",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-227",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-228",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-229",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-230",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-231",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-232",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-233",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-234",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-235",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-236",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-237",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-238",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-239",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-240",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-241",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-242",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-243",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-244",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-245",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-246",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-247",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-248",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-249",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-250",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-251",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-252",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-253",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-254",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-255",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-256",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-257",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-258",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-259",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-260",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-261",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-262",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-263",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-264",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-265",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-266",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-267",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-268",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-269",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-270",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-271",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-272",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-273",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-274",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-275",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-276",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-277",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-278",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-279",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-280",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-281",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-282",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-283",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-284",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-285",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-286",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-287",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-288",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-289",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-290",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-291",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-292",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-293",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-294",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-295",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-296",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-297",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-298",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-299",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-300",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-301",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-302",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-303",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-304",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-305",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-306",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-307",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-308",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-309",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-310",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-311",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-312",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-313",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-314",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-315",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-316",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-317",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    },
+    {
+      "name": "actual-target-query-318",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "yaw_difference": {
+        "velocity_yaw_degrees": -90.0,
+        "view_yaw_radians": -1.5707963705062866
+      }
+    }
+  ]
+}

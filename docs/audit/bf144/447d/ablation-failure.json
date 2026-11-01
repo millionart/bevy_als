@@ -1,0 +1,5 @@
+{
+  "expected_exit_code": 1,
+  "assertion": "row['late_view_cast_control']==sample['yaw_difference']",
+  "stderr": "Traceback (most recent call last):\n  File \"./docs/audit/bf144/447d/check.py\", line 22, in <module>\n    assert validate(replay,request,native)==319\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"./docs/audit/bf144/447d/check.py\", line 17, in validate\n    assert row['late_view_cast_control']==sample['yaw_difference']\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+}
