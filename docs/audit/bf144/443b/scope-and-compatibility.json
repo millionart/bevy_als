@@ -1,0 +1,8 @@
+{
+  "old_pre240_exact": true,
+  "old_motor240_exact": true,
+  "old_last240_exact": true,
+  "render_gpu_pass_acceptance": "deferred by user peripheral exclusion",
+  "public_control_render_taa_timeout_reproduced": true,
+  "animation_functional_gate_preserved": true
+}

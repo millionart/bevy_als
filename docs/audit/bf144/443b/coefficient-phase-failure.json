@@ -1,0 +1,12 @@
+{
+  "failure_kind": "Diagnostic schedule ambiguity",
+  "conflicting_systems": [
+    "disable_ragdoll_gyroscopic_torque",
+    "c443b_coefficients"
+  ],
+  "reason": "Observer read SolverBody before all PreSubstep writers were ordered",
+  "correction": "Observe after all SolverSystems.PreSubstep and before Substep",
+  "production_changed": false,
+  "premature_replay_missing_file_exit_code": 101,
+  "premature_replay_excluded_from_gate": true
+}
