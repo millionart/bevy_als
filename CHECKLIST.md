@@ -3902,6 +3902,10 @@
   - .447b Gate完成：`docs/audit/bf144/447b/summary.json` PASS_ACTUAL_HEAD_INPUT_STATE_AND_LOOK_PIN_READONLY_ENTRY。319两阶段/638 Head输入state与319实际Look pin通过，global/property/frame-input来源保留，首次未分配state的None不补0；source78/target79实际view45/44.9999961853与Head/pin输出差已确认，输入非逐位相同，未据1ULP clock认kernel缺陷。旧五数组扣head_values精确；删字段KeyError拒、两源码SHA恢复同target重编后完整新旧数组及analysis字节一致，两functional Gate过。396身份/六库/原main不变，reader承接.446f；64长期Git证据/哈希/隐私封存。新增0、271，后共同输入kernel/Root/非零view/attributes保持未闭，截图0/性能暂停。
   - .447b时间/复盘：开始2026-11-01 19:34:49 +0800；预估结束19:54:49；实际结束19:43:46，实耗8:57、偏差−11:03，结果PASS实际Head读点。固定来源表/已有公共缓存避免新增工具API或生产分支，热编译与三原场景一次通过，实际与.446e约9分钟相符；后续此类只读快照按该成本估，同输入算法/native kernel能力仍须按真实缺口另估，不能把读取通过写成Head等价。父19:59:08保持，下一.c先按actual输入与历史重放public核，再决定原生数学前置。
 
+- [x] BF144.447c U07Head实际历史public核与共同源输入控制：依赖.b已提交0453fc9d的319前后真实参数/state/pin，先用当前公开update_head_state从默认初态独立重建全部319输出（首query实际初始化delta0资格单列），再用typed source输入/前态执行同一公开核，分离首次view1ULP输入与kernel余差。Gate：完整actual参数/连续状态/Look输出逐值、首次共同源输入最小反例或精确无差、源调用参数与设置事实、必要因素消融/源码bytes恢复同target重编/身份/Git；若原生scalar primitive缺口无法归因先拆读取前置，不凭FMA或算序猜测编号。开始2026-11-01 19:45:12 +0800；预估结束20:00:12。依据.446c两端核与事实21:43、现所有Head数据及公开kernel已具，估15分钟先闭实际端点和共同输入首界，不新runtime；父19:59:08保持误差规则，生产不改，271/截图0/性能暂停。
+  - 19:54 source/static与恢复闭环：公开Head核连续重建actual319输出、typed native实际前态/输入逐帧318全部精确；source78/target79只替换View.YawAngle44.999996185302734→45即可恢复源Head yaw/velocity/amount，单换source前态仍得target输出，实际Look pin逐值相等。source半衰期与源CPP/native Settings、第三人称/无模式命令/无relative base范围已核，不存在本域共同输入spring余差，不需扩原生数学探针。移除view替换断言101；旧restore-final参数分支失误且覆盖当轮备份，已修正mode解析和备份前校验，旧轮不作恢复证据。独立verified-baseline→ablated-verified→restored-verified重做后源码SHA与完整报告byte精确恢复，396当前身份/六库/原main不变；复用.b原场景功能Gate，无新runtime/生产改动。上游View producer尚未归因，不按名字合并D237/D258、不新增编号；Git封存待最后核对，271/截图0/性能暂停。
+  - .447c Gate完成：`docs/audit/bf144/447c/summary.json` PASS_COMMON_INPUT_HEAD_KERNEL_AND_FIRST_LOOK_VIEW_FACTOR；52份长期证据实际长度/SHA/隐私/Git跟踪核对，消融失败与修正后的恢复身份均封存，新增0、271不变。开始19:45:12、预估结束20:00:12、实际结束2026-11-01 19:54:47 +0800，实耗09:35、偏差−05:25；独立提交后父项继续直接View输入闭包，完整Root/attributes不省略。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D274 / P3 — 从含旋转的仿射矩阵重提scale，改变源保存scale及实际floor尺寸。

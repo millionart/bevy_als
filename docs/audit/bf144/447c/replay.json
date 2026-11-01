@@ -1,0 +1,9 @@
+{
+  "actual_target_rows_exact": 319,
+  "common_input_difference_rows": 0,
+  "first": null,
+  "full_root_equivalence_claimed": false,
+  "gate": "PASS_ACTUAL_TARGET319_HEAD_REPLAY_WITH_NATIVE_COMMON_INPUT_COMPARISON",
+  "native_common_input_rows": 318,
+  "new_difference_confirmed": false
+}

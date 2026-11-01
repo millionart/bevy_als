@@ -1,0 +1,60 @@
+{
+  "actual_target_rows_exact": 319,
+  "common_input_difference_rows": 0,
+  "first": null,
+  "first_control": {
+    "actual_look_pin": {
+      "key": "head_state.yaw_amount",
+      "node_guid": "007389de-893f-5446-9746-a862ae78bcc5",
+      "value": 0.5098477005958557
+    },
+    "source": {
+      "initialization_required": false,
+      "pitch_angle": 0.0,
+      "switching_look_sides": false,
+      "yaw_amount": 0.5098476409912109,
+      "yaw_angle": 3.5451583862304688,
+      "yaw_velocity": 181.6302947998047
+    },
+    "source_frame": 78,
+    "source_history_only": {
+      "initialization_required": false,
+      "pitch_angle": 0.0,
+      "switching_look_sides": false,
+      "yaw_amount": 0.5098477005958557,
+      "yaw_angle": 3.5451622009277344,
+      "yaw_velocity": 181.6302947998047
+    },
+    "source_view_and_history": {
+      "initialization_required": false,
+      "pitch_angle": 0.0,
+      "switching_look_sides": false,
+      "yaw_amount": 0.5098476409912109,
+      "yaw_angle": 3.5451583862304688,
+      "yaw_velocity": 181.6302947998047
+    },
+    "source_view_only": {
+      "initialization_required": false,
+      "pitch_angle": 0.0,
+      "switching_look_sides": false,
+      "yaw_amount": 0.5098476409912109,
+      "yaw_angle": 3.5451583862304688,
+      "yaw_velocity": 181.6302947998047
+    },
+    "source_view_yaw_angle": 45.0,
+    "target": {
+      "initialization_required": false,
+      "pitch_angle": 0.0,
+      "switching_look_sides": false,
+      "yaw_amount": 0.5098477005958557,
+      "yaw_angle": 3.5451622009277344,
+      "yaw_velocity": 181.6302947998047
+    },
+    "target_query": 79,
+    "target_view_yaw_angle": 44.999996185302734
+  },
+  "full_root_equivalence_claimed": false,
+  "gate": "PASS_ACTUAL_TARGET319_HEAD_REPLAY_WITH_NATIVE_COMMON_INPUT_COMPARISON",
+  "native_common_input_rows": 318,
+  "new_difference_confirmed": false
+}
