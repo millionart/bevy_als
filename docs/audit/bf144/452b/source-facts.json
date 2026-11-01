@@ -1,0 +1,125 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathNeon.h",
+    "sha256": "bfcba580c7c1f4b39dd6d4b45390d5db64c6f63c3579ef645f83ea19dc6a4b7c",
+    "excerpts": [
+      {
+        "start": 1022,
+        "end": 1043,
+        "text": "FORCEINLINE VectorRegister4Float VectorDot4(VectorRegister4Float Vec1, VectorRegister4Float Vec2)\n{\n\tVectorRegister4Float Temp = VectorMultiply(Vec1, Vec2);\n\tfloat32x2_t sum = vpadd_f32(vget_low_f32(Temp), vget_high_f32(Temp));\n\tsum = vpadd_f32(sum, sum);\n\treturn vdupq_lane_f32(sum, 0);\n}\n\nFORCEINLINE VectorRegister4Double VectorDot4(VectorRegister4Double Vec1, VectorRegister4Double Vec2)\n{\n\tVectorRegister2Double A, B;\n\tA = vmulq_f64(Vec1.XY, Vec2.XY);\n\tB = vfmaq_f64(A, Vec1.ZW, Vec2.ZW);\n\tA = vextq_f64(B, B, 1);\n\tVectorRegister4Double Temp;\n\tTemp.XY = vaddq_f64(A, B);\n\tTemp.ZW = Temp.XY;\n\treturn Temp;\n}\n\n/**\n * Creates a four-part mask based on component-wise == compares of the input vectors"
+      },
+      {
+        "start": 1690,
+        "end": 1747,
+        "text": "}\n\n/**\n * Returns an estimate of 1/sqrt(c) for each component of the vector\n *\n * @param Vector\tVector \n * @return\t\t\tVectorRegister4Float(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))\n */\nFORCEINLINE VectorRegister4Float VectorReciprocalSqrtEstimate(VectorRegister4Float Vec)\n{\n\treturn vrsqrteq_f32(Vec);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrtEstimate(VectorRegister4Double Vec)\n{\n\tVectorRegister4Double Result;\n\tResult.XY = vrsqrteq_f64(Vec.XY);\n\tResult.ZW = vrsqrteq_f64(Vec.ZW);\n\treturn Result;\n}\n\n/**\n * Return the reciprocal of the square root of each component\n *\n * @param Vector\tVector\n * @return\t\t\tVectorRegister4Float(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))\n */\nFORCEINLINE VectorRegister4Float VectorReciprocalSqrt(VectorRegister4Float Vec)\n{\n\t// Initial estimate\n\tVectorRegister4Float RecipSqrt = VectorReciprocalSqrtEstimate(Vec);\n\n\t// Two refinement\n\tRecipSqrt = VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);\n\treturn VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrt(VectorRegister4Double Vec)\n{\n\t// Initial estimate\n\tVectorRegister4Double RecipSqrt = VectorReciprocalSqrtEstimate(Vec);\n\n\t// Two refinement\n\tVectorRegister4Double Tmp;\n\tTmp.XY = vrsqrtsq_f64(Vec.XY, VectorMultiply(RecipSqrt.XY, RecipSqrt.XY));\n\tTmp.ZW = vrsqrtsq_f64(Vec.ZW, VectorMultiply(RecipSqrt.ZW, RecipSqrt.ZW));\n\tRecipSqrt = VectorMultiply(Tmp, RecipSqrt);\n\n\tTmp.XY = vrsqrtsq_f64(Vec.XY, VectorMultiply(RecipSqrt.XY, RecipSqrt.XY));\n\tTmp.ZW = vrsqrtsq_f64(Vec.ZW, VectorMultiply(RecipSqrt.ZW, RecipSqrt.ZW));\n\treturn VectorMultiply(Tmp, RecipSqrt);\n}\n\n/**\n * Return Reciprocal Length of the vector\n *\n * @param Vector\tVector\n * @return\t\t\tVectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))"
+      },
+      {
+        "start": 2310,
+        "end": 2337,
+        "text": "*\n* Order matters when composing quaternions: C = VectorQuaternionMultiply2(A, B) will yield a quaternion C = A * B\n* that logically first applies B then A to any subsequent transformation (right first, then left).\n*\n* @param Quat1\tPointer to the first quaternion\n* @param Quat2\tPointer to the second quaternion\n* @return Quat1 * Quat2\n*/\nFORCEINLINE VectorRegister4Float VectorQuaternionMultiply2(VectorRegister4Float Quat1, VectorRegister4Float Quat2)\n{\n\tVectorRegister4Float Result = VectorMultiply(VectorReplicate(Quat1, 3), Quat2);\n\tResult = VectorMultiplyAdd( VectorMultiply(VectorReplicate(Quat1, 0), VectorSwizzle(Quat2, 3,2,1,0)), GlobalVectorConstants::QMULTI_SIGN_MASK0, Result);\n\tResult = VectorMultiplyAdd( VectorMultiply(VectorReplicate(Quat1, 1), VectorSwizzle(Quat2, 2,3,0,1)), GlobalVectorConstants::QMULTI_SIGN_MASK1, Result);\n\tResult = VectorMultiplyAdd( VectorMultiply(VectorReplicate(Quat1, 2), VectorSwizzle(Quat2, 1,0,3,2)), GlobalVectorConstants::QMULTI_SIGN_MASK2, Result);\n\n\treturn Result;\n}\n\nFORCEINLINE VectorRegister4Double VectorQuaternionMultiply2(VectorRegister4Double Quat1, VectorRegister4Double Quat2)\n{\n\tVectorRegister4Double Result = VectorMultiply(VectorReplicate(Quat1, 3), Quat2);\n\tResult = VectorMultiplyAdd(VectorMultiply(VectorReplicate(Quat1, 0), VectorSwizzle(Quat2, 3, 2, 1, 0)), GlobalVectorConstants::DOUBLE_QMULTI_SIGN_MASK0, Result);\n\tResult = VectorMultiplyAdd(VectorMultiply(VectorReplicate(Quat1, 1), VectorSwizzle(Quat2, 2, 3, 0, 1)), GlobalVectorConstants::DOUBLE_QMULTI_SIGN_MASK1, Result);\n\tResult = VectorMultiplyAdd(VectorMultiply(VectorReplicate(Quat1, 2), VectorSwizzle(Quat2, 1, 0, 3, 2)), GlobalVectorConstants::DOUBLE_QMULTI_SIGN_MASK2, Result);\n\n\treturn Result;\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorCommon.h.inl",
+    "sha256": "5f43e189d66b68c76ed29bda5713e8daa1fdf3201a76efee2fa9251d4fc01293",
+    "excerpts": [
+      {
+        "start": 375,
+        "end": 383,
+        "text": "FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(VectorRegister4Float Vec)\n{\n\treturn VectorReciprocalSqrt(Vec);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(VectorRegister4Double Vec)\n{\n\treturn VectorReciprocalSqrt(Vec);\n}"
+      },
+      {
+        "start": 420,
+        "end": 446,
+        "text": "\treturn VectorMultiply(Vector, VectorReciprocalLenEstimate(Vector));\n}\n\n// Returns ((Vector dot Vector) >= 1e-8) ? (Vector / |Vector|) : DefaultValue\n// Uses accurate 1/sqrt, not the estimate\nFORCEINLINE VectorRegister4Float VectorNormalizeSafe(VectorRegister4Float Vector, VectorRegister4Float DefaultValue)\n{\n\tconst VectorRegister4Float SquareSum = VectorDot4(Vector, Vector);\n\tconst VectorRegister4Float NonZeroMask = VectorCompareGE(SquareSum, GlobalVectorConstants::SmallLengthThreshold);\n\tconst VectorRegister4Float InvLength = VectorReciprocalSqrtAccurate(SquareSum);\n\tconst VectorRegister4Float NormalizedVector = VectorMultiply(InvLength, Vector);\n\treturn VectorSelect(NonZeroMask, NormalizedVector, DefaultValue);\n}\n\nFORCEINLINE VectorRegister4Double VectorNormalizeSafe(VectorRegister4Double Vector, VectorRegister4Double DefaultValue)\n{\n\tconst VectorRegister4Double SquareSum = VectorDot4(Vector, Vector);\n\tconst VectorRegister4Double NonZeroMask = VectorCompareGE(SquareSum, GlobalVectorConstants::DoubleSmallLengthThreshold);\n\tconst VectorRegister4Double InvLength = VectorReciprocalSqrtAccurate(SquareSum);\n\tconst VectorRegister4Double NormalizedVector = VectorMultiply(InvLength, Vector);\n\treturn VectorSelect(NonZeroMask, NormalizedVector, DefaultValue);\n}\n\n/**\n * Returns non-zero if any element in Vec1 is lesser than the corresponding element in Vec2, otherwise 0.\n *\n * @param Vec1\t\t\t1st source vector"
+      },
+      {
+        "start": 599,
+        "end": 609,
+        "text": "// Normalize quaternion ( result = (Q.Q >= 1e-8) ? (Q / |Q|) : (0,0,0,1) )\nFORCEINLINE VectorRegister4Float VectorNormalizeQuaternion(VectorRegister4Float UnnormalizedQuat)\n{\n\treturn VectorNormalizeSafe(UnnormalizedQuat, GlobalVectorConstants::Float0001);\n}\n\nFORCEINLINE VectorRegister4Double VectorNormalizeQuaternion(VectorRegister4Double UnnormalizedQuat)\n{\n\treturn VectorNormalizeSafe(UnnormalizedQuat, GlobalVectorConstants::Double0001);\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorConstants.h.inl",
+    "sha256": "62c8ebfcd4498fcf28f85a001c57e63cd8701f92d07b121e77745b84b7cec621",
+    "excerpts": [
+      {
+        "start": 85,
+        "end": 93,
+        "text": "\n\tinline constexpr VectorRegister4Float QMULTI_SIGN_MASK0 = MakeVectorRegisterFloatConstant( 1.f, -1.f, 1.f, -1.f );\n\tinline constexpr VectorRegister4Float QMULTI_SIGN_MASK1 = MakeVectorRegisterFloatConstant( 1.f, 1.f, -1.f, -1.f );\n\tinline constexpr VectorRegister4Float QMULTI_SIGN_MASK2 = MakeVectorRegisterFloatConstant( -1.f, 1.f, 1.f, -1.f );\n\tinline constexpr VectorRegister4Double DOUBLE_QMULTI_SIGN_MASK0 = MakeVectorRegisterDoubleConstant(1., -1., 1., -1.);\n\tinline constexpr VectorRegister4Double DOUBLE_QMULTI_SIGN_MASK1 = MakeVectorRegisterDoubleConstant(1., 1., -1., -1.);\n\tinline constexpr VectorRegister4Double DOUBLE_QMULTI_SIGN_MASK2 = MakeVectorRegisterDoubleConstant(-1., 1., 1., -1.);\n\n\tinline constexpr VectorRegister4Float DEG_TO_RAD = MakeVectorRegisterConstant(UE_PI/(180.f), UE_PI/(180.f), UE_PI/(180.f), UE_PI/(180.f));"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/Quat.h",
+    "sha256": "7004f385a524d92a6baba51c545c0460263551526813e4ed06d31ad6edb08300",
+    "excerpts": [
+      {
+        "start": 1105,
+        "end": 1118,
+        "text": "inline void TQuat<T>::Normalize(T Tolerance)\n{\n#if PLATFORM_ENABLE_VECTORINTRINSICS\n\tconst QuatVectorRegister Vector = VectorLoadAligned(this);\n\n\tconst QuatVectorRegister SquareSum = VectorDot4(Vector, Vector);\n\tconst QuatVectorRegister NonZeroMask = VectorCompareGE(SquareSum, VectorLoadFloat1(&Tolerance));\n\tconst QuatVectorRegister InvLength = VectorReciprocalSqrtAccurate(SquareSum);\n\tconst QuatVectorRegister NormalizedVector = VectorMultiply(InvLength, Vector);\n\tQuatVectorRegister Result = VectorSelect(NonZeroMask, NormalizedVector, GlobalVectorConstants::Float0001);\n\n\tVectorStoreAligned(Result, this);\n#else\n\tconst T SquareSum = X * X + Y * Y + Z * Z + W * W;"
+      },
+      {
+        "start": 1261,
+        "end": 1274,
+        "text": "template<typename T>\ninline TQuat<T> TQuat<T>::Inverse() const\n{\n\tcheckSlow(IsNormalized());\n\n#if PLATFORM_ENABLE_VECTORINTRINSICS\n\treturn TQuat(VectorQuaternionInverse(VectorLoadAligned(this)));\n#else\n\treturn TQuat(-X, -Y, -Z, W);\n#endif // PLATFORM_ENABLE_VECTORINTRINSICS\n}\n\ntemplate<typename T>\ninline void TQuat<T>::EnforceShortestArcWith(const TQuat<T>& OtherQuat)"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+    "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+    "excerpts": [
+      {
+        "start": 1091,
+        "end": 1110,
+        "text": "\tinline void AccumulateWithAdditiveScale(const TTransform<T>& Atom, const ScalarRegister& BlendWeightScalar)\n\t{\n\t\tconst TransformVectorRegister BlendWeight(BlendWeightScalar.Value);\n\t\tconst TransformVectorRegister DefaultScale = GlobalVectorConstants::Float1110;\n\n\t\t// SourceAtom = Atom * BlendWeight;\n\t\tconst TransformVectorRegister BlendedRotation = VectorMultiply(Atom.Rotation, BlendWeight);\n\n\t\t// Rotation = SourceAtom.Rotation * Rotation;\n\t\tRotation = VectorQuaternionMultiply2(BlendedRotation, Rotation);\n\n\t\t// Translation += SourceAtom.Translation;\n\t\t// Scale *= SourceAtom.Scale;\n\t\tTranslation = VectorMultiplyAdd(Atom.Translation, BlendWeight, Translation);\n\t\tScale3D = VectorMultiply(Scale3D, VectorMultiplyAdd(Atom.Scale3D, BlendWeight, DefaultScale));\n\n\n\t\tDiagnosticCheckNaN_All();\n\t}\n"
+      },
+      {
+        "start": 1134,
+        "end": 1138,
+        "text": "\tinline void NormalizeRotation()\n\t{\n\t\tRotation = VectorNormalizeQuaternion(Rotation);\n\t\tDiagnosticCheckNaN_Rotate();\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Public/BonePose.h",
+    "sha256": "a8949ff9807d79cdd5592bceb024fef7ca311fe6ef041756a3b5b02b6a863c8c",
+    "excerpts": [
+      {
+        "start": 314,
+        "end": 322,
+        "text": "\t// Normalizes all rotations in this pose\n\tvoid NormalizeRotations()\n\t{\n\t\tfor (FTransform& Bone : this->Bones)\n\t\t{\n\t\t\tBone.NormalizeRotation();\n\t\t}\n\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimationRuntime.cpp",
+    "sha256": "cc1c1ab4a70fd3607deae8792cb48709eb5948c58a07eac704e6dcb264d8d159",
+    "excerpts": [
+      {
+        "start": 1150,
+        "end": 1210,
+        "text": "void FAnimationRuntime::ConvertPoseToMeshRotation(FCompactPose& LocalPose)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_ConvertPoseToMeshRot);\n\n#if INTEL_ISPC\n\tif (bAnim_ConvertPoseToMeshRotation_ISPC_Enabled)\n\t{\n\t\tUE_AUTORTFM_OPEN_NO_VALIDATION // Open writes are recorded\n\t\t{\n\t\t\tAutoRTFM::RecordOpenWrite(\n\t\t\t\tLocalPose.GetMutableBones().GetData(),\n\t\t\t\tLocalPose.GetNumBones() * sizeof(FTransform));\n\t\t\tispc::ConvertPoseToMeshRotation(\n\t\t\t\treinterpret_cast<ispc::FTransform*>(LocalPose.GetMutableBones().GetData()),\n\t\t\t\treinterpret_cast<const int32*>(LocalPose.GetBoneContainer().GetCompactPoseParentBoneArray().GetData()),\n\t\t\t\tLocalPose.GetNumBones());\n\t\t};\n\t}\n\telse\n#endif\n\t{\n\t\tfor (FCompactPoseBoneIndex BoneIndex(1); BoneIndex < LocalPose.GetNumBones(); ++BoneIndex)\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = LocalPose.GetParentBoneIndex(BoneIndex);\n\t\n\t\t\tconst FQuat MeshSpaceRotation = LocalPose[ParentIndex].GetRotation() * LocalPose[BoneIndex].GetRotation();\n\t\t\tLocalPose[BoneIndex].SetRotation(MeshSpaceRotation);\n\t\t}\n\t}\n}\n\nvoid FAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(FCompactPose& Pose)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_ConvertMeshRotPoseToLocalSpace);\n\n#if INTEL_ISPC\n\tif (bAnim_ConvertMeshRotationPoseToLocalSpace_ISPC_Enabled)\n\t{\n\t\tUE_AUTORTFM_OPEN_NO_VALIDATION // Open writes are recorded\n\t\t{\n\t\t\tAutoRTFM::RecordOpenWrite(\n\t\t\t\tPose.GetMutableBones().GetData(),\n\t\t\t\tPose.GetNumBones() * sizeof(FTransform));\n\t\t\tispc::ConvertMeshRotationPoseToLocalSpace(\n\t\t\t\treinterpret_cast<ispc::FTransform*>(Pose.GetMutableBones().GetData()),\n\t\t\t\treinterpret_cast<const int32*>(Pose.GetBoneContainer().GetCompactPoseParentBoneArray().GetData()),\n\t\t\t\tPose.GetNumBones());\n\t\t};\n\t}\n\telse\n#endif\n\t{\n\t\tfor (FCompactPoseBoneIndex BoneIndex(Pose.GetNumBones() - 1); BoneIndex > 0; --BoneIndex)\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = Pose.GetParentBoneIndex(BoneIndex);\n\n\t\t\tFQuat LocalSpaceRotation = Pose[ParentIndex].GetRotation().Inverse() * Pose[BoneIndex].GetRotation();\n\t\t\tPose[BoneIndex].SetRotation(LocalSpaceRotation);\n\t\t}\n\t}\n}"
+      },
+      {
+        "start": 1263,
+        "end": 1364,
+        "text": "void FAnimationRuntime::AccumulateAdditivePose(FAnimationPoseData& BaseAnimationPoseData, const FAnimationPoseData& AdditiveAnimationPoseData, float Weight, enum EAdditiveAnimationType AdditiveType)\n{\n\tif (AdditiveType == AAT_RotationOffsetMeshSpace)\n\t{\n\t\tAccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(BaseAnimationPoseData.GetPose(), AdditiveAnimationPoseData.GetPose(), Weight);\n\t}\n\telse\n\t{\n\t\tAccumulateLocalSpaceAdditivePoseInternal(BaseAnimationPoseData.GetPose(), AdditiveAnimationPoseData.GetPose(), Weight);\n\t}\n\n\t// if curve exists, accumulate with the weight, \n\tBaseAnimationPoseData.GetCurve().Accumulate(AdditiveAnimationPoseData.GetCurve(), Weight);\n\n\tUE::Anim::Attributes::AccumulateAttributes(AdditiveAnimationPoseData.GetAttributes(), BaseAnimationPoseData.GetAttributes(), Weight, AdditiveType);\n\t\n\t// normalize\n\tBaseAnimationPoseData.GetPose().NormalizeRotations();\n}\n\nvoid FAnimationRuntime::AccumulateLocalSpaceAdditivePoseInternal(FCompactPose& BasePose, const FCompactPose& AdditivePose, float Weight)\n{\n\tif (FAnimWeight::IsRelevant(Weight))\n\t{\n\t\tconst ScalarRegister VBlendWeight(Weight);\n\t\tif (FAnimWeight::IsFullWeight(Weight))\n\t\t{\n#if INTEL_ISPC\n\t\t\tif (bAnim_AccumulateLocalSpaceAdditivePose_ISPC_Enabled)\n\t\t\t{\n\t\t\t\tUE_AUTORTFM_OPEN_NO_VALIDATION // Open writes are recorded\n\t\t\t\t{\n\t\t\t\t\tAutoRTFM::RecordOpenWrite(\n\t\t\t\t\t\tBasePose.GetMutableBones().GetData(),\n\t\t\t\t\t\tBasePose.GetNumBones() * sizeof(FTransform));\n\t\t\t\t\tispc::AccumulateWithAdditiveScale(\n\t\t\t\t\t\treinterpret_cast<ispc::FTransform*>(BasePose.GetMutableBones().GetData()),\n\t\t\t\t\t\treinterpret_cast<const ispc::FTransform*>(AdditivePose.GetBones().GetData()),\n\t\t\t\t\t\tWeight,\n\t\t\t\t\t\tBasePose.GetNumBones());\n\t\t\t\t};\n\t\t\t}\n\t\t\telse\n#endif\n\t\t\t{\n\t\t\t\t// fast path, no need to weight additive.\n\t\t\t\tfor (FCompactPoseBoneIndex BoneIndex : BasePose.ForEachBoneIndex())\n\t\t\t\t{\n\t\t\t\t\tBasePose[BoneIndex].AccumulateWithAdditiveScale(AdditivePose[BoneIndex], VBlendWeight);\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Slower path w/ weighting\n\t\t\tfor (FCompactPoseBoneIndex BoneIndex : BasePose.ForEachBoneIndex())\n\t\t\t{\n\t\t\t\t// copy additive, because BlendFromIdentityAndAccumulate modifies it.\n\t\t\t\tFTransform Additive = AdditivePose[BoneIndex];\n\t\t\t\tFTransform::BlendFromIdentityAndAccumulate(BasePose[BoneIndex], Additive, VBlendWeight);\n\t\t\t}\n\t\t}\n\t}\n}\n\nvoid FAnimationRuntime::AccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(FCompactPose& BasePose, const FCompactPose& MeshSpaceRotationAdditive, float Weight)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_AccumulateMeshSpaceRotAdditiveToLocalPose);\n\n\tif (FAnimWeight::IsRelevant(Weight))\n\t{\n\t\t// Convert base pose from local space to mesh space rotation.\n\t\tFAnimationRuntime::ConvertPoseToMeshRotation(BasePose);\n\n\t\t// Add MeshSpaceRotAdditive to it\n\t\tFAnimationRuntime::AccumulateLocalSpaceAdditivePoseInternal(BasePose, MeshSpaceRotationAdditive, Weight);\n\n\t\t// Convert back to local space\n\t\tFAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(BasePose);\n\t}\n}\n\nENGINE_API void FAnimationRuntime::AccumulateRootSpaceAdditivePoseInternal(FCompactPose& BasePose, const FCompactPose& RootSpaceAdditivePose, float Weight)\n{\n\tif (FAnimWeight::IsRelevant(Weight))\n\t{\t\t\n\t\t// Cache off the Root Transform and Zero it Out\n\t\tFCompactPoseBoneIndex BoneIndex(0);\n\t\tFTransform RootTransform = BasePose[BoneIndex];\n\t\tBasePose[BoneIndex] = FTransform::Identity;\n\n\t\t// Convert base pose from local space to mesh space rotation.\n\t\tFAnimationRuntime::ConvertPoseToMeshRotation(BasePose);\n\n\t\t// Add MeshSpaceRotAdditive to it\n\t\tFAnimationRuntime::AccumulateLocalSpaceAdditivePoseInternal(BasePose, RootSpaceAdditivePose, Weight);\n\n\t\t// Convert back to local space\n\t\tFAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(BasePose);\n\n\t\t// Restore the original Root Transform\n\t\tBasePose[BoneIndex] = RootTransform;"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimNode_ApplyMeshSpaceAdditive.cpp",
+    "sha256": "ffbcb21bdb39852b80e8d19d38569f0a021c4e5a7a09c18f63376ed7f738670a",
+    "excerpts": [
+      {
+        "start": 86,
+        "end": 110,
+        "text": "\t\tconst bool bExpectsAdditivePose=true;\n\t\tFPoseContext AdditiveEvalContext(Output, bExpectsAdditivePose);\n\n\t\tBase.Evaluate(Output);\n\t\tAdditive.Evaluate(AdditiveEvalContext);\n\n\t\tFAnimationPoseData BaseAnimationPoseData(Output);\n\t\tconst FAnimationPoseData AdditiveAnimationPoseData(AdditiveEvalContext);\n\n\t\t\n\t\tif (bRootSpaceAdditive)\n\t\t{\n\t\t\tFAnimationRuntime::AccumulateRootSpaceRotationAdditiveToLocalPose(BaseAnimationPoseData, AdditiveAnimationPoseData, ActualAlpha);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tFAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, ActualAlpha, AAT_RotationOffsetMeshSpace);\n\t\t}\n\n\t\tOutput.Pose.NormalizeRotations();\n\t}\n\telse\n\t{\n\t\tBase.Evaluate(Output);\n\t}"
+      }
+    ]
+  }
+]

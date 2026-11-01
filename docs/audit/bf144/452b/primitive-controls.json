@@ -1,0 +1,7 @@
+[
+  {
+    "label": "native-no-neon",
+    "exact_native_contract_rejected": true,
+    "replay_exit_code": 101
+  }
+]

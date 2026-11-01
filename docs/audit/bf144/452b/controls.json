@@ -1,0 +1,27 @@
+[
+  {
+    "source_control_rejected": true,
+    "analysis_exit_code": 1,
+    "label": "no-delta-factor"
+  },
+  {
+    "source_control_rejected": true,
+    "analysis_exit_code": 1,
+    "label": "no-product-factor"
+  },
+  {
+    "source_control_rejected": true,
+    "analysis_exit_code": 1,
+    "label": "no-second-factor"
+  },
+  {
+    "source_control_rejected": true,
+    "analysis_exit_code": 1,
+    "label": "no-sqrt-factor"
+  },
+  {
+    "source_control_rejected": true,
+    "analysis_exit_code": 1,
+    "label": "no-projection-factor"
+  }
+]

@@ -3989,6 +3989,10 @@
   - .452a Gate完成：`docs/audit/bf144/452a/summary.json` PASS_COMPLETE318_CURRENT_HEAD_ROTATION_STAGE_FACTORS_WITH_EXPLICIT_SOURCE_MATH_BOUNDARY；独立当前父链/三个归一化阶段完整重放318实际输出及25440旋转行，79 source骨每域25122行/8域2544输出，T/S/weights保持。当前域仅去delta-N改变641骨、去product-N改变18834骨、补第二local-N改变3475骨；三因素全部交互边已留，八域对native仍23027–23041 Q差，不能据阶段数称全部恢复或通名吞并。缺域/重复/错帧/骨4负例拒；物理删除各因素分别被缺信号合同拒，源码SHA/bytes恢复同target六库重编后完整输出/分析/逐帧表byte精确。396身份/六库/原main/reader/引擎/生产/资产保持；52本项+23外部Git证据SHA/length/隐私/跟踪通过，7大文件gzip/raw SHA精确。压缩最初误选report被数量断言拒，12原件解压bytes恢复后改精确文件名，修正与原最小失败均留存，未作数值失败或静默舍证据。只静态重放已校准451a原场景，未再启动角色；下一.b源F64/ARM64同输入算术，272/截图0/性能暂停，GPU周边排除。
   - .452a时间：开始2026-11-02 00:04:50、预估结束00:29:50、实际结束00:10:47 +0800，实耗05:57、偏差−19:03。原有318输入/native四域和公开核已齐备，单独旋转阶段无需新取证/实际角色运行，编译与三消融沿用六库快于前置矩阵；后续纯阶段静态因子按约6分钟估，源算术复算/NEON校准另列，不缩总体目标。
 
+- [x] BF144.452b U07同输入Head源F64/ARM64旋转算术：依赖.ab404f714已精确当前318/25440及八阶段控制，fresh源full alpha Accumulate/两次local-N、NEON Dot4 FMA/estimate两轮refinement、QuaternionMultiply2累积顺序与inverse共轭，按451b四域原请求及native实际父链复算1272×79旋转；须逐值精确原native，不以F32相同或容差通过。随后固定完整源输入/顺序，只移除预乘normalize、方法或中间投影等已证必要因子，保最小失败边界，未证明因子不扩。Gate：源四域完整旋转数值精确/CC与SS真实端点、必要因素及最小反例、负fixture/物理消融/source bytes恢复同target与identity/Git；缺源算子先记录能力缺口，不拟合分量，不改生产/reader/引擎。开始2026-11-02 00:12:40 +0800；预估结束00:32:40。依据.a纯阶段05:57、既有native1272与本地NEON已证路径，20分钟含源核校准/必要因素/恢复封存；完整Root其它T/Q/curve保持开放，272/截图0/性能暂停。
+  - .452b Gate完成：`docs/audit/bf144/452b/summary.json` PASS_ALL1272_SOURCE_HEAD_ROTATION_ARITHMETIC_AND_NECESSARY_FACTORS_WITH_REDUNDANT_PRODUCT_REMOVED；四域1272原请求/79骨父链的100488 F64旋转全部精确native，CC/SS各318直接真实输入端点保持。固定源算法/输入，delta-N/product-N/少一次local-N/std-sqrt/逐primitive投F32在CC分别改583/594/57/1/22519个最终投影骨，五因素各四域均有double/F32信号，不相加，扩既有D170/D241/D231/D248/D232且无新D。原current/current Q23032仍是整体数据域比较，不吞为单因素恢复；投影控制保F64 primitive并非现glam F32。手写F64乘法换现DQuat后全部7632因素输出byte不变，故删除9行手写乘法并以简化源码重跑五因素及恢复；原预期失败被成功结果否定已留删减证明/原源码。NEON实际换std-sqrt在000:cc root w1对native0.9999999999999999使精确合同FAIL101，保最小反例；五因素物理删除各缺信号拒，简化源码bytes恢复同target重编后baseline/restored/primitive-restored完整输出/分析/表byte精确。396/新source数学文件/六库/原main/reader/生产/引擎/资产身份不变，12大输出gzip/rawSHA、78本项+21 external Git长度/SHA/隐私/跟踪通过；只静态重放既有真实场景输入，截图0/性能暂停，GPU周边排除。
+  - .452b时间：开始2026-11-02 00:12:40、预估结束00:32:40、实际结束00:21:39 +0800，实耗08:59、偏差−11:01。复用六批native且F64现DQuat乘法通过完整消融删掉自写实现，主要成本为五因素两轮、NEON最小失败、12大输出压缩与身份/Git封存；同类已齐备原生输入的完整旋转算术约9分钟，未知primitive不能按现成成本外推。父00:54:50保留，下一.c仅聚合闭本两项数学资格，不称完整Root。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D275 / P3 — glTF动画导入的厘米到米系数先量化为float，改变实际叶位置及Root首高度。
@@ -4172,6 +4176,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
 
 - [ ] BF144-D248 / P3 — Rig及动画Pose归一化未保持源ARM64 reciprocal-sqrt路径。
+  - BF144.452 current-input源旋转消费者：固定完整源F64其它算子/相同Dot4，NEON两轮reciprocal换标准sqrt/倒数使CC318域22562个double/1个F32骨行改变；唯一投影例frame306 foot_r x源−0.012283205054700375、控制−0.01228320598602295。物理换标准方法首000:cc root w1对native0.9999999999999999已使精确合同失败，bytes恢复同target全100488原生旋转/因素输出恢复。只归方法控制，不声称该x已经实际target单因素恢复，见`docs/audit/bf144/452b/native-primitive-failure.json`及`analysis-primitive-restored.json`。
   - Source：fresh `RigHierarchy.cpp:5326–5330,5362–5366`在lazy local/global后调用FTransform NormalizeRotation；`TransformVectorized.h:1134–1138`与Quat Normalize均走VectorReciprocalSqrtAccurate，当前`UnrealMathVectorCommon.h.inl:375–383`映射至NEON reciprocal-sqrt estimate及两次refinement，Dot4还使用显式FMA。源primitive即使输入identity，输出w仍为0.9999999999509513。
   - Target：`control_rig_hierarchy.rs:26–31,174,200`使用glam DQuat/DVec4的length_recip/sqrt归一化；相同f64参数不经f32降精度，当前89例有87个double不等。它不是D241/D195的多余归一化阶段，也不是D232早降f32或D242常量数据；此处两端都执行归一化，运算路径不同。
   - 最小反例/消费者：本机arm64按source Dot4/FMA和两轮NEON指令复算89个原生结果均精确；actual 88个global getter double不同、F32投影均同。共同原Rig输入末帧pelvis local identity（前6 pose/work保持、SpineYaw0）给出global getter quaternion=(0,0,0,0.9999999999999999)，当前公开RigHierarchy为(0,0,0,1)。副本仅把唯一normalizer换为源方法，保留输入与层级递归，完整double quat恢复native；不按图/node或归一化次数拟合。
@@ -4225,6 +4230,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 骨长与边界：5个正scale近1的同source厘米算法舍入边界，旧/源数据得到不同float骨长；CDF米制往返控制全保持，隔离D165。相同原生IK核及其余输入固定后13/15组关节位置float投影改变。9828个脚部数据控制中12个float输出改变；56个常规骨长控制保持。证据`target/bf144/245/native-foot-effects.json`、`writeback.jsonl`、`length-native-check.json`与`ik-effect-check.json`，source/消融恢复Gate以.245完成摘要为准。仅登记，未修生产或转换器。
 
 - [ ] BF144-D241 / P3 — Mesh加性在还原局部空间前单位化组件旋转，改变源运算阶段。
+  - BF144.452当前整包消费者：同318真实输入/current public阶段模型全25440旋转行精确，仅去product-N改变18834个source骨行；保源全F64/ARM64其它阶段/输入，只加入product-N，CC25122骨行中24752个double/594个F32投影改变。源四域总100488旋转全native精确，两个精度域的因素不相加，见`docs/audit/bf144/452a/summary.json`、`.452b/analysis-primitive-restored.json`；因素删除丢信号、源码bytes恢复同target输出byte同，未改生产。
   - Source：fresh `AnimNode_ApplyMeshSpaceAdditive.cpp:105–110`调用`AnimationRuntime.cpp:1328–1343`，父链转mesh后按整权重累积，直接倒序还原local；`TransformVectorized.h:1091–1110`明确累积不单位化。仅在`AccumulateAdditivePose`与node末尾对local各normalize一次。
   - Target：`src/animation_graph_ext/mesh_space_additive.rs:231–238`复用`blend_additive_rotation`，在组件product上先normalize，再在242–253还原local。这独立于D170的weighted delta预处理、D231末尾阶段及D238的Layered整端点Lerp。
   - 最小反例：实际controlled crouch-directions frame0/alpha1，ball_l current quaternion为[-0.0003303289122413844,0.7163187265396118,-0.00021529194782488048,-0.6977731585502625]；仅去组件product normalize后为[-0.00033032873761840165,0.7163187265396118,-0.00021532164828386158,-0.6977731585502625]。当前公共helper和f32逐阶段公式均精确重放，source-order合同FAIL101；77帧此单因素改变4952骨骼，其余当前阶段保持，未修生产或称可见故障。
@@ -5309,6 +5315,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.91 Turn补充：预混先除总权重，随后`turn_layer.rs:487`将发布权重夹到1，同样提前消去微小超额。0.6/0.400005在站蹲、左右/90/180及相同姿态配对的20组全部失败，最大曲线差0.0005493164、scale向量差8.672015e−6；仅把旋转改为nlerp仍全部失败，源统一加权恢复全部通过。0.6/0.40002的权重、位置、scale及曲线控制通过，旋转差由D177单独覆盖。
 
 - [ ] BF144-D170 / P3 — 加性旋转在源近全权重区间仍插值，未保留full-weight分支。
+  - BF144.452当前318完整Head补充：fresh full=1快路无delta预归一化；源F64/ARM64四域1272组/100488旋转行精确native后，仅加入delta-N使CC域24346个double/583个最终F32骨行改变，当前公开核精确阶段模型仅去delta-N另改变641行。两种精度域不强行等计，source与current单因素均有必要信号、物理删除/bytes恢复同target通过，见`docs/audit/bf144/452a/summary.json`及`.452b/analysis-primitive-restored.json`；无新编号，不把全部Q余差归本项。
   - Source：fresh `AnimationRuntime.cpp:1288–1312`在权重≥1−1e−5时走AccumulateWithAdditiveScale；Quaternion整体乘权后归一化，因此旋转方向等于完整加性旋转，平移/缩放仍按权重。实际C++/ISPC实现与50个公开原生累积样本已核对。
   - Target：`mesh_space_additive.rs:30–40`在所有权重下都与identity插值，包括0.99999/0.999995；已接近全权重仍略微缩小旋转。
   - 反例：真实动态过渡0.25/0.4秒姿态、权重0.99999/0.999995，实际根槽四元数距离约0.7–1.62e−6；源分支恢复降到约0.18e−6，权重1及0.99998控制通过。一般2e−6姿态合同不够敏感，专项合同依据源近全权重旋转不再插值的规则区分，未调整生产阈值。
@@ -5940,6 +5947,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.181 child输入补充：十八声明Sequence/9635真实child中，末尾API重算全部761165骨骼与原child pose精确；源算子生产采样控制距最终pose的4656个f32差只在ik_foot_l/r（2345/2311），其他骨骼全部解释，原时间未触发PlayLength夹取。该范围包括9个自然激活资产；其他9个仅有独立时点控制，不泛化为自然历史已覆盖。证据`target/bf144/181/full-stage-check.json`、`target-sampler-check.json`与actual ClipNode校准。
 
 - [ ] BF144-D231 / P3 — BlendSpace、MultiWay及ApplyAdditive遗漏源节点要求的额外归一化阶段。
+  - BF144.452当前Head API/node末尾阶段：fresh full alpha源先mesh→local，API与node各NormalizeRotations。四域独立源核100488旋转精确；只删一次local-N，CC域25003个double/57个最终F32骨行改变，首frame3 thumb_03_l z控制−0.0003509143425617367、native投影−0.00035091437166556716。当前public完整阶段模型只补第二local-N另改变3475行，精度域分开；物理factor删除拒且bytes恢复同target通过，见`docs/audit/bf144/452b/summary.json`与`.452a/summary.json`，不宣称整个Head/Root恢复。
   - Source：fresh `AnimationRuntime.cpp:364–380`先Overwrite再Accumulate，在SourcePoses.Num()>1时NormalizeRotations；`BlendSpace.cpp:1338–1344`随后无条件再次NormalizeRotations。当前六个Movement资产没有per-bone/mesh-space/mirror分支，4786份双样本与63份单样本输出分别执行两次/一次。double NEON有限精度下不能把两次当作幂等而省略；实际公共API中间pose与原UBlendSpace最终pose已分离读取。
   - Target：`normalized_blendspace.rs:885–891`对weighted pose reduce之后仅调用一次normalize_quat；当前空per_bone_interpolation不会追加各骨骼分支。该差异位于多个子pose的合成末尾，独立于D225单Sequence时间nlerp与D230子Sequence的AnimationRelative retarget；不能靠替换压缩键或恢复leaf时钟覆盖。
   - 最小反例：原30Hz crouch-directions第236帧的Backward BS、calf_twist_01_r。相同子pose/weights输入下，公共BlendPosesTogether中间旋转source z投影为runtime y=0.007602744270116091，UBlendSpace最终为0.0076027438044548035，一个f32 ULP；实际NormalizedBlendSpaceNode同输入也保留前值。第227帧upperarm_l的另一原生反例独立读回；观察getter新增前后原clock、child pose与最终pose均精确。
@@ -5956,6 +5964,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.304非零Head最终Apply：源实际HeadBase/additive/alpha=1到rig-source28帧2212骨double精确，只物理移除node外层一次末normalize，1559 double旋转行变化、4行改变f32（含非零head旋转），其他输入与T/S保持；source外normalize仍属于本项同一阶段合同，target公共helper原缓存全2212骨精确。单因素不与D241/full-delta因素加总，恢复以.304摘要为准，未称完整source-target Head/Root已等价；证据 `target/bf144/304/factors-check.json`。
 
 - [ ] BF144-D232 / P3 — 多姿态骨骼在源数值空间求值前即降为runtime f32，改变混合结果。
+  - BF144.452完整Head旋转投影消费：相同current-current输入保源F64/ARM64顺序，分别在各product与normalize结果投F32再提升，24760个double/22519个最终F32旋转骨行改变；该控制仍为源F64 primitive后投影，不称现glam F32内部算法。全四域原native100488旋转精确、当前public318阶段模型精确，投影factor删除丢所有信号、源码bytes恢复同target全输出byte同。source输入投current后的22719Q与此CC计数不混域、不相加或一概吞并；见`docs/audit/bf144/452b/summary.json`，其余全Root/Q算子边界保留。
   - Source：fresh `MathFwd.h:53`的FTransform为TTransform<double>；`AnimationRuntime.h:51–61`以源厘米/原坐标的FTransform做Overwrite和Accumulate，`TransformVectorized.h:1060–1071`的translation/scale使用double VectorMultiplyAdd，rotation也在同一double管线累积/归一化。源子pose的reference scale和AnimationRelative rotation还可含非f32值。
   - Target：子pose进入Bevy Pose时已按runtime米制坐标存为f32 Vec3/Quat；`pose.rs:187–218`随后执行f32 scalar_mult、linear_add及normalize_quat。即使补齐D231的次数，源单位/中间精度与投影时点仍未恢复。这是多个pose的数值合成合同，独立于D224平台数据、D225单Sequence时间插值和D228键格点。
   - BF144.424自然首Idle层化位置补充：四原/仅Idle数据输入的五层链逐值等实际HeadBase，同输入source compiled节点20样本的1580位置由厘米double VectorLerp/FMA模型全部double精确；target在spine_01/02部分权重共8骨行漂移，只将runtime乘加换FMA仍4行不等，不能将差异笼统归非融合乘加。fresh TransformVectorized.h:463–495→UnrealMathVectorCommon.h.inl:532–568明确使用vector专门加权和及double补数，不是generic scalar的A+alpha×delta。单把double补数降回float再提升丢4源位置恢复；其余公开链与runtime FMA控制保持，源码字节恢复同target重编产物byte同。source-data首帧spine_01 runtime x=0.10808876901865005、source投影0.10808877646923065，spine_02当前0.1886133849620819、source0.18861337006092072；仍只扩本数值空间阶段，不新报插值公式缺陷，不称所有68旋转余差恢复。`target/bf144/424/precision-check.json`、`restore-check.json`。
