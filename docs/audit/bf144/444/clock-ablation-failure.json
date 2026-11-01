@@ -1,0 +1,8 @@
+{
+  "process_report": "replay-ablated.report.json",
+  "expected_exit_code": 101,
+  "stderr": "\nthread 'main' (1609571) panicked at docs/audit/bf144/444/replay.rs:37:9:\nassertion `left == right` failed\n  left: \"Forced(Absolute(0.0))\"\n right: \"Forced(Delta(0.033333335))\"\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+  "baseline_positive_process_report_preserved": false,
+  "positive_replay_json_preserved": true,
+  "restored_positive_process_required": true
+}

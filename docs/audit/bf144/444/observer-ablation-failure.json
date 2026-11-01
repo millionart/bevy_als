@@ -1,0 +1,5 @@
+{
+  "process_report": "check-ablated.report.json",
+  "stderr": "Traceback (most recent call last):\n  File \"docs/audit/bf144/444/check.py\", line 68, in <module>\n    result = validate(json.loads((r/f'runtime-{label}/parameters.json').read_text()))\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/444/check.py\", line 14, in validate\n    assert [v['ordinal'] for v in rows] == list(range(240))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+  "expected_rejection": "Both animation observation arrays are empty after removing the two schedule registrations"
+}

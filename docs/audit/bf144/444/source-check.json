@@ -1,0 +1,12 @@
+{
+  "gate": "PASS_NATIVE_CURRENT240_ANIMATION_PHASE_AND_CLOCK_ENTRY_QUALIFICATION",
+  "frames": 240,
+  "main_updates_per_world_step": 1,
+  "main_evaluations_per_world_step": 1,
+  "initial_update_counter": 0,
+  "source_asset_player_slots": 85,
+  "exact_native_asset_clock_fields_preserved": true,
+  "source_state_text_precision": "six decimal places; not an exact scalar or vector oracle",
+  "projection_sha256": "cbffd587ca0ea8889414022050dc2c8b9a7499891bbaf03bbecfc51d343f2653",
+  "source_target_same_animation_history_claimed": false
+}

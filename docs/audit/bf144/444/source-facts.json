@@ -1,0 +1,157 @@
+[
+  {
+    "key": "source:ALS/Private/AlsCharacter.cpp",
+    "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+    "excerpts": [
+      {
+        "start": 266,
+        "end": 300,
+        "text": "void AAlsCharacter::Tick(const float DeltaTime)\n{\n\tDECLARE_SCOPE_CYCLE_COUNTER(TEXT(\"AAlsCharacter::Tick\"), STAT_AAlsCharacter_Tick, STATGROUP_Als)\n\tTRACE_CPUPROFILER_EVENT_SCOPE_STR(__FUNCTION__)\n\n\tif (!IsValid(Settings) || !AnimationInstance.IsValid())\n\t{\n\t\tSuper::Tick(DeltaTime);\n\t\treturn;\n\t}\n\n\tRefreshMovementBase();\n\n\tRefreshMeshProperties();\n\n\tRefreshInput(DeltaTime);\n\n\tRefreshLocomotionEarly();\n\n\tRefreshView(DeltaTime);\n\tRefreshLocomotion();\n\tRefreshGait();\n\tRefreshRotationMode();\n\n\tRefreshRotation(DeltaTime);\n\n\tAutoStartMantling();\n\tRefreshMantling();\n\tRefreshRagdolling(DeltaTime);\n\tRefreshRolling(DeltaTime);\n\n\tSuper::Tick(DeltaTime);\n\n\tRefreshLocomotionLate();\n}"
+      },
+      {
+        "start": 1372,
+        "end": 1438,
+        "text": "void AAlsCharacter::RefreshLocomotion()\n{\n\tconst auto bHadVelocity{LocomotionState.bHasVelocity};\n\n\tLocomotionState.Velocity = GetVelocity();\n\n\t// Determine if the character is moving by getting its speed. The speed equals the length\n\t// of the horizontal velocity, so it does not take vertical movement into account. If the\n\t// character is moving, update the last velocity rotation. This value is saved because it might\n\t// be useful to know the last orientation of a movement even after the character has stopped.\n\n\tLocomotionState.Speed = UE_REAL_TO_FLOAT(LocomotionState.Velocity.Size2D());\n\n\tstatic constexpr auto HasSpeedThreshold{1.0f};\n\n\tLocomotionState.bHasVelocity = LocomotionState.Speed >= HasSpeedThreshold;\n\n\tif (LocomotionState.bHasVelocity)\n\t{\n\t\tLocomotionState.VelocityYawAngle = UE_REAL_TO_FLOAT(UAlsVector::DirectionToAngleXY(LocomotionState.Velocity));\n\t}\n\n\tif (GetLocalRole() >= ROLE_AutonomousProxy)\n\t{\n\t\tauto bSendInitialVelocityYawAngle{LocomotionState.bHasVelocity && !bHadVelocity};\n\t\tauto VelocityYawAngleToSend{LocomotionState.VelocityYawAngle};\n\n\t\tif (Settings->bRotateTowardsDesiredVelocityInVelocityDirectionRotationMode)\n\t\t{\n\t\t\tFVector DesiredVelocity;\n\t\t\tif (AlsCharacterMovement->TryConsumePrePenetrationAdjustmentVelocity(DesiredVelocity) &&\n\t\t\t    DesiredVelocity.Size2D() >= HasSpeedThreshold)\n\t\t\t{\n\t\t\t\tbSendInitialVelocityYawAngle = !bHasDesiredVelocity;\n\t\t\t\tbHasDesiredVelocity = true;\n\n\t\t\t\tSetDesiredVelocityYawAngle(UE_REAL_TO_FLOAT(UAlsVector::DirectionToAngleXY(DesiredVelocity)));\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tbSendInitialVelocityYawAngle = LocomotionState.bHasVelocity && !bHasDesiredVelocity;\n\t\t\t\tbHasDesiredVelocity = LocomotionState.bHasVelocity;\n\n\t\t\t\tSetDesiredVelocityYawAngle(LocomotionState.VelocityYawAngle);\n\t\t\t}\n\n\t\t\tVelocityYawAngleToSend = DesiredVelocityYawAngle;\n\t\t}\n\n\t\t// Implicitly send the initial velocity yaw angle from the owning client to other clients,\n\t\t// since VelocityYawAngle changes are not always detected on the server for very short moves.\n\n\t\tif (bSendInitialVelocityYawAngle &&\n\t\t    (GetLocalRole() == ROLE_AutonomousProxy ||\n\t\t     GetRemoteRole() == ROLE_SimulatedProxy ||\n\t\t     (IsNetMode(NM_ListenServer) && IsLocallyControlled())))\n\t\t{\n\t\t\tServerSetInitialVelocityYawAngle(VelocityYawAngleToSend);\n\t\t}\n\t}\n\n\t// Character is moving if has speed and current acceleration, or if the speed is greater than the moving speed threshold.\n\n\tLocomotionState.bMoving = (LocomotionState.bHasInput && LocomotionState.bHasVelocity) ||\n\t                          LocomotionState.Speed > Settings->MovingSpeedThreshold;\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "source:ALS/Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 98,
+        "end": 169,
+        "text": "void UAlsAnimationInstance::NativeUpdateAnimation(const float DeltaTime)\n{\n\tDECLARE_SCOPE_CYCLE_COUNTER(TEXT(\"UAlsAnimationInstance::NativeUpdateAnimation\"),\n\t                            STAT_UAlsAnimationInstance_NativeUpdateAnimation, STATGROUP_Als)\n\tTRACE_CPUPROFILER_EVENT_SCOPE_STR(__FUNCTION__)\n\n\tSuper::NativeUpdateAnimation(DeltaTime);\n\n\tif (!IsValid(Settings) || !IsValid(Character))\n\t{\n\t\treturn;\n\t}\n\n\t// Use the previous global time dilation because this frame's delta time may not yet be affected\n\t// by the current global time dilation, so unscaling it would produce an incorrect result.\n\n\tconst auto TimeDilation{PreviousGlobalTimeDilation * Character->CustomTimeDilation};\n\tDeltaTimeWithoutTimeDilation = TimeDilation > UE_SMALL_NUMBER ? DeltaTime / TimeDilation : GetWorld()->DeltaRealTimeSeconds;\n\tPreviousGlobalTimeDilation = GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation();\n\n\tauto* Mesh{GetSkelMeshComponent()};\n\n\tif (Mesh->IsUsingAbsoluteRotation() && IsValid(Mesh->GetAttachParent()))\n\t{\n\t\tconst auto& ParentTransform{Mesh->GetAttachParent()->GetComponentTransform()};\n\n\t\t// Manually synchronize mesh rotation with character rotation.\n\n\t\tMesh->SetRelativeRotation(ParentTransform.GetRotation() * Character->GetBaseRotationOffset());\n\n\t\t// Re-cache proxy transforms to match the modified mesh transform.\n\n\t\tconst auto& Proxy{GetProxyOnGameThread<FAnimInstanceProxy>()};\n\t\tconst_cast<FTransform&>(Proxy.GetComponentTransform()) = Mesh->GetComponentTransform();\n\t\tconst_cast<FTransform&>(Proxy.GetComponentRelativeTransform()) = Mesh->GetRelativeTransform();\n\t\tconst_cast<FTransform&>(Proxy.GetActorTransform()) = Character->GetActorTransform();\n\t}\n\n#if WITH_EDITORONLY_DATA && ENABLE_DRAW_DEBUG\n\tbDisplayDebugTraces = UAlsDebugUtility::ShouldDisplayDebugForActor(Character, UAlsConstants::TracesDebugDisplayName());\n#endif\n\n\tViewMode = Character->GetViewMode();\n\tLocomotionMode = Character->GetLocomotionMode();\n\tRotationMode = Character->GetRotationMode();\n\tStance = Character->GetStance();\n\tGait = Character->GetGait();\n\tOverlayMode = Character->GetOverlayMode();\n\n\tif (LocomotionAction != Character->GetLocomotionAction())\n\t{\n\t\tLocomotionAction = Character->GetLocomotionAction();\n\t\tResetGroundedEntryMode();\n\t}\n\n\tconst auto PreviousLocation{LocomotionState.LocationWorldSpace};\n\n\tRefreshMovementBaseOnGameThread();\n\tRefreshViewOnGameThread();\n\tRefreshLocomotionOnGameThread();\n\tRefreshInAirOnGameThread();\n\tRefreshFeetOnGameThread();\n\tRefreshRagdollingOnGameThread();\n\n\tif (!bPendingUpdate && IsValid(Character->GetSettings()) &&\n\t    FVector::DistSquared(PreviousLocation, LocomotionState.LocationWorldSpace) >\n\t    FMath::Square(Character->GetSettings()->TeleportDistanceThreshold))\n\t{\n\t\tMarkTeleported();\n\t}\n}\n"
+      },
+      {
+        "start": 681,
+        "end": 719,
+        "text": "void UAlsAnimationInstance::RefreshLocomotionOnGameThread()\n{\n\tcheck(IsInGameThread())\n\n\tconst auto DeltaTime{GetDeltaSeconds()};\n\tconst auto bCanCalculateRateOfChange{!bPendingUpdate && DeltaTime > UE_SMALL_NUMBER};\n\n\tconst auto& Locomotion{Character->GetLocomotionState()};\n\n\tLocomotionState.bHasInput = Locomotion.bHasInput;\n\tLocomotionState.InputYawAngleWorldSpace = Locomotion.InputYawAngle;\n\n\tconst auto PreviousVelocity{\n\t\tMovementBase.bHasRelativeRotation\n\t\t\t? MovementBase.DeltaRotation.RotateVector(LocomotionState.VelocityWorldSpace)\n\t\t\t: LocomotionState.VelocityWorldSpace\n\t};\n\n\tLocomotionState.Speed = Locomotion.Speed;\n\tLocomotionState.VelocityWorldSpace = Locomotion.Velocity;\n\tLocomotionState.VelocityYawAngleWorldSpace = Locomotion.VelocityYawAngle;\n\n\tLocomotionState.AccelerationWorldSpace = bCanCalculateRateOfChange\n\t\t                                         ? (LocomotionState.VelocityWorldSpace - PreviousVelocity) / DeltaTime\n\t\t                                         : FVector::ZeroVector;\n\n\tconst auto* Movement{Character->GetCharacterMovement()};\n\n\tLocomotionState.MaxAcceleration = Movement->GetMaxAcceleration();\n\tLocomotionState.MaxBrakingDeceleration = Movement->GetMaxBrakingDeceleration();\n\tLocomotionState.WalkableFloorAngleCos = Movement->GetWalkableFloorZ();\n\n\tLocomotionState.bMoving = Locomotion.bMoving;\n\n\tLocomotionState.bMovingSmooth = (Locomotion.bHasInput && Locomotion.bHasVelocity) ||\n\t                                Locomotion.Speed > Settings->General.MovingSmoothSpeedThreshold;\n\n\tLocomotionState.TargetYawAngleWorldSpace = Locomotion.TargetYawAngle;\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/actual_motion.rs",
+    "sha256": "6eabf0f3fa5ff0b9a9156a6078fc186e8e4ca93a095865270415373fac77397f",
+    "excerpts": [
+      {
+        "start": 26,
+        "end": 43,
+        "text": "impl AlsActualMotion {\n    fn from_physics_velocity(world_velocity: Vec3, character_rotation: Quat) -> Self {\n        let motion = horizontal_motion_from_world_velocity(world_velocity, character_rotation);\n        let direction =\n            crate::als::animation::velocity_blend_direction(world_velocity, character_rotation);\n        Self {\n            world_velocity,\n            local_velocity: motion.local_velocity,\n            horizontal_speed: motion.horizontal_speed,\n            velocity_yaw_degrees: world_forward_to_yaw(world_velocity).to_degrees(),\n            signed_direction_radians: motion.signed_direction_radians,\n            velocity_blend: HorizontalVelocityBlend {\n                forward: (-direction.z).max(0.0),\n                backward: direction.z.max(0.0),\n                left: (-direction.x).max(0.0),\n                right: direction.x.max(0.0),\n            },\n            ..default()"
+      },
+      {
+        "start": 49,
+        "end": 64,
+        "text": "pub struct AlsActualMotionSet;\n\npub struct AlsActualMotionPlugin;\n\nimpl Plugin for AlsActualMotionPlugin {\n    fn build(&self, app: &mut App) {\n        app.configure_sets(\n            PostUpdate,\n            AlsActualMotionSet.before(crate::gait_layer::AlsGaitLayerSet),\n        )\n        .add_systems(\n            PostUpdate,\n            snapshot_actual_motion_system.in_set(AlsActualMotionSet),\n        );\n    }\n}"
+      },
+      {
+        "start": 91,
+        "end": 140,
+        "text": "                locomotion_velocity(velocity.0, *locomotion, base), transform.rotation());\n        next.movement_base_snapshot = movement_base\n            .filter(|base| *locomotion == LocomotionState::Grounded && base.has_relative_rotation)\n            .and_then(|base| base.entity.map(|entity| (entity, base.rotation)))\n            .filter(|(entity, _)| {\n                let owner = owners.get(*entity).map_or(*entity, |collider| collider.body);\n                bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static)\n            });\n        next.movement_base_delta_yaw_degrees = match (current.as_deref().and_then(|motion| motion.movement_base_snapshot), next.movement_base_snapshot) {\n            (Some((previous_entity, previous_rotation)), Some((entity, rotation))) if previous_entity == entity =>\n                -world_forward_to_yaw(rotation * previous_rotation.conjugate() * Vec3::NEG_Z).to_degrees(),\n            _ => 0.0,\n        };\n        if let Some(previous) = current.as_deref().filter(|_| time.delta_secs() > 1e-8) {\n            let previous_velocity = match (previous.movement_base_snapshot, next.movement_base_snapshot) {\n                (Some((previous_entity, previous_rotation)), Some((entity, rotation))) if previous_entity == entity =>\n                    rotation * previous_rotation.conjugate() * previous.world_velocity,\n                _ => previous.world_velocity,\n            };\n            next.world_acceleration = (next.world_velocity - previous_velocity) / time.delta_secs();\n        }\n        let initial_yaw = world_forward_to_yaw(*transform.forward()).to_degrees();\n        let input = controller.map_or(Vec3::ZERO, |controller| controller.basis.desired_motion);\n        let input = if input.length_squared() < INPUT_DIRECTION_MIN_LENGTH_SQUARED {\n            Vec3::ZERO\n        } else {\n            input.normalize_or_zero()\n        };\n        next.has_input = input != Vec3::ZERO;\n        next.input_yaw_degrees = if next.has_input {\n            world_forward_to_yaw(input).to_degrees()\n        } else {\n            current.as_deref().map_or(initial_yaw, |previous| previous.input_yaw_degrees)\n        };\n        if !crate::als::motion::locomotion_movement_flags(next.has_input, next.horizontal_speed).0 {\n            next.velocity_yaw_degrees = current\n                .as_deref()\n                .map_or(initial_yaw, |previous| previous.velocity_yaw_degrees);\n        }\n        if let Some(mut current) = current {\n            *current = next;\n        } else {\n            commands.entity(entity).insert(next);\n        }\n    }\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/ab_als_provider.rs",
+    "sha256": "d18d819f16dd42f94873f08f8f1c7ad1d48dbb37f9e34f45883cb117fb3f8030",
+    "excerpts": [
+      {
+        "start": 70,
+        "end": 86,
+        "text": "\nimpl Plugin for AbAlsProviderPlugin {\n    fn build(&self, app: &mut App) {\n        app.configure_sets(\n            PostUpdate,\n            AbAlsProviderSet\n                .after(AlsRootGraphSet)\n                .after(AlsRagdollingLayerSet)\n                .after(AlsStandingLayerSet)\n                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),\n        )\n        .add_systems(\n            PostUpdate,\n            ab_als_input_writer.in_set(AbAlsProviderSet),\n        );\n    }\n}"
+      },
+      {
+        "start": 301,
+        "end": 339,
+        "text": "                player.set_global_input_data(\n                    \"view_state.yaw_angle\",\n                    crate::turn_layer::character_turn_angle_degrees(view_degrees, body_degrees),\n                );\n            }\n            player.set_global_input_data(\n                \"locomotion_state.scale_world_space\",\n                avatar_transform.to_scale_rotation_translation().0.y,\n            );\n            let pending_update = player\n                .get_context_arena()\n                .is_none_or(|arena| arena.frame_index() == 0) || tick.is_some_and(|tick| tick.pending_update);\n            player.set_global_input_data(\"animation.pending_update\", pending_update);\n            player.set_global_input_data(\n                \"locomotion_state.velocity_world_space\",\n                motion.world_velocity,\n            );\n            player.set_global_input_data(\n                \"locomotion_state.rotation_quaternion_world_space\",\n                transform.rotation(),\n            );\n            player.set_global_input_data(\n                \"locomotion_state.acceleration_world_space\",\n                if pending_update || delta_seconds <= 1e-8 {\n                    Vec3::ZERO\n                } else {\n                    motion.world_acceleration * (time.delta_secs() / delta_seconds)\n                },\n            );\n            player.set_global_input_data(\n                \"locomotion_state.max_acceleration\",\n                dynamics.map_or(params.acceleration.max_acceleration, |value| {\n                    value.0.acceleration\n                }),\n            );\n            player.set_global_input_data(\n                \"locomotion_state.max_braking_deceleration\",\n                dynamics.map_or(params.acceleration.braking_deceleration, |value| {\n                    value.0.braking_deceleration"
+      },
+      {
+        "start": 403,
+        "end": 422,
+        "text": "            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input(\"grounded_entry_mode\",\n                grounded_entry_mode.copied().unwrap_or_default().tag());\n            for (key, value) in [\n                (\"animation.delta_seconds\", delta_seconds),\n                (\n                    \"grounded_state.rotation_yaw_offsets.forward_angle\",\n                    yaw_forward,\n                ),\n                (\n                    \"grounded_state.rotation_yaw_offsets.backward_angle\",\n                    yaw_backward,\n                ),\n                (\"grounded_state.rotation_yaw_offsets.left_angle\", yaw_left),\n                (\"grounded_state.rotation_yaw_offsets.right_angle\", yaw_right),\n                (\n                    \"grounded_state.hips_direction_lock_amount\",\n                    hips_direction_lock,\n                ),\n                (\"locomotion_state.speed\", motion.horizontal_speed),\n            ]"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/character_runtime.rs",
+    "sha256": "63a46cb4ff861b91da2e44c536214c612848bac17049e5075cefd3f0d5b49fb8",
+    "excerpts": [
+      {
+        "start": 66,
+        "end": 104,
+        "text": "            HeadLayerPlugin,\n            RagdollingLayerPlugin,\n            AlsRootGraphPlugin,\n            AbAlsProviderPlugin,\n            TransitionNotifyPlugin,\n            AlsMantleDrivePlugin,\n            PaAlsPhysicsPlugin,\n            AlsRagdollLinkPlugin,\n            crate::get_up::AlsGetUpPlugin,\n        ))\n        .add_systems(\n            Update,\n            (\n                ensure_start_stop_state,\n                start_stop_detector_system.after(ensure_start_stop_state),\n            ),\n        )\n        .configure_sets(PostUpdate, (\n            crate::actual_motion::AlsActualMotionSet,\n            crate::gait_layer::AlsGaitLayerSet,\n            crate::standing_layer::AlsStandingLayerSet,\n            crate::crouching_layer::AlsCrouchingLayerSet,\n            crate::grounded_layer::AlsGroundedLayerSet,\n            crate::ab_als_root::AlsRootGraphSet,\n            crate::ab_als_provider::AbAlsProviderSet,\n            crate::locomotion_layer::AlsLocomotionLayerSet,\n            crate::layering_layer::AlsLayeringLayerSet,\n            crate::head_layer::AlsHeadLayerSet,\n            crate::ragdolling_layer::AlsRagdollingLayerSet,\n            crate::foot_ik_apply::FootIkApplySet::UpdateInputs,\n        ).in_set(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs))\n        .configure_sets(PostUpdate, crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs\n            .after(crate::als::motion::AlsActualVelocitySet))\n        .configure_sets(PostUpdate, crate::als_camera::AlsCameraSet\n            .after(crate::control_rig_apply::AlsControlRigPropagationSet))\n        .add_systems(PostUpdate, mark_character_animation_phase\n            .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics));\n    }\n}"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 2571,
+        "end": 2583,
+        "text": "            .configure_sets(\n                PostUpdate,\n                (\n                    AlsActualVelocitySet.after(PhysicsSystems::Last),\n                    AlsRotationResponseSet.after(AlsActualVelocitySet),\n                ),\n            )\n            .add_systems(\n                PostUpdate,\n                ((|| true).pipe(follow_movement_base_system), locomotion_state_sync_system, snapshot_actual_velocity_system)\n                    .chain().in_set(AlsActualVelocitySet),\n            )\n            .add_systems(PostUpdate, ("
+      },
+      {
+        "start": 2673,
+        "end": 2694,
+        "text": "}\n\nfn snapshot_actual_velocity_system(\n    time: Res<Time<avian3d::prelude::Physics>>,\n    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &mut AlsCmcAdapterRuntime,\n        &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,\n) {\n    for (mut velocity, mut actual, position, mut runtime, locomotion, mut base) in &mut characters {\n        if let Some(collision_velocity) = runtime.grounded_collision_velocity.take() {\n            velocity.0 = collision_velocity;\n        } else if let Some(start) = runtime.grounded_move_start\n            && let Some(position) = position\n            && runtime.simulation_delta_seconds > 0.0 {\n            let support = base.as_deref().filter(|base| base.entity.is_some())\n                .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));\n            let relative = (position.0 - start - support * time.delta_secs()) / runtime.simulation_delta_seconds;\n            velocity.x = relative.x + support.x;\n            velocity.z = relative.z + support.z;\n        }\n        if *locomotion != LocomotionState::Grounded\n            && let Some(base) = base.as_deref_mut() {\n            *base = default();"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/post_physics_animation.rs",
+    "sha256": "30779870ba2bc673a7d96ab547e770bd100b00b8dd6de8abc36fea62c7ec02c7",
+    "excerpts": [
+      {
+        "start": 44,
+        "end": 60,
+        "text": "impl Plugin for PostPhysicsAnimationPlugin {\n    fn build(&self, app: &mut App) {\n        if !app.is_plugin_added::<crate::extensions::SourceAnimationInputsPlugin>() { app.add_plugins(crate::extensions::SourceAnimationInputsPlugin); }\n        app.configure_sets(PostUpdate, (\n            PostPhysicsAnimationSet::Inputs.after(PhysicsSystems::Last),\n            PostPhysicsAnimationSet::Evaluate.after(PostPhysicsAnimationSet::Inputs)\n                .before(AnimationGraphSet::PostPhysics),\n            PostPhysicsAnimationSet::Readback.after(AnimationGraphSet::Final)\n                .after(TransformSystems::Propagate),\n        )).add_systems(PostUpdate,\n            evaluate_players::<Without<PostPhysicsAnimation>>\n                .after(spawn_missing_ragdolls_avian).before(extract_root_motion)\n                .in_set(AnimationGraphSet::PrePhysics),\n        ).add_systems(PostUpdate,\n            (evaluate_players::<With<PostPhysicsAnimation>>, extract_late_root_motion)\n                .chain().in_set(PostPhysicsAnimationSet::Evaluate),\n        );"
+      },
+      {
+        "start": 182,
+        "end": 212,
+        "text": "pub fn evaluate_players<F: QueryFilter>(\n    time: Res<Time>,\n    mut players: Query<(Entity, &mut AnimationGraphPlayer, &mut crate::extensions::SourceAnimationInputs, Option<&mut AnimationPoseUpdateGate>), (F, Without<ManualAnimationPlayer>)>,\n    resources: SystemResources,\n) {\n    players.par_iter_mut().for_each(|(entity, mut player, inputs, mut gate)| {\n        if gate.as_ref().is_some_and(|gate| !gate.update_graph) { return; }\n        let playing = !player.is_paused();\n        let initialize = gate.is_some() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);\n        player.set_global_input_data(\"animation.evaluate_pose\", initialize || gate.as_ref().is_none_or(|gate| gate.refresh_bones));\n        if initialize {\n            let delta = player.get_global_input_data(\"animation.delta_seconds\").cloned();\n            if delta.is_some() { player.set_global_input_data(\"animation.delta_seconds\", 0.0_f32); }\n            inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &Time::default(), &resources));\n            if let Some(delta) = delta { player.set_global_input_data(\"animation.delta_seconds\", delta); }\n        } else {\n            let delta = player.get_global_input_data(\"animation.delta_seconds\")\n                .and_then(|value| value.as_f32().ok()).map_or(time.delta_secs(), |value| value);\n            let mut animation_time = Time::default();\n            animation_time.advance_by(std::time::Duration::from_secs_f32(delta.max(0.0)));\n            inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &animation_time, &resources));\n        }\n        if playing && player.get_error().is_none() && player.get_default_output_pose().is_some()\n            && let Some(gate) = gate.as_mut() { gate.pending_update = false; }\n    });\n    players.par_iter_mut().for_each(|(_, player, mut inputs, _)| {\n        debug_draw_animation_players(player, &resources);\n        inputs.set_rig_query_context(None);\n    });\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "dependency:bevy_animation_graph/animation_graph_player.rs",
+    "sha256": "35a6f15907ebc52e1fcf83fafd34188df8879fc7521dd3f79fab134c23af9ada",
+    "excerpts": [
+      {
+        "start": 193,
+        "end": 235,
+        "text": "    /// Query the animation graph with the latest time update and inputs\n    pub(crate) fn update(&mut self, system_resources: &SystemResources, root_entity: Entity) {\n        self.outputs.clear();\n        self.io_overrides.data.insert(\n            GraphInputPin::Passthrough(Self::USER_EVENTS.into()),\n            std::mem::take(&mut self.queued_events).into(),\n        );\n\n        let AnimationSource::Graph(graph_handle) = &self.animation else {\n            return;\n        };\n\n        let Some(graph) = system_resources.animation_graph_assets.get(graph_handle) else {\n            return;\n        };\n\n        match graph.query_with_env(\n            self.pending_update.clone(),\n            self.context_arena.as_mut().unwrap(),\n            system_resources,\n            &self.io_overrides,\n            root_entity,\n            &self.entity_map,\n            &mut self.deferred_gizmos,\n            &self.global_input_data,\n        ) {\n            Ok(outputs) => {\n                self.error = None;\n                self.outputs = outputs;\n            }\n            Err(error) => {\n                self.error = Some(error);\n            }\n        };\n\n        if let Some(pose) = self.outputs.get(DEFAULT_OUTPUT_POSE) {\n            let _ = pose.as_pose().map(|p| self.elapsed = p.timestamp);\n        }\n\n        self.pending_update = TimeUpdate::Delta(0.);\n    }\n\n    pub fn gizmo_for_bones(&mut self, bones: impl IntoIterator<Item = BoneId>) {"
+      },
+      {
+        "start": 339,
+        "end": 351,
+        "text": "    pub fn elapsed(&self) -> f32 {\n        self.elapsed\n    }\n\n    /// Gets the default output pose from the graph, or the forced pose if set.\n    pub fn get_default_output_pose(&self) -> Option<&Pose> {\n        match &self.animation {\n            AnimationSource::Graph(_) => self.outputs.get(DEFAULT_OUTPUT_POSE)?.as_pose().ok(),\n            AnimationSource::Pose(pose) => Some(pose),\n            AnimationSource::None => None,\n        }\n    }\n"
+      }
+    ]
+  },
+  {
+    "key": "dependency:bevy_animation_graph/context/graph_context_arena.rs",
+    "sha256": "f6dc3003b00a69cf5204548728854b55b0eff14add008758cd0fe91bdcf02fa2",
+    "excerpts": [
+      {
+        "start": 56,
+        "end": 66,
+        "text": "    pub fn next_frame(&mut self) {\n        for context in self.contexts.iter_mut() {\n            context.next_frame();\n        }\n        self.frame_index = self.frame_index.wrapping_add(1);\n    }\n\n    pub fn frame_index(&self) -> u64 {\n        self.frame_index\n    }\n"
+      }
+    ]
+  },
+  {
+    "key": "dependency:bevy_animation_graph/systems.rs",
+    "sha256": "d4927507b7f5c7bfadd17765928536039bd100a12d0dfd7fa8fe327093d2e49a",
+    "excerpts": [
+      {
+        "start": 171,
+        "end": 202,
+        "text": "pub fn run_animation_player(\n    root: Entity,\n    mut player: Mut<AnimationGraphPlayer>,\n    time: &Time,\n    system_resources: &SystemResources,\n) {\n    let _run_animation_player_span = info_span!(\"run_animation_player\").entered();\n\n    // The entity map is updated regardless of animation type.\n    // Important as the entity map is relied upon for e.g. debug bone drawing\n    {\n        let _entity_map_span = info_span!(\"build_entity_map\").entered();\n        player.entity_map = build_entity_map(root, system_resources);\n    }\n\n    if !player.animation.is_graph() {\n        return;\n    }\n\n    if !player.is_paused() {\n        player.queue_time_update(TimeUpdate::Delta(time.delta_secs()));\n    }\n\n    {\n        let _update_span = info_span!(\"player_update\").entered();\n        player.update(system_resources, root);\n    }\n\n    if matches!(player.playback_state(), PlaybackState::PlayOneFrame) {\n        player.pause();\n    }\n}"
+      }
+    ]
+  }
+]
