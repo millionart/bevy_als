@@ -1,0 +1,19 @@
+{
+  "failure": "Compression selection also matched watchdog report names; final size assertion rejected the set",
+  "restored_raw_from_lossless_gzip": [
+    "frame-table-baseline.json.gz",
+    "replay-no-product-factor.report.json.gz",
+    "replay-no-product-factor.json.gz",
+    "replay-no-delta-factor.json.gz",
+    "frame-table-restored.json.gz",
+    "replay-restored.json.gz",
+    "replay-no-second-factor.report.json.gz",
+    "replay-baseline.report.json.gz",
+    "replay-baseline.json.gz",
+    "replay-no-delta-factor.report.json.gz",
+    "replay-no-second-factor.json.gz",
+    "replay-restored.report.json.gz"
+  ],
+  "correction": "Select exactly five replay outputs and two frame tables; leave report JSON unchanged",
+  "source_or_input_data_changed": false
+}

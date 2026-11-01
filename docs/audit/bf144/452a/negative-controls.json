@@ -1,0 +1,14 @@
+[
+  {
+    "label": "no-delta-factor",
+    "failure": "AssertionError: Missing factor signal: delta_normalize"
+  },
+  {
+    "label": "no-product-factor",
+    "failure": "AssertionError: Missing factor signal: product_normalize"
+  },
+  {
+    "label": "no-second-factor",
+    "failure": "AssertionError: Missing factor signal: second_local_normalize"
+  }
+]

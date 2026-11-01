@@ -1,0 +1,17 @@
+[
+  {
+    "analysis_exit_code": 1,
+    "source_control_rejected": true,
+    "label": "no-delta-factor"
+  },
+  {
+    "analysis_exit_code": 1,
+    "source_control_rejected": true,
+    "label": "no-product-factor"
+  },
+  {
+    "analysis_exit_code": 1,
+    "source_control_rejected": true,
+    "label": "no-second-factor"
+  }
+]
