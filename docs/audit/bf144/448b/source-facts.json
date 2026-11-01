@@ -1,0 +1,78 @@
+[
+  {
+    "key": "dependency:pose.rs",
+    "sha256": "962f07a8d357fd26d0494dc0486830cd3701dfdab25416fa8c4cefa25090570d",
+    "excerpts": [
+      {
+        "start": 95,
+        "end": 106,
+        "text": "}\n\n/// Vertical slice of a [`Keyframes`] that represents an instant in an animation [`Transform`].\n///\n/// [`Keyframes`]: crate::core::animation_clip::Keyframes\n/// [`Transform`]: bevy::transform::prelude::Transform\n#[derive(Asset, Reflect, Clone, Debug, Default, Serialize, Deserialize, PartialEq)]\npub struct BonePose {\n    pub translation: Option<Vec3>,\n    pub rotation: Option<Quat>,\n    pub scale: Option<Vec3>,\n    pub weights: Option<Vec<f32>>,"
+      },
+      {
+        "start": 230,
+        "end": 249,
+        "text": "\n/// Vertical slice of an [`GraphClip`]\n///\n/// [`GraphClip`]: crate::prelude::GraphClip\n#[derive(Asset, Reflect, Clone, Debug, Default, Serialize, Deserialize, PartialEq)]\n#[reflect(Default)]\npub struct Pose {\n    pub bones: Vec<BonePose>,\n    pub paths: HashMap<BoneId, usize>,\n    pub timestamp: f32,\n    #[serde(skip)]\n    pub skeleton: Handle<Skeleton>,\n    /// Root motion delta for this frame, if root motion extraction is active.\n    /// Automatically blended when poses are blended via interpolators.\n    #[serde(default)]\n    pub root_motion: Option<RootMotionDelta>,\n}\n\nimpl Pose {\n    pub fn add_bone(&mut self, pose: BonePose, bone_id: BoneId) {"
+      }
+    ]
+  },
+  {
+    "key": "dependency:animation_graph_player.rs",
+    "sha256": "35a6f15907ebc52e1fcf83fafd34188df8879fc7521dd3f79fab134c23af9ada",
+    "excerpts": [
+      {
+        "start": 340,
+        "end": 361,
+        "text": "        self.elapsed\n    }\n\n    /// Gets the default output pose from the graph, or the forced pose if set.\n    pub fn get_default_output_pose(&self) -> Option<&Pose> {\n        match &self.animation {\n            AnimationSource::Graph(_) => self.outputs.get(DEFAULT_OUTPUT_POSE)?.as_pose().ok(),\n            AnimationSource::Pose(pose) => Some(pose),\n            AnimationSource::None => None,\n        }\n    }\n\n    /// Gets the root motion delta from the default output pose, if present.\n    pub fn get_root_motion(&self) -> Option<&RootMotionDelta> {\n        self.get_default_output_pose()?.root_motion.as_ref()\n    }\n\n    pub fn set_default_output_pose(&mut self, pose: Pose) {\n        self.outputs.insert(DEFAULT_OUTPUT_POSE.into(), pose.into());\n    }\n\n    pub fn bone_entity(&self, bone_id: BoneId) -> Option<Entity> {"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/animation_context.rs",
+    "sha256": "c26259a35f7178a8945509975e22f9e9713afeef4a9c76d6400686a5206f3389",
+    "excerpts": [
+      {
+        "start": 281,
+        "end": 307,
+        "text": "pub fn node_context_state(states: &NodeStates, key: StateKey, node: NodeId) -> Option<&AnimationContextState> {\n    if let Ok(state) = states.get::<crate::extensions::layered_graph::LayeredGraphState>(node, key) {\n        return Some(&state.context);\n    }\n    if let Ok(state) = states.get::<crate::extensions::root_graph_boundaries::ControlRigNodeState>(node, key) {\n        return Some(&state.context);\n    }\n    if let Ok(state) = states\n        .get::<crate::extensions::normalized_blendspace::NormalizedBlendSpaceState>(node, key)\n    {\n        return Some(&state.context);\n    }\n    if let Ok(state) = states\n        .get::<AnimationContextState>(node.clone(), key)\n    {\n        return Some(state);\n    }\n    if let Ok(state) = states\n        .get::<SourceInertializationState>(node.clone(), key)\n    {\n        return Some(&state.context);\n    }\n    if let Ok(state) = states\n        .get::<crate::extensions::inertialization::InertializationState>(node, key)\n    {\n        return Some(&state.context);\n    }"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/animation_context_projection.rs",
+    "sha256": "805cbc105c7d9afe2371904f3863b17ec5195b80bd9eabcdb2a0f9a1026897ce",
+    "excerpts": [
+      {
+        "start": 20,
+        "end": 32,
+        "text": "#[derive(Component, Clone, Debug, Default, PartialEq)]\npub struct AlsRootAnimationContext {\n    pub curves: HashMap<crate::extensions::SourceCurveName, f32>,\n}\n\nimpl AlsRootAnimationContext {\n    pub fn f32(&self, name: &str) -> Option<f32> {\n        self.curves\n            .get(&crate::extensions::SourceCurveName::from(name))\n            .copied()\n            .or_else(|| SOURCE_CURVE_DEFAULTS.iter().find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(*value)))\n            .filter(|value| value.is_finite())\n    }"
+      },
+      {
+        "start": 77,
+        "end": 113,
+        "text": "    )>,\n) {\n    for (entity, player, current) in &mut players {\n        let AnimationSource::Graph(graph_handle) = player.get_animation_source() else {\n            continue;\n        };\n        let Some(graph) = graphs.get(graph_handle) else {\n            continue;\n        };\n        let curves = root_pose_source_node(graph)\n            .and_then(|node| player_animation_context_state(player, node))\n            .map(|state| {\n                state\n                    .curves\n                    .iter()\n                    .filter(|(_, value)| value.is_finite())\n                    .map(|(name, value)| (name.clone(), *value))\n                    .collect()\n            })\n            .unwrap_or_default();\n        let projected = AlsRootAnimationContext { curves };\n        if let Some(mut current) = current {\n            *current = projected;\n        } else {\n            commands.entity(entity).insert(projected);\n        }\n    }\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn root_context_uses_pose_output_edge_not_editor_name() {\n        let mut graph = AnimationGraph::default();\n        let node = NodeId::default();"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_linked_input_pose.rs",
+    "sha256": "cc39b614d3ab1296836ba94bb8a67985c50a82c76968b6ca95b095955f149ff7",
+    "excerpts": [
+      {
+        "start": 35,
+        "end": 67,
+        "text": "        let input = GraphInputPin::Passthrough(self.input.clone());\n        crate::extensions::animation_context::write_linked_input_context(\n            &mut ctx.graph_context,\n            input.clone(),\n            default(),\n        )?;\n        let pose = ctx\n            .graph_context\n            .io\n            .get_data_back(\n                GraphInputPin::Passthrough(self.input.clone()),\n                ctx.graph_context.clone(),\n            )?\n            .into_pose()?;\n        ctx.set_time(pose.timestamp);\n        ctx.set_data_fwd(self.output.clone(), pose);\n        let mut state = crate::extensions::animation_context::linked_input_context(&ctx.graph_context, &input);\n        if !self.context_curve_names.is_empty() {\n            for curve in &self.context_curve_names {\n                let key = format!(\"{}{}\", self.context_curve_prefix, curve);\n                let value = ctx\n                    .graph_context\n                    .io\n                    .get_data_back(GraphInputPin::Passthrough(key), ctx.graph_context.clone())?\n                    .as_f32()?;\n                state.curves.insert(curve.clone().into(), value);\n            }\n        }\n        *ctx.state_mut_or_else(AnimationContextState::default)? = state;\n        Ok(())\n    }\n\n    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_instance.rs",
+    "sha256": "d4bca5a97cbd9d7968230dc89dea31efb92053c299b2afa5c09e22b630219493",
+    "excerpts": [
+      {
+        "start": 234,
+        "end": 253,
+        "text": "impl NodeLike for SourcePropertyWriteNode {\n    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {\n        let became_relevant = source_call_became_relevant(&ctx)?;\n        if !self.on_become_relevant || became_relevant {\n            for assignment in &self.assignments {\n                set_source_property(&ctx, &assignment.property, assignment.value.clone())?;\n            }\n        }\n        let pose = ctx.data_back(\"Source\")?.into_pose()?;\n        ctx.set_time(pose.timestamp);\n        ctx.set_data_fwd(\"Pose\", pose);\n        *ctx.state_mut_or_else(AnimationContextState::default)? =\n            pose_input_context_state(&ctx, \"Source\").unwrap_or_default();\n        Ok(())\n    }\n\n    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {\n        ctx.add_input_data(\"Source\", DataSpec::Pose)\n            .add_output_data(\"Pose\", DataSpec::Pose);\n        Ok(())"
+      }
+    ]
+  }
+]

@@ -1,0 +1,50 @@
+{
+  "gate": "PASS_ACTUAL_TARGET_FIVE_POSE_BOUNDARIES_AND_DEFAULT_ROOT",
+  "actual_queries_per_phase": 319,
+  "unique_boundaries_per_after_query": 5,
+  "default_root_equals_root_cache": true,
+  "source_bones_present": 79,
+  "additional_scene_root": "SKM_Als",
+  "additional_scene_root_nonidentity_rows": 44,
+  "first_additional_scene_root_nonidentity": {
+    "target_query": 100,
+    "ordinal": 21,
+    "bone": {
+      "name": "SKM_Als",
+      "path": [
+        "GltfNode0",
+        "SKM_Als"
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.9769455790519714,
+        0.9769455790519714,
+        0.9769455790519714
+      ],
+      "translation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "weights": null
+    }
+  },
+  "absent_pose_channels_preserved": true,
+  "custom_attribute_type_fact_only": true,
+  "current_root_motion_none": true,
+  "previous_complete_history_arrays_exact": true,
+  "negative_fixtures_rejected": [
+    "missing-boundary",
+    "wrong-node",
+    "missing-bone",
+    "nonfinite-curve"
+  ],
+  "full_root_or_als_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
