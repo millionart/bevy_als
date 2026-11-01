@@ -1,0 +1,22 @@
+{
+  "gate": "PASS_ACTUAL_PRIOR_CURVE_VALUES_WITH_DISTINCT_NATIVE_CALLBACK_FRAME_BOUNDARY",
+  "target_initialization_app_frame": 5,
+  "target_first_ordinary_app_frame": 6,
+  "target_first_ordinary_global_standing": 1.0,
+  "target_actual_source_property_override": null,
+  "target_after_zero_projected_standing": 1.0,
+  "source_initialization_engine_frame": 100,
+  "source_first_ordinary_engine_frame": 100,
+  "source_last_native_update_engine_frame": 100,
+  "source_actual_prior_standing": 1,
+  "source_pose_state_standing_after_first_ordinary": 0,
+  "prior_curve_values_different": false,
+  "source_native_callback_skipped_same_frame": true,
+  "target_first_ordinary_is_new_application_frame": true,
+  "matching_engine_frame_source_control_completed": false,
+  "curve_publication_candidate_confirmed_as_port_difference": false,
+  "actual_global_time_at_target_zero_query_ns": 166666675,
+  "full_history_or_root_equivalence_claimed": false,
+  "new_differences": [],
+  "total_confirmed_differences": 271
+}

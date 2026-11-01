@@ -1,0 +1,4 @@
+{
+  "expected_rejection": "Actual prior-curve and application frame observations are missing",
+  "stderr": "Traceback (most recent call last):\n  File \"docs/audit/bf144/446e/check.py\", line 45, in <module>\n    else:result=validate(json.loads((r/f'runtime-{label}/parameters.json').read_text()))\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/446e/check.py\", line 15, in validate\n    x=a['curve_frame_input'];y=b['curve_frame_input']\n      ~^^^^^^^^^^^^^^^^^^^^^\nKeyError: 'curve_frame_input'\n"
+}
