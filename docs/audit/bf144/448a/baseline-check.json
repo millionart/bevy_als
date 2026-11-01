@@ -1,0 +1,43 @@
+{
+  "gate": "PASS_NATIVE_FIVE_POSE_BOUNDARIES_AND_CURRENT_EMPTY_ATTRIBUTES",
+  "source_history_frames": 318,
+  "control_frames": 2,
+  "initialization_packets": 2,
+  "pose_boundaries_per_packet": 5,
+  "bone_rows_including_control_and_initialization": 127190,
+  "attributes_empty_all_observed_boundaries": true,
+  "root_to_mesh_translation_and_scale_exact": true,
+  "root_to_mesh_raw_rotation_difference_rows": 17465,
+  "first_raw_root_to_mesh_rotation_difference": {
+    "case": "actual-positive-history318-with-initial-pose",
+    "frame": 0,
+    "bone": "pelvis",
+    "raw_root": {
+      "x": 0.0012898874294312449,
+      "y": 0.7071056047224109,
+      "z": -0.001280564188195878,
+      "w": -0.7071056215430873
+    },
+    "mesh_after_finalization": {
+      "x": 0.001289887429494512,
+      "y": 0.7071056047570934,
+      "z": -0.0012805641882586878,
+      "w": -0.7071056215777698
+    }
+  },
+  "raw_root_precedes_mesh_finalize_normalize_rotations": true,
+  "previous_complete_character_fields_exact": true,
+  "added_observation_fields": [
+    "pose_boundaries",
+    "layered_blends"
+  ],
+  "negative_fixtures_rejected": [
+    "missing-boundary",
+    "wrong-engine-frame",
+    "nonempty-attribute",
+    "missing-bone"
+  ],
+  "full_root_or_als_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

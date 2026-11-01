@@ -1,0 +1,9 @@
+{
+  "gate": "PASS_NATIVE_POSE_OBSERVER_CURRENT396_IDENTITIES_AND_SAME_PACKAGE",
+  "reader_migration_from_446f_preserved": true,
+  "six_libraries_unchanged": true,
+  "original_manual_playground_unchanged": true,
+  "reader_source_unchanged": true,
+  "packaged_reader_source_matches": true,
+  "current_source_identity_check": "docs/audit/bf144/445a/identity-check.json"
+}

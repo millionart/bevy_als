@@ -1,0 +1,7 @@
+{
+  "enabled_sha256": "a28131dbadeaa357f845d2f48aeb6cb4fb80b50b4aeb89482d272d1bd57ce102",
+  "disabled_sha256": "09ee312d3797714dfe356eb54a42b63b8cdc59dcddf132e1958ef69fbe0a8afa",
+  "restored_sha256": "a28131dbadeaa357f845d2f48aeb6cb4fb80b50b4aeb89482d272d1bd57ce102",
+  "disabled_native_request": "disabled.request.json",
+  "native_package_unchanged": true
+}
