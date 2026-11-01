@@ -1,0 +1,11 @@
+{
+  "fixture_compile_initial": "PartialReflect trait import and NodeId debug formatting were missing",
+  "observer_compile_initial": "Extract the pose timestamp while the owned DataValue remains in scope",
+  "first_runtime_label": "baseline",
+  "first_runtime_gate": "PARTIAL_OBSERVATION_EXCLUDED_FROM_COMPLETE_LEAF_GATE",
+  "first_runtime_boundary": "Native player GUIDs were covered but built-in clip children of BlendSpace were omitted",
+  "correction": "Include all built-in ClipNode clocks and each BlendSpace point time request",
+  "production_changed": false,
+  "stale_binary_executed": false,
+  "ablation_compile_initial": "Removing the only typed leaf branch required an explicit Vec<Value> type in the negative fixture"
+}

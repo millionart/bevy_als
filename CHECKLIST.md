@@ -3812,6 +3812,17 @@
   - .445a时间/复盘：开始2026-11-01 16:14:42 +0800；预估结束16:34:42；实际结束16:31:01，历时16:19、偏差−03:41，结果PASS只读能力。实际三构建约38–42秒、完整native约31–39秒/非法约26秒；首估20分钟覆盖消融/旧包与压缩。后续同类依本记录估；若多个schema条件可由同一受控构建拒绝，保留各自独立反例，不重复扩生产。父.445与完整leaf/history目标保持开。
   - 父.445 16:31:01 轮1末复盘/拆分：已耗22:35，原16:38:26窗口内已解决必要native资格缺口，但尚未补目标完整叶采样，不能以source前置或Default-only fixture关父项。重新回读当前闭包后将剩余独立拆.b目标声明→实际各key/clock表与source首边界；不重跑.a、不用Root timestamp冒充完整clock。父轮2开始2026-11-01 16:31:01 +0800，按轮1窗口30分钟×1.5预估结束17:16:01；.b只估20分钟先做完整当前表/直接历史差，过即合并父项，不占满窗口。完整Root/非零view/attributes仍属原总体目标，截图0/性能暂停。
 
+- [x] BF144.445b U07目标全叶声明/Default与Temporary实际clock表：依赖.a已提交1806bb4e与父反射fixture；沿原.444两读点只增加Final后的叶节点当前key、node time、relevant秒/BS phase与实际样本时钟，85原GUID逐个对齐实际目标声明，未实例化/未更新不得补0。Gate：native85→target完整声明表、原240每个实际key/单位与样本数据、最早历史/值边界、必要字段/key消融及源码bytes恢复同target重编/原场景functional Gate与Git证据；整体同初态Root仍需按直接事实后继，不能因本表覆盖就声称等价。开始2026-11-01 16:31:01 +0800；预估结束16:51:01。依据.444双读点14:23、现反射五边界fixture已过/.a提供完整native tick/normalized+秒，20分钟优先复用场景/六库完成全表与首历史资格，不新增生产API或reader。父轮2保持17:16:01；截图0/性能暂停。
+
+  - .445b 16:34 runtime前source/static闭环：85 native GUID已全部唯一映射当前assets/ALS/Character声明；公开NodeCaches Reflect fixture拒absent/仅started/旧帧并保留Default/Temporary，当前key实际时钟仅从完成更新的key读取，不给未更新节点补0。fresh目标node_context_state、Sequence/Evaluator set_time、BS relevant秒/phase/sample_time及cache清理合同已快照，.a原生字段单位与资格沿用已提交Gate。新观察沿.444原驱动/两阶段，在Final后增叶声明/各key/秒和phase/实际样本；3空叶/NaN/缺key负fixture通过。初版owned DataValue借用逃逸在编译期拒，已改闭包内只取timestamp，未执行失败二进制。下一一次同原场景baseline，300秒总/90秒无真实参数进展退出、CaptureCount0，GPU pass按用户排除不验收；不改生产/资产，271不变/性能暂停。
+
+  - .445b 16:36 首baseline边界复盘：原三物理数组及.444两动画数组扣leaf字段后全部精确；原生GUID的14活跃节点/1490个Default key已捕获、当前无Temporary，公共functional Gate过。但static RON证明BS pose输入还有内置ClipNode样本子节点，初版三类型扫描未包含它们，因此旧baseline/check的有限PASS不作完整叶证据。现补第四类型ClipNode的实际key/asset/时间，以及BS每sample的requested absolute time，验证器新增“必须有builtin clip真实key”合同；旧部分数据将明确拒绝。只读反射获取private clip数据，不改visibility/API/生产；所有未更新记录仍为空clocks而非0。下一用baseline-full新label重跑，不覆写旧证据，整体leaf/history Gate保持未完成；271不变，截图0/性能暂停。
+
+  - .445b 16:44 完整baseline后/消融前：85声明全表及240完整实际key形成；2,805叶完成key含1,315内置Clip key，14 native GUID/18 helper GUID实际更新、当前Temporary0（五边界fixture覆盖该分支）。原物理三数组与.444两动画数组扣leaf后精确；完整functional Gate通过。源1560/目标1490实际native tick、621份自身不同历史的paired秒差保留全表，49声明未实例化不补0、不据此新D。fresh Idle原资产reader确认长度2.6666667461395264/rate1/无marker；公开tick逐步重放target319，源直接秒累加逐步匹配native240。对齐正步数后首source frame5/target row6的共同previous0.1666666716337204、dt0.03333333507180214，当前0.19999998807907104而源0.20000000298023224，完整235差归已有D201新cohort，未修生产；不是额外编号。最早初始化Absolute0与原生正步、ready79 warm仍为完整历史资格边界，不能吞并全部621。下一去leaf观察/temporary key/直接秒分支分别拒最小例，再源码SHA恢复同target重编/原场景恢复；截图0/性能暂停。
+
+  - .445b Gate完成：`docs/audit/bf144/445/summary.json` PASS_COMPLETE_CURRENT_PLAYER_CLOCK_TABLE_WITH_KNOWN_D201_AND_OPEN_HISTORY。85声明全表/2805完成key（1315内置Clip、当前Temporary0）及每sample时间请求完整；49未实例化、source1560/target1490与621自身不同历史秒差均有表，不补0/不误作新D。public tick重放target319、fresh原Idle资产/直接秒累加精确native240，235个同正步数余差归D201；原source初始化正步与target Absolute0/ready79仍是完整历史边界。去采样结构拒、去Temporary fixture101、去direct秒native frame5反例101；四源码SHA恢复同target重编后五完整runtime数组及replay JSON byte一致，fixture恢复/两functional Gate通过。首部分baseline漏Clip明确拒绝；消融空Vec类型推断编译失败在新负例运行前补显式Value类型，未执行旧binary。396当前身份/六库/85声明RON/原main不变，reader显式承接.a；108长期证据/压缩SHA/隐私/Git跟踪封存。新增0、271（116P2/155P3），全历史clock/Root/非零view/attributes未关闭；截图0/性能暂停，GPU pass未验收。
+  - .445b时间/复盘：开始2026-11-01 16:31:01 +0800；预估结束16:51:01；实际结束16:55:57，历时24:56、偏差+04:56，在20分钟容差内，结果PASS完整当前表/明确未闭历史。原估20分钟少计builtin Clip递归子节点、单独Idle原资产读取和消融类型修正；后续类似“完整叶”任务先盘所有Clip/evaluator/BS类型与子采样，按本次约25分钟校正。父轮2预估17:16:01保持，只剩两已过Gate的最终合并，不重复runtime。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D274 / P3 — 从含旋转的仿射矩阵重提scale，改变源保存scale及实际floor尺寸。
@@ -5348,6 +5359,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.170当前本地clock生产补充：新10路径独立重建2185次Start更新及20次reset，native组与实际本地clock/惯性作用域全等；source保留未更新节点缓存的663条值变化均未改变本批活跃候选，回接后的1738帧native资格/自动消费保持一致。此处本地时钟共用边界已关闭，父权重/原始方向参数及完整新Movement反馈仍保留；未将本批未触发From Walk/Pivot算作新运行通过。证据`target/bf144/170/summary.json`，未修生产。
 
 - [ ] BF144-D201 / P3 — 无marker同步时钟反复归一化，Land自动末端转场提前。
+  - BF144.445当前Overlay Idle消费者：fresh原Idle资产确认长度2.6666667461395264/rate1/无marker，原生240均为Secondary Motion唯一实际tick且权重0.75；public tick逐步精确当前319查询，直接F32秒累计逐步精确native240。对齐正步数后首共同previous0.1666666716337204、dt0.03333333507180214，源0.20000000298023224、当前0.19999998807907104；240共同计数中235不等，与原.228/.344同根。去直接秒因子丢首反例exit101，源码bytes恢复同target重编、完整数组/模型恢复。新证据`docs/audit/bf144/445/idle.native.json`、`idle-input.json`、`replay-restored.json`、`summary.json`在Git中；source/target自身历史配对621差不全归D201，不称完整Root或可见故障恢复，生产未修。
   - Source：fresh `AnimSequenceBase.cpp:515–544`直接以累计秒数执行AdvanceTime，随后发布ratio供follower；leader自身不经过ratio往返。两个Land资产原生长度均为1.1666666269302368秒，与已加载target clip长度相同；当前自动规则trigger=0、名义淡入0.8秒。
   - Target：`sync_group_phase.rs:537–543`的无marker推进每帧先除duration再经phase_to_time乘回，`SourceSequencePlayerNode`发布该位置，实际主图同步出口沿用这一推进；浮点残差跨帧累积，独立于D199的Jump导出长度偏差。
   - 反例：保留实际Land TwoWay、两个播放器与主图同步出口，5种固定权重/170轨迹共21305帧有95次末端资格提前。120Hz常规播放第140帧target已达1.1666666269302368，source仍为1.1666659116744995，剩余约7.15e−7秒；原Land自动规则在此提前一帧进入0.8秒转场。其余控制包含30/60/240Hz、变步长、零步长和末端邻域，单步最大0.125秒。

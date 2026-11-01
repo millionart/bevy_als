@@ -1,0 +1,32 @@
+{
+  "gate": "PASS_COMPLETE_CURRENT_PLAYER_CLOCK_TABLE_WITH_KNOWN_D201_AND_OPEN_HISTORY",
+  "counts": {
+    "ready_frames": 240,
+    "completed_leaf_keys": 2805,
+    "temporary_leaf_keys": 0,
+    "completed_builtin_clip_keys": 1315,
+    "touched_leaf_guids": 32
+  },
+  "source_declarations": 85,
+  "source_tick_rows": 1560,
+  "target_native_tick_rows": 1490,
+  "never_instantiated_target_declarations": 49,
+  "paired_own_history_clock_differences": 621,
+  "current_idle_rows_replayed_exact": 319,
+  "native_direct_second_rows_exact": 240,
+  "known_difference": "BF144-D201",
+  "new_differences": [],
+  "total_confirmed_differences": 271,
+  "source_bytes_restored": true,
+  "same_target_rebuilt": true,
+  "complete_runtime_arrays_restored_exact": true,
+  "replay_restored_byte_exact": true,
+  "partial_observation_temporary_key_and_direct_second_ablations_rejected": true,
+  "source_target_same_initial_history_claimed": false,
+  "all_clock_differences_attributed": false,
+  "full_root_or_als_equivalence_claimed": false,
+  "render_gpu_pass_acceptance": "deferred under explicit peripheral exclusion",
+  "animation_functional_gate_passed": true,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

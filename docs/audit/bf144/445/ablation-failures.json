@@ -1,0 +1,5 @@
+{
+  "fixture-ablated": "\nthread 'main' (1654445) panicked at docs/audit/bf144/445/fixture.rs:11:5:\nassertion `left == right` failed\n  left: []\n right: [(NodeId(00000000-0000-0000-0000-000000000000), Temporary(00000000-0000-0000-0000-000000000000))]\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+  "replay-ablated": "\nthread 'main' (1654442) panicked at docs/audit/bf144/445/replay.rs:31:9:\nassertion `left == right` failed: Native direct-second clock row 5\n  left: 0.19999999\n right: 0.2\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+  "check-ablated": "Traceback (most recent call last):\n  File \"docs/audit/bf144/445/check.py\", line 56, in <module>\n    result=validate(json.loads((r/f'runtime-{label}/parameters.json').read_text()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/445/check.py\", line 16, in validate\n    assert frame['leaf_nodes']\n           ~~~~~^^^^^^^^^^^^^^\nAssertionError\n"
+}
