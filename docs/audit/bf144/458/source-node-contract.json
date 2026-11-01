@@ -1,0 +1,10 @@
+{
+  "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Ragdolling.AB_Als_Ragdolling",
+  "node_guid": "a88d5696-4292-b2ae-ca2e-ac8d13e7dd2f",
+  "no_blend_profile": true,
+  "blend_mode": "Linear",
+  "source_single_full_weight_evaluate_passthrough": true,
+  "base_source_node": "277fbd6d-4f8a-8a3e-1d35-f3bf5df88eb0",
+  "target_same_base_source": true,
+  "actual_source_selector_not_inferred_from_capture_time_tag": true
+}

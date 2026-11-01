@@ -1,0 +1,21 @@
+{
+  "witness": {
+    "query": 0,
+    "bone": "ball_l",
+    "current": [
+      -7.998941873665899e-05,
+      0.7186336517333984,
+      2.9563896532636136e-05,
+      -0.6953888535499573
+    ],
+    "source_copy_control": [
+      -7.99894260126166e-05,
+      0.7186337113380432,
+      2.9563900170614943e-05,
+      -0.695388913154602
+    ]
+  },
+  "mode": "current",
+  "source_native_same_input_passthrough_verified": true,
+  "actual_runtime_was_not_modified": true
+}

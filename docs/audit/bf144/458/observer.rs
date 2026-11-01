@@ -1,0 +1,433 @@
+#[derive(Resource)]
+struct C458Probe {
+    actor: Option<Entity>,
+    frame: usize,
+    rows: Vec<serde_json::Value>,
+    progress: Option<(bool, usize, usize)>,
+    camera_rows: Vec<serde_json::Value>,
+    motor_rows: Vec<serde_json::Value>,
+    animation_before: Vec<serde_json::Value>,
+    animation_after: Vec<serde_json::Value>,
+}
+impl Default for C458Probe {
+    fn default() -> Self { Self { actor: None, frame: 0, rows: Vec::new(), progress: None, camera_rows:Vec::new(),motor_rows:Vec::new(),animation_before:Vec::new(),animation_after:Vec::new() } }
+}
+fn c458_progress(value: serde_json::Value) {
+    let output = std::env::var("ALS_C458_OUTPUT").expect("parameter evidence output is required");
+    std::fs::write(std::path::Path::new(&output).with_extension("progress.json"), value.to_string()).unwrap();
+}
+fn c458_drive(
+    mut commands: Commands,
+    mut probe: ResMut<C458Probe>,
+    ready: Res<ManualPlaygroundStartupReady>,
+    admissions: Query<&AlsPlayerAdmissionComplete>,
+    graphs: Res<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>,
+    mut actors: Query<(&mut bevy_als::als::gait::AlsDesiredGait, &mut bevy_als::als::transition::AlsDesiredStance, &mut bevy_als::als::motion::AlsViewYaw, &mut bevy_als::als::state::RotationMode)>,
+) {
+    let progress = (ready.passed, admissions.iter().count(), graphs.len());
+    if probe.progress != Some(progress) { info!("[C458] startup_progress={progress:?}"); probe.progress = Some(progress); c458_progress(serde_json::json!({"startup":progress,"captured":probe.frame})); }
+    if !ready.passed || probe.frame >= 240 { return; }
+    let Some(admission) = admissions.iter().next() else { return; };
+    let Ok((mut gait, mut stance, mut view, mut mode)) = actors.get_mut(admission.character) else { return; };
+    probe.actor = Some(admission.character);
+    gait.0 = bevy_als::als::state::Gait::Running;
+    stance.0 = bevy_als::als::state::Stance::Standing;
+    view.0 = -std::f32::consts::FRAC_PI_2;
+    *mode = bevy_als::als::state::RotationMode::ViewDirection;
+    let moving = (20..60).contains(&probe.frame) || (120..160).contains(&probe.frame);
+    commands.entity(admission.character).insert(bevy_als::als::motion::AlsInputOverride(bevy_als::als::input::AlsInputCommand { move_dir: if moving { Vec2::Y } else { Vec2::ZERO }, ..default() }));
+}
+fn c458_sample(
+    mut probe: ResMut<C458Probe>,
+    time: Res<Time>,
+    assets: Res<Assets<AlsMovementParams>>,
+    actors: Query<(
+        &bevy_als::als::state::LocomotionState,
+        &bevy_als::als::state::Stance,
+        &bevy_als::als::state::RotationMode,
+        &bevy_als::als::motion::AlsViewYaw,
+        &bevy_als::als::gait::AlsGaitAmount,
+        &bevy_als::als::dynamics::AlsGroundedDynamics,
+        &bevy_als::als::dynamics::AlsMovementBaseDynamicsState,
+        &bevy_als::als::character::AlsCmcAdapterRuntime,
+        &bevy_als::als::character::AlsMovementParamsHandle,
+        &bevy_tnua::TnuaController<bevy_als::als::control_scheme::AlsControlScheme>,
+        &Position,
+        &LinearVelocity,
+        &bevy_als::als::dynamics::AlsLandingBrakingFriction,
+        (&bevy_als::als::gait::AlsMaxAllowedGait, Option<&bevy_als::als::view::AlsPlayerViewYaw>, Option<&bevy_als::als::motion::AlsInputOverride>, &bevy_als::als::input::AlsInputCommand, Has<bevy_als::als::motion::AlsMovementInputBlocked>),
+    )>,
+    views: Query<(Entity,&Camera,Ref<GlobalTransform>,&bevy_als::als_camera::AlsCharacterCamera),(With<Camera3d>,With<AlsCameraViewSource>)>,
+) {
+    let Some(actor) = probe.actor else { return; };
+    if probe.frame >= 240 { return; }
+    let Ok((locomotion, stance, mode, view, gait, dynamics, base, cmc, handle, controller, position, physical, braking, (allowed, player_view, override_command, command, input_blocked))) = actors.get(actor) else { return; };
+    let Some(params) = assets.get(handle.id()) else { return; };
+    let thresholds = params.gait_speed_thresholds(*stance, *mode, base.relative_velocity, view.0);
+    let expected = params.grounded_dynamics(*stance, *mode, gait.0);
+    let maximum = bevy_als::als::dynamics::max_allowed_speed(params, *stance, *mode, allowed.0, base.relative_velocity, view.0);
+    let public_gait = bevy_als::als::gait::calculate_gait_amount_for_thresholds(base.relative_velocity.length(), thresholds);
+    let horizontal_gait = bevy_als::als::gait::calculate_gait_amount_for_thresholds(base.relative_velocity.with_y(0.0).length(), thresholds);
+    let effective = bevy_als::als::motion::movement_input_for_action(*override_command.map_or(command, |v|&v.0), input_blocked);
+    let used_yaw = player_view.map_or(view.0, |v|v.0);
+    let expected_direction = bevy_als::als::motion::view_relative_move_direction(effective.move_dir, used_yaw)*effective.move_dir.length().min(1.0);
+    let raw_direction = bevy_als::als::motion::view_relative_move_direction(effective.move_dir, view.0)*effective.move_dir.length().min(1.0);
+    let camera = views.iter().find(|(_,cam,t,owner)|owner.character==actor && cam.is_active && !t.is_added()).map(|(id,_,t,_)|serde_json::json!({"entity":format!("{id:?}"),"yaw":t.rotation().to_euler(EulerRot::YXZ).0,"rotation":t.rotation().to_array()}));
+    let row = serde_json::json!({
+        "ordinal": probe.frame, "player_view_yaw":player_view.map(|v|v.0), "consumed_yaw":used_yaw, "input_move":effective.move_dir.to_array(), "input_blocked":input_blocked, "camera_at_update":camera, "expected_direction":expected_direction.to_array(), "raw_control_direction":raw_direction.to_array(), "delta": time.delta_secs(), "simulation_delta": cmc.simulation_delta_seconds,
+        "simulation_steps": cmc.simulation_substeps, "locomotion": format!("{locomotion:?}"), "stance": format!("{stance:?}"), "rotation_mode": format!("{mode:?}"),
+        "view_yaw": view.0, "position": position.0.to_array(), "physical_velocity": physical.0.to_array(), "world_velocity_at_dynamics": base.world_velocity.to_array(),
+        "support_velocity": base.support_velocity.to_array(), "has_base": base.entity.is_some(), "relative_velocity_consumed": base.relative_velocity.to_array(),
+        "desired_motion": controller.basis.desired_motion.to_array(), "gait_amount": gait.0, "public_gait":public_gait, "horizontal_gait":horizontal_gait, "allowed_gait":format!("{:?}",allowed.0), "thresholds": [thresholds.walk,thresholds.run,thresholds.sprint],
+        "dynamics": [dynamics.0.acceleration,dynamics.0.braking_deceleration,dynamics.0.ground_friction],
+        "public_sample": [expected.acceleration,expected.braking_deceleration,expected.ground_friction], "max_speed": maximum,
+        "planned_velocity": base.pre_collision_velocity.map(|v|v.to_array()), "planned_delta": cmc.grounded_movement_delta.map(|v|v.to_array()),"grounded_move_start":cmc.grounded_move_start.map(|v|v.to_array()),
+        "braking_friction_factor": braking.factor, "has_animation_root_velocity": cmc.has_animation_root_velocity,
+    });
+    probe.rows.push(row);
+    probe.frame += 1;
+    if probe.frame % 30 == 0 { info!("[C458] captured_parameters={}",probe.frame); c458_progress(serde_json::json!({"captured":probe.frame})); }
+}
+fn c458_late(
+    mut probe: ResMut<C458Probe>,
+    bodies: Query<(&Position,&LinearVelocity,&avian3d::prelude::ComputedCenterOfMass),With<bevy_als::als::character::AlsCharacter>>,
+    frame_time: Res<Time<Virtual>>,
+    physics: Res<Time<avian3d::prelude::Physics>>,
+    substep_time: Res<Time<avian3d::prelude::Substeps>>,
+    substeps: Res<avian3d::prelude::SubstepCount>,
+    gravity: Res<avian3d::prelude::Gravity>,
+    views: Query<(&Camera,&GlobalTransform,&bevy_als::als_camera::AlsCharacterCamera),(With<Camera3d>,With<AlsCameraViewSource>)>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    let Some(actor)=probe.actor else{return;};
+    if probe.frame==0{return;}
+    let camera=views.iter().find(|(cam,_,owner)|owner.character==actor && cam.is_active).map(|(_,t,_)|serde_json::json!({"yaw":t.rotation().to_euler(EulerRot::YXZ).0,"rotation":t.rotation().to_array()}));
+    let ordinal=probe.frame-1;
+    let Ok((position,velocity,com))=bodies.get(actor) else{panic!("Observed body is missing");};
+    probe.camera_rows.push(serde_json::json!({"ordinal":ordinal,"camera":camera,"position":position.0.to_array(),"velocity":velocity.0.to_array(),"physics_delta":physics.delta_secs(),"physics_delta_ns":physics.delta().as_nanos() as u64,"frame_delta_ns":frame_time.delta().as_nanos() as u64,"substep_delta_ns":substep_time.delta().as_nanos() as u64,"center_of_mass":com.0.to_array(),"substep_delta":substep_time.delta_secs(),"substeps":substeps.0,"gravity":gravity.0.to_array()}));
+    if probe.frame==240 {
+        let output=std::env::var("ALS_C458_OUTPUT").expect("input direction evidence output is required");
+        std::fs::write(output,serde_json::to_vec_pretty(&serde_json::json!({"gate":"CAPTURED_REAL_INPUT_CAMERA_AND_DESIRED_DIRECTION240","rows":probe.rows,"after_motors":probe.motor_rows,"animation_before":probe.animation_before,"animation_after":probe.animation_after,"camera_after_post_update":probe.camera_rows,"screenshots":0,"performance_acceptance":"paused"})).unwrap()).unwrap();
+        exit.write(AppExit::Success);
+    }
+}
+
+fn c458_motor(
+    mut probe: ResMut<C458Probe>,
+    bodies: Query<(&Position,&LinearVelocity),With<bevy_als::als::character::AlsCharacter>>,
+) {
+    let Some(actor)=probe.actor else{return;};
+    if probe.frame==0{return;}
+    let Ok((position,velocity))=bodies.get(actor) else{panic!("Observed motor body is missing");};
+    let ordinal=probe.frame-1;
+    probe.motor_rows.push(serde_json::json!({"ordinal":ordinal,"position":position.0.to_array(),"velocity":velocity.0.to_array()}));
+}
+fn c458_animation(
+    In(before): In<bool>,
+    app_frame:Res<bevy::diagnostic::FrameCount>,
+    root_contexts:Query<&bevy_als::animation_context_projection::AlsRootAnimationContext>,
+    transforms:bevy::transform::helper::TransformHelper,
+    history:Query<(&Transform,Has<ChildOf>,&bevy_als::als::state::LocomotionState,&bevy_als::als::state::Gait,&bevy_als::als::state::Stance,&bevy_als::als::state::RotationMode,
+        &bevy_als::als::motion::AlsViewYaw,&bevy_als::als::gait::AlsDesiredGait,&bevy_als::als::transition::AlsDesiredStance,
+        (&bevy_als::als::input::AlsInputCommand,Option<&bevy_als::als::motion::AlsInputOverride>,Option<&bevy_als::als::view::AlsPlayerViewYaw>,Has<bevy_als::als::motion::AlsMovementInputBlocked>,&bevy_tnua::TnuaController<bevy_als::als::control_scheme::AlsControlScheme>))>,
+    sources:Query<&bevy_als::extensions::SourceAnimationInputs>,
+    ready:Res<ManualPlaygroundStartupReady>,
+    skeletons:Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
+    graphs:Res<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>,
+    assets:Res<AssetServer>,
+    mut probe: ResMut<C458Probe>,
+    time: Res<Time>,
+    virtual_time: Res<Time<Virtual>>,
+    avatars: Query<(Entity,&ChildOf,&bevy_animation_graph::core::animated_scene::AnimatedSceneInstance),With<bevy_als::character_assembly::AlsCharacterAvatar>>,
+    characters: Query<(&bevy_als::actual_motion::AlsActualMotion,&Position,&LinearVelocity)>,
+    players: Query<(&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,Option<&bevy_als::extensions::post_physics_animation::AnimationPoseUpdateGate>)>,
+) {
+    let Some((avatar,parent,instance))=avatars.iter().next() else{return;};
+    let Ok((motion,position,velocity))=characters.get(parent.parent()) else{return;};
+    let Ok((player,gate))=players.get(instance.player_entity()) else{return;};
+    let scalar=|key|player.get_global_input_data(key).and_then(|v|v.as_f32().ok());
+    let vector=|key|player.get_global_input_data(key).and_then(|v|v.as_vec3().ok()).map(|v|v.to_array());
+    let boolean=|key|player.get_global_input_data(key).and_then(|v|v.as_bool().ok());
+    let actor=parent.parent();
+    let (local,parented,locomotion,gait,stance,rotation,view,desired_gait,desired_stance,(command,input_override,player_view,blocked,controller))=history.get(actor).expect("Initial state producer components are required");
+    let actor_world=transforms.compute_global_transform(actor).unwrap().to_scale_rotation_translation();
+    let avatar_world=transforms.compute_global_transform(avatar).unwrap().to_scale_rotation_translation();
+    let source=sources.get(instance.player_entity()).unwrap();
+    let tags=["locomotion_mode","gait","stance","rotation_mode","locomotion_action"].into_iter().map(|key|(key.to_owned(),serde_json::json!(source.gameplay_tag_input(key).map(|v|v.as_str().to_owned())))).collect::<serde_json::Map<String,serde_json::Value>>();
+    let effective=bevy_als::als::motion::movement_input_for_action(*input_override.map_or(command,|v|&v.0),blocked);
+    let history_input=serde_json::json!({"startup_ready":ready.passed,"root_tags":tags,"locomotion":locomotion,"gait":gait,"stance":stance,"rotation_mode":rotation,
+        "desired_gait":desired_gait.0,"desired_stance":desired_stance.0,"raw_view_yaw":view.0,"player_view_yaw":player_view.map(|v|v.0),
+        "input_blocked":blocked,"input_override_present":input_override.is_some(),"command_move":command.move_dir.to_array(),"effective_move":effective.move_dir.to_array(),"desired_world_motion":controller.basis.desired_motion.to_array(),
+        "actor_parented":parented,"local_translation":local.translation.to_array(),"local_rotation":local.rotation.to_array(),"local_scale":local.scale.to_array(),
+        "actor_world_translation":actor_world.2.to_array(),"actor_world_rotation":actor_world.1.to_array(),"actor_world_scale":actor_world.0.to_array(),
+        "avatar_world_translation":avatar_world.2.to_array(),"avatar_world_rotation":avatar_world.1.to_array(),"avatar_world_scale":avatar_world.0.to_array()});
+    let root_context=root_contexts.get(instance.player_entity()).ok();
+    let curve_frame_input=serde_json::json!({"app_frame":app_frame.0,"virtual_elapsed_ns":virtual_time.elapsed().as_nanos() as u64,
+        "projected_context_present":root_context.is_some(),"projected_curve_count":root_context.map(|v|v.curves.len()),
+        "projected_standing":root_context.and_then(|v|v.f32("PoseStanding")),"projected_grounded":root_context.and_then(|v|v.f32("PoseGrounded")),
+        "global_standing":scalar("pose_state.standing_amount"),"global_grounded":scalar("pose_state.grounded_amount"),
+        "source_property_standing":bevy_als::extensions::source_instance::source_player_property(player,"pose_state.standing_amount").and_then(|v|v.as_f32().ok()),
+        "source_property_grounded":bevy_als::extensions::source_instance::source_player_property(player,"pose_state.grounded_amount").and_then(|v|v.as_f32().ok())});
+    let row=serde_json::json!({
+        "ordinal":probe.actor.map(|_|probe.frame.saturating_sub(1)),
+        "curve_frame_input":curve_frame_input,
+        "head_values":c458_head_values(player,&graphs),
+        "rig_snapshot":c458_rig_snapshot(player,&graphs,&skeletons,&assets,before),
+        "ragdoll_blend":if before{Vec::new()}else{c458_ragdoll_blend(player,&graphs,&skeletons,&assets)},
+        "head_apply":if before{Vec::new()}else{c458_head_apply(player,&graphs,&skeletons,&assets)},
+        "history_input":history_input,
+        "leaf_nodes":if before{Vec::new()}else{c458_leaf_rows(player,&graphs,&assets)},
+        "frame_delta":time.delta_secs(),"virtual_delta_ns":virtual_time.delta().as_nanos() as u64,
+        "position":position.0.to_array(),"velocity":velocity.0.to_array(),
+        "motion_world_velocity":motion.world_velocity.to_array(),"motion_acceleration":motion.world_acceleration.to_array(),
+        "motion_speed":motion.horizontal_speed,"motion_has_input":motion.has_input,
+        "motion_local_velocity":motion.local_velocity.to_array(),
+        "provider_velocity":vector("locomotion_state.velocity_world_space"),
+        "provider_acceleration":vector("locomotion_state.acceleration_world_space"),
+        "provider_speed":scalar("locomotion_state.speed"),"provider_has_input":boolean("locomotion_state.b_has_input"),
+        "provider_max_acceleration":scalar("locomotion_state.max_acceleration"),
+        "provider_max_braking":scalar("locomotion_state.max_braking_deceleration"),
+        "animation_delta":scalar("animation.delta_seconds"),
+        "animation_pending":boolean("animation.pending_update"),
+        "arena_frame":player.get_context_arena().map(|a|a.frame_index()),
+        "root_time_update":player.get_context_arena().map(|a|format!("{:?}",a.get_toplevel().query_output_time)),
+        "elapsed":player.elapsed(),"pose_timestamp":player.get_default_output_pose().map(|p|p.timestamp),
+        "paused":player.is_paused(),"graph_error":player.get_error().map(|e|format!("{e:?}")),
+        "gate":gate.map(|g|serde_json::json!({"update_graph":g.update_graph,"refresh_bones":g.refresh_bones,"pending_update":g.pending_update}))
+    });
+    if before {probe.animation_before.push(row);}else{probe.animation_after.push(row);}
+}
+fn c458_updated_keys(caches:&bevy_animation_graph::core::context::node_caches::NodeCaches)->Vec<(bevy_animation_graph::core::animation_graph::NodeId,bevy_animation_graph::core::context::node_states::StateKey)>{
+    use bevy::reflect::{PartialReflect,ReflectRef};
+    use bevy_animation_graph::core::animation_graph::NodeId;
+    use bevy_animation_graph::core::context::node_caches::NodeCache;
+    let ReflectRef::Struct(fields)=caches.reflect_ref()else{panic!("Node caches are not a reflected struct");};
+    let ReflectRef::Map(map)=fields.field("caches").unwrap().reflect_ref()else{panic!("Node cache entries are not a reflected map");};
+    let mut output=Vec::new();
+    for (node,value) in map.iter(){
+        let node=*node.try_downcast_ref::<NodeId>().unwrap();
+        let cache=value.try_downcast_ref::<std::sync::Arc<NodeCache>>().unwrap();
+        output.extend(cache.updated.iter().map(|key|(node,*key)));
+    }
+    output.sort_by_key(|(node,key)|format!("{node:?}:{key:?}"));
+    output
+}
+fn c458_leaf_rows(
+    player:&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+    graphs:&Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>,
+    assets:&AssetServer,
+)->Vec<serde_json::Value>{
+    use bevy_animation_graph::core::context::node_states::StateKey;
+    let Some(arena)=player.get_context_arena()else{return Vec::new();};
+    let mut rows=Vec::new();
+    for context_id in arena.iter_context_ids(){
+        let context=arena.get_context(context_id).unwrap();
+        let Some(graph)=graphs.get(context.get_graph_id())else{continue;};
+        let updated=c458_updated_keys(&context.node_caches);
+        for node in graph.nodes.values(){
+            let sequence=node.try_inner_downcast_ref::<bevy_als::extensions::SourceSequencePlayerNode>();
+            let evaluator=node.try_inner_downcast_ref::<bevy_als::extensions::SourceSequenceEvaluatorNode>();
+            let blend=node.try_inner_downcast_ref::<bevy_als::extensions::NormalizedBlendSpaceNode>();
+            let builtin=node.try_inner_downcast_ref::<bevy_animation_graph::builtin_nodes::clip_node::ClipNode>();
+            let kind=if sequence.is_some(){"sequence_player"}else if evaluator.is_some(){"sequence_evaluator"}else if blend.is_some(){"blendspace"}else if builtin.is_some(){"clip"}else{continue;};
+            let builtin_clip=builtin.and_then(|v|{
+                use bevy::reflect::PartialReflect;
+                let bevy::reflect::ReflectRef::Struct(fields)=v.reflect_ref()else{return None;};
+                fields.field("clip").and_then(|v|v.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>()).cloned()
+            });
+            let clip=sequence.map(|v|&v.clip).or_else(||evaluator.map(|v|&v.clip)).or(builtin_clip.as_ref());
+            let mut clocks=Vec::new();
+            for (_,key) in updated.iter().filter(|(id,_)|*id==node.id){
+                let state=bevy_als::extensions::animation_context::node_context_state(&context.node_states,*key,node.id);
+                let relevant=state.and_then(|v|v.relevant_asset.as_ref()).map(|v|serde_json::json!({"position_seconds":v.position,"previous_seconds":v.previous_position,"duration_seconds":v.duration,"delta_seconds":v.delta_seconds,"playback_delta_seconds":v.playback_delta_seconds,"looping":v.looping}));
+                let sync=state.map(|v|v.sync_players.iter().map(|t|serde_json::json!({"phase":t.phase,"previous_phase":t.previous_phase,"phase_duration":t.phase_duration,"duration_seconds":t.duration,"group":t.key,"weight":t.weight,"delta_seconds":t.delta_seconds,"play_rate":t.play_rate})).collect::<Vec<_>>()).unwrap_or_default();
+                let samples=state.map(|v|v.asset_samples.iter().map(|s|serde_json::json!({"clip":assets.get_path(s.clip.id()).map(|p|p.to_string()),"position_seconds":s.clock.position,"duration_seconds":s.clock.duration,"weight":s.clock.weight})).collect::<Vec<_>>()).unwrap_or_default();
+                let pose=context.node_caches.get_output_data(node.id,*key,if blend.is_some()||builtin.is_some(){"pose"}else{"Pose"}.into()).and_then(|v|v.as_pose().ok().map(|p|p.timestamp));
+                let point_times=blend.map(|v|v.points.iter().map(|p|serde_json::json!({"id":p.id,"requested_time":context.node_caches.get_input_time_update(node.id,*key,bevy_als::extensions::NormalizedBlendSpaceNode::time_pin(&p.id)).ok().map(|t|format!("{t:?}"))})).collect::<Vec<_>>());
+                clocks.push(serde_json::json!({"key":format!("{key:?}"),"temporary":matches!(key,StateKey::Temporary(_)),"node_time":context.node_states.get_time(node.id,*key),"sample_time":context.node_caches.get_output_data(node.id,*key,"sample_time".into()).and_then(|v|v.as_f32().ok()),"pose_timestamp":pose,"relevant":relevant,"sync":sync,"samples":samples,"point_times":point_times}));
+            }
+            rows.push(serde_json::json!({"context":format!("{context_id:?}"),"graph":assets.get_path(context.get_graph_id()).map(|p|p.to_string()),"node_guid":node.id,"name":node.name,"kind":kind,"clip":clip.and_then(|v|assets.get_path(v.id())).map(|p|p.to_string()),"teleport":blend.map(|v|v.teleport_to_normalized_time),"points":blend.map(|v|v.points.iter().map(|p|serde_json::json!({"id":p.id,"duration":p.duration})).collect::<Vec<_>>()),"clocks":clocks}));
+        }
+    }
+    rows.sort_by_key(|v|(v["graph"].to_string(),v["node_guid"].to_string(),v["context"].to_string()));
+    rows
+}
+fn c458_head_values(
+    player:&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+    graphs:&Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>,
+)->serde_json::Value{
+    let mut floats=serde_json::Map::new();
+    for key in ["animation.delta_seconds","animation.delta_seconds_without_time_dilation","locomotion_state.input_yaw_angle_world_space","locomotion_state.target_yaw_angle_world_space","locomotion_state.rotation_yaw","locomotion_state.yaw_velocity_world_space","view_state.yaw_angle","view_state.pitch_angle","movement_base.delta_yaw","head_state.pitch_angle","head_state.yaw_angle","head_state.yaw_velocity","head_state.yaw_amount"]{
+        let global=player.get_global_input_data(key).and_then(|v|v.as_f32().ok());
+        let property=bevy_als::extensions::source_instance::source_player_property(player,key).and_then(|v|v.as_f32().ok());
+        let frame_input=player.get_global_input_data(format!("source_frame_input.{key}")).and_then(|v|v.as_f32().ok());
+        floats.insert(key.to_owned(),serde_json::json!({"global":global,"property":property,"frame_input":frame_input,"resolved":property.or(global)}));
+    }
+    let mut booleans=serde_json::Map::new();
+    for key in ["view_mode.first_person","rotation_mode.velocity_direction","locomotion_state.b_has_input","movement_base.b_has_relative_rotation","head_state.b_initialization_required","head_state.b_switching_look_sides"]{
+        let global=player.get_global_input_data(key).and_then(|v|v.as_bool().ok());
+        let property=bevy_als::extensions::source_instance::source_player_property(player,key).and_then(|v|v.as_bool().ok());
+        let frame_input=player.get_global_input_data(format!("source_frame_input.{key}")).and_then(|v|v.as_bool().ok());
+        booleans.insert(key.to_owned(),serde_json::json!({"global":global,"property":property,"frame_input":frame_input,"resolved":property.or(global)}));
+    }
+    let mut pins=Vec::new();
+    if let Some(arena)=player.get_context_arena(){
+        for context_id in arena.iter_context_ids(){
+            let context=arena.get_context(context_id).unwrap();
+            let Some(graph)=graphs.get(context.get_graph_id())else{continue;};
+            for node in graph.nodes.values(){
+                let Some(input)=node.try_inner_downcast_ref::<bevy_als::extensions::GlobalF32InputNode>()else{continue;};
+                if input.key!="head_state.yaw_amount"&&input.key!="head_state.pitch_angle"{continue;}
+                let key=bevy_animation_graph::core::context::node_states::StateKey::Default;
+                if !context.node_caches.is_updated(node.id,key){continue;}
+                let value=context.node_caches.get_output_data(node.id,key,input.key.clone()).and_then(|v|v.as_f32().ok());
+                pins.push(serde_json::json!({"key":input.key,"node_guid":node.id,"value":value}));
+            }
+        }
+    }
+    pins.sort_by_key(|v|(v["key"].to_string(),v["node_guid"].to_string()));
+    serde_json::json!({"floats":floats,"booleans":booleans,"actual_look_pins":pins})
+}
+fn c458_pose_value(
+    pose:&bevy_animation_graph::core::pose::Pose,
+    skeletons:&Assets<bevy_animation_graph::core::skeleton::Skeleton>,
+    assets:&AssetServer,
+)->serde_json::Value{
+    let skeleton=skeletons.get(&pose.skeleton);
+    let mut bones=pose.paths.iter().map(|(id,index)|{
+        let path=skeleton.and_then(|s|s.id_to_path(*id)).map(|p|p.parts.iter().map(|v|v.as_str().to_owned()).collect::<Vec<_>>());
+        let bone=&pose.bones[*index];
+        serde_json::json!({"name":path.as_ref().and_then(|p|p.last()),"path":path,"translation":bone.translation.map(|v|v.to_array()),"rotation":bone.rotation.map(|v|v.to_array()),"scale":bone.scale.map(|v|v.to_array()),"weights":bone.weights})
+    }).collect::<Vec<_>>();
+    bones.sort_by_key(|v|v["name"].to_string());
+    serde_json::json!({"timestamp":pose.timestamp,"skeleton_asset":assets.get_path(pose.skeleton.id()).map(|p|p.to_string()),"bones":bones,"root_motion":pose.root_motion})
+}
+fn c458_transform_value(t:Transform)->serde_json::Value{serde_json::json!({"translation":t.translation.to_array(),"rotation":t.rotation.to_array(),"scale":t.scale.to_array()})}
+fn c458_head_apply(
+    player:&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+    graphs:&Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>,
+    skeletons:&Assets<bevy_animation_graph::core::skeleton::Skeleton>,
+    assets:&AssetServer,
+)->Vec<serde_json::Value>{
+    use bevy_animation_graph::core::animation_graph::{SourcePin,TargetPin};
+    let mut rows=Vec::new();
+    if let Some(arena)=player.get_context_arena(){for context_id in arena.iter_context_ids(){
+        let context=arena.get_context(context_id).unwrap();let Some(graph)=graphs.get(context.get_graph_id())else{continue;};
+        for node in graph.nodes.values(){
+            if node.id.uuid().to_string()!="d17ea3bf-4d5e-ebd5-fd47-0c867f5cc0e7"{continue;}
+            let config=node.try_inner_downcast_ref::<bevy_als::extensions::SourceMeshSpaceAdditiveNode>().unwrap();
+            assert!(!config.use_constant_alpha&&config.expose_alpha_pin&&config.mapping.source_semantics&&!config.mapping.map_range&&!config.mapping.clamp_result&&!config.mapping.interpolate_result);
+            assert_eq!((config.mapping.scale,config.mapping.bias,config.alpha_scale,config.alpha_bias),(1.0,0.0,1.0,0.0));
+            assert!(!graph.edges_inverted.contains_key(&TargetPin::NodeData(node.id,config.alpha_pin.clone())));
+            for(_,key)in c458_updated_keys(&context.node_caches).into_iter().filter(|(id,_)|*id==node.id){
+                let global=player.get_global_input_data(&config.alpha_key).and_then(|v|v.as_f32().ok());
+                let resolved_property=bevy_als::extensions::source_instance::source_player_property(player,&config.alpha_key).and_then(|v|v.as_f32().ok());
+                let raw=resolved_property.or(global).expect("An evaluated Head alpha input is required");let alpha=raw.clamp(0.0,1.0);
+                let output=context.node_caches.get_output_data(node.id,key,"Pose".into()).unwrap().into_pose().unwrap();
+                let mut inputs=Vec::new();let mut poses=Vec::new();
+                for pin in ["Base","Additive"]{
+                    let SourcePin::NodeData(id,name)=graph.edges_inverted.get(&TargetPin::NodeData(node.id,pin.into())).unwrap()else{panic!("An evaluated Head pose input must be a node output");};assert!(context.node_caches.is_updated(*id,key));
+                    let pose=context.node_caches.get_output_data(*id,key,name.clone()).unwrap().into_pose().unwrap();
+                    inputs.push(serde_json::json!({"pin":pin,"source_node":id,"source_pin":name,"pose":c458_pose_value(&pose,skeletons,assets)}));poses.push(pose);
+                }
+                let skeleton=skeletons.get(&poses[0].skeleton).unwrap();let mut expected=poses[0].clone();
+                bevy_als::extensions::mesh_space_additive::apply_mesh_space_additive(&mut expected,&poses[1],alpha,skeleton);
+                let output_path=std::env::var("ALS_C458_OUTPUT").unwrap();let snapshot=std::path::Path::new(&output_path).with_file_name("skeleton.json");
+                if !snapshot.exists(){
+                    let mut bones=skeleton.iter_bones().map(|id|{let path=skeleton.id_to_path(id).unwrap();let d=skeleton.default_transforms(id);serde_json::json!({"path":path.parts.iter().map(|n|n.as_str().to_owned()).collect::<Vec<_>>(),"name":path.parts.last().map(|n|n.as_str()),"local":d.map(|v|c458_transform_value(v.local)),"character":d.map(|v|c458_transform_value(v.character))})}).collect::<Vec<_>>();bones.sort_by_key(|v|v["path"].to_string());
+                    let root=skeleton.id_to_path(skeleton.root()).unwrap();std::fs::write(snapshot,serde_json::to_vec_pretty(&serde_json::json!({"root_path":root.parts.iter().map(|n|n.as_str().to_owned()).collect::<Vec<_>>(),"asset":assets.get_path(poses[0].skeleton.id()).map(|p|p.to_string()),"bones":bones})).unwrap()).unwrap();
+                }
+                rows.push(serde_json::json!({"node_guid":node.id,"context":format!("{context_id:?}"),"state_key":format!("{key:?}"),"alpha_key":config.alpha_key,"global_alpha":global,"resolved_property_alpha":resolved_property,"raw_alpha":raw,"effective_alpha":alpha,"identity_mapping_verified":true,"inputs":inputs,"actual":c458_pose_value(&output,skeletons,assets),"public":c458_pose_value(&expected,skeletons,assets),"pose_exact_public":output==expected}));
+            }
+        }
+    }}rows.sort_by_key(|v|(v["context"].to_string(),v["state_key"].to_string()));rows
+}
+
+fn c458_rig_snapshot(
+    player:&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+    graphs:&Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>,
+    skeletons:&Assets<bevy_animation_graph::core::skeleton::Skeleton>,
+    assets:&AssetServer,
+    before:bool,
+)->serde_json::Value {
+    use bevy_als::extensions::{root_graph_boundaries::{current_control_rig,ControlRigBoundaryNode},control_rig_hierarchy::RigSpace,control_rig_program::RigValueRef};
+    use bevy_animation_graph::core::context::node_states::StateKey;
+    let Some((context,node,state))=current_control_rig(player,graphs)else{return serde_json::Value::Null;};
+    assert_eq!(node.id.uuid().to_string(),"5514524f-4eea-c42c-19cd-349ea6f99e36");
+    let config=node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap();let definition=config.definition.as_ref().unwrap();
+    let graph=graphs.get(context.get_graph_id()).unwrap();
+    let mut hierarchy=state.snapshot_hierarchy().expect("Actual initialized Rig hierarchy is required");
+    let local=definition.bones.iter().enumerate().map(|(index,bone)|serde_json::json!({"index":index,"name":bone.name,"parent":bone.parent,"local":hierarchy.transform(index,RigSpace::Local,false).unwrap()})).collect::<Vec<_>>();
+    let registers=(0..definition.program.initial_values.len()).map(|register|state.value(&RigValueRef{register,path:Vec::new()}).unwrap()).collect::<Vec<_>>();
+    let externals=definition.externals.iter().map(|(name,reference)|(name.clone(),serde_json::json!({"reference":reference,"value":state.value(reference).unwrap()}))).collect::<std::collections::BTreeMap<_,_>>();
+    let bindings=config.input_bindings.iter().map(|binding|serde_json::json!({"external":binding.external,"path":binding.path,"property":binding.property,"resolved_player_property":bevy_als::extensions::source_instance::source_player_property(player,&binding.property),"global":player.get_global_input_data(&binding.property)})).collect::<Vec<_>>();
+    let mut poses=std::collections::BTreeMap::new();
+    for (name,guid)in [("rig_source","e4f33e44-4019-9bac-8e0a-dcbc0e3ae178"),("rig_output","5514524f-4eea-c42c-19cd-349ea6f99e36"),("ragdolling_output","01dbd86a-4d37-d1df-d0f4-65a458a965ab"),("root_result","8191c2ea-49e5-bd21-ee33-86bd87b2f93c")] {
+        let n=graph.nodes.values().find(|n|n.id.uuid().to_string()==guid).unwrap();
+        let updated=context.node_caches.is_updated(n.id,StateKey::Default);
+        let pose=context.node_caches.get_output_data(n.id,StateKey::Default,"Pose".into()).map(|v|c458_pose_value(v.as_pose().unwrap(),skeletons,assets));
+        poses.insert(name,serde_json::json!({"node_guid":guid,"updated":updated,"pose":pose}));
+    }
+    let calls=state.calls.iter().map(|call|serde_json::json!({"instruction":call.instruction,"arguments_after_call":call.arguments,"bones_before_call":call.bones_before})).collect::<Vec<_>>();
+    let traces=state.traces.iter().map(|trace|serde_json::json!({"instruction":trace.instruction,"start":trace.start,"end":trace.end,"hit":trace.hit})).collect::<Vec<_>>();
+    if !before {
+        let p=std::path::Path::new(&std::env::var("ALS_C458_OUTPUT").unwrap()).with_file_name("rig-definition.json");
+        if !p.exists(){std::fs::write(p,serde_json::to_vec_pretty(definition).unwrap()).unwrap();}
+    }
+    serde_json::json!({"node_guid":node.id,"context_graph":assets.get_path(context.get_graph_id()).map(|p|p.to_string()),"phase":if before{"before_evaluation_previous_state"}else{"after_evaluation"},"state_key":"Default","initialization_count":state.initialization_count,"executed_steps":state.executed_steps,"to_world":state.to_world,"upstream_context_curves":state.context.curves,"poses":poses,"hierarchy_local":local,"registers":registers,"externals":externals,"bindings":bindings,"calls":calls,"traces":traces,"capture_property":bevy_als::extensions::source_instance::source_player_property(player,bevy_als::extensions::root_graph_boundaries::RIG_CAPTURE_KEY).and_then(|v|v.as_bool().ok()),"capture_global":player.get_global_input_data(bevy_als::extensions::root_graph_boundaries::RIG_CAPTURE_KEY).and_then(|v|v.as_bool().ok())})
+}
+
+fn c458_actual_tag_blend_state(
+    context:&bevy_animation_graph::core::context::graph_context::GraphState,
+    node:bevy_animation_graph::core::animation_graph::NodeId,
+)->serde_json::Value {
+    use bevy::reflect::{PartialReflect,ReflectRef};
+    use bevy_animation_graph::core::context::{node_state_box::NodeStateBox,node_states::StateKey};
+    type States=bevy::platform::collections::HashMap<StateKey,std::sync::Arc<NodeStateBox>>;
+    let ReflectRef::Struct(root)=context.node_states.reflect_ref()else{panic!("Actual node-state store must be reflected");};
+    let ReflectRef::Map(map)=root.field("states").unwrap().reflect_ref()else{panic!("Actual node-state entries must be a map");};
+    let ReflectRef::Struct(state)=map.get(&node).unwrap().reflect_ref()else{panic!("Actual node state is required");};
+    let upcoming=state.field("upcoming_state").unwrap().try_downcast_ref::<States>().unwrap();
+    let last=state.field("last_state").unwrap().try_downcast_ref::<Option<std::sync::Arc<NodeStateBox>>>().unwrap();
+    let (value,storage)=upcoming.get(&StateKey::Default).map(|v|(v,"upcoming_Default")).or_else(||last.as_ref().map(|v|(v,"last_state_fallback"))).expect("Actual evaluated blend state is required");
+    let ReflectRef::Struct(value)=value.value.reflect_ref()else{panic!("Actual source blend state must be a struct");};
+    let ReflectRef::Struct(blend)=value.field("blend").unwrap().reflect_ref()else{panic!("Actual gameplay-tag blend state must be a struct");};
+    let weights=blend.field("weights").unwrap().try_downcast_ref::<Vec<f32>>().unwrap();
+    let active=*blend.field("last_active_index").unwrap().try_downcast_ref::<i32>().unwrap();
+    let initialized=*blend.field("initialized").unwrap().try_downcast_ref::<bool>().unwrap();
+    serde_json::json!({"weights":weights,"last_active_index":active,"initialized":initialized,"storage":storage})
+}
+fn c458_ragdoll_blend(
+    player:&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+    graphs:&Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>,
+    skeletons:&Assets<bevy_animation_graph::core::skeleton::Skeleton>,
+    assets:&AssetServer,
+)->Vec<serde_json::Value> {
+    use bevy_animation_graph::core::context::node_states::StateKey;
+    let mut rows=Vec::new();
+    if let Some(arena)=player.get_context_arena(){for id in arena.iter_context_ids(){
+        let context=arena.get_context(id).unwrap();let Some(graph)=graphs.get(context.get_graph_id())else{continue;};
+        let Some(node)=graph.nodes.values().find(|n|n.id.uuid().to_string()=="a88d5696-4292-b2ae-ca2e-ac8d13e7dd2f")else{continue;};
+        if !context.node_caches.is_updated(node.id,StateKey::Default){continue;}
+        let state=c458_actual_tag_blend_state(context,node.id);assert_eq!(state["weights"],serde_json::json!([1.0,0.0]));assert_eq!(state["last_active_index"],0);
+        let read=|guid:&str|{let node=graph.nodes.values().find(|n|n.id.uuid().to_string()==guid).unwrap();context.node_caches.get_output_data(node.id,StateKey::Default,"Pose".into()).unwrap().into_pose().unwrap()};
+        let base=read("277fbd6d-4f8a-8a3e-1d35-f3bf5df88eb0");let output=read("a88d5696-4292-b2ae-ca2e-ac8d13e7dd2f");let root=read("6896e565-4a03-ce0c-11d9-2f87644d55e7");
+        let public=bevy_als::extensions::source_pose_nodes::blend_source_poses(&[(base.clone(),1.0)]);
+        assert_eq!(output,public);assert_eq!(root,output);
+        let inner=graph.nodes.values().find(|n|n.id.uuid().to_string()=="9d8e1dd1-42cf-35df-421f-b0aff16f5e2b").unwrap();
+        rows.push(serde_json::json!({"node_guid":node.id,"graph":assets.get_path(context.get_graph_id()).map(|p|p.to_string()),"state_key":"Default","actual_state":state,"base":c458_pose_value(&base,skeletons,assets),"output":c458_pose_value(&output,skeletons,assets),"public":c458_pose_value(&public,skeletons,assets),"graph_root":c458_pose_value(&root,skeletons,assets),"copy_control":c458_pose_value(&base,skeletons,assets),"copy_control_applied_to_runtime":false,"inner_node_updated":context.node_caches.is_updated(inner.id,StateKey::Default)}));
+    }}
+    rows
+}
+#[derive(Reflect,Clone,Debug)]
+struct C458ReaderBlend { initialized:bool,last_active_index:i32,weights:Vec<f32> }
+#[derive(Reflect,Clone,Debug)]
+struct C458ReaderState { blend:C458ReaderBlend }
+fn c458_state_reader_self_test()->serde_json::Value {
+    use bevy_animation_graph::core::{context::{graph_context::GraphState,node_states::StateKey},animation_graph::{AnimationGraph,NodeId}};
+    let mut context=GraphState::new(AssetId::<AnimationGraph>::default());let node=NodeId::default();
+    context.node_states.get_mut_or_insert_with(node,StateKey::Default,||C458ReaderState{blend:C458ReaderBlend{initialized:true,last_active_index:1,weights:vec![0.25,0.75]}}).unwrap();
+    let upcoming=c458_actual_tag_blend_state(&context,node);assert_eq!(upcoming["weights"],serde_json::json!([0.25,0.75]));assert_eq!(upcoming["last_active_index"],1);assert_eq!(upcoming["storage"],"upcoming_Default");
+    context.node_states.next_frame();let previous=c458_actual_tag_blend_state(&context,node);assert_eq!(previous["weights"],upcoming["weights"]);assert_eq!(previous["storage"],"last_state_fallback");
+    serde_json::json!({"upcoming":upcoming,"previous":previous,"isolated_fixture_not_runtime_state":true})
+}

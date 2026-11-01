@@ -1,0 +1,45 @@
+{
+  "gate": "PASS_ACTUAL319_RAGDOLLING_FULL_WEIGHT_STATE_PUBLIC_KERNEL_AND_COPY_CONTROL",
+  "actual_queries": 319,
+  "actual_weights_all": [
+    1,
+    0
+  ],
+  "actual_child_all0": true,
+  "inner_branch_inactive_all": true,
+  "public_full_pose_exact_all": true,
+  "base_equals_actual_rig_output_all": true,
+  "root_equals_actual_outer_output_all": true,
+  "counts": {
+    "all319_changed_rotation_rows": 3728,
+    "positive318_changed_rotation_rows": 3714,
+    "first": {
+      "query": 0,
+      "bone": "ball_l",
+      "current": [
+        -7.998941873665899e-05,
+        0.7186336517333984,
+        2.9563896532636136e-05,
+        -0.6953888535499573
+      ],
+      "source_copy_control": [
+        -7.99894260126166e-05,
+        0.7186337113380432,
+        2.9563900170614943e-05,
+        -0.695388913154602
+      ]
+    }
+  },
+  "old_five_arrays_exact": true,
+  "negative_fixtures_rejected": [
+    "wrong-weights",
+    "wrong-active-child",
+    "wrong-public",
+    "missing-base",
+    "copy-control-changed"
+  ],
+  "copy_control_is_only_a_value_not_runtime_mutation": true,
+  "new_differences": [],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
