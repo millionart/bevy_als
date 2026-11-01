@@ -1,0 +1,74 @@
+{
+  "gate": "PASS_ACTUAL318_RIG_RAGDOLLING_INCREMENT_INVENTORY_AND_OBSERVATION_PREREQUISITE",
+  "matched_frames": 318,
+  "bone_rows_per_domain": 25122,
+  "increment_counts": {
+    "source_raw": {
+      "translation": 1902,
+      "rotation": 1921,
+      "scale": 992
+    },
+    "source_projected": {
+      "translation": 1268,
+      "rotation": 1902,
+      "scale": 788
+    },
+    "current": {
+      "translation": 1572,
+      "rotation": 5184,
+      "scale": 819
+    }
+  },
+  "curves_unchanged_within_each_system": true,
+  "source_rig_actual_bool_observations": {
+    "bUseHandIkBones:True": 318,
+    "bUseFootIkBones:True": 318,
+    "bFootTransformsValid:False": 1,
+    "bFootTransformsValid:True": 317
+  },
+  "source_locomotion_action_not_captured": true,
+  "fresh_main_three_edge_closure": true,
+  "source_and_current_transfer_flags_match": true,
+  "target_graph_unchanged_since_actual_corpus": true,
+  "source_raw_separate_from_f32_projection": true,
+  "negative_pair_and_basis_fixtures_rejected": 5,
+  "projection_ablation_rejected": true,
+  "source_bytes_and_same_interpreter_restored": true,
+  "complete_restored_analysis_and_table_byte_exact": true,
+  "composite_changes_not_attributed_to_single_node": true,
+  "independent_control_rig_output_and_current_vm_observation_required": true,
+  "next_required_observation": "Actual ControlRig output cache, runtime hierarchy/external and working values and actual input bindings; retain downstream Ragdolling boundary separately",
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/448a/restored.native.json.gz",
+      "sha256": "5cbcfa9d0c19b01300d7d73468b381c422ec2ff7957060710e72522feaabfbbf",
+      "bytes": 19985780
+    },
+    {
+      "path": "docs/audit/bf144/448a/evidence-manifest.json",
+      "sha256": "9b1a94298a79f35c5c98f0a205e82ac068b26d0b2215b91564131e0e8b355989",
+      "bytes": 5785
+    },
+    {
+      "path": "docs/audit/bf144/448b/runtime-restored/parameters.json.gz",
+      "sha256": "0e6fa50e33ed5b12bc1a6b9a91418259aa94177d9614a619322328a53fb3a3bf",
+      "bytes": 29164950
+    },
+    {
+      "path": "docs/audit/bf144/448b/evidence-manifest.json",
+      "sha256": "7875aa595bd74615b2df056a72a10867939fe227ed1adab767f6d9785a4756e2",
+      "bytes": 9422
+    },
+    {
+      "path": "docs/audit/bf144/454/evidence-manifest.json",
+      "sha256": "bfd319901ca7d4c9114d79e7f4554bfe1c4562b0b21a0f489eb46f818341fbc1",
+      "bytes": 8681
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "full_rig_or_root_or_als_equivalence_claimed": false,
+  "source_reader_engine_assets_and_production_unchanged": true,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

@@ -1,0 +1,6 @@
+{
+  "failure": "AssertionError: Missing F32 projection boundary signal",
+  "removed_only_f32_projection": true,
+  "source_bytes_restored": true,
+  "complete_analysis_and_table_restored_byte_exact": true
+}

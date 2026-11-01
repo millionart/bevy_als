@@ -1,0 +1,37 @@
+{
+  "frame-table-baseline.json": {
+    "compressed": "frame-table-baseline.json.gz",
+    "raw_sha256": "1e70f2b9fe652a5a48ec398425567d6e7c758661e74811910c9dcaabe3aec285",
+    "raw_bytes": 3409172,
+    "compressed_sha256": "8a6d3524aa8dfa9519fe83703dd73acac04f27eaaadec6482c2daee96cf529e0",
+    "compressed_bytes": 812823
+  },
+  "frame-table-final.json": {
+    "compressed": "frame-table-final.json.gz",
+    "raw_sha256": "1e70f2b9fe652a5a48ec398425567d6e7c758661e74811910c9dcaabe3aec285",
+    "raw_bytes": 3409172,
+    "compressed_sha256": "8a6d3524aa8dfa9519fe83703dd73acac04f27eaaadec6482c2daee96cf529e0",
+    "compressed_bytes": 812823
+  },
+  "frame-table-qualified.json": {
+    "compressed": "frame-table-qualified.json.gz",
+    "raw_sha256": "1e70f2b9fe652a5a48ec398425567d6e7c758661e74811910c9dcaabe3aec285",
+    "raw_bytes": 3409172,
+    "compressed_sha256": "8a6d3524aa8dfa9519fe83703dd73acac04f27eaaadec6482c2daee96cf529e0",
+    "compressed_bytes": 812823
+  },
+  "frame-table-restored.json": {
+    "compressed": "frame-table-restored.json.gz",
+    "raw_sha256": "1e70f2b9fe652a5a48ec398425567d6e7c758661e74811910c9dcaabe3aec285",
+    "raw_bytes": 3409172,
+    "compressed_sha256": "8a6d3524aa8dfa9519fe83703dd73acac04f27eaaadec6482c2daee96cf529e0",
+    "compressed_bytes": 812823
+  },
+  "main.native.json": {
+    "compressed": "main.native.json.gz",
+    "raw_sha256": "400fa50b6bb2f10cc487df87ab00166162705dd591a02ae8a1b2df3968da1aef",
+    "raw_bytes": 2527359,
+    "compressed_sha256": "517ac3367d7c0c6a79bb755e4b584780bc0f158f73cfa655b7a74ac217d2ffd1",
+    "compressed_bytes": 104098
+  }
+}
