@@ -3893,6 +3893,15 @@
   - .447a Gate完成：`docs/audit/bf144/447/summary.json` PASS_FRAME_ALIGNED_COMPLETE_RESIDUAL_INVENTORY_WITH_OPEN_HEAD_INPUT。318实际外部/controller输入精确，source普通新engine帧与target普通新App帧全验证；旧同帧source、错位target及4输入轴/步长/controller负例拒。85声明新库存1980/1879 ticks、101资格差/697时钟差完整，首未归属Look在source78/target79，Head原图及AIS_Als_Default当次原生读取/CPP/RON链证明phase←YawAmount、X←PitchAngle；half-life0.1float同目标，InvExpApprox两侧同展开式，不凭猜测报Horner。396身份/六库不变，27长期Git证据/原资产报告/哈希/隐私封存。新增0、271；未观测的target Head实际输入/输出明确留.b，不把新库存或前态差当已归属，完整Root继续，截图0/性能暂停。
   - .447a时间/复盘：开始2026-11-01 19:24:08 +0800；预估结束19:39:08；实际结束19:33:01，实耗8:53、偏差−06:07，结果PASS库存/直接输入缺口。复用已有完整raw与脚本使重算较.446c缩短，新的Head/Settings资产两次原生读取约27秒；后续先盘输入/实际consumer后再研究kernel编译因素，避免从时钟1ULP反推未观测的输入。父.447原19:59:08保持，下一.b只在已证Head→Look闭包读取并验证。
 
+- [x] BF144.447b U07Head实际输入/历史/Look消费只读前置：依赖.a已提交e998e46f的source78 Look首差、fresh Head图/Settings与RefreshHead参数闭包，在原Playground319两阶段读取所有Head输入/state的global/source-property/frame-input值及实际Look绑定cache；既有五数组保持。Gate：新字段完整/typed资格、319前后真实状态及Look消费链、有限字段/相位负例、观察消融/源码bytes恢复同target重编/原场景functional/Git封存；只读能力不代替同输入kernel/源端重放，后继才分离输入与数学因子。开始2026-11-01 19:34:49 +0800；预估结束19:54:49。依据.446e8:47及.445b24:56，当前仅加固定参数表及真实pin读点，估20分钟含参数优先级验证/全部历史/恢复；父.447原19:59:08保持，缺原生kernel前置另拆，生产/原资产不改。271、截图0/性能暂停。
+
+  - .447b 19:37 runtime前source/static闭环：Head.Refresh回调的12输入/4float状态/2bool状态及Look两个绑定字段已沿fresh.a原资产→CPP/RON/source_input_data优先级列全；只读观察保存global/property/frame-input三个来源及当前resolved，before在Inputs后/Evaluate前，after在root projection后。实际Look pin仅取当帧updated缓存，before残留上一轮缓存不作当前消费证明。四缺包/NaN/缺pin/错pin负fixture拒、同六库编译通过。下一一次原Playgroundbaseline，CaptureCount0/300秒总/90秒无真实参数进展，不修改任何输入或状态；先核完整旧数组保持和state→pin链再研究kernel，271不变、性能暂停。
+
+  - .447b 19:38 baseline后闭环：319前后Head参数/state、global/property/frame来源与两个实际Look pin通过，旧五完整数组扣head_values字段全精确，公共functional Gate过。source78/target query79首差实际source View.YawAngle45、Head.YawAngle3.54515838623/YawAmount0.509847640991；target读取view44.9999961853、Head3.54516220093/YawAmount0.509847700596，实际pin精确等于Head输出。输入已有1float ULP差，不能仅凭sample_time把kernel定为根因；后继需public核按actual目标历史重放、共同源输入/必要native primitive控制，当前不新编号。下一删新增观察字段应拒，源码bytes恢复同target重编/原场景恢复；271、截图0/性能暂停。
+
+  - .447b Gate完成：`docs/audit/bf144/447b/summary.json` PASS_ACTUAL_HEAD_INPUT_STATE_AND_LOOK_PIN_READONLY_ENTRY。319两阶段/638 Head输入state与319实际Look pin通过，global/property/frame-input来源保留，首次未分配state的None不补0；source78/target79实际view45/44.9999961853与Head/pin输出差已确认，输入非逐位相同，未据1ULP clock认kernel缺陷。旧五数组扣head_values精确；删字段KeyError拒、两源码SHA恢复同target重编后完整新旧数组及analysis字节一致，两functional Gate过。396身份/六库/原main不变，reader承接.446f；64长期Git证据/哈希/隐私封存。新增0、271，后共同输入kernel/Root/非零view/attributes保持未闭，截图0/性能暂停。
+  - .447b时间/复盘：开始2026-11-01 19:34:49 +0800；预估结束19:54:49；实际结束19:43:46，实耗8:57、偏差−11:03，结果PASS实际Head读点。固定来源表/已有公共缓存避免新增工具API或生产分支，热编译与三原场景一次通过，实际与.446e约9分钟相符；后续此类只读快照按该成本估，同输入算法/native kernel能力仍须按真实缺口另估，不能把读取通过写成Head等价。父19:59:08保持，下一.c先按actual输入与历史重放public核，再决定原生数学前置。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D274 / P3 — 从含旋转的仿射矩阵重提scale，改变源保存scale及实际floor尺寸。
