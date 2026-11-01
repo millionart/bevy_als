@@ -1,0 +1,50 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Classes/Kismet/KismetMathLibrary.h",
+    "sha256": "c5aa6a68761da5e09080c2b1a29ac534bf7cd15cda71a6bd6a759425008d06e5",
+    "excerpts": [
+      {
+        "start": 110,
+        "end": 132,
+        "text": "USTRUCT(BlueprintType)\nstruct FFloatSpringState\n{\n\tGENERATED_BODY()\n\n\tfloat PrevTarget;\n\tfloat Velocity;\n\tbool  bPrevTargetValid;\n\n\tFFloatSpringState()\n\t: PrevTarget(0.f)\n\t, Velocity(0.f)\n\t, bPrevTargetValid(false)\n\t{\n\t}\n\n\tvoid Reset()\n\t{\n\t\tPrevTarget = Velocity = 0.f;\n\t\tbPrevTargetValid = false;\n\t}\n};\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/KismetMathLibrary.cpp",
+    "sha256": "d3c1bd2b7ca1c1ab67296545854535f1f31fbcb5799e0bfbcb9f143cf0f52217",
+    "excerpts": [
+      {
+        "start": 429,
+        "end": 450,
+        "text": "                         float TargetVelocityAmount, float Mass, bool bInitializeFromTarget)\n{\n\tif (bInitializeFromTarget && !bPrevTargetValid)\n\t{\n\t\tCurrent = Target;\n\t}\n\tif (DeltaTime > UE_SMALL_NUMBER)\n\t{\n\t\tif (!FMath::IsNearlyZero(Mass))\n\t\t{\n\t\t\t// Note that old target was stored in PrevTarget\n\t\t\tT TargetVel = bPrevTargetValid ? (Target - PrevTarget) * (TargetVelocityAmount / DeltaTime) : T(0.f);\n\t\t\tconst float Omega = FMath::Sqrt(Stiffness / Mass); // angular frequency\n\t\t\tconst float Frequency = Omega / (2.0f * UE_PI);\n\t\t\tT NewValue = Current;\n\t\t\tFMath::SpringDamper(Current, Velocity, Target, TargetVel, DeltaTime, Frequency, CriticalDamping);\n\t\t\tPrevTarget = Target;\n\t\t\tbPrevTargetValid = true;\n\t\t}\n\t}\n}\n"
+      },
+      {
+        "start": 451,
+        "end": 465,
+        "text": "float UKismetMathLibrary::FloatSpringInterp(float Current, float Target, FFloatSpringState& SpringState,\n                                            float Stiffness, float CriticalDamping, float DeltaTime,\n                                            float Mass, float TargetVelocityAmount, \n                                            bool bClamp, float MinValue, float MaxValue,\n                                            bool bInitializeFromTarget)\n{\n\tGenericSpringInterp(Current, Target, SpringState.PrevTarget, SpringState.bPrevTargetValid, SpringState.Velocity, Stiffness, CriticalDamping,\n\t                    DeltaTime, TargetVelocityAmount, Mass, bInitializeFromTarget);\n\tif (bClamp)\n\t{\n\t\tif (Current < MinValue)\n\t\t{\n\t\t\tCurrent = MinValue;\n\t\t\tif (SpringState.Velocity < 0.0f)\n\t\t\t{"
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "2d922838a63e72ad53e8068f1c9a2dab86bdd0345ade00786db2888835d58cd2",
+    "excerpts": [
+      {
+        "start": 275,
+        "end": 323,
+        "text": "TSharedRef<FJsonObject> CaptureRigMemory(const FRigVMMemoryStorageStruct& Memory, UObject* Parent, bool bCaptureFloatSpringState = false)\n{\n    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();\n    TArray<TSharedPtr<FJsonValue>> Properties;\n    if (Memory.Num() > 0)\n    {\n        Properties = CaptureProperties(Memory.GetStruct(), Memory.GetValue().GetMemory(), Parent, true);\n        for (const TSharedPtr<FJsonValue>& Row : Properties)\n        {\n            const TSharedPtr<FJsonObject> Entry = Row->AsObject();\n            const int32 Index = Memory.GetPropertyIndexByName(FName(*Entry->GetStringField(TEXT(\"name\"))));\n            const FProperty* Property = Memory.GetProperty(Index);\n            Entry->SetNumberField(TEXT(\"index\"), Index);\n            Entry->SetStringField(TEXT(\"cpp_type\"), RigPropertyCPPType(Property));\n            if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))\n            {\n                FScriptArrayHelper Array(ArrayProperty, Memory.GetData<uint8>(Index));\n                TArray<TSharedPtr<FJsonValue>> Elements;\n                for (int32 ElementIndex = 0; ElementIndex < Array.Num(); ++ElementIndex)\n                {\n                    TSharedRef<FJsonObject> Element = MakeShared<FJsonObject>();\n                    FString Text;\n                    ArrayProperty->Inner->ExportTextItem_Direct(Text, Array.GetRawPtr(ElementIndex), nullptr, Parent, PPF_None);\n                    Element->SetStringField(TEXT(\"exported_text\"), Text);\n                    if (const FNumericProperty* Numeric = CastField<FNumericProperty>(ArrayProperty->Inner); Numeric != nullptr && Numeric->IsFloatingPoint())\n                    {\n                        const double Number = Numeric->GetFloatingPointPropertyValue(Array.GetRawPtr(ElementIndex));\n                        if (FMath::IsFinite(Number)) { Element->SetNumberField(TEXT(\"numeric_value\"), Number); }\n                    }\n                    if (const FStructProperty* InnerStruct = CastField<FStructProperty>(ArrayProperty->Inner))\n                    {\n                        Element->SetArrayField(TEXT(\"fields\"), CaptureProperties(InnerStruct->Struct, Array.GetRawPtr(ElementIndex), Parent, true));\n                        if (bCaptureFloatSpringState && InnerStruct->Struct == FFloatSpringState::StaticStruct())\n                        {\n                            const FFloatSpringState* Spring = reinterpret_cast<const FFloatSpringState*>(Array.GetRawPtr(ElementIndex));\n                            TSharedRef<FJsonObject> Native = MakeShared<FJsonObject>();\n                            Native->SetNumberField(TEXT(\"previous_target\"), Spring->PrevTarget);\n                            Native->SetNumberField(TEXT(\"velocity\"), Spring->Velocity);\n                            Native->SetBoolField(TEXT(\"previous_target_valid\"), Spring->bPrevTargetValid);\n                            Element->SetObjectField(TEXT(\"native_float_spring_state\"), Native);\n                        }\n                    }\n                    Elements.Add(MakeShared<FJsonValueObject>(Element));\n                }\n                Entry->SetArrayField(TEXT(\"elements\"), Elements);\n            }\n        }\n    }\n    Value->SetArrayField(TEXT(\"properties\"), Properties);"
+      },
+      {
+        "start": 5118,
+        "end": 5131,
+        "text": "    TSharedPtr<FJsonObject> Request;\n    const TArray<TSharedPtr<FJsonValue>>* Names = nullptr;\n    const TArray<TSharedPtr<FJsonValue>>* Cases = nullptr;\n    if (Interface == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||\n        !Request->TryGetStringField(TEXT(\"node_guid\"), GuidTextValue) || !FGuid::Parse(GuidTextValue, Guid) || !Guid.IsValid() ||\n        !Request->TryGetStringField(TEXT(\"mesh_asset\"), MeshPath) || !Request->TryGetArrayField(TEXT(\"bone_names\"), Names) ||\n        !Request->TryGetArrayField(TEXT(\"cases\"), Cases) || Cases->IsEmpty() || Cases->Num() > 32) { return nullptr; }\n    bool bCaptureFloatSpringState = false;\n    if (Request->HasField(TEXT(\"capture_float_spring_state\")) &&\n        (!Request->HasTypedField<EJson::Boolean>(TEXT(\"capture_float_spring_state\")) || !Request->TryGetBoolField(TEXT(\"capture_float_spring_state\"), bCaptureFloatSpringState))) { return nullptr; }\n    USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, *MeshPath);\n    if (MeshAsset == nullptr || MeshAsset->GetSkeleton() != Interface->GetTargetSkeleton()) { return nullptr; }\n    const FReferenceSkeleton& Reference = MeshAsset->GetRefSkeleton();\n    if (Names->Num() != Reference.GetNum()) { return nullptr; }"
+      },
+      {
+        "start": 5310,
+        "end": 5323,
+        "text": "                TSharedRef<FJsonObject> VariableRow = MakeShared<FJsonObject>();\n                VariableRow->SetStringField(TEXT(\"value\"), Rig->GetVariableAsString(Variable.GetName()));\n                if (const FStructProperty* Struct = CastField<FStructProperty>(Variable.GetProperty())) { VariableRow->SetArrayField(TEXT(\"fields\"), CaptureProperties(Struct->Struct, Variable.GetMemory(), Rig)); }\n                else if (const FNumericProperty* Numeric = CastField<FNumericProperty>(Variable.GetProperty()); Numeric != nullptr && Numeric->IsFloatingPoint()) { VariableRow->SetNumberField(TEXT(\"numeric_value\"), Numeric->GetFloatingPointPropertyValue(Variable.GetMemory())); }\n                VariablesAfter->SetObjectField(Variable.GetName().ToString(), VariableRow);\n            }\n            Row->SetObjectField(TEXT(\"externals_after\"), VariablesAfter);\n            const FRigVMMemoryStorageStruct* Work = Rig->GetVM()->GetWorkMemory(Rig->GetRigVMExtendedExecuteContext());\n            if (Work == nullptr) { return nullptr; }\n            Row->SetObjectField(TEXT(\"work_after\"), CaptureRigMemory(*Work, Rig, bCaptureFloatSpringState));\n            Row->SetArrayField(TEXT(\"executions\"), Executions);\n            Executions.Reset();\n            Rows.Add(MakeShared<FJsonValueObject>(Row));\n            UE_LOG(LogAlsGraphSourceReader, Display, TEXT(\"Rig node history %s frame %d/%d captured.\"), *CaseName, Rows.Num(), Frames->Num());"
+      }
+    ]
+  }
+]

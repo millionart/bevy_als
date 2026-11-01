@@ -9,6 +9,7 @@
 #include "AnimStateTransitionNode.h"
 #include "AnimationRuntime.h"
 #include "Math/ControlRigMathLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "AlphaBlend.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveVector.h"
@@ -271,7 +272,7 @@ FString RigPropertyCPPType(const FProperty* Property)
     return BaseType + ExtendedType;
 }
 
-TSharedRef<FJsonObject> CaptureRigMemory(const FRigVMMemoryStorageStruct& Memory, UObject* Parent)
+TSharedRef<FJsonObject> CaptureRigMemory(const FRigVMMemoryStorageStruct& Memory, UObject* Parent, bool bCaptureFloatSpringState = false)
 {
     TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
     TArray<TSharedPtr<FJsonValue>> Properties;
@@ -303,6 +304,15 @@ TSharedRef<FJsonObject> CaptureRigMemory(const FRigVMMemoryStorageStruct& Memory
                     if (const FStructProperty* InnerStruct = CastField<FStructProperty>(ArrayProperty->Inner))
                     {
                         Element->SetArrayField(TEXT("fields"), CaptureProperties(InnerStruct->Struct, Array.GetRawPtr(ElementIndex), Parent, true));
+                        if (bCaptureFloatSpringState && InnerStruct->Struct == FFloatSpringState::StaticStruct())
+                        {
+                            const FFloatSpringState* Spring = reinterpret_cast<const FFloatSpringState*>(Array.GetRawPtr(ElementIndex));
+                            TSharedRef<FJsonObject> Native = MakeShared<FJsonObject>();
+                            Native->SetNumberField(TEXT("previous_target"), Spring->PrevTarget);
+                            Native->SetNumberField(TEXT("velocity"), Spring->Velocity);
+                            Native->SetBoolField(TEXT("previous_target_valid"), Spring->bPrevTargetValid);
+                            Element->SetObjectField(TEXT("native_float_spring_state"), Native);
+                        }
                     }
                     Elements.Add(MakeShared<FJsonValueObject>(Element));
                 }
@@ -5112,6 +5122,9 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
         !Request->TryGetStringField(TEXT("node_guid"), GuidTextValue) || !FGuid::Parse(GuidTextValue, Guid) || !Guid.IsValid() ||
         !Request->TryGetStringField(TEXT("mesh_asset"), MeshPath) || !Request->TryGetArrayField(TEXT("bone_names"), Names) ||
         !Request->TryGetArrayField(TEXT("cases"), Cases) || Cases->IsEmpty() || Cases->Num() > 32) { return nullptr; }
+    bool bCaptureFloatSpringState = false;
+    if (Request->HasField(TEXT("capture_float_spring_state")) &&
+        (!Request->HasTypedField<EJson::Boolean>(TEXT("capture_float_spring_state")) || !Request->TryGetBoolField(TEXT("capture_float_spring_state"), bCaptureFloatSpringState))) { return nullptr; }
     USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, *MeshPath);
     if (MeshAsset == nullptr || MeshAsset->GetSkeleton() != Interface->GetTargetSkeleton()) { return nullptr; }
     const FReferenceSkeleton& Reference = MeshAsset->GetRefSkeleton();
@@ -5303,7 +5316,7 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
             Row->SetObjectField(TEXT("externals_after"), VariablesAfter);
             const FRigVMMemoryStorageStruct* Work = Rig->GetVM()->GetWorkMemory(Rig->GetRigVMExtendedExecuteContext());
             if (Work == nullptr) { return nullptr; }
-            Row->SetObjectField(TEXT("work_after"), CaptureRigMemory(*Work, Rig));
+            Row->SetObjectField(TEXT("work_after"), CaptureRigMemory(*Work, Rig, bCaptureFloatSpringState));
             Row->SetArrayField(TEXT("executions"), Executions);
             Executions.Reset();
             Rows.Add(MakeShared<FJsonValueObject>(Row));

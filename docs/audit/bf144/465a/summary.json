@@ -1,0 +1,71 @@
+{
+  "gate": "PASS_NATIVE_OPAQUE_FLOAT_SPRING_STATE_READONLY_CAPTURE_WITH_FULL_LEGACY_COMPATIBILITY",
+  "source_struct": "FFloatSpringState",
+  "actual_non_uproperty_members": [
+    "PrevTarget",
+    "Velocity",
+    "bPrevTargetValid"
+  ],
+  "strict_opt_in": "capture_float_spring_state",
+  "capture_only_matching_work_array_element_type": true,
+  "actual_source_frames": 638,
+  "native_struct_states": 1276,
+  "source_nonzero_active_history_frames": 636,
+  "actual_previous_target_velocity_and_validity_lifecycle_qualified": true,
+  "zero_delta_initialization_exact": true,
+  "reflection_fields_remain_empty_and_native_state_is_separate": true,
+  "old_record_missing_state_rejected": true,
+  "zero_state_getter_ablation_rejected": true,
+  "type_guard_ablation_accepts_invalid_request": true,
+  "final_type_guard_rejects_invalid_request": true,
+  "full_old_rig_default_character_and_curvevector_probes_exact": true,
+  "reader_source_bytes_restored_same_full_package_build_terminal_and_package_sha_exact": true,
+  "complete_native_state_table_byte_exact_after_restore": true,
+  "reader_migration": "docs/audit/bf144/465a/reader-migration.json",
+  "other395_and_six_libraries_unchanged": true,
+  "parent_spring_math_equivalence_not_claimed": true,
+  "source_memory_and_source_algorithms_not_modified": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/462/restored.native.json.gz",
+      "bytes": 21303375,
+      "sha256": "6752b177f73d4f59acf7c68e2e31afff98b4f48d361e5c3a3bd0e018ea73dc17"
+    },
+    {
+      "path": "docs/audit/bf144/462/request.json",
+      "bytes": 11271211,
+      "sha256": "27108bc1ede21a850ec3ba6e9fb3a9513f24963dfa4bcdfd4124501cc18544c3"
+    },
+    {
+      "path": "docs/audit/bf144/457/default.native.json.gz",
+      "bytes": 9620886,
+      "sha256": "829c490c845e7da29c7b02fce38ab743230375400155cdbcd8b80b344328a685"
+    },
+    {
+      "path": "docs/audit/bf144/457/default.request.json",
+      "bytes": 145036,
+      "sha256": "09ee312d3797714dfe356eb54a42b63b8cdc59dcddf132e1958ef69fbe0a8afa"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.native.json",
+      "bytes": 198719,
+      "sha256": "4b11e842693ad10a5e9ad576b3e185d86602a25107d53a1a652ae41a4bb57c6d"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.request.json",
+      "bytes": 4198,
+      "sha256": "98f6b163e8583e510e6d91f9c9b37540581df41c9691e14acbf7b77ab846a5e6"
+    },
+    {
+      "path": "docs/audit/bf144/462/reader-migration.json",
+      "bytes": 291,
+      "sha256": "e1388f57b7d40e9763bec7660521d5fee8a3e95147f4dfe64c2577405599fd9b"
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_engine_converters_assets_unchanged": true,
+  "next_boundary": "Resume465 with actual non-reflected spring state and proven source pin lifetime; qualify full continuous source and target spring math and unit domains",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

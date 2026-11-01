@@ -1,0 +1,10 @@
+[
+  {
+    "case": "check-old",
+    "error": "Traceback (most recent call last):\n  File \"./docs/audit/bf144/465a/check.py\", line 18, in <module>\n    assert all('native_float_spring_state'in e for e in spring['elements']),'Native non-reflected float spring state is missing'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Native non-reflected float spring state is missing\n"
+  },
+  {
+    "case": "check-zero-state",
+    "error": "Traceback (most recent call last):\n  File \"./docs/audit/bf144/465a/check.py\", line 24, in <module>\n    delta=x['delta_seconds_after_update'];assert state['previous_target_valid']==(query>0)\n                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  }
+]
