@@ -1,0 +1,7 @@
+{
+  "global_capture_setter_removed_without_any_vm_or_pose_change": true,
+  "cpu_timing_field_removed_under_explicit_performance_pause": true,
+  "all_old_five_arrays_exact": true,
+  "all_actual_vm_pose_registers_inputs_calls_and_traces_exact": true,
+  "only_cpu_measurement_and_capture_provenance_fields_differ": true
+}

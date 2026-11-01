@@ -1,0 +1,75 @@
+{
+  "gate": "PASS_ACTUAL319_CONTROL_RIG_VM_INDEPENDENT_OUTPUT_AND_CONTINUITY_READONLY_CAPABILITY",
+  "queries_per_phase": 319,
+  "registers_per_query": 405,
+  "externals_per_query": 12,
+  "bindings_per_query": 11,
+  "actual_hierarchy_to_rig_output_bone_rows_exact": 25201,
+  "all_actual_binding_values_and_register_references_exact": true,
+  "head_to_rig_source_full_pose_exact_queries": 319,
+  "before_previous_after_vm_state_exact_queries": 318,
+  "total_actual_unit_calls": 13378,
+  "total_actual_traces": 636,
+  "positive_increment_counts": {
+    "rig_source:rig_output": {
+      "translation": 1572,
+      "rotation": 2011,
+      "scale": 819
+    },
+    "rig_output:ragdolling_output": {
+      "translation": 0,
+      "rotation": 3714,
+      "scale": 0
+    },
+    "ragdolling_output:root_result": {
+      "translation": 0,
+      "rotation": 0,
+      "scale": 0
+    },
+    "rig_source:root_result": {
+      "translation": 1572,
+      "rotation": 5184,
+      "scale": 819
+    }
+  },
+  "old_five_complete_arrays_exact": true,
+  "unmapped_scene_node_weights_and_pose_metadata_preserved": true,
+  "observation_and_actual_capture_ablations_rejected": true,
+  "correct_capture_control_vm_pose_and_inputs_unchanged": true,
+  "redundant_global_capture_setter_removed": true,
+  "performance_cpu_elapsed_capture_removed_under_explicit_pause": true,
+  "prototype_raw_reports_preserved": true,
+  "three_source_bytes_restored_same_target_recompiled": true,
+  "complete_new_and_old_semantic_arrays_check_and_partition_byte_exact": true,
+  "two_original_scene_functional_gates_passed": true,
+  "performance_acceptance": "paused",
+  "screenshots": 0,
+  "source_post_rig_and_locomotion_action_still_unobserved": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/451a/runtime-restored/parameters.json.gz",
+      "sha256": "78bfbd8c118171e5fdab6f41d104f5798e71bb5af240efe45d9ad1d0361786dd",
+      "bytes": 10497314
+    },
+    {
+      "path": "docs/audit/bf144/451a/evidence-manifest.json",
+      "sha256": "e7d2af287e8a6f6202d35ae3a565f52288199b24bdeaa98e63faf4468ac3db9f",
+      "bytes": 11139
+    },
+    {
+      "path": "docs/audit/bf144/455/summary.json",
+      "sha256": "483d78494f5ae9fae5f192ad7bbbf29e71e2bb4b12581fa36ff5c27bf5f057cb",
+      "bytes": 2673
+    },
+    {
+      "path": "docs/audit/bf144/455/consumer-contract.json",
+      "sha256": "86670fcae4b8262b4899c1b9685944adc5e752b1a5b6647c6081a7936742fad2",
+      "bytes": 1224
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "full_rig_or_root_or_als_equivalence_claimed": false,
+  "production_reader_engine_original_assets_unchanged": true,
+  "next_required_source_evidence": "Native independent ControlRig output pose and actual locomotion action; compare actual Rig inputs and downstream Ragdolling rotation contract"
+}

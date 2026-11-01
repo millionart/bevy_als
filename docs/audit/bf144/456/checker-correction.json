@@ -1,0 +1,6 @@
+{
+  "initial_negative": "wrong-output changed the sorted extra scene node SKM_Als, outside the79 Rig hierarchy",
+  "correction": "Assert that the extra unmapped scene node, weights and pose metadata are preserved across Rig output; retain full79 mapped hierarchy equality",
+  "runtime_data_or_tolerance_changed": false,
+  "old_complete_arrays_already_passed": true
+}

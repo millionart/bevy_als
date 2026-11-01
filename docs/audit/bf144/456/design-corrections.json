@@ -1,0 +1,9 @@
+{
+  "global_capture_setter_removed": true,
+  "reason": "publish_control_rig_inputs publishes the existing telemetry resource through higher priority source_frame_input.control_rig.capture; changing ordinary global did not alter actual calls",
+  "cpu_elapsed_snapshot_removed": true,
+  "cpu_elapsed_source": "root_graph_boundaries.rs elapsed_seconds is Instant::elapsed measurement, not VM simulation time",
+  "performance_scope": "paused; preserve original raw prototype reports and standard collector performance results without claiming timing equivalence",
+  "player_query_restored_immutable": true,
+  "correct_capture_ablation": "Disable the existing AlsFootIkTelemetryEnabled resource in the controlled host; verify actual calls become empty"
+}

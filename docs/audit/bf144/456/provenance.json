@@ -1,0 +1,8 @@
+{
+  "original_manual_playground_sha256": "e31547dfd6fd94cc8cb571c1d1ced35cd6791e64a49546fc31f7802dff38a3b7",
+  "base_observer": "docs/audit/bf144/451a/observer.rs",
+  "added": "Read actual ControlRig VM registers, hierarchy, calls and independent output through existing capture; no new actuator or CPU timing capture",
+  "production_changed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
