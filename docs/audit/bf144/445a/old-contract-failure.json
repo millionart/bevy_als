@@ -1,0 +1,6 @@
+{
+  "gate": "REJECTED_OLD_REPORT_MISSING_ACTUAL_TICK_QUALIFICATION",
+  "source_report": "docs/audit/bf144/443/source.native.json.gz",
+  "missing_actual_tick_rows": 20400,
+  "cached_weight_not_used_as_tick_oracle": true
+}

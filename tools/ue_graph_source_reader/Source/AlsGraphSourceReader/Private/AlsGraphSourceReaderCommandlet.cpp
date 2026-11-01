@@ -4079,6 +4079,9 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     bool bCapturePlayerView = false;
     if (Request->HasField(TEXT("capture_player_view")) &&
         (Request->TryGetField(TEXT("capture_player_view"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_player_view"), bCapturePlayerView))) { return nullptr; }
+    bool bCaptureAssetPlayerTicks = false;
+    if (Request->HasField(TEXT("capture_asset_player_ticks")) &&
+        (Request->TryGetField(TEXT("capture_asset_player_ticks"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_asset_player_ticks"), bCaptureAssetPlayerTicks))) { return nullptr; }
     struct FObservedPose : FAnimNode_Base
     {
         FPoseLink Source;
@@ -4209,11 +4212,25 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         }
         return Fields;
     };
-    const auto CaptureInstances = [BaseProviderClass](USkeletalMeshComponent* Mesh, UAnimInstance* Main)
+    const auto CaptureInstances = [BaseProviderClass, bCaptureAssetPlayerTicks](USkeletalMeshComponent* Mesh, UAnimInstance* Main)
     {
             TArray<TSharedPtr<FJsonValue>> Linked;
             TArray<UAnimInstance*> Mains = static_cast<const USkeletalMeshComponent*>(Mesh)->GetLinkedAnimInstances();
             Mains.Insert(Main, 0);
+            TArray<TPair<const FAnimTickRecord*, FString>> ActiveAssetTicks;
+            if (bCaptureAssetPlayerTicks)
+            {
+                for (UAnimInstance* Owner : Mains)
+                {
+                    if (Owner == nullptr) { continue; }
+                    FAnimInstanceProxy& OwnerProxy = FInstanceAccess::Proxy(Owner);
+                    for (const auto& Group : OwnerProxy.GetSyncGroupMapRead())
+                    {
+                        for (const FAnimTickRecord& Tick : Group.Value.ActivePlayers) { ActiveAssetTicks.Emplace(&Tick, Group.Key.ToString()); }
+                    }
+                    for (const FAnimTickRecord& Tick : OwnerProxy.GetUngroupedActivePlayersRead()) { ActiveAssetTicks.Emplace(&Tick, FString()); }
+                }
+            }
             for (UAnimInstance* Child : Mains)
             {
                 TSharedRef<FJsonObject> ChildRow = MakeShared<FJsonObject>();
@@ -4309,6 +4326,31 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                             PlayerRow->SetStringField(TEXT("asset"), ObjectPath(Animation));
                             PlayerRow->SetNumberField(TEXT("current_asset_time"), Player->GetCurrentAssetTime());
                             PlayerRow->SetNumberField(TEXT("cached_blend_weight"), Player->GetCachedBlendWeight());
+                            if (bCaptureAssetPlayerTicks)
+                            {
+                                const FAnimTickRecord* Active = nullptr;
+                                FString Group;
+                                int32 Matches = 0;
+                                for (const auto& Entry : ActiveAssetTicks)
+                                {
+                                    if (Entry.Key->DeltaTimeRecord != Player->GetDeltaTimeRecord()) { continue; }
+                                    Active = Entry.Key;
+                                    Group = Entry.Value;
+                                    ++Matches;
+                                }
+                                PlayerRow->SetBoolField(TEXT("sync_read_buffer_tick_present"), Active != nullptr);
+                                PlayerRow->SetNumberField(TEXT("sync_read_buffer_tick_matches"), Matches);
+                                if (Active != nullptr)
+                                {
+                                    PlayerRow->SetStringField(TEXT("tick_group"), Group);
+                                    PlayerRow->SetNumberField(TEXT("tick_weight"), Active->EffectiveBlendWeight);
+                                    PlayerRow->SetBoolField(TEXT("tick_evaluator"), Active->bIsEvaluator);
+                                    PlayerRow->SetBoolField(TEXT("tick_previous_valid"), Active->DeltaTimeRecord->IsPreviousValid());
+                                    PlayerRow->SetNumberField(TEXT("tick_previous"), Active->DeltaTimeRecord->GetPrevious());
+                                    PlayerRow->SetNumberField(TEXT("tick_delta"), Active->DeltaTimeRecord->Delta);
+                                    if (Active->TimeAccumulator != nullptr) { PlayerRow->SetNumberField(TEXT("tick_accumulator"), *Active->TimeAccumulator); }
+                                }
+                            }
                             const FBoneContainer& Bones = ChildProxy.GetRequiredBones();
                             PlayerRow->SetBoolField(TEXT("required_bones_valid"), Bones.IsValid());
                             if (const UAnimBlueprintGeneratedClass* AnimationClass = Cast<UAnimBlueprintGeneratedClass>(Child->GetClass()))

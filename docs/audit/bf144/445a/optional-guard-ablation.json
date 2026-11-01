@@ -1,0 +1,5 @@
+{
+  "legacy_report_polluted": true,
+  "complete_old_fields_unchanged": true,
+  "optional_guard_required": true
+}

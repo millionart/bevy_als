@@ -1,0 +1,7 @@
+{
+  "expected_rejection": "Pointer association removal leaves no actual tick witnesses",
+  "stderr": "Traceback (most recent call last):\n  File \"docs/audit/bf144/445a/check.py\", line 43, in <module>\n    result=validate(data)\n           ^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/445a/check.py\", line 35, in validate\n    assert total==20400 and active>0 and bs_current_seconds>0\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+  "source_report": "ablated.native.json.gz",
+  "invalid_flag_process": "ablated-invalid.native.json.reader.report.json",
+  "invalid_flag_expected_exit": 0
+}
