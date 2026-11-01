@@ -1,0 +1,57 @@
+{
+  "gate": "PASS_FRAME_ALIGNED_RESIDUAL_INVENTORY_AND_FIRST_HEAD_LOOK_INPUT_AUDIT",
+  "children": {
+    "447": {
+      "gate": "PASS_FRAME_ALIGNED_COMPLETE_RESIDUAL_INVENTORY_WITH_OPEN_HEAD_INPUT",
+      "files": 27,
+      "summary_sha256": "cc5bc3e025220f87e92b1f42f8d87f9d35fdeb3618d56a7e49d9d50abefbd52e",
+      "manifest_sha256": "aa27b0b78cc3df940a01c4f3bed0fa68c4fd3eeb07af9fa98a0b82b51fb6e372"
+    },
+    "447b": {
+      "gate": "PASS_ACTUAL_HEAD_INPUT_STATE_AND_LOOK_PIN_READONLY_ENTRY",
+      "files": 64,
+      "summary_sha256": "954d80316b2cf60a9037c5ab32275ab8a7b6a83918d80860950ad729ee507979",
+      "manifest_sha256": "be8de5d7212165e416ae56fe00625a3a284f247645a8aa0358e6ece6fb98c1ee"
+    },
+    "447c": {
+      "gate": "PASS_COMMON_INPUT_HEAD_KERNEL_AND_FIRST_LOOK_VIEW_FACTOR",
+      "files": 52,
+      "summary_sha256": "42441d8022896fbd8ca504422500e60ad578dc957302df4508afb73f9f643a5a",
+      "manifest_sha256": "5983b76a879ecbed53e6b9f71f46e277c34c92e12c19c7dc64f25856b0bb8ab3"
+    },
+    "447d": {
+      "gate": "PASS_VIEW_CAST_FACTOR_AND_FIRST_HEAD_LOOK_CONSUMER_AS_RECORDED_D237",
+      "files": 45,
+      "summary_sha256": "fcaede6f1d4e8b2dcb7b3fb2212c7c4ef24ec62afa674439c860920f25d34205",
+      "manifest_sha256": "1efe4f3e6a1f2e32deb2f332bddf5f131c631375df96898349631c49c9c65be2"
+    }
+  },
+  "verified_git_evidence_files": 188,
+  "negative_child_scope_and_hash_cases_rejected": 3,
+  "target_actual_query_history": 319,
+  "matched_external_positive_inputs": 318,
+  "source_player_ticks": 1980,
+  "target_player_ticks": 1879,
+  "eligibility_differences": 101,
+  "clock_differences": 697,
+  "actual_target_head_continuous_replay_rows_exact": 319,
+  "native_actual_head_common_input_rows_exact": 318,
+  "first_unattributed_look_input_factor_now_recorded": "BF144-D237",
+  "first_head_math_difference_rejected_by_common_actual_inputs": true,
+  "actual_view_producer_replay_rows_exact": 319,
+  "native_same_input_view_cast_controls_exact": 319,
+  "new_differences": [],
+  "total_confirmed_differences": 271,
+  "priority_counts": {
+    "P2": 116,
+    "P3": 155
+  },
+  "production_or_source_assets_fixed": false,
+  "source_target_all_internal_inputs_matched": false,
+  "all_trajectory_clock_or_pose_differences_attributed": false,
+  "full_root_or_als_equivalence_claimed": false,
+  "next_direct_boundary": "Attribute remaining frame-matched actual internal input/state and player-clock residuals, including body/view history and complete Root/custom attributes",
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "render_gpu_pass_acceptance": "excluded under explicit peripheral scope"
+}
