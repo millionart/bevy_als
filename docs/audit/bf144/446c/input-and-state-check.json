@@ -1,0 +1,104 @@
+{
+  "gate": "PASS_COMPLETE_EXTERNAL_INPUT_HISTORY_WITH_EXPLICIT_PRODUCER_DIFFERENCES",
+  "inputs": {
+    "external_input_rows_exact": 318,
+    "actual_controller_rows_exact": 318,
+    "controller_setter_hold_rows": 317
+  },
+  "negative_input_stage_axis_clock_cases_rejected": [
+    "phase",
+    "axis",
+    "delta",
+    "controller"
+  ],
+  "source_initialization_world_seconds": 0,
+  "source_initialization_pending": "True",
+  "target_initialization_pending_after": false,
+  "differences": {
+    "position": {
+      "rows": 300,
+      "first": {
+        "source_frame": 18,
+        "target_query": 19,
+        "target_ordinal": null,
+        "source": [
+          -15.0,
+          0.9199999570846558,
+          -15.0
+        ],
+        "target": [
+          -15.0,
+          0.9210370182991028,
+          -15.0
+        ]
+      }
+    },
+    "velocity": {
+      "rows": 94,
+      "first": {
+        "source_frame": 98,
+        "target_query": 99,
+        "target_ordinal": 20,
+        "source": [
+          0.6666666865348816,
+          0.0,
+          -5.091296407044865e-05
+        ],
+        "target": [
+          0.6666755080223083,
+          0.0,
+          -5.722045534639619e-05
+        ]
+      }
+    },
+    "acceleration": {
+      "rows": 62,
+      "first": {
+        "source_frame": 98,
+        "target_query": 99,
+        "target_ordinal": 20,
+        "source": [
+          20.0,
+          0.0,
+          -0.0015273888129740953
+        ],
+        "target": [
+          20.00026512145996,
+          0.0,
+          -0.0017166135367006063
+        ]
+      }
+    },
+    "speed": {
+      "rows": 91,
+      "first": {
+        "source_frame": 98,
+        "target_query": 99,
+        "target_ordinal": 20,
+        "source": 0.6666667461395264,
+        "target": 0.6666755080223083
+      }
+    },
+    "tags": {
+      "rows": 0,
+      "first": null
+    },
+    "pending": {
+      "rows": 1,
+      "first": {
+        "source_frame": 0,
+        "target_query": 1,
+        "target_ordinal": null,
+        "source": true,
+        "target": false
+      }
+    }
+  },
+  "all_parameters_or_root_equivalence_claimed": false,
+  "new_differences": [],
+  "total_confirmed_differences": 271,
+  "input_identities": {
+    "target_sha256": "134a948c7a6e7fbf21cfcb94bfc043682b7b38b9cd7d00d6918b742a7f3d767b",
+    "source_gzip_sha256": "d9872b64cf8049d8da111e6057bbaa7a22c9ce2401df7738e5f45b4a84683464"
+  }
+}
