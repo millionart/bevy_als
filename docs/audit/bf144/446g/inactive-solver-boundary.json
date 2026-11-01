@@ -1,0 +1,7 @@
+{
+  "original_replay_assumption_rejected": "Every recorded character was assumed awake with a SolverBody",
+  "actual_boundary": "One cold query has Sleeping true, no SolverBody, SenseOnly and zero gravity scale",
+  "qualification": "Its actual position and velocity remain unchanged; no zero SolverBody is fabricated",
+  "force_application_boundary": "A generated TnuaMotor is applied only when TnuaToggle is Enabled",
+  "production_changed": false
+}
