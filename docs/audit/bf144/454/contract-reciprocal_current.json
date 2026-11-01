@@ -1,0 +1,13 @@
+{
+  "factor": "reciprocal",
+  "mode": "current",
+  "same_current_input_native_not_actual_source_data": true,
+  "source_frame": 0,
+  "target_query": 1,
+  "bone": "VB ik_hand_l",
+  "component": 1,
+  "current": 0.6696646809577942,
+  "controlled": 0.6696646213531494,
+  "native": 0.6696646213531494,
+  "whole_rotation_or_pose_restored": false
+}

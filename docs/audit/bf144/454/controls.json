@@ -1,0 +1,12 @@
+[
+  {
+    "analysis_exit_code": 1,
+    "source_control_rejected": true,
+    "label": "no-product-order"
+  },
+  {
+    "analysis_exit_code": 1,
+    "source_control_rejected": true,
+    "label": "no-reciprocal-method"
+  }
+]

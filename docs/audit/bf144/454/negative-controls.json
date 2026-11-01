@@ -1,0 +1,10 @@
+[
+  {
+    "label": "no-product-order",
+    "failure": "AssertionError: Missing factor signal: source_product_order"
+  },
+  {
+    "label": "no-reciprocal-method",
+    "failure": "AssertionError: Missing factor signal: source_reciprocal_method"
+  }
+]
