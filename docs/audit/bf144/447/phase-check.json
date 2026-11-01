@@ -1,0 +1,6 @@
+{
+  "gate": "PASS_NATIVE_AND_TARGET_FIRST_ORDINARY_NEW_FRAME_QUALIFICATION",
+  "positive_rows": 318,
+  "old_same_frame_rejected": true,
+  "shifted_target_rejected": true
+}

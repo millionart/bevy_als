@@ -1,0 +1,78 @@
+[
+  {
+    "key": "source:ALS/Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 523,
+        "end": 553,
+        "text": "void UAlsAnimationInstance::InitializeHead()\n{\n\tHeadState.bInitializationRequired = true;\n}\n\nvoid UAlsAnimationInstance::RefreshHead()\n{\n#if WITH_EDITOR\n\tif (!IsValid(GetWorld()) || !GetWorld()->IsGameWorld())\n\t{\n\t\treturn;\n\t}\n#endif\n\n\tDECLARE_SCOPE_CYCLE_COUNTER(TEXT(\"UAlsAnimationInstance::RefreshHead\"), STAT_UAlsAnimationInstance_RefreshHead, STATGROUP_Als)\n\tTRACE_CPUPROFILER_EVENT_SCOPE_STR(__FUNCTION__)\n\n\tif (!IsValid(Settings))\n\t{\n\t\treturn;\n\t}\n\n\tconst auto DeltaTime{GetDeltaSeconds()};\n\tconst auto bFirstPerson{ViewMode == AlsViewModeTags::FirstPerson};\n\n\tif (MovementBase.bHasRelativeRotation)\n\t{\n\t\t// Offset the angle to keep it in the movement base space.\n\t\tHeadState.YawAngle += UE_REAL_TO_FLOAT(MovementBase.DeltaRotation.Yaw);\n\t}\n"
+      },
+      {
+        "start": 632,
+        "end": 680,
+        "text": "\t\tHeadState.PitchAngle = TargetPitchAngle;\n\t\tHeadState.YawAngle = TargetYawAngle;\n\t\tHeadState.YawVelocity = 0.0f;\n\t\tHeadState.bSwitchingLookSides = false;\n\t}\n\telse\n\t{\n\t\t// Use real-time delta time in first-person mode. Otherwise, if slow motion is active\n\t\t// and the player quickly rotates the camera, it may intersect the skeletal mesh.\n\n\t\tconst auto EffectiveDeltaTime{bFirstPerson ? DeltaTimeWithoutTimeDilation : DeltaTime};\n\n\t\tHeadState.PitchAngle = UAlsRotation::DamperExactAngle(HeadState.PitchAngle, TargetPitchAngle, EffectiveDeltaTime,\n\t\t                                                      bFirstPerson\n\t\t\t                                                      ? Settings->Head.FirstPersonPitchAngleInterpolationHalfLife\n\t\t\t                                                      : Settings->Head.PitchAngleInterpolationHalfLife);\n\n\t\tif (bReadyToSwitchLookSides)\n\t\t{\n\t\t\tHeadState.bSwitchingLookSides = true;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tconst auto DeltaYawAngle{FMath::UnwindDegrees(TargetYawAngle - HeadState.YawAngle)};\n\t\t\tif (FMath::Abs(DeltaYawAngle) <= 10.0f)\n\t\t\t{\n\t\t\t\t// Consider the switching completed if the current angle is close to the target.\n\t\t\t\tHeadState.bSwitchingLookSides = false;\n\t\t\t}\n\t\t}\n\n\t\t// Use the exact critical spring damper as it provides smooth head rotation. Use a\n\t\t// different smoothing time when switching sides for even smoother head rotation.\n\t\t// https://theorangeduck.com/page/spring-roll-call#critical\n\n\t\tconst auto SmoothingTime{\n\t\t\tSpringMath::HalfLifeToSmoothingTime(HeadState.bSwitchingLookSides\n\t\t\t\t                                    ? Settings->Head.SwitchLookSidesYawAngleInterpolationHalfLife\n\t\t\t\t                                    : bFirstPerson\n\t\t\t\t                                    ? Settings->Head.FirstPersonYawAngleInterpolationHalfLife\n\t\t\t\t                                    : Settings->Head.YawAngleInterpolationHalfLife)\n\t\t};\n\n\t\tSpringMath::CriticalSpringDamper(HeadState.YawAngle, HeadState.YawVelocity, TargetYawAngle, SmoothingTime, DeltaTime);\n\t}\n\n\tHeadState.YawAmount = HeadState.YawAngle / 360.0f + 0.5f;\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "source:UE/Core/Public/Math/SpringMath.h",
+    "sha256": "bae41c1987d8bebb2477abdd4d817ab9cf7c72a85821e9bd2ff0bb283e10d405",
+    "excerpts": [
+      {
+        "start": 137,
+        "end": 140,
+        "text": "\tstatic constexpr float HalfLifeToSmoothingTime(float HalfLife)\n\t{\n\t\treturn HalfLife / UE_LN2;\n\t}"
+      },
+      {
+        "start": 173,
+        "end": 194,
+        "text": "\tstatic void CriticalSpringDamper(\n\t\tT& InOutX,\n\t\tT& InOutV,\n\t\tT TargetX,\n\t\tfloat SmoothingTime,\n\t\tfloat DeltaTime)\n\t{\n\t\tif (SmoothingTime < UE_SMALL_NUMBER)\n\t\t{\n\t\t\tInOutX = TargetX;\n\t\t\tInOutV = T(0);\n\t\t\treturn;\n\t\t}\n\n\t\tfloat Y = SmoothingTimeToDamping(SmoothingTime) / 2.0f;\n\t\tT J0 = InOutX - TargetX;\n\t\tT J1 = InOutV + J0 * Y;\n\t\tfloat EyDt = FMath::InvExpApprox(Y * DeltaTime);\n\n\t\tInOutX = EyDt * (J0 + J1 * DeltaTime) + TargetX;\n\t\tInOutV = EyDt * (InOutV - J1 * Y * DeltaTime);\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "source:UE/Core/Public/Math/UnrealMathUtility.h",
+    "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+    "excerpts": [
+      {
+        "start": 1551,
+        "end": 1559,
+        "text": "\t*/\n\ttemplate<class T>\n\t[[nodiscard]] static constexpr T InvExpApprox(T X)\n\t{\n\t\tconstexpr T A(1.00746054f); // 1 / 1! in Taylor series\n\t\tconstexpr T B(0.45053901f); // 1 / 2! in Taylor series\n\t\tconstexpr T C(0.25724632f); // 1 / 3! in Taylor series\n\t\treturn 1 / (1 + A * X + B * X * X + C * X * X * X);\t\t\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "src/als/state/head.rs",
+    "sha256": "5e66955a3139d3866efc75fa9d61425242621d2f1222c3def88bbe776876ae5b",
+    "excerpts": [
+      {
+        "start": 95,
+        "end": 115,
+        "text": "pub fn critical_spring_damper(\n    current: f32,\n    velocity: &mut f32,\n    target: f32,\n    delta_seconds: f32,\n    half_life: f32,\n) -> f32 {\n    let smoothing_time = half_life / std::f32::consts::LN_2;\n    if smoothing_time < 1e-8 {\n        *velocity = 0.0;\n        return target;\n    }\n    let y = 2.0 / smoothing_time.max(1e-8);\n    let j0 = current - target;\n    let j1 = *velocity + j0 * y;\n    let e = inv_exp_approx(y * delta_seconds.max(0.0));\n    let result = e * (j0 + j1 * delta_seconds.max(0.0)) + target;\n    *velocity = e * (*velocity - j1 * y * delta_seconds.max(0.0));\n    result\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/source_native_refresh.rs",
+    "sha256": "3ebcbf46289cd41384afbd6e1cc750b1ab7e5237769f311f94f184c090ce281a",
+    "excerpts": [
+      {
+        "start": 35,
+        "end": 108,
+        "text": "        use crate::als::head::{\n            AlsHeadSettings, AlsHeadState, AlsHeadUpdateInput, update_head_state,\n        };\n        let scalar =\n            |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());\n        let boolean =\n            |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_bool());\n        let mut state = AlsHeadState {\n            initialization_required: boolean(\"head_state.b_initialization_required\", true)?,\n            switching_look_sides: boolean(\"head_state.b_switching_look_sides\", false)?,\n            pitch_angle: scalar(\"head_state.pitch_angle\", 0.0)?,\n            yaw_angle: scalar(\"head_state.yaw_angle\", 0.0)?,\n            yaw_velocity: scalar(\"head_state.yaw_velocity\", 0.0)?,\n            yaw_amount: scalar(\"head_state.yaw_amount\", 0.5)?,\n        };\n        update_head_state(\n            &mut state,\n            AlsHeadUpdateInput {\n                delta_seconds: scalar(\"animation.delta_seconds\", 0.0)?,\n                delta_seconds_without_time_dilation: scalar(\n                    \"animation.delta_seconds_without_time_dilation\",\n                    0.0,\n                )?,\n                first_person: boolean(\"view_mode.first_person\", false)?,\n                rotation_mode: if boolean(\"rotation_mode.velocity_direction\", false)? {\n                    crate::als::state::RotationMode::VelocityDirection\n                } else {\n                    crate::als::state::RotationMode::ViewDirection\n                },\n                has_input: boolean(\"locomotion_state.b_has_input\", false)?,\n                input_yaw_world: scalar(\"locomotion_state.input_yaw_angle_world_space\", 0.0)?,\n                target_yaw_world: scalar(\"locomotion_state.target_yaw_angle_world_space\", 0.0)?,\n                body_yaw_world: scalar(\"locomotion_state.rotation_yaw\", 0.0)?,\n                body_yaw_velocity_world: scalar(\"locomotion_state.yaw_velocity_world_space\", 0.0)?,\n                view_yaw_angle: scalar(\"view_state.yaw_angle\", 0.0)?,\n                view_pitch_angle: scalar(\"view_state.pitch_angle\", 0.0)?,\n                movement_base_relative_yaw: if boolean(\n                    \"movement_base.b_has_relative_rotation\",\n                    false,\n                )? {\n                    scalar(\"movement_base.delta_yaw\", 0.0)?\n                } else {\n                    0.0\n                },\n            },\n            AlsHeadSettings::default(),\n        );\n        for (key, value) in [\n            (\n                \"head_state.b_initialization_required\",\n                state.initialization_required,\n            ),\n            (\n                \"head_state.b_switching_look_sides\",\n                state.switching_look_sides,\n            ),\n        ] {\n            set_source_property(ctx, key, value)?;\n        }\n        for (key, value) in [\n            (\"head_state.pitch_angle\", state.pitch_angle),\n            (\"head_state.yaw_angle\", state.yaw_angle),\n            (\"head_state.yaw_velocity\", state.yaw_velocity),\n            (\"head_state.yaw_amount\", state.yaw_amount),\n        ] {\n            set_source_property(ctx, key, value)?;\n        }\n        Ok(())\n    }\n\n    fn refresh_in_air(&self, ctx: &NodeContext) -> Result<(), GraphError> {\n        let scalar = |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());\n        let boolean = |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_bool());\n        if boolean(\"in_air_state.b_jumped\", false)? {"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/head_layer.rs",
+    "sha256": "d8e5e366db553404b81351e8d6710d39d642720e205e937ff013fc7eeccfac07",
+    "excerpts": [
+      {
+        "start": 75,
+        "end": 165,
+        "text": "    response: Option<&AlsRotationResponseState>,\n    pitch_radians: f32,\n    timing: (f32, f32),\n    rotation_mode: RotationMode,\n    first_person: bool,\n    action_active: bool,\n) -> HeadUpdateInput {\n    let body_yaw = -body_yaw_degrees(transform);\n    let previous_body_yaw = player_scalar(player, \"locomotion_state.rotation_yaw\", body_yaw);\n    let movement_base_delta_yaw = player_scalar(player, \"movement_base.delta_yaw\", 0.0);\n    let pending_update = player\n        .get_global_input_data(\"animation.pending_update\")\n        .and_then(|value| value.as_bool().ok())\n        .unwrap_or(true);\n    let forward = transform.forward();\n    let body_pitch = forward\n        .y\n        .atan2(Vec2::new(forward.x, forward.z).length())\n        .to_degrees();\n    HeadUpdateInput {\n        delta_seconds: timing.0,\n        delta_seconds_without_time_dilation: timing.1,\n        first_person,\n        rotation_mode,\n        has_input: player\n            .get_global_input_data(\"locomotion_state.b_has_input\")\n            .and_then(|value| value.as_bool().ok())\n            .unwrap_or(false),\n        input_yaw_world: player_scalar(player, \"locomotion_state.input_yaw_angle_world_space\", 0.0),\n        target_yaw_world: response\n            .filter(|response| response.initialized)\n            .map_or(body_yaw, |response| -response.target_yaw.to_degrees()),\n        body_yaw_world: body_yaw,\n        body_yaw_velocity_world: if !pending_update && timing.0 > 1e-8 {\n            unwind_degrees(body_yaw - unwind_degrees(previous_body_yaw + movement_base_delta_yaw)) / timing.0\n        } else {\n            0.0\n        },\n        view_yaw_angle: player_scalar(player, \"view_state.yaw_angle\", 0.0),\n        view_pitch_angle: if action_active {\n            player_scalar(player, \"view_state.pitch_angle\", 0.0)\n        } else {\n            unwind_degrees(pitch_radians.to_degrees() - body_pitch)\n        },\n        movement_base_relative_yaw: movement_base_delta_yaw,\n    }\n}\n\nfn write_head_inputs(\n    player: &mut AnimationGraphPlayer,\n    input: HeadUpdateInput,\n    context: Option<&AlsRootAnimationContext>,\n) {\n    for (key, value) in [\n        (\n            \"animation.delta_seconds_without_time_dilation\",\n            input.delta_seconds_without_time_dilation,\n        ),\n        (\n            \"locomotion_state.input_yaw_angle_world_space\",\n            input.input_yaw_world,\n        ),\n        (\n            \"locomotion_state.target_yaw_angle_world_space\",\n            input.target_yaw_world,\n        ),\n        (\"locomotion_state.rotation_yaw\", input.body_yaw_world),\n        (\n            \"locomotion_state.yaw_velocity_world_space\",\n            input.body_yaw_velocity_world,\n        ),\n        (\"view_state.pitch_angle\", input.view_pitch_angle),\n        (\"view_state.pitch_amount\", 0.5 - input.view_pitch_angle / 180.0),\n        (\"view_state.head_blend_amount\", head_blend_amount(context)),\n    ] {\n        player.set_global_input_data(key, value);\n    }\n    player.set_global_input_data(\"view_mode.first_person\", input.first_person);\n    player.set_global_input_data(\n        \"rotation_mode.velocity_direction\",\n        input.rotation_mode == RotationMode::VelocityDirection,\n    );\n}\n\n#[allow(clippy::type_complexity)]\nfn head_layer_writer(\n    source_inputs: Query<&crate::extensions::SourceAnimationInputs>,\n    virtual_time: Res<Time<Virtual>>,\n    real_time: Res<Time<Real>>,\n    transforms: bevy::transform::helper::TransformHelper,\n    characters: Query<"
+      }
+    ]
+  }
+]
