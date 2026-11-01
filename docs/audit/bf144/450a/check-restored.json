@@ -1,0 +1,37 @@
+{
+  "gate": "PASS_ACTUAL_FORWARD_REFERENCE_TARGET_AND_PUBLIC_DIFFERENCE",
+  "queries_per_phase": 319,
+  "actual_difference_records": 319,
+  "actual_bone_rows": 25201,
+  "all_actual_public_poses_exact": true,
+  "actual_first_inputs": {
+    "reference": [
+      0.0,
+      0.9675059914588928,
+      -0.030561532825231552
+    ],
+    "absolute": [
+      1.7007637193685825e-30,
+      0.9675059914588928,
+      -0.030561532825231552
+    ],
+    "difference": [
+      1.7007637193685825e-30,
+      0.0,
+      0.0
+    ]
+  },
+  "source_pins_and_timestamps_verified": true,
+  "optional_channels_preserved": true,
+  "old_five_complete_history_arrays_exact": true,
+  "negative_fixtures_rejected": [
+    "wrong-pin",
+    "wrong-time",
+    "changed-public",
+    "missing-bone"
+  ],
+  "new_differences": [],
+  "full_root_or_als_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
