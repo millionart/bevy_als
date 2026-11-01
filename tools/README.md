@@ -39,6 +39,8 @@
 
 角色case可选`local_controller: true`：读取器通过标准GameMode公共SpawnPlayerController建立本地controller，先完成actor初始化再Possess原角色，记录实际local/owner/authority。该case每步可设置`control_rotation_degrees: {pitch, yaw, roll}`、`desired_stance`（Als.Stance.Standing/Crouching）与`desired_gait`（Als.Gait.Walking/Running/Sprinting）；角度必须为有限数值，标签经原公开setter调用，随后正常world tick。`controller_before_tick`和`controller_input`保留实际控制、desired标签及View/Head只读状态；actual stance仍从原角色/AnimInstance读取。未请求controller时不创建这些对象或观察包；缺controller的控制请求、错误类型和未知标签拒绝。此能力不提供强制velocity，不等于旧受控运动样本；用`test_character_controller_probe.py`验证实际控制器与回显。
 
+请求顶层可选`capture_player_view: true`在上述实际controller快照中增加`player_view`：直接调用const `GetPlayerViewPoint`，记录返回视点、manager/cache时点和旋转、实际viewtarget所属及actor旋转。该字段不设置相机、缓存或viewtarget，不代表调用了输入事件；缺flag时报告保持原形。`test_character_player_view_probe.py`对照cold actor回退和updated cache分支，并要求control与cold返回值存在可区分样本。
+
 同一controller case每步可选`movement_input_world: {x, y, z}`，三个分量必须为有限JSON数值；读取器在world tick前调用原角色`AddMovementInput`，省略时不施加输入。方向为源世界空间的无单位输入，CMC自行约束、归一和生成加速度，不是速度请求。移动快照增加`pending_input_world`、`last_input_world`、`acceleration_cm_s2`与`max_acceleration_cm_s2`；pending允许在两次tick间由请求改变，其余快照保持连续。`test_character_movement_probe.py --input <result> --request <request>`核对请求、实际pending消费与last输入；加速度和实际速度另按原阶段核对，不用desired值代替。
 
 `CharacterBrakingProbe`在临时原生ACharacter的有效Movement上调用UE原`ApplyVelocityBraking`，仅作受控数值核，不tick世界。请求`samples`每项包含`name`、double厘米速度`velocity_cm_s: {x,y,z}`及float参数`delta_seconds`、`friction`、`braking_deceleration_cm_s2`、`friction_factor`、`braking_substep_seconds`；全部必须为有限JSON数值，delta绝对值不超过0.25秒，其余负值由源方法自身处理。回显实际输入、前后速度、有效性和无root motion；`test_character_braking_probe.py`检查schema。纯核输出不代替自然角色运动或位置回算历史。

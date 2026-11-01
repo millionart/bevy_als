@@ -1,0 +1,5 @@
+{
+  "exit_code": 1,
+  "rejected": "KeyError: player_view",
+  "reason": "Existing reader does not capture the consumed player viewpoint"
+}

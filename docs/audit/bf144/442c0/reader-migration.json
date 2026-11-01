@@ -1,0 +1,22 @@
+{
+  "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp": {
+    "before_sha256": "29c7ce15e4ee1c7e0586cb7774abd15c82516039995e78091e1ab17c86052936",
+    "after_sha256": "57eed0491a91c48589b768f6875a847156aacbedece66e582e09ceaddcee4f5e",
+    "reason": "Native source player-view read-only diagnostic capability or its documentation"
+  },
+  "target/ue_graph_source_reader_package/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp": {
+    "before_sha256": "29c7ce15e4ee1c7e0586cb7774abd15c82516039995e78091e1ab17c86052936",
+    "after_sha256": "57eed0491a91c48589b768f6875a847156aacbedece66e582e09ceaddcee4f5e",
+    "reason": "Native source player-view read-only diagnostic capability or its documentation"
+  },
+  "target/ue_graph_source_reader_package/Binaries/Mac/libUnrealEditor-AlsGraphSourceReader.dylib": {
+    "before_sha256": "1ad425fb8c086ba84e9009d6bfe81d974602a70b036950b3342f8a75291863f4",
+    "after_sha256": "709248000a73b178c46e9f812958a4760166ad49eb6ce4895d968b80cd5e6f2c",
+    "reason": "Native source player-view read-only diagnostic capability or its documentation"
+  },
+  "tools/README.md": {
+    "before_sha256": "d3188d17c29020be6101249db7f36b3f0307b4a099ea5809b810315bb2443096",
+    "after_sha256": "5814fee861a334971f9804808f3871675f24d9991b6549b526f9e54b2195f952",
+    "reason": "Native source player-view read-only diagnostic capability or its documentation"
+  }
+}

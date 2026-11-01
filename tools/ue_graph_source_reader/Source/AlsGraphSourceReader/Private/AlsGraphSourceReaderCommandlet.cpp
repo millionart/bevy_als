@@ -101,6 +101,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/WorldSettings.h"
 #include "AssetCompilingManager.h"
 #include "Misc/App.h"
@@ -4075,6 +4076,9 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     bool bCapturePoseBoundaries = false;
     if (Request->HasField(TEXT("capture_pose_boundaries")) &&
         (Request->TryGetField(TEXT("capture_pose_boundaries"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_pose_boundaries"), bCapturePoseBoundaries))) { return nullptr; }
+    bool bCapturePlayerView = false;
+    if (Request->HasField(TEXT("capture_player_view")) &&
+        (Request->TryGetField(TEXT("capture_player_view"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_player_view"), bCapturePlayerView))) { return nullptr; }
     struct FObservedPose : FAnimNode_Base
     {
         FPoseLink Source;
@@ -4684,6 +4688,28 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 Control->SetNumberField(TEXT("yaw"), Rotation.Yaw);
                 Control->SetNumberField(TEXT("roll"), Rotation.Roll);
                 Value->SetObjectField(TEXT("control_rotation_degrees"), Control);
+                if (bCapturePlayerView)
+                {
+                    FVector Location;
+                    FRotator ViewRotation;
+                    Controller->GetPlayerViewPoint(Location, ViewRotation);
+                    const AActor* ViewTarget = Controller->GetViewTarget();
+                    const APlayerCameraManager* Manager = Controller->PlayerCameraManager;
+                    TSharedRef<FJsonObject> View = MakeShared<FJsonObject>();
+                    View->SetBoolField(TEXT("manager_present"), Manager != nullptr);
+                    View->SetNumberField(TEXT("cache_time"), Manager != nullptr ? Manager->GetCameraCacheTime() : 0);
+                    View->SetBoolField(TEXT("view_target_is_character"), ViewTarget == Character);
+                    View->SetBoolField(TEXT("view_target_is_controller"), ViewTarget == Controller);
+                    View->SetObjectField(TEXT("returned_location_cm"), CaptureVector(Location));
+                    View->SetObjectField(TEXT("returned_rotation_degrees"), CaptureRotator(ViewRotation));
+                    if (ViewTarget != nullptr)
+                    {
+                        View->SetObjectField(TEXT("view_target_actor_rotation_degrees"), CaptureRotator(ViewTarget->GetActorRotation()));
+                        View->SetObjectField(TEXT("view_target_actor_location_cm"), CaptureVector(ViewTarget->GetActorLocation()));
+                    }
+                    if (Manager != nullptr) { View->SetObjectField(TEXT("cache_rotation_degrees"), CaptureRotator(Manager->GetCameraCacheView().Rotation)); }
+                    Value->SetObjectField(TEXT("player_view"), View);
+                }
             }
             return Value;
         };
