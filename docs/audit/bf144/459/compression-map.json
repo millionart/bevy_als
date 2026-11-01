@@ -1,0 +1,23 @@
+{
+  "replay-clock-corrected.json": {
+    "compressed": "replay-clock-corrected.json.gz",
+    "raw_bytes": 11808853,
+    "raw_sha256": "d2a73064f2e7df675c02267f2c99b447a02ebb401cd093240379500c842757af",
+    "compressed_bytes": 2631487,
+    "compressed_sha256": "9995a92a3ab43ffe51410cb31122d130319c291aac31c052eec06c7d9356fa3c"
+  },
+  "replay-restored.json": {
+    "compressed": "replay-restored.json.gz",
+    "raw_bytes": 11808853,
+    "raw_sha256": "d2a73064f2e7df675c02267f2c99b447a02ebb401cd093240379500c842757af",
+    "compressed_bytes": 2631487,
+    "compressed_sha256": "9995a92a3ab43ffe51410cb31122d130319c291aac31c052eec06c7d9356fa3c"
+  },
+  "rig.native.json": {
+    "compressed": "rig.native.json.gz",
+    "raw_bytes": 20439701,
+    "raw_sha256": "6da5012ff175f7b985321c9dc634cff558b0b96a4d79f8d5e1ad672de06329bd",
+    "compressed_bytes": 566929,
+    "compressed_sha256": "17b41e57720ba3cc56eab5788fbf59385ea019aa53a7de69bfe6d0e2c3222a0c"
+  }
+}

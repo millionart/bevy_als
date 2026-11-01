@@ -1,0 +1,10 @@
+{
+  "docs/audit/bf144/456/runtime-restored/parameters.json.gz": {
+    "bytes": 41932366,
+    "sha256": "6d11994fa561e3099ba54039690b8c1d4dbc1f41c65a9193aaf43c3bed0867bb"
+  },
+  "docs/audit/bf144/456/runtime-restored/rig-definition.json": {
+    "bytes": 193745,
+    "sha256": "1a9b6b50a38c323369f2fe9b936f3f066c400c17130f94415505772f5eda95ab"
+  }
+}

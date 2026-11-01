@@ -1,0 +1,20 @@
+{
+  "gate": "PASS_FRESH_NATIVE_CR_VM_CURRENT405_LAYOUT_WITH_EXPLICIT_KNOWN_INITIAL_GLOBAL_DIFFERENCE",
+  "program_local_topology_curves_geometry_exact_source": true,
+  "actual_runtime_definition_exact_asset_by_typed_f32_bits": true,
+  "f32_shortest_json_text_not_treated_as_f64_data_difference": true,
+  "known_initial_global_difference": "D242",
+  "initial_global_double_components_different": 365,
+  "initial_global_bones_different": 71,
+  "initial_globals_not_replaced_for_target_replay": true,
+  "instructions": 165,
+  "registers": 405,
+  "literals": 183,
+  "entries": {
+    "Forwards Solve": 0,
+    "Construction": 150
+  },
+  "existing_compilers_readonly": true,
+  "source_native_sha256": "6da5012ff175f7b985321c9dc634cff558b0b96a4d79f8d5e1ad672de06329bd",
+  "new_differences": []
+}

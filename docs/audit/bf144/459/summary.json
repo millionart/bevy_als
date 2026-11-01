@@ -1,0 +1,53 @@
+{
+  "gate": "PASS_ACTUAL319_CONTROL_RIG_PUBLIC_VM_COMPLETE_STATE_AND_TRACE_REPLAY",
+  "queries": 319,
+  "register_values_each": 405,
+  "total_register_values": 129195,
+  "total_local_bone_rows": 25201,
+  "actual_calls": 13378,
+  "actual_traces": 636,
+  "all_call_order_after_arguments_and_pre_call_global_bones_exact": true,
+  "all_trace_requests_and_hits_bound_to_actual_callback": true,
+  "full_output_working_state_and_local_hierarchy_exact": true,
+  "initial_construction_once_and_continuous_working_state": true,
+  "first_actual_delta0_derived_from_live_before_gate_arena_and_fresh_override_code": true,
+  "post_frame_global_delta_not_used_as_initial_consumed_delta": true,
+  "no_after_register_or_output_pose_injection": true,
+  "trace_hits_replayed_not_physics_regenerated": true,
+  "source_vm_program_local_curves_geometry_match_with_known_initial_global_boundary": true,
+  "known_static_difference": "D242",
+  "known_static_components": 365,
+  "known_static_bones": 71,
+  "three_minimal_source_input_ablation_contracts_rejected": true,
+  "source_and_input_bytes_restored_same_target_recompiled": true,
+  "complete_restored_replay_bytes_exact": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/456/runtime-restored/parameters.json.gz",
+      "bytes": 41932366,
+      "sha256": "6d11994fa561e3099ba54039690b8c1d4dbc1f41c65a9193aaf43c3bed0867bb"
+    },
+    {
+      "path": "docs/audit/bf144/456/runtime-restored/rig-definition.json",
+      "bytes": 193745,
+      "sha256": "1a9b6b50a38c323369f2fe9b936f3f066c400c17130f94415505772f5eda95ab"
+    },
+    {
+      "path": "docs/audit/bf144/456/evidence-manifest.json",
+      "bytes": 18204,
+      "sha256": "177b2d19c80ef1ec0ea75c4dc979290c90cb7273d3d916d9eb2fb11ec43c3923"
+    },
+    {
+      "path": "docs/audit/bf144/457/reader-migration.json",
+      "bytes": 291,
+      "sha256": "5ce9123ab0344c4b35be6f133981b295c3756137b80fb0fda91db0b0984ce064"
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "source_rig_or_root_or_als_equivalence_claimed": false,
+  "production_reader_engine_assets_unchanged": true,
+  "next_boundary": "Same-input source Rig history and actual world geometry prerequisite; use matched public replay to separate current input/data and source algorithm differences",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
