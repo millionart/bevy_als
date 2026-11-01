@@ -1,0 +1,22 @@
+{
+  "gate": "PASS_ACTUAL_IDLE_LEAF_AND_LOADED_PUBLIC_SAMPLER_WITH_UNIT_ENDPOINTS",
+  "queries_per_phase": 319,
+  "actual_updated_leaf_records": 239,
+  "actual_source_bone_rows": 18881,
+  "public_sample_exact_all_actual_leaves": true,
+  "first98_positive_baseprovider_bones_equal_actual_idle_leaf": true,
+  "target_pelvis_height": 0.9675059914588928,
+  "source_raw_and_compressed_pelvis_height_cm": 96.75060272216797,
+  "physical_projection": 0.9675060510635376,
+  "old_five_complete_history_arrays_exact": true,
+  "negative_fixtures_rejected": [
+    "wrong-clip",
+    "wrong-time",
+    "wrong-public-output",
+    "missing-bone"
+  ],
+  "new_difference_confirmed": false,
+  "full_root_or_als_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

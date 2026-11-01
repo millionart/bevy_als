@@ -1,0 +1,79 @@
+[
+  {
+    "key": "src/animation_graph_ext/source_sequence_evaluator.rs",
+    "sha256": "10e3d7ca56764dcb98fc274136efde570c7732becdeaee7d7274cf0b6c0fb4aa",
+    "excerpts": [
+      {
+        "start": 88,
+        "end": 117,
+        "text": "    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {\n        let Some(clip) = ctx\n            .graph_context\n            .resources\n            .graph_clip_assets\n            .get(&self.clip)\n        else {\n            ctx.set_data_fwd(\"Pose\", DataValue::Pose(default()));\n            return Ok(());\n        };\n        let value = self.input_value(&ctx)?;\n        let time = if self.use_explicit_frame { frame_to_time(value, self.frames_per_second) } else { value }\n            .clamp(0.0, clip.duration().max(0.0));\n        let sample_time = if self.step_interpolation { step_sample_time(time, self.frames_per_second, clip.duration()) } else { time };\n        let mut pose = sample_source_pose(&ctx, clip, sample_time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;\n        pose.timestamp = time;\n        *ctx.state_mut_or_else(crate::extensions::AnimationContextState::default)? =\n            crate::extensions::AnimationContextState {\n                curves: self.curves.sample_all(time),\n                curves_are_authoritative: true,\n                ..default()\n            };\n        ctx.set_time(time);\n        ctx.set_data_fwd(\"Pose\", pose);\n        Ok(())\n    }\n\n    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {\n        if self.expose_explicit_value_pin {\n            ctx.add_input_data(self.explicit_value_pin.clone(), DataSpec::F32);"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_sequence_player.rs",
+    "sha256": "e0458f674739539fdc3a95b2f1058ec622bc2ab8fdc209a90e6f63185d4b0d5c",
+    "excerpts": [
+      {
+        "start": 90,
+        "end": 140,
+        "text": "pub fn sample_pose(clip: &GraphClip, time: f32) -> Pose {\n    let mut pose = Pose {\n        timestamp: time,\n        skeleton: clip.skeleton.clone(),\n        ..Pose::default()\n    };\n    for (bone_id, curves) in &clip.curves {\n        let mut bone_pose = BonePose::default();\n        for curve in curves {\n            match sample_curve(curve, time) {\n                Some(CurveSample::Translation(value)) => bone_pose.translation = Some(value),\n                Some(CurveSample::Rotation(value)) => bone_pose.rotation = Some(value),\n                Some(CurveSample::Scale(value)) => bone_pose.scale = Some(value),\n                Some(CurveSample::BoneWeights(value)) => bone_pose.weights = Some(value),\n                None => {}\n            }\n        }\n        pose.add_bone(bone_pose, BoneId::from(*bone_id));\n    }\n    pose\n}\n\npub(crate) fn sample_source_pose(\n    ctx: &NodeContext,\n    clip: &GraphClip,\n    time: f32,\n    additive_reference: Option<&Handle<GraphClip>>,\n    reference_position: f32,\n    mesh_space: bool,\n    root_lock: Option<SourceRootLock>,\n) -> Result<Pose, GraphError> {\n    let target = sample_pose(clip, time);\n    let mut pose = if let Some(reference_handle) = additive_reference {\n        let reference_clip = ctx.graph_context.resources.graph_clip_assets.get(reference_handle)\n            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n        let reference = sample_pose(reference_clip, reference_position.max(0.0));\n        let skeleton = ctx.graph_context.resources.skeleton_assets.get(&reference.skeleton)\n            .or_else(|| ctx.graph_context.resources.skeleton_assets.get(&target.skeleton))\n            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n        if mesh_space { make_mesh_space_difference(&reference, &target, skeleton) }\n        else { make_local_difference(&reference, &target, skeleton) }\n    } else { target };\n    pose.timestamp = time;\n    if let Some(mode) = root_lock {\n        let skeleton = ctx.graph_context.resources.skeleton_assets.get(&pose.skeleton)\n            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n        apply_source_root_lock(&mut pose, clip, skeleton, mode, additive_reference.is_some())\n            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n    }\n    Ok(pose)\n}"
+      }
+    ]
+  },
+  {
+    "key": "assets/ALS/Animations/Base/A_Als_Stand_Pose.anim.ron",
+    "sha256": "cb9eb7f3a77bcc3f90ffa44e6757d24aca4b85b4558b6252092b0bc327309e43",
+    "excerpts": [
+      {
+        "start": 1,
+        "end": 8,
+        "text": "(\n    source: GltfNamed(\n        path: \"ALS/Animations/Base/A_Als_Stand_Pose.gltf\",\n        animation_name: \"A_Als_Stand_Pose_0\",\n    ),\n    skeleton: \"ALS/Character/SKM_Als.skn.ron\",\n)"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Enterprise/GLTFExporter/Source/GLTFExporter/Private/Utilities/GLTFCoreUtilities.cpp",
+    "sha256": "cc700e8224d02daacef0fb8fbf0e52ae89c94cbc1a43322d1f7e75e706978d02",
+    "excerpts": [
+      {
+        "start": 6,
+        "end": 21,
+        "text": "float FGLTFCoreUtilities::ConvertLength(const float Length, const float ConversionScale)\n{\n\treturn Length * ConversionScale;\n}\n\nFGLTFVector3 FGLTFCoreUtilities::ConvertVector(const FVector3f& Vector)\n{\n\t// Unreal uses a left-handed coordinate system, with Z up.\n\t// glTF uses a right-handed coordinate system, with Y up.\n\treturn { Vector.X, Vector.Z, Vector.Y };\n}\n\nFGLTFVector3 FGLTFCoreUtilities::ConvertPosition(const FVector3f& Position, const float ConversionScale)\n{\n\treturn ConvertVector(Position * ConversionScale);\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Enterprise/GLTFExporter/Source/GLTFExporter/Private/Tasks/GLTFDelayedAnimationTasks.cpp",
+    "sha256": "a66975cba3c60c7acfdeeacb0f7433bc156764db8c3f59dc45f7ef8174e3e841",
+    "excerpts": [
+      {
+        "start": 47,
+        "end": 70,
+        "text": "\tTArray<FBoneIndexType> BoneIndices;\n\tFGLTFBoneUtilities::GetBoneIndices(SkeletalMesh->GetRefSkeleton(), BoneIndices);\n\n\tTArray<TArray<FTransform>> FrameTransforms;\n\tFGLTFBoneUtilities::GetBoneTransformsByFrame(SkeletalMesh, AnimSequence, BoneIndices, Timestamps, FrameTransforms);\n\n\tfor (const FBoneIndexType BoneIndex : BoneIndices)\n\t{\n\t\tFGLTFJsonNode* Node = Builder.AddUniqueNode(RootNode, SkeletalMesh, BoneIndex);\n\n\t\t// TODO: detect if a bone has the same transforms across multiple frames (at least if its the same across all frames) and optimize\n\n\t\t{\n\t\t\tTArray<FGLTFVector3> Translations;\n\t\t\tTranslations.AddUninitialized(FrameCount);\n\n\t\t\tfor (int32 Frame = 0; Frame < FrameCount; ++Frame)\n\t\t\t{\n\t\t\t\tconst FVector3f KeyPosition = FVector3f(FrameTransforms[Frame][BoneIndex].GetTranslation());\n\t\t\t\tTranslations[Frame] = FGLTFCoreUtilities::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportUniformScale);\n\t\t\t}\n\n\t\t\tFGLTFJsonAccessor* JsonOutputAccessor = Builder.AddAccessor();\n\t\t\tJsonOutputAccessor->BufferView = Builder.AddBufferView(Translations);"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Enterprise/GLTFExporter/Source/GLTFExporter/Private/Options/GLTFExportOptions.cpp",
+    "sha256": "f989e826600775e8794f7b70bd3884d355b538fe670b15df4821389036b18be1",
+    "excerpts": [
+      {
+        "start": 9,
+        "end": 18,
+        "text": "{\n\tResetToDefault();\n}\n\nvoid UGLTFExportOptions::ResetToDefault()\n{\n\tExportUniformScale = 0.01f;\n\tbExportPreviewMesh = true;\n\tbSkipNearDefaultValues = true;\n\tbIncludeCopyrightNotice = false;"
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "0e8ed0d30395559a06033e54b88a7f6208bb273891b97bb128e79358fa49b111",
+    "excerpts": [
+      {
+        "start": 2516,
+        "end": 2534,
+        "text": "        if (bAnimationPose)\n        {\n            Pose.SetBoneContainer(&RequiredBones);\n            Curve.InitFrom(RequiredBones);\n            FAnimationPoseData PoseData(Pose, Curve, Attributes);\n            const FAnimExtractContext ExtractionContext(Time, false);\n            Frame->SetBoolField(TEXT(\"compressed_data_valid\"), Sequence->IsCompressedDataValid());\n            Frame->SetStringField(TEXT(\"pose_evaluation_mode\"), bRawAbsolutePose || FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext) ? TEXT(\"raw_model\") : TEXT(\"compressed\"));\n            if (bCaptureSourceStages && !bRawAbsolutePose && !FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext)) { return nullptr; }\n            if (bRawAbsolutePose) { Sequence->GetBonePose(PoseData, ExtractionContext, true); }\n            else { Sequence->GetAnimationPose(PoseData, ExtractionContext); }\n            if (bCaptureSourceStages)\n            {\n                const TSharedPtr<FJsonObject> Stages = CaptureSequenceRigStages(*Sequence, Time, RequiredBones);\n                if (!Stages.IsValid()) { return nullptr; }\n                FCSPose<FCompactPose> ComponentPose;\n                ComponentPose.InitPose(Pose);\n                TArray<TSharedPtr<FJsonValue>> VirtualReplay;\n                for (const FVirtualBoneCompactPoseData& Virtual : RequiredBones.GetVirtualBoneCompactPoseData())"
+      }
+    ]
+  }
+]

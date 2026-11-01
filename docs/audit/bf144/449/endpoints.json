@@ -1,0 +1,61 @@
+{
+  "gate": "PASS_CURRENT_STAND_RAW_COMPRESSED_AND_GLTF_UNIT_ENDPOINTS",
+  "correct_mesh": true,
+  "time": 0,
+  "source_pelvis": {
+    "stand-raw": {
+      "translation": {
+        "x": 1.7007638171697125e-28,
+        "y": -3.0561532974243164,
+        "z": 96.75060272216797
+      },
+      "rotation": {
+        "x": -0.001274507964517106,
+        "y": -0.7071056742964048,
+        "z": 0.001274507964517106,
+        "w": 0.7071055907985921
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    "stand-compressed-fixed": {
+      "translation": {
+        "x": 0,
+        "y": -3.0561532974243164,
+        "z": 96.75060272216797
+      },
+      "rotation": {
+        "x": 0.0012852258514612913,
+        "y": 0.7071056365966797,
+        "z": -0.0012852258514612913,
+        "w": -0.7071056365966797
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    }
+  },
+  "source_pelvis_height_cm": 96.75060272216797,
+  "target_pelvis_translation": [
+    0.0,
+    0.9675059914588928,
+    -0.030561532825231552
+  ],
+  "physical_unit_projection": 0.9675060510635376,
+  "exporter_float_unit_projection": 0.9675059914588928,
+  "exporter_float_scale": 0.009999999776482582,
+  "first_height_difference_is_not_raw_versus_compressed": true,
+  "inputs": {
+    "stand-raw.native.json": "405da1f0ddf48212403f78dab823992729155bad48dab458a98e0bcdc0a07db8",
+    "stand-compressed-fixed.native.json": "e012046de99eea8dc3356e8cdb02efcd09bac4f1b3a167fb2695fd43a5014cb4",
+    "A_Als_Stand_Pose.gltf": "00477627f248c8e1b8aaa3a8f6b16f864f34c80878899c49ec5304983eb3001d",
+    "A_Als_Stand_Pose.bin": "8be5da2ae7099f4108e744042f462739fd5f36dd8b29b2e4e6f1aee4bc0b792a"
+  },
+  "failed_combined_source_stages_request_excluded": true,
+  "new_difference_confirmed": false
+}
