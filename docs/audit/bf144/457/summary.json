@@ -1,0 +1,73 @@
+{
+  "gate": "PASS_NATIVE_INDEPENDENT_RIG_OUTPUT_AND_ACTUAL_ACTION_CAPABILITY_WITH_FULL_LEGACY_COMPATIBILITY",
+  "ordinary_frames": 320,
+  "initialization_packets": 2,
+  "rig_output_bone_rows": 25438,
+  "primary_history_frames": 318,
+  "complete_old_character_probe_exact_after_removing_only_new_observations": true,
+  "complete_enabled_character_probe_restored_exact": true,
+  "actual_action_capture_names_primary": {
+    "None": 318
+  },
+  "nonempty_local_struct_reader_control_passed": true,
+  "actual_ragdoll_action_branch_not_claimed": true,
+  "source_raw_rig_to_root_pose_changes": {
+    "translation": 0,
+    "rotation": 0,
+    "scale": 0
+  },
+  "three_ablation_counterexamples_verified": true,
+  "typed_and_parent_request_guards_verified": true,
+  "complete_old_default_and_five_boundary_and_curve_vector_probes_compatible": true,
+  "source_bytes_restored_same_native_package_rebuilt": true,
+  "other395_and_six_libraries_unchanged": true,
+  "reader_migration_explicit": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/448a/restored.native.json.gz",
+      "sha256": "5cbcfa9d0c19b01300d7d73468b381c422ec2ff7957060710e72522feaabfbbf",
+      "bytes": 19985780
+    },
+    {
+      "path": "docs/audit/bf144/448a/request.json",
+      "sha256": "a28131dbadeaa357f845d2f48aeb6cb4fb80b50b4aeb89482d272d1bd57ce102",
+      "bytes": 145071
+    },
+    {
+      "path": "docs/audit/bf144/446f/restored.native.json.gz",
+      "sha256": "209b1588d2616dd13321342ed00d3908f7ab669e5747596f02fbc5419832180f",
+      "bytes": 9119170
+    },
+    {
+      "path": "docs/audit/bf144/446f/request.json",
+      "sha256": "09ee312d3797714dfe356eb54a42b63b8cdc59dcddf132e1958ef69fbe0a8afa",
+      "bytes": 145036
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.native.json",
+      "sha256": "4b11e842693ad10a5e9ad576b3e185d86602a25107d53a1a652ae41a4bb57c6d",
+      "bytes": 198719
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.request.json",
+      "sha256": "98f6b163e8583e510e6d91f9c9b37540581df41c9691e14acbf7b77ab846a5e6",
+      "bytes": 4198
+    },
+    {
+      "path": "docs/audit/bf144/446f/reader-migration.json",
+      "sha256": "73d72abb3dbe86425e6c723a5809fc2e2e7f20ccb58370589fc86d02fa73052e",
+      "bytes": 291
+    },
+    {
+      "path": "docs/audit/bf144/456/summary.json",
+      "sha256": "72703b6bd8c601da7acc7a7e53865ccdd818be1207b51fc5aab551b1fbdbe310",
+      "bytes": 2821
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "full_rig_or_root_or_als_equivalence_claimed": false,
+  "next_boundary": "Fresh source/target Ragdolling graph and actual common-input passthrough normalization contract; source action is capture-time metadata",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

@@ -1,0 +1,6 @@
+{
+  "failure": "Dependent package check and native invocation were started before the restored build terminal result; the auxiliary auto-build failed",
+  "authoritative_restored_build_succeeded": true,
+  "no_native_result_accepted_from_failed_sequence": true,
+  "correction": "Waited for both handles to be terminal, then rechecked packaged source bytes and launched a distinct restored-final read"
+}

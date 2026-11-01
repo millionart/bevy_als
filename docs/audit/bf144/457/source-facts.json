@@ -1,0 +1,61 @@
+[
+  {
+    "key": "source:Public/AlsCharacter.h",
+    "sha256": "b5f0772b9f008b863a22330c02e2686af18c8b1f1485ede5018cf03f62f1ae8a",
+    "excerpts": [
+      {
+        "start": 68,
+        "end": 74,
+        "text": "\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State|Als Character\", Transient)\n\tFGameplayTag Gait{AlsGaitTags::Walking};\n\n\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State|Als Character\", Transient)\n\tFGameplayTag LocomotionAction;\n\n\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State|Als Character\", Transient)"
+      },
+      {
+        "start": 674,
+        "end": 677,
+        "text": "inline FGameplayTag AAlsCharacter::GetLocomotionAction() const\n{\n\treturn LocomotionAction;\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimNodeBase.cpp",
+    "sha256": "8f9106c571697f3308a829815b9f79ec940e1d04df5ac8fc1e3ba404c0208bb5",
+    "excerpts": [
+      {
+        "start": 184,
+        "end": 203,
+        "text": "void FPoseLinkBase::AttemptRelink(const FAnimationBaseContext& Context)\n{\n\t// Do the linkage\n\tif ((LinkedNode == nullptr) && (LinkID != INDEX_NONE))\n\t{\n\t\tIAnimClassInterface* AnimBlueprintClass = Context.GetAnimClass();\n\t\tcheck(AnimBlueprintClass);\n\n\t\t// adding ensure. We had a crash on here\n\t\tconst TArray<FStructProperty*>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();\n\t\tif ( ensure(AnimNodeProperties.IsValidIndex(LinkID)) )\n\t\t{\n\t\t\tFStructProperty* LinkedProperty = AnimNodeProperties[LinkID];\n\t\t\tvoid* LinkedNodePtr = LinkedProperty->ContainerPtrToValuePtr<void>(Context.AnimInstanceProxy->GetAnimInstanceObject());\n\t\t\tLinkedNode = (FAnimNode_Base*)LinkedNodePtr;\n\t\t}\n\t}\n}\n\nvoid FPoseLinkBase::Initialize(const FAnimationInitializeContext& InContext)"
+      },
+      {
+        "start": 230,
+        "end": 254,
+        "text": "void FPoseLinkBase::SetLinkNode(struct FAnimNode_Base* NewLinkNode)\n{\n\t// this is custom interface, only should be used by native handlers\n\tLinkedNode = NewLinkNode;\n}\n\nvoid FPoseLinkBase::SetDynamicLinkNode(struct FPoseLinkBase* InPoseLink)\n{\n\tif(InPoseLink)\n\t{\n\t\tLinkedNode = InPoseLink->LinkedNode;\n#if WITH_EDITORONLY_DATA\n\t\tSourceLinkID = InPoseLink->SourceLinkID;\n#endif\n\t\tLinkID = InPoseLink->LinkID;\n\t}\n\telse\n\t{\n\t\tLinkedNode = nullptr;\n#if WITH_EDITORONLY_DATA\n\t\tSourceLinkID = INDEX_NONE;\n#endif\n\t\tLinkID = INDEX_NONE;\n\t}\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimNode_LinkedInputPose.cpp",
+    "sha256": "6b673182f1543ed905faad77abf7635dda666da1056af2c34a7b929e5661dc67",
+    "excerpts": [
+      {
+        "start": 29,
+        "end": 65,
+        "text": "void FAnimNode_LinkedInputPose::Update_AnyThread(const FAnimationUpdateContext& Context)\n{\n\tif(InputProxy)\n\t{\n\t\tFAnimationUpdateContext InputContext = Context.WithOtherProxy(InputProxy);\n\t\tInputContext.SetNodeId(OuterGraphNodeIndex);\n\t\tInputPose.Update(InputContext);\n\t}\n}\n\nvoid FAnimNode_LinkedInputPose::Evaluate_AnyThread(FPoseContext& Output)\n{\n\tif(InputProxy)\n\t{\n\t\t// Stash current proxy for restoration after recursion\n\t\tFAnimInstanceProxy& OldProxy = *Output.AnimInstanceProxy;\n\n\t\tOutput.AnimInstanceProxy = InputProxy;\n\t\tOutput.Pose.SetBoneContainer(&InputProxy->GetRequiredBones());\n\t\tOutput.SetNodeId(INDEX_NONE);\n\t\tOutput.SetNodeId(OuterGraphNodeIndex);\n\t\tInputPose.Evaluate(Output);\n\n\t\t// Restore proxy & required bones after evaluation\n\t\tOutput.AnimInstanceProxy = &OldProxy;\n\t\tOutput.Pose.SetBoneContainer(&OldProxy.GetRequiredBones());\n\t}\n\telse if(CachedInputPose.IsValid() && ensure(Output.Pose.GetNumBones() == CachedInputPose.GetNumBones()) && bIsCachedInputPoseInitialized)\n\t{\n\t\tOutput.Pose.CopyBonesFrom(CachedInputPose);\n\t\tOutput.Curve.CopyFrom(CachedInputCurve);\n\t\tOutput.CustomAttributes.CopyFrom(CachedAttributes);\n\t}\n\telse\n\t{\n\t\tOutput.ResetToRefPose();\n\t}"
+      },
+      {
+        "start": 79,
+        "end": 96,
+        "text": "void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink, int32 InOuterGraphNodeIndex)\n{\n\tensure(GIsReinstancing || InputProxy == nullptr);\t\t\t// Must be unlinked before re-linking\n\n\tInputProxy = InInputProxy;\n\tInputPose.SetDynamicLinkNode(InPoseLink);\n\tOuterGraphNodeIndex = InOuterGraphNodeIndex;\n}\n\nvoid FAnimNode_LinkedInputPose::DynamicUnlink()\n{\n\tensure(GIsReinstancing || InputProxy != nullptr);\t\t\t// Must be linked before unlinking\n\n\tInputProxy = nullptr;\n\tInputPose.SetDynamicLinkNode(nullptr);\n\tOuterGraphNodeIndex = INDEX_NONE;\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimNode_LinkedAnimGraph.cpp",
+    "sha256": "1fc256b9fec7b22b9a180004ad6941288579c5d4eb553e414b28c89d0931e9f0",
+    "excerpts": [
+      {
+        "start": 368,
+        "end": 407,
+        "text": "void FAnimNode_LinkedAnimGraph::DynamicLink(UAnimInstance* InOwningAnimInstance)\n{\n\tCachedLinkedNodeIndex = INDEX_NONE;\n\n\tUAnimInstance* LinkTargetInstance = GetDynamicLinkTarget(InOwningAnimInstance);\n\tif(LinkTargetInstance)\n\t{\n\t\tIAnimClassInterface* SubAnimBlueprintClass = IAnimClassInterface::GetFromClass(LinkTargetInstance->GetClass());\n\t\tif(SubAnimBlueprintClass)\n\t\t{\n\t\t\tFAnimInstanceProxy* NonConstProxy = &InOwningAnimInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();\n\t\t\tconst FName FunctionToLink = GetDynamicLinkFunctionName();\n\n\t\t\t// Link input poses\n\t\t\tconst TArray<FAnimBlueprintFunction>& AnimBlueprintFunctions = SubAnimBlueprintClass->GetAnimBlueprintFunctions();\n\t\t\tconst int32 FunctionCount = AnimBlueprintFunctions.Num();\n\t\t\tfor(int32 FunctionIndex = 0; FunctionIndex < FunctionCount; ++FunctionIndex)\n\t\t\t{\n\t\t\t\tconst FAnimBlueprintFunction& AnimBlueprintFunction = AnimBlueprintFunctions[FunctionIndex];\n\n\t\t\t\tif(AnimBlueprintFunction.Name == FunctionToLink)\n\t\t\t\t{\n\t\t\t\t\tCachedLinkedNodeIndex = AnimBlueprintFunction.OutputPoseNodeIndex;\n\n\t\t\t\t\tfor(int32 InputPoseIndex = 0; InputPoseIndex < AnimBlueprintFunction.InputPoseNames.Num() && InputPoseIndex < InputPoses.Num(); ++InputPoseIndex)\n\t\t\t\t\t{\n\t\t\t\t\t\t// Make sure we attempt a re-link first, as only this pose link knows its target\n\t\t\t\t\t\tFAnimationInitializeContext Context(NonConstProxy);\n\t\t\t\t\t\tInputPoses[InputPoseIndex].AttemptRelink(Context);\n\n\t\t\t\t\t\tint32 InputPropertyIndex = FindFunctionInputIndex(AnimBlueprintFunction, AnimBlueprintFunction.InputPoseNames[InputPoseIndex]);\n\t\t\t\t\t\tif(InputPropertyIndex != INDEX_NONE && AnimBlueprintFunction.InputPoseNodeProperties[InputPropertyIndex])\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tFAnimNode_LinkedInputPose* LinkedInputPoseNode = AnimBlueprintFunction.InputPoseNodeProperties[InputPropertyIndex]->ContainerPtrToValuePtr<FAnimNode_LinkedInputPose>(LinkTargetInstance);\n\t\t\t\t\t\t\tcheck(LinkedInputPoseNode->Name == AnimBlueprintFunction.InputPoseNames[InputPoseIndex]);\n\t\t\t\t\t\t\tLinkedInputPoseNode->DynamicLink(NonConstProxy, &InputPoses[InputPoseIndex], NodeIndex);\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tUE_LOGF(LogAnimation, Warning, \"Unable to dynamically link input pose %ls.\", *AnimBlueprintFunction.InputPoseNames[InputPoseIndex].ToString());"
+      }
+    ]
+  }
+]

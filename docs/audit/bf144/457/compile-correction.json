@@ -1,0 +1,6 @@
+{
+  "failure": "EName and FName mixed in initializer list",
+  "correction": "Construct FName(NAME_None) explicitly",
+  "unreachable_partial_report_fallback_removed": true,
+  "source_or_target_runtime_facts_not_changed": true
+}

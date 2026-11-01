@@ -1,0 +1,59 @@
+{
+  "gate": "PASS_NATIVE318_RIG_AND_RAGDOLLING_RAW_POSE_PARTITION",
+  "frames": 318,
+  "source_raw_counts": {
+    "rig_source:rig_output": {
+      "translation": 1902,
+      "rotation": 1921,
+      "scale": 992
+    },
+    "rig_output:root_result": {
+      "translation": 0,
+      "rotation": 0,
+      "scale": 0
+    },
+    "rig_source:root_result": {
+      "translation": 1902,
+      "rotation": 1921,
+      "scale": 992
+    }
+  },
+  "first_changes": {
+    "rig_source:rig_output": {
+      "frame": 1,
+      "bone": "calf_l",
+      "channel": "translation",
+      "before": {
+        "x": -42.55255889892578,
+        "y": -0.001713471845391723,
+        "z": -2.193450927734375e-05
+      },
+      "after": {
+        "x": -42.57205579973267,
+        "y": -3.6336813230460713e-10,
+        "z": 1.231370267490704e-11
+      }
+    },
+    "rig_source:root_result": {
+      "frame": 1,
+      "bone": "calf_l",
+      "channel": "translation",
+      "before": {
+        "x": -42.55255889892578,
+        "y": -0.001713471845391723,
+        "z": -2.193450927734375e-05
+      },
+      "after": {
+        "x": -42.57205579973267,
+        "y": -3.6336813230460713e-10,
+        "z": 1.231370267490704e-11
+      }
+    }
+  },
+  "action_capture_names": {
+    "None": 318
+  },
+  "action_capture_time_is_not_actual_ragdoll_update_reader": true,
+  "new_differences": [],
+  "full_rig_or_root_equivalence_claimed": false
+}

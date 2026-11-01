@@ -1,0 +1,14 @@
+{
+  "no-output-hook": {
+    "expected_exit_code": 7,
+    "failure": "Initial source pose boundaries are unavailable: invalid_owner=0 observed_instance=/Temp/Untitled_1.Untitled:PersistentLevel.B_Als_Character_C_0.CharacterMesh0.AB_Als_C_0 instance=/Temp/Untitled_1.Untitled:PersistentLevel.B_Als_Character_C_0.CharacterMesh0.AB_Als_C_0 rig_source_evaluations=1 root_evaluations=1 rig_output_evaluations=0."
+  },
+  "constant-action": {
+    "expected_exit_code": 7,
+    "failure": "Locomotion action property reader control failed."
+  },
+  "no-parent-guard": {
+    "expected_exit_code": 0,
+    "failure": "Missing required capture_pose_boundaries was accepted after removing the parent guard"
+  }
+}
