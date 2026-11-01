@@ -4082,6 +4082,9 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     bool bCaptureAssetPlayerTicks = false;
     if (Request->HasField(TEXT("capture_asset_player_ticks")) &&
         (Request->TryGetField(TEXT("capture_asset_player_ticks"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_asset_player_ticks"), bCaptureAssetPlayerTicks))) { return nullptr; }
+    bool bCaptureProxyCurves = false;
+    if (Request->HasField(TEXT("capture_proxy_curves")) &&
+        (Request->TryGetField(TEXT("capture_proxy_curves"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_proxy_curves"), bCaptureProxyCurves))) { return nullptr; }
     struct FObservedPose : FAnimNode_Base
     {
         FPoseLink Source;
@@ -4122,6 +4125,12 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         static int32 ReadIndex(const FAnimInstanceProxy& Proxy) { return (Proxy.*&FProxyAccess::GetBufferReadIndex)(); }
         static float MachineWeight(const FAnimInstanceProxy& Proxy, int32 NodeIndex) { return (Proxy.*&FProxyAccess::GetInstanceMachineWeight)(NodeIndex); }
         static float StateWeight(const FAnimInstanceProxy& Proxy, int32 NodeIndex, int32 StateIndex) { return (Proxy.*&FProxyAccess::GetInstanceStateWeight)(NodeIndex, StateIndex); }
+        static uint64 NativeUpdateFrame(const FAnimInstanceProxy& Proxy) { return Proxy.*&FProxyAccess::FrameCounterForUpdate; }
+        static const TMap<FName, float>& AttributeCurves(const FAnimInstanceProxy& Proxy)
+        {
+            const auto Getter = static_cast<const TMap<FName, float>& (FAnimInstanceProxy::*)(EAnimCurveType) const>(&FProxyAccess::GetAnimationCurves);
+            return (Proxy.*Getter)(EAnimCurveType::AttributeCurve);
+        }
         static const TArray<FMontageEvaluationState>& Montages(const FAnimInstanceProxy& Proxy)
         {
             const auto Getter = static_cast<const TArray<FMontageEvaluationState>& (FAnimInstanceProxy::*)() const>(&FProxyAccess::GetMontageEvaluationData);
@@ -4212,7 +4221,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         }
         return Fields;
     };
-    const auto CaptureInstances = [BaseProviderClass, bCaptureAssetPlayerTicks](USkeletalMeshComponent* Mesh, UAnimInstance* Main)
+    const auto CaptureInstances = [BaseProviderClass, bCaptureAssetPlayerTicks, bCaptureProxyCurves](USkeletalMeshComponent* Mesh, UAnimInstance* Main)
     {
             TArray<TSharedPtr<FJsonValue>> Linked;
             TArray<UAnimInstance*> Mains = static_cast<const USkeletalMeshComponent*>(Mesh)->GetLinkedAnimInstances();
@@ -4286,6 +4295,14 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
                 ChildRow->SetBoolField(TEXT("main"), Child == Main);
                 ChildRow->SetNumberField(TEXT("weight_read_buffer_index"), FProxyAccess::ReadIndex(ChildProxy));
+                if (bCaptureProxyCurves)
+                {
+                    TSharedRef<FJsonObject> Curves = MakeShared<FJsonObject>();
+                    for (const auto& Curve : FProxyAccess::AttributeCurves(ChildProxy)) { Curves->SetNumberField(Curve.Key.ToString(), Curve.Value); }
+                    ChildRow->SetObjectField(TEXT("proxy_attribute_curves"), Curves);
+                    ChildRow->SetNumberField(TEXT("proxy_observed_engine_frame"), GFrameCounter);
+                    ChildRow->SetNumberField(TEXT("proxy_native_update_engine_frame"), FProxyAccess::NativeUpdateFrame(ChildProxy));
+                }
                 TArray<TSharedPtr<FJsonValue>> Machines, Players, LayeredBlends, Slots;
                 if (const IAnimClassInterface* ChildInterface = IAnimClassInterface::GetFromClass(Child->GetClass()))
                 {

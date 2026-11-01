@@ -1,0 +1,11 @@
+# BF144.446d 内部proxy曲线及native回调帧只读观测
+
+可选boolean `capture_proxy_curves`读取每个主/linked实例真实`FAnimInstanceProxy::GetAnimationCurves(AttributeCurve)`，保留零键，并输出观察时GFrameCounter与`FrameCounterForUpdate`。通过现有protected FProxyAccess访问，不写map，不修改ALS/UE/target源码或求值。
+
+源RefreshPose读取此map；公共GetCurveValue不是同一个输入合同。实际init/frame0前map的PoseStanding已1，但zero初始化已在engine frame100执行native回调，首world tick也在100，因frame门控不再执行NativeThreadSafeUpdateAnimation，PoseState仍0。下一world帧101才重新读取map为1。当前reader在World.Tick后先递增GFrameCounter再做after观察，因此after主实例native帧+1=观察帧。最初验证器未区分这个观察时点，失败元报告单独保留，未误记生产缺陷。
+
+新字段覆盖5778个实例快照、保留39006个显式零值；基线数字由原始报告重验。源/目标engine帧与刷新入口尚未对齐，不能将该资格差直接编号为曲线发布缺陷。后继需要target FrameCount/actual prior global值及同engine-frame控制。
+
+消融抹去非空map/回调帧并移除typed/optional guard，分别使数值资格失败、字符串被接受及旧无flag报告污染。源码gzip字节/SHA恢复同native包重编；新完整318+2角色包与旧无flag包逐值恢复。一次构建在消融准备yield仍未terminal时提前启动，暂存HostProject源码SHA无法证明编译输入，该构建明确排除。准备完成后重建；消融进程曾在最终包校验完成前启动，随后最终包源码SHA精确且实际负读数确认所用variant，顺序错误明确保留。恢复构建则先核最终包SHA再运行，作为最终正证明。
+
+所有原始报告无损gzip、请求、源码恢复字节、阶段/构建失败与恢复报告、身份迁移及manifest在Git。复验`pwsh docs/audit/bf144/446d/run_check.ps1 -Label restored`；新source运行使用新Label，不能覆盖封存文件。截图0、性能暂停，完整Root等价仍未确认。

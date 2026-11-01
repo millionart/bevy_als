@@ -1,0 +1,7 @@
+{
+  "initial_checker_assumption_rejected": "After-world observation was assumed to precede the reader engine-frame increment",
+  "actual_reader_order": "World.Tick, increment GFrameCounter, capture linked instances",
+  "after_world_relation": "native_update_engine_frame + 1 equals proxy_observed_engine_frame for the main instance",
+  "native_curve_reading_changed_game_behavior": false,
+  "source_same_frame_callback_gate_confirmed": true
+}
