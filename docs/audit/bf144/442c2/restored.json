@@ -1,0 +1,71 @@
+{
+  "actor_degrees": 0.0,
+  "actual_playground_raw_fallback": [
+    {
+      "actor_yaw": -0.8260865211486816,
+      "direction": [
+        0.4999998211860657,
+        0.0,
+        0.8660255074501038
+      ],
+      "ordinal": 20,
+      "raw_yaw": -2.6179940700531006
+    },
+    {
+      "actor_yaw": -0.8676729202270508,
+      "direction": [
+        0.4999998211860657,
+        0.0,
+        0.8660255074501038
+      ],
+      "ordinal": 21,
+      "raw_yaw": -2.6179940700531006
+    }
+  ],
+  "control_degrees": 60.0,
+  "current_direction": [
+    0.5000000596046448,
+    0.0,
+    0.8660253882408142
+  ],
+  "current_public_plan": [
+    0.3333333730697632,
+    0.0,
+    0.5773502588272095
+  ],
+  "full_world_feedback_claimed": false,
+  "gate": "PASS_COLD_ACTOR_CONTROL_FIELD_BOUNDARY_WITH_SHARED_MATH_AND_PUBLIC_CONSUMER",
+  "native_actor_public_plan": [
+    0.6666666865348816,
+    0.0,
+    0.0
+  ],
+  "natural_nonzero_cold_input_claimed": false,
+  "only_selected_angle_changed": [
+    1.0,
+    0.0,
+    4.371138828673793e-8
+  ],
+  "only_selected_angle_public_plan": [
+    0.6666666865348816,
+    0.0,
+    2.914092789296774e-8
+  ],
+  "remaining_angular_precision_residual": [
+    0.0,
+    0.0,
+    4.371138828673793e-8
+  ],
+  "runtime_actor_yaw": -1.5707963705062866,
+  "runtime_control_yaw": -2.6179938316345215,
+  "source_actor_native": [
+    1.0,
+    0.0,
+    0.0
+  ],
+  "source_control_native": [
+    0.4999999403953552,
+    0.0,
+    0.866025447845459
+  ]
+}

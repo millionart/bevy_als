@@ -1,0 +1,36 @@
+{
+  "samples": [
+    {
+      "name": "cold-returned-actor",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 0,
+        "axes": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "cold-control",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 60,
+        "axes": [
+          0,
+          1
+        ]
+      }
+    }
+  ]
+}
