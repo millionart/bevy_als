@@ -1,0 +1,75 @@
+{
+  "gate": "PASS_INITIALIZATION_AND_FULL_EXTERNAL_HISTORY_AUDIT_WITH_KNOWN_DIFFERENCES",
+  "children": {
+    "446": {
+      "gate": "PASS_ACTUAL_COLD_START_STATE_AND_INPUT_HISTORY_WITH_NATIVE_PREREQUISITES",
+      "files": 67,
+      "summary_sha256": "715b689241a4567d9c241b9d388455ff1e0f804e6b86184bc0d06777ad378f0d",
+      "manifest_sha256": "fa87efcae8d64b6ced8de0e990826eaf60d8f11e91fb8e2129fcf691d1f7de19"
+    },
+    "446b": {
+      "gate": "PASS_BOUNDED318_NATIVE_HISTORY_AND_OPTIONAL_INITIAL_POSE_WITH_LEGACY_COMPATIBILITY",
+      "files": 67,
+      "summary_sha256": "398b3b541468c0d1e39bf684a2095a2fa570eb0e208cab6736b8aca1ba90b69a",
+      "manifest_sha256": "b0057633d990d6bb3ec48988074506b5ee6f56382b2682c08ab929af262e0ac8"
+    },
+    "446c": {
+      "gate": "PASS_COMPLETE318_EXTERNAL_INPUT_AND_PRODUCER_BOUNDARY_AUDIT",
+      "files": 42,
+      "summary_sha256": "80bb78f7244005607fae8086481afc25422fc874daa4acd55adccdfd6dd8788f",
+      "manifest_sha256": "186f3f758c00e997b89ce174c378155ed9c240bb49a326f06866330721a09a05"
+    },
+    "446d": {
+      "gate": "PASS_OPTIONAL_INTERNAL_PROXY_CURVES_AND_NATIVE_FRAME_READER_WITH_LEGACY_COMPATIBILITY",
+      "files": 65,
+      "summary_sha256": "3e0b503a764810568ad706cc745751ba9efabe0183f14505ee5e3d8ff49437f9",
+      "manifest_sha256": "2e9eb5e29ba2fcd293b81f575145112250af77c99b3df5316f42e5848e3411a1"
+    },
+    "446e": {
+      "gate": "PASS_TARGET_ACTUAL_PRIOR_CURVE_INPUTS_AND_DISTINCT_FRAME_BOUNDARY",
+      "files": 63,
+      "summary_sha256": "64669b33d12bf822b18160143fb9b76d97ac0969edfb41ccd129db34c57db373",
+      "manifest_sha256": "dc54a097b73aa1858b98116c92f852c2f6c9c1cd1ea1976a019d1a6e0b43908a"
+    },
+    "446f": {
+      "gate": "PASS_MATCHED_NATIVE_ENGINE_FRAME_CONTROL_AND_BOOT_CANDIDATE_REJECTION",
+      "files": 62,
+      "summary_sha256": "e0099e1f957c07fa53f7a3a8b163aff9b0211e5f28cd51f80ff214f787caf271",
+      "manifest_sha256": "b84637c26b9925135f13fea6599e6272518ef1812dcdd629bf10032642ee63f2"
+    },
+    "446g": {
+      "gate": "PASS_COLD319_ACTUAL_FORCE_PHYSICS_AND_D31_FIRST_CONSUMER",
+      "files": 91,
+      "summary_sha256": "9eb4bf7184eb36fc1e558fec9f6e0347bac833a3d5f0bed66179cccda3f09116",
+      "manifest_sha256": "543351c77be79cfd68dbcbb6191b54c6f0c6529e5cfee52bb7a56bfa06cea0d3"
+    }
+  },
+  "verified_git_evidence_files": 457,
+  "negative_child_scope_and_hash_cases_rejected": 3,
+  "target_actual_query_history": 319,
+  "matched_external_positive_inputs": 318,
+  "source_actual_controller_inputs_verified": 318,
+  "boot_curve_publication_candidate_rejected_by_matching_callback_frame": true,
+  "default_pose_eligibility_matches_target_all318": true,
+  "actual_force_and_raw_physics_rows_exact": 319,
+  "cold_spring_rows_exact": 79,
+  "first_cold_position_known_difference": "BF144-D31",
+  "other_known_consumers": [
+    "BF144-D149",
+    "BF144-D201"
+  ],
+  "new_differences": [],
+  "total_confirmed_differences": 271,
+  "priority_counts": {
+    "P2": 116,
+    "P3": 155
+  },
+  "production_or_source_assets_fixed": false,
+  "source_target_all_internal_inputs_matched": false,
+  "all_trajectory_clock_or_pose_differences_attributed": false,
+  "full_root_or_als_equivalence_claimed": false,
+  "next_direct_boundary": "Recompute complete frame-matched source318 versus target319 state, player clocks and Root pose input residuals using the controlled source history",
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "render_gpu_pass_acceptance": "excluded under explicit peripheral scope"
+}
