@@ -1,0 +1,16 @@
+{
+  "gate": "PASS_FULL_NATIVE_SOURCE_HEAD_APPLY_TWO_FRAMES",
+  "source_frames": 2,
+  "full_bone_rows": 158,
+  "full_pose_and_curve_exact_actual_source": true,
+  "negative_fixtures_rejected": [
+    "missing-sample",
+    "changed-pose",
+    "wrong-alpha"
+  ],
+  "evidence_inputs": {
+    "docs/audit/bf144/448a/restored.native.json.gz": "5cbcfa9d0c19b01300d7d73468b381c422ec2ff7957060710e72522feaabfbbf",
+    "docs/audit/bf144/451/source-head.native.json": "3b536022c44aa335dfc9f3aaecca12d13ca9439e4df73c5f0b09bb89cc9ed6d1"
+  },
+  "full_root_or_als_equivalence_claimed": false
+}
