@@ -4085,6 +4085,9 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     bool bCaptureProxyCurves = false;
     if (Request->HasField(TEXT("capture_proxy_curves")) &&
         (Request->TryGetField(TEXT("capture_proxy_curves"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_proxy_curves"), bCaptureProxyCurves))) { return nullptr; }
+    bool bAdvanceBeforeFirstWorldTick = false;
+    if (Request->HasField(TEXT("advance_before_first_world_tick")) &&
+        (Request->TryGetField(TEXT("advance_before_first_world_tick"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("advance_before_first_world_tick"), bAdvanceBeforeFirstWorldTick))) { return nullptr; }
     struct FObservedPose : FAnimNode_Base
     {
         FPoseLink Source;
@@ -4872,6 +4875,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         }
         Initialization->SetObjectField(TEXT("rig_variables"), InitialRigVariables);
         if (bCapturePoseBoundaries) { Initialization->SetObjectField(TEXT("pose_boundaries"), CapturePoseBoundaries()); }
+        if (bAdvanceBeforeFirstWorldTick) { ++GFrameCounter; }
         TArray<TSharedPtr<FJsonValue>> Rows;
         for (const TSharedPtr<FJsonValue>& FrameValue : *Frames)
         {

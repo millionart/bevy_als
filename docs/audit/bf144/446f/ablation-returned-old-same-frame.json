@@ -1,0 +1,5 @@
+{
+  "complete_character_probe_equals_old_same_frame": true,
+  "old_report": "docs/audit/bf144/446d/restored.native.json.gz",
+  "current_report": "ablated.native.json.gz"
+}

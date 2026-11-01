@@ -1,0 +1,7 @@
+{
+  "source": "docs/audit/bf144/446d/restored.native.json.gz",
+  "initialization_engine_frame": 100,
+  "first_world_engine_frame": 100,
+  "last_native_update_engine_frame": 100,
+  "matching_target_next_frame_control_missing": true
+}

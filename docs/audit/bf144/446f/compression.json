@@ -1,0 +1,37 @@
+{
+  "ablated-invalid.native.json": {
+    "raw_bytes": 117072267,
+    "raw_sha256": "f33ab37d5a8711c9e53c545d7bf6db473c3659de7658abca2f9b1680dec59ed9",
+    "gzip_bytes": 9117736,
+    "gzip_sha256": "97ad3bc516b323bc385e2e9a0f1a88a0531d73edd9811ad4ce7561bcd5ca88b2",
+    "round_trip_byte_exact": true
+  },
+  "ablated.native.json": {
+    "raw_bytes": 117072261,
+    "raw_sha256": "7cec3516267c0c9e549c8d1138d3bcfde2d2788758fb02a5824f8d404dc96f3b",
+    "gzip_bytes": 9117721,
+    "gzip_sha256": "8c0eeb561d1bf1c4165431e8cfcfc502bbd625f084e7d0199f261469be5c47d0",
+    "round_trip_byte_exact": true
+  },
+  "baseline.native.json": {
+    "raw_bytes": 117088884,
+    "raw_sha256": "02089bd2ef10dfb390c26b4487608e05ec7a1fc6a1d73620933ba8c04ad23e26",
+    "gzip_bytes": 9119198,
+    "gzip_sha256": "356da58e3e2666f1306887894a3a53a5724a423dc1e7dec64ecc16383da29ea8",
+    "round_trip_byte_exact": true
+  },
+  "legacy.native.json": {
+    "raw_bytes": 117072273,
+    "raw_sha256": "1c2fd20a7cf0b0b577566137432ffe87fd54f61e617e09da212714858d18c491",
+    "gzip_bytes": 9117739,
+    "gzip_sha256": "e522a4e894f328cb9709c46d30535439627695588c663f9abcd41bf4897c697a",
+    "round_trip_byte_exact": true
+  },
+  "restored.native.json": {
+    "raw_bytes": 117088884,
+    "raw_sha256": "18735dd5521aa2d41c8725b0367a9586788ad57174fcdd5df529fe6e308338e4",
+    "gzip_bytes": 9119170,
+    "gzip_sha256": "209b1588d2616dd13321342ed00d3908f7ab669e5747596f02fbc5419832180f",
+    "round_trip_byte_exact": true
+  }
+}

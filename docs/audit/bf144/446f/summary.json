@@ -1,0 +1,26 @@
+{
+  "gate": "PASS_MATCHED_NATIVE_ENGINE_FRAME_CONTROL_AND_BOOT_CANDIDATE_REJECTION",
+  "counts": {
+    "source_history_frames": 318,
+    "control_frames": 2,
+    "initialization_to_first_world_engine_frame_delta": 1,
+    "first_native_refresh_executed": true,
+    "first_default_pose_evaluator_ticked": true
+  },
+  "initialization_and_world_deltas_inputs_unchanged": true,
+  "default_pose_eligibility_matches_target_all318": true,
+  "first_curve_publication_candidate_rejected": true,
+  "candidate_cause": "Mismatched engine-frame native callback phases",
+  "phase_and_typed_guard_ablations_rejected": true,
+  "negative_fixtures_rejected": 3,
+  "source_bytes_restored": true,
+  "same_native_package_rebuilt": true,
+  "complete_controlled_character_probe_restored_exact": true,
+  "old_default_same_frame318_plus2_character_probe_exact": true,
+  "all_producer_inputs_or_clock_differences_attributed": false,
+  "full_root_or_als_equivalence_claimed": false,
+  "new_differences": [],
+  "total_confirmed_differences": 271,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

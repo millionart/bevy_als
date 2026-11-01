@@ -3867,6 +3867,11 @@
   - .446e Gate完成：`docs/audit/bf144/446e/summary.json` PASS_TARGET_ACTUAL_PRIOR_CURVE_INPUTS_AND_DISTINCT_FRAME_BOUNDARY。319真实连续App帧/actual globals/projection/source-property读取及4负fixture通过；init App5 global0、投影后1，首普通App6 global/projected1、无property覆盖；source对应prior map同为1，但init/首world同engine100、native回调已100而跳过RefreshPose，不能称map/目标prior丢失。after明确在projection发布后，旧.a五完整数组扣新字段精确。删观察字段KeyError拒，两个源码SHA恢复同target重编后五完整runtime数组及analysis字节精确，两functional Gate通过；396身份/六库/原main不变，reader承接.d，63长期Git证据/哈希/隐私封存。新差0、271；源新engine-frame控制未做，候选未编号/不改projection，完整内部历史/Root仍开，截图0/性能暂停，GPU继续排除。
   - .446e时间/复盘：开始2026-11-01 18:39:46 +0800；预估结束19:04:46；实际结束18:48:33，实耗8:47、偏差−16:13，结果PASS目标实际输入与帧边资格。复用既有完整观察器且新字段只读、热编译/三原场景直接过，原25分钟包含可能Getter/顺序缺口；实际已证prior数值相同，无需改发布分支做补偿。后续此类双读点按本次约9分钟校正；下一单独.f源新engine-frame受控对照以验证门控解释，而非把推断当已排除全部Root差。父轮3至19:50:07保持。
 
+- [x] BF144.446f U07源首普通tick跨engine帧控制与候选复核：依赖.d/.e的真实map/FrameCount输入，新增可选typed advance_before_first_world_tick，仅在捕获初始化快照后、首普通World.Tick前推进一次GFrameCounter，不增加World.Tick、不改delta/pose/状态；默认仍同帧。Gate：init内容保持、源首ordinary跨帧/Native刷新及Default_Poses首资格对齐目标、完整318输入/实际consumer控制、非法flag拒、移除帧推进/typed/optional guard消融、源码bytes恢复同包重编/旧同帧318+2 probe精确兼容、reader身份迁移/Git封存；若资格仍差则按source继续，不预先关候选或整Root。开始2026-11-01 18:49:11 +0800；预估结束19:09:11。依据.d18:45/.446b22:55，当前单整数帧控制与完整新旧数据均具，估20分钟覆盖三构建/必要源控制及消融/默认兼容；父轮3至19:50:07保持。271、生产不改、截图0/性能暂停。
+
+  - .446f Gate完成：`docs/audit/bf144/446f/summary.json` PASS_MATCHED_NATIVE_ENGINE_FRAME_CONTROL_AND_BOOT_CANDIDATE_REJECTION。仅将init100后的首次普通tick置于101，native回调执行、StandingAmount1、Default_Poses首tick即更新，全部318该节点资格与target相同；完整init/world time/delta/外部输入保持，原“曲线发布丢失”候选按不匹配回调帧配对排除，不改projection、不新编号。移除一次推进后同一请求完整回到旧同帧318+2 probe且资格Gate失败；typed guard移除字符串接受0，恢复拒7，3输出负fixture拒。源码gzip字节/SHA恢复同native包重编、三variant最终包源码SHA均在运行前核验，完整受控报告/analysis字节精确，默认旧同帧包也精确兼容。396身份只迁移reader、其余395/六库不变，62长期Git证据/压缩SHA/隐私封存。271保持，其他clock/物理producer余差与Root/非零view/attributes未闭，截图0/性能暂停。
+  - .446f时间/复盘：开始2026-11-01 18:49:11 +0800；预估结束19:09:11；实际结束19:02:06，实耗12:55、偏差−07:05，结果PASS同条件控制/候选排除。热构建本轮39–58秒但计数控制只有一个新分支，沿用既有map/帧读数可直接复验，没有新增target运行或补偿逻辑。后续此类生命周期候选先核初始/普通是否同engine/App帧，再读实际输入和回调门控；只有输入/阶段都匹配仍差才计缺陷。父轮3至19:50:07保持；下一个已证直接边界是query19冷启动竖直位置的actual motor/physics系数，不得把其300差全部凭相似性并入D31。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D274 / P3 — 从含旋转的仿射矩阵重提scale，改变源保存scale及实际floor尺寸。
