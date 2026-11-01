@@ -1,0 +1,10 @@
+{
+  "current": 48,
+  "normal_only": 92,
+  "normal_and_point": 600,
+  "native_hit_and_inverse": 636,
+  "source_forward_full_inverse": 636,
+  "native_ray_target_query": 636,
+  "current_vs_source_forward_hit_changed": 44,
+  "source_forward_vs_native_ray_hit_changed": 0
+}
