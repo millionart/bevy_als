@@ -1,0 +1,56 @@
+{
+  "gate": "PASS_ACTUAL_SOURCE_FOOT_TRACE_ARGUMENT_LIFETIME_AND_COMPLETE_COMPARISON",
+  "calls": 636,
+  "arguments": 6360,
+  "differences": {
+    "FootTargetLocation": 0,
+    "TraceChannel": 0,
+    "TraceDistanceUpward": 0,
+    "TraceDistanceDownward": 0,
+    "WalkableFloorAngle": 0,
+    "FootHeight": 0,
+    "bEnabled": 0,
+    "bDrawDebug": 0,
+    "OffsetLocationZ": 588,
+    "OffsetNormal": 636
+  },
+  "first_differences": {
+    "OffsetLocationZ": {
+      "query": 1,
+      "pc": 31,
+      "source_raw": 5.9604644775390625e-06,
+      "source_projected": {
+        "F32": 5.960464477539063e-08
+      },
+      "current": {
+        "F32": 1.4901162970204496e-08
+      }
+    },
+    "OffsetNormal": {
+      "query": 1,
+      "pc": 31,
+      "source_raw": [
+        0,
+        0,
+        1
+      ],
+      "source_projected": {
+        "Vector": [
+          0,
+          1,
+          0
+        ]
+      },
+      "current": {
+        "Vector": [
+          0.0,
+          1.0000000758761658,
+          0.0
+        ]
+      }
+    }
+  },
+  "internal_hit_capture_claimed": false,
+  "requests_computed_by_native_api": false,
+  "new_differences": []
+}

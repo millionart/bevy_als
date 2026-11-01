@@ -1,0 +1,139 @@
+[
+  {
+    "key": "source:Private/Nodes/AlsRigUnit_FootOffsetTrace.cpp",
+    "sha256": "bbf32d04017c02acbd012a7d79f691c2d020fa4972d0a998705421b8714258f9",
+    "excerpts": [
+      {
+        "start": 8,
+        "end": 61,
+        "text": "FAlsRigUnit_FootOffsetTrace_Execute()\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()\n\n\tif (!bEnabled)\n\t{\n\t\tOffsetLocationZ = 0.0f;\n\t\tOffsetNormal = FVector::UpVector;\n\t\treturn;\n\t}\n\n\t// Trace downward from the foot location to find the geometry. If the surface is walkable, save the impact location and normal.\n\n\tconst FVector TraceStart{FootTargetLocation.X, FootTargetLocation.Y, TraceDistanceUpward};\n\tconst FVector TraceEnd{FootTargetLocation.X, FootTargetLocation.Y, -TraceDistanceDownward};\n\n\tFHitResult Hit;\n\tExecuteContext.GetWorld()->LineTraceSingleByChannel(Hit, ExecuteContext.ToWorldSpace(TraceStart), ExecuteContext.ToWorldSpace(TraceEnd),\n\t                                                    TraceChannel, {__FUNCTION__, true, ExecuteContext.GetOwningActor()});\n\n\tauto* DrawInterface{ExecuteContext.GetDrawInterface()};\n\tif (DrawInterface != nullptr && bDrawDebug)\n\t{\n\t\tDrawInterface->DrawLine(FTransform::Identity, TraceStart, TraceEnd, {0.0f, 0.25f, 1.0f}, 1.0f);\n\n\t\tif (Hit.bBlockingHit)\n\t\t{\n\t\t\tDrawInterface->DrawPoint(FTransform::Identity, Hit.ImpactPoint, 12.0f, {0.0f, 0.75f, 1.0f});\n\t\t}\n\t}\n\n\tconst auto HitNormal{ExecuteContext.GetToWorldSpaceTransform().InverseTransformVector(Hit.ImpactNormal)};\n\n\tif (!Hit.bBlockingHit || HitNormal.Z < FMath::Cos(FMath::DegreesToRadians(WalkableFloorAngle)))\n\t{\n\t\tOffsetLocationZ = 0.0f;\n\t\tOffsetNormal = FVector::UpVector;\n\t\treturn;\n\t}\n\n\tconst auto HitLocation{ExecuteContext.ToVMSpace(Hit.ImpactPoint)};\n\n\t// Calculate how much we need to offset the foot along the Z axis to get it perfectly aligned with the sloped surface.\n\t// Without this, the foot will sink into the surface. This formula can be derived from the right triangle cosine formula\n\t// cos(a) = adjacent / hypotenuse, where cos(a) is SlopeAngleCos and adjacent is FootHeight. HitLocation.Z already contains\n\t// a correction for FootHeight, so we need to subtract the FootHeight at the end of the formula so it won't be applied twice.\n\n\tconst auto SlopeAngleCos{UE_REAL_TO_FLOAT(HitNormal.Z)};\n\tconst auto SlopeOffsetZ{SlopeAngleCos > UE_SMALL_NUMBER ? FootHeight / SlopeAngleCos - FootHeight : 0.0f};\n\n\tOffsetLocationZ = UE_REAL_TO_FLOAT(HitLocation.Z + SlopeOffsetZ);\n\tOffsetNormal = HitNormal;\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+    "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+    "excerpts": [
+      {
+        "start": 1793,
+        "end": 1811,
+        "text": "inline TVector<T> TTransform<T>::InverseTransformVector(const TVector<T> &V) const\n{\n\tDiagnosticCheckNaN_All();\n\n\tconst TransformVectorRegister InputVector = VectorLoadFloat3_W0(&V);\n\n\t// ( Rotation.Inverse() * V ) aka. TVector<T> TQuat<T>::operator*( const TVector<T>& V ) const\n\tconst TransformVectorRegister VR = VectorQuaternionInverseRotateVector(Rotation, InputVector);\n\n\t// GetSafeScaleReciprocal(Scale3D);\n\tconst TransformVectorRegister SafeReciprocal = GetSafeScaleReciprocal(VectorSet_W1(Scale3D));\n\n\t// ( Rotation.Inverse() * V) * GetSafeScaleReciprocal(Scale3D);\n\tconst TransformVectorRegister VResult = VectorMultiply(VR, SafeReciprocal);\n\n\tTVector<T> Result;\n\tVectorStoreFloat3(VResult, &Result);\n\treturn Result;\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorCommon.h.inl",
+    "sha256": "5f43e189d66b68c76ed29bda5713e8daa1fdf3201a76efee2fa9251d4fc01293",
+    "excerpts": [
+      {
+        "start": 765,
+        "end": 800,
+        "text": "FORCEINLINE VectorRegister4Double VectorQuaternionRotateVector(VectorRegister4Double Quat, VectorRegister4Double VectorW0)\n{\n\tconst VectorRegister4Double QW = VectorReplicate(Quat, 3);\n\tVectorRegister4Double T = VectorCross(Quat, VectorW0);\n\tT = VectorAdd(T, T);\n\tconst VectorRegister4Double VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);\n\tconst VectorRegister4Double VTemp1 = VectorCross(Quat, T);\n\tconst VectorRegister4Double Rotated = VectorAdd(VTemp0, VTemp1);\n\treturn Rotated;\n}\n\n/**\n * Rotate a vector using the inverse of a unit Quaternion (rotation in the opposite direction).\n *\n * @param Quat Unit Quaternion to use for rotation.\n * @param VectorW0 Vector to rotate. W component must be zero.\n * @return Vector after rotation by the inverse of Quat.\n */\nFORCEINLINE VectorRegister4Float VectorQuaternionInverseRotateVector(VectorRegister4Float Quat, VectorRegister4Float VectorW0)\n{\n\t// Q.Inverse * V * Q\n\t//const VectorRegister InverseRotation = VectorQuaternionInverse(Quat);\n\t//const VectorRegister Temp = VectorQuaternionMultiply2(InverseRotation, VectorW0);\n\t//const VectorRegister Rotated = VectorQuaternionMultiply2(Temp, Quat);\n\n\tconst VectorRegister4Float QInv = VectorQuaternionInverse(Quat);\n\treturn VectorQuaternionRotateVector(QInv, VectorW0);\n}\n\nFORCEINLINE VectorRegister4Double VectorQuaternionInverseRotateVector(VectorRegister4Double Quat, VectorRegister4Double VectorW0)\n{\n\tconst VectorRegister4Double QInv = VectorQuaternionInverse(Quat);\n\treturn VectorQuaternionRotateVector(QInv, VectorW0);\n}\n\nFORCEINLINE VectorRegister4Double VectorMultiply(VectorRegister4Double Vec1, VectorRegister4Float Vec2)"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Runtime/RigVM/Source/RigVM/Public/RigVMCore/RigVMExecuteContext.h",
+    "sha256": "fb0b50a4a4d14e7045f7507efd7b97416abdd27dc162ccf02daaf86185642588",
+    "excerpts": [
+      {
+        "start": 445,
+        "end": 464,
+        "text": "\t}\n\n\t/**\n\t * Converts a location from VM (global) space to world space\n\t */\n\tFVector ToWorldSpace(const FVector& InLocation) const\n\t{\n\t\treturn ToWorldSpaceTransform.TransformPosition(InLocation);\n\t}\n\n\t/**\n\t * Converts a location from world space to VM (global) space\n\t */\n\tFVector ToVMSpace(const FVector& InLocation) const\n\t{\n\t\treturn ToWorldSpaceTransform.InverseTransformPosition(InLocation);\n\t}\n\n\t/**\n\t * Converts a rotation from VM (global) space to world space"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Runtime/RigVM/Source/RigVM/Public/RigVMCore/RigVMProfilingInfo.h",
+    "sha256": "acc32e0fcd0ef7a2013157dc947da6e04dc7b928c449c590ba4e35d19dac6aec",
+    "excerpts": [
+      {
+        "start": 18,
+        "end": 45,
+        "text": "\n\tFRigVMInstructionVisitInfo()\n\t{\n\t}\n\n\tvoid Reset()\n\t{\n\t\tInstructionVisitedDuringLastRun.Reset();\n\t\tInstructionVisitOrder.Reset();\n\t\tCallableVisitedDuringLastRun.Reset();\n\t\tCallableVisitOrder.Reset();\n\t\tFirstEntryEventInQueue = NAME_None;\n\t}\n\n\tinline void ResetInstructionVisitedDuringLastRun(int32 NewSize = 0) { InstructionVisitedDuringLastRun.Reset(NewSize); }\n\tinline void SetNumInstructionVisitedDuringLastRunZeroed(int32 Num) { InstructionVisitedDuringLastRun.SetNumZeroed(Num); }\n\tinline void SetInstructionVisitedDuringLastRun(int32 InstructionIndex)\n\t{\n\t\tif (InstructionVisitedDuringLastRun.IsValidIndex(InstructionIndex))\n\t\t{\n\t\t\tInstructionVisitedDuringLastRun[InstructionIndex]++;\n\t\t}\n\t}\n\tinline int32 GetInstructionVisitedCountDuringLastRun(int32 InstructionIndex) const { return InstructionVisitedDuringLastRun.IsValidIndex(InstructionIndex) ? InstructionVisitedDuringLastRun[InstructionIndex] : 0; }\n\tinline const TArray<int32>& GetInstructionVisitedCountDuringLastRun() const { return InstructionVisitedDuringLastRun; }\n\n\tinline void ResetInstructionVisitOrder(int32 NewSize = 0) { InstructionVisitOrder.Reset(NewSize); }\n\tinline void AddInstructionIndexToVisitOrder(int32 InstructionIndex) { InstructionVisitOrder.Add(InstructionIndex); }"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Runtime/RigVM/Source/RigVM/Private/RigVMCore/RigVM.cpp",
+    "sha256": "87edff40380db379f056150cfc14b3ae99f06c01ec8989e9d4c9fd877df56a96",
+    "excerpts": [
+      {
+        "start": 3833,
+        "end": 3847,
+        "text": "void URigVM::SetupInstructionTracking(FRigVMExtendedExecuteContext& Context, int32 InInstructionCount, int32 InCallableCount, const FName& InEntryName)\n{\n#if WITH_EDITOR\n\tif (FRigVMInstructionVisitInfo* RigVMInstructionVisitInfo = Context.GetRigVMInstructionVisitInfo())\n\t{\n\t\tif (RigVMInstructionVisitInfo->GetFirstEntryEventInEventQueue() == NAME_None || RigVMInstructionVisitInfo->GetFirstEntryEventInEventQueue() == InEntryName)\n\t\t{\n\t\t\tRigVMInstructionVisitInfo->SetupInstructionTracking(InInstructionCount, InCallableCount);\n\t\t}\n\t}\n\tif (FRigVMProfilingInfo* RigVMProfilingInfo = Context.GetRigVMProfilingInfo())\n\t{\n\t\tRigVMProfilingInfo->SetupInstructionTracking(InInstructionCount, InCallableCount, true);\n\t}\n#endif"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/ControlRig.cpp",
+    "sha256": "235344ba2c68eaceefa88471c1ccb1c63ea8b634fc91a99bcbdbf919db20e804",
+    "excerpts": [
+      {
+        "start": 1382,
+        "end": 1393,
+        "text": "\telse\n\t{\n#if WITH_EDITOR\n\t\t// only set a valid first entry event when none has been set\n\t\tif (InstructionVisitInfo.GetFirstEntryEventInEventQueue() == NAME_None && !LocalEventQueueToRun.IsEmpty() && VM)\n\t\t{\n\t\t\tInstructionVisitInfo.SetFirstEntryEventInEventQueue(LocalEventQueueToRun[0]);\n\t\t}\n\n\t\t// Transform Overrride is generated using a Transient Control \n\t\tApplyTransformOverrideForUserCreatedBones();\n"
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "3bc0bad60764278b12c918a264cf60195a5b5089fd48da3d7c014cff0858f5ee",
+    "excerpts": [
+      {
+        "start": 5195,
+        "end": 5208,
+        "text": "        Rig->OnExecuted_AnyThread().AddLambda([&Executions, &bCaptureWorld](URigVMHost* Host, const FName& Event)\n        {\n            const FRigVMExtendedExecuteContext& Context = Host->GetRigVMExtendedExecuteContext();\n            TSharedRef<FJsonObject> Execution = MakeShared<FJsonObject>();\n            Execution->SetStringField(TEXT(\"entry\"), Event.ToString());\n            Execution->SetBoolField(TEXT(\"succeeded\"), Context.CurrentExecuteResult == ERigVMExecuteResult::Succeeded);\n            if (bCaptureWorld) { Execution->SetObjectField(TEXT(\"rig_to_world\"), CaptureTransform(Context.GetPublicData<>().GetToWorldSpaceTransform())); }\n            TArray<TSharedPtr<FJsonValue>> Visited;\n#if WITH_EDITOR\n            if (const FRigVMInstructionVisitInfo* Info = Context.GetRigVMInstructionVisitInfo()) { for (int32 Instruction : Info->GetInstructionVisitOrder()) { Visited.Add(MakeShared<FJsonValueNumber>(Instruction)); } }\n#endif\n            Execution->SetArrayField(TEXT(\"instructions\"), Visited);\n            Executions.Add(MakeShared<FJsonValueObject>(Execution));\n        });"
+      },
+      {
+        "start": 5264,
+        "end": 5295,
+        "text": "            if (bCaptureWorld) { Row->SetObjectField(TEXT(\"mesh_to_world\"), CaptureTransform(Mesh->GetComponentTransform())); }\n            FPoseContext Before(&Proxy), After(&Proxy);\n            Leaf.Evaluate_AnyThread(Before);\n            Row->SetObjectField(TEXT(\"before\"), CaptureCompactPose(Before.Pose, Before.Curve));\n            Node.Evaluate_AnyThread(After);\n            Row->SetObjectField(TEXT(\"after\"), CaptureCompactPose(After.Pose, After.Curve));\n            Row->SetNumberField(TEXT(\"attribute_count\"), After.CustomAttributes.Num());\n            Row->SetNumberField(TEXT(\"forward_events\"), Forward);\n            Row->SetNumberField(TEXT(\"construction_events\"), Constructed);\n            FHitResult Hit;\n            const bool bHit = World->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, FCollisionQueryParams(NAME_None, true, Owner));\n            TSharedRef<FJsonObject> Query = MakeShared<FJsonObject>();\n            Query->SetBoolField(TEXT(\"blocking_hit\"), bHit && Hit.bBlockingHit);\n            Query->SetObjectField(TEXT(\"impact_point_cm\"), CaptureVector(Hit.ImpactPoint));\n            Query->SetObjectField(TEXT(\"impact_normal\"), CaptureVector(Hit.ImpactNormal));\n            Row->SetObjectField(TEXT(\"reference_query_after_forward\"), Query);\n            TSharedRef<FJsonObject> VariablesAfter = MakeShared<FJsonObject>();\n            for (const FRigVMExternalVariable& Variable : Rig->GetExternalVariables())\n            {\n                TSharedRef<FJsonObject> VariableRow = MakeShared<FJsonObject>();\n                VariableRow->SetStringField(TEXT(\"value\"), Rig->GetVariableAsString(Variable.GetName()));\n                if (const FStructProperty* Struct = CastField<FStructProperty>(Variable.GetProperty())) { VariableRow->SetArrayField(TEXT(\"fields\"), CaptureProperties(Struct->Struct, Variable.GetMemory(), Rig)); }\n                else if (const FNumericProperty* Numeric = CastField<FNumericProperty>(Variable.GetProperty()); Numeric != nullptr && Numeric->IsFloatingPoint()) { VariableRow->SetNumberField(TEXT(\"numeric_value\"), Numeric->GetFloatingPointPropertyValue(Variable.GetMemory())); }\n                VariablesAfter->SetObjectField(Variable.GetName().ToString(), VariableRow);\n            }\n            Row->SetObjectField(TEXT(\"externals_after\"), VariablesAfter);\n            const FRigVMMemoryStorageStruct* Work = Rig->GetVM()->GetWorkMemory(Rig->GetRigVMExtendedExecuteContext());\n            if (Work == nullptr) { return nullptr; }\n            Row->SetObjectField(TEXT(\"work_after\"), CaptureRigMemory(*Work, Rig));\n            Row->SetArrayField(TEXT(\"executions\"), Executions);\n            Executions.Reset();\n            Rows.Add(MakeShared<FJsonValueObject>(Row));"
+      }
+    ]
+  },
+  {
+    "key": "src/control_rig/control_rig_units.rs",
+    "sha256": "aa05e0c81d08ea31fbb9c176f3235610da79893db8010e09fbd5638985547c48",
+    "excerpts": [
+      {
+        "start": 80,
+        "end": 134,
+        "text": "                \"FAlsRigUnit_FootOffsetTrace::Execute\",\n                [\n                    Vector(foot),\n                    Name(channel),\n                    F32(upward),\n                    F32(downward),\n                    F32(walkable_angle),\n                    F32(height),\n                    Bool(enabled),\n                    Bool(_debug),\n                    F32(offset),\n                    Vector(normal),\n                ],\n            ) => {\n                let up = self.geometry.basis[2];\n                let hit = if *enabled {\n                    let horizontal = *foot - up * foot.dot(up);\n                    let start = self\n                        .to_world\n                        .transform_point(horizontal + up * *upward as f64);\n                    let end = self\n                        .to_world\n                        .transform_point(horizontal - up * *downward as f64);\n                    let trace = self\n                        .line_trace\n                        .as_deref_mut()\n                        .ok_or(\"rig line trace is unavailable\")?;\n                    trace(start, end, channel, true)?\n                } else {\n                    None\n                };\n                let Some((point, hit_normal)) = hit else {\n                    *offset = 0.0;\n                    *normal = up;\n                    return Ok(());\n                };\n                let hit_normal = self.to_world.inverse_transform_vector(hit_normal);\n                let slope_cos = hit_normal.dot(up);\n                if slope_cos < walkable_angle.to_radians().cos() as f64 {\n                    *offset = 0.0;\n                    *normal = up;\n                    return Ok(());\n                }\n                let point = self.to_world.inverse_transform_point(point);\n                let slope_cos = slope_cos as f32;\n                let correction = if slope_cos > 1e-8 {\n                    *height / slope_cos - *height\n                } else {\n                    0.0\n                };\n                *offset = (point.dot(up) + correction as f64) as f32;\n                *normal = hit_normal;\n            }\n            (\n                \"FAlsRigUnit_ApplyFootOffsetLocation::Execute\","
+      }
+    ]
+  },
+  {
+    "key": "src/control_rig/control_rig_hierarchy.rs",
+    "sha256": "851498e0a3fd6f52d3c8e47764c4dfb7d2a7f225a48e36faa6e25a00ab578efd",
+    "excerpts": [
+      {
+        "start": 58,
+        "end": 79,
+        "text": "impl RigTransform {\n    fn scale_reciprocal(self) -> DVec3 {\n        DVec3::from_array(self.scale.to_array().map(|value| {\n            if value.abs() <= 1e-8_f32 as f64 {\n                0.0\n            } else {\n                value.recip()\n            }\n        }))\n    }\n\n    pub fn transform_point(self, point: DVec3) -> DVec3 {\n        self.rotation * (self.scale * point) + self.translation\n    }\n\n    pub fn inverse_transform_point(self, point: DVec3) -> DVec3 {\n        self.inverse_transform_vector(point - self.translation)\n    }\n\n    pub fn inverse_transform_vector(self, vector: DVec3) -> DVec3 {\n        (self.rotation.conjugate() * vector) * self.scale_reciprocal()\n    }"
+      }
+    ]
+  },
+  {
+    "key": "src/control_rig/control_rig_query.rs",
+    "sha256": "66b0ed16e1a58e5dae54df8fa4c934228a54068d17edf8f15d9ad247a463c0bd",
+    "excerpts": [
+      {
+        "start": 24,
+        "end": 59,
+        "text": "        start: DVec3,\n        end: DVec3,\n        channel: &str,\n        complex: bool,\n    ) -> Result<Option<(DVec3, DVec3)>, String> {\n        if channel != self.channel || !complex {\n            return Err(\"rig collision query mode is unsupported\".to_owned());\n        }\n        let delta = (end - start).as_vec3();\n        let Ok(direction) = Dir3::new(delta) else {\n            return Ok(None);\n        };\n        let origin = start.as_vec3();\n        let mut distance = delta.length();\n        let mut hit = None;\n        for (entity, (position, rotation, collider, layers)) in &self.world.colliders {\n            if !self.filter.test(*entity, *layers) {\n                continue;\n            }\n            let Some((length, normal)) = collider.cast_ray(\n                position.0, *rotation, origin, direction.as_vec3(), distance, true,\n            ) else {\n                continue;\n            };\n            if length < distance {\n                distance = length;\n                hit = Some(((origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()));\n            }\n        }\n        Ok(hit)\n    }\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;"
+      }
+    ]
+  },
+  {
+    "key": "tools/animgraph_authoring/ue_control_rig_target.py",
+    "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c",
+    "excerpts": [
+      {
+        "start": 191,
+        "end": 207,
+        "text": "    if stem == \"FAlsRigUnit_FootOffsetTrace\":\n        if \"TraceChannel\" not in constant_args:\n            raise ControlRigContractError(\"target requires a constant trace channel\")\n        if args[\"TraceChannel\"].data != \"ECC_Visibility\":\n            raise ControlRigContractError(\"target rig trace channel is unsupported: \" + args[\"TraceChannel\"].data)\n    fixed = {\n        \"FRigUnit_GetCurveValue\": {\"Value\": 1},\n        \"FRigUnit_SetScale\": {\"Scale\": 1, \"Weight\": 1},\n        \"FRigUnit_SetTranslation\": {\"Value\": LENGTH, \"Weight\": 1},\n        \"FRigUnit_SetRotation\": {\"Weight\": 1},\n        \"FAlsRigUnit_ChainLength\": {\"Length\": LENGTH},\n        \"FAlsRigUnit_CalculatePoleVector\": {\"ItemBLocation\": LENGTH, \"ItemBProjectionLocation\": LENGTH, \"PoleDirection\": 1},\n        \"FAlsRigVMFunction_DamperExactVector\": {\"HalfLife\": 1},\n        \"FRigUnit_SpringInterpV2\": {\"Strength\": 1, \"CriticalDamping\": 1, \"TargetVelocityAmount\": 1},\n        \"FAlsRigUnit_FootOffsetTrace\": {\"FootTargetLocation\": LENGTH, \"TraceDistanceUpward\": LENGTH,\n            \"TraceDistanceDownward\": LENGTH, \"FootHeight\": LENGTH, \"OffsetLocationZ\": LENGTH, \"WalkableFloorAngle\": 1, \"OffsetNormal\": 1},\n        \"FAlsRigUnit_ApplyFootOffsetLocation\": {**{key: LENGTH for key in (\"FootTargetLocation\", \"FootOffsetLocationZ\","
+      }
+    ]
+  }
+]
