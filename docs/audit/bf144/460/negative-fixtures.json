@@ -1,0 +1,22 @@
+[
+  {
+    "case": "bad-delta",
+    "process_exit_code": 1,
+    "error": "Traceback (most recent call last):\n  File \"./docs/audit/bf144/460/check_native.py\", line 24, in <module>\n    assert a['name']==b['name']and b['delta_seconds_after_update']==f32(a['delta_seconds'])and b['leaf_update_weight']==1\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+    "case": "bad-world",
+    "process_exit_code": 1,
+    "error": "Traceback (most recent call last):\n  File \"./docs/audit/bf144/460/check_native.py\", line 38, in <module>\n    expected=a['mesh_to_world'];world=b['mesh_to_world'];assert components(world['translation'],'xyz')==expected['translation_cm']and components(world['rotation'],'xyzw')==expected['rotation']and components(world['scale'],'xyz')==expected['scale']\n                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+    "case": "bad-pose",
+    "process_exit_code": 1,
+    "error": "Traceback (most recent call last):\n  File \"./docs/audit/bf144/460/check_native.py\", line 28, in <module>\n    t=bone['local_transform'];assert components(t['translation'],'xyz')==expected['translation_cm'];assert components(t['rotation'],'xyzw')==expected['rotation'];assert components(t['scale'],'xyz')==expected['scale']\n                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+    "case": "bad-input",
+    "process_exit_code": 1,
+    "error": "Traceback (most recent call last):\n  File \"./docs/audit/bf144/460/check_native.py\", line 33, in <module>\n    for j,name in enumerate(['VelocityBlendForwardAmount','VelocityBlendBackwardAmount','SpineYawAngle','PelvisOffsetAmount'],3):assert fields[name]['numeric_value']==(-values[j]['F32']if name=='SpineYawAngle'else values[j]['F32'])\n                                                                                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  }
+]

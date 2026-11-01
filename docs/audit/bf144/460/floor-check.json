@@ -1,0 +1,25 @@
+{
+  "gate": "PASS_FRESH_FLOOR_LOCAL_BOUNDS_COLLISION_BOX_AND_MESH_EXTENTS",
+  "source_origin_cm": [
+    0,
+    0,
+    -25
+  ],
+  "source_half_extents_cm": [
+    1000,
+    1000,
+    25
+  ],
+  "collision_lower_cm": [
+    -1000,
+    -1000,
+    -50
+  ],
+  "collision_upper_cm": [
+    1000,
+    1000,
+    0
+  ],
+  "body_box": "((Center=(X=0.000000,Y=0.000000,Z=-25.000000),X=2000.000000,Y=2000.000000,Z=50.000000,bIsGenerated=True))",
+  "source_collision_trace_flag": "CTF_UseDefault"
+}

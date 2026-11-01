@@ -1,0 +1,6558 @@
+{
+	"format": "ue_asset_source_v1",
+	"asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20",
+	"asset_class": "/Script/Engine.StaticMesh",
+	"asset_properties": [
+		{
+			"name": "SourceModels",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x40000800000200",
+			"exported_text": "((StaticMeshDescriptionBulkData=\"/Script/Engine.StaticMeshDescriptionBulkData'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:StaticMeshDescriptionBulkData_0'\",BuildSettings=(bUseBackwardsCompatibleF16TruncUVs=True)))"
+		},
+		{
+			"name": "HiResSourceModel",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FStaticMeshSourceModel",
+			"flags": "0x40000800000000",
+			"exported_text": "(StaticMeshDescriptionBulkData=\"HiResMeshDescription\",BuildSettings=(bUseMikkTSpace=True,bRecomputeNormals=True,bRecomputeTangents=True,bRemoveDegenerates=True,bBuildReversedIndexBuffer=True,bGenerateLightmapUVs=True,MinLightmapResolution=64,DstLightmapIndex=1,BuildScale3D=(X=1.000000,Y=1.000000,Z=1.000000),DistanceFieldResolutionScale=1.000000,MaxLumenMeshCards=12),ReductionSettings=(PercentTriangles=1.000000,MaxNumOfTriangles=4294967295,PercentVertices=1.000000,MaxNumOfVerts=4294967295,PixelError=8.000000,HardAngleThreshold=80.000000,SilhouetteImportance=Normal,TextureImportance=Normal,ShadingImportance=Normal,VisibilityAggressiveness=Lowest),CacheMeshDescriptionTrianglesCount=4294967295,CacheMeshDescriptionVerticesCount=4294967295,ScreenSize=())",
+			"fields": [
+				{
+					"name": "StaticMeshDescriptionBulkData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UStaticMeshDescriptionBulkData>",
+					"flags": "0x11C001800000200",
+					"exported_text": "HiResMeshDescription"
+				},
+				{
+					"name": "BuildSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FMeshBuildSettings",
+					"flags": "0x10001000000001",
+					"exported_text": "(bUseMikkTSpace=True,bRecomputeNormals=True,bRecomputeTangents=True,bRemoveDegenerates=True,bBuildReversedIndexBuffer=True,bGenerateLightmapUVs=True,MinLightmapResolution=64,DstLightmapIndex=1,BuildScale3D=(X=1.000000,Y=1.000000,Z=1.000000),DistanceFieldResolutionScale=1.000000,MaxLumenMeshCards=12)",
+					"fields": [
+						{
+							"name": "bUseMikkTSpace",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bRecomputeNormals",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bRecomputeTangents",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bComputeWeightedNormals",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bRemoveDegenerates",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bBuildReversedIndexBuffer",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bUseHighPrecisionTangentBasis",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bUseFullPrecisionUVs",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bUseBackwardsCompatibleF16TruncUVs",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bGenerateLightmapUVs",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bGenerateDistanceFieldAsIfTwoSided",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bSupportFaceRemap",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "MinLightmapResolution",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "64"
+						},
+						{
+							"name": "SrcLightmapIndex",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "0"
+						},
+						{
+							"name": "DstLightmapIndex",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "1"
+						},
+						{
+							"name": "BuildScale3D",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001040000205",
+							"exported_text": "(X=1.000000,Y=1.000000,Z=1.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								}
+							]
+						},
+						{
+							"name": "DistanceFieldResolutionScale",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "DistanceFieldReplacementMesh",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UStaticMesh>",
+							"flags": "0x11C001000000205",
+							"exported_text": "None"
+						},
+						{
+							"name": "MaxLumenMeshCards",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "12"
+						}
+					]
+				},
+				{
+					"name": "ReductionSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FMeshReductionSettings",
+					"flags": "0x10001000000001",
+					"exported_text": "(PercentTriangles=1.000000,MaxNumOfTriangles=4294967295,PercentVertices=1.000000,MaxNumOfVerts=4294967295,PixelError=8.000000,HardAngleThreshold=80.000000,SilhouetteImportance=Normal,TextureImportance=Normal,ShadingImportance=Normal,VisibilityAggressiveness=Lowest)",
+					"fields": [
+						{
+							"name": "PercentTriangles",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "MaxNumOfTriangles",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "UInt32Property",
+							"cpp_type": "uint32",
+							"flags": "0x18001040000201",
+							"exported_text": "4294967295"
+						},
+						{
+							"name": "PercentVertices",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "MaxNumOfVerts",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "UInt32Property",
+							"cpp_type": "uint32",
+							"flags": "0x18001040000201",
+							"exported_text": "4294967295"
+						},
+						{
+							"name": "MaxDeviation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "PixelError",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "8.000000",
+							"numeric_value": 8
+						},
+						{
+							"name": "WeldingThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "HardAngleThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "80.000000",
+							"numeric_value": 80
+						},
+						{
+							"name": "BaseLODModel",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "0"
+						},
+						{
+							"name": "SilhouetteImportance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+							"flags": "0x18001040000205",
+							"exported_text": "Normal"
+						},
+						{
+							"name": "TextureImportance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+							"flags": "0x18001040000205",
+							"exported_text": "Normal"
+						},
+						{
+							"name": "ShadingImportance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+							"flags": "0x18001040000205",
+							"exported_text": "Normal"
+						},
+						{
+							"name": "bRecalculateNormals",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bGenerateUniqueLightmapUVs",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bKeepSymmetry",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bVisibilityAided",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bCullOccluded",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "TerminationCriterion",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "EStaticMeshReductionTerimationCriterion",
+							"flags": "0x18001040000205",
+							"exported_text": "Triangles",
+							"enum_underlying_value": "0",
+							"enum_value_name": "Triangles"
+						},
+						{
+							"name": "VisibilityAggressiveness",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+							"flags": "0x18001040000205",
+							"exported_text": "Lowest"
+						},
+						{
+							"name": "VertexColorImportance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+							"flags": "0x18001040000205",
+							"exported_text": "Off"
+						}
+					]
+				},
+				{
+					"name": "CacheMeshDescriptionTrianglesCount",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "UInt32Property",
+					"cpp_type": "uint32",
+					"flags": "0x18001040000200",
+					"exported_text": "4294967295"
+				},
+				{
+					"name": "CacheMeshDescriptionVerticesCount",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "UInt32Property",
+					"cpp_type": "uint32",
+					"flags": "0x18001040000200",
+					"exported_text": "4294967295"
+				},
+				{
+					"name": "ScreenSize",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FPerPlatformFloat",
+					"flags": "0x10000000000001",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "Default",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000215",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "PerPlatform",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000800000001",
+							"exported_text": "()"
+						}
+					]
+				},
+				{
+					"name": "SourceImportFilename",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StrProperty",
+					"cpp_type": "FString",
+					"flags": "0x18040000020201",
+					"exported_text": ""
+				},
+				{
+					"name": "bImportWithBaseMesh",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001840000200",
+					"exported_text": "False"
+				}
+			]
+		},
+		{
+			"name": "SectionInfoMap",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FMeshSectionInfoMap",
+			"flags": "0x40000800000000",
+			"exported_text": "(Map=((0, ())))",
+			"fields": [
+				{
+					"name": "Map",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "MapProperty",
+					"cpp_type": "TMap",
+					"flags": "0x10000000000000",
+					"exported_text": "((0, ()))",
+					"elements": [
+						{
+							"key": "0",
+							"fields": [
+								{
+									"name": "MaterialIndex",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000200",
+									"exported_text": "0"
+								},
+								{
+									"name": "bEnableCollision",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "True"
+								},
+								{
+									"name": "bCastShadow",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "True"
+								},
+								{
+									"name": "bVisibleInRayTracing",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "True"
+								},
+								{
+									"name": "bAffectDistanceFieldLighting",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "True"
+								},
+								{
+									"name": "bForceOpaque",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "False"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "OriginalSectionInfoMap",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FMeshSectionInfoMap",
+			"flags": "0x40000800000000",
+			"exported_text": "(Map=((0, ())))",
+			"fields": [
+				{
+					"name": "Map",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "MapProperty",
+					"cpp_type": "TMap",
+					"flags": "0x10000000000000",
+					"exported_text": "((0, ()))",
+					"elements": [
+						{
+							"key": "0",
+							"fields": [
+								{
+									"name": "MaterialIndex",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000200",
+									"exported_text": "0"
+								},
+								{
+									"name": "bEnableCollision",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "True"
+								},
+								{
+									"name": "bCastShadow",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "True"
+								},
+								{
+									"name": "bVisibleInRayTracing",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "True"
+								},
+								{
+									"name": "bAffectDistanceFieldLighting",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "True"
+								},
+								{
+									"name": "bForceOpaque",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000200",
+									"exported_text": "False"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "LODGroup",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "NameProperty",
+			"cpp_type": "FName",
+			"flags": "0x18011840000201",
+			"exported_text": "None"
+		},
+		{
+			"name": "NumStreamedLODs",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FPerPlatformInt",
+			"flags": "0x10000800000000",
+			"exported_text": "(Default=-1)",
+			"fields": [
+				{
+					"name": "Default",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000215",
+					"exported_text": "-1"
+				},
+				{
+					"name": "PerPlatform",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "MapProperty",
+					"cpp_type": "TMap",
+					"flags": "0x10000800000001",
+					"exported_text": "()"
+				}
+			]
+		},
+		{
+			"name": "ImportVersion",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18001840000200",
+			"exported_text": "1"
+		},
+		{
+			"name": "MaterialRemapIndexPerImportVersion",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x10000800000200",
+			"exported_text": ""
+		},
+		{
+			"name": "bAutoComputeLODScreenSize",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001800000000",
+			"exported_text": "True"
+		},
+		{
+			"name": "NaniteSettings",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FMeshNaniteSettings",
+			"flags": "0x10000800000001",
+			"exported_text": "(bLerpUVs=True,bVoxelNDF=True,PositionPrecision=-2147483648,NormalPrecision=-1,TangentPrecision=-1,BoneWeightPrecision=-1,KeepPercentTriangles=1.000000,FallbackPercentTriangles=1.000000,FallbackRelativeError=1.000000,NumRays=64,NaniteAssemblyData=())",
+			"fields": [
+				{
+					"name": "bEnabled",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "False"
+				},
+				{
+					"name": "bExplicitTangents",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "False"
+				},
+				{
+					"name": "bLerpUVs",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bSeparable",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "False"
+				},
+				{
+					"name": "bVoxelNDF",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bVoxelOpacity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "False"
+				},
+				{
+					"name": "ShapePreservation",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "ENaniteShapePreservation",
+					"flags": "0x18001040000205",
+					"exported_text": "None",
+					"enum_underlying_value": "0",
+					"enum_value_name": "None"
+				},
+				{
+					"name": "PositionPrecision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "-2147483648"
+				},
+				{
+					"name": "NormalPrecision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "-1"
+				},
+				{
+					"name": "TangentPrecision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "-1"
+				},
+				{
+					"name": "BoneWeightPrecision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "-1"
+				},
+				{
+					"name": "TargetMinimumResidencyInKB",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "UInt32Property",
+					"cpp_type": "uint32",
+					"flags": "0x18001040000201",
+					"exported_text": "0"
+				},
+				{
+					"name": "KeepPercentTriangles",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "TrimRelativeError",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "GenerateFallback",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "ENaniteGenerateFallback",
+					"flags": "0x18001040000205",
+					"exported_text": "PlatformDefault",
+					"enum_underlying_value": "0",
+					"enum_value_name": "PlatformDefault"
+				},
+				{
+					"name": "FallbackTarget",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "ENaniteFallbackTarget",
+					"flags": "0x18001040000205",
+					"exported_text": "Auto",
+					"enum_underlying_value": "0",
+					"enum_value_name": "Auto"
+				},
+				{
+					"name": "FallbackPercentTriangles",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "FallbackRelativeError",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "MaxEdgeLengthFactor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "NumRays",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "64"
+				},
+				{
+					"name": "VoxelLevel",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "0"
+				},
+				{
+					"name": "RayBackUp",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "DisplacementUVChannel",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "0"
+				},
+				{
+					"name": "DisplacementMaps",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000201",
+					"exported_text": ""
+				},
+				{
+					"name": "NaniteAssemblyData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FNaniteAssemblyData",
+					"flags": "0x10000000020001",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "Parts",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000020201",
+							"exported_text": ""
+						},
+						{
+							"name": "Nodes",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000200",
+							"exported_text": ""
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "LightmapUVVersion",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x48001840000200",
+			"exported_text": "9"
+		},
+		{
+			"name": "LODStreaming",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "EnumProperty",
+			"cpp_type": "EStaticMeshLODStreaming",
+			"flags": "0x48001840000201",
+			"exported_text": "Default",
+			"enum_underlying_value": "0",
+			"enum_value_name": "Default"
+		},
+		{
+			"name": "MinQualityLevelLOD",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FPerQualityLevelInt",
+			"flags": "0x10000000000000",
+			"exported_text": "()",
+			"fields": [
+				{
+					"name": "Default",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000215",
+					"exported_text": "0"
+				},
+				{
+					"name": "PerQuality",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "MapProperty",
+					"cpp_type": "TMap",
+					"flags": "0x10000000000001",
+					"exported_text": "()"
+				}
+			]
+		},
+		{
+			"name": "MinLOD",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FPerPlatformInt",
+			"flags": "0x10000000000000",
+			"exported_text": "()",
+			"fields": [
+				{
+					"name": "Default",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000215",
+					"exported_text": "0"
+				},
+				{
+					"name": "PerPlatform",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "MapProperty",
+					"cpp_type": "TMap",
+					"flags": "0x10000800000001",
+					"exported_text": "()"
+				}
+			]
+		},
+		{
+			"name": "ElementToIgnoreForTexFactor",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x28081040000200",
+			"exported_text": "-1"
+		},
+		{
+			"name": "StaticMaterials",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x40000000000204",
+			"exported_text": "((MaterialInterface=\"/Script/Engine.Material'/ALS/ALSExtras/Environment/Materials/M_Als_Tiles.M_Als_Tiles'\",MaterialSlotName=\"M_Tiles\",ImportedMaterialSlotName=\"M_Tiles\",UVChannelData=(bInitialized=True,LocalUVDensities[0]=100.000008,LocalUVDensities[1]=4154.820312)))"
+		},
+		{
+			"name": "AssemblyReferenceCache",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x144000800002200",
+			"exported_text": ""
+		},
+		{
+			"name": "LightmapUVDensity",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x48001040000200",
+			"exported_text": "4154.820312",
+			"numeric_value": 4154.8203125
+		},
+		{
+			"name": "LightMapResolution",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18001040000201",
+			"exported_text": "64"
+		},
+		{
+			"name": "LightMapCoordinateIndex",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18041040000201",
+			"exported_text": "1"
+		},
+		{
+			"name": "StaticMeshPaintSupport",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "EnumProperty",
+			"cpp_type": "EStaticMeshPaintSupport",
+			"flags": "0x18001040000205",
+			"exported_text": "Default",
+			"enum_underlying_value": "0",
+			"enum_value_name": "Default"
+		},
+		{
+			"name": "MeshPaintTextureCoordinateIndex",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18041040000201",
+			"exported_text": "0"
+		},
+		{
+			"name": "MeshPaintTextureResolution",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18041040000201",
+			"exported_text": "0"
+		},
+		{
+			"name": "DistanceFieldSelfShadowBias",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18041040000201",
+			"exported_text": "0.000000",
+			"numeric_value": 0
+		},
+		{
+			"name": "BodySetup",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UBodySetup>",
+			"flags": "0x14E001000282209",
+			"exported_text": "/Script/Engine.BodySetup'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:BodySetup_0'"
+		},
+		{
+			"name": "LODForCollision",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18001040000205",
+			"exported_text": "0"
+		},
+		{
+			"name": "bGenerateMeshDistanceField",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001000000001",
+			"exported_text": "False"
+		},
+		{
+			"name": "bHasNavigationData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001000000001",
+			"exported_text": "True"
+		},
+		{
+			"name": "bSupportUniformlyDistributedSampling",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18041000000001",
+			"exported_text": "False"
+		},
+		{
+			"name": "bSupportPhysicalMaterialMasks",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18041000000001",
+			"exported_text": "False"
+		},
+		{
+			"name": "bUseLegacyTangentScaling",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x48041800000001",
+			"exported_text": "False"
+		},
+		{
+			"name": "RayTracingProxySettings",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FMeshRayTracingProxySettings",
+			"flags": "0x10001800000001",
+			"exported_text": "(FallbackPercentTriangles=1.000000,FallbackRelativeError=2.000000)",
+			"fields": [
+				{
+					"name": "bEnabled",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "False"
+				},
+				{
+					"name": "FallbackTarget",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "ENaniteFallbackTarget",
+					"flags": "0x18001040000205",
+					"exported_text": "Auto",
+					"enum_underlying_value": "0",
+					"enum_value_name": "Auto"
+				},
+				{
+					"name": "FallbackPercentTriangles",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "FallbackRelativeError",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "2.000000",
+					"numeric_value": 2
+				},
+				{
+					"name": "FoliageOverOcclusionBias",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				}
+			]
+		},
+		{
+			"name": "bSupportRayTracing",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001000000001",
+			"exported_text": "True"
+		},
+		{
+			"name": "bDoFastBuild",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001000000000",
+			"exported_text": "False"
+		},
+		{
+			"name": "bAllowCPUAccess",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18041000000001",
+			"exported_text": "False"
+		},
+		{
+			"name": "bSupportGpuUniformlyDistributedSampling",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18041000000001",
+			"exported_text": "False"
+		},
+		{
+			"name": "AssetImportData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UAssetImportData>",
+			"flags": "0x11E001800080209",
+			"exported_text": "/Script/UnrealEd.FbxStaticMeshImportData'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:FbxStaticMeshImportData_1'"
+		},
+		{
+			"name": "ThumbnailInfo",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UThumbnailInfo>",
+			"flags": "0x11E0418000A0209",
+			"exported_text": "/Script/UnrealEd.SceneThumbnailInfo'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:SceneThumbnailInfo_0'"
+		},
+		{
+			"name": "EditorCameraPosition",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAssetEditorOrbitCameraPosition",
+			"flags": "0x10001800000000",
+			"exported_text": "(CamOrbitPoint=(X=0.000000,Y=0.000000,Z=0.000000),CamOrbitZoom=(X=0.000000,Y=0.000000,Z=0.000000),CamOrbitRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000))",
+			"fields": [
+				{
+					"name": "bIsSet",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000200",
+					"exported_text": "False"
+				},
+				{
+					"name": "CamOrbitPoint",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector",
+					"flags": "0x18001040000200",
+					"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Z",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "CamOrbitZoom",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector",
+					"flags": "0x18001040000200",
+					"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Z",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "CamOrbitRotation",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FRotator",
+					"flags": "0x10001040000200",
+					"exported_text": "(Pitch=0.000000,Yaw=0.000000,Roll=0.000000)",
+					"fields": [
+						{
+							"name": "Pitch",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Yaw",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Roll",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "bCustomizedCollision",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001840000201",
+			"exported_text": "True"
+		},
+		{
+			"name": "Sockets",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x114000000000200",
+			"exported_text": ""
+		},
+		{
+			"name": "PositiveBoundsExtension",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FVector",
+			"flags": "0x18041040010201",
+			"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+			"fields": [
+				{
+					"name": "X",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "DoubleProperty",
+					"cpp_type": "double",
+					"flags": "0x18001041000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "Y",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "DoubleProperty",
+					"cpp_type": "double",
+					"flags": "0x18001041000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "Z",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "DoubleProperty",
+					"cpp_type": "double",
+					"flags": "0x18001041000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				}
+			]
+		},
+		{
+			"name": "NegativeBoundsExtension",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FVector",
+			"flags": "0x18041040010201",
+			"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+			"fields": [
+				{
+					"name": "X",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "DoubleProperty",
+					"cpp_type": "double",
+					"flags": "0x18001041000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "Y",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "DoubleProperty",
+					"cpp_type": "double",
+					"flags": "0x18001041000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "Z",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "DoubleProperty",
+					"cpp_type": "double",
+					"flags": "0x18001041000205",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				}
+			]
+		},
+		{
+			"name": "ExtendedBounds",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FBoxSphereBounds",
+			"flags": "0x10001040000200",
+			"exported_text": "(Origin=(X=0.000000,Y=0.000000,Z=-25.000000),BoxExtent=(X=1000.000000,Y=1000.000000,Z=25.000000),SphereRadius=1414.434570)",
+			"fields": [
+				{
+					"name": "Origin",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector",
+					"flags": "0x18001041000205",
+					"exported_text": "(X=0.000000,Y=0.000000,Z=-25.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Z",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "-25.000000",
+							"numeric_value": -25
+						}
+					]
+				},
+				{
+					"name": "BoxExtent",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector",
+					"flags": "0x18001041000205",
+					"exported_text": "(X=1000.000000,Y=1000.000000,Z=25.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "1000.000000",
+							"numeric_value": 1000
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "1000.000000",
+							"numeric_value": 1000
+						},
+						{
+							"name": "Z",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "25.000000",
+							"numeric_value": 25
+						}
+					]
+				},
+				{
+					"name": "SphereRadius",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "DoubleProperty",
+					"cpp_type": "double",
+					"flags": "0x18001041000205",
+					"exported_text": "1414.434570",
+					"numeric_value": 1414.4345703125
+				}
+			]
+		},
+		{
+			"name": "AssetUserData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x1240C8000000209",
+			"exported_text": ""
+		},
+		{
+			"name": "ComplexCollisionMesh",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UStaticMesh>",
+			"flags": "0x11C001800000201",
+			"exported_text": "None"
+		},
+		{
+			"name": "NavCollision",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UNavCollisionBase>",
+			"flags": "0x14E0010002A2209",
+			"exported_text": "/Script/NavigationSystem.NavCollision'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:NavCollision_0'"
+		},
+		{
+			"name": "ForceMipLevelsToBeResidentTimestamp",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "DoubleProperty",
+			"cpp_type": "double",
+			"flags": "0x28081040002200",
+			"exported_text": "0.000000",
+			"numeric_value": 0
+		},
+		{
+			"name": "NumCinematicMipLevels",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18041040000205",
+			"exported_text": "0"
+		},
+		{
+			"name": "NoRefStreamingLODBias",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FPerQualityLevelInt",
+			"flags": "0x20080000000000",
+			"exported_text": "(Default=-1)",
+			"fields": [
+				{
+					"name": "Default",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000215",
+					"exported_text": "-1"
+				},
+				{
+					"name": "PerQuality",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "MapProperty",
+					"cpp_type": "TMap",
+					"flags": "0x10000000000001",
+					"exported_text": "()"
+				}
+			]
+		},
+		{
+			"name": "StreamingIndex",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x28081440202200",
+			"exported_text": "-1"
+		},
+		{
+			"name": "NeverStream",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18051000000005",
+			"exported_text": "False"
+		},
+		{
+			"name": "bGlobalForceMipLevelsToBeResident",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18041000000015",
+			"exported_text": "False"
+		},
+		{
+			"name": "bHasStreamingUpdatePending",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001400002000",
+			"exported_text": "False"
+		},
+		{
+			"name": "bForceMiplevelsToBeResident",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001000002000",
+			"exported_text": "False"
+		},
+		{
+			"name": "bIgnoreStreamingMipBias",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001000002000",
+			"exported_text": "False"
+		},
+		{
+			"name": "bMarkAsEditorStreamingPool",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x18001000002000",
+			"exported_text": "False"
+		},
+		{
+			"name": "bUseCinematicMipLevels",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "uint8",
+			"flags": "0x28081000002000",
+			"exported_text": "False"
+		}
+	],
+	"static_mesh_collision":
+	{
+		"available": true,
+		"flip_normals": true,
+		"vertices_source": [
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": -50
+			}
+		],
+		"triangle_indices": [
+			[
+				0,
+				1,
+				2
+			],
+			[
+				3,
+				0,
+				2
+			],
+			[
+				4,
+				5,
+				6
+			],
+			[
+				7,
+				4,
+				6
+			],
+			[
+				8,
+				9,
+				10
+			],
+			[
+				11,
+				8,
+				10
+			],
+			[
+				12,
+				13,
+				14
+			],
+			[
+				15,
+				12,
+				14
+			],
+			[
+				16,
+				17,
+				18
+			],
+			[
+				19,
+				16,
+				18
+			],
+			[
+				20,
+				21,
+				22
+			],
+			[
+				23,
+				20,
+				22
+			]
+		]
+	},
+	"static_mesh_geometry":
+	{
+		"vertices_source": [
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": 0
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": 0
+			},
+			{
+				"x": 1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": 1000,
+				"z": -50
+			},
+			{
+				"x": -1000,
+				"y": -1000,
+				"z": -50
+			},
+			{
+				"x": 1000,
+				"y": -1000,
+				"z": -50
+			}
+		],
+		"normals_source": [
+			{
+				"x": -1,
+				"y": 0,
+				"z": 0
+			},
+			{
+				"x": -1,
+				"y": 0,
+				"z": 0
+			},
+			{
+				"x": -1,
+				"y": 0,
+				"z": 0
+			},
+			{
+				"x": -1,
+				"y": 0,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": 1,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": 1,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": 1,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": 1,
+				"z": 0
+			},
+			{
+				"x": 1,
+				"y": 0,
+				"z": 0
+			},
+			{
+				"x": 1,
+				"y": 0,
+				"z": 0
+			},
+			{
+				"x": 1,
+				"y": 0,
+				"z": 0
+			},
+			{
+				"x": 1,
+				"y": 0,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": -1,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": -1,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": -1,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": -1,
+				"z": 0
+			},
+			{
+				"x": 0,
+				"y": 0,
+				"z": 1
+			},
+			{
+				"x": 0,
+				"y": 0,
+				"z": 1
+			},
+			{
+				"x": 0,
+				"y": 0,
+				"z": 1
+			},
+			{
+				"x": 0,
+				"y": 0,
+				"z": 1
+			},
+			{
+				"x": 0,
+				"y": 0,
+				"z": -1
+			},
+			{
+				"x": 0,
+				"y": 0,
+				"z": -1
+			},
+			{
+				"x": 0,
+				"y": 0,
+				"z": -1
+			},
+			{
+				"x": 0,
+				"y": 0,
+				"z": -1
+			}
+		],
+		"uv_channels": [
+			[
+				[
+					20,
+					-0.5
+				],
+				[
+					0,
+					-0.5
+				],
+				[
+					0,
+					0
+				],
+				[
+					20,
+					0
+				],
+				[
+					20,
+					-0.5
+				],
+				[
+					0,
+					-0.5
+				],
+				[
+					0,
+					0
+				],
+				[
+					20,
+					0
+				],
+				[
+					20,
+					-0.5
+				],
+				[
+					0,
+					-0.5
+				],
+				[
+					0,
+					0
+				],
+				[
+					20,
+					0
+				],
+				[
+					20,
+					-0.5
+				],
+				[
+					0,
+					-0.5
+				],
+				[
+					0,
+					0
+				],
+				[
+					20,
+					0
+				],
+				[
+					20,
+					-20
+				],
+				[
+					0,
+					-20
+				],
+				[
+					0,
+					0
+				],
+				[
+					20,
+					0
+				],
+				[
+					20,
+					-20
+				],
+				[
+					0,
+					-20
+				],
+				[
+					0,
+					0
+				],
+				[
+					20,
+					0
+				]
+			],
+			[
+				[
+					0.98828125,
+					0.5400390625
+				],
+				[
+					0.5078125,
+					0.5400390625
+				],
+				[
+					0.5078125,
+					0.55224609375
+				],
+				[
+					0.98828125,
+					0.55224609375
+				],
+				[
+					0.48828125,
+					0.5400390625
+				],
+				[
+					0.00806427001953125,
+					0.5400390625
+				],
+				[
+					0.00806427001953125,
+					0.55224609375
+				],
+				[
+					0.48828125,
+					0.55224609375
+				],
+				[
+					0.98828125,
+					0.5078125
+				],
+				[
+					0.5078125,
+					0.5078125
+				],
+				[
+					0.5078125,
+					0.52001953125
+				],
+				[
+					0.98828125,
+					0.52001953125
+				],
+				[
+					0.48828125,
+					0.5078125
+				],
+				[
+					0.00806427001953125,
+					0.5078125
+				],
+				[
+					0.00806427001953125,
+					0.52001953125
+				],
+				[
+					0.48828125,
+					0.52001953125
+				],
+				[
+					0.48828125,
+					0.00806427001953125
+				],
+				[
+					0.00806427001953125,
+					0.00806427001953125
+				],
+				[
+					0.00806427001953125,
+					0.48828125
+				],
+				[
+					0.48828125,
+					0.48828125
+				],
+				[
+					0.98828125,
+					0.00806427001953125
+				],
+				[
+					0.5078125,
+					0.00806427001953125
+				],
+				[
+					0.5078125,
+					0.48828125
+				],
+				[
+					0.98828125,
+					0.48828125
+				]
+			]
+		],
+		"triangle_indices": [
+			[
+				0,
+				1,
+				2
+			],
+			[
+				3,
+				0,
+				2
+			],
+			[
+				4,
+				5,
+				6
+			],
+			[
+				7,
+				4,
+				6
+			],
+			[
+				8,
+				9,
+				10
+			],
+			[
+				11,
+				8,
+				10
+			],
+			[
+				12,
+				13,
+				14
+			],
+			[
+				15,
+				12,
+				14
+			],
+			[
+				16,
+				17,
+				18
+			],
+			[
+				19,
+				16,
+				18
+			],
+			[
+				20,
+				21,
+				22
+			],
+			[
+				23,
+				20,
+				22
+			]
+		],
+		"bounds_origin_source":
+		{
+			"x": 0,
+			"y": 0,
+			"z": -25
+		},
+		"bounds_radius_source": 1414.4345703125
+	},
+	"engine_debug_fonts":
+	{
+		"tiny":
+		{
+			"size_points": 8,
+			"max_char_height": 13,
+			"style": "Light"
+		},
+		"medium":
+		{
+			"size_points": 10,
+			"max_char_height": 15,
+			"style": "Regular"
+		}
+	},
+	"blueprint_cdo_path": "None",
+	"blueprint_cdo_properties": [],
+	"blueprint_cdo_subobjects": [],
+	"asset_objects": [
+		{
+			"index": 0,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20",
+			"class_path": "/Script/Engine.StaticMesh",
+			"properties": [
+				{
+					"name": "SourceModels",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x40000800000200",
+					"exported_text": "((StaticMeshDescriptionBulkData=\"/Script/Engine.StaticMeshDescriptionBulkData'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:StaticMeshDescriptionBulkData_0'\",BuildSettings=(bUseBackwardsCompatibleF16TruncUVs=True),CacheMeshDescriptionTrianglesCount=12,CacheMeshDescriptionVerticesCount=24))"
+				},
+				{
+					"name": "HiResSourceModel",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FStaticMeshSourceModel",
+					"flags": "0x40000800000000",
+					"exported_text": "(StaticMeshDescriptionBulkData=\"HiResMeshDescription\",BuildSettings=(bUseMikkTSpace=True,bRecomputeNormals=True,bRecomputeTangents=True,bRemoveDegenerates=True,bBuildReversedIndexBuffer=True,bGenerateLightmapUVs=True,MinLightmapResolution=64,DstLightmapIndex=1,BuildScale3D=(X=1.000000,Y=1.000000,Z=1.000000),DistanceFieldResolutionScale=1.000000,MaxLumenMeshCards=12),ReductionSettings=(PercentTriangles=1.000000,MaxNumOfTriangles=4294967295,PercentVertices=1.000000,MaxNumOfVerts=4294967295,PixelError=8.000000,HardAngleThreshold=80.000000,SilhouetteImportance=Normal,TextureImportance=Normal,ShadingImportance=Normal,VisibilityAggressiveness=Lowest),CacheMeshDescriptionTrianglesCount=4294967295,CacheMeshDescriptionVerticesCount=4294967295,ScreenSize=())",
+					"fields": [
+						{
+							"name": "StaticMeshDescriptionBulkData",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UStaticMeshDescriptionBulkData>",
+							"flags": "0x11C001800000200",
+							"exported_text": "HiResMeshDescription"
+						},
+						{
+							"name": "BuildSettings",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FMeshBuildSettings",
+							"flags": "0x10001000000001",
+							"exported_text": "(bUseMikkTSpace=True,bRecomputeNormals=True,bRecomputeTangents=True,bRemoveDegenerates=True,bBuildReversedIndexBuffer=True,bGenerateLightmapUVs=True,MinLightmapResolution=64,DstLightmapIndex=1,BuildScale3D=(X=1.000000,Y=1.000000,Z=1.000000),DistanceFieldResolutionScale=1.000000,MaxLumenMeshCards=12)",
+							"fields": [
+								{
+									"name": "bUseMikkTSpace",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "True"
+								},
+								{
+									"name": "bRecomputeNormals",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "True"
+								},
+								{
+									"name": "bRecomputeTangents",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "True"
+								},
+								{
+									"name": "bComputeWeightedNormals",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bRemoveDegenerates",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "True"
+								},
+								{
+									"name": "bBuildReversedIndexBuffer",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "True"
+								},
+								{
+									"name": "bUseHighPrecisionTangentBasis",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bUseFullPrecisionUVs",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bUseBackwardsCompatibleF16TruncUVs",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18041000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bGenerateLightmapUVs",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "True"
+								},
+								{
+									"name": "bGenerateDistanceFieldAsIfTwoSided",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bSupportFaceRemap",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "MinLightmapResolution",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000205",
+									"exported_text": "64"
+								},
+								{
+									"name": "SrcLightmapIndex",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000205",
+									"exported_text": "0"
+								},
+								{
+									"name": "DstLightmapIndex",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000205",
+									"exported_text": "1"
+								},
+								{
+									"name": "BuildScale3D",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "StructProperty",
+									"cpp_type": "FVector",
+									"flags": "0x18001040000205",
+									"exported_text": "(X=1.000000,Y=1.000000,Z=1.000000)",
+									"fields": [
+										{
+											"name": "X",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "1.000000",
+											"numeric_value": 1
+										},
+										{
+											"name": "Y",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "1.000000",
+											"numeric_value": 1
+										},
+										{
+											"name": "Z",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "1.000000",
+											"numeric_value": 1
+										}
+									]
+								},
+								{
+									"name": "DistanceFieldResolutionScale",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "DistanceFieldReplacementMesh",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ObjectProperty",
+									"cpp_type": "TObjectPtr<UStaticMesh>",
+									"flags": "0x11C001000000205",
+									"exported_text": "None"
+								},
+								{
+									"name": "MaxLumenMeshCards",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000205",
+									"exported_text": "12"
+								}
+							]
+						},
+						{
+							"name": "ReductionSettings",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FMeshReductionSettings",
+							"flags": "0x10001000000001",
+							"exported_text": "(PercentTriangles=1.000000,MaxNumOfTriangles=4294967295,PercentVertices=1.000000,MaxNumOfVerts=4294967295,PixelError=8.000000,HardAngleThreshold=80.000000,SilhouetteImportance=Normal,TextureImportance=Normal,ShadingImportance=Normal,VisibilityAggressiveness=Lowest)",
+							"fields": [
+								{
+									"name": "PercentTriangles",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "MaxNumOfTriangles",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "UInt32Property",
+									"cpp_type": "uint32",
+									"flags": "0x18001040000201",
+									"exported_text": "4294967295"
+								},
+								{
+									"name": "PercentVertices",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "MaxNumOfVerts",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "UInt32Property",
+									"cpp_type": "uint32",
+									"flags": "0x18001040000201",
+									"exported_text": "4294967295"
+								},
+								{
+									"name": "MaxDeviation",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "PixelError",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "8.000000",
+									"numeric_value": 8
+								},
+								{
+									"name": "WeldingThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "HardAngleThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "80.000000",
+									"numeric_value": 80
+								},
+								{
+									"name": "BaseLODModel",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000205",
+									"exported_text": "0"
+								},
+								{
+									"name": "SilhouetteImportance",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+									"flags": "0x18001040000205",
+									"exported_text": "Normal"
+								},
+								{
+									"name": "TextureImportance",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+									"flags": "0x18001040000205",
+									"exported_text": "Normal"
+								},
+								{
+									"name": "ShadingImportance",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+									"flags": "0x18001040000205",
+									"exported_text": "Normal"
+								},
+								{
+									"name": "bRecalculateNormals",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bGenerateUniqueLightmapUVs",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bKeepSymmetry",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bVisibilityAided",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "bCullOccluded",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "uint8",
+									"flags": "0x18001000000005",
+									"exported_text": "False"
+								},
+								{
+									"name": "TerminationCriterion",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "EnumProperty",
+									"cpp_type": "EStaticMeshReductionTerimationCriterion",
+									"flags": "0x18001040000205",
+									"exported_text": "Triangles",
+									"enum_underlying_value": "0",
+									"enum_value_name": "Triangles"
+								},
+								{
+									"name": "VisibilityAggressiveness",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+									"flags": "0x18001040000205",
+									"exported_text": "Lowest"
+								},
+								{
+									"name": "VertexColorImportance",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<EMeshFeatureImportance::Type>",
+									"flags": "0x18001040000205",
+									"exported_text": "Off"
+								}
+							]
+						},
+						{
+							"name": "CacheMeshDescriptionTrianglesCount",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "UInt32Property",
+							"cpp_type": "uint32",
+							"flags": "0x18001040000200",
+							"exported_text": "4294967295"
+						},
+						{
+							"name": "CacheMeshDescriptionVerticesCount",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "UInt32Property",
+							"cpp_type": "uint32",
+							"flags": "0x18001040000200",
+							"exported_text": "4294967295"
+						},
+						{
+							"name": "ScreenSize",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FPerPlatformFloat",
+							"flags": "0x10000000000001",
+							"exported_text": "()",
+							"fields": [
+								{
+									"name": "Default",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000215",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "PerPlatform",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "MapProperty",
+									"cpp_type": "TMap",
+									"flags": "0x10000800000001",
+									"exported_text": "()"
+								}
+							]
+						},
+						{
+							"name": "SourceImportFilename",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StrProperty",
+							"cpp_type": "FString",
+							"flags": "0x18040000020201",
+							"exported_text": ""
+						},
+						{
+							"name": "bImportWithBaseMesh",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001840000200",
+							"exported_text": "False"
+						}
+					]
+				},
+				{
+					"name": "SectionInfoMap",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FMeshSectionInfoMap",
+					"flags": "0x40000800000000",
+					"exported_text": "(Map=((0, ())))",
+					"fields": [
+						{
+							"name": "Map",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000000000000",
+							"exported_text": "((0, ()))",
+							"elements": [
+								{
+									"key": "0",
+									"fields": [
+										{
+											"name": "MaterialIndex",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "IntProperty",
+											"cpp_type": "int32",
+											"flags": "0x18001040000200",
+											"exported_text": "0"
+										},
+										{
+											"name": "bEnableCollision",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "True"
+										},
+										{
+											"name": "bCastShadow",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "True"
+										},
+										{
+											"name": "bVisibleInRayTracing",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "True"
+										},
+										{
+											"name": "bAffectDistanceFieldLighting",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "True"
+										},
+										{
+											"name": "bForceOpaque",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "False"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "OriginalSectionInfoMap",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FMeshSectionInfoMap",
+					"flags": "0x40000800000000",
+					"exported_text": "(Map=((0, ())))",
+					"fields": [
+						{
+							"name": "Map",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000000000000",
+							"exported_text": "((0, ()))",
+							"elements": [
+								{
+									"key": "0",
+									"fields": [
+										{
+											"name": "MaterialIndex",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "IntProperty",
+											"cpp_type": "int32",
+											"flags": "0x18001040000200",
+											"exported_text": "0"
+										},
+										{
+											"name": "bEnableCollision",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "True"
+										},
+										{
+											"name": "bCastShadow",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "True"
+										},
+										{
+											"name": "bVisibleInRayTracing",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "True"
+										},
+										{
+											"name": "bAffectDistanceFieldLighting",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "True"
+										},
+										{
+											"name": "bForceOpaque",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "bool",
+											"flags": "0x18001040000200",
+											"exported_text": "False"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "LODGroup",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "NameProperty",
+					"cpp_type": "FName",
+					"flags": "0x18011840000201",
+					"exported_text": "None"
+				},
+				{
+					"name": "NumStreamedLODs",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FPerPlatformInt",
+					"flags": "0x10000800000000",
+					"exported_text": "(Default=-1)",
+					"fields": [
+						{
+							"name": "Default",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000215",
+							"exported_text": "-1"
+						},
+						{
+							"name": "PerPlatform",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000800000001",
+							"exported_text": "()"
+						}
+					]
+				},
+				{
+					"name": "ImportVersion",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001840000200",
+					"exported_text": "1"
+				},
+				{
+					"name": "MaterialRemapIndexPerImportVersion",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000800000200",
+					"exported_text": ""
+				},
+				{
+					"name": "bAutoComputeLODScreenSize",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001800000000",
+					"exported_text": "True"
+				},
+				{
+					"name": "NaniteSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FMeshNaniteSettings",
+					"flags": "0x10000800000001",
+					"exported_text": "(bLerpUVs=True,bVoxelNDF=True,PositionPrecision=-2147483648,NormalPrecision=-1,TangentPrecision=-1,BoneWeightPrecision=-1,KeepPercentTriangles=1.000000,FallbackPercentTriangles=1.000000,FallbackRelativeError=1.000000,NumRays=64,NaniteAssemblyData=())",
+					"fields": [
+						{
+							"name": "bEnabled",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bExplicitTangents",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bLerpUVs",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bSeparable",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bVoxelNDF",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bVoxelOpacity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "ShapePreservation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "ENaniteShapePreservation",
+							"flags": "0x18001040000205",
+							"exported_text": "None",
+							"enum_underlying_value": "0",
+							"enum_value_name": "None"
+						},
+						{
+							"name": "PositionPrecision",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "-2147483648"
+						},
+						{
+							"name": "NormalPrecision",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "-1"
+						},
+						{
+							"name": "TangentPrecision",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "-1"
+						},
+						{
+							"name": "BoneWeightPrecision",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "-1"
+						},
+						{
+							"name": "TargetMinimumResidencyInKB",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "UInt32Property",
+							"cpp_type": "uint32",
+							"flags": "0x18001040000201",
+							"exported_text": "0"
+						},
+						{
+							"name": "KeepPercentTriangles",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "TrimRelativeError",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "GenerateFallback",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "ENaniteGenerateFallback",
+							"flags": "0x18001040000205",
+							"exported_text": "PlatformDefault",
+							"enum_underlying_value": "0",
+							"enum_value_name": "PlatformDefault"
+						},
+						{
+							"name": "FallbackTarget",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "ENaniteFallbackTarget",
+							"flags": "0x18001040000205",
+							"exported_text": "Auto",
+							"enum_underlying_value": "0",
+							"enum_value_name": "Auto"
+						},
+						{
+							"name": "FallbackPercentTriangles",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "FallbackRelativeError",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "MaxEdgeLengthFactor",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "NumRays",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "64"
+						},
+						{
+							"name": "VoxelLevel",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "0"
+						},
+						{
+							"name": "RayBackUp",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "DisplacementUVChannel",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "0"
+						},
+						{
+							"name": "DisplacementMaps",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000201",
+							"exported_text": ""
+						},
+						{
+							"name": "NaniteAssemblyData",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FNaniteAssemblyData",
+							"flags": "0x10000000020001",
+							"exported_text": "()",
+							"fields": [
+								{
+									"name": "Parts",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ArrayProperty",
+									"cpp_type": "TArray",
+									"flags": "0x10000000020201",
+									"exported_text": ""
+								},
+								{
+									"name": "Nodes",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ArrayProperty",
+									"cpp_type": "TArray",
+									"flags": "0x10000000000200",
+									"exported_text": ""
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "LightmapUVVersion",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x48001840000200",
+					"exported_text": "9"
+				},
+				{
+					"name": "LODStreaming",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EStaticMeshLODStreaming",
+					"flags": "0x48001840000201",
+					"exported_text": "Default",
+					"enum_underlying_value": "0",
+					"enum_value_name": "Default"
+				},
+				{
+					"name": "MinQualityLevelLOD",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FPerQualityLevelInt",
+					"flags": "0x10000000000000",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "Default",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000215",
+							"exported_text": "0"
+						},
+						{
+							"name": "PerQuality",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000000000001",
+							"exported_text": "()"
+						}
+					]
+				},
+				{
+					"name": "MinLOD",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FPerPlatformInt",
+					"flags": "0x10000000000000",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "Default",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000215",
+							"exported_text": "0"
+						},
+						{
+							"name": "PerPlatform",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000800000001",
+							"exported_text": "()"
+						}
+					]
+				},
+				{
+					"name": "ElementToIgnoreForTexFactor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x28081040000200",
+					"exported_text": "-1"
+				},
+				{
+					"name": "StaticMaterials",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x40000000000204",
+					"exported_text": "((MaterialInterface=\"/Script/Engine.Material'/ALS/ALSExtras/Environment/Materials/M_Als_Tiles.M_Als_Tiles'\",MaterialSlotName=\"M_Tiles\",ImportedMaterialSlotName=\"M_Tiles\",UVChannelData=(bInitialized=True,LocalUVDensities[0]=100.000008,LocalUVDensities[1]=4154.820312)))"
+				},
+				{
+					"name": "AssemblyReferenceCache",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x144000800002200",
+					"exported_text": ""
+				},
+				{
+					"name": "LightmapUVDensity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040000200",
+					"exported_text": "4154.820312",
+					"numeric_value": 4154.8203125
+				},
+				{
+					"name": "LightMapResolution",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000201",
+					"exported_text": "64"
+				},
+				{
+					"name": "LightMapCoordinateIndex",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18041040000201",
+					"exported_text": "1"
+				},
+				{
+					"name": "StaticMeshPaintSupport",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EStaticMeshPaintSupport",
+					"flags": "0x18001040000205",
+					"exported_text": "Default",
+					"enum_underlying_value": "0",
+					"enum_value_name": "Default"
+				},
+				{
+					"name": "MeshPaintTextureCoordinateIndex",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18041040000201",
+					"exported_text": "0"
+				},
+				{
+					"name": "MeshPaintTextureResolution",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18041040000201",
+					"exported_text": "0"
+				},
+				{
+					"name": "DistanceFieldSelfShadowBias",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18041040000201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "BodySetup",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UBodySetup>",
+					"flags": "0x14E001000282209",
+					"exported_text": "/Script/Engine.BodySetup'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:BodySetup_0'"
+				},
+				{
+					"name": "LODForCollision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "0"
+				},
+				{
+					"name": "bGenerateMeshDistanceField",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000001",
+					"exported_text": "False"
+				},
+				{
+					"name": "bHasNavigationData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000001",
+					"exported_text": "True"
+				},
+				{
+					"name": "bSupportUniformlyDistributedSampling",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000000001",
+					"exported_text": "False"
+				},
+				{
+					"name": "bSupportPhysicalMaterialMasks",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000000001",
+					"exported_text": "False"
+				},
+				{
+					"name": "bUseLegacyTangentScaling",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x48041800000001",
+					"exported_text": "False"
+				},
+				{
+					"name": "RayTracingProxySettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FMeshRayTracingProxySettings",
+					"flags": "0x10001800000001",
+					"exported_text": "(FallbackPercentTriangles=1.000000,FallbackRelativeError=2.000000)",
+					"fields": [
+						{
+							"name": "bEnabled",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "FallbackTarget",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "ENaniteFallbackTarget",
+							"flags": "0x18001040000205",
+							"exported_text": "Auto",
+							"enum_underlying_value": "0",
+							"enum_value_name": "Auto"
+						},
+						{
+							"name": "FallbackPercentTriangles",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "FallbackRelativeError",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "2.000000",
+							"numeric_value": 2
+						},
+						{
+							"name": "FoliageOverOcclusionBias",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "bSupportRayTracing",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000001",
+					"exported_text": "True"
+				},
+				{
+					"name": "bDoFastBuild",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "False"
+				},
+				{
+					"name": "bAllowCPUAccess",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000000001",
+					"exported_text": "False"
+				},
+				{
+					"name": "bSupportGpuUniformlyDistributedSampling",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000000001",
+					"exported_text": "False"
+				},
+				{
+					"name": "AssetImportData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAssetImportData>",
+					"flags": "0x11E001800080209",
+					"exported_text": "/Script/UnrealEd.FbxStaticMeshImportData'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:FbxStaticMeshImportData_1'"
+				},
+				{
+					"name": "ThumbnailInfo",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UThumbnailInfo>",
+					"flags": "0x11E0418000A0209",
+					"exported_text": "/Script/UnrealEd.SceneThumbnailInfo'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:SceneThumbnailInfo_0'"
+				},
+				{
+					"name": "EditorCameraPosition",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAssetEditorOrbitCameraPosition",
+					"flags": "0x10001800000000",
+					"exported_text": "(CamOrbitPoint=(X=0.000000,Y=0.000000,Z=0.000000),CamOrbitZoom=(X=0.000000,Y=0.000000,Z=0.000000),CamOrbitRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000))",
+					"fields": [
+						{
+							"name": "bIsSet",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000200",
+							"exported_text": "False"
+						},
+						{
+							"name": "CamOrbitPoint",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001040000200",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "CamOrbitZoom",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001040000200",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "CamOrbitRotation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FRotator",
+							"flags": "0x10001040000200",
+							"exported_text": "(Pitch=0.000000,Yaw=0.000000,Roll=0.000000)",
+							"fields": [
+								{
+									"name": "Pitch",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Yaw",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Roll",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "bCustomizedCollision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001840000201",
+					"exported_text": "True"
+				},
+				{
+					"name": "Sockets",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x114000000000200",
+					"exported_text": ""
+				},
+				{
+					"name": "PositiveBoundsExtension",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector",
+					"flags": "0x18041040010201",
+					"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Z",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "NegativeBoundsExtension",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector",
+					"flags": "0x18041040010201",
+					"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Z",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "ExtendedBounds",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FBoxSphereBounds",
+					"flags": "0x10001040000200",
+					"exported_text": "(Origin=(X=0.000000,Y=0.000000,Z=-25.000000),BoxExtent=(X=1000.000000,Y=1000.000000,Z=25.000000),SphereRadius=1414.434570)",
+					"fields": [
+						{
+							"name": "Origin",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001041000205",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=-25.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "-25.000000",
+									"numeric_value": -25
+								}
+							]
+						},
+						{
+							"name": "BoxExtent",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001041000205",
+							"exported_text": "(X=1000.000000,Y=1000.000000,Z=25.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "1000.000000",
+									"numeric_value": 1000
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "1000.000000",
+									"numeric_value": 1000
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "25.000000",
+									"numeric_value": 25
+								}
+							]
+						},
+						{
+							"name": "SphereRadius",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "1414.434570",
+							"numeric_value": 1414.4345703125
+						}
+					]
+				},
+				{
+					"name": "AssetUserData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x1240C8000000209",
+					"exported_text": ""
+				},
+				{
+					"name": "ComplexCollisionMesh",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UStaticMesh>",
+					"flags": "0x11C001800000201",
+					"exported_text": "None"
+				},
+				{
+					"name": "NavCollision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UNavCollisionBase>",
+					"flags": "0x14E0010002A2209",
+					"exported_text": "/Script/NavigationSystem.NavCollision'/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:NavCollision_0'"
+				},
+				{
+					"name": "ForceMipLevelsToBeResidentTimestamp",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "DoubleProperty",
+					"cpp_type": "double",
+					"flags": "0x28081040002200",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "NumCinematicMipLevels",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18041040000205",
+					"exported_text": "0"
+				},
+				{
+					"name": "NoRefStreamingLODBias",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FPerQualityLevelInt",
+					"flags": "0x20080000000000",
+					"exported_text": "(Default=-1)",
+					"fields": [
+						{
+							"name": "Default",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000215",
+							"exported_text": "-1"
+						},
+						{
+							"name": "PerQuality",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000000000001",
+							"exported_text": "()"
+						}
+					]
+				},
+				{
+					"name": "StreamingIndex",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x28081440202200",
+					"exported_text": "-1"
+				},
+				{
+					"name": "NeverStream",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18051000000005",
+					"exported_text": "False"
+				},
+				{
+					"name": "bGlobalForceMipLevelsToBeResident",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000000015",
+					"exported_text": "False"
+				},
+				{
+					"name": "bHasStreamingUpdatePending",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001400002000",
+					"exported_text": "False"
+				},
+				{
+					"name": "bForceMiplevelsToBeResident",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000002000",
+					"exported_text": "False"
+				},
+				{
+					"name": "bIgnoreStreamingMipBias",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000002000",
+					"exported_text": "False"
+				},
+				{
+					"name": "bMarkAsEditorStreamingPool",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000002000",
+					"exported_text": "False"
+				},
+				{
+					"name": "bUseCinematicMipLevels",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x28081000002000",
+					"exported_text": "False"
+				}
+			]
+		},
+		{
+			"index": 1,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:AssetImportData",
+			"class_path": "/Script/Engine.AssetImportData",
+			"properties": [
+				{
+					"name": "SourceData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAssetImportInfo",
+					"flags": "0x10000800020001",
+					"exported_text": "()",
+					"fields": []
+				}
+			]
+		},
+		{
+			"index": 2,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:BodySetup_0",
+			"class_path": "/Script/Engine.BodySetup",
+			"properties": [
+				{
+					"name": "AggGeom",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FKAggregateGeom",
+					"flags": "0x10000000000001",
+					"exported_text": "(BoxElems=((Center=(X=0.000000,Y=0.000000,Z=-25.000000),X=2000.000000,Y=2000.000000,Z=50.000000,bIsGenerated=True)))",
+					"fields": [
+						{
+							"name": "SphereElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": ""
+						},
+						{
+							"name": "BoxElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": "((Center=(X=0.000000,Y=0.000000,Z=-25.000000),X=2000.000000,Y=2000.000000,Z=50.000000,bIsGenerated=True))"
+						},
+						{
+							"name": "SphylElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": ""
+						},
+						{
+							"name": "ConvexElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": ""
+						},
+						{
+							"name": "TaperedCapsuleElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": ""
+						},
+						{
+							"name": "LevelSetElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": ""
+						},
+						{
+							"name": "SkinnedLevelSetElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": ""
+						},
+						{
+							"name": "MLLevelSetElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": ""
+						},
+						{
+							"name": "SkinnedTriangleMeshElems",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": ""
+						}
+					]
+				},
+				{
+					"name": "bConsiderForBounds",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000001",
+					"exported_text": "True"
+				},
+				{
+					"name": "bMeshCollideAll",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000002000",
+					"exported_text": "False"
+				},
+				{
+					"name": "bDoubleSidedGeometry",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000001",
+					"exported_text": "False"
+				},
+				{
+					"name": "bGenerateNonMirroredCollision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "True"
+				},
+				{
+					"name": "bSharedCookedData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "False"
+				},
+				{
+					"name": "bGenerateMirroredCollision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "True"
+				},
+				{
+					"name": "bSupportUVsAndFaceRemap",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "False"
+				},
+				{
+					"name": "bSupportFaceRemapOnMeshBVH",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "True"
+				},
+				{
+					"name": "bSupportVertexRemap",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "True"
+				},
+				{
+					"name": "bNeverNeedsCookedCollisionData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000001",
+					"exported_text": "False"
+				},
+				{
+					"name": "PhysMaterial",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UPhysicalMaterial>",
+					"flags": "0x11C001000000201",
+					"exported_text": "None"
+				},
+				{
+					"name": "WalkableSlopeOverride",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FWalkableSlopeOverride",
+					"flags": "0x10041040000001",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "WalkableSlopeBehavior",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<EWalkableSlopeBehavior>",
+							"flags": "0x18001040000205",
+							"exported_text": "WalkableSlope_Default"
+						},
+						{
+							"name": "WalkableSlopeAngle",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "DefaultInstance",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FBodyInstance",
+					"flags": "0x10000000000001",
+					"exported_text": "(PositionSolverIterationCount=8,VelocitySolverIterationCount=2,ProjectionSolverIterationCount=1,CollisionEnabled=QueryAndPhysics,bAllowPartialIslandSleep=True,bLockTranslation=True,bLockRotation=True,bInterpolateWhenSubStepping=True,bInertiaConditioning=True,SolverAsyncDeltaTime=0.016667,CollisionProfileName=\"BlockAll\",CollisionResponses=(),MassInKgOverride=100.000000,LinearDamping=0.010000,CustomDOFPlaneNormal=(X=0.000000,Y=0.000000,Z=0.000000),COMNudge=(X=0.000000,Y=0.000000,Z=0.000000),MassScale=1.000000,InertiaTensorScale=(X=1.000000,Y=1.000000,Z=1.000000),WalkableSlopeOverride=(),MaxAngularVelocity=3600.000000,CustomSleepThresholdMultiplier=1.000000,StabilizationThresholdMultiplier=1.000000,bEnableGravity=True,bStartAwake=True,bUpdateMassWhenScaleChanges=True)",
+					"fields": [
+						{
+							"name": "PositionSolverIterationCount",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041040000215",
+							"exported_text": "8"
+						},
+						{
+							"name": "VelocitySolverIterationCount",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041040000215",
+							"exported_text": "2"
+						},
+						{
+							"name": "ProjectionSolverIterationCount",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041040000215",
+							"exported_text": "1"
+						},
+						{
+							"name": "ObjectType",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionChannel>",
+							"flags": "0x48001040000201",
+							"exported_text": "ECC_WorldStatic"
+						},
+						{
+							"name": "CollisionEnabled",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionEnabled::Type>",
+							"flags": "0x48001040000201",
+							"exported_text": "QueryAndPhysics"
+						},
+						{
+							"name": "SleepFamily",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "ESleepFamily",
+							"flags": "0x18041040000205",
+							"exported_text": "Normal",
+							"enum_underlying_value": "0",
+							"enum_value_name": "Normal"
+						},
+						{
+							"name": "DOFMode",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<EDOFMode::Type>",
+							"flags": "0x18001040000201",
+							"exported_text": "Default"
+						},
+						{
+							"name": "bUseCCD",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000015",
+							"exported_text": "False"
+						},
+						{
+							"name": "bUseMACD",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x48041000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bAllowPartialIslandSleep",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x48041000000001",
+							"exported_text": "True"
+						},
+						{
+							"name": "bIgnoreAnalyticCollisions",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000015",
+							"exported_text": "False"
+						},
+						{
+							"name": "bNotifyRigidBodyCollision",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000015",
+							"exported_text": "False"
+						},
+						{
+							"name": "bSmoothEdgeCollisions",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000015",
+							"exported_text": "False"
+						},
+						{
+							"name": "bLockTranslation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "True"
+						},
+						{
+							"name": "bLockRotation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "True"
+						},
+						{
+							"name": "bLockXTranslation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bLockYTranslation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bLockZTranslation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bLockXRotation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bLockYRotation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bLockZRotation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bOverrideMaxAngularVelocity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bOverrideMaxDepenetrationVelocity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x28081000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bOverrideWalkableSlopeOnInstance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x28081000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bOverrideIterationCounts",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x28081000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bInterpolateWhenSubStepping",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x28081000000000",
+							"exported_text": "True"
+						},
+						{
+							"name": "bInertiaConditioning",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x280C1000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bOneWayInteraction",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x280C1000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bOverrideSolverAsyncDeltaTime",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000015",
+							"exported_text": "False"
+						},
+						{
+							"name": "SolverAsyncDeltaTime",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18041040000215",
+							"exported_text": "0.016667",
+							"numeric_value": 0.01666666753590107
+						},
+						{
+							"name": "CollisionProfileName",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "NameProperty",
+							"cpp_type": "FName",
+							"flags": "0x48001040000201",
+							"exported_text": "BlockAll"
+						},
+						{
+							"name": "CollisionResponses",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FCollisionResponse",
+							"flags": "0x40000000000001",
+							"exported_text": "()",
+							"fields": [
+								{
+									"name": "ResponseToChannels",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "StructProperty",
+									"cpp_type": "FCollisionResponseContainer",
+									"flags": "0x40001000002000",
+									"exported_text": "(WorldStatic=ECR_Block,WorldDynamic=ECR_Block,Pawn=ECR_Block,Visibility=ECR_Block,Camera=ECR_Block,PhysicsBody=ECR_Block,Vehicle=ECR_Block,Destructible=ECR_Block,EngineTraceChannel2=ECR_Block,EngineTraceChannel3=ECR_Block,EngineTraceChannel4=ECR_Block,EngineTraceChannel5=ECR_Block,EngineTraceChannel6=ECR_Block,GameTraceChannel1=ECR_Block,GameTraceChannel2=ECR_Block,GameTraceChannel3=ECR_Block,GameTraceChannel4=ECR_Block,GameTraceChannel5=ECR_Block,GameTraceChannel6=ECR_Block,GameTraceChannel7=ECR_Block,GameTraceChannel8=ECR_Block,GameTraceChannel9=ECR_Block,GameTraceChannel10=ECR_Block,GameTraceChannel11=ECR_Block,GameTraceChannel12=ECR_Block,GameTraceChannel13=ECR_Block,GameTraceChannel14=ECR_Block,GameTraceChannel15=ECR_Block,GameTraceChannel16=ECR_Block,GameTraceChannel17=ECR_Block,GameTraceChannel18=ECR_Block,GameTraceChannel19=ECR_Block,GameTraceChannel20=ECR_Block,GameTraceChannel21=ECR_Block,GameTraceChannel22=ECR_Block,GameTraceChannel23=ECR_Block,GameTraceChannel24=ECR_Block,GameTraceChannel25=ECR_Block,GameTraceChannel26=ECR_Block,GameTraceChannel27=ECR_Block,GameTraceChannel28=ECR_Block,GameTraceChannel29=ECR_Block,GameTraceChannel30=ECR_Block,GameTraceChannel31=ECR_Block,GameTraceChannel32=ECR_Block,GameTraceChannel33=ECR_Block,GameTraceChannel34=ECR_Block,GameTraceChannel35=ECR_Block,GameTraceChannel36=ECR_Block,GameTraceChannel37=ECR_Block,GameTraceChannel38=ECR_Block,GameTraceChannel39=ECR_Block,GameTraceChannel40=ECR_Block,GameTraceChannel41=ECR_Block,GameTraceChannel42=ECR_Block,GameTraceChannel43=ECR_Block,GameTraceChannel44=ECR_Block,GameTraceChannel45=ECR_Block,GameTraceChannel46=ECR_Block,GameTraceChannel47=ECR_Block,GameTraceChannel48=ECR_Block,GameTraceChannel49=ECR_Block,GameTraceChannel50=ECR_Block)",
+									"fields": [
+										{
+											"name": "WorldStatic",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "WorldDynamic",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "Pawn",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "Visibility",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "Camera",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "PhysicsBody",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "Vehicle",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "Destructible",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "EngineTraceChannel1",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Ignore"
+										},
+										{
+											"name": "EngineTraceChannel2",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "EngineTraceChannel3",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "EngineTraceChannel4",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "EngineTraceChannel5",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "EngineTraceChannel6",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel1",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel2",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel3",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel4",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel5",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel6",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel7",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel8",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel9",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel10",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel11",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel12",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel13",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel14",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel15",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel16",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel17",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel18",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel19",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel20",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel21",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel22",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel23",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel24",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel25",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel26",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel27",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel28",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel29",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel30",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel31",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel32",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel33",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel34",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel35",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel36",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel37",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel38",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel39",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel40",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel41",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel42",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel43",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel44",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel45",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel46",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel47",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel48",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel49",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										},
+										{
+											"name": "GameTraceChannel50",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ECollisionResponse>",
+											"flags": "0x18001040000215",
+											"exported_text": "ECR_Block"
+										}
+									]
+								},
+								{
+									"name": "ResponseArray",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ArrayProperty",
+									"cpp_type": "TArray",
+									"flags": "0x40000000000201",
+									"exported_text": ""
+								}
+							]
+						},
+						{
+							"name": "MaxDepenetrationVelocity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x280C1040000215",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "MassInKgOverride",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x28081040000215",
+							"exported_text": "100.000000",
+							"numeric_value": 100
+						},
+						{
+							"name": "LinearDamping",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.010000",
+							"numeric_value": 0.0099999997764825821
+						},
+						{
+							"name": "AngularDamping",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "CustomDOFPlaneNormal",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001040000201",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "COMNudge",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18041040000205",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "MassScale",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18041040000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "GravityGroupIndex",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001040000215",
+							"exported_text": "0"
+						},
+						{
+							"name": "InertiaTensorScale",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18041040000205",
+							"exported_text": "(X=1.000000,Y=1.000000,Z=1.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								}
+							]
+						},
+						{
+							"name": "WalkableSlopeOverride",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FWalkableSlopeOverride",
+							"flags": "0x200C1040000015",
+							"exported_text": "()",
+							"fields": [
+								{
+									"name": "WalkableSlopeBehavior",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<EWalkableSlopeBehavior>",
+									"flags": "0x18001040000205",
+									"exported_text": "WalkableSlope_Default"
+								},
+								{
+									"name": "WalkableSlopeAngle",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "PhysMaterialOverride",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UPhysicalMaterial>",
+							"flags": "0x12C081000000215",
+							"exported_text": "None"
+						},
+						{
+							"name": "MaxAngularVelocity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18041040000215",
+							"exported_text": "3600.000000",
+							"numeric_value": 3600
+						},
+						{
+							"name": "CustomSleepThresholdMultiplier",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18041040000215",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "StabilizationThresholdMultiplier",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18041040000215",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "PhysicsBlendWeight",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000200",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "bSimulatePhysics",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bOverrideMass",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000001",
+							"exported_text": "False"
+						},
+						{
+							"name": "bEnableGravity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000015",
+							"exported_text": "True"
+						},
+						{
+							"name": "bUpdateKinematicFromSimulation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000015",
+							"exported_text": "False"
+						},
+						{
+							"name": "bGyroscopicTorqueEnabled",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000015",
+							"exported_text": "False"
+						},
+						{
+							"name": "bAutoWeld",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000005",
+							"exported_text": "False"
+						},
+						{
+							"name": "bStartAwake",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000015",
+							"exported_text": "True"
+						},
+						{
+							"name": "bGenerateWakeEvents",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000015",
+							"exported_text": "False"
+						},
+						{
+							"name": "bUpdateMassWhenScaleChanges",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18041000000005",
+							"exported_text": "True"
+						}
+					]
+				},
+				{
+					"name": "BuildScale3D",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector",
+					"flags": "0x18001040000200",
+					"exported_text": "(X=1.000000,Y=1.000000,Z=1.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "Z",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						}
+					]
+				},
+				{
+					"name": "BoneName",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "NameProperty",
+					"cpp_type": "FName",
+					"flags": "0x18001040020201",
+					"exported_text": "None"
+				},
+				{
+					"name": "PhysicsType",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<EPhysicsType>",
+					"flags": "0x18001040000201",
+					"exported_text": "PhysType_Default"
+				},
+				{
+					"name": "CollisionTraceFlag",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ECollisionTraceFlag>",
+					"flags": "0x18001040000201",
+					"exported_text": "CTF_UseDefault"
+				},
+				{
+					"name": "CollisionReponse",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<EBodyCollisionResponse::Type>",
+					"flags": "0x18001040000201",
+					"exported_text": "BodyCollision_Enabled"
+				}
+			]
+		},
+		{
+			"index": 3,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:FbxStaticMeshImportData_1",
+			"class_path": "/Script/UnrealEd.FbxStaticMeshImportData",
+			"properties": [
+				{
+					"name": "StaticMeshLODGroup",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "NameProperty",
+					"cpp_type": "FName",
+					"flags": "0x18041040004205",
+					"exported_text": "None"
+				},
+				{
+					"name": "VertexColorImportOption",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<EVertexColorImportOption::Type>",
+					"flags": "0x18041040004205",
+					"exported_text": "Ignore"
+				},
+				{
+					"name": "VertexOverrideColor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FColor",
+					"flags": "0x18041040004205",
+					"exported_text": "(B=255,G=255,R=255,A=255)",
+					"fields": [
+						{
+							"name": "B",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "255"
+						},
+						{
+							"name": "G",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "255"
+						},
+						{
+							"name": "R",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "255"
+						},
+						{
+							"name": "A",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "255"
+						}
+					]
+				},
+				{
+					"name": "bRemoveDegenerates",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000004005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bBuildReversedIndexBuffer",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000004005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bBuildNanite",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000004005",
+					"exported_text": "False"
+				},
+				{
+					"name": "bGenerateLightmapUVs",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000004005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bOneConvexHullPerUCX",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000004005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bAutoGenerateCollision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000004005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bCombineMeshes",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000004005",
+					"exported_text": "False"
+				},
+				{
+					"name": "DistanceFieldResolutionScale",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18041040004205",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "bTransformVertexToAbsolute",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041040004205",
+					"exported_text": "True"
+				},
+				{
+					"name": "bBakePivotInVertex",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041040004205",
+					"exported_text": "False"
+				},
+				{
+					"name": "bImportMeshLODs",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000004005",
+					"exported_text": "False"
+				},
+				{
+					"name": "NormalImportMethod",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<EFBXNormalImportMethod>",
+					"flags": "0x18041040004205",
+					"exported_text": "FBXNIM_ImportNormals"
+				},
+				{
+					"name": "NormalGenerationMethod",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<EFBXNormalGenerationMethod::Type>",
+					"flags": "0x18041040004205",
+					"exported_text": "MikkTSpace"
+				},
+				{
+					"name": "bComputeWeightedNormals",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041000004005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bReorderMaterialToFbxOrder",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041040004205",
+					"exported_text": "True"
+				},
+				{
+					"name": "ImportMaterialOriginalNameData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000200",
+					"exported_text": ""
+				},
+				{
+					"name": "ImportMeshLodData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000200",
+					"exported_text": ""
+				},
+				{
+					"name": "ImportTranslation",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector",
+					"flags": "0x18001040004205",
+					"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Z",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "ImportRotation",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FRotator",
+					"flags": "0x10001040004205",
+					"exported_text": "(Pitch=0.000000,Yaw=0.000000,Roll=0.000000)",
+					"fields": [
+						{
+							"name": "Pitch",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Yaw",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Roll",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "DoubleProperty",
+							"cpp_type": "double",
+							"flags": "0x18001041000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "ImportUniformScale",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004205",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "CoordinateSystemPolicy",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "ECoordinateSystemPolicy",
+					"flags": "0x18001040006201",
+					"exported_text": "MatchUpForwardAxes",
+					"enum_underlying_value": "0",
+					"enum_value_name": "MatchUpForwardAxes"
+				},
+				{
+					"name": "bConvertScene",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004205",
+					"exported_text": "True"
+				},
+				{
+					"name": "bForceFrontXAxis",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004205",
+					"exported_text": "False"
+				},
+				{
+					"name": "bConvertSceneUnit",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004205",
+					"exported_text": "False"
+				},
+				{
+					"name": "bImportAsScene",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000200",
+					"exported_text": "False"
+				},
+				{
+					"name": "FbxSceneImportDataReference",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UFbxSceneImportData>",
+					"flags": "0x11C001000000200",
+					"exported_text": "None"
+				},
+				{
+					"name": "bUsingLUFCoordinateSysem",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040036201",
+					"exported_text": "False"
+				},
+				{
+					"name": "SourceData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAssetImportInfo",
+					"flags": "0x10000800020001",
+					"exported_text": "()",
+					"fields": []
+				}
+			]
+		},
+		{
+			"index": 4,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:HiResMeshDescription",
+			"class_path": "/Script/Engine.StaticMeshDescriptionBulkData",
+			"properties": [
+				{
+					"name": "PreallocatedMeshDescription",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UMeshDescriptionBase>",
+					"flags": "0x12E081800082208",
+					"exported_text": "MeshDescription"
+				},
+				{
+					"name": "MeshDescription",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UMeshDescriptionBase>",
+					"flags": "0x12C081800002200",
+					"exported_text": "None"
+				}
+			]
+		},
+		{
+			"index": 5,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:HiResMeshDescription.MeshDescription",
+			"class_path": "/Script/StaticMeshDescription.StaticMeshDescription",
+			"properties": []
+		},
+		{
+			"index": 6,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:NavCollision_0",
+			"class_path": "/Script/NavigationSystem.NavCollision",
+			"properties": [
+				{
+					"name": "CylinderCollision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000201",
+					"exported_text": ""
+				},
+				{
+					"name": "BoxCollision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000201",
+					"exported_text": ""
+				},
+				{
+					"name": "AreaClass",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ClassProperty",
+					"cpp_type": "TSubclassOf<UNavArea>",
+					"flags": "0x1C001000000201",
+					"exported_text": "None"
+				},
+				{
+					"name": "bGatherConvexGeometry",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000004001",
+					"exported_text": "True"
+				},
+				{
+					"name": "bCreateOnClient",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000004001",
+					"exported_text": "True"
+				},
+				{
+					"name": "bIsDynamicObstacle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x28081000004001",
+					"exported_text": "False"
+				},
+				{
+					"name": "bUseSurfaceArea",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x28081000004001",
+					"exported_text": "False"
+				}
+			]
+		},
+		{
+			"index": 7,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:SceneThumbnailInfo_0",
+			"class_path": "/Script/UnrealEd.SceneThumbnailInfo",
+			"properties": [
+				{
+					"name": "OrbitPitch",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "-11.250000",
+					"numeric_value": -11.25
+				},
+				{
+					"name": "OrbitYaw",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "-157.500000",
+					"numeric_value": -157.5
+				},
+				{
+					"name": "OrbitZoom",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				}
+			]
+		},
+		{
+			"index": 8,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:StaticMeshDescriptionBulkData_0",
+			"class_path": "/Script/Engine.StaticMeshDescriptionBulkData",
+			"properties": [
+				{
+					"name": "PreallocatedMeshDescription",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UMeshDescriptionBase>",
+					"flags": "0x12E081800082208",
+					"exported_text": "MeshDescription"
+				},
+				{
+					"name": "MeshDescription",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UMeshDescriptionBase>",
+					"flags": "0x12C081800002200",
+					"exported_text": "None"
+				}
+			]
+		},
+		{
+			"index": 9,
+			"object_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Floor_20x20.SM_Als_Floor_20x20:StaticMeshDescriptionBulkData_0.MeshDescription",
+			"class_path": "/Script/StaticMeshDescription.StaticMeshDescription",
+			"properties": []
+		}
+	],
+	"graphs": []
+}
