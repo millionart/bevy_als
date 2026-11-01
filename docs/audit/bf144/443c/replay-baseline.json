@@ -1,0 +1,5531 @@
+{
+  "affine_scale_differs_from_stored": 170,
+  "double_matrix_same_quaternion_still_differs": 162,
+  "floor_final_y_changed": 45,
+  "full_source_world_restored_claimed": false,
+  "gate": "PASS_ACTUAL240_STORED_SCALE_VS_AFFINE_SCALE_FLOOR_CONSUMER",
+  "radius_changed": 170,
+  "rows": [
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 0,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 1,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 2,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 3,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 4,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 5,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 6,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 7,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 8,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 9,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 10,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 11,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 12,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 13,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 14,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 15,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 16,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 17,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 18,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 19,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9243957996368408,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999899658119,
+        1.0,
+        0.9999999899658119
+      ],
+      "only_stored_scale_final_y": 0.9243957996368408,
+      "ordinal": 20,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9246756434440613,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999932337305,
+        1.0,
+        0.9999999932337305
+      ],
+      "only_stored_scale_final_y": 0.9246756434440613,
+      "ordinal": 21,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9218677878379822,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000130601838,
+        1.0,
+        1.0000000130601838
+      ],
+      "only_stored_scale_final_y": 0.9218677878379822,
+      "ordinal": 22,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215255379676819,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000019419823,
+        1.0,
+        1.000000019419823
+      ],
+      "only_stored_scale_final_y": 0.9215255379676819,
+      "ordinal": 23,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9216199517250061,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999997348653,
+        1.0,
+        0.9999999997348653
+      ],
+      "only_stored_scale_final_y": 0.9216199517250061,
+      "ordinal": 24,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215047955513,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999911854511,
+        1.0,
+        0.9999999911854511
+      ],
+      "only_stored_scale_final_y": 0.9215047955513,
+      "ordinal": 25,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9216576814651489,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.999999992079934,
+        1.0,
+        0.999999992079934
+      ],
+      "only_stored_scale_final_y": 0.9216576814651489,
+      "ordinal": 26,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215187430381775,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999957596915,
+        1.0,
+        0.9999999957596915
+      ],
+      "only_stored_scale_final_y": 0.9215187430381775,
+      "ordinal": 27,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215314388275146,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000205934885,
+        1.0,
+        1.0000000205934885
+      ],
+      "only_stored_scale_final_y": 0.9215314388275146,
+      "ordinal": 28,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999998807907104,
+        1.0,
+        0.9999998807907104
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215173125267029,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999924083854,
+        1.0,
+        0.999999924083854
+      ],
+      "only_stored_scale_final_y": 0.9215172529220581,
+      "ordinal": 29,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215588569641113,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999516952229,
+        1.0,
+        0.9999999516952229
+      ],
+      "only_stored_scale_final_y": 0.9215587973594666,
+      "ordinal": 30,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.921536922454834,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999976557529,
+        1.0,
+        0.9999999976557529
+      ],
+      "only_stored_scale_final_y": 0.9215737581253052,
+      "ordinal": 31,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999079704285,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000380404979,
+        1.0,
+        1.0000000380404979
+      ],
+      "only_stored_scale_final_y": 0.9214999079704285,
+      "ordinal": 32,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9216272234916687,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999804143412,
+        1.0,
+        0.9999999804143412
+      ],
+      "only_stored_scale_final_y": 0.9216271638870239,
+      "ordinal": 33,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215628504753113,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999671650496,
+        1.0,
+        0.9999999671650496
+      ],
+      "only_stored_scale_final_y": 0.9215627908706665,
+      "ordinal": 34,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999998807907104,
+        1.0,
+        0.9999998807907104
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215088486671448,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999471548819,
+        1.0,
+        0.9999999471548819
+      ],
+      "only_stored_scale_final_y": 0.9215087890625,
+      "ordinal": 35,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215371012687683,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000118003929,
+        1.0,
+        1.0000000118003929
+      ],
+      "only_stored_scale_final_y": 0.9215371012687683,
+      "ordinal": 36,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215087890625,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.99999998264525,
+        1.0,
+        0.99999998264525
+      ],
+      "only_stored_scale_final_y": 0.9215087890625,
+      "ordinal": 37,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215016961097717,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999844126102,
+        1.0,
+        0.9999999844126102
+      ],
+      "only_stored_scale_final_y": 0.9215016961097717,
+      "ordinal": 38,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.921501636505127,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000311823507,
+        1.0,
+        1.0000000311823507
+      ],
+      "only_stored_scale_final_y": 0.921501636505127,
+      "ordinal": 39,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240978360176086,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999710064159,
+        1.0,
+        0.9999999710064159
+      ],
+      "only_stored_scale_final_y": 0.9240978360176086,
+      "ordinal": 40,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.921535313129425,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999646192813,
+        1.0,
+        0.9999999646192813
+      ],
+      "only_stored_scale_final_y": 0.921535313129425,
+      "ordinal": 41,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215157628059387,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999354140835,
+        1.0,
+        0.9999999354140835
+      ],
+      "only_stored_scale_final_y": 0.921515703201294,
+      "ordinal": 42,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240000247955322,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000059783403,
+        1.0,
+        1.0000000059783403
+      ],
+      "only_stored_scale_final_y": 0.9240000247955322,
+      "ordinal": 43,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215582609176636,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000005582936,
+        1.0,
+        1.0000000005582936
+      ],
+      "only_stored_scale_final_y": 0.9215582609176636,
+      "ordinal": 44,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240552186965942,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999594036769,
+        1.0,
+        0.9999999594036769
+      ],
+      "only_stored_scale_final_y": 0.9240552186965942,
+      "ordinal": 45,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240552186965942,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.99999997762255,
+        1.0,
+        0.99999997762255
+      ],
+      "only_stored_scale_final_y": 0.9240552186965942,
+      "ordinal": 46,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215032458305359,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999884013273,
+        1.0,
+        0.9999999884013273
+      ],
+      "only_stored_scale_final_y": 0.9215031862258911,
+      "ordinal": 47,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215410947799683,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000412522059,
+        1.0,
+        1.0000000412522059
+      ],
+      "only_stored_scale_final_y": 0.9215410947799683,
+      "ordinal": 48,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215870499610901,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999681385237,
+        1.0,
+        0.9999999681385237
+      ],
+      "only_stored_scale_final_y": 0.9215869903564453,
+      "ordinal": 49,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999675750732,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000205351485,
+        1.0,
+        1.0000000205351485
+      ],
+      "only_stored_scale_final_y": 0.9214999675750732,
+      "ordinal": 50,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999998807907104,
+        1.0,
+        0.9999998807907104
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.921642005443573,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999382431553,
+        1.0,
+        0.9999999382431553
+      ],
+      "only_stored_scale_final_y": 0.9216419458389282,
+      "ordinal": 51,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9216634035110474,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999773231049,
+        1.0,
+        0.9999999773231049
+      ],
+      "only_stored_scale_final_y": 0.9216634035110474,
+      "ordinal": 52,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.924176037311554,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999396026594,
+        1.0,
+        0.9999999396026594
+      ],
+      "only_stored_scale_final_y": 0.924176037311554,
+      "ordinal": 53,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215060472488403,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000059067019,
+        1.0,
+        1.000000059067019
+      ],
+      "only_stored_scale_final_y": 0.9215060472488403,
+      "ordinal": 54,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.921610951423645,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000054186651,
+        1.0,
+        1.000000054186651
+      ],
+      "only_stored_scale_final_y": 0.921610951423645,
+      "ordinal": 55,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215022325515747,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000318405542,
+        1.0,
+        1.0000000318405542
+      ],
+      "only_stored_scale_final_y": 0.9215022325515747,
+      "ordinal": 56,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240573644638062,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999690040198,
+        1.0,
+        0.9999999690040198
+      ],
+      "only_stored_scale_final_y": 0.9240573644638062,
+      "ordinal": 57,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215027093887329,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000394879187,
+        1.0,
+        1.0000000394879187
+      ],
+      "only_stored_scale_final_y": 0.9215027093887329,
+      "ordinal": 58,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999079704285,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000017488314,
+        1.0,
+        1.000000017488314
+      ],
+      "only_stored_scale_final_y": 0.9214999079704285,
+      "ordinal": 59,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215004444122314,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000286274346,
+        1.0,
+        1.0000000286274346
+      ],
+      "only_stored_scale_final_y": 0.9215004444122314,
+      "ordinal": 60,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9216473698616028,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999576995173,
+        1.0,
+        0.9999999576995173
+      ],
+      "only_stored_scale_final_y": 0.921647310256958,
+      "ordinal": 61,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999079704285,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000343966267,
+        1.0,
+        1.0000000343966267
+      ],
+      "only_stored_scale_final_y": 0.9214999079704285,
+      "ordinal": 62,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215142726898193,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999895233013,
+        1.0,
+        0.9999999895233013
+      ],
+      "only_stored_scale_final_y": 0.9215142726898193,
+      "ordinal": 63,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215646982192993,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999788243861,
+        1.0,
+        0.9999999788243861
+      ],
+      "only_stored_scale_final_y": 0.9215646982192993,
+      "ordinal": 64,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999651908875,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999934810949,
+        1.0,
+        0.9999999934810949
+      ],
+      "only_stored_scale_final_y": 0.9239999651908875,
+      "ordinal": 65,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215161800384521,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999424589294,
+        1.0,
+        0.9999999424589294
+      ],
+      "only_stored_scale_final_y": 0.9215161800384521,
+      "ordinal": 66,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0000001192092896,
+        1.0,
+        1.0000001192092896
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9221601486206055,
+      "current_radius": 0.30000001192092896,
+      "double_same_quaternion_affine_scale": [
+        1.000000073298672,
+        1.0,
+        1.000000073298672
+      ],
+      "only_stored_scale_final_y": 0.9221601486206055,
+      "ordinal": 67,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9226372241973877,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999961264121,
+        1.0,
+        0.999999961264121
+      ],
+      "only_stored_scale_final_y": 0.9226372241973877,
+      "ordinal": 68,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.922990620136261,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000250223993,
+        1.0,
+        1.0000000250223993
+      ],
+      "only_stored_scale_final_y": 0.922990620136261,
+      "ordinal": 69,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9232523441314697,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000098570694,
+        1.0,
+        1.0000000098570694
+      ],
+      "only_stored_scale_final_y": 0.9232523441314697,
+      "ordinal": 70,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9234462380409241,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999986473473,
+        1.0,
+        0.9999999986473473
+      ],
+      "only_stored_scale_final_y": 0.9234462380409241,
+      "ordinal": 71,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9235898852348328,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        0.9999999903300012,
+        1.0,
+        0.9999999903300012
+      ],
+      "only_stored_scale_final_y": 0.9235898852348328,
+      "ordinal": 72,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9236962795257568,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999841708591,
+        1.0,
+        0.9999999841708591
+      ],
+      "only_stored_scale_final_y": 0.9236962795257568,
+      "ordinal": 73,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9237750768661499,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000638873767,
+        1.0,
+        1.0000000638873767
+      ],
+      "only_stored_scale_final_y": 0.9237750768661499,
+      "ordinal": 74,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.923833429813385,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999762137946,
+        1.0,
+        0.9999999762137946
+      ],
+      "only_stored_scale_final_y": 0.923833429813385,
+      "ordinal": 75,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9238767027854919,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999736846581,
+        1.0,
+        0.9999999736846581
+      ],
+      "only_stored_scale_final_y": 0.9238767027854919,
+      "ordinal": 76,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239087104797363,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000056077026,
+        1.0,
+        1.000000056077026
+      ],
+      "only_stored_scale_final_y": 0.9239087104797363,
+      "ordinal": 77,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239324331283569,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999703799737,
+        1.0,
+        0.9999999703799737
+      ],
+      "only_stored_scale_final_y": 0.9239324331283569,
+      "ordinal": 78,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239500164985657,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999969316712,
+        1.0,
+        0.999999969316712
+      ],
+      "only_stored_scale_final_y": 0.9239500164985657,
+      "ordinal": 79,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239630103111267,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999685148995,
+        1.0,
+        0.9999999685148995
+      ],
+      "only_stored_scale_final_y": 0.9239630103111267,
+      "ordinal": 80,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239726066589355,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000521980135,
+        1.0,
+        1.0000000521980135
+      ],
+      "only_stored_scale_final_y": 0.9239726066589355,
+      "ordinal": 81,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239797592163086,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999674523993,
+        1.0,
+        0.9999999674523993
+      ],
+      "only_stored_scale_final_y": 0.9239797592163086,
+      "ordinal": 82,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239850640296936,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999671060497,
+        1.0,
+        0.9999999671060497
+      ],
+      "only_stored_scale_final_y": 0.9239850640296936,
+      "ordinal": 83,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239889979362488,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999668433073,
+        1.0,
+        0.9999999668433073
+      ],
+      "only_stored_scale_final_y": 0.9239889979362488,
+      "ordinal": 84,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.923991858959198,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999666388699,
+        1.0,
+        0.9999999666388699
+      ],
+      "only_stored_scale_final_y": 0.923991858959198,
+      "ordinal": 85,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239940047264099,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999966482764,
+        1.0,
+        0.999999966482764
+      ],
+      "only_stored_scale_final_y": 0.9239940047264099,
+      "ordinal": 86,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239955544471741,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999663583535,
+        1.0,
+        0.9999999663583535
+      ],
+      "only_stored_scale_final_y": 0.9239955544471741,
+      "ordinal": 87,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239967465400696,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999662606941,
+        1.0,
+        0.9999999662606941
+      ],
+      "only_stored_scale_final_y": 0.9239967465400696,
+      "ordinal": 88,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.923997700214386,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999966185523,
+        1.0,
+        0.999999966185523
+      ],
+      "only_stored_scale_final_y": 0.923997700214386,
+      "ordinal": 89,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239983558654785,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999661260781,
+        1.0,
+        0.9999999661260781
+      ],
+      "only_stored_scale_final_y": 0.9239983558654785,
+      "ordinal": 90,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239988327026367,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000503693278,
+        1.0,
+        1.0000000503693278
+      ],
+      "only_stored_scale_final_y": 0.9239988327026367,
+      "ordinal": 91,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239991903305054,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000050329558,
+        1.0,
+        1.000000050329558
+      ],
+      "only_stored_scale_final_y": 0.9239991903305054,
+      "ordinal": 92,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239994287490845,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000502976865,
+        1.0,
+        1.0000000502976865
+      ],
+      "only_stored_scale_final_y": 0.9239994287490845,
+      "ordinal": 93,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239996075630188,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999659826522,
+        1.0,
+        0.9999999659826522
+      ],
+      "only_stored_scale_final_y": 0.9239996075630188,
+      "ordinal": 94,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239997863769531,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999659635075,
+        1.0,
+        0.9999999659635075
+      ],
+      "only_stored_scale_final_y": 0.9239997863769531,
+      "ordinal": 95,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999659475018,
+        1.0,
+        0.9999999659475018
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 96,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240000247955322,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999659343369,
+        1.0,
+        0.9999999659343369
+      ],
+      "only_stored_scale_final_y": 0.9240000247955322,
+      "ordinal": 97,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.924000084400177,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999659237568,
+        1.0,
+        0.9999999659237568
+      ],
+      "only_stored_scale_final_y": 0.924000084400177,
+      "ordinal": 98,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999659135321,
+        1.0,
+        0.9999999659135321
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 99,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000501983302,
+        1.0,
+        1.0000000501983302
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 100,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000501906618,
+        1.0,
+        1.0000000501906618
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 101,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240002036094666,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000501850599,
+        1.0,
+        1.0000000501850599
+      ],
+      "only_stored_scale_final_y": 0.9240002036094666,
+      "ordinal": 102,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999658886103,
+        1.0,
+        0.9999999658886103
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 103,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000501777895,
+        1.0,
+        1.0000000501777895
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 104,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999658814251,
+        1.0,
+        0.9999999658814251
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 105,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 106,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 107,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 108,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 109,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 110,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 111,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 112,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 113,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 114,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 115,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 116,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 117,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 118,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240001440048218,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240001440048218,
+      "ordinal": 119,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240162372589111,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.999999965864457,
+        1.0,
+        0.999999965864457
+      ],
+      "only_stored_scale_final_y": 0.9240162372589111,
+      "ordinal": 120,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215161800384521,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999658402637,
+        1.0,
+        0.9999999658402637
+      ],
+      "only_stored_scale_final_y": 0.9215161204338074,
+      "ordinal": 121,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214998483657837,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000501151773,
+        1.0,
+        1.0000000501151773
+      ],
+      "only_stored_scale_final_y": 0.9214998483657837,
+      "ordinal": 122,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.921500027179718,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999658087084,
+        1.0,
+        0.9999999658087084
+      ],
+      "only_stored_scale_final_y": 0.9214999675750732,
+      "ordinal": 123,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215161204338074,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657982499,
+        1.0,
+        0.9999999657982499
+      ],
+      "only_stored_scale_final_y": 0.9215160608291626,
+      "ordinal": 124,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215317368507385,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657917237,
+        1.0,
+        0.9999999657917237
+      ],
+      "only_stored_scale_final_y": 0.9215316772460938,
+      "ordinal": 125,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240000247955322,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657861068,
+        1.0,
+        0.9999999657861068
+      ],
+      "only_stored_scale_final_y": 0.9240000247955322,
+      "ordinal": 126,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240042567253113,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000500759096,
+        1.0,
+        1.0000000500759096
+      ],
+      "only_stored_scale_final_y": 0.9240042567253113,
+      "ordinal": 127,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214998483657837,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000050072848,
+        1.0,
+        1.000000050072848
+      ],
+      "only_stored_scale_final_y": 0.9214998483657837,
+      "ordinal": 128,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215156435966492,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657771911,
+        1.0,
+        0.9999999657771911
+      ],
+      "only_stored_scale_final_y": 0.9215155839920044,
+      "ordinal": 129,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215156435966492,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000050069215,
+        1.0,
+        1.000000050069215
+      ],
+      "only_stored_scale_final_y": 0.9215156435966492,
+      "ordinal": 130,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.921514630317688,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657744164,
+        1.0,
+        0.9999999657744164
+      ],
+      "only_stored_scale_final_y": 0.9215145707130432,
+      "ordinal": 131,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215155839920044,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.000000050067185,
+        1.0,
+        1.000000050067185
+      ],
+      "only_stored_scale_final_y": 0.9215155839920044,
+      "ordinal": 132,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215024709701538,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000500665283,
+        1.0,
+        1.0000000500665283
+      ],
+      "only_stored_scale_final_y": 0.9215024709701538,
+      "ordinal": 133,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215156435966492,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657725512,
+        1.0,
+        0.9999999657725512
+      ],
+      "only_stored_scale_final_y": 0.9215155839920044,
+      "ordinal": 134,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215497970581055,
+      "current_radius": 0.29999998211860657,
+      "double_same_quaternion_affine_scale": [
+        1.0000000500658515,
+        1.0,
+        1.0000000500658515
+      ],
+      "only_stored_scale_final_y": 0.9215497970581055,
+      "ordinal": 135,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999651908875,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999651908875,
+      "ordinal": 136,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999651908875,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999651908875,
+      "ordinal": 137,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.921503484249115,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215034246444702,
+      "ordinal": 138,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215155839920044,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215154647827148,
+      "ordinal": 139,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999651908875,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999651908875,
+      "ordinal": 140,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215278625488281,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215278029441833,
+      "ordinal": 141,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215510487556458,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.921550989151001,
+      "ordinal": 142,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215044379234314,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215043783187866,
+      "ordinal": 143,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999079704285,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9214998483657837,
+      "ordinal": 144,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999675750732,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9214999079704285,
+      "ordinal": 145,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215937852859497,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215937256813049,
+      "ordinal": 146,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215984344482422,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215983748435974,
+      "ordinal": 147,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240384697914124,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240384697914124,
+      "ordinal": 148,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999079704285,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9214998483657837,
+      "ordinal": 149,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 150,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9216156005859375,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9216155409812927,
+      "ordinal": 151,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215154647827148,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215153455734253,
+      "ordinal": 152,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999079704285,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9214998483657837,
+      "ordinal": 153,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215596318244934,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215595722198486,
+      "ordinal": 154,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215289950370789,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215289354324341,
+      "ordinal": 155,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215310215950012,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215309619903564,
+      "ordinal": 156,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215154051780701,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215153455734253,
+      "ordinal": 157,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215300679206848,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.92153000831604,
+      "ordinal": 158,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215150475502014,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215149879455566,
+      "ordinal": 159,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240000247955322,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240000247955322,
+      "ordinal": 160,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9216534495353699,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9216533899307251,
+      "ordinal": 161,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 162,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215154051780701,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215153455734253,
+      "ordinal": 163,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215162992477417,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215162396430969,
+      "ordinal": 164,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9214999079704285,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9214998483657837,
+      "ordinal": 165,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999055862427,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999055862427,
+      "ordinal": 166,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240052700042725,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240052700042725,
+      "ordinal": 167,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240092039108276,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240092039108276,
+      "ordinal": 168,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240121245384216,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240121245384216,
+      "ordinal": 169,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240142703056335,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240142703056335,
+      "ordinal": 170,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215154051780701,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215153455734253,
+      "ordinal": 171,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9221648573875427,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9221648573875427,
+      "ordinal": 172,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9226459264755249,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9226459264755249,
+      "ordinal": 173,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.923002302646637,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.923002302646637,
+      "ordinal": 174,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9232662916183472,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9232662916183472,
+      "ordinal": 175,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9234618544578552,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9234618544578552,
+      "ordinal": 176,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9236066937446594,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9236066937446594,
+      "ordinal": 177,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9237139821052551,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9237139821052551,
+      "ordinal": 178,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9237934947013855,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9237934947013855,
+      "ordinal": 179,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9238523244857788,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9238523244857788,
+      "ordinal": 180,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9238959550857544,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9238959550857544,
+      "ordinal": 181,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239282608032227,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239282608032227,
+      "ordinal": 182,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239521622657776,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239521622657776,
+      "ordinal": 183,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239699244499207,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239699244499207,
+      "ordinal": 184,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239830374717712,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239830374717712,
+      "ordinal": 185,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239927530288696,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239927530288696,
+      "ordinal": 186,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999651908875,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999651908875,
+      "ordinal": 187,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240052700042725,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240052700042725,
+      "ordinal": 188,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240092039108276,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240092039108276,
+      "ordinal": 189,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240121245384216,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240121245384216,
+      "ordinal": 190,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240142703056335,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240142703056335,
+      "ordinal": 191,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215154051780701,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215153455734253,
+      "ordinal": 192,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9221648573875427,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9221648573875427,
+      "ordinal": 193,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9226459264755249,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9226459264755249,
+      "ordinal": 194,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.923002302646637,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.923002302646637,
+      "ordinal": 195,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9232662916183472,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9232662916183472,
+      "ordinal": 196,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9234618544578552,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9234618544578552,
+      "ordinal": 197,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9236066937446594,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9236066937446594,
+      "ordinal": 198,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9237139821052551,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9237139821052551,
+      "ordinal": 199,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9237934947013855,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9237934947013855,
+      "ordinal": 200,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9238523244857788,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9238523244857788,
+      "ordinal": 201,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9238959550857544,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9238959550857544,
+      "ordinal": 202,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239282608032227,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239282608032227,
+      "ordinal": 203,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239521622657776,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239521622657776,
+      "ordinal": 204,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239699244499207,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239699244499207,
+      "ordinal": 205,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239830374717712,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239830374717712,
+      "ordinal": 206,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239927530288696,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239927530288696,
+      "ordinal": 207,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999651908875,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999651908875,
+      "ordinal": 208,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240052700042725,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240052700042725,
+      "ordinal": 209,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240092039108276,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240092039108276,
+      "ordinal": 210,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240121245384216,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240121245384216,
+      "ordinal": 211,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240142703056335,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240142703056335,
+      "ordinal": 212,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215154051780701,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215153455734253,
+      "ordinal": 213,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9221648573875427,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9221648573875427,
+      "ordinal": 214,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9226459264755249,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9226459264755249,
+      "ordinal": 215,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.923002302646637,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.923002302646637,
+      "ordinal": 216,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9232662916183472,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9232662916183472,
+      "ordinal": 217,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9234618544578552,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9234618544578552,
+      "ordinal": 218,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9236066937446594,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9236066937446594,
+      "ordinal": 219,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9237139821052551,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9237139821052551,
+      "ordinal": 220,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9237934947013855,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9237934947013855,
+      "ordinal": 221,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9238523244857788,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9238523244857788,
+      "ordinal": 222,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9238959550857544,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9238959550857544,
+      "ordinal": 223,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239282608032227,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239282608032227,
+      "ordinal": 224,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239521622657776,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239521622657776,
+      "ordinal": 225,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239699244499207,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239699244499207,
+      "ordinal": 226,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239830374717712,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239830374717712,
+      "ordinal": 227,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239927530288696,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239927530288696,
+      "ordinal": 228,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9239999651908875,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9239999651908875,
+      "ordinal": 229,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240052700042725,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240052700042725,
+      "ordinal": 230,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240092039108276,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240092039108276,
+      "ordinal": 231,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240121245384216,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240121245384216,
+      "ordinal": 232,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9240142703056335,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9240142703056335,
+      "ordinal": 233,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9215154051780701,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9215153455734253,
+      "ordinal": 234,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9221648573875427,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9221648573875427,
+      "ordinal": 235,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9226459264755249,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9226459264755249,
+      "ordinal": 236,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.923002302646637,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.923002302646637,
+      "ordinal": 237,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9232662916183472,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9232662916183472,
+      "ordinal": 238,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    },
+    {
+      "affine_scale": [
+        0.9999999403953552,
+        1.0,
+        0.9999999403953552
+      ],
+      "base_radius": 0.29999998211860657,
+      "current_final_y": 0.9234618544578552,
+      "current_radius": 0.2999999523162842,
+      "double_same_quaternion_affine_scale": [
+        0.9999999657714589,
+        1.0,
+        0.9999999657714589
+      ],
+      "only_stored_scale_final_y": 0.9234618544578552,
+      "ordinal": 239,
+      "stored_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "stored_scale_radius": 0.29999998211860657
+    }
+  ],
+  "source_root_actual_scale_one": 240
+}
