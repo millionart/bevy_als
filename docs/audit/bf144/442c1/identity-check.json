@@ -1,0 +1,8 @@
+{
+  "gate": "PASS_CURRENT396_AND_SIX_LIBRARIES_WITH_OBSERVER_SOURCE_RESTORED",
+  "current_base_files_unchanged": 396,
+  "reader_migration_from_442c0_respected": true,
+  "same_six_actual_libraries_unchanged": true,
+  "original_manual_playground_unchanged": true,
+  "observer_sources_restored": true
+}

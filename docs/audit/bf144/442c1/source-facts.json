@@ -1,0 +1,62 @@
+[
+  {
+    "key": "source:ALSExtras/Private/AlsCharacterExample.cpp",
+    "sha256": "bcfacb62ffc48eb77937c4c9a74ac68d49d8b5a9d687374530c0e72f406cb833",
+    "excerpts": [
+      {
+        "start": 141,
+        "end": 158,
+        "text": "void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)\n{\n\tconst auto Value{UAlsVector::ClampMagnitude012D(ActionValue.Get<FVector2D>())};\n\n\tauto ViewRotation{GetViewState().Rotation};\n\n\tif (IsValid(GetController()))\n\t{\n\t\t// Use exact camera rotation instead of target rotation whenever possible.\n\n\t\tFVector ViewLocation;\n\t\tGetController()->GetPlayerViewPoint(ViewLocation, ViewRotation);\n\t}\n\n\tconst auto ForwardDirection{UAlsVector::AngleToDirectionXY(UE_REAL_TO_FLOAT(ViewRotation.Yaw))};\n\tconst auto RightDirection{UAlsVector::PerpendicularCounterClockwiseXY(ForwardDirection)};\n\n\tAddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/PlayerController.cpp",
+    "sha256": "ecbf4983b6f92370e84a0e80304c5982745533f90f089658fb5ce6551c128d4f",
+    "excerpts": [
+      {
+        "start": 587,
+        "end": 591,
+        "text": "AActor* APlayerController::GetViewTarget() const\n{\n\tAActor* CameraManagerViewTarget = PlayerCameraManager ? PlayerCameraManager->GetViewTarget() : NULL;\n\n\treturn CameraManagerViewTarget ? CameraManagerViewTarget : const_cast<APlayerController*>(this);"
+      },
+      {
+        "start": 1001,
+        "end": 1032,
+        "text": "void APlayerController::GetPlayerViewPoint( FVector& out_Location, FRotator& out_Rotation ) const\n{\n\tif (IsInState(NAME_Spectating) && HasAuthority() && !IsLocalController())\n\t{\n\t\t// Server uses the synced location from clients. Important for view relevancy checks.\n\t\tout_Location = LastSpectatorSyncLocation;\n\t\tout_Rotation = LastSpectatorSyncRotation;\n\t}\n\telse if (PlayerCameraManager != NULL && \n\t\tPlayerCameraManager->GetCameraCacheTime() > 0.f) // Whether camera was updated at least once)\n\t{\n\t\tPlayerCameraManager->GetCameraViewPoint(out_Location, out_Rotation);\n\t}\n\telse\n\t{\n\t\tAActor* TheViewTarget = GetViewTarget();\n\n\t\tif( TheViewTarget != NULL )\n\t\t{\n\t\t\tout_Location = TheViewTarget->GetActorLocation();\n\t\t\tout_Rotation = TheViewTarget->GetActorRotation();\n\t\t}\n\t\telse\n\t\t{\n\t\t\tSuper::GetPlayerViewPoint(out_Location,out_Rotation);\n\t\t}\n\n\t\tout_Location.DiagnosticCheckNaN(*FString::Printf(TEXT(\"APlayerController::GetPlayerViewPoint: out_Location, ViewTarget=%s\"), *GetNameSafe(TheViewTarget)));\n\t\tout_Rotation.DiagnosticCheckNaN(*FString::Printf(TEXT(\"APlayerController::GetPlayerViewPoint: out_Rotation, ViewTarget=%s\"), *GetNameSafe(TheViewTarget)));\n\t}\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/PlayerCameraManager.cpp",
+    "sha256": "f8cd36dd67e1c7defb0008a67c8776c88d925b677c183ecfb585903653e8206e",
+    "excerpts": [
+      {
+        "start": 767,
+        "end": 772,
+        "text": "void APlayerCameraManager::GetCameraViewPoint(FVector& OutCamLoc, FRotator& OutCamRot) const\n{\n\tconst FMinimalViewInfo& CurrentPOV = GetCameraCacheView();\n\tOutCamLoc = CurrentPOV.Location;\n\tOutCamRot = CurrentPOV.Rotation;\n}"
+      }
+    ]
+  },
+  {
+    "key": "src/als_camera/camera_component.rs",
+    "sha256": "9b4520f5742bb94ba0f3aa850d491ce7f57f3078e019a2e245fbeb57dd8a20c4",
+    "excerpts": [
+      {
+        "start": 1001,
+        "end": 1025,
+        "text": "fn publish_player_view_yaw(\n    mut commands: Commands,\n    mut characters: Query<(Entity, Option<&mut crate::als::view::AlsPlayerViewYaw>), With<crate::als::character::AlsCharacter>>,\n    views: Query<(&Camera, Ref<GlobalTransform>, &AlsCharacterCamera), (With<Camera3d>, With<crate::als_camera::AlsCameraViewSource>)>,\n) {\n    for (character, current) in &mut characters {\n        let yaw = views.iter().find_map(|(camera, transform, owner)| {\n            (owner.character == character && camera.is_active && !transform.is_added())\n                .then(|| transform.rotation().to_euler(EulerRot::YXZ).0).filter(|yaw| yaw.is_finite())\n        });\n        match (current, yaw) {\n            (Some(mut current), Some(yaw)) => current.0 = yaw,\n            (None, Some(yaw)) => { commands.entity(character).insert(crate::als::view::AlsPlayerViewYaw(yaw)); }\n            (Some(_), None) => { commands.entity(character).remove::<crate::als::view::AlsPlayerViewYaw>(); }\n            (None, None) => {}\n        }\n    }\n}"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 3070,
+        "end": 3088,
+        "text": "            if *loco != LocomotionState::Air || ragdolling {\n                jump.memory.hold_elapsed = f32::INFINITY;\n            }\n        }\n        let input_blocked = blocked.contains(entity);\n        let effective =\n            movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);\n\n        let move_len = effective.move_dir.length().min(1.0);\n        let world_dir = view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0));\n\n        let desired_forward = roll\n            .filter(|state| state.active)\n            .and_then(|state| Dir3::new(yaw_to_world_forward(state.direction_yaw)).ok())\n            .or_else(|| Dir3::new(gtf.forward().as_vec3()).ok());\n\n        controller.basis = TnuaBuiltinWalk {\n            desired_motion: world_dir * move_len,\n            desired_forward,"
+      }
+    ]
+  }
+]

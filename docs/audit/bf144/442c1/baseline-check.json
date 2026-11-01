@@ -1,0 +1,12 @@
+{
+  "ready_rows": 240,
+  "controlled_fallback_ordinals": [
+    20,
+    21
+  ],
+  "natural_snapshots": 81,
+  "natural_without_published": 2,
+  "natural_without_view_with_nonzero_input": 0,
+  "missing_view_with_later_sampler_eligible_camera": 1,
+  "gate": "PASS_TARGET_NATURAL_AND_CONTROLLED_VIEW_PUBLICATION_LIFECYCLE"
+}

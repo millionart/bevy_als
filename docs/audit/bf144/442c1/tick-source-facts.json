@@ -1,0 +1,33 @@
+{
+  "facts": [
+    {
+      "key": "dependency:bevy_ecs-0.19.1/src/change_detection/traits.rs",
+      "sha256": "258d56a3a0cd356723144d28c8b02f4dbf2504ab319e591164c3e15432f8008e",
+      "excerpts": [
+        {
+          "start": 27,
+          "end": 30,
+          "text": "pub trait DetectChanges {\n    /// Returns `true` if this value was added after the system last ran.\n    fn is_added(&self) -> bool;\n"
+        },
+        {
+          "start": 362,
+          "end": 368,
+          "text": "    ($name:ident < $( $generics:tt ),+ >, $target:ty, $($traits:path)?) => {\n        impl<$($generics),* : ?Sized $(+ $traits)?> DetectChanges for $name<$($generics),*> {\n            #[inline]\n            fn is_added(&self) -> bool {\n                self.is_added_after(self.ticks.last_run)\n            }\n"
+        }
+      ]
+    },
+    {
+      "key": "dependency:bevy_ecs-0.19.1/src/change_detection/params.rs",
+      "sha256": "47dbdd5078700d7ed394bbbfda029fadcd11a101e71c07876247e8d51e3df065",
+      "excerpts": [
+        {
+          "start": 15,
+          "end": 23,
+          "text": "/// to store immutable access to the [`Tick`]s of a single component or resource.\n#[derive(Clone, Copy)]\npub(crate) struct ComponentTicksRef<'w> {\n    pub(crate) added: &'w Tick,\n    pub(crate) changed: &'w Tick,\n    pub(crate) changed_by: MaybeLocation<&'w &'static Location<'static>>,\n    pub(crate) last_run: Tick,\n    pub(crate) this_run: Tick,\n}"
+        }
+      ]
+    }
+  ],
+  "conclusion": "is_added is relative to the querying system last_run; later sampler eligibility cannot prove an earlier publisher observation",
+  "specific_missing_frame_root_cause_claimed": false
+}

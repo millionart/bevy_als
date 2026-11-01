@@ -1,0 +1,38 @@
+{
+  "gate": "PASS_REAL_PLAYGROUND_NATURAL_AND_CONTROLLED_VIEW_LIFECYCLE_AND_RESTORATION",
+  "baseline": {
+    "ready_rows": 240,
+    "controlled_fallback_ordinals": [
+      20,
+      21
+    ],
+    "natural_snapshots": 81,
+    "natural_without_published": 2,
+    "natural_without_view_with_nonzero_input": 0,
+    "missing_view_with_later_sampler_eligible_camera": 1
+  },
+  "restored": {
+    "ready_rows": 240,
+    "controlled_fallback_ordinals": [
+      20,
+      21
+    ],
+    "natural_snapshots": 81,
+    "natural_without_published": 2,
+    "natural_without_view_with_nonzero_input": 0,
+    "missing_view_with_later_sampler_eligible_camera": 1
+  },
+  "self_test": {
+    "rejected": 5
+  },
+  "source_bytes_restored": true,
+  "same_target_game_libraries": true,
+  "controlled_minimal_counterexample_restored_exactly": true,
+  "original_scene_retained": true,
+  "native_source_warm_cache_equivalence_claimed": false,
+  "natural_nonzero_cold_input_claimed": false,
+  "specific_later_eligibility_gap_cause_claimed": false,
+  "new_differences": [],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
