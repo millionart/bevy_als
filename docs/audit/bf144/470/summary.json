@@ -1,0 +1,92 @@
+{
+  "gate": "PASS_ACTUAL684_INITIAL_RELATIVE_SOURCE_QUATERNION_DATA_AND_BASIS_ORDER_FACTORS",
+  "source_values_exact": 684,
+  "current_observed_cache_consumers_exact": 1272,
+  "source_before_first_call_defaults_verified": 10,
+  "initial_relative_cache_lifetime_streams": 10,
+  "source_initial_inputs_and_cache_constant_per_stream": true,
+  "source_after_cache_values_not_injected": true,
+  "complete_data_basis_matrix": {
+    "current_data_current_product": {
+      "double_differences": 684,
+      "f32_differences": 0
+    },
+    "current_data_source_product": {
+      "double_differences": 684,
+      "f32_differences": 0
+    },
+    "source_data_current_product": {
+      "double_differences": 684,
+      "f32_differences": 0
+    },
+    "source_data_source_product": {
+      "double_differences": 0,
+      "f32_differences": 0
+    }
+  },
+  "native_input_data_and_ue_basis_product_both_required": true,
+  "current_common_source_data_contract_rejected": true,
+  "source_basis_and_data_physical_ablations_rejected": true,
+  "unnecessary_handwritten_simd_scalar_formula_removed_after_complete_report_bytes_identical": true,
+  "existing_library_product_qualified_only_in_this_initial_input_domain": true,
+  "no_general_product_or_calf_angle_equivalence_claimed": true,
+  "source_bytes_restored_same_target_recompiled_complete_matrix_bytes_exact": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/469/inputs.json",
+      "bytes": 3882164,
+      "sha256": "9d8fe882d306191092a8aef9f6d8d739b7ed0886e5b1d18d73dc6f31946c7bbd"
+    },
+    {
+      "path": "docs/audit/bf144/469a/restored.native.json.gz",
+      "bytes": 35098372,
+      "sha256": "b267f874d6dfdd64c1b836e725ba2b361a31b383b32614d27a43cf26472776db"
+    },
+    {
+      "path": "docs/audit/bf144/469a/controls-restored.native.json.gz",
+      "bytes": 1598744,
+      "sha256": "78dc4cc2b5c1a4f13905be9ad77774a725c50e2ee002d3633f7d1e256a0a382d"
+    },
+    {
+      "path": "docs/audit/bf144/469a/reader-migration.json",
+      "bytes": 442,
+      "sha256": "ccc9200daab679a772d2c27f4e86b89805dadca0709fb433c2a334dc1b4ee6cb"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_contract.py",
+      "bytes": 32819,
+      "sha256": "826062415d612532949ed8aec987fd80b188acf27fa52327231b3dd486776d82"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+      "bytes": 28928,
+      "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "known_differences": [
+    "D242",
+    "D163"
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_reader_engine_converters_source_assets_unchanged": true,
+  "full_foot_rotation_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Source current and target calf-space quaternion chains, quaternion-to-Euler source primitives and angle limits, then final quaternion and full Rig feedback",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

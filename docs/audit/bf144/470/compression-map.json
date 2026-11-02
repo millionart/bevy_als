@@ -1,0 +1,8 @@
+{
+  "rig.native.json": {
+    "compressed": "rig.native.json.gz",
+    "raw_bytes": 20439701,
+    "raw_sha256": "588125435b7dde1d273f06837f76199f5843b8204a00a1ab99753d3205bd570b",
+    "compressed_sha256": "47882a9f9d15ca6914843d1eee107c60088dfdf280e8a626e205525c34c23d2a"
+  }
+}

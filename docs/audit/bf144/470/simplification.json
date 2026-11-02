@@ -1,0 +1,8 @@
+{
+  "gate": "PASS_REMOVE_REDUNDANT_HANDWRITTEN_PRODUCT_IN_INITIAL_RELATIVE_FIXTURE",
+  "native_source_values": 684,
+  "complete_data_operator_matrix_byte_identical": true,
+  "initial_input_domain_only": true,
+  "all_quaternion_input_domain_equivalence_claimed": false,
+  "handwritten_neon_swizzle_product_removed": true
+}
