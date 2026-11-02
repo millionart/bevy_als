@@ -1,0 +1,6 @@
+{
+  "complete_native_outputs_and_all_factor_stage_reports_byte_equal_before_unused_variant_removal": true,
+  "duplicate_source_euler_and_handwritten_quaternion_product_removed": true,
+  "unused_euler_factor_variant_removed": true,
+  "general_quaternion_domain_equivalence_not_claimed": true
+}
