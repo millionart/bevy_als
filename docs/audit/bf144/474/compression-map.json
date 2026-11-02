@@ -1,0 +1,44 @@
+{
+  "replay-baseline.json": {
+    "raw_bytes": 91549046,
+    "raw_sha256": "a15b3590726a9ffc3df69e947fb41c6a63bc84c7fd7cce37efa8e1be69e1a986",
+    "compressed": "replay-baseline.json.gz",
+    "compressed_sha256": "a78e1b07c3a183c2e4e881799bd2596d5606d29b421a4dc95dc8cc70ede9a3cc"
+  },
+  "replay-explicit-product.json": {
+    "raw_bytes": 91549046,
+    "raw_sha256": "a15b3590726a9ffc3df69e947fb41c6a63bc84c7fd7cce37efa8e1be69e1a986",
+    "compressed": "replay-explicit-product.json.gz",
+    "compressed_sha256": "a78e1b07c3a183c2e4e881799bd2596d5606d29b421a4dc95dc8cc70ede9a3cc"
+  },
+  "replay-no-clean-cache.json": {
+    "raw_bytes": 91554127,
+    "raw_sha256": "43a36e76cfd1b93f335ee069fae9d7d4834db5293822b437c719369779470b80",
+    "compressed": "replay-no-clean-cache.json.gz",
+    "compressed_sha256": "457c70eddabb5f44ad2e5ae7e010d5cdd662bf7877ad04e4f7db190f30e52818"
+  },
+  "replay-positive-scale.json": {
+    "raw_bytes": 4961385,
+    "raw_sha256": "ae75825a17ea0be921ce65fbd16f8ee54eb552fedd5b7a4ded52ce5bddc54549",
+    "compressed": "replay-positive-scale.json.gz",
+    "compressed_sha256": "6e737ec9a178d0197b08aeb616fe14756706284b77791c7cfd8c7452906953ca"
+  },
+  "replay-restored.json": {
+    "raw_bytes": 91549046,
+    "raw_sha256": "a15b3590726a9ffc3df69e947fb41c6a63bc84c7fd7cce37efa8e1be69e1a986",
+    "compressed": "replay-restored.json.gz",
+    "compressed_sha256": "a78e1b07c3a183c2e4e881799bd2596d5606d29b421a4dc95dc8cc70ede9a3cc"
+  },
+  "replay-vectorized.json": {
+    "raw_bytes": 4964825,
+    "raw_sha256": "1ca18caa5272c9fd797918f7148ec7504d49c7e7deb9dc9674eb104078bf4a46",
+    "compressed": "replay-vectorized.json.gz",
+    "compressed_sha256": "04f54df7dd67439dd854b93e2081392b6082dc230d4ca5a9d22e193acb5dbb37"
+  },
+  "rig.native.json": {
+    "raw_bytes": 20439701,
+    "raw_sha256": "a65ab60308791ae73a38888284df19435a86c729e589a5f2223162993b0c6a4c",
+    "compressed": "rig.native.json.gz",
+    "compressed_sha256": "3c95eba529c699f033b097417bc65a0a9bb6ea66065c042ac34521dea83589ee"
+  }
+}

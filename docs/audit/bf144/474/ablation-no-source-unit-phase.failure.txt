@@ -1,0 +1,6 @@
+
+thread 'main' (2766758) panicked at docs/audit/bf144/474/replay.rs:28:493:
+assertion `left == right` failed
+  left: RigTransform { rotation: DQuat(-0.11873583527555806, 0.07117258323764068, -0.04295466911537016, 0.9894398218789268), translation: DVec3(-0.40196689605712904, 3.636069223489358e-11, 4.85722573273506e-17), scale: DVec3(1.0, 1.0, 1.0) }
+ right: RigTransform { rotation: DQuat(-0.11873583527555806, 0.07117258323764068, -0.04295466911537016, 0.9894398218789268), translation: DVec3(-0.40196689605712904, 3.6360745525598757e-11, 3.552713678800501e-17), scale: DVec3(1.0, 1.0, 1.0) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

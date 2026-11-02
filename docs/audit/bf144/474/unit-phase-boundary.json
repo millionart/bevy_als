@@ -1,0 +1,43 @@
+{
+  "gate": "CONFIRMED_SOURCE_CENTIMETER_AND_RUNTIME_METER_F64_PHASE_BOUNDARY",
+  "double_different_calls": 693,
+  "first": {
+    "dataset": "actual",
+    "case": "actual319-reference-0",
+    "query": 1,
+    "foot": "foot_l",
+    "same_product_normalizer_simd_other_inputs": true,
+    "meter_double_result": [
+      -0.40196689605712904,
+      3.636069223489358e-11,
+      4.85722573273506e-17
+    ],
+    "source_cm_result_then_meters": [
+      -0.40196689605712904,
+      3.6360745525598757e-11,
+      3.552713678800501e-17
+    ],
+    "native_local": {
+      "rotation": {
+        "w": 0.9894398218789268,
+        "x": 0.11873583527555806,
+        "y": 0.04295466911537016,
+        "z": -0.07117258323764068
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "translation": {
+        "x": -40.196689605712905,
+        "y": 3.552713678800501e-15,
+        "z": 3.636074552559876e-09
+      }
+    }
+  },
+  "f32_changed_calls": 691,
+  "no_float32_cast_or_float32_export_coefficient_in_this_control": true,
+  "separate_difference_number_not_assigned": true,
+  "classification_requires_reconciling_existing_numeric_space_boundary": true
+}

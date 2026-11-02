@@ -1,0 +1,121 @@
+[
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Tools/ControlRigPoseAdapter.cpp",
+    "sha256": "3d7fa9e2c6cefec02b4a49f26b6da44e494da1cb948f670e7346b5c7f4af84b9",
+    "excerpts": [
+      {
+        "start": 386,
+        "end": 399,
+        "text": "void FControlRigPoseAdapter::ConvertToLocalPose()\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tcheck(ParentPoseIndices.Num() == GlobalPose.Num());\n\tLocalPose.SetNum(GlobalPose.Num());\n\n\tif (URigHierarchy* Hierarchy = GetHierarchy())\n\t{\n\t\tfor (int32 Index = 0; Index < ParentPoseIndices.Num(); Index++)\n\t\t{\n\t\t\t(void)GetLocalTransform(Index);\n\t\t}\n\t}"
+      },
+      {
+        "start": 415,
+        "end": 452,
+        "text": "}\n\nconst FTransform& FControlRigPoseAdapter::GetLocalTransform(int32 InIndex)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tcheck(LocalPose.IsValidIndex(InIndex));\n\tcheck(LocalPoseIsDirty.IsValidIndex(InIndex));\n\tcheck(ParentPoseIndices.IsValidIndex(InIndex));\n\tcheck(RequiresHierarchyForSpaceConversion.IsValidIndex(InIndex));\n\n\tURigHierarchy* Hierarchy = GetHierarchy();\n\tcheck(Hierarchy);\n\n\tif (LocalPoseIsDirty[InIndex])\n\t{\n\t\tcheck(GlobalPoseIsDirty[InIndex] == false);\n\t\tif (RequiresHierarchyForSpaceConversion[InIndex] && PoseIndexToElementIndex.IsValidIndex(InIndex))\n\t\t{\n\t\t\tLocalPose[InIndex] = Hierarchy->GetLocalTransformByIndex(PoseIndexToElementIndex[InIndex]);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = ParentPoseIndices[InIndex];\n\t\t\tif (!ParentIndex.IsValid())\n\t\t\t{\n\t\t\t\tLocalPose[InIndex] = GetGlobalTransform(InIndex);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tLocalPose[InIndex] = GetGlobalTransform(InIndex).GetRelativeTransform(GetGlobalTransform(ParentIndex.GetInt()));\n\t\t\t}\n\t\t\tLocalPose[InIndex].NormalizeRotation();\n\t\t}\n\t\tLocalPoseIsDirty[InIndex] = false;\n\t}\n\treturn LocalPose[InIndex];\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Tools/ControlRigHierarchyMappings.cpp",
+    "sha256": "b0c576355c3da09e109164c724d23ffd323c317b28923c1c89e45fa515e2243f",
+    "excerpts": [
+      {
+        "start": 326,
+        "end": 369,
+        "text": "void FControlRigHierarchyMappings::UpdateOutput(UControlRig* ControlRig\n\t, FPoseContext& InOutput\n\t, const FControlRigIOSettings& InOutputSettings\n\t, TWeakObjectPtr<UNodeMappingContainer>& InNodeMappingContainer\n\t, bool bInExecute\n\t, bool bInTransferPoseInGlobalSpace)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tURigHierarchy* Hierarchy = ControlRig->GetHierarchy();\n\tif (!IsValid(Hierarchy))\n\t{\n\t\treturn;\n\t}\n\n\tif (bEnablePoseAdapter)\n\t{\n\t\tif (InOutputSettings.bUpdatePose)\n\t\t{\n\t\t\tif (PoseAdapter)\n\t\t\t{\n\t\t\t\t// make sure the local respectively global transforms are all ready\n\t\t\t\tif (PoseAdapter->GetTransferInLocalSpace())\n\t\t\t\t{\n\t\t\t\t\tPoseAdapter->ConvertToLocalPose();\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tPoseAdapter->ConvertToGlobalPose();\n\t\t\t\t}\n\n\t\t\t\t// if we transfered in global - let's convert back to local\n\t\t\t\tif (!PoseAdapter->GetTransferInLocalSpace())\n\t\t\t\t{\n\t\t\t\t\tif (PoseAdapter->GetGlobalPose().Num() == InOutput.Pose.GetNumBones())\n\t\t\t\t\t{\n\t\t\t\t\t\tPoseAdapter->ConvertToLocalPose();\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tInOutput.Pose.CopyBonesFrom(PoseAdapter->GetLocalPose());\n\t\t\t}\n\t\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Rigs/RigHierarchy.cpp",
+    "sha256": "f21bd47e50d483e53751a37a84139d5ae2156d7c72eb24481e2313dd0315de34",
+    "excerpts": [
+      {
+        "start": 5324,
+        "end": 5334,
+        "text": "\t\t\telse\n\t\t\t{\n\t\t\t\tParentTransform = GetParentTransform(InTransformElement, GlobalType);\n\n\t\t\t\tFTransform NewTransform = InTransformElement->GetTransform().Get(OpposedType).GetRelativeTransform(ParentTransform);\n\t\t\t\tNewTransform.NormalizeRotation();\n\t\t\t\tCompensateZeroScale(NewTransform);\n\t\t\t\tInTransformElement->GetTransform().Set(InTransformType, NewTransform);\n\t\t\t\tInTransformElement->GetDirtyState().MarkClean(InTransformType);\n\t\t\t}\n\t\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Private/Math/Transform.cpp",
+    "sha256": "4cec8f99d844d9c431f52c6725864ee21c842a7c311e40da949a09e5f565f257",
+    "excerpts": [
+      {
+        "start": 7,
+        "end": 11,
+        "text": "#include \"Math/Transform.h\"\n\n#if !ENABLE_VECTORIZED_TRANSFORM\n\n#include \"Misc/DefaultValueHelper.h\""
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Private/Math/TransformVectorized.cpp",
+    "sha256": "a8f400c15b1ef5e3ffe377b9fba63dcc8a8b06a4b08664fa18c8e606be5c020c",
+    "excerpts": [
+      {
+        "start": 205,
+        "end": 261,
+        "text": "TTransform<T> TTransform<T>::GetRelativeTransform(const TTransform<T>& Other) const\n{\n\t// A * B(-1) = VQS(B)(-1) (VQS (A))\n\t// \n\t// Scale = S(A)/S(B)\n\t// Rotation = Q(B)(-1) * Q(A)\n\t// Translation = 1/S(B) *[Q(B)(-1)*(T(A)-T(B))*Q(B)]\n\t// where A = this, B = Other\n\tTTransform<T> Result;\n\t\t\n\tif (Other.IsRotationNormalized() == false)\n\t{\n\t\treturn TTransform<T>::Identity;\n\t}\n\n\tif (Private_AnyHasNegativeScale(this->Scale3D, Other.Scale3D))\n\t{\n\t\t// @note, if you have 0 scale with negative, you're going to lose rotation as it can't convert back to quat\n\t\tGetRelativeTransformUsingMatrixWithScale(&Result, this, &Other);\n\t}\n\telse\n\t{\n\t\t// Scale = S(A)/S(B)\n\t\tstatic ScalarRegister STolerance(UE_SMALL_NUMBER);\n\t\tTransformVectorRegister VSafeScale3D = VectorSet_W0(GetSafeScaleReciprocal(Other.Scale3D, STolerance));\n\n\t\tTransformVectorRegister VScale3D = VectorMultiply(Scale3D, VSafeScale3D);\n\n\t\t//VQTranslation = (  ( T(A).X - T(B).X ),  ( T(A).Y - T(B).Y ), ( T(A).Z - T(B).Z), 0.f );\n\t\tTransformVectorRegister VQTranslation = VectorSet_W0(VectorSubtract(Translation, Other.Translation));\n\n\t\t// Inverse RotatedTranslation\n\t\tTransformVectorRegister VInverseRot = VectorQuaternionInverse(Other.Rotation);\n\t\tTransformVectorRegister VR = VectorQuaternionRotateVector(VInverseRot, VQTranslation);\n\n\t\t//Translation = 1/S(B)\n\t\tTransformVectorRegister VTranslation = VectorMultiply(VR, VSafeScale3D);\n\n\t\t// Rotation = Q(B)(-1) * Q(A)\t\n\t\tTransformVectorRegister VRotation = VectorQuaternionMultiply2(VInverseRot, Rotation);\n\n\t\tResult.Scale3D = VScale3D;\n\t\tResult.Translation = VTranslation;\n\t\tResult.Rotation = VRotation;\n\n\t\tResult.DiagnosticCheckNaN_All();\n#if DEBUG_INVERSE_TRANSFORM\n\t\tTMatrix<T> AM = ToMatrixWithScale();\n\t\tTMatrix<T> BM = Other.ToMatrixWithScale();\n\n\t\tResult.DebugEqualMatrix(AM *  BM.InverseFast());\n#endif\n\t}\n\n\treturn Result;\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorCommon.h.inl",
+    "sha256": "5f43e189d66b68c76ed29bda5713e8daa1fdf3201a76efee2fa9251d4fc01293",
+    "excerpts": [
+      {
+        "start": 765,
+        "end": 779,
+        "text": "FORCEINLINE VectorRegister4Double VectorQuaternionRotateVector(VectorRegister4Double Quat, VectorRegister4Double VectorW0)\n{\n\tconst VectorRegister4Double QW = VectorReplicate(Quat, 3);\n\tVectorRegister4Double T = VectorCross(Quat, VectorW0);\n\tT = VectorAdd(T, T);\n\tconst VectorRegister4Double VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);\n\tconst VectorRegister4Double VTemp1 = VectorCross(Quat, T);\n\tconst VectorRegister4Double Rotated = VectorAdd(VTemp0, VTemp1);\n\treturn Rotated;\n}\n\n/**\n * Rotate a vector using the inverse of a unit Quaternion (rotation in the opposite direction).\n *\n * @param Quat Unit Quaternion to use for rotation."
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathNeon.h",
+    "sha256": "bfcba580c7c1f4b39dd6d4b45390d5db64c6f63c3579ef645f83ea19dc6a4b7c",
+    "excerpts": [
+      {
+        "start": 939,
+        "end": 968,
+        "text": "FORCEINLINE VectorRegister4Double VectorMultiplyAdd(VectorRegister4Double Vec1, VectorRegister4Double Vec2, VectorRegister4Double Acc)\n{\n\tVectorRegister4Double Result;\n\tResult.XY = vfmaq_f64(Acc.XY, Vec1.XY, Vec2.XY);\n\tResult.ZW = vfmaq_f64(Acc.ZW, Vec1.ZW, Vec2.ZW);\n\treturn Result;\n}\n\n/**\n * Multiplies two vectors (component-wise) and subtracts the result from the third vector.\n *\n * @param Vec1\t1st vector\n * @param Vec2\t2nd vector\n * @param Sub\t3rd vector\n * @return\t\tVectorRegister4Float( Sub.x - Vec1.x*Vec2.x, Sub.y - Vec1.y*Vec2.y, Sub.z - Vec1.z*Vec2.z, Sub.w - Vec1.w*Vec2.w )\n */\nFORCEINLINE VectorRegister4Float VectorNegateMultiplyAdd(VectorRegister4Float Vec1, VectorRegister4Float Vec2, VectorRegister4Float Sub)\n{\n\treturn vfmsq_f32(Sub, Vec1, Vec2);\n}\n\nFORCEINLINE VectorRegister4Double VectorNegateMultiplyAdd(VectorRegister4Double Vec1, VectorRegister4Double Vec2, VectorRegister4Double Sub)\n{\n\tVectorRegister4Double Result;\n\tResult.XY = vfmsq_f64(Sub.XY, Vec1.XY, Vec2.XY);\n\tResult.ZW = vfmsq_f64(Sub.ZW, Vec1.ZW, Vec2.ZW);\n\treturn Result;\n}\n\n"
+      },
+      {
+        "start": 1582,
+        "end": 1589,
+        "text": "FORCEINLINE VectorRegister4Double VectorCross(VectorRegister4Double Vec1, VectorRegister4Double Vec2)\n{\n\tVectorRegister4Double C = VectorMultiply(Vec1, VectorSwizzle(Vec2, 1, 2, 0, 3));\n\tC = VectorNegateMultiplyAdd(VectorSwizzle(Vec1, 1, 2, 0, 3), Vec2, C);\n\tC = VectorSwizzle(C, 1, 2, 0, 3);\n\treturn C;\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+    "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+    "excerpts": [
+      {
+        "start": 1404,
+        "end": 1420,
+        "text": "\t[[nodiscard]] static inline TransformVectorRegister\tGetSafeScaleReciprocal(TransformVectorRegister InScale, const ScalarRegister& Tolerance = ScalarRegister(GlobalVectorConstants::SmallNumber))\n\t{\t\t\n\t\t// SafeReciprocalScale.X = (InScale.X == 0) ? 0.f : 1/InScale.X; // same for YZW\n\n\t\t/// TransformVectorRegister( 1.0f / InScale.x, 1.0f / InScale.y, 1.0f / InScale.z, 1.0f / InScale.w )\n\t\tconst TransformVectorRegister ReciprocalScale = VectorReciprocalAccurate(InScale);\n\t\t\n\t\t//TransformVectorRegister( Vec1.x == Vec2.x ? 0xFFFFFFFF : 0, same for yzw )\n\t\tconst TransformVectorRegister ScaleZeroMask = VectorCompareGE(TransformVectorRegister(Tolerance.Value), VectorAbs(InScale));\n\n\t\t//const TransformVectorRegister ScaleZeroMask = VectorCompareEQ(InScale, VectorZero());\n\n\t\t// TransformVectorRegister( for each bit i: Mask[i] ? Vec1[i] : Vec2[i] )\n\t\tconst TransformVectorRegister SafeReciprocalScale = VectorSelect(ScaleZeroMask, VectorZero(), ReciprocalScale);\n\n\t\treturn SafeReciprocalScale;\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "src/control_rig/control_rig_hierarchy.rs",
+    "sha256": "851498e0a3fd6f52d3c8e47764c4dfb7d2a7f225a48e36faa6e25a00ab578efd",
+    "excerpts": [
+      {
+        "start": 181,
+        "end": 202,
+        "text": "        if (1.0 - parent.rotation.length_squared()).abs() > 0.01_f32 as f64 {\n            return Self::default();\n        }\n        let reciprocal = parent.scale_reciprocal();\n        let scale = self.scale * reciprocal;\n        if self.scale.min_element() < 0.0 || parent.scale.min_element() < 0.0 {\n            let matrix = parent.matrix();\n            let zero_axes = [matrix.x_axis, matrix.y_axis, matrix.z_axis]\n                .iter()\n                .all(|axis| axis.truncate().abs().max_element() <= 1e-8_f32 as f64);\n            let inverse = if zero_axes || matrix.determinant() == 0.0 {\n                DMat4::IDENTITY\n            } else {\n                matrix.inverse()\n            };\n            return Self::from_matrix(inverse * self.matrix(), scale);\n        }\n        let inverse_rotation = parent.rotation.conjugate();\n        Self {\n            rotation: rig_normalize(inverse_rotation * self.rotation),\n            translation: (inverse_rotation * (self.translation - parent.translation)) * reciprocal,\n            scale,"
+      },
+      {
+        "start": 304,
+        "end": 313,
+        "text": "    pub fn set_input_pose(&mut self, local: &[RigTransform]) -> Result<(), String> {\n        if local.len() != self.bones.len() {\n            return Err(\"rig input pose size does not match the hierarchy\".to_owned());\n        }\n        for (pose, &transform) in self.current.iter_mut().zip(local) {\n            pose.local = transform;\n            pose.dirty = Some(RigSpace::Global);\n        }\n        Ok(())\n    }"
+      },
+      {
+        "start": 325,
+        "end": 355,
+        "text": "    pub fn transform(\n        &mut self,\n        index: usize,\n        space: RigSpace,\n        initial: bool,\n    ) -> Result<RigTransform, String> {\n        let pose = *self.pose(index, initial)?;\n        if pose.dirty == Some(space) {\n            let parent = if let Some(parent) = self.bones[index].parent {\n                self.transform(parent, RigSpace::Global, initial)?\n            } else {\n                RigTransform::default()\n            };\n            let transform = match space {\n                RigSpace::Local => {\n                    let mut local = pose.global.relative(parent);\n                    if local.scale.abs().min_element() <= 1e-8\n                        && parent.scale.abs().min_element() <= 1e-8\n                    {\n                        local.translation = pose.local.translation;\n                        local.scale = pose.local.scale;\n                    }\n                    local\n                }\n                RigSpace::Global => pose.local.global(parent),\n            };\n            let pose = self.pose(index, initial)?;\n            match space {\n                RigSpace::Local => pose.local = transform,\n                RigSpace::Global => pose.global = transform,\n            }"
+      }
+    ]
+  }
+]

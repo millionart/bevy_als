@@ -1,0 +1,133 @@
+{
+  "gate": "PASS_FOOT_GLOBAL_TO_LOCAL_NATIVE_DIRTY_COMMON_PRIMITIVES_AND_ACTUAL_INPUT_MATRIX",
+  "native_local_endpoints_exact": 696,
+  "source_dirty_recomputations": 694,
+  "source_clean_input_local_retained": 2,
+  "branch_selected_only_from_exact_native_dirty_metadata": true,
+  "common_current_relative_and_public_clean_getter_qualified": true,
+  "actual_current_public_locals_exact": 1272,
+  "source_actual_full_endpoints_exact": 1272,
+  "actual_data_math_records": 81408,
+  "common_math_records": 11136,
+  "all_source_scale_positive_above_small_number": true,
+  "zero_or_negative_scale_and_full_descendants_not_claimed": true,
+  "common_current_f32_local_differences": 694,
+  "common_current_f32_rotation_differences": 1,
+  "common_source_product_removed_double_differences": 674,
+  "common_source_normalizer_removed_double_differences": 605,
+  "source_unit_phase_double_position_differences": 693,
+  "source_unit_phase_f32_position_differences": 691,
+  "unit_phase_control_f64_without_f32_cast_or_export_coefficient": true,
+  "unit_phase_boundary_persisted_and_number_classification_still_open": true,
+  "unit_phase_not_falsely_attributed_to_float_quantization": true,
+  "known_consumer_paths": [
+    "D163",
+    "D248",
+    "D247"
+  ],
+  "actual_original_and_trace_control_local_f32_differences": [
+    636,
+    636
+  ],
+  "upstream_actual_ik_pose_producer_still_open": true,
+  "explicit_product_reference_requalified_full_new_domain_then_duplicate_deleted": true,
+  "physical_clean_cache_vector_fma_and_unit_phase_removals_rejected": true,
+  "source_bytes_restored_same_target_recompiled_all_report_bytes_exact": true,
+  "initial_invalid_unit_roundtrip_unity_scale_and_scalar_models_preserved_not_accepted": true,
+  "current396_reader474a_and_six_libraries_unchanged": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/474a/reader-migration.json",
+      "bytes": 497,
+      "sha256": "f486ece869fd2658f4b9bfeab54ac8bef82f7bbed4e60c74634bd3739007a529"
+    },
+    {
+      "path": "docs/audit/bf144/474a/table-restored.json",
+      "bytes": 779008,
+      "sha256": "827ccf9ced514bc8de48c059f113f24dcf45262a6e87fb416749126e41e161de"
+    },
+    {
+      "path": "docs/audit/bf144/474a/table-weights-restored.json",
+      "bytes": 36181,
+      "sha256": "acefc1b0f3cf0201058f14e0488cf90ad5738dc9b5f2259cd0a323f93fe12650"
+    },
+    {
+      "path": "docs/audit/bf144/474a/weights.request.json",
+      "bytes": 593230,
+      "sha256": "59bacb673e39d6cfd4a218412809066b79f89f0cae3a2e9ccd748a02635eccd4"
+    },
+    {
+      "path": "docs/audit/bf144/473/inputs.json",
+      "bytes": 569088,
+      "sha256": "594023e1158ec250f28dd3e964f6ad27fe40b52a827b71ac739e5ade6ee2cd54"
+    },
+    {
+      "path": "docs/audit/bf144/473/actual.json",
+      "bytes": 1697294,
+      "sha256": "531a375c965c5bf2effc7046bf75250f14fac9bfba2b0ad355611362751c26ec"
+    },
+    {
+      "path": "docs/audit/bf144/473/replay-baseline.json.gz",
+      "bytes": 7804186,
+      "sha256": "697429e5d72de23459bd35c481b8ca7b65140693a1cd44cfe8bc3c2395249770"
+    },
+    {
+      "path": "docs/audit/bf144/473/weights.native.json.gz",
+      "bytes": 1817270,
+      "sha256": "c4a8b9087d82503ce40a4606f29bce5b1374f89023791f8e31607227e8c17cee"
+    },
+    {
+      "path": "docs/audit/bf144/469a/restored.native.json.gz",
+      "bytes": 35098372,
+      "sha256": "b267f874d6dfdd64c1b836e725ba2b361a31b383b32614d27a43cf26472776db"
+    },
+    {
+      "path": "docs/audit/bf144/469/inputs.json",
+      "bytes": 3882164,
+      "sha256": "9d8fe882d306191092a8aef9f6d8d739b7ed0886e5b1d18d73dc6f31946c7bbd"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.rs",
+      "bytes": 8499,
+      "sha256": "70f84d0005783acdb3a463785cfc2b954afa44bde75fe44d91992ab7e22fde70"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.prototype.rs",
+      "bytes": 9178,
+      "sha256": "944da5fb7c569d86a0a2cfa8835993619d1d9a17565fcf566cadfbff54cc0007"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_contract.py",
+      "bytes": 32819,
+      "sha256": "826062415d612532949ed8aec987fd80b188acf27fa52327231b3dd486776d82"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+      "bytes": 28928,
+      "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_engine_converters_source_assets_unchanged": true,
+  "reader_changed_only_in_committed474a_prerequisite": true,
+  "full_rig_or_root_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "next_boundary": "Classify confirmed F64 unit-phase local boundary against existing number-space evidence; audit earlier actual IK pose producer and full descendant hierarchy"
+}
