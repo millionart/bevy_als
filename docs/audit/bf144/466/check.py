@@ -1,0 +1,20 @@
+import json
+import struct
+from pathlib import Path
+
+r=Path(__file__).resolve().parent;report=json.loads((r/'replay-baseline.json').read_bytes());domains=report['domains'];assert[mode['mode']for mode in domains]==[0,1,2,3];assert all(len(mode['outputs'])==636 for mode in domains)
+f32=lambda x:struct.unpack('f',struct.pack('f',x))[0]
+inputs=json.loads((r/'inputs.json').read_bytes())['rows'];parent=json.loads(Path('docs/audit/bf144/465/replay-restored.json').read_bytes())['modes'];cause_rows=0
+counts=dict(current_offset_differences=0,trace_control_offset_differences=0,common_meter_offset_differences=0,current_target_differences=0,trace_control_target_differences=0,common_meter_velocity_differences=0,common_meter_state_differences=0);first={};table=[]
+for actual,original,control,cm,meter in zip(inputs,*[mode['outputs']for mode in domains],strict=True):
+ key=(original['query'],original['pc']);assert all((row['query'],row['pc'])==key for row in[control,cm,meter]);assert original['complete_actual_exact']and control['complete_actual_exact']and cm['source_native_exact']
+ source=cm['after'];expected=dict(offset=f32(source['offset']*.01),state=[f32(source['state'][0]*.01),f32(source['state'][1]*.01),source['state'][2]],initialized=source['initialized']);expected_target=f32(cm['target']*.01);assert meter['target']==expected_target
+ src=actual['source_arguments_after'];before=control['before'];assert before[3]['F32']==f32(src[3]*.01);assert src[4]==parent[2]['outputs'][key[0]]['after'][8]['F32'];assert before[4]==parent[1]['outputs'][key[0]]['after'][8]
+ pelvis_height=f32(actual['target_domains'][1]['bones_before'][0][1]['translation'][1]);maximum=f32(f32(pelvis_height-before[6]['F32'])-f32(before[2]['Vector'][1]));assert control['target']==max(min(before[3]['F32'],maximum),before[4]['F32']);restored_target=max(min(before[3]['F32'],maximum),f32(src[4]*.01));assert restored_target==expected_target,(key,restored_target,expected_target);cause_rows+=1
+ scalar=lambda row:row['after'][15]['F32'];changes=dict(current_offset_differences=scalar(original)!=expected['offset'],trace_control_offset_differences=scalar(control)!=expected['offset'],common_meter_offset_differences=meter['after']['offset']!=expected['offset'],current_target_differences=original['target']!=expected_target,trace_control_target_differences=control['target']!=expected_target,common_meter_velocity_differences=meter['after']['state'][0]!=expected['state'][0],common_meter_state_differences=meter['after']['state']!=expected['state'])
+ for name,changed in changes.items():
+  counts[name]+=changed
+  if changed and name not in first:first[name]=dict(query=key[0],pc=key[1],source_cm=source,source_projected=expected,current=original['after'][14:16],trace_control=control['after'][14:16],common_meter=meter['after'],source_projected_target=expected_target,current_target=original['target'],trace_control_target=control['target'])
+ table.append(dict(query=key[0],pc=key[1],source_cm=source,source_projected=expected,current=original['after'][14:16],trace_control=control['after'][14:16],common_meter=meter['after'],source_projected_target=expected_target,current_target=original['target'],trace_control_target=control['target'],changed=changes))
+assert counts['common_meter_offset_differences']>0
+(r/'comparison.json').write_text(json.dumps(dict(gate='PASS_ACTUAL636_FOOT_SCALAR_NATIVE_CM_PUBLIC_HISTORIES_AND_UNIT_DOMAIN_CONTROL',actual_source_cm_initialized_offset_and_complete_state_exact=636,source_trace_projected_offset_and_parent465_pelvis_input_links_exact=cause_rows,all_control_target_differences_derive_from_existing_pelvis_unit_domain_difference=True,public_original_and_trace_control_complete_arguments_and_foot_location_exact=1272,first_initial_scene_frame_foot_location_not_executed=True,independent_continuous_histories=True,known_differences=['D165'],counts=counts,first=first,final_leg_vector_source_equivalence_claimed=False,new_differences=[]),indent=2)+'\n');(r/'comparison-table.json').write_text(json.dumps(table,separators=(',',':'))+'\n');print(json.dumps(counts),flush=True)
