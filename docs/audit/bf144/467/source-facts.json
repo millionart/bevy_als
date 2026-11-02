@@ -1,0 +1,151 @@
+[
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Math/ControlRigMathLibrary.cpp",
+    "sha256": "e5c45c8c8cba751d11c06d305edfb7b553aa3108765403ff2c05bba6054ccdc2",
+    "excerpts": [
+      {
+        "start": 6,
+        "end": 18,
+        "text": "void FControlRigMathLibrary::SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& BoneB, FTransform& Effector, const FVector& PoleVector, const FVector& PrimaryAxis, const FVector& SecondaryAxis, float SecondaryAxisWeight, float BoneALength, float BoneBLength, bool bEnableStretch, float StretchStartRatio, float StretchMaxRatio)\n{\n\tFVector RootPos = BoneA.GetLocation();\n\tFVector ElbowPos = BoneB.GetLocation();\n\tFVector EffectorPos = Effector.GetLocation();\n\n\tAnimationCore::SolveTwoBoneIK(RootPos, ElbowPos, EffectorPos, PoleVector, EffectorPos, ElbowPos, EffectorPos, BoneALength, BoneBLength, bEnableStretch, StretchStartRatio, StretchMaxRatio);\n\n\tBoneB.SetLocation(ElbowPos);\n\tEffector.SetLocation(EffectorPos);\n\n\tFVector Axis = BoneA.TransformVectorNoScale(PrimaryAxis);\n\tFVector Target1 = BoneB.GetLocation() - BoneA.GetLocation();"
+      },
+      {
+        "start": 30,
+        "end": 56,
+        "text": "\t\t\t{\n\t\t\t\tbIsFullyExtended = true;\n\t\t\t}\n\t\t}\n\t\t\n\t\tFQuat Rotation1 = FQuat::FindBetweenNormals(Axis, Target1);\n\t\tBoneA.SetRotation((Rotation1 * BoneA.GetRotation()).GetNormalized());\n\n\t\tAxis = BoneA.TransformVectorNoScale(SecondaryAxis);\n\n\t\tif (SecondaryAxisWeight > SMALL_NUMBER)\n\t\t{\n\t\t\tFVector Target2 =  bIsFullyExtended ? PoleVector - RootPos : BoneBLocation - (Effector.GetLocation() + BoneA.GetLocation()) * 0.5f;\n\t\t\tif (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())\n\t\t\t{\n\t\t\t\tTarget2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;\n\t\t\t\tTarget2 = Target2.GetSafeNormal();\n\n\t\t\t\tFQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);\n\t\t\t\tif (!FMath::IsNearlyEqual(SecondaryAxisWeight, 1.f))\n\t\t\t\t{\n\t\t\t\t\tFVector RotationAxis = Rotation2.GetRotationAxis();\n\t\t\t\t\tfloat RotationAngle = Rotation2.GetAngle();\n\t\t\t\t\tRotation2 = FQuat(RotationAxis, RotationAngle * FMath::Clamp<float>(SecondaryAxisWeight, 0.f, 1.f));\n\t\t\t\t}\n\t\t\t\tBoneA.SetRotation((Rotation2 * BoneA.GetRotation()).GetNormalized());\n\t\t\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Units/Highlevel/Hierarchy/RigUnit_TwoBoneIKSimple.cpp",
+    "sha256": "9ee2c5ae9a909ae4871d94537bdd7c66fc25e9d1add6b2bd6829d8835ef582e8",
+    "excerpts": [
+      {
+        "start": 143,
+        "end": 155,
+        "text": "\t\t{\n\t\t\tPoleTarget = PoleVectorSpaceTransform.TransformPositionNoScale(PoleTarget);\n\t\t}\n\t}\n\n\tFTransform TransformA = Hierarchy->GetGlobalTransform(CachedItemAIndex);\n\tFTransform TransformB = TransformA;\n\tTransformB.SetLocation(Hierarchy->GetGlobalTransform(CachedItemBIndex).GetLocation());\n\tFTransform TransformC = Effector;\n\n\tfloat LengthA = ItemALength;\n\tfloat LengthB = ItemBLength;\n"
+      },
+      {
+        "start": 186,
+        "end": 189,
+        "text": "\t}\n\n\tFControlRigMathLibrary::SolveBasicTwoBoneIK(TransformA, TransformB, TransformC, PoleTarget, PrimaryAxis, SecondaryAxis, SecondaryAxisWeight, LengthA, LengthB, bEnableStretch, StretchStartRatio, StretchMaximumRatio);\n"
+      },
+      {
+        "start": 200,
+        "end": 220,
+        "text": "\tif (Weight < 1.0f - SMALL_NUMBER)\n\t{\n\t\tFVector PositionB = TransformA.InverseTransformPosition(TransformB.GetLocation());\n\t\tFVector PositionC = TransformB.InverseTransformPosition(TransformC.GetLocation());\n\t\tTransformA.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedItemAIndex).GetRotation(), TransformA.GetRotation(), Weight));\n\t\tTransformB.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedItemBIndex).GetRotation(), TransformB.GetRotation(), Weight));\n\t\tif(CachedEffectorItemIndex != INDEX_NONE)\n\t\t{\n\t\t\tTransformC.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedEffectorItemIndex).GetRotation(), TransformC.GetRotation(), Weight));\n\t\t}\n\t\tTransformB.SetLocation(TransformA.TransformPosition(PositionB));\n\t\tTransformC.SetLocation(TransformB.TransformPosition(PositionC));\n\t}\n\n\tHierarchy->SetGlobalTransform(CachedItemAIndex, TransformA, bPropagateToChildren);\n\tHierarchy->SetGlobalTransform(CachedItemBIndex, TransformB, bPropagateToChildren);\n\tif(CachedEffectorItemIndex != INDEX_NONE)\n\t{\n\t\tHierarchy->SetGlobalTransform(CachedEffectorItemIndex, TransformC, bPropagateToChildren);\n\t}\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/AnimNode_ControlRigBase.cpp",
+    "sha256": "45f8cd1bd28528c6bc571b59608d7c6ebdc010d1005a211b8bfc30cf09ecf394",
+    "excerpts": [
+      {
+        "start": 153,
+        "end": 169,
+        "text": "void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_ControlRig_UpdateOutput);\n\n\tif(!CanExecute())\n\t{\n\t\treturn;\n\t}\n\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tControlRigHierarchyMappings.UpdateOutput(ControlRig\n\t\t, InOutput\n\t\t, OutputSettings\n\t\t, NodeMappingContainer\n\t\t, bExecute\n\t\t, bTransferPoseInGlobalSpace);"
+      },
+      {
+        "start": 172,
+        "end": 228,
+        "text": "void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tFPoseContext SourcePose(Output);\n\n\tif (Source.GetLinkNode())\n\t{\n\t\tSource.Evaluate(SourcePose);\n\t}\n\telse\n\t{\n\t\t// apply refpose\n\t\tSourcePose.ResetToRefPose();\n\t}\n\n\tExecuteConstructionIfNeeded();\n\n\tif(!ControlRigHierarchyMappings.CheckPoseAdapter())\n\t{\n\t\tOutput = SourcePose;\n\t\tensureMsgf(false, TEXT(\"At this point the pose adapter needs to be set!\"));\n\t\treturn;\n\t}\n\n\tif (CanExecute() && FAnimWeight::IsRelevant(InternalBlendAlpha) && GetControlRig())\n\t{\n\t\tif (FAnimWeight::IsFullWeight(InternalBlendAlpha))\n\t\t{\n\t\t\tExecuteControlRig(SourcePose);\n\t\t\tOutput = SourcePose;\n\t\t}\n\t\telse \n\t\t{\n\t\t\t// this blends additively - by weight\n\t\t\tFPoseContext ControlRigPose(SourcePose);\n\t\t\tControlRigPose = SourcePose;\n\t\t\tExecuteControlRig(ControlRigPose);\n\n\t\t\tFPoseContext AdditivePose(ControlRigPose);\n\t\t\tAdditivePose = ControlRigPose;\n\t\t\tFAnimationRuntime::ConvertPoseToAdditive(AdditivePose.Pose, SourcePose.Pose);\n\t\t\tAdditivePose.Curve.ConvertToAdditive(SourcePose.Curve);\n\t\t\tOutput = SourcePose;\n\n\t\t\tUE::Anim::Attributes::ConvertToAdditive(SourcePose.CustomAttributes, AdditivePose.CustomAttributes);\n\n\t\t\tFAnimationPoseData BaseAnimationPoseData(Output);\n\t\t\tconst FAnimationPoseData AdditiveAnimationPoseData(AdditivePose);\n\t\t\tFAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, InternalBlendAlpha, AAT_LocalSpaceBase);\n\t\t}\n\t}\n\telse // if not relevant, skip to run control rig\n\t\t// this may cause issue if we have simulation node in the control rig that accumulates time\n\t{\n\t\tOutput = SourcePose;\n\t}"
+      },
+      {
+        "start": 303,
+        "end": 330,
+        "text": "\t\t\t}\n\n\t\t\t// evaluate control rig\n\t\t\tUpdateGetAssetUserDataDelegate(ControlRig);\n\t\t\tControlRig->Evaluate_AnyThread();\n\n#if ENABLE_ANIM_DEBUG \n\t\t\t// When Control Rig is at editing time (in CR editor), draw instructions are consumed by ControlRigEditMode, so we need to skip drawing here.\n\t\t\tbool bShowDebug = (CVarAnimNodeControlRigDebug.GetValueOnAnyThread() == 1 && ControlRig->ExecutionType != ERigExecutionType::Editing);\n\n\t\t\tif (bShowDebug)\n\t\t\t{ \n\t\t\t\tQueueControlRigDrawInstructions(ControlRig, InOutput.AnimInstanceProxy);\n\t\t\t}\n#endif\n\n#if WITH_EDITOR\n\t\t\tif(Hierarchy->IsTracingChanges())\n\t\t\t{\n\t\t\t\tHierarchy->StorePoseForTrace(TEXT(\"FAnimNode_ControlRigBase::AfterEvaluate\"));\n\t\t\t}\n#endif\n\t\t}\n\n\t\t// now update output\n\t\tUpdateOutput(ControlRig, InOutput);\n\t\tInOutput.CustomAttributes.CopyFrom(MeshAttributeContainer, InOutput.Pose.GetBoneContainer());\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Tools/ControlRigHierarchyMappings.cpp",
+    "sha256": "b0c576355c3da09e109164c724d23ffd323c317b28923c1c89e45fa515e2243f",
+    "excerpts": [
+      {
+        "start": 326,
+        "end": 369,
+        "text": "void FControlRigHierarchyMappings::UpdateOutput(UControlRig* ControlRig\n\t, FPoseContext& InOutput\n\t, const FControlRigIOSettings& InOutputSettings\n\t, TWeakObjectPtr<UNodeMappingContainer>& InNodeMappingContainer\n\t, bool bInExecute\n\t, bool bInTransferPoseInGlobalSpace)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tURigHierarchy* Hierarchy = ControlRig->GetHierarchy();\n\tif (!IsValid(Hierarchy))\n\t{\n\t\treturn;\n\t}\n\n\tif (bEnablePoseAdapter)\n\t{\n\t\tif (InOutputSettings.bUpdatePose)\n\t\t{\n\t\t\tif (PoseAdapter)\n\t\t\t{\n\t\t\t\t// make sure the local respectively global transforms are all ready\n\t\t\t\tif (PoseAdapter->GetTransferInLocalSpace())\n\t\t\t\t{\n\t\t\t\t\tPoseAdapter->ConvertToLocalPose();\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tPoseAdapter->ConvertToGlobalPose();\n\t\t\t\t}\n\n\t\t\t\t// if we transfered in global - let's convert back to local\n\t\t\t\tif (!PoseAdapter->GetTransferInLocalSpace())\n\t\t\t\t{\n\t\t\t\t\tif (PoseAdapter->GetGlobalPose().Num() == InOutput.Pose.GetNumBones())\n\t\t\t\t\t{\n\t\t\t\t\t\tPoseAdapter->ConvertToLocalPose();\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tInOutput.Pose.CopyBonesFrom(PoseAdapter->GetLocalPose());\n\t\t\t}\n\t\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Tools/ControlRigPoseAdapter.cpp",
+    "sha256": "3d7fa9e2c6cefec02b4a49f26b6da44e494da1cb948f670e7346b5c7f4af84b9",
+    "excerpts": [
+      {
+        "start": 386,
+        "end": 492,
+        "text": "void FControlRigPoseAdapter::ConvertToLocalPose()\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tcheck(ParentPoseIndices.Num() == GlobalPose.Num());\n\tLocalPose.SetNum(GlobalPose.Num());\n\n\tif (URigHierarchy* Hierarchy = GetHierarchy())\n\t{\n\t\tfor (int32 Index = 0; Index < ParentPoseIndices.Num(); Index++)\n\t\t{\n\t\t\t(void)GetLocalTransform(Index);\n\t\t}\n\t}\n}\nvoid FControlRigPoseAdapter::ConvertToGlobalPose()\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tcheck(ParentPoseIndices.Num() == LocalPose.Num());\n\tGlobalPose.SetNum(LocalPose.Num());\n\n\tif (URigHierarchy* Hierarchy = GetHierarchy())\n\t{\n\t\tfor (int32 Index = 0; Index < ParentPoseIndices.Num(); Index++)\n\t\t{\n\t\t\t(void)GetGlobalTransform(Index);\n\t\t}\n\t}\n}\n\nconst FTransform& FControlRigPoseAdapter::GetLocalTransform(int32 InIndex)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tcheck(LocalPose.IsValidIndex(InIndex));\n\tcheck(LocalPoseIsDirty.IsValidIndex(InIndex));\n\tcheck(ParentPoseIndices.IsValidIndex(InIndex));\n\tcheck(RequiresHierarchyForSpaceConversion.IsValidIndex(InIndex));\n\n\tURigHierarchy* Hierarchy = GetHierarchy();\n\tcheck(Hierarchy);\n\n\tif (LocalPoseIsDirty[InIndex])\n\t{\n\t\tcheck(GlobalPoseIsDirty[InIndex] == false);\n\t\tif (RequiresHierarchyForSpaceConversion[InIndex] && PoseIndexToElementIndex.IsValidIndex(InIndex))\n\t\t{\n\t\t\tLocalPose[InIndex] = Hierarchy->GetLocalTransformByIndex(PoseIndexToElementIndex[InIndex]);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = ParentPoseIndices[InIndex];\n\t\t\tif (!ParentIndex.IsValid())\n\t\t\t{\n\t\t\t\tLocalPose[InIndex] = GetGlobalTransform(InIndex);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tLocalPose[InIndex] = GetGlobalTransform(InIndex).GetRelativeTransform(GetGlobalTransform(ParentIndex.GetInt()));\n\t\t\t}\n\t\t\tLocalPose[InIndex].NormalizeRotation();\n\t\t}\n\t\tLocalPoseIsDirty[InIndex] = false;\n\t}\n\treturn LocalPose[InIndex];\n}\n\nconst FTransform& FControlRigPoseAdapter::GetGlobalTransform(int32 InIndex)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tcheck(GlobalPose.IsValidIndex(InIndex));\n\tcheck(GlobalPoseIsDirty.IsValidIndex(InIndex));\n\tcheck(ParentPoseIndices.IsValidIndex(InIndex));\n\tcheck(RequiresHierarchyForSpaceConversion.IsValidIndex(InIndex));\n\n\tURigHierarchy* Hierarchy = GetHierarchy();\n\tcheck(Hierarchy);\n\n\tif (GlobalPoseIsDirty[InIndex])\n\t{\n\t\tcheck(LocalPoseIsDirty[InIndex] == false);\n\t\tif (RequiresHierarchyForSpaceConversion[InIndex] && PoseIndexToElementIndex.IsValidIndex(InIndex))\n\t\t{\n\t\t\tGlobalPose[InIndex] = Hierarchy->GetGlobalTransformByIndex(PoseIndexToElementIndex[InIndex]);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = ParentPoseIndices[InIndex];\n\t\t\tif (!ParentIndex.IsValid())\n\t\t\t{\n\t\t\t\tGlobalPose[InIndex] = GetLocalTransform(InIndex);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tGlobalPose[InIndex] = GetLocalTransform(InIndex) * GetGlobalTransform(ParentIndex.GetInt());\n\t\t\t}\n\t\t\tGlobalPose[InIndex].NormalizeRotation();\n\t\t}\n\t\tGlobalPoseIsDirty[InIndex] = false;\n\t}\n\treturn GlobalPose[InIndex];\n}\n\nvoid FControlRigPoseAdapter::UpdateDirtyStates(const TOptional<bool> InLocalIsPrimary)\n{"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Public/Tools/ControlRigPoseAdapter.h",
+    "sha256": "20d4f2212bddb70da8083cf8be4492d4ded48d4f4d29a370fbc71c29eaf7f2c5",
+    "excerpts": [
+      {
+        "start": 34,
+        "end": 44,
+        "text": "\n\tconst TArray<FTransform>& GetLocalPose() const\n\t{\n\t\treturn LocalPose;\n\t}\n\n\tconst TArray<FTransform>& GetGlobalPose() const\n\t{\n\t\treturn GlobalPose;\n\t}\n"
+      },
+      {
+        "start": 108,
+        "end": 114,
+        "text": "\t};\n\n\tTArray<FCompactPoseBoneIndex> ParentPoseIndices;\n\tTArray<bool> RequiresHierarchyForSpaceConversion;\n\tTArray<FTransform> LocalPose;\n\tTArray<FTransform> GlobalPose;\n\tTArray<bool> LocalPoseIsDirty;"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Public/BonePose.h",
+    "sha256": "a8949ff9807d79cdd5592bceb024fef7ca311fe6ef041756a3b5b02b6a863c8c",
+    "excerpts": [
+      {
+        "start": 43,
+        "end": 100,
+        "text": "template<class BoneIndexType, typename InAllocator>\nstruct FBasePose\n{\npublic:\n\tinline void InitBones(int32 NumBones) { Bones.Reset(NumBones); Bones.AddUninitialized(NumBones); }\n\n\tinline int32 GetNumBones() const { return Bones.Num(); }\n\n\tinline bool IsValidIndex(const BoneIndexType& BoneIndex) const\n\t{\n\t\treturn Bones.IsValidIndex(BoneIndex.GetInt());\n\t}\n\n\tinline FTransform& operator[](const BoneIndexType& BoneIndex)\n\t{ \n\t\treturn Bones[BoneIndex.GetInt()];\n\t}\n\n\tinline const FTransform& operator[] (const BoneIndexType& BoneIndex) const\n\t{\n\t\treturn Bones[BoneIndex.GetInt()];\n\t}\n\n\tinline TArrayView<FTransform> GetMutableBones()\n\t{\n\t\treturn TArrayView<FTransform>(Bones);\n\t}\n\n\t//Bone Index Iteration\n\ttemplate<typename PoseType, typename IterType>\n\tstruct FRangedForSupport\n\t{\n\t\tconst PoseType& Pose;\n\n\t\tFRangedForSupport(const PoseType& InPose) : Pose(InPose) {};\n\t\t\n\t\tIterType begin() { return Pose.MakeBeginIter(); }\n\t\tIterType end() { return Pose.MakeEndIter(); }\n\t};\n\n\ttemplate<typename PoseType, typename IterType>\n\tstruct FRangedForReverseSupport\n\t{\n\t\tconst PoseType& Pose;\n\n\t\tFRangedForReverseSupport(const PoseType& InPose) : Pose(InPose) {};\n\n\t\tIterType begin() { return Pose.MakeBeginIterReverse(); }\n\t\tIterType end() { return Pose.MakeEndIterReverse(); }\n\t};\n\n\tconst TArray<FTransform, InAllocator>& GetBones() const { return Bones; }\n\n\tTArray<FTransform, InAllocator>&& MoveBones() { return MoveTemp(Bones); }\n\nprotected:\n\tTArray<FTransform, InAllocator> Bones;\n};"
+      },
+      {
+        "start": 343,
+        "end": 350,
+        "text": "\tconst FBoneContainer* BoneContainer;\n};\n\nstruct FCompactPose : public FBaseCompactPose<FAnimStackAllocator>\n{\n\t// Sets every bone transform to Identity\n\tENGINE_API void ResetToAdditiveIdentity();\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Public/Rigs/RigHierarchy.h",
+    "sha256": "74cfc4eb1db29d7bf018a7396db2ab2d026f584483ad0383d08df84b90db1cef",
+    "excerpts": [
+      {
+        "start": 2179,
+        "end": 2202,
+        "text": "\t */\n\tUFUNCTION(BlueprintCallable, Category = URigHierarchy)\n    FTransform GetLocalTransform(FRigElementKey InKey, bool bInitial = false) const\n\t{\n\t\treturn GetLocalTransformByIndex(GetIndex(InKey), bInitial);\n\t}\n\n\t/**\n\t * Returns the local current or initial value for a element index.\n\t * If the index is invalid FTransform::Identity will be returned.\n\t * @param InElementIndex The index to retrieve the transform for\n\t * @param bInitial If true the initial transform will be used\n\t * @return The local current or initial transform's value.\n\t */\n\tUFUNCTION(BlueprintCallable, Category = URigHierarchy)\n\tFTransform GetLocalTransformByIndex(int32 InElementIndex, bool bInitial = false) const\n\t{\n\t\tif(Elements.IsValidIndex(InElementIndex))\n\t\t{\n\t\t\tif(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Elements[InElementIndex]))\n\t\t\t{\n\t\t\t\treturn GetTransform(TransformElement, bInitial ? ERigTransformType::InitialLocal : ERigTransformType::CurrentLocal);\n\t\t\t}\n\t\t}"
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "335601b7a0dab0c44f2d13e9b6b2ce48f179861b7795f9bf880fcad3211f339a",
+    "excerpts": [
+      {
+        "start": 168,
+        "end": 176,
+        "text": "TSharedRef<FJsonObject> CaptureTransform(const FTransform& Transform)\n{\n    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();\n    Value->SetObjectField(TEXT(\"translation\"), CaptureVector(Transform.GetTranslation()));\n    Value->SetObjectField(TEXT(\"rotation\"), CaptureQuaternion(Transform.GetRotation()));\n    Value->SetObjectField(TEXT(\"scale\"), CaptureVector(Transform.GetScale3D()));\n    return Value;\n}\n"
+      },
+      {
+        "start": 1863,
+        "end": 1901,
+        "text": "TSharedRef<FJsonObject> CaptureRigHierarchy(const URigHierarchy* Hierarchy, bool bCaptureCurrentGlobalTransforms = false)\n{\n    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();\n    TArray<TSharedPtr<FJsonValue>> Elements;\n    for (const FRigElementKey& Key : Hierarchy->GetAllKeys())\n    {\n        TSharedRef<FJsonObject> Element = MakeShared<FJsonObject>();\n        Element->SetStringField(TEXT(\"name\"), Key.Name.ToString());\n        Element->SetStringField(TEXT(\"type\"), StaticEnum<ERigElementType>()->GetNameStringByValue(static_cast<int64>(Key.Type)));\n        if (Key.Type == ERigElementType::Curve)\n        {\n            Element->SetBoolField(TEXT(\"value_set\"), Hierarchy->IsCurveValueSet(Key));\n            Element->SetNumberField(TEXT(\"value\"), Hierarchy->GetCurveValue(Key));\n        }\n        Elements.Add(MakeShared<FJsonValueObject>(Element));\n    }\n    Value->SetArrayField(TEXT(\"elements\"), Elements);\n    Value->SetNumberField(TEXT(\"element_count\"), Hierarchy->Num());\n    TArray<TSharedPtr<FJsonValue>> Bones;\n    for (const FRigElementKey& Key : Hierarchy->GetBoneKeys())\n    {\n        TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();\n        Bone->SetStringField(TEXT(\"name\"), Key.Name.ToString());\n        Bone->SetStringField(TEXT(\"parent\"), Hierarchy->GetFirstParent(Key).Name.ToString());\n        Bone->SetObjectField(TEXT(\"initial_global_transform\"), CaptureTransform(Hierarchy->GetInitialGlobalTransform(Key)));\n        Bone->SetObjectField(TEXT(\"initial_local_transform\"), CaptureTransform(Hierarchy->GetInitialLocalTransform(Key)));\n        if (bCaptureCurrentGlobalTransforms)\n        {\n            Bone->SetObjectField(TEXT(\"current_global_transform\"), CaptureTransform(Hierarchy->GetGlobalTransform(Key)));\n        }\n        Bones.Add(MakeShared<FJsonValueObject>(Bone));\n    }\n    Value->SetArrayField(TEXT(\"bones\"), Bones);\n    return Value;\n}\n\nTSharedRef<FJsonObject> CaptureSkeletalMesh(const USkeletalMesh* Mesh)\n{\n    const FReferenceSkeleton& ReferenceSkeleton = Mesh->GetRefSkeleton();"
+      },
+      {
+        "start": 5124,
+        "end": 5141,
+        "text": "    const TArray<TSharedPtr<FJsonValue>>* Cases = nullptr;\n    if (Interface == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||\n        !Request->TryGetStringField(TEXT(\"node_guid\"), GuidTextValue) || !FGuid::Parse(GuidTextValue, Guid) || !Guid.IsValid() ||\n        !Request->TryGetStringField(TEXT(\"mesh_asset\"), MeshPath) || !Request->TryGetArrayField(TEXT(\"bone_names\"), Names) ||\n        !Request->TryGetArrayField(TEXT(\"cases\"), Cases) || Cases->IsEmpty() || Cases->Num() > 32) { return nullptr; }\n    bool bCaptureFloatSpringState = false;\n    if (Request->HasField(TEXT(\"capture_float_spring_state\")) &&\n        (!Request->HasTypedField<EJson::Boolean>(TEXT(\"capture_float_spring_state\")) || !Request->TryGetBoolField(TEXT(\"capture_float_spring_state\"), bCaptureFloatSpringState))) { return nullptr; }\n    bool bCaptureCurrentHierarchy = false;\n    if (Request->HasField(TEXT(\"capture_current_hierarchy\")) &&\n        (!Request->HasTypedField<EJson::Boolean>(TEXT(\"capture_current_hierarchy\")) || !Request->TryGetBoolField(TEXT(\"capture_current_hierarchy\"), bCaptureCurrentHierarchy))) { return nullptr; }\n    USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, *MeshPath);\n    if (MeshAsset == nullptr || MeshAsset->GetSkeleton() != Interface->GetTargetSkeleton()) { return nullptr; }\n    const FReferenceSkeleton& Reference = MeshAsset->GetRefSkeleton();\n    if (Names->Num() != Reference.GetNum()) { return nullptr; }\n    TArray<FBoneIndexType> Bones;\n    for (int32 Index = 0; Index < Names->Num(); ++Index)\n    {"
+      },
+      {
+        "start": 5324,
+        "end": 5333,
+        "text": "            const FRigVMMemoryStorageStruct* Work = Rig->GetVM()->GetWorkMemory(Rig->GetRigVMExtendedExecuteContext());\n            if (Work == nullptr) { return nullptr; }\n            Row->SetObjectField(TEXT(\"work_after\"), CaptureRigMemory(*Work, Rig, bCaptureFloatSpringState));\n            if (bCaptureCurrentHierarchy) { Row->SetObjectField(TEXT(\"hierarchy_after\"), CaptureRigHierarchy(Rig->GetHierarchy(), true)); }\n            Row->SetArrayField(TEXT(\"executions\"), Executions);\n            Executions.Reset();\n            Rows.Add(MakeShared<FJsonValueObject>(Row));\n            UE_LOG(LogAlsGraphSourceReader, Display, TEXT(\"Rig node history %s frame %d/%d captured.\"), *CaseName, Rows.Num(), Frames->Num());\n        }\n        TSharedRef<FJsonObject> CaseRow = MakeShared<FJsonObject>();"
+      }
+    ]
+  }
+]

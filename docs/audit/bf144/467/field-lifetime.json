@@ -1,0 +1,316 @@
+{
+  "gate": "PASS_SOURCE_IK_ROOT_TRANSLATION_PRESERVED_AND_NO_LATER_ANCESTOR_WRITE",
+  "qualified_call_fields": 1272,
+  "source_scope": "Only thigh translation; preserve rotation and scale mutation boundary",
+  "representatives": [
+    {
+      "query": 1,
+      "pc": 83,
+      "thigh": "thigh_l",
+      "later_writers": [
+        {
+          "pc": 91,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_l",
+            "calf_l",
+            "foot_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 100,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_l"
+        },
+        {
+          "pc": 121,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_r",
+            "calf_r",
+            "foot_r"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 130,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_r"
+        },
+        {
+          "pc": 139,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_l",
+            "lowerarm_l",
+            "hand_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 146,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_r",
+            "lowerarm_r",
+            "hand_r"
+          ],
+          "root_translation_preserved": true
+        }
+      ],
+      "field": "translation",
+      "rotation_and_scale_not_qualified": true
+    },
+    {
+      "query": 1,
+      "pc": 113,
+      "thigh": "thigh_r",
+      "later_writers": [
+        {
+          "pc": 121,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_r",
+            "calf_r",
+            "foot_r"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 130,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_r"
+        },
+        {
+          "pc": 139,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_l",
+            "lowerarm_l",
+            "hand_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 146,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_r",
+            "lowerarm_r",
+            "hand_r"
+          ],
+          "root_translation_preserved": true
+        }
+      ],
+      "field": "translation",
+      "rotation_and_scale_not_qualified": true
+    },
+    {
+      "query": 106,
+      "pc": 83,
+      "thigh": "thigh_l",
+      "later_writers": [
+        {
+          "pc": 91,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_l",
+            "calf_l",
+            "foot_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 100,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_l"
+        },
+        {
+          "pc": 121,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_r",
+            "calf_r",
+            "foot_r"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 130,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_r"
+        },
+        {
+          "pc": 139,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_l",
+            "lowerarm_l",
+            "hand_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 146,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_r",
+            "lowerarm_r",
+            "hand_r"
+          ],
+          "root_translation_preserved": true
+        }
+      ],
+      "field": "translation",
+      "rotation_and_scale_not_qualified": true
+    },
+    {
+      "query": 106,
+      "pc": 113,
+      "thigh": "thigh_r",
+      "later_writers": [
+        {
+          "pc": 121,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_r",
+            "calf_r",
+            "foot_r"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 130,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_r"
+        },
+        {
+          "pc": 139,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_l",
+            "lowerarm_l",
+            "hand_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 146,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_r",
+            "lowerarm_r",
+            "hand_r"
+          ],
+          "root_translation_preserved": true
+        }
+      ],
+      "field": "translation",
+      "rotation_and_scale_not_qualified": true
+    },
+    {
+      "query": 318,
+      "pc": 83,
+      "thigh": "thigh_l",
+      "later_writers": [
+        {
+          "pc": 91,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_l",
+            "calf_l",
+            "foot_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 100,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_l"
+        },
+        {
+          "pc": 121,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_r",
+            "calf_r",
+            "foot_r"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 130,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_r"
+        },
+        {
+          "pc": 139,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_l",
+            "lowerarm_l",
+            "hand_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 146,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_r",
+            "lowerarm_r",
+            "hand_r"
+          ],
+          "root_translation_preserved": true
+        }
+      ],
+      "field": "translation",
+      "rotation_and_scale_not_qualified": true
+    },
+    {
+      "query": 318,
+      "pc": 113,
+      "thigh": "thigh_r",
+      "later_writers": [
+        {
+          "pc": 121,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "thigh_r",
+            "calf_r",
+            "foot_r"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 130,
+          "function": "FRigUnit_SetRotation::Execute",
+          "key": "foot_r"
+        },
+        {
+          "pc": 139,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_l",
+            "lowerarm_l",
+            "hand_l"
+          ],
+          "root_translation_preserved": true
+        },
+        {
+          "pc": 146,
+          "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+          "keys": [
+            "upperarm_r",
+            "lowerarm_r",
+            "hand_r"
+          ],
+          "root_translation_preserved": true
+        }
+      ],
+      "field": "translation",
+      "rotation_and_scale_not_qualified": true
+    }
+  ]
+}

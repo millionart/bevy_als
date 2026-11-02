@@ -1,0 +1,16 @@
+{
+  "gate": "PASS_ACTUAL_CURRENT_HIERARCHY_READONLY_CAPTURE_AND_FIELD_LIFETIME",
+  "frames": 638,
+  "compact_local_bones_exact": 50402,
+  "thigh_translation_call_fields_qualified": 1272,
+  "whole_old_probe_exact_after_removing_snapshot_and_instance_hash": true,
+  "current_global_bone_transforms": 50402,
+  "redundant_current_local_removed_without_losing_compact_local_data": false,
+  "complete_global_snapshot_exact_prototype": true,
+  "source_pelvis_current_height_within_source_write_skip_interval": true,
+  "whole_thigh_transform_at_call_not_claimed": true,
+  "source_vm_or_assets_not_modified": true,
+  "new_differences": [],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

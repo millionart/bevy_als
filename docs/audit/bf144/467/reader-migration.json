@@ -1,0 +1,7 @@
+{
+  "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp": {
+    "before_sha256": "2d922838a63e72ad53e8068f1c9a2dab86bdd0345ade00786db2888835d58cd2",
+    "after_sha256": "335601b7a0dab0c44f2d13e9b6b2ce48f179861b7795f9bf880fcad3211f339a",
+    "reason": "Strict opt-in actual current global hierarchy capture; reuse existing native local pose and keep default exports unchanged"
+  }
+}

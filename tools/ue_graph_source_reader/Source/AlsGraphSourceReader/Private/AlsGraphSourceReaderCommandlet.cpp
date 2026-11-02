@@ -1860,7 +1860,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
     return Result;
 }
 
-TSharedRef<FJsonObject> CaptureRigHierarchy(const URigHierarchy* Hierarchy)
+TSharedRef<FJsonObject> CaptureRigHierarchy(const URigHierarchy* Hierarchy, bool bCaptureCurrentGlobalTransforms = false)
 {
     TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
     TArray<TSharedPtr<FJsonValue>> Elements;
@@ -1886,6 +1886,10 @@ TSharedRef<FJsonObject> CaptureRigHierarchy(const URigHierarchy* Hierarchy)
         Bone->SetStringField(TEXT("parent"), Hierarchy->GetFirstParent(Key).Name.ToString());
         Bone->SetObjectField(TEXT("initial_global_transform"), CaptureTransform(Hierarchy->GetInitialGlobalTransform(Key)));
         Bone->SetObjectField(TEXT("initial_local_transform"), CaptureTransform(Hierarchy->GetInitialLocalTransform(Key)));
+        if (bCaptureCurrentGlobalTransforms)
+        {
+            Bone->SetObjectField(TEXT("current_global_transform"), CaptureTransform(Hierarchy->GetGlobalTransform(Key)));
+        }
         Bones.Add(MakeShared<FJsonValueObject>(Bone));
     }
     Value->SetArrayField(TEXT("bones"), Bones);
@@ -5125,6 +5129,9 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
     bool bCaptureFloatSpringState = false;
     if (Request->HasField(TEXT("capture_float_spring_state")) &&
         (!Request->HasTypedField<EJson::Boolean>(TEXT("capture_float_spring_state")) || !Request->TryGetBoolField(TEXT("capture_float_spring_state"), bCaptureFloatSpringState))) { return nullptr; }
+    bool bCaptureCurrentHierarchy = false;
+    if (Request->HasField(TEXT("capture_current_hierarchy")) &&
+        (!Request->HasTypedField<EJson::Boolean>(TEXT("capture_current_hierarchy")) || !Request->TryGetBoolField(TEXT("capture_current_hierarchy"), bCaptureCurrentHierarchy))) { return nullptr; }
     USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, *MeshPath);
     if (MeshAsset == nullptr || MeshAsset->GetSkeleton() != Interface->GetTargetSkeleton()) { return nullptr; }
     const FReferenceSkeleton& Reference = MeshAsset->GetRefSkeleton();
@@ -5317,6 +5324,7 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
             const FRigVMMemoryStorageStruct* Work = Rig->GetVM()->GetWorkMemory(Rig->GetRigVMExtendedExecuteContext());
             if (Work == nullptr) { return nullptr; }
             Row->SetObjectField(TEXT("work_after"), CaptureRigMemory(*Work, Rig, bCaptureFloatSpringState));
+            if (bCaptureCurrentHierarchy) { Row->SetObjectField(TEXT("hierarchy_after"), CaptureRigHierarchy(Rig->GetHierarchy(), true)); }
             Row->SetArrayField(TEXT("executions"), Executions);
             Executions.Reset();
             Rows.Add(MakeShared<FJsonValueObject>(Row));

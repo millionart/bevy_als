@@ -1,0 +1,93 @@
+{
+  "gate": "PASS_NATIVE_CURRENT_GLOBAL_HIERARCHY_CAPTURE_FIELD_LIFETIME_AND_FULL_LEGACY_COMPATIBILITY",
+  "strict_opt_in": "capture_current_hierarchy",
+  "source_frames": 638,
+  "current_global_bone_transforms": 50402,
+  "existing_compact_local_double_bones_exact": 50402,
+  "thigh_translation_call_fields_qualified": 1272,
+  "whole_thigh_transform_at_reader_call_not_claimed": true,
+  "source_pelvis_height_within_native_hierarchy_write_skip_interval": true,
+  "zero_global_getter_ablation_rejected_at_query": 1,
+  "prototype_getter_source_bytes_restored_complete_native_table_exact": true,
+  "duplicate_current_local_field_removed": true,
+  "complete_current_global_snapshots_exact_with_prototype": true,
+  "existing_native_compact_is_double": true,
+  "premature_f32_counterexample": {
+    "query": 0,
+    "bone": "pelvis",
+    "translation_x": 1.7007637193685825e-28,
+    "incorrect_f32_value": 1.700763696799091e-28
+  },
+  "type_guard_removal_accepts_invalid_string_request": true,
+  "final_type_guard_rejects_invalid_string_request": true,
+  "complete_old_rig_and_character_and_curvevector_probes_exact": true,
+  "full_old_opt_in_spring_history_unchanged": true,
+  "source_current_global_getter_added_without_source_memory_or_algorithm_writes": true,
+  "final_reader_bytes_restored_build_terminal_and_package_exact": true,
+  "reader_migration": "docs/audit/bf144/467/reader-migration.json",
+  "other395_and_six_libraries_unchanged": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/465a/restored.native.json.gz",
+      "bytes": 21359818,
+      "sha256": "edeb67129456100c43d9f2dccbd2d4cac2256da41255324224e1163737e067db"
+    },
+    {
+      "path": "docs/audit/bf144/465a/request.json",
+      "bytes": 11271245,
+      "sha256": "da4719c69f54bb062d947fa50f3798b041ac0ec0dca186926af4652dc9296289"
+    },
+    {
+      "path": "docs/audit/bf144/465a/reader-migration.json",
+      "bytes": 291,
+      "sha256": "93b4e9a11deb9b3d829c6fa6a04b1a8418bdf7951eba1f917981fe5af8f21b31"
+    },
+    {
+      "path": "docs/audit/bf144/466/rig.native.json.gz",
+      "bytes": 488693,
+      "sha256": "3559a509e27a43157c8bf3ea7d327e1e0e0fd0d1dd9866b3ee2aaa84249051f9"
+    },
+    {
+      "path": "docs/audit/bf144/462/restored.native.json.gz",
+      "bytes": 21303375,
+      "sha256": "6752b177f73d4f59acf7c68e2e31afff98b4f48d361e5c3a3bd0e018ea73dc17"
+    },
+    {
+      "path": "docs/audit/bf144/462/request.json",
+      "bytes": 11271211,
+      "sha256": "27108bc1ede21a850ec3ba6e9fb3a9513f24963dfa4bcdfd4124501cc18544c3"
+    },
+    {
+      "path": "docs/audit/bf144/457/default.native.json.gz",
+      "bytes": 9620886,
+      "sha256": "829c490c845e7da29c7b02fce38ab743230375400155cdbcd8b80b344328a685"
+    },
+    {
+      "path": "docs/audit/bf144/457/default.request.json",
+      "bytes": 145036,
+      "sha256": "09ee312d3797714dfe356eb54a42b63b8cdc59dcddf132e1958ef69fbe0a8afa"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.native.json",
+      "bytes": 198719,
+      "sha256": "4b11e842693ad10a5e9ad576b3e185d86602a25107d53a1a652ae41a4bb57c6d"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.request.json",
+      "bytes": 4198,
+      "sha256": "98f6b163e8583e510e6d91f9c9b37540581df41c9691e14acbf7b77ab846a5e6"
+    },
+    {
+      "path": "docs/audit/bf144/462/cache_identity.py",
+      "bytes": 814,
+      "sha256": "d5af8364a217e80c9d04d07ff120d8c27f7b60d24085ebfd2e3651183f019799"
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_engine_converters_source_assets_unchanged": true,
+  "full_foot_location_or_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Use qualified actual source thigh translation and existing actual arguments to audit final foot leg-vector clamp and full FootLocation",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

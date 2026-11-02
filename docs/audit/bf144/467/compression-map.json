@@ -1,0 +1,58 @@
+{
+  "before.native.json": {
+    "compressed": "before.native.json.gz",
+    "raw_bytes": 347683006,
+    "raw_sha256": "4ce5331f547bc60058c79337b0d0933f48511c654a4a8db74787d902cd3e4017",
+    "compressed_bytes": 21338897,
+    "compressed_sha256": "f0a724af960737dba48a727787f70a0c0765c644e38299652cc1467b02845ad1"
+  },
+  "baseline.native.json": {
+    "compressed": "baseline.native.json.gz",
+    "raw_bytes": 464413092,
+    "raw_sha256": "4f0d0c40f56dc8fff9ff208bf901f1fd36488fcfb9fa07c8cd988bec2547a50f",
+    "compressed_bytes": 38800991,
+    "compressed_sha256": "8bc15daa0e6e091d429c2bddcdce2efd13a87c8925d9a035c94e93a9f3ecbb00"
+  },
+  "zero-global.native.json": {
+    "compressed": "zero-global.native.json.gz",
+    "raw_bytes": 456593852,
+    "raw_sha256": "8d7ba727826033a6f3b77bb6be263e79524a27652a906501769cee4ba7c474b0",
+    "compressed_bytes": 34928858,
+    "compressed_sha256": "e16482390ee6d319dd279f1e9dd164cce8cb9ea895f10605037df66087308b71"
+  },
+  "restored-prototype.native.json": {
+    "compressed": "restored-prototype.native.json.gz",
+    "raw_bytes": 464462774,
+    "raw_sha256": "bdf8a58653dd2f4b4ca97d2e04218dca35a1b98e066eb4801c5ca298191b0189",
+    "compressed_bytes": 38823723,
+    "compressed_sha256": "5b4076a41f990d361bc832bc4746e8b5679300005c58e95b2ad87b610896270d"
+  },
+  "restored.native.json": {
+    "compressed": "restored.native.json.gz",
+    "raw_bytes": 438155140,
+    "raw_sha256": "197a9d390390245324a3afaa5a222ceb35659b5dea3f18134f69727dcf6ca02a",
+    "compressed_bytes": 34654351,
+    "compressed_sha256": "77871c1b6bbcedbe432b3d6d3e76f3107fc7469f51da0a47d6d70cddf09811cb"
+  },
+  "default.native.json": {
+    "compressed": "default.native.json.gz",
+    "raw_bytes": 347391916,
+    "raw_sha256": "32e45f3098a5b9a4c98dc82f8c11056a70361c0a6ae95a3af8ab1181d208f789",
+    "compressed_bytes": 21299135,
+    "compressed_sha256": "aaf9788483681cc405a8e31f0129c3a6dd4f23d8c2e3b6f1697d757fc29f97a3"
+  },
+  "character-default.native.json": {
+    "compressed": "character-default.native.json.gz",
+    "raw_bytes": 117088878,
+    "raw_sha256": "4565afc3c8e18fcbf3e3dfebea3ffa7e91d001aa129cc4d439ad01ad8ef96e6a",
+    "compressed_bytes": 9620924,
+    "compressed_sha256": "3a3bd06560df19995a34b83763e8daa8531ad11e7d1523999327c1983e666faf"
+  },
+  "no-type-guard.native.json": {
+    "compressed": "no-type-guard.native.json.gz",
+    "raw_bytes": 2983698,
+    "raw_sha256": "88a4da90010b23634eaf13085447cc5cb106dffb01073d157d4f67b02d2ae738",
+    "compressed_bytes": 141792,
+    "compressed_sha256": "3e25de6503cc1d793b84d79feb1bd8dab2fde110d2ebbf02bb2f66a509ee778e"
+  }
+}
