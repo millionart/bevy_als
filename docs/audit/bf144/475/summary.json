@@ -1,0 +1,113 @@
+{
+  "gate": "PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION",
+  "source_common_cases": 696,
+  "actual_current_cases": 1272,
+  "independent_public_cm_m_both_exact_to_qualified_models": true,
+  "algorithm_rotation_scale_and_f64_precision_preserved": true,
+  "common_current_unit_double_differences": 694,
+  "common_current_unit_f32_differences": 692,
+  "common_current_unit_peak_meters": 2.7755575615628914e-16,
+  "common_source_unit_double_differences": 693,
+  "common_source_unit_f32_differences": 691,
+  "common_source_unit_peak_meters": 1.6653345369377348e-16,
+  "actual_unit_only_changed_f32_vectors": [
+    635,
+    636
+  ],
+  "actual_unit_only_full_vector_recovered": [
+    0,
+    0
+  ],
+  "actual_unit_only_native_full_vector_difference": [
+    636,
+    636
+  ],
+  "source_clean_cache_and_native_cm_endpoints_preserved": true,
+  "classification": "Existing D232 source numeric space unit-phase consumer",
+  "legacy_453_f64_early_unit_control_existing_f32_changes": 36,
+  "legacy_early_f32_and_current_unit_phase_subfactors_separate": true,
+  "no_f32_cast_or_import_coefficient_in_this_control": true,
+  "physical_public_cm_removal_rejected": true,
+  "analysis_no_unit_control_is_diagnostic_assertion_not_physical_ablation": true,
+  "source_bytes_restored_same_target_recompiled_complete_report_byte_exact": true,
+  "current396_reader474a_and_six_libraries_unchanged": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/474/inputs.json",
+      "bytes": 4259900,
+      "sha256": "740a4626f4822e368bc42cc4e1d4d327526ddadbfd727252b3f5b581c46dda02"
+    },
+    {
+      "path": "docs/audit/bf144/474/replay-restored.json.gz",
+      "bytes": 2505355,
+      "sha256": "a78e1b07c3a183c2e4e881799bd2596d5606d29b421a4dc95dc8cc70ede9a3cc"
+    },
+    {
+      "path": "docs/audit/bf144/474/replay.rs",
+      "bytes": 7069,
+      "sha256": "62f4109a84cd27692a8cedfb93d471bb42a6faa9957ed4e41dafb9d5a1db491a"
+    },
+    {
+      "path": "docs/audit/bf144/474/unit-phase-boundary.json",
+      "bytes": 1170,
+      "sha256": "5c1ef241c899e27189e0b32fcfd28b4a4e404e7e2e567c85d61963e2dc59c45e"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.rs",
+      "bytes": 8499,
+      "sha256": "70f84d0005783acdb3a463785cfc2b954afa44bde75fe44d91992ab7e22fde70"
+    },
+    {
+      "path": "docs/audit/bf144/453/replay.rs",
+      "bytes": 3429,
+      "sha256": "0d1c2e0cda286b88d18453d3acad59e563e349907e1badd3c93c1e2597bf59dd"
+    },
+    {
+      "path": "docs/audit/bf144/453/analysis-baseline.json",
+      "bytes": 5107,
+      "sha256": "88a9e88e3fcfcb4ef81e23a35ebed6d38e44ef7c78ada0fdae0f0e37d3ee9f72"
+    },
+    {
+      "path": "docs/audit/bf144/453/summary.json",
+      "bytes": 5613,
+      "sha256": "eddae418d4f0e249d9001289ae47ce3cabc9dbbf9cd3a9e41760e0f2613c2951"
+    },
+    {
+      "path": "docs/audit/bf144/474a/reader-migration.json",
+      "bytes": 497,
+      "sha256": "f486ece869fd2658f4b9bfeab54ac8bef82f7bbed4e60c74634bd3739007a529"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_contract.py",
+      "bytes": 32819,
+      "sha256": "826062415d612532949ed8aec987fd80b188acf27fa52327231b3dd486776d82"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+      "bytes": 28928,
+      "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_reader_engine_converters_source_assets_unchanged": true,
+  "full_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Earlier actual IK pose producer and full descendant hierarchy writeback",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
