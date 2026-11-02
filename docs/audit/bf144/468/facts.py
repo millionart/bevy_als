@@ -1,0 +1,9 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+
+r=Path(__file__).resolve().parent;config=json.loads(Path('tools/env.local.json').read_bytes());plugin=Path(config['ue_project']).parent/'Plugins/ALS-Refactored/Source/ALS';engine=Path(os.environ['ALS_UE_SOURCE_ROOT']);specs=[('source:Private/Nodes/AlsRigUnit_ApplyFootOffsetLocation.cpp',[(5,60)]),('source:Public/Nodes/AlsRigUnit_ApplyFootOffsetLocation.h',[(12,101)]),('Engine/Source/Runtime/Core/Public/Math/Vector.h',[(1724,1732),(1902,1924)]),('Engine/Source/Runtime/Core/Public/GenericPlatform/GenericPlatformMath.h',[(552,564)]),('Engine/Source/Runtime/Core/Public/Clang/ClangPlatformMath.h',[(7,20)]),('Engine/Source/Runtime/Core/Public/Mac/MacPlatformMath.h',[(9,37)]),('src/control_rig/control_rig_units.rs',[(133,220)])];facts=[]
+for key,ranges in specs:
+ p=plugin/key.split(':',1)[1]if key.startswith('source:')else engine/key if key.startswith('Engine/')else Path(key);raw=p.read_bytes();lines=raw.decode('utf-8-sig').splitlines();facts.append(dict(key=key,sha256=hashlib.sha256(raw).hexdigest(),excerpts=[dict(start=a,end=b,text='\n'.join(lines[a-1:b]))for a,b in ranges]))
+paths=list((Path.home()/'.cargo/registry/src').glob('*/glam-0.32.1/src/f64/dvec3.rs'));raw=paths[0].read_bytes();assert all(p.read_bytes()==raw for p in paths);lines=raw.decode().splitlines();facts.append(dict(key='dependency:glam-0.32.1/src/f64/dvec3.rs',sha256=hashlib.sha256(raw).hexdigest(),excerpts=[dict(start=a,end=b,text='\n'.join(lines[a-1:b]))for a,b in[(240,247),(543,560)]]));assert 'InvSqrt('not in(engine/'Engine/Source/Runtime/Core/Public/Clang/ClangPlatformMath.h').read_text();(r/'source-facts.json').write_text(json.dumps(facts,indent=2)+'\n');print('Captured full final foot source vector clamp, native Mac double reciprocal sqrt and public vector expression order',flush=True)

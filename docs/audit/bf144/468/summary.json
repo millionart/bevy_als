@@ -1,0 +1,159 @@
+{
+  "gate": "PASS_ACTUAL636_COMPLETE_FOOT_LOCATION_NATIVE_CM_REFERENCE_AND_CONFIRMED_D249_CLAMP_CONSUMER",
+  "source_complete_vector_exact": 636,
+  "source_leg_clamp_active": 121,
+  "current_original_and_trace_control_full_public_arguments_exact": 1272,
+  "same_numeric_cm_public_scalar_state_exact_native": 636,
+  "same_numeric_cm_public_vector_double_differences": 37,
+  "same_numeric_cm_public_vector_f32_differences": 0,
+  "only_source_reciprocal_multiplication_restores_all636_vectors": true,
+  "common_meter_scalar_state_exact_independent466_history": true,
+  "common_meter_source_projected_vector_f32_differences": 123,
+  "source_float_clamp_maximum_only_f32_remaining": 2,
+  "source_offset_and_maximum_f32_remaining": 1,
+  "source_prepoint_maximum_dot_reciprocal_f32_remaining": 0,
+  "source_prepoint_maximum_dot_reciprocal_double_remaining": 439,
+  "remaining_meter_double_unit_arithmetic_not_claimed_restored": true,
+  "f32_factor_partitions": {
+    "actual_original": {
+      "recovered": 63,
+      "regressed": 410,
+      "still_different": 60
+    },
+    "actual_trace_control": {
+      "recovered": 4,
+      "regressed": 2,
+      "still_different": 119
+    },
+    "same_cm_public": {
+      "recovered": 123,
+      "regressed": 0,
+      "still_different": 0
+    },
+    "same_cm_source_reciprocal": {
+      "recovered": 123,
+      "regressed": 0,
+      "still_different": 0
+    },
+    "common_meter": {
+      "recovered": 0,
+      "regressed": 0,
+      "still_different": 123
+    },
+    "source_offset": {
+      "recovered": 2,
+      "regressed": 0,
+      "still_different": 121
+    },
+    "source_maximum": {
+      "recovered": 121,
+      "regressed": 0,
+      "still_different": 2
+    },
+    "offset_and_maximum": {
+      "recovered": 122,
+      "regressed": 0,
+      "still_different": 1
+    },
+    "offset_maximum_source_dot": {
+      "recovered": 122,
+      "regressed": 0,
+      "still_different": 1
+    },
+    "offset_maximum_source_reciprocal": {
+      "recovered": 122,
+      "regressed": 0,
+      "still_different": 1
+    },
+    "offset_maximum_source_dot_and_reciprocal": {
+      "recovered": 122,
+      "regressed": 0,
+      "still_different": 1
+    },
+    "source_prepoint_maximum_dot_reciprocal": {
+      "recovered": 123,
+      "regressed": 0,
+      "still_different": 0
+    }
+  },
+  "source_offset_independently_predicted_in466": true,
+  "source_thigh_translation_consumption_qualified_in467": true,
+  "source_after_foot_location_or_full_transform_never_injected": true,
+  "full_source_and_target_histories_continuous": true,
+  "current_exact_cm_contract_rejected": true,
+  "source_reciprocal_and_clamp_physical_ablations_rejected": true,
+  "source_bytes_restored_same_target_recompiled_full_four_mode_report_bytes_exact": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/466/inputs.json",
+      "bytes": 2931105,
+      "sha256": "b887a7e87acdf5d971acdabf1f9e7cf167faae3925dddb42943322331ed7bdc9"
+    },
+    {
+      "path": "docs/audit/bf144/466/replay-baseline.json",
+      "bytes": 2294241,
+      "sha256": "40c4fefe65bb3430ef03b6def609401406a6d24324f2fe13269a8444e5e153e7"
+    },
+    {
+      "path": "docs/audit/bf144/466/lifetime-proof.json",
+      "bytes": 36609,
+      "sha256": "b6dc478257806716a5bafff09cda7cb4b45957feaf6b6aa8c9ce096b09f74070"
+    },
+    {
+      "path": "docs/audit/bf144/467/table-restored.json",
+      "bytes": 1722508,
+      "sha256": "40e95c0cc81d9f3c9ccb52fef66770c0e57fc232c8777115385867efc3d387c9"
+    },
+    {
+      "path": "docs/audit/bf144/467/check-restored.json",
+      "bytes": 689,
+      "sha256": "dd99117d85c61db2cec0a1f179f5ac8d9d568874812d5b9657e26ab3308ce7c0"
+    },
+    {
+      "path": "docs/audit/bf144/467/field-lifetime.json",
+      "bytes": 7826,
+      "sha256": "9d03f2fa12c9d96f8627757c8e74a7bf1278f623afbab3309406d672188d3570"
+    },
+    {
+      "path": "docs/audit/bf144/467/reader-migration.json",
+      "bytes": 431,
+      "sha256": "729557d1b5eefea8d2cafd6b24477ed9fbbf9b5d39805520dfb36fd7a4d86c03"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_contract.py",
+      "bytes": 32819,
+      "sha256": "826062415d612532949ed8aec987fd80b188acf27fa52327231b3dd486776d82"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+      "bytes": 28928,
+      "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "known_differences": [
+    "D249",
+    "D165"
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_reader_engine_converters_source_assets_unchanged": true,
+  "full_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Actual foot rotation input and hidden-state lifetime, current calf and initial quaternion data, source normal history and clamp algorithms; preserve full Rig feedback and remaining meter arithmetic boundary",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

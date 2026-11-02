@@ -1,0 +1,10 @@
+{
+  "gate": "ACTUAL636_FOOT_VECTOR_INITIAL_SOURCE_MODEL",
+  "calls": 636,
+  "source_clamp_active": 121,
+  "source_complete_vector_differences": 0,
+  "first_difference": null,
+  "offsets_independently_computed_in_466": true,
+  "thigh_translation_qualified_in_467": true,
+  "other_thigh_transform_fields_not_used": true
+}
