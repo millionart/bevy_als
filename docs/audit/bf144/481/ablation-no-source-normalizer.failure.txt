@@ -1,0 +1,6 @@
+
+thread 'main' (3101967) panicked at docs/audit/bf144/481/replay.rs:97:5:
+assertion `left == right` failed: Untouched twist consumers evaluated from exact IK post cache
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

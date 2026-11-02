@@ -1,0 +1,96 @@
+{
+  "gate": "PASS_LITERAL_SOURCE_IK_FOOT_WRITER_TARGETS_DISJOINT_FROM_TWIST_ANCESTORS",
+  "literal_count": 183,
+  "later_writers": [
+    {
+      "pc": 100,
+      "function": "FRigUnit_SetRotation::Execute",
+      "targets": [
+        "foot_l"
+      ]
+    },
+    {
+      "pc": 121,
+      "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+      "targets": [
+        "thigh_r",
+        "calf_r",
+        "foot_r"
+      ]
+    },
+    {
+      "pc": 130,
+      "function": "FRigUnit_SetRotation::Execute",
+      "targets": [
+        "foot_r"
+      ]
+    },
+    {
+      "pc": 139,
+      "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+      "targets": [
+        "upperarm_l",
+        "lowerarm_l",
+        "hand_l"
+      ]
+    },
+    {
+      "pc": 146,
+      "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+      "targets": [
+        "upperarm_r",
+        "lowerarm_r",
+        "hand_r"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "bone": "calf_twist_01_l",
+      "after_pc": 91,
+      "ancestors": [
+        "calf_twist_01_l",
+        "calf_l",
+        "thigh_l",
+        "pelvis",
+        "root"
+      ],
+      "later_writer_targets_disjoint": true
+    },
+    {
+      "bone": "thigh_twist_01_l",
+      "after_pc": 91,
+      "ancestors": [
+        "thigh_twist_01_l",
+        "thigh_l",
+        "pelvis",
+        "root"
+      ],
+      "later_writer_targets_disjoint": true
+    },
+    {
+      "bone": "calf_twist_01_r",
+      "after_pc": 121,
+      "ancestors": [
+        "calf_twist_01_r",
+        "calf_r",
+        "thigh_r",
+        "pelvis",
+        "root"
+      ],
+      "later_writer_targets_disjoint": true
+    },
+    {
+      "bone": "thigh_twist_01_r",
+      "after_pc": 121,
+      "ancestors": [
+        "thigh_twist_01_r",
+        "thigh_r",
+        "pelvis",
+        "root"
+      ],
+      "later_writer_targets_disjoint": true
+    }
+  ],
+  "other_late_als_foot_offset_units_readonly_from_existing_source_closure": true
+}

@@ -1,0 +1,86 @@
+{
+  "inputs.json": {
+    "raw_bytes": 185455019,
+    "raw_sha256": "f10aa0d9847033ac4a205c23cfca8647f6b405b27f1b1782295d81cb75cdabbb",
+    "compressed": "inputs.json.gz",
+    "compressed_sha256": "1568ab98d6ea263f9949cdc904f2ee039303f1450767334cdc44e87ae4d92a96"
+  },
+  "replay-baseline.json": {
+    "raw_bytes": 158839810,
+    "raw_sha256": "48be773045458a8d77e4f5c231b25aaedc89b9debeec086858f2378a7c0c5dbe",
+    "compressed": "replay-baseline.json.gz",
+    "compressed_sha256": "ae3e86119654df81bf66001c6c91db4762d1c90b3a9e0af2362a4e93227e2e48"
+  },
+  "replay-clean-control.json": {
+    "raw_bytes": 159639698,
+    "raw_sha256": "48a692fa043568c3a8bf57300e26934252434feda00b078f38dffd88143d5c11",
+    "compressed": "replay-clean-control.json.gz",
+    "compressed_sha256": "501c089d8f3e3d5aadb3b5fe8cda58c7fc723e6dde54bfdf45f7eaad47ce1f48"
+  },
+  "replay-unit-baseline.json": {
+    "raw_bytes": 93891874,
+    "raw_sha256": "4cea63e3a6f1401d9ca8b32419b5cd091b0467e9a4428d988a3afbb3c493d625",
+    "compressed": "replay-unit-baseline.json.gz",
+    "compressed_sha256": "0578873de31f9c45f22377c1123d5d6e791f05e531c9b833c3f837cbe6606783"
+  },
+  "replay-unit-controlled.json": {
+    "raw_bytes": 93858119,
+    "raw_sha256": "a83783a5f165dc76e899a9f44c5ab8f5f6b86dcdf82a37d47756b0cdfaa06563",
+    "compressed": "replay-unit-controlled.json.gz",
+    "compressed_sha256": "73d56164fe8c461e1230f4dc26be4e7819e939e1761a7264e7062ee8dbfb0a1c"
+  },
+  "replay-unit-focused-counts.json": {
+    "raw_bytes": 93858119,
+    "raw_sha256": "a83783a5f165dc76e899a9f44c5ab8f5f6b86dcdf82a37d47756b0cdfaa06563",
+    "compressed": "replay-unit-focused-counts.json.gz",
+    "compressed_sha256": "73d56164fe8c461e1230f4dc26be4e7819e939e1761a7264e7062ee8dbfb0a1c"
+  },
+  "replay-unit-minimal.json": {
+    "raw_bytes": 93790318,
+    "raw_sha256": "85b7e12439c9e618a895fa0dee30a419acd4b9730b85d23e2bf2de4d2fe6cc40",
+    "compressed": "replay-unit-minimal.json.gz",
+    "compressed_sha256": "99317b68c497fb190ecbfa7b6b340c6400735c09d82977134196fb4c83cecca1"
+  },
+  "replay-unit-no-local-dirty.json": {
+    "raw_bytes": 162277,
+    "raw_sha256": "4db3a2f8b7f3eeb1075dead1e4bf91d60f10873d52a2139f9a0785303f6edc50",
+    "compressed": "replay-unit-no-local-dirty.json.gz",
+    "compressed_sha256": "0fe8b1114f2594ea4f8b732db9e9c893e1a1ac6cb54cc0e368ec3e151d936103"
+  },
+  "replay-unit-no-propagation.json": {
+    "raw_bytes": 163988,
+    "raw_sha256": "7802928e18c76fe13872a5f3d44f84fd64af8f4b7343710ee51b33af06544d2f",
+    "compressed": "replay-unit-no-propagation.json.gz",
+    "compressed_sha256": "b2ea53b63d96a1321d651130b27940b34e77cf83fd1e87aead7cf5a0919ef621"
+  },
+  "replay-unit-no-source-normalizer.json": {
+    "raw_bytes": 66184,
+    "raw_sha256": "1563df1bf11432c5583dcf6edccd08f91fc653c5207573d2165a9d089e296a34",
+    "compressed": "replay-unit-no-source-normalizer.json.gz",
+    "compressed_sha256": "a4c09bda54f38d8cf309c352cab2995da5c0b8c8d30026034047192cc9542c4b"
+  },
+  "replay-unit-one-pass-ordered.json": {
+    "raw_bytes": 93891874,
+    "raw_sha256": "4cea63e3a6f1401d9ca8b32419b5cd091b0467e9a4428d988a3afbb3c493d625",
+    "compressed": "replay-unit-one-pass-ordered.json.gz",
+    "compressed_sha256": "0578873de31f9c45f22377c1123d5d6e791f05e531c9b833c3f837cbe6606783"
+  },
+  "replay-unit-one-pass.json": {
+    "raw_bytes": 93891874,
+    "raw_sha256": "4cea63e3a6f1401d9ca8b32419b5cd091b0467e9a4428d988a3afbb3c493d625",
+    "compressed": "replay-unit-one-pass.json.gz",
+    "compressed_sha256": "0578873de31f9c45f22377c1123d5d6e791f05e531c9b833c3f837cbe6606783"
+  },
+  "replay-unit-restored.json": {
+    "raw_bytes": 93858119,
+    "raw_sha256": "a83783a5f165dc76e899a9f44c5ab8f5f6b86dcdf82a37d47756b0cdfaa06563",
+    "compressed": "replay-unit-restored.json.gz",
+    "compressed_sha256": "73d56164fe8c461e1230f4dc26be4e7819e939e1761a7264e7062ee8dbfb0a1c"
+  },
+  "inputs.json.final": {
+    "raw_bytes": 185455019,
+    "raw_sha256": "f10aa0d9847033ac4a205c23cfca8647f6b405b27f1b1782295d81cb75cdabbb",
+    "compressed": "inputs.json.final.gz",
+    "compressed_sha256": "1568ab98d6ea263f9949cdc904f2ee039303f1450767334cdc44e87ae4d92a96"
+  }
+}

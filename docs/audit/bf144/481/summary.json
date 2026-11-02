@@ -1,0 +1,181 @@
+{
+  "gate": "PASS_COMPLETE_ACTUAL_SOURCE_CURRENT_RAW_IK_CACHE_AND_TWIST_CONSUMERS",
+  "counts": {
+    "source": {
+      "global_evaluations": 2660,
+      "marks": 2660,
+      "writes": 3990,
+      "cases": 1332
+    },
+    "current_actual": {
+      "global_evaluations": 2544,
+      "marks": 2544,
+      "writes": 3816,
+      "cases": 1272
+    },
+    "clean_control": {
+      "global_evaluations": 2,
+      "marks": 5,
+      "writes": 3,
+      "cases": 1
+    }
+  },
+  "source_cache_cases": 1332,
+  "current_actual_cache_cases": 1272,
+  "current_materialized_clean_control": 1,
+  "cache_bones_per_case": 79,
+  "source_native_twist_globals_exact": 2664,
+  "all_raw_values_and_flags_exact": true,
+  "source_two_phase_adapter_removed_full_report_unchanged": true,
+  "unvisited_local_evaluator_and_equals_skip_state_removed_all_observed_values_unchanged": true,
+  "no_actual_equals_skip_observed": true,
+  "source_current_counts_are_static_replay_inferences_crossed_with_exact_native_public_caches": true,
+  "public_clean_control_prevents_all_dirty_fixture_from_hiding_propagation": true,
+  "ball_final_and_full_local_pose_still_open": true,
+  "existing_known_math_primitives_reused": true,
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "full_rig_or_root_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "minimal_native_public_counterexamples": [
+    {
+      "case": "propagation",
+      "source_exact": 1,
+      "clean_public_control_exact": 0,
+      "native_twist_exact": 2,
+      "native_source_cases": 1,
+      "public_control_cases": 1
+    },
+    {
+      "case": "local-dirty",
+      "source_exact": 0,
+      "clean_public_control_exact": 0,
+      "native_twist_exact": 2,
+      "native_source_cases": 1,
+      "public_control_cases": 1
+    },
+    {
+      "case": "source-normalizer",
+      "source_exact": 1,
+      "clean_public_control_exact": 1,
+      "native_twist_exact": 0,
+      "native_source_cases": 1,
+      "public_control_cases": 1
+    }
+  ],
+  "canonical_source_inputs_and_current_vm_sha_restored": true,
+  "same_target_recompiled_complete_report_byte_equal": true,
+  "current396_reader481a_and_six_libraries_unchanged": true,
+  "existing_source_math_consumer": "D248 source normalizer on native twist global evaluation",
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/476/inputs.json",
+      "bytes": 9301936,
+      "sha256": "3c457846190eceb29dde77c53e47ca1aa6dcc3e12c0ee2b6b6552a26361b2ff8"
+    },
+    {
+      "path": "docs/audit/bf144/476/current_vm.rs",
+      "bytes": 9537,
+      "sha256": "5300eb32d0cf094ecb89a69034cf45b6dbd6ec7da09b1392fde69f78c3a3ff0c"
+    },
+    {
+      "path": "docs/audit/bf144/476/replay-baseline.json.gz",
+      "bytes": 7915776,
+      "sha256": "9bc79910821f7e1d6734a0061b303d45e242dd4f1ba6a5b9a8b41b71fbc3f8ed"
+    },
+    {
+      "path": "docs/audit/bf144/476/actual-after.native.json.gz",
+      "bytes": 33339828,
+      "sha256": "92701c389c02a1d31b78c0e626441bc6730a55486a9276c94ee0514057a5c846"
+    },
+    {
+      "path": "docs/audit/bf144/476/weights-after.native.json.gz",
+      "bytes": 1863149,
+      "sha256": "fc461cf1c372edbac986dd213195aa457cc2dc37e03a80ed6cbd68aeabd889d3"
+    },
+    {
+      "path": "docs/audit/bf144/480/replay-unit-factors.json.gz",
+      "bytes": 1874147,
+      "sha256": "b71dccac0c5e71aa773e86e68e25957fc5b7426c46ef164835b149296b95a3fd"
+    },
+    {
+      "path": "docs/audit/bf144/480/summary.json",
+      "bytes": 7212,
+      "sha256": "6e2952bd442f4f5b9fe7b7821391883947186a4b09febe3d09d0668a85bc0b36"
+    },
+    {
+      "path": "docs/audit/bf144/481a/table-actual-before-restored.json.gz",
+      "bytes": 15403062,
+      "sha256": "e78c1433b94f8fbd4aae6dcfddaadae2f3a0e3527edc81bb61271d3944ddc9d3"
+    },
+    {
+      "path": "docs/audit/bf144/481a/table-actual-after-restored.json.gz",
+      "bytes": 30915234,
+      "sha256": "cb53eac642ba841d7154cfa947a426e74276544627baa6dbaa2bbee01f36fad9"
+    },
+    {
+      "path": "docs/audit/bf144/481a/table-weights-before-restored.json.gz",
+      "bytes": 700358,
+      "sha256": "ae8df4950ca6f58563d18eba42d4ecb1e8e01530720f6de3022b812ab8587342"
+    },
+    {
+      "path": "docs/audit/bf144/481a/table-weights-after-restored.json.gz",
+      "bytes": 1509691,
+      "sha256": "d73fe210a7e005ca7b90a2565ab1cde1eb7fd66cf52edf97b020c836a57fa771"
+    },
+    {
+      "path": "docs/audit/bf144/481a/reader-migration.json",
+      "bytes": 509,
+      "sha256": "66318ae5008b859520c751c271c5f9d947185dca8c1fe0bd05f3fd090952f30c"
+    },
+    {
+      "path": "docs/audit/bf144/481a/summary.json",
+      "bytes": 5981,
+      "sha256": "993c6a7214a45a04da5ad9022ff4cfb95dffa425fb0eefb2e6bcd2968b689134"
+    },
+    {
+      "path": "docs/audit/bf144/479/replay.rs",
+      "bytes": 7922,
+      "sha256": "b10a74018d01fb29b66c3f5bd4c3397ade9aabf03228b38966df3edfae811005"
+    },
+    {
+      "path": "docs/audit/bf144/478/replay.rs",
+      "bytes": 4782,
+      "sha256": "4dd2abec6cf8415c9edbdc5d444e25d2753c284646f8567cf092a4cf75dee240"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.rs",
+      "bytes": 8499,
+      "sha256": "70f84d0005783acdb3a463785cfc2b954afa44bde75fe44d91992ab7e22fde70"
+    },
+    {
+      "path": "docs/audit/bf144/473/replay.rs",
+      "bytes": 7004,
+      "sha256": "243bc3067894fa2510077611cd426120896f0daa2b56a1e63142ced1d3967c00"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/watchdog.self-test.json",
+      "bytes": 249,
+      "sha256": "a55daaedcd601b4d484d262d03ae64f4d1317d7d9c520e770ddbaa6662154763"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "production_reader_engine_converters_source_assets_unchanged": true,
+  "ball_final_local_and_full_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Foot writer after IK and full ball/descendant final global and local consumers,then remaining full Rig/Root feedback"
+}

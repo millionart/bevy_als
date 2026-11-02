@@ -1,0 +1,9 @@
+{
+  "gate": "PASS_EXACT_RAW_CACHE_REQUEST_AND_TWIST_CONSUMER_INPUTS",
+  "source_cases": 1332,
+  "bones_per_case": 79,
+  "all_writer_globals_clean_and_locals_clean_before": true,
+  "pure_computed_requests_from480": true,
+  "twist_globals_frame_end_only_because_no_later_ancestor_writes": true,
+  "ball_frame_end_not_used_as_ik_post_value": true
+}

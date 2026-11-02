@@ -1,0 +1,8 @@
+error: pathspec 'docs/audit/bf144/481/README.md' did not match any file(s) known to git
+Did you forget to 'git add'?
+Traceback (most recent call last):
+  File "docs/audit/bf144/481/seal.py", line 22, in <module>
+    subprocess.run(['git','ls-files','--error-unmatch',str(p.relative_to(Path.cwd()))],check=True,stdout=subprocess.DEVNULL,timeout=5)
+  File "<home>/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['git', 'ls-files', '--error-unmatch', 'docs/audit/bf144/481/README.md']' returned non-zero exit status 1.

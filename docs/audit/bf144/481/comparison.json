@@ -1,0 +1,41 @@
+{
+  "gate": "PASS_SOURCE_CURRENT_COMPLETE_RAW_IK_CACHE_AND_UNAFFECTED_TWIST_CONSUMERS",
+  "counts": {
+    "source": {
+      "global_evaluations": 2660,
+      "marks": 2660,
+      "writes": 3990,
+      "cases": 1332
+    },
+    "current_actual": {
+      "global_evaluations": 2544,
+      "marks": 2544,
+      "writes": 3816,
+      "cases": 1272
+    },
+    "clean_control": {
+      "global_evaluations": 2,
+      "marks": 5,
+      "writes": 3,
+      "cases": 1
+    }
+  },
+  "source_cache_cases": 1332,
+  "current_actual_cache_cases": 1272,
+  "current_materialized_clean_control": 1,
+  "cache_bones_per_case": 79,
+  "source_native_twist_globals_exact": 2664,
+  "all_raw_values_and_flags_exact": true,
+  "source_two_phase_adapter_removed_full_report_unchanged": true,
+  "unvisited_local_evaluator_and_equals_skip_state_removed_all_observed_values_unchanged": true,
+  "no_actual_equals_skip_observed": true,
+  "source_current_counts_are_static_replay_inferences_crossed_with_exact_native_public_caches": true,
+  "public_clean_control_prevents_all_dirty_fixture_from_hiding_propagation": true,
+  "ball_final_and_full_local_pose_still_open": true,
+  "existing_known_math_primitives_reused": true,
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "full_rig_or_root_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
