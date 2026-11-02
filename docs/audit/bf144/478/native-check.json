@@ -1,0 +1,9 @@
+{
+  "gate": "PASS_NATIVE_POSITION_INPUTS_AND_SOURCE_CONSUMER_TRANSPARENCY",
+  "native_cases": 2596,
+  "source_prior_complete_positions_preserved": 1324,
+  "same_actual_current_metre_numeric_inputs": 1272,
+  "source_float_lengths_preserved": true,
+  "fresh_rig_instructions_match": true,
+  "current_numeric_domain_not_labeled_source_centimetres": true
+}

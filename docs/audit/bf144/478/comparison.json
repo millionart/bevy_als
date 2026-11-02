@@ -1,0 +1,100 @@
+{
+  "gate": "PASS_ACTUAL_IK_POSITION_NATIVE_PUBLIC_SOURCE_DOT_AND_RECIPROCAL_FACTORS",
+  "groups": {
+    "source_cm": {
+      "0": {
+        "cases": 1324,
+        "complete_exact": 526,
+        "joint_double_differences": 798,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "1": {
+        "cases": 1324,
+        "complete_exact": 629,
+        "joint_double_differences": 695,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "2": {
+        "cases": 1324,
+        "complete_exact": 999,
+        "joint_double_differences": 325,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "3": {
+        "cases": 1324,
+        "complete_exact": 1324,
+        "joint_double_differences": 0,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      }
+    },
+    "current_m": {
+      "0": {
+        "cases": 1272,
+        "complete_exact": 461,
+        "joint_double_differences": 811,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "1": {
+        "cases": 1272,
+        "complete_exact": 601,
+        "joint_double_differences": 671,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "2": {
+        "cases": 1272,
+        "complete_exact": 939,
+        "joint_double_differences": 333,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "3": {
+        "cases": 1272,
+        "complete_exact": 1272,
+        "joint_double_differences": 0,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      }
+    }
+  },
+  "source_complete_native_cases": 1324,
+  "current_same_numeric_native_cases": 1272,
+  "current_public_actual_complete_positions": 1272,
+  "source_and_current_endpoints_exact_with_source_arithmetic": true,
+  "common_float_lengths_and_inputs_preserved": true,
+  "source_position_model_current_mask_exact_to_public_in_both_domains": true,
+  "regular_cohort_no_goal_or_pole_degeneracy": true,
+  "stretch_disabled_all_actual_inputs": true,
+  "unused_plane_normal_normalization_not_added": true,
+  "geometry_adapter_and_duplicate_identity_removed_full_report_bytes_unchanged": true,
+  "unvisited_branches_and_constant_state_deleted_numeric_records_unchanged": true,
+  "both_arithmetic_factors_physically_removed_and_rejected": true,
+  "source_bytes_restored_same_target_recompiled_all_minimal_report_bytes_exact": true,
+  "existing_difference": "D249",
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "rotation_partial_and_descendant_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

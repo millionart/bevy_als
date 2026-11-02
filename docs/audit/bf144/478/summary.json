@@ -1,0 +1,171 @@
+{
+  "gate": "PASS_ACTUAL_IK_POSITION_NATIVE_PUBLIC_FACTORS_AND_EXISTING_D249",
+  "groups": {
+    "source_cm": {
+      "0": {
+        "cases": 1324,
+        "complete_exact": 526,
+        "joint_double_differences": 798,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "1": {
+        "cases": 1324,
+        "complete_exact": 629,
+        "joint_double_differences": 695,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "2": {
+        "cases": 1324,
+        "complete_exact": 999,
+        "joint_double_differences": 325,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "3": {
+        "cases": 1324,
+        "complete_exact": 1324,
+        "joint_double_differences": 0,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      }
+    },
+    "current_m": {
+      "0": {
+        "cases": 1272,
+        "complete_exact": 461,
+        "joint_double_differences": 811,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "1": {
+        "cases": 1272,
+        "complete_exact": 601,
+        "joint_double_differences": 671,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "2": {
+        "cases": 1272,
+        "complete_exact": 939,
+        "joint_double_differences": 333,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      },
+      "3": {
+        "cases": 1272,
+        "complete_exact": 1272,
+        "joint_double_differences": 0,
+        "end_double_differences": 0,
+        "joint_f32_differences": 0,
+        "end_f32_differences": 0,
+        "fully_extended": 0
+      }
+    }
+  },
+  "source_complete_native_cases": 1324,
+  "current_same_numeric_native_cases": 1272,
+  "current_public_actual_complete_positions": 1272,
+  "source_and_current_endpoints_exact_with_source_arithmetic": true,
+  "common_float_lengths_and_inputs_preserved": true,
+  "source_position_model_current_mask_exact_to_public_in_both_domains": true,
+  "regular_cohort_no_goal_or_pole_degeneracy": true,
+  "stretch_disabled_all_actual_inputs": true,
+  "unused_plane_normal_normalization_not_added": true,
+  "geometry_adapter_and_duplicate_identity_removed_full_report_bytes_unchanged": true,
+  "unvisited_branches_and_constant_state_deleted_numeric_records_unchanged": true,
+  "both_arithmetic_factors_physically_removed_and_rejected": true,
+  "source_bytes_restored_same_target_recompiled_all_minimal_report_bytes_exact": true,
+  "existing_difference": "D249",
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "rotation_partial_and_descendant_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/476/inputs.json",
+      "bytes": 9301936,
+      "sha256": "3c457846190eceb29dde77c53e47ca1aa6dcc3e12c0ee2b6b6552a26361b2ff8"
+    },
+    {
+      "path": "docs/audit/bf144/476/summary.json",
+      "bytes": 4925,
+      "sha256": "dffc5714eff97074ab1e030e7a335ab7a358b614eecf3415f8d8e0e1b0566fe8"
+    },
+    {
+      "path": "docs/audit/bf144/477/inputs.json",
+      "bytes": 395825,
+      "sha256": "2d46db94689249429029bb374ef263143b1c7417bca23674e0ceaa1d147fd012"
+    },
+    {
+      "path": "docs/audit/bf144/477/solver.request.json",
+      "bytes": 668987,
+      "sha256": "9abe7ca99d79c379c253c7144087a972ea66f249815f4aa2d6feccb95dab953a"
+    },
+    {
+      "path": "docs/audit/bf144/477/solver.native.json.gz",
+      "bytes": 879890,
+      "sha256": "1313465e4720d96ba67ec674c2b24876bb31036dea7292e35d3de2000a701422"
+    },
+    {
+      "path": "docs/audit/bf144/477/summary.json",
+      "bytes": 3359,
+      "sha256": "1194040b1eb53f91483090779761d046fcf1c4d6f44ec29f6366babb17964e83"
+    },
+    {
+      "path": "docs/audit/bf144/474a/reader-migration.json",
+      "bytes": 497,
+      "sha256": "f486ece869fd2658f4b9bfeab54ac8bef82f7bbed4e60c74634bd3739007a529"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/watchdog.self-test.json",
+      "bytes": 249,
+      "sha256": "a55daaedcd601b4d484d262d03ae64f4d1317d7d9c520e770ddbaa6662154763"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_contract.py",
+      "bytes": 32819,
+      "sha256": "826062415d612532949ed8aec987fd80b188acf27fa52327231b3dd486776d82"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+      "bytes": 28928,
+      "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "current396_reader474a_and_six_libraries_unchanged": true,
+  "production_reader_engine_converters_source_assets_unchanged": true,
+  "full_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Complete IK primary and secondary orientation arithmetic, partial wrapper and descendant hierarchy on qualified inputs"
+}
