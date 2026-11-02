@@ -1,0 +1,72 @@
+{
+  "baseline.native.json": {
+    "raw_bytes": 440053418,
+    "raw_sha256": "f84cf660b66b1412342561a76c6ce5a8a3e95445c7144de0bcb5817d62369ac8",
+    "compressed": "baseline.native.json.gz",
+    "compressed_bytes": 32296490,
+    "compressed_sha256": "c673ce9f83d0e07862b352442472213054acc79ab23b8d133363e191939f449a"
+  },
+  "character-default.native.json": {
+    "raw_bytes": 117088874,
+    "raw_sha256": "ade7abb8b7a5cefa06c81c39d534442567bad6f2628103d4554190c5e5270a39",
+    "compressed": "character-default.native.json.gz",
+    "compressed_bytes": 9119171,
+    "compressed_sha256": "ab5b6650bd35eb2ed678ccaeaa1aaed790e546f9685d24e323343f94fb23b7d6"
+  },
+  "curves.native.json": {
+    "raw_bytes": 198719,
+    "raw_sha256": "4b11e842693ad10a5e9ad576b3e185d86602a25107d53a1a652ae41a4bb57c6d",
+    "compressed": "curves.native.json.gz",
+    "compressed_bytes": 6781,
+    "compressed_sha256": "3ce693941624e0ba2d1209799b33c63a6d6fd62c9449461a9c7d4a125a3acb29"
+  },
+  "default.native.json": {
+    "raw_bytes": 347391938,
+    "raw_sha256": "e12a43f62e99e186c3cdb79459fccff5508e2d86dbffb0a4aa20482609a73396",
+    "compressed": "default.native.json.gz",
+    "compressed_bytes": 19500163,
+    "compressed_sha256": "cdcba68e99903ff3f3a441feb071e8942080fd5cda4847b8251639027529f18c"
+  },
+  "legacy-boundary.native.json": {
+    "raw_bytes": 441842614,
+    "raw_sha256": "c0dca1f369ab46ea6687d418881b24ca34c22bb6d25fa33c298bae3d48d1a5bb",
+    "compressed": "legacy-boundary.native.json.gz",
+    "compressed_bytes": 32484319,
+    "compressed_sha256": "6e795642f34757a9c5e0739d125f299c7ca0aaea2b4b8d9370853334db92f0f5"
+  },
+  "restored.native.json": {
+    "raw_bytes": 440003774,
+    "raw_sha256": "b72b81761d3db8a69b98190e345169a506580842f4b7ed89ce126c5077ddc714",
+    "compressed": "restored.native.json.gz",
+    "compressed_bytes": 32300695,
+    "compressed_sha256": "ffaf7fd9629623cae419312f70561a0a7f14de368a9e509b76a25d9739747023"
+  },
+  "weights-baseline.native.json": {
+    "raw_bytes": 26014722,
+    "raw_sha256": "fc85bf803c4f57c7c627eb4e4da92dda3a03e56a99bf2f4cf0820d4b703e2517",
+    "compressed": "weights-baseline.native.json.gz",
+    "compressed_bytes": 1809517,
+    "compressed_sha256": "b6083a0edba6bd6bfc159fd0bd339d6f57e99dbb3cefc2538b23faa5a59ee849"
+  },
+  "weights-flag-false.native.json": {
+    "raw_bytes": 26017790,
+    "raw_sha256": "82b203d9313286b4699671507843c5b253af12dc7a1566e1221e5a1fdf7b7a42",
+    "compressed": "weights-flag-false.native.json.gz",
+    "compressed_bytes": 1809771,
+    "compressed_sha256": "319df23f18ef8f0bac09a65f4469180bdaa64894922d6ff46a1251890825e99c"
+  },
+  "weights-flag-true.native.json": {
+    "raw_bytes": 26015732,
+    "raw_sha256": "52430ae68ea9021aeb5cc570d72e4d538a959202f3ad496290f2280a9c8acc72",
+    "compressed": "weights-flag-true.native.json.gz",
+    "compressed_bytes": 1809394,
+    "compressed_sha256": "8ba4901a06caccce4dc78d33691cec0fe51f2746e0616d9eaa3bcab7fbe27a33"
+  },
+  "weights-restored.native.json": {
+    "raw_bytes": 26015726,
+    "raw_sha256": "18e1db81cc8d13b3b602909270acd7981e73e6902f8e8a03aca426468589474a",
+    "compressed": "weights-restored.native.json.gz",
+    "compressed_bytes": 1809384,
+    "compressed_sha256": "8332093a2acc1bdd9d181f8f555c052d096fa9687dbfd6a5df83b5e6c166ebe0"
+  }
+}

@@ -5323,10 +5323,12 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
                     Item->SetStringField(TEXT("argument"), BoundaryItemNames[Index]);
                     Item->SetStringField(TEXT("type"), StaticEnum<ERigElementType>()->GetNameStringByValue(static_cast<int64>(Key.Type)));
                     Item->SetStringField(TEXT("name"), Key.Name.ToString());
-                    const bool bValid = Hierarchy->Find<FRigTransformElement>(Key) != nullptr;
+                    const FRigTransformElement* TransformElement = Hierarchy->Find<FRigTransformElement>(Key);
+                    const bool bValid = TransformElement != nullptr;
                     Item->SetBoolField(TEXT("valid_transform_item"), bValid);
                     if (bValid)
                     {
+                        Item->SetBoolField(TEXT("current_local_dirty_before_global_read"), TransformElement->GetDirtyState().IsDirty(ERigTransformType::CurrentLocal));
                         Item->SetObjectField(TEXT("current_global_transform"), CaptureTransform(Hierarchy->GetGlobalTransform(Key)));
                         Item->SetObjectField(TEXT("initial_global_transform"), CaptureTransform(Hierarchy->GetInitialGlobalTransform(Key)));
                     }

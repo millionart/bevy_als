@@ -1,0 +1,27 @@
+{
+  "gate": "PASS_DIRTY_FLAG_GETTER_FALSE_AND_TRUE_NECESSITY_WITH_UNCHANGED_OLD_PROBE",
+  "results": {
+    "flag-false": {
+      "wrong_flags": 58,
+      "first": {
+        "case": 0,
+        "query": 1,
+        "pc": 100,
+        "actual": false,
+        "expected": true
+      },
+      "all_native_execution_pose_state_and_old_fields_unchanged": true
+    },
+    "flag-true": {
+      "wrong_flags": 2,
+      "first": {
+        "case": 0,
+        "query": 6,
+        "pc": 100,
+        "actual": true,
+        "expected": false
+      },
+      "all_native_execution_pose_state_and_old_fields_unchanged": true
+    }
+  }
+}

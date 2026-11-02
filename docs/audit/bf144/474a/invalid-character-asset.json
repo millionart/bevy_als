@@ -1,0 +1,7 @@
+{
+  "gate": "REJECTED_INVALID_DIAGNOSTIC_CHARACTER_ASSET",
+  "exit_code": 7,
+  "requested_asset": "/ALS/ALS/Character/AB_Als.AB_Als",
+  "expected_asset_from_frozen_report": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+  "failure_excluded_from_compatibility_acceptance": true
+}

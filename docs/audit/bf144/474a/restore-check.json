@@ -1,0 +1,5 @@
+{
+  "gate": "PASS_ALL1332_NATIVE_DIRTY_GLOBAL_LOCAL_RECORDS_BYTE_EXACT_AFTER_SOURCE_PACKAGE_RESTORE",
+  "actual_calls": 1272,
+  "controlled_calls": 60
+}

@@ -1,0 +1,67 @@
+[
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Public/Rigs/RigHierarchyElements.h",
+    "sha256": "70d4dc1ea363c27b362dc44bf4f907ee6696d6894bfa7db4132cee9e30b4921b",
+    "excerpts": [
+      {
+        "start": 364,
+        "end": 422,
+        "text": "struct FRigCurrentAndInitialDirtyState\n{\n\tGENERATED_BODY()\n\npublic:\n\t\n\tFRigCurrentAndInitialDirtyState()\n\t{\n\t}\n\n\tbool& GetDirtyFlag(const ERigTransformType::Type InTransformType)\n\t{\n\t\tswitch (InTransformType)\n\t\t{\n\t\t\tcase ERigTransformType::CurrentLocal:\n\t\t\t\treturn Current.Local.Get();\n\n\t\t\tcase ERigTransformType::CurrentGlobal:\n\t\t\t\treturn Current.Global.Get();\n\n\t\t\tcase ERigTransformType::InitialLocal:\n\t\t\t\treturn Initial.Local.Get();\n\t\t\t\t\n\t\t\tdefault:\n\t\t\t\treturn Initial.Global.Get();\n\t\t}\n\t}\n\n\tconst bool& GetDirtyFlag(const ERigTransformType::Type InTransformType) const\n\t{\n\t\tswitch (InTransformType)\n\t\t{\n\t\t\tcase ERigTransformType::CurrentLocal:\n\t\t\t\treturn Current.Local.Get();\n\n\t\t\tcase ERigTransformType::CurrentGlobal:\n\t\t\t\treturn Current.Global.Get();\n\n\t\t\tcase ERigTransformType::InitialLocal:\n\t\t\t\treturn Initial.Local.Get();\n\n\t\t\tdefault:\n\t\t\t\treturn Initial.Global.Get();\n\t\t}\n\t}\n\n\tbool IsDirty(const ERigTransformType::Type InTransformType) const\n\t{\n\t\treturn GetDirtyFlag(InTransformType);\n\t}\n\n\tvoid MarkDirty(const ERigTransformType::Type InTransformType)\n\t{\n\t\tensure(!(GetDirtyFlag(ERigTransformType::SwapLocalAndGlobal(InTransformType))));\n\t\tGetDirtyFlag(InTransformType) = true;\n\t}\n\n\tvoid MarkClean(const ERigTransformType::Type InTransformType)\n\t{"
+      },
+      {
+        "start": 1070,
+        "end": 1080,
+        "text": "\t// Current and Initial, both in Local and Global\n\tvirtual int32 GetNumTransforms() const override { return 4; }\n\n\tUE_API const FRigCurrentAndInitialTransform& GetTransform() const;\n\tUE_API FRigCurrentAndInitialTransform& GetTransform();\n\tUE_API const FRigCurrentAndInitialDirtyState& GetDirtyState() const;\n\tUE_API FRigCurrentAndInitialDirtyState& GetDirtyState();\n\n\tUE_API virtual bool IsElementDirty(ERigTransformType::Type InTransformType) const;\n\tUE_API virtual void MarkElementDirty(ERigTransformType::Type InTransformType);\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Rigs/RigHierarchyElements.cpp",
+    "sha256": "7836a2178d48640b648df87e4ade487d9fd6389b7aa5f3deb73d0f85b5e0288a",
+    "excerpts": [
+      {
+        "start": 1048,
+        "end": 1072,
+        "text": "\t}\n}\n\nconst FRigCurrentAndInitialTransform& FRigTransformElement::GetTransform() const\n{\n\treturn PoseStorage;\n}\n\nFRigCurrentAndInitialTransform& FRigTransformElement::GetTransform()\n{\n\treturn PoseStorage;\n}\n\nconst FRigCurrentAndInitialDirtyState& FRigTransformElement::GetDirtyState() const\n{\n\treturn PoseDirtyState;\n}\n\nFRigCurrentAndInitialDirtyState& FRigTransformElement::GetDirtyState()\n{\n\treturn PoseDirtyState;\n}\n\nbool FRigTransformElement::IsElementDirty(ERigTransformType::Type InTransformType) const\n{"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Tools/ControlRigPoseAdapter.cpp",
+    "sha256": "3d7fa9e2c6cefec02b4a49f26b6da44e494da1cb948f670e7346b5c7f4af84b9",
+    "excerpts": [
+      {
+        "start": 386,
+        "end": 399,
+        "text": "void FControlRigPoseAdapter::ConvertToLocalPose()\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tcheck(ParentPoseIndices.Num() == GlobalPose.Num());\n\tLocalPose.SetNum(GlobalPose.Num());\n\n\tif (URigHierarchy* Hierarchy = GetHierarchy())\n\t{\n\t\tfor (int32 Index = 0; Index < ParentPoseIndices.Num(); Index++)\n\t\t{\n\t\t\t(void)GetLocalTransform(Index);\n\t\t}\n\t}"
+      },
+      {
+        "start": 415,
+        "end": 452,
+        "text": "}\n\nconst FTransform& FControlRigPoseAdapter::GetLocalTransform(int32 InIndex)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tcheck(LocalPose.IsValidIndex(InIndex));\n\tcheck(LocalPoseIsDirty.IsValidIndex(InIndex));\n\tcheck(ParentPoseIndices.IsValidIndex(InIndex));\n\tcheck(RequiresHierarchyForSpaceConversion.IsValidIndex(InIndex));\n\n\tURigHierarchy* Hierarchy = GetHierarchy();\n\tcheck(Hierarchy);\n\n\tif (LocalPoseIsDirty[InIndex])\n\t{\n\t\tcheck(GlobalPoseIsDirty[InIndex] == false);\n\t\tif (RequiresHierarchyForSpaceConversion[InIndex] && PoseIndexToElementIndex.IsValidIndex(InIndex))\n\t\t{\n\t\t\tLocalPose[InIndex] = Hierarchy->GetLocalTransformByIndex(PoseIndexToElementIndex[InIndex]);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = ParentPoseIndices[InIndex];\n\t\t\tif (!ParentIndex.IsValid())\n\t\t\t{\n\t\t\t\tLocalPose[InIndex] = GetGlobalTransform(InIndex);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tLocalPose[InIndex] = GetGlobalTransform(InIndex).GetRelativeTransform(GetGlobalTransform(ParentIndex.GetInt()));\n\t\t\t}\n\t\t\tLocalPose[InIndex].NormalizeRotation();\n\t\t}\n\t\tLocalPoseIsDirty[InIndex] = false;\n\t}\n\treturn LocalPose[InIndex];\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Rigs/RigHierarchy.cpp",
+    "sha256": "f21bd47e50d483e53751a37a84139d5ae2156d7c72eb24481e2313dd0315de34",
+    "excerpts": [
+      {
+        "start": 5454,
+        "end": 5471,
+        "text": "\tif(!InTransformElement->GetDirtyState().IsDirty(InTransformType))\n\t{\n\t\tconst FTransform PreviousTransform = InTransformElement->GetTransform().Get(InTransformType);\n\t\tif(!bForce && FRigComputedTransform::Equals(PreviousTransform, InTransform))\n\t\t{\n\t\t\treturn;\n\t\t}\n\t}\n\n\tconst FTransform PreviousTransform = GetTransform(InTransformElement, InTransformType);\n\tPropagateDirtyFlags(InTransformElement, ERigTransformType::IsInitial(InTransformType), bAffectChildren);\n\n\tconst ERigTransformType::Type OpposedType = SwapLocalAndGlobal(InTransformType);\n\tInTransformElement->GetTransform().Set(InTransformType, InTransform);\n\tInTransformElement->GetDirtyState().MarkClean(InTransformType);\n\tInTransformElement->GetDirtyState().MarkDirty(OpposedType);\n\tIncrementPoseVersion(InTransformElement->Index);\n"
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "7bcc48dba260111aa4c13d9223b2763b659b89d0a9f4ddd4f5d54214b6625995",
+    "excerpts": [
+      {
+        "start": 5326,
+        "end": 5338,
+        "text": "                    const FRigTransformElement* TransformElement = Hierarchy->Find<FRigTransformElement>(Key);\n                    const bool bValid = TransformElement != nullptr;\n                    Item->SetBoolField(TEXT(\"valid_transform_item\"), bValid);\n                    if (bValid)\n                    {\n                        Item->SetBoolField(TEXT(\"current_local_dirty_before_global_read\"), TransformElement->GetDirtyState().IsDirty(ERigTransformType::CurrentLocal));\n                        Item->SetObjectField(TEXT(\"current_global_transform\"), CaptureTransform(Hierarchy->GetGlobalTransform(Key)));\n                        Item->SetObjectField(TEXT(\"initial_global_transform\"), CaptureTransform(Hierarchy->GetInitialGlobalTransform(Key)));\n                    }\n                    Items.Add(MakeShared<FJsonValueObject>(Item));\n                }\n                BoundaryRow->SetArrayField(TEXT(\"items\"), Items);\n                BoundaryRows.Add(MakeShared<FJsonValueObject>(BoundaryRow));"
+      }
+    ]
+  }
+]

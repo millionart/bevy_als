@@ -109,6 +109,8 @@ BlendList请求可选`two_way: {child, property}`，从当前AnimBP CDO复制指
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。
 
+`RigNodeHistoryProbe` 可选 `unit_boundary: {function, items}` 按原生函数与输入参数名选择 typed FRigElementKey 边界；每个有效 item 的 `current_local_dirty_before_global_read` 是原单元执行后、既有 current global getter 之前的原生 local dirty 布尔值。该值来自公开 const dirty-state getter；读取不触发 local 重算，可用于区分最终输出的 local 重算与 cache 保留。
+
 `RigNodeHistoryProbe` 的 frame 可选 `mesh_to_world` 使用 `translation_cm[3]`、`rotation[4]`、`scale[3]`；提供时在同一 mesh 的本帧 Node.Update/Evaluate 前通过公开 SetComponentToWorld 设置缓存，保留原 quaternion 数值，不经过普通 SetWorldTransform 的 Rotator 往返，省略时保持当前变换（旧请求始终为identity）。提供字段的帧导出实际 `mesh_to_world`，执行事件另导出 `rig_to_world`，必须同时核对组件与真正的执行上下文，不能只检查请求值或pose。`tools/tests/test_rig_node_world_transform.py` 保留缺字段、未更新组件与未更新上下文的反例；无字段请求的旧输出合同保持。
 
 `GeometryQueryProbe` 的可选 `move_input: {yaw_degrees, axes: [x,y]}` 按已核实的源输入算法，调用 Core FMath/FVector API，读取2D clamp、float角度/弧度与SinCos方向、double世界输入和CMC的`GetClampedToMaxSize(1)`阶段。它不调用角色输入事件、不创建或驱动角色，也不模拟相机选择；yaw与axes必须为有限JSON数字，yaw转float后也须有限。输出只在请求含该字段时新增，旧样本保持原样；用`tests/test_movement_input_math_probe.py --input <output.json>`或`--self-test`校验数值合同。
