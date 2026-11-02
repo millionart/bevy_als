@@ -1,0 +1,106 @@
+{
+  "gate": "PASS_EXACT_ROTATION_ABI_BONE_INPUT_LIFETIME_AND_SOURCE_NORMAL_HISTORY",
+  "actual_calls": 636,
+  "controlled_calls": 48,
+  "source_pin_values": 9576,
+  "current_public_original_and_trace_control_complete_call_outputs_exact": 1272,
+  "source_normal_history_states_exact": 684,
+  "controlled_normal_updates": 8,
+  "all_required_bone_quaternions_from_exact_native_boundary": true,
+  "frame_end_foot_quaternion_not_used": true,
+  "whole_source_initial_relative_or_final_quaternion_math_equivalence_not_claimed": true,
+  "source_trace_normal_input_and_filtered_state_restored_all636": true,
+  "source_current_initial_relative_and_final_quat_residuals_preserved": true,
+  "counts_original_and_trace_control": {
+    "normal_input": [
+      636,
+      0
+    ],
+    "offset_normal": [
+      636,
+      0
+    ],
+    "initial_rotation": [
+      636,
+      636
+    ],
+    "foot_rotation": [
+      636,
+      636
+    ]
+  },
+  "initial_target_and_continuous_normal_history_physical_ablations_rejected": true,
+  "source_bytes_restored_same_target_recompiled_and_entire_report_bytes_exact": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/464/replay-restored.json.gz",
+      "bytes": 7943769,
+      "sha256": "cb194289632a327e8db7c383ddd2f74042e5857747937c438e4fdbfd5d81929e"
+    },
+    {
+      "path": "docs/audit/bf144/459/inputs.json",
+      "bytes": 29551067,
+      "sha256": "f3992070db213883da1179396296a1d7693fdf99da2f571bf6d0949f2f2477c7"
+    },
+    {
+      "path": "docs/audit/bf144/469a/restored.native.json.gz",
+      "bytes": 35098372,
+      "sha256": "b267f874d6dfdd64c1b836e725ba2b361a31b383b32614d27a43cf26472776db"
+    },
+    {
+      "path": "docs/audit/bf144/469a/controls-restored.native.json.gz",
+      "bytes": 1598744,
+      "sha256": "78dc4cc2b5c1a4f13905be9ad77774a725c50e2ee002d3633f7d1e256a0a382d"
+    },
+    {
+      "path": "docs/audit/bf144/469a/table-restored.json",
+      "bytes": 1991700,
+      "sha256": "39664a1c6e979939fa634965359a513edcd9e969bd360ec64348c31e5a68a2a3"
+    },
+    {
+      "path": "docs/audit/bf144/469a/reader-migration.json",
+      "bytes": 442,
+      "sha256": "ccc9200daab679a772d2c27f4e86b89805dadca0709fb433c2a334dc1b4ee6cb"
+    },
+    {
+      "path": "docs/audit/bf144/469a/source-input-gap.json",
+      "bytes": 78001,
+      "sha256": "803740c243c2db45fde0fb2859c813828aea3fdf5d61040504c0cbb1f8ab9227"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_contract.py",
+      "bytes": 32819,
+      "sha256": "826062415d612532949ed8aec987fd80b188acf27fa52327231b3dd486776d82"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+      "bytes": 28928,
+      "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "known_differences": [
+    "D247"
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_reader_engine_converters_source_assets_unchanged": true,
+  "source_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Exact source initial relative quaternion and current calf-space rotation primitives, limit angles and final quaternion; preserve original full Rig feedback",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

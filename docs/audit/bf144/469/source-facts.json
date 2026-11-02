@@ -1,0 +1,94 @@
+[
+  {
+    "key": "source:Private/Nodes/AlsRigUnit_ApplyFootOffsetRotation.cpp",
+    "sha256": "f8a72e6a1112cad3b3f01e380f013d43c114a1f143c72913469ce4533da4e80d",
+    "excerpts": [
+      {
+        "start": 13,
+        "end": 61,
+        "text": "FAlsRigUnit_ApplyFootOffsetRotation_Execute()\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()\n\n\tconst auto* Hierarchy{ExecuteContext.Hierarchy};\n\n\tif (!IsValid(Hierarchy) ||\n\t    !CachedCalfItem.UpdateCache(CalfItem, Hierarchy) ||\n\t    !CachedFootItem.UpdateCache(FootItem, Hierarchy))\n\t{\n\t\treturn;\n\t}\n\n\tif (!bInitialized)\n\t{\n\t\tbInitialized = true;\n\n\t\tOffsetNormal = FootOffsetNormal;\n\n\t\t// Get the foot initial rotation and convert it to the calf space.\n\n\t\tconst auto CalfInitialRotation{Hierarchy->GetInitialGlobalTransform(CachedCalfItem).GetRotation()};\n\t\tconst auto FootInitialRotation{Hierarchy->GetInitialGlobalTransform(CachedFootItem).GetRotation()};\n\n\t\tFootInitialRotationCalfSpace = CalfInitialRotation.Inverse() * FootInitialRotation;\n\t}\n\n\tOffsetNormal = UAlsMath::DamperExact(OffsetNormal, FootOffsetNormal,\n\t                                     UE_REAL_TO_FLOAT(ExecuteContext.GetDeltaTime()), OffsetInterpolationHalfLife);\n\n\tconst auto OffsetRotation{FQuat::FindBetweenVectors(FVector::UpVector, OffsetNormal)};\n\n\t// Transform the current foot rotation and the target foot rotation with applied foot offset to the calf space.\n\n\tconst auto CalfRotation{Hierarchy->GetGlobalTransform(CachedCalfItem).GetRotation()};\n\tFootRotation = Hierarchy->GetGlobalTransform(CachedFootItem).GetRotation();\n\n\tconst auto CurrentRotationCalfSpace{\n\t\t(CalfRotation.Inverse() * FootRotation * FootInitialRotationCalfSpace.Inverse()).Rotator()\n\t};\n\n\tconst auto TargetRotationCalfSpace{\n\t\t(CalfRotation.Inverse() * (OffsetRotation * FootTargetRotation) * FootInitialRotationCalfSpace.Inverse()).Rotator()\n\t};\n\n\t// Apply limits.\n\n\tstatic const auto ConstraintTargetAngle{\n\t\t[](const float CurrentAngle, const float TargetAngle, const FFloatInterval& LimitAngle)"
+      },
+      {
+        "start": 62,
+        "end": 113,
+        "text": "\t\t{\n\t\t\t// Initial rotation is the rotation of the foot that comes from animations. It must be taken\n\t\t\t// into account so that, for example, if the foot is rotated 45 degrees in the animation\n\t\t\t// and the limit angle is 25 degrees, the resulting foot rotation will still be 45 degrees.\n\n\t\t\tconst auto MinAngle{FMath::Min3(CurrentAngle, LimitAngle.Min, LimitAngle.Max)};\n\t\t\tconst auto MaxAngle{FMath::Max3(CurrentAngle, LimitAngle.Min, LimitAngle.Max)};\n\n\t\t\treturn FMath::Clamp(TargetAngle, MinAngle, MaxAngle);\n\t\t}\n\t};\n\n\tconst auto FinalPitchAngleCalfSpace{\n\t\tConstraintTargetAngle(UE_REAL_TO_FLOAT(CurrentRotationCalfSpace.Pitch),\n\t\t                      UE_REAL_TO_FLOAT(TargetRotationCalfSpace.Pitch),\n\t\t                      Swing2LimitAngle)\n\t};\n\n\tconst auto FinalYawAngleCalfSpace{\n\t\tConstraintTargetAngle(UE_REAL_TO_FLOAT(CurrentRotationCalfSpace.Yaw),\n\t\t                      UE_REAL_TO_FLOAT(TargetRotationCalfSpace.Yaw),\n\t\t                      Swing1LimitAngle)\n\t};\n\n\tconst auto FinalRollAngleCalfSpace{\n\t\tConstraintTargetAngle(UE_REAL_TO_FLOAT(CurrentRotationCalfSpace.Roll),\n\t\t                      UE_REAL_TO_FLOAT(TargetRotationCalfSpace.Roll),\n\t\t                      TwistLimitAngle)\n\t};\n\n\tconst auto FinalRotationCalfSpace{FRotator{FinalPitchAngleCalfSpace, FinalYawAngleCalfSpace, FinalRollAngleCalfSpace}.Quaternion()};\n\n\t// Convert the new calf space foot rotation back to the global space.\n\n\tFootRotation = CalfRotation * (FinalRotationCalfSpace * FootInitialRotationCalfSpace);\n\tFootRotation.Normalize();\n}"
+      }
+    ]
+  },
+  {
+    "key": "source:Public/Nodes/AlsRigUnit_ApplyFootOffsetRotation.h",
+    "sha256": "079db0ee0f6929d258b59e609c2da8c2373ca7b832d48852691edd2c8326ed76",
+    "excerpts": [
+      {
+        "start": 12,
+        "end": 85,
+        "text": "\tUPROPERTY(Meta = (Input, ExpandByDefault))\n\tFRigElementKey CalfItem;\n\n\tUPROPERTY(Meta = (Input, ExpandByDefault))\n\tFRigElementKey FootItem;\n\n\tUPROPERTY(Transient, Meta = (Input))\n\tFQuat FootTargetRotation{ForceInit};\n\n\tUPROPERTY(Transient, Meta = (Input))\n\tFVector FootOffsetNormal{FVector::UpVector};\n\n\tUPROPERTY(DisplayName = \"Swing 1 Limit Angle\", Meta = (Input, ClampMin = -180, ClampMax = 180, ForceUnits = \"deg\"))\n\tFFloatInterval Swing1LimitAngle{-20.0f, 40.0f};\n\n\tUPROPERTY(DisplayName = \"Swing 2 Limit Angle\", Meta = (Input, ClampMin = -180, ClampMax = 180, ForceUnits = \"deg\"))\n\tFFloatInterval Swing2LimitAngle{-15.0f, 5.0f};\n\n\tUPROPERTY(Meta = (Input, ClampMin = -180, ClampMax = 180, ForceUnits = \"deg\"))\n\tFFloatInterval TwistLimitAngle{0.0f, 0.0f};\n\n\t/// The lower the value, the faster the interpolation. A zero value means instant interpolation.\n\tUPROPERTY(Meta = (Input, ClampMin = 0, ForceUnits = \"s\"))\n\tfloat OffsetInterpolationHalfLife{0.1f};\n\n\tUPROPERTY(Transient)\n\tbool bInitialized{false};\n\n\tUPROPERTY(Transient)\n\tFCachedRigElement CachedCalfItem;\n\n\tUPROPERTY(Transient)\n\tFCachedRigElement CachedFootItem;\n\n\tUPROPERTY(Transient)\n\tFVector OffsetNormal{FVector::UpVector};\n\n\tUPROPERTY(Transient, Meta = (Output))\n\tFQuat FootRotation{ForceInit};\n\n\tUPROPERTY(Transient)\n\tFQuat FootInitialRotationCalfSpace{ForceInit};\n\npublic:\n\tvirtual void Initialize() override;\n\n\tRIGVM_METHOD()\n\t// ReSharper disable once CppFunctionIsNotImplemented\n\tvirtual void Execute() override;\n};"
+      }
+    ]
+  },
+  {
+    "key": "source:Public/Utility/AlsMath.h",
+    "sha256": "7518b2e1950eae21bf401d2d5523716ee93fae4271fe81d5e3e7ca907620e6da",
+    "excerpts": [
+      {
+        "start": 84,
+        "end": 95,
+        "text": "inline float UAlsMath::DamperExactAlpha(const float DeltaTime, const float HalfLife)\n{\n\t// https://theorangeduck.com/page/spring-roll-call#exactdamper\n\n\treturn 1.0f - FMath::InvExpApprox(UE_LN2 / (HalfLife + UE_SMALL_NUMBER) * DeltaTime);\n}\n\ntemplate <typename ValueType>\nValueType UAlsMath::DamperExact(const ValueType& Current, const ValueType& Target, const float DeltaTime, const float HalfLife)\n{\n\treturn FMath::Lerp(Current, Target, DamperExactAlpha(DeltaTime, HalfLife));\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+    "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+    "excerpts": [
+      {
+        "start": 157,
+        "end": 162,
+        "text": "#define UE_DOUBLE_TWO_PI\t\t(6.28318530717958647692)\n#define UE_DOUBLE_PI_SQUARED\t(9.86960440108935861883)\n\n#define UE_LN2\t\t(0.69314718056f)\n\n// Common square roots"
+      },
+      {
+        "start": 1120,
+        "end": 1129,
+        "text": "\t\ttypename U\n\t\tUE_REQUIRES(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>) && !std::is_same_v<T, bool>)\n\t>\n\t[[nodiscard]] static constexpr UE_FORCEINLINE_HINT T Lerp( const T& A, const T& B, const U& Alpha )\n\t{\n\t\treturn (T)(A + Alpha * (B-A));\n\t}\n\n\t/** Custom lerps defined for those classes not suited to the default implemenation. */\n\ttemplate <"
+      },
+      {
+        "start": 1552,
+        "end": 1562,
+        "text": "\ttemplate<class T>\n\t[[nodiscard]] static constexpr T InvExpApprox(T X)\n\t{\n\t\tconstexpr T A(1.00746054f); // 1 / 1! in Taylor series\n\t\tconstexpr T B(0.45053901f); // 1 / 2! in Taylor series\n\t\tconstexpr T C(0.25724632f); // 1 / 3! in Taylor series\n\t\treturn 1 / (1 + A * X + B * X * X + C * X * X * X);\t\t\n\t}\n\t\n\t/**\n\t* Smooths a value using exponential damping towards a target. Works for any type that supports basic arithmetic operations."
+      }
+    ]
+  },
+  {
+    "key": "src/control_rig/control_rig_units.rs",
+    "sha256": "aa05e0c81d08ea31fbb9c176f3235610da79893db8010e09fbd5638985547c48",
+    "excerpts": [
+      {
+        "start": 220,
+        "end": 283,
+        "text": "                [\n                    calf,\n                    foot,\n                    Quaternion(target),\n                    Vector(normal),\n                    List(swing_y),\n                    List(swing_z),\n                    List(twist_x),\n                    F32(half_life),\n                    Bool(initialized),\n                    _cached_calf,\n                    _cached_foot,\n                    Vector(offset_normal),\n                    Quaternion(rotation),\n                    Quaternion(initial_rotation),\n                ],\n            ) => {\n                let Some(calf) = self.hierarchy.item_index(calf)? else {\n                    return Ok(());\n                };\n                let Some(foot) = self.hierarchy.item_index(foot)? else {\n                    return Ok(());\n                };\n                if !*initialized {\n                    *initialized = true;\n                    *offset_normal = *normal;\n                    let calf = self\n                        .hierarchy\n                        .transform(calf, RigSpace::Global, true)?\n                        .rotation;\n                    let foot = self\n                        .hierarchy\n                        .transform(foot, RigSpace::Global, true)?\n                        .rotation;\n                    *initial_rotation = calf.conjugate() * foot;\n                }\n                *offset_normal += (*normal - *offset_normal)\n                    * rig_damper_alpha(self.delta_seconds as f32, *half_life) as f64;\n                let offset_rotation = self\n                    .geometry\n                    .between_vectors(self.geometry.basis[2], *offset_normal);\n                let calf = self\n                    .hierarchy\n                    .transform(calf, RigSpace::Global, false)?\n                    .rotation;\n                let foot = self\n                    .hierarchy\n                    .transform(foot, RigSpace::Global, false)?\n                    .rotation;\n                let current = rig_euler(calf.conjugate() * foot * initial_rotation.conjugate());\n                let target = rig_euler(\n                    calf.conjugate() * (offset_rotation * *target) * initial_rotation.conjugate(),\n                );\n                let euler = DVec3::new(\n                    constrained_angle(current.x, target.x, twist_x)?,\n                    constrained_angle(current.y, target.y, swing_y)?,\n                    constrained_angle(current.z, target.z, swing_z)?,\n                );\n                *rotation = rig_normalize(calf * (rig_quaternion(euler) * *initial_rotation));\n            }\n            (\n                \"FAlsRigUnit_CalculatePoleVector::Execute\",\n                [\n                    a,"
+      }
+    ]
+  },
+  {
+    "key": "src/control_rig/control_rig_math.rs",
+    "sha256": "30a6d2a39e3a76be9c84418eac38777ebe61bbe972b4db00ffa71c6a63046518",
+    "excerpts": [
+      {
+        "start": 1,
+        "end": 14,
+        "text": "use crate::als::animation::inv_exp_approx;\nuse bevy::{\n    math::{DQuat, DVec3, EulerRot},\n    prelude::Reflect,\n};\nuse serde::{Deserialize, Serialize};\n\npub fn rig_damper_alpha(delta_seconds: f32, half_life: f32) -> f32 {\n    1.0 - inv_exp_approx(std::f32::consts::LN_2 / (half_life + 1e-8) * delta_seconds)\n}\n\npub fn rig_clamp01(value: f32) -> f32 {\n    if value > 0.0 {\n        if value < 1.0 { value } else { 1.0 }"
+      }
+    ]
+  },
+  {
+    "key": "src/als/utility/animation.rs",
+    "sha256": "9c42596c8c64beff0695403f1619a78632a57aab2cf68cbe469566ed5e25eb10",
+    "excerpts": [
+      {
+        "start": 34,
+        "end": 41,
+        "text": "pub fn inv_exp_approx(value: f32) -> f32 {\n    1.0 / (1.0\n        + 1.00746054 * value\n        + 0.45053901 * value * value\n        + 0.25724632 * value * value * value)\n}"
+      }
+    ]
+  }
+]

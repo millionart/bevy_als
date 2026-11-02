@@ -1,0 +1,34 @@
+{
+  "gate": "PASS_ACTUAL_ROTATION_INPUT_STATE_AND_SOURCE_NORMAL_HISTORY_WITH_EXACT_NATIVE_BONE_BOUNDARY",
+  "actual_source_calls": 636,
+  "controlled_source_calls": 48,
+  "source_pin_values": 9576,
+  "current_public_calls_exact": 1272,
+  "source_normal_states_exact": 684,
+  "controlled_normal_state_transitions": 8,
+  "counts_original_and_trace_control": {
+    "normal_input": [
+      636,
+      0
+    ],
+    "offset_normal": [
+      636,
+      0
+    ],
+    "initial_rotation": [
+      636,
+      636
+    ],
+    "foot_rotation": [
+      636,
+      636
+    ]
+  },
+  "source_trace_corrected_normal_input_and_state_exact": 636,
+  "source_foot_current_from_exact_unit_boundary": true,
+  "source_after_foot_quat_not_injected": true,
+  "full_source_initial_relative_and_final_quaternion_math_not_claimed": true,
+  "new_differences": [],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

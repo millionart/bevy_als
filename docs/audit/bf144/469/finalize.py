@@ -1,0 +1,19 @@
+import gzip
+import hashlib
+import json
+from pathlib import Path
+
+r=Path(__file__).resolve().parent;read=lambda name:json.loads((r/name).read_bytes())
+assert(r/'replay.rs').read_bytes()==(r/'replay.rs.final').read_bytes();assert hashlib.sha256((r/'replay.rs').read_bytes()).hexdigest()==read('final-source.json')['sha256'];assert(r/'replay-baseline.json').read_bytes()==(r/'replay-restored.json').read_bytes()
+for label in['baseline','restored']:assert read('replay-compile-'+label+'.report.json')['success']and read('replay-'+label+'.report.json')['success']
+for label in['no-initial-target','no-normal-history']:assert read('replay-compile-'+label+'.report.json')['success']and read('replay-'+label+'.report.json')['process_exit_code']==101
+assert read('check_input_gap-resolved-final.report.json')['success']and read('identity-check.json')['six_libraries_unchanged']
+proof=read('lifetime-proof.json');assert proof['source_calls']==684 and proof['actual_calls']==636 and proof['controlled_calls']==48 and proof['source_pin_values']==9576 and proof['foot_current_global_from_exact_unit_boundary']and not proof['foot_current_global_not_qualified']
+x=read('comparison.json');assert x['current_public_calls_exact']==1272 and x['source_normal_states_exact']==684 and x['controlled_normal_state_transitions']==8;assert x['counts_original_and_trace_control']['normal_input']==[636,0]and x['counts_original_and_trace_control']['offset_normal']==[636,0]
+for row in read('compression-map.json').values():
+ packed=(r/row['compressed']).read_bytes();raw=gzip.decompress(packed);assert len(raw)==row['raw_bytes']and hashlib.sha256(raw).hexdigest()==row['raw_sha256'];assert hashlib.sha256(packed).hexdigest()==row['compressed_sha256']
+external=[]
+for name in['docs/audit/bf144/464/replay-restored.json.gz','docs/audit/bf144/459/inputs.json','docs/audit/bf144/469a/restored.native.json.gz','docs/audit/bf144/469a/controls-restored.native.json.gz','docs/audit/bf144/469a/table-restored.json','docs/audit/bf144/469a/reader-migration.json','docs/audit/bf144/469a/source-input-gap.json','docs/audit/bf144/441c/library-identities.json','docs/audit/bf144/441b/identities.start.json','tools/animgraph_authoring/ue_control_rig_contract.py','tools/animgraph_authoring/ue_control_rig_target.py','tools/run_ue_source_reader.ps1']:
+ raw=Path(name).read_bytes();external.append(dict(path=name,bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest()))
+summary=dict(gate='PASS_EXACT_ROTATION_ABI_BONE_INPUT_LIFETIME_AND_SOURCE_NORMAL_HISTORY',actual_calls=636,controlled_calls=48,source_pin_values=9576,current_public_original_and_trace_control_complete_call_outputs_exact=1272,source_normal_history_states_exact=684,controlled_normal_updates=8,all_required_bone_quaternions_from_exact_native_boundary=True,frame_end_foot_quaternion_not_used=True,whole_source_initial_relative_or_final_quaternion_math_equivalence_not_claimed=True,source_trace_normal_input_and_filtered_state_restored_all636=True,source_current_initial_relative_and_final_quat_residuals_preserved=True,counts_original_and_trace_control=x['counts_original_and_trace_control'],initial_target_and_continuous_normal_history_physical_ablations_rejected=True,source_bytes_restored_same_target_recompiled_and_entire_report_bytes_exact=True,external_source_files=external,known_differences=['D247'],new_differences=[],confirmed_difference_count=272,production_reader_engine_converters_source_assets_unchanged=True,source_rig_or_root_equivalence_claimed=False,next_boundary='Exact source initial relative quaternion and current calf-space rotation primitives, limit angles and final quaternion; preserve original full Rig feedback',screenshots=0,performance_acceptance='paused')
+(r/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');print('Verified exact684 rotation inputs and native bone boundary,1272 complete public calls and source normal history with byte recovery',flush=True)
