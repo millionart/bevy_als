@@ -1,0 +1,15 @@
+# BF144.469a：原生单元执行边界的精确层级读数
+
+469已证明pc98/128之后的SetRotation会写foot，帧末骨旋转不能直接替代consumer输入。本项使用UE公开GetFunctions/FRigVMFunction/typed memory handles：临时为单个VM的指定descriptor设置回调，先原样调用保留的FunctionPtr一次，再读取指定FRigElementKey输入的current/initial global，随后恢复原descriptor和线程局部回调。没有改global registry、source算法、原资产或引擎。记录明确标记after_native_unit_before_next_instruction；FootRotation只读Hierarchy，因此此处仍是它实际消费的骨姿态，不泛称其它unit的before值。
+
+可选unit_boundary对象包含function字符串及唯一items参数名，缺省不改原路径。参数必须是实际function签名中的Input FRigElementKey，运行时再核resolved property。旧reader实际请求缺边界数据先失败。private ResolveFunctionsIfRequired被SDK编译拒绝后删除，使用节点初始化后已解析的公开表，不绕过可见性。
+
+原实际两319共638帧、1272调用，key/pc/stage/delta、calf当前global及initial globals与467读数精确，full-weight effector符合源Equals边界；移除新增字段、只规范化实例cache hash后整个旧probe/执行/pose/work精确。平地foot边界与末帧数值恰好相同；另保持前6真实帧和原世界，仅在第7帧改变mesh朝向的四条源路径，有48次调用、8个foot旋转在consumer与frame-end不同。观察开/关的完整源输出精确，这给读取时点的必要性提供直接原生反例。
+
+消融：current getter置identity触发calf读数合同失败；删除正常路径恢复使unit_boundary_binding_restored为false，scope-exit备用恢复仍保护下一实例；删除配置解析使非法字符串配置被接受。Clang拒绝最初if(false)消融，改用其提示的显式死代码写法后才构建成功。失败构建后曾误启动读取并触发同样失败的自动构建；没有接受该次数据，错误与机器报告另存。最终必须按保存源码bytes恢复、等待完整package构建终态并验证源/包SHA，再核完整原/受控边界、非法配置/非key参数及旧入口。
+
+长期source facts、原始native、请求、SDK证据、源码bytes、消融/恢复、完整表及身份保存Git管理目录；大报告无损gzip并核原字节SHA，含本地路径普通日志只作临时产物，必要错误另存。全自动工具使用现成已self-test的固定wall/no-progress watchdog；本项不作截图或性能验收。
+
+复验从项目根运行本目录run.ps1 -Label <new>；run_python.ps1 -Name check -Case <new>核两319与完整旧域；controls/controls-default请求及check_controls.py核原生时点反例，check_restore_controls.py核恢复。ablate.py zero-current/no-normal-restore/no-config-guard后先等mutator终态，再build.ps1完成完整包构建并核源/包字节，才可native读取；ablate.py restore按reader.final.cpp恢复。bad-type/bad-item请求应返回7；default、character-default.ps1、curves.ps1和compatibility.py核旧入口。facts/identity依赖本机配置与ALS_UE_SOURCE_ROOT。
+
+读取前置不证明整个足旋转算法或完整Rig/Root等价。父469继续使用这些真实输入核normal历史、hidden state及全部旋转算子；生产/转换器/引擎/原资产未改，累计272，截图0、性能暂停。

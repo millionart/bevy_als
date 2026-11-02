@@ -108,6 +108,7 @@
 #include "AssetCompilingManager.h"
 #include "Misc/App.h"
 #include "RigVMCore/RigVM.h"
+#include "RigVMCore/RigVMFunction.h"
 #include "RigVMCore/RigVMProfilingInfo.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "HAL/FileManager.h"
@@ -1894,6 +1895,15 @@ TSharedRef<FJsonObject> CaptureRigHierarchy(const URigHierarchy* Hierarchy, bool
     }
     Value->SetArrayField(TEXT("bones"), Bones);
     return Value;
+}
+
+using FNativeRigUnitBoundary = TFunction<void(FRigVMExtendedExecuteContext&, FRigVMMemoryHandleArray, FRigVMPredicateBranchArray)>;
+thread_local FNativeRigUnitBoundary* ActiveNativeRigUnitBoundary = nullptr;
+
+void ExecuteNativeRigUnitBoundary(FRigVMExtendedExecuteContext& Context, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Branches)
+{
+    check(ActiveNativeRigUnitBoundary != nullptr);
+    (*ActiveNativeRigUnitBoundary)(Context, Handles, Branches);
 }
 
 TSharedRef<FJsonObject> CaptureSkeletalMesh(const USkeletalMesh* Mesh)
@@ -5132,6 +5142,22 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
     bool bCaptureCurrentHierarchy = false;
     if (Request->HasField(TEXT("capture_current_hierarchy")) &&
         (!Request->HasTypedField<EJson::Boolean>(TEXT("capture_current_hierarchy")) || !Request->TryGetBoolField(TEXT("capture_current_hierarchy"), bCaptureCurrentHierarchy))) { return nullptr; }
+    FString BoundaryFunctionName;
+    TArray<FString> BoundaryItemNames;
+    if (Request->HasField(TEXT("unit_boundary")))
+    {
+        const TSharedPtr<FJsonObject>* Boundary = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Items = nullptr;
+        if (!Request->TryGetObjectField(TEXT("unit_boundary"), Boundary) ||
+            !(*Boundary)->TryGetStringField(TEXT("function"), BoundaryFunctionName) || BoundaryFunctionName.IsEmpty() ||
+            !(*Boundary)->TryGetArrayField(TEXT("items"), Items) || Items->IsEmpty()) { return nullptr; }
+        for (const TSharedPtr<FJsonValue>& Item : *Items)
+        {
+            FString Name;
+            if (!Item->TryGetString(Name) || Name.IsEmpty() || BoundaryItemNames.Contains(Name)) { return nullptr; }
+            BoundaryItemNames.Add(Name);
+        }
+    }
     USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, *MeshPath);
     if (MeshAsset == nullptr || MeshAsset->GetSkeleton() != Interface->GetTargetSkeleton()) { return nullptr; }
     const FReferenceSkeleton& Reference = MeshAsset->GetRefSkeleton();
@@ -5237,6 +5263,83 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
         Node.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
         Node.CacheBones_AnyThread(FAnimationCacheBonesContext(&Proxy));
         if (!FNodeAccess::AdapterReady(Node) || !FNodeAccess::AdapterEnabled(Node)) { return nullptr; }
+        URigVM* BoundaryVM = Rig->GetVM();
+        const FRigVMFunction* OriginalBoundaryFunction = nullptr;
+        int32 BoundaryFunctionIndex = INDEX_NONE;
+        FRigVMFunction BoundaryFunction;
+        TArray<int32> BoundaryArguments;
+        TArray<TSharedPtr<FJsonValue>> BoundaryRows;
+        FNativeRigUnitBoundary BoundaryCallback;
+        ON_SCOPE_EXIT
+        {
+            if (OriginalBoundaryFunction != nullptr)
+            {
+                BoundaryVM->GetFunctions()[BoundaryFunctionIndex] = OriginalBoundaryFunction;
+                ActiveNativeRigUnitBoundary = nullptr;
+            }
+        };
+        if (!BoundaryFunctionName.IsEmpty())
+        {
+            if (BoundaryVM == nullptr || ActiveNativeRigUnitBoundary != nullptr) { return nullptr; }
+            TArray<const FRigVMFunction*>& Functions = BoundaryVM->GetFunctions();
+            BoundaryFunctionIndex = Functions.IndexOfByPredicate([&BoundaryFunctionName](const FRigVMFunction* Function)
+            {
+                return Function != nullptr && Function->Name == BoundaryFunctionName;
+            });
+            if (!Functions.IsValidIndex(BoundaryFunctionIndex)) { return nullptr; }
+            OriginalBoundaryFunction = Functions[BoundaryFunctionIndex];
+            for (const FString& Name : BoundaryItemNames)
+            {
+                const int32 Index = OriginalBoundaryFunction->Arguments.IndexOfByPredicate([&Name](const FRigVMFunctionArgument& Argument)
+                {
+                    return FString(Argument.Name) == Name;
+                });
+                if (!OriginalBoundaryFunction->Arguments.IsValidIndex(Index) ||
+                    FString(OriginalBoundaryFunction->Arguments[Index].Type) != TEXT("FRigElementKey") ||
+                    OriginalBoundaryFunction->Arguments[Index].Direction != ERigVMFunctionArgumentDirection::Input) { return nullptr; }
+                BoundaryArguments.Add(Index);
+            }
+            BoundaryCallback = [&](FRigVMExtendedExecuteContext& Context, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Branches)
+            {
+                const int32 Instruction = Context.GetPublicData<>().GetInstructionIndex();
+                OriginalBoundaryFunction->FunctionPtr(Context, Handles, Branches);
+                const FControlRigExecuteContext& RigContext = Context.GetPublicData<FControlRigExecuteContext>();
+                const URigHierarchy* Hierarchy = RigContext.Hierarchy;
+                check(Hierarchy == Rig->GetHierarchy());
+                TSharedRef<FJsonObject> BoundaryRow = MakeShared<FJsonObject>();
+                BoundaryRow->SetNumberField(TEXT("instruction"), Instruction);
+                BoundaryRow->SetStringField(TEXT("function"), BoundaryFunctionName);
+                BoundaryRow->SetStringField(TEXT("stage"), TEXT("after_native_unit_before_next_instruction"));
+                BoundaryRow->SetNumberField(TEXT("delta_seconds"), RigContext.GetDeltaTime());
+                TArray<TSharedPtr<FJsonValue>> Items;
+                for (int32 Index = 0; Index < BoundaryArguments.Num(); ++Index)
+                {
+                    const int32 ArgumentIndex = BoundaryArguments[Index];
+                    check(Handles.IsValidIndex(ArgumentIndex));
+                    const FStructProperty* Property = CastField<FStructProperty>(Handles[ArgumentIndex].GetResolvedProperty());
+                    check(Property != nullptr && Property->Struct == FRigElementKey::StaticStruct());
+                    const FRigElementKey& Key = *reinterpret_cast<const FRigElementKey*>(Handles[ArgumentIndex].GetInputData());
+                    TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();
+                    Item->SetStringField(TEXT("argument"), BoundaryItemNames[Index]);
+                    Item->SetStringField(TEXT("type"), StaticEnum<ERigElementType>()->GetNameStringByValue(static_cast<int64>(Key.Type)));
+                    Item->SetStringField(TEXT("name"), Key.Name.ToString());
+                    const bool bValid = Hierarchy->Find<FRigTransformElement>(Key) != nullptr;
+                    Item->SetBoolField(TEXT("valid_transform_item"), bValid);
+                    if (bValid)
+                    {
+                        Item->SetObjectField(TEXT("current_global_transform"), CaptureTransform(Hierarchy->GetGlobalTransform(Key)));
+                        Item->SetObjectField(TEXT("initial_global_transform"), CaptureTransform(Hierarchy->GetInitialGlobalTransform(Key)));
+                    }
+                    Items.Add(MakeShared<FJsonValueObject>(Item));
+                }
+                BoundaryRow->SetArrayField(TEXT("items"), Items);
+                BoundaryRows.Add(MakeShared<FJsonValueObject>(BoundaryRow));
+            };
+            BoundaryFunction = *OriginalBoundaryFunction;
+            BoundaryFunction.FunctionPtr = &ExecuteNativeRigUnitBoundary;
+            ActiveNativeRigUnitBoundary = &BoundaryCallback;
+            Functions[BoundaryFunctionIndex] = &BoundaryFunction;
+        }
         TArray<TSharedPtr<FJsonValue>> Rows;
         for (const TSharedPtr<FJsonValue>& FrameValue : *Frames)
         {
@@ -5273,6 +5376,7 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
             }
             Leaf.Transforms.Reset();
             Leaf.Curves.Reset();
+            BoundaryRows.Reset();
             if (!ReadSourcePoseProbeLeaf(Reference, (*Frame)->TryGetField(TEXT("pose")), Leaf)) { return nullptr; }
             Node.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
             for (const auto& Variable : (*Variables)->Values)
@@ -5325,10 +5429,16 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
             if (Work == nullptr) { return nullptr; }
             Row->SetObjectField(TEXT("work_after"), CaptureRigMemory(*Work, Rig, bCaptureFloatSpringState));
             if (bCaptureCurrentHierarchy) { Row->SetObjectField(TEXT("hierarchy_after"), CaptureRigHierarchy(Rig->GetHierarchy(), true)); }
+            if (!BoundaryFunctionName.IsEmpty()) { Row->SetArrayField(TEXT("unit_boundaries"), BoundaryRows); }
             Row->SetArrayField(TEXT("executions"), Executions);
             Executions.Reset();
             Rows.Add(MakeShared<FJsonValueObject>(Row));
             UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Rig node history %s frame %d/%d captured."), *CaseName, Rows.Num(), Frames->Num());
+        }
+        if (OriginalBoundaryFunction != nullptr)
+        {
+            BoundaryVM->GetFunctions()[BoundaryFunctionIndex] = OriginalBoundaryFunction;
+            ActiveNativeRigUnitBoundary = nullptr;
         }
         TSharedRef<FJsonObject> CaseRow = MakeShared<FJsonObject>();
         CaseRow->SetStringField(TEXT("name"), CaseName);
@@ -5338,6 +5448,11 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
         CaseRow->SetBoolField(TEXT("adapter_ready"), FNodeAccess::AdapterReady(Node));
         CaseRow->SetObjectField(TEXT("mesh_to_world"), CaptureTransform(Mesh->GetComponentTransform()));
         CaseRow->SetStringField(TEXT("external_controls_stage"), TEXT("after_update_before_evaluate"));
+        if (OriginalBoundaryFunction != nullptr)
+        {
+            CaseRow->SetBoolField(TEXT("unit_boundary_binding_restored"),
+                BoundaryVM->GetFunctions()[BoundaryFunctionIndex] == OriginalBoundaryFunction && ActiveNativeRigUnitBoundary == nullptr);
+        }
         CaseRow->SetArrayField(TEXT("frames"), Rows);
         CaseRows.Add(MakeShared<FJsonValueObject>(CaseRow));
     }

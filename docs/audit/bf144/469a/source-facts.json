@@ -1,0 +1,135 @@
+[
+  {
+    "key": "Engine/Plugins/Runtime/RigVM/Source/RigVM/Public/RigVMCore/RigVM.h",
+    "sha256": "b44e73bd897be8c09feb6bf3b4b0dd3e2c5c6c6072af4e9ac60257356c93cd10",
+    "excerpts": [
+      {
+        "start": 899,
+        "end": 920,
+        "text": "\tRIGVM_API TArray<const UObject*> GetUserDefinedDependencies(const TArray<const FRigVMMemoryStorageStruct*> InMemory);\n\tRIGVM_API void GetRequiredPlugins(TArray<FString>& OutPlugins);\n\nprivate:\n\n\tUPROPERTY()\n\tTArray<FName> FunctionNamesStorage;\n\tTArray<FName>* FunctionNamesPtr;\npublic:\n\tTArray<FName>& GetFunctionNames() { return const_cast<TArray<FName>&>(const_cast<const URigVM*>(this)->GetFunctionNames()); }\n\tvirtual const TArray<FName>& GetFunctionNames() const { return *FunctionNamesPtr; }\nprivate:\n\tTArray<const FRigVMFunction*> FunctionsStorage;\n\tTArray<const FRigVMFunction*>* FunctionsPtr;\npublic:\n\tTArray<const FRigVMFunction*>& GetFunctions() { return const_cast<TArray<const FRigVMFunction*>&>(const_cast<const URigVM*>(this)->GetFunctions()); }\n\tvirtual const TArray<const FRigVMFunction*>& GetFunctions() const { return *FunctionsPtr; }\nprivate:\n\tTArray<const FRigVMDispatchFactory*> FactoriesStorage;\n\tTArray<const FRigVMDispatchFactory*>* FactoriesPtr;\npublic:\n\tTArray<const FRigVMDispatchFactory*>& GetFactories() { return const_cast<TArray<const FRigVMDispatchFactory*>&>(const_cast<const URigVM*>(this)->GetFactories()); }"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Runtime/RigVM/Source/RigVM/Public/RigVMCore/RigVMFunction.h",
+    "sha256": "775cccff943097279dd252b9467e01f739d9c10572c20a24395e59512abfeacf",
+    "excerpts": [
+      {
+        "start": 26,
+        "end": 31,
+        "text": "\ntypedef TArrayView<FRigVMMemoryHandle> FRigVMMemoryHandleArray;\ntypedef TArrayView<FRigVMPredicateBranch> FRigVMPredicateBranchArray;\n\ntypedef void (*FRigVMFunctionPtr)(FRigVMExtendedExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles, FRigVMPredicateBranchArray RigVMBranches);\n"
+      },
+      {
+        "start": 80,
+        "end": 113,
+        "text": "struct FRigVMFunctionArgument : public FRigVMCompiledInFunctionArgument\n{\n\tTSharedPtr<FString> NameString;\n\tTSharedPtr<FString> TypeString;\n\n\tFRigVMFunctionArgument()\n\t\t: FRigVMCompiledInFunctionArgument{ .Direction = ERigVMFunctionArgumentDirection::Invalid }\n\t{\n\t}\n\n\tFRigVMFunctionArgument(FRigVMCompiledInFunctionArgument InBase)\n\t\t: FRigVMCompiledInFunctionArgument(InBase)\n\t{\n\t}\n\n\tFRigVMFunctionArgument(const TCHAR* InName, const TCHAR* InType, const ERigVMFunctionArgumentDirection InDirection = ERigVMFunctionArgumentDirection::Input)\n\t\t: FRigVMCompiledInFunctionArgument{ .Name = InName, .Type = InType, .Direction = InDirection }\n\t{\n\t}\n\n\tFRigVMFunctionArgument(const FString& InName, const FString& InType, const ERigVMFunctionArgumentDirection InDirection = ERigVMFunctionArgumentDirection::Input)\n\t\t: FRigVMCompiledInFunctionArgument{ .Direction = InDirection }\n\t{\n\t\tNameString = MakeShareable(new FString(InName));\n\t\tTypeString = MakeShareable(new FString(InType));\n\t\tName = NameString->operator*();\n\t\tType = TypeString->operator*();\n\t}\n\n\tvoid Serialize_NoLock(FArchive& Ar);\n\n\tRIGVM_API bool operator ==(const FRigVMFunctionArgument& InOther) const;\n};\n"
+      },
+      {
+        "start": 143,
+        "end": 173,
+        "text": " */\nstruct FRigVMFunction\n{\n\tFString Name;\n\tUScriptStruct* Struct;\n\tFRigVMDispatchFactory* Factory;\n\tFRigVMRegistry_NoLock* OwnerRegistry;\n\tFRigVMFunctionPtr FunctionPtr;\n\tint32 Index;\n\tint32 TemplateIndex;\n\tint32 PermutationIndex;\n\tTArray<FRigVMFunctionArgument> Arguments;\n\tmutable TArray<TRigVMTypeIndex> ArgumentTypeIndices;\n\tmutable TArray<FName> ArgumentNames;\n\n\tFRigVMFunction()\n\t\t: Name()\n\t\t, Struct(nullptr)\n\t\t, Factory(nullptr)\n\t\t, OwnerRegistry(nullptr)\n\t\t, FunctionPtr(nullptr)\n\t\t, Index(INDEX_NONE)\n\t\t, TemplateIndex(INDEX_NONE)\n\t\t, PermutationIndex(INDEX_NONE)\n\t\t, Arguments()\n\t\t, ArgumentTypeIndices()\n\t\t, ArgumentNames()\n\t{\n\t}\n\n\tRIGVM_API FRigVMFunction(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, int32 InIndex = INDEX_NONE, const TArray<FRigVMFunctionArgument>& InArguments = TArray<FRigVMFunctionArgument>());"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Runtime/RigVM/Source/RigVM/Public/RigVMCore/RigVMMemoryStorage.h",
+    "sha256": "47b63e8f702d49c14aa5c3058f7590ae99a906e84e54ff7104a78881a9bd81e5",
+    "excerpts": [
+      {
+        "start": 266,
+        "end": 325,
+        "text": "struct FRigVMMemoryHandle\n{\npublic:\n\n\t// Default constructor\n\tFRigVMMemoryHandle()\n\t\t: Ptr(nullptr)\n\t\t, Property(nullptr) \n\t\t, PropertyPath(nullptr)\n\t\t, LazyBranch(nullptr)\n\t\t, bIsForwarded(false)\n\t{}\n\n\t// Constructor from complete data\n\tFRigVMMemoryHandle(uint8* InPtr, const FProperty* InProperty,  const FRigVMPropertyPath* InPropertyPath, FRigVMLazyBranch* InLazyBranch = nullptr)\n\t\t: Ptr(InPtr)\n\t\t, Property(InProperty)\n\t\t, PropertyPath(InPropertyPath)\n\t\t, LazyBranch(InLazyBranch)\n\t\t, bIsForwarded(false)\n\t{\n\t\tif (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))\n\t\t{\n\t\t\tbIsForwarded = StructProperty->Struct == FRigVMForwardedMemoryHandle::StaticStruct();\n\t\t}\n\t}\n\n\t/**\n\t * Returns the cached pointer stored within the handle.\n\t * @param bFollowPropertyPath If set to true the memory handle will traverse the memory using the property path\n\t * @param InSliceIndex If this is != INDEX_NONE the memory handle will return the slice of the memory requested\n\t * @return The traversed memory cached by this handle.\n\t */\n\tUE_DEPRECATED(5.7, \"Please use GetInputData, GetOutputData or GetPrivateData instead.\")\n\tuint8* GetData(bool bFollowPropertyPath, int32 InSliceIndex)\n\t{\n\t\treturn GetData_Internal(bFollowPropertyPath, InSliceIndex);\n\t}\n\n\t/**\n\t * Computes the data if necessary and returns the cached pointer stored within the handle.\n\t * @param bFollowPropertyPath If set to true the memory handle will traverse the memory using the property path\n\t * @param InSliceIndex If this is != INDEX_NONE the memory handle will return the slice of the memory requested\n\t * @return The traversed memory cached by this handle (const)\n\t */\n\tUE_DEPRECATED(5.7, \"Please use GetInputData, GetOutputData or GetPrivateData instead.\")\n\tconst uint8* GetData(bool bFollowPropertyPath, int32 InSliceIndex) const\n\t{\n\t\treturn GetData_Internal(bFollowPropertyPath, InSliceIndex);\n\t}\n\n\t/**\n\t * Returns the cached pointer stored within the handle.\n\t * @param InSliceIndex If this is != INDEX_NONE the memory handle will return the slice of the memory requested\n\t * @return The traversed memory cached by this handle.\n\t */\n\tconst uint8* GetInputData(int32 InSliceIndex = INDEX_NONE) const\n\t{\n\t\treturn GetData_Internal(true, InSliceIndex);\n\t}"
+      },
+      {
+        "start": 399,
+        "end": 417,
+        "text": "\t}\n\n\t// Returns the resolved property the data is pointing to\n\tconst FProperty* GetResolvedProperty(bool bIsHiddenArgument = false) const\n\t{\n\t\tif(bIsHiddenArgument)\n\t\t{\n\t\t\tcheck(PropertyPath == nullptr);\n\t\t\treturn GetArrayElementPropertyChecked(GetProperty());\n\t\t}\n\t\telse if(PropertyPath)\n\t\t{\n\t\t\treturn PropertyPath->GetTailProperty();\n\t\t}\n\t\treturn GetProperty();\n\t}\n\n\t// Returns true if this memory handle maps to a given type of property\n\ttemplate<typename PropertyType>"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Runtime/RigVM/Source/RigVM/Private/RigVMCore/RigVM.cpp",
+    "sha256": "87edff40380db379f056150cfc14b3ae99f06c01ec8989e9d4c9fd877df56a96",
+    "excerpts": [
+      {
+        "start": 2088,
+        "end": 2114,
+        "text": "\n\t\t\t\tTArrayView<FRigVMMemoryHandle> Handles;\n\n\t\t\t\tif(OperandCount > 0)\n\t\t\t\t{\n\t\t\t\t\tHandlesMemory.SetNumUninitialized(OperandCount, EAllowShrinking::No);\n\t\t\t\t\tHandles = TArrayView<FRigVMMemoryHandle>(HandlesMemory.GetData(), OperandCount);\n\t\t\t\t\tGeneratePatchedHandles(Handles, Context.ExternalVariableRuntimeData, VMMemoryPtrs, PreCachedMemoryHandles, PreCachedMemoryHandlesMemoryType, FirstHandleForInstruction[ContextPublicData.InstructionIndex], OperandCount);\n\t\t\t\t}\n\n\t\t\t\tFRigVMPredicateBranchArray Predicates;\n\t\t\t\tif (Op.PredicateCount > 0)\n\t\t\t\t{\n\t\t\t\t\tPredicates = FRigVMPredicateBranchArray(&ByteCode.PredicateBranches[Op.FirstPredicateIndex], Op.PredicateCount);\n\t\t\t\t}\n#if WITH_EDITOR\n\t\t\t\tContextPublicData.FunctionName = FunctionNames[Op.CallableIndex];\n#endif\n\t\t\t\tContext.Factory = Factories[Op.CallableIndex];\n\t\t\t\tconst FRigVMFunction* Function = Functions[Op.CallableIndex];\n\t\t\t\tif (Function && Function->FunctionPtr)\n\t\t\t\t{\n\t\t\t\t\t(*Function->FunctionPtr)(Context, Handles, Predicates);\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\t// Slow path: build diagnostic strings only when we actually need them."
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Units/Highlevel/Hierarchy/RigUnit_TwoBoneIKSimple.cpp",
+    "sha256": "9ee2c5ae9a909ae4871d94537bdd7c66fc25e9d1add6b2bd6829d8835ef582e8",
+    "excerpts": [
+      {
+        "start": 143,
+        "end": 156,
+        "text": "\t\t{\n\t\t\tPoleTarget = PoleVectorSpaceTransform.TransformPositionNoScale(PoleTarget);\n\t\t}\n\t}\n\n\tFTransform TransformA = Hierarchy->GetGlobalTransform(CachedItemAIndex);\n\tFTransform TransformB = TransformA;\n\tTransformB.SetLocation(Hierarchy->GetGlobalTransform(CachedItemBIndex).GetLocation());\n\tFTransform TransformC = Effector;\n\n\tfloat LengthA = ItemALength;\n\tfloat LengthB = ItemBLength;\n\n\tif (LengthA < SMALL_NUMBER)"
+      },
+      {
+        "start": 186,
+        "end": 220,
+        "text": "\t}\n\n\tFControlRigMathLibrary::SolveBasicTwoBoneIK(TransformA, TransformB, TransformC, PoleTarget, PrimaryAxis, SecondaryAxis, SecondaryAxisWeight, LengthA, LengthB, bEnableStretch, StretchStartRatio, StretchMaximumRatio);\n\n\tif (ExecuteContext.GetDrawInterface() != nullptr && DebugSettings.bEnabled)\n\t{\n\t\tconst FLinearColor Dark = FLinearColor(0.f, 0.2f, 1.f, 1.f);\n\t\tconst FLinearColor Bright = FLinearColor(0.f, 1.f, 1.f, 1.f);\n\t\tExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, TransformA.GetLocation(), TransformB.GetLocation(), Dark);\n\t\tExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, TransformB.GetLocation(), TransformC.GetLocation(), Dark);\n\t\tExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, TransformB.GetLocation(), PoleTarget, Bright);\n\t\tExecuteContext.GetDrawInterface()->DrawBox(DebugSettings.WorldOffset, FTransform(FQuat::Identity, PoleTarget, FVector(1.f, 1.f, 1.f) * DebugSettings.Scale * 0.1f), Bright);\n\t}\n\n\tif (Weight < 1.0f - SMALL_NUMBER)\n\t{\n\t\tFVector PositionB = TransformA.InverseTransformPosition(TransformB.GetLocation());\n\t\tFVector PositionC = TransformB.InverseTransformPosition(TransformC.GetLocation());\n\t\tTransformA.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedItemAIndex).GetRotation(), TransformA.GetRotation(), Weight));\n\t\tTransformB.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedItemBIndex).GetRotation(), TransformB.GetRotation(), Weight));\n\t\tif(CachedEffectorItemIndex != INDEX_NONE)\n\t\t{\n\t\t\tTransformC.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedEffectorItemIndex).GetRotation(), TransformC.GetRotation(), Weight));\n\t\t}\n\t\tTransformB.SetLocation(TransformA.TransformPosition(PositionB));\n\t\tTransformC.SetLocation(TransformB.TransformPosition(PositionC));\n\t}\n\n\tHierarchy->SetGlobalTransform(CachedItemAIndex, TransformA, bPropagateToChildren);\n\tHierarchy->SetGlobalTransform(CachedItemBIndex, TransformB, bPropagateToChildren);\n\tif(CachedEffectorItemIndex != INDEX_NONE)\n\t{\n\t\tHierarchy->SetGlobalTransform(CachedEffectorItemIndex, TransformC, bPropagateToChildren);\n\t}\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Public/Rigs/RigHierarchyElements.h",
+    "sha256": "70d4dc1ea363c27b362dc44bf4f907ee6696d6894bfa7db4132cee9e30b4921b",
+    "excerpts": [
+      {
+        "start": 476,
+        "end": 481,
+        "text": "\tstatic bool Equals(const FTransform& A, const FTransform& B, const float InTolerance = 0.0001f)\n\t{\n\t\treturn (A.GetTranslation() - B.GetTranslation()).IsNearlyZero(InTolerance) &&\n\t\t\tA.GetRotation().Equals(B.GetRotation(), InTolerance) &&\n\t\t\t(A.GetScale3D() - B.GetScale3D()).IsNearlyZero(InTolerance);\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "source:Private/Nodes/AlsRigUnit_ApplyFootOffsetRotation.cpp",
+    "sha256": "f8a72e6a1112cad3b3f01e380f013d43c114a1f143c72913469ce4533da4e80d",
+    "excerpts": [
+      {
+        "start": 13,
+        "end": 60,
+        "text": "FAlsRigUnit_ApplyFootOffsetRotation_Execute()\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()\n\n\tconst auto* Hierarchy{ExecuteContext.Hierarchy};\n\n\tif (!IsValid(Hierarchy) ||\n\t    !CachedCalfItem.UpdateCache(CalfItem, Hierarchy) ||\n\t    !CachedFootItem.UpdateCache(FootItem, Hierarchy))\n\t{\n\t\treturn;\n\t}\n\n\tif (!bInitialized)\n\t{\n\t\tbInitialized = true;\n\n\t\tOffsetNormal = FootOffsetNormal;\n\n\t\t// Get the foot initial rotation and convert it to the calf space.\n\n\t\tconst auto CalfInitialRotation{Hierarchy->GetInitialGlobalTransform(CachedCalfItem).GetRotation()};\n\t\tconst auto FootInitialRotation{Hierarchy->GetInitialGlobalTransform(CachedFootItem).GetRotation()};\n\n\t\tFootInitialRotationCalfSpace = CalfInitialRotation.Inverse() * FootInitialRotation;\n\t}\n\n\tOffsetNormal = UAlsMath::DamperExact(OffsetNormal, FootOffsetNormal,\n\t                                     UE_REAL_TO_FLOAT(ExecuteContext.GetDeltaTime()), OffsetInterpolationHalfLife);\n\n\tconst auto OffsetRotation{FQuat::FindBetweenVectors(FVector::UpVector, OffsetNormal)};\n\n\t// Transform the current foot rotation and the target foot rotation with applied foot offset to the calf space.\n\n\tconst auto CalfRotation{Hierarchy->GetGlobalTransform(CachedCalfItem).GetRotation()};\n\tFootRotation = Hierarchy->GetGlobalTransform(CachedFootItem).GetRotation();\n\n\tconst auto CurrentRotationCalfSpace{\n\t\t(CalfRotation.Inverse() * FootRotation * FootInitialRotationCalfSpace.Inverse()).Rotator()\n\t};\n\n\tconst auto TargetRotationCalfSpace{\n\t\t(CalfRotation.Inverse() * (OffsetRotation * FootTargetRotation) * FootInitialRotationCalfSpace.Inverse()).Rotator()\n\t};\n\n\t// Apply limits.\n\n\tstatic const auto ConstraintTargetAngle{"
+      },
+      {
+        "start": 99,
+        "end": 113,
+        "text": ""
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "0c5d85f9495dc3d57d940c62792751edb518dd20f32b4dfdeedbbad8089f6b71",
+    "excerpts": [
+      {
+        "start": 1900,
+        "end": 1909,
+        "text": "using FNativeRigUnitBoundary = TFunction<void(FRigVMExtendedExecuteContext&, FRigVMMemoryHandleArray, FRigVMPredicateBranchArray)>;\nthread_local FNativeRigUnitBoundary* ActiveNativeRigUnitBoundary = nullptr;\n\nvoid ExecuteNativeRigUnitBoundary(FRigVMExtendedExecuteContext& Context, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Branches)\n{\n    check(ActiveNativeRigUnitBoundary != nullptr);\n    (*ActiveNativeRigUnitBoundary)(Context, Handles, Branches);\n}\n\nTSharedRef<FJsonObject> CaptureSkeletalMesh(const USkeletalMesh* Mesh)"
+      },
+      {
+        "start": 5145,
+        "end": 5161,
+        "text": "    FString BoundaryFunctionName;\n    TArray<FString> BoundaryItemNames;\n    if (Request->HasField(TEXT(\"unit_boundary\")))\n    {\n        const TSharedPtr<FJsonObject>* Boundary = nullptr;\n        const TArray<TSharedPtr<FJsonValue>>* Items = nullptr;\n        if (!Request->TryGetObjectField(TEXT(\"unit_boundary\"), Boundary) ||\n            !(*Boundary)->TryGetStringField(TEXT(\"function\"), BoundaryFunctionName) || BoundaryFunctionName.IsEmpty() ||\n            !(*Boundary)->TryGetArrayField(TEXT(\"items\"), Items) || Items->IsEmpty()) { return nullptr; }\n        for (const TSharedPtr<FJsonValue>& Item : *Items)\n        {\n            FString Name;\n            if (!Item->TryGetString(Name) || Name.IsEmpty() || BoundaryItemNames.Contains(Name)) { return nullptr; }\n            BoundaryItemNames.Add(Name);\n        }\n    }\n    USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, *MeshPath);"
+      },
+      {
+        "start": 5266,
+        "end": 5344,
+        "text": "        URigVM* BoundaryVM = Rig->GetVM();\n        const FRigVMFunction* OriginalBoundaryFunction = nullptr;\n        int32 BoundaryFunctionIndex = INDEX_NONE;\n        FRigVMFunction BoundaryFunction;\n        TArray<int32> BoundaryArguments;\n        TArray<TSharedPtr<FJsonValue>> BoundaryRows;\n        FNativeRigUnitBoundary BoundaryCallback;\n        ON_SCOPE_EXIT\n        {\n            if (OriginalBoundaryFunction != nullptr)\n            {\n                BoundaryVM->GetFunctions()[BoundaryFunctionIndex] = OriginalBoundaryFunction;\n                ActiveNativeRigUnitBoundary = nullptr;\n            }\n        };\n        if (!BoundaryFunctionName.IsEmpty())\n        {\n            if (BoundaryVM == nullptr || ActiveNativeRigUnitBoundary != nullptr) { return nullptr; }\n            TArray<const FRigVMFunction*>& Functions = BoundaryVM->GetFunctions();\n            BoundaryFunctionIndex = Functions.IndexOfByPredicate([&BoundaryFunctionName](const FRigVMFunction* Function)\n            {\n                return Function != nullptr && Function->Name == BoundaryFunctionName;\n            });\n            if (!Functions.IsValidIndex(BoundaryFunctionIndex)) { return nullptr; }\n            OriginalBoundaryFunction = Functions[BoundaryFunctionIndex];\n            for (const FString& Name : BoundaryItemNames)\n            {\n                const int32 Index = OriginalBoundaryFunction->Arguments.IndexOfByPredicate([&Name](const FRigVMFunctionArgument& Argument)\n                {\n                    return FString(Argument.Name) == Name;\n                });\n                if (!OriginalBoundaryFunction->Arguments.IsValidIndex(Index) ||\n                    FString(OriginalBoundaryFunction->Arguments[Index].Type) != TEXT(\"FRigElementKey\") ||\n                    OriginalBoundaryFunction->Arguments[Index].Direction != ERigVMFunctionArgumentDirection::Input) { return nullptr; }\n                BoundaryArguments.Add(Index);\n            }\n            BoundaryCallback = [&](FRigVMExtendedExecuteContext& Context, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Branches)\n            {\n                const int32 Instruction = Context.GetPublicData<>().GetInstructionIndex();\n                OriginalBoundaryFunction->FunctionPtr(Context, Handles, Branches);\n                const FControlRigExecuteContext& RigContext = Context.GetPublicData<FControlRigExecuteContext>();\n                const URigHierarchy* Hierarchy = RigContext.Hierarchy;\n                check(Hierarchy == Rig->GetHierarchy());\n                TSharedRef<FJsonObject> BoundaryRow = MakeShared<FJsonObject>();\n                BoundaryRow->SetNumberField(TEXT(\"instruction\"), Instruction);\n                BoundaryRow->SetStringField(TEXT(\"function\"), BoundaryFunctionName);\n                BoundaryRow->SetStringField(TEXT(\"stage\"), TEXT(\"after_native_unit_before_next_instruction\"));\n                BoundaryRow->SetNumberField(TEXT(\"delta_seconds\"), RigContext.GetDeltaTime());\n                TArray<TSharedPtr<FJsonValue>> Items;\n                for (int32 Index = 0; Index < BoundaryArguments.Num(); ++Index)\n                {\n                    const int32 ArgumentIndex = BoundaryArguments[Index];\n                    check(Handles.IsValidIndex(ArgumentIndex));\n                    const FStructProperty* Property = CastField<FStructProperty>(Handles[ArgumentIndex].GetResolvedProperty());\n                    check(Property != nullptr && Property->Struct == FRigElementKey::StaticStruct());\n                    const FRigElementKey& Key = *reinterpret_cast<const FRigElementKey*>(Handles[ArgumentIndex].GetInputData());\n                    TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();\n                    Item->SetStringField(TEXT(\"argument\"), BoundaryItemNames[Index]);\n                    Item->SetStringField(TEXT(\"type\"), StaticEnum<ERigElementType>()->GetNameStringByValue(static_cast<int64>(Key.Type)));\n                    Item->SetStringField(TEXT(\"name\"), Key.Name.ToString());\n                    const bool bValid = Hierarchy->Find<FRigTransformElement>(Key) != nullptr;\n                    Item->SetBoolField(TEXT(\"valid_transform_item\"), bValid);\n                    if (bValid)\n                    {\n                        Item->SetObjectField(TEXT(\"current_global_transform\"), CaptureTransform(Hierarchy->GetGlobalTransform(Key)));\n                        Item->SetObjectField(TEXT(\"initial_global_transform\"), CaptureTransform(Hierarchy->GetInitialGlobalTransform(Key)));\n                    }\n                    Items.Add(MakeShared<FJsonValueObject>(Item));\n                }\n                BoundaryRow->SetArrayField(TEXT(\"items\"), Items);\n                BoundaryRows.Add(MakeShared<FJsonValueObject>(BoundaryRow));\n            };\n            BoundaryFunction = *OriginalBoundaryFunction;\n            BoundaryFunction.FunctionPtr = &ExecuteNativeRigUnitBoundary;\n            ActiveNativeRigUnitBoundary = &BoundaryCallback;\n            Functions[BoundaryFunctionIndex] = &BoundaryFunction;\n        }\n        TArray<TSharedPtr<FJsonValue>> Rows;\n        for (const TSharedPtr<FJsonValue>& FrameValue : *Frames)"
+      },
+      {
+        "start": 5432,
+        "end": 5437,
+        "text": "            if (!BoundaryFunctionName.IsEmpty()) { Row->SetArrayField(TEXT(\"unit_boundaries\"), BoundaryRows); }\n            Row->SetArrayField(TEXT(\"executions\"), Executions);\n            Executions.Reset();\n            Rows.Add(MakeShared<FJsonValueObject>(Row));\n            UE_LOG(LogAlsGraphSourceReader, Display, TEXT(\"Rig node history %s frame %d/%d captured.\"), *CaseName, Rows.Num(), Frames->Num());\n        }"
+      },
+      {
+        "start": 5450,
+        "end": 5458,
+        "text": "        CaseRow->SetStringField(TEXT(\"external_controls_stage\"), TEXT(\"after_update_before_evaluate\"));\n        if (OriginalBoundaryFunction != nullptr)\n        {\n            CaseRow->SetBoolField(TEXT(\"unit_boundary_binding_restored\"),\n                BoundaryVM->GetFunctions()[BoundaryFunctionIndex] == OriginalBoundaryFunction && ActiveNativeRigUnitBoundary == nullptr);\n        }\n        CaseRow->SetArrayField(TEXT(\"frames\"), Rows);\n        CaseRows.Add(MakeShared<FJsonValueObject>(CaseRow));\n    }"
+      }
+    ]
+  }
+]

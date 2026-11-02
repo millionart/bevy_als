@@ -1,0 +1,10 @@
+check_before
+AssertionError: Exact native unit boundary data is missing
+
+check-zero-current
+assert items['CalfItem']['current_global_transform']==hierarchy[calf]['current_global_transform']
+AssertionError
+
+check-no-normal-restore
+assert a['unit_boundary_binding_restored']is True;assert len(a['frames'])==len(b['frames'])==319
+AssertionError

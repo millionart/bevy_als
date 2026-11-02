@@ -1,0 +1,15 @@
+{
+  "gate": "PASS_EXACT_NATIVE_UNIT_BOUNDARY_ITEMS_AND_COMPLETE_OLD_PROBE",
+  "calls": 1272,
+  "frames": 638,
+  "foot_rotation_changed_between_consumer_and_frame_end": 0,
+  "full_weight_ik_effector_rotation_source_bounds": 1272,
+  "current_calf_and_initial_items_exact_frame_end": true,
+  "complete_old_probe_and_execution_and_pose_exact": true,
+  "descriptor_and_thread_local_binding_restored": true,
+  "stage": "after_native_unit_before_next_instruction",
+  "source_unit_readonly_hierarchy_makes_consumed_pose_exact": true,
+  "new_differences": [],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
