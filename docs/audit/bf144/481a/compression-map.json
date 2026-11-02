@@ -1,0 +1,149 @@
+{
+  "actual-after-baseline.native.json": {
+    "raw_bytes": 710619660,
+    "raw_sha256": "7b5a7546cbd1e287fae8c5457723f6e8621aa33243031876ae8298f9ff4c6def",
+    "compressed": "actual-after-baseline.native.json.gz",
+    "compressed_bytes": 68136274,
+    "compressed_sha256": "0e09c99fa619805836505930df84a5a045532a0eb276de4703345db3850d86e1"
+  },
+  "actual-after-restored.native.json": {
+    "raw_bytes": 710569992,
+    "raw_sha256": "7a2164d0c87ae5047131da5f2b032e43e8bd7753c1a6e53223d2d5679dd73edf",
+    "compressed": "actual-after-restored.native.json.gz",
+    "compressed_bytes": 68131619,
+    "compressed_sha256": "2c86e6a7f896795d1ae51e001b4efc47141c0eeda04da72442c184de6f201fc9"
+  },
+  "actual-before-baseline.native.json": {
+    "raw_bytes": 574167506,
+    "raw_sha256": "7d8c4f49ad3927fc2a5fe6c24976ab7de20501f7726f78c2667f3670bcecdd89",
+    "compressed": "actual-before-baseline.native.json.gz",
+    "compressed_bytes": 50220959,
+    "compressed_sha256": "2a425603f20d46a8c364f512e69bda6d52d04a3a4f9d06c4b3d48f30d4596c14"
+  },
+  "actual-before-restored.native.json": {
+    "raw_bytes": 574117806,
+    "raw_sha256": "4db5c27cc7be03b04dee6bd36629d21b6fbfcc618df31340e035b24cdae3c8d8",
+    "compressed": "actual-before-restored.native.json.gz",
+    "compressed_bytes": 50222058,
+    "compressed_sha256": "4cd44abdd906ea6f0ab567381da75a5eb8603dd81c7f55706a8875ee79c34f46"
+  },
+  "character-default.native.json": {
+    "raw_bytes": 117088874,
+    "raw_sha256": "22a2002819617121d94fdfb800cf65feadcbd5ca3a1e1689341548c74ef66e4d",
+    "compressed": "character-default.native.json.gz",
+    "compressed_bytes": 9119202,
+    "compressed_sha256": "b820ce9249caed650f0c086765f319068da756153572c95bd035212c296398d6"
+  },
+  "curves.native.json": {
+    "raw_bytes": 198719,
+    "raw_sha256": "4b11e842693ad10a5e9ad576b3e185d86602a25107d53a1a652ae41a4bb57c6d",
+    "compressed": "curves.native.json.gz",
+    "compressed_bytes": 6781,
+    "compressed_sha256": "3ce693941624e0ba2d1209799b33c63a6d6fd62c9449461a9c7d4a125a3acb29"
+  },
+  "default.native.json": {
+    "raw_bytes": 347491280,
+    "raw_sha256": "941ee553efc33c59831525fc3c71806ccc2fa3e9dbb69f40c48b98673a27cc58",
+    "compressed": "default.native.json.gz",
+    "compressed_bytes": 19498179,
+    "compressed_sha256": "1e42fa0dae217122145aa4e90b79fb9c4e8fc0098ae235b362fc3d9fecee7163"
+  },
+  "weights-after-baseline.native.json": {
+    "raw_bytes": 39571129,
+    "raw_sha256": "0de382921a2504d39f6f4366528f64df023b338476c96b6ec52a97f574e659dd",
+    "compressed": "weights-after-baseline.native.json.gz",
+    "compressed_bytes": 3562017,
+    "compressed_sha256": "9aa01a6fea1b759c79375453d8a5142d7fa0fdb0e3cfad138f1b53e88c228b0a"
+  },
+  "weights-after-global-false.native.json": {
+    "raw_bytes": 39581667,
+    "raw_sha256": "babc95b29e174070efe1bc629dbed2f387b19e95dd451c19139c0987782ad834",
+    "compressed": "weights-after-global-false.native.json.gz",
+    "compressed_bytes": 3559300,
+    "compressed_sha256": "d30a6d1757a890245ef11a69c2be50dd69f6d1a9977ee98aa74ae3ccfa3504eb"
+  },
+  "weights-after-global-identity.native.json": {
+    "raw_bytes": 38090505,
+    "raw_sha256": "7f21a7e5e70af0417ae8a5364f1ac20c1036bcfc321b43632ead38c67db6204a",
+    "compressed": "weights-after-global-identity.native.json.gz",
+    "compressed_bytes": 2845324,
+    "compressed_sha256": "238fda8eafe2fa902551f16b2c651c9e43cd9a344d087e3093512373a61686b7"
+  },
+  "weights-after-restored.native.json": {
+    "raw_bytes": 39571121,
+    "raw_sha256": "3828dcc87cae42f86eda2d2af48e34dcbcb433564fb880519ab379ca1ddf1280",
+    "compressed": "weights-after-restored.native.json.gz",
+    "compressed_bytes": 3561960,
+    "compressed_sha256": "e5a31b3978f762d48c37dee4f5c05a5953ce9f56d496b15954cd1f52b34595a2"
+  },
+  "weights-before-baseline.native.json": {
+    "raw_bytes": 32231463,
+    "raw_sha256": "99b1eb8e48a2322736612341214b6c7fcf6b396c33fc58dec3083b55f623ae4b",
+    "compressed": "weights-before-baseline.native.json.gz",
+    "compressed_bytes": 2623547,
+    "compressed_sha256": "ab71a45948afcdc81ed22d27c6978312925a5817cab664046bebef16a0711405"
+  },
+  "weights-before-restored.native.json": {
+    "raw_bytes": 32232445,
+    "raw_sha256": "046fd9b066701e582c6d854e27900ddbbf5759b1f2c1264478268d50313c3a87",
+    "compressed": "weights-before-restored.native.json.gz",
+    "compressed_bytes": 2623461,
+    "compressed_sha256": "16172b9303f393aec5357f988b9317e93f6e7bdac8f389c06a27b8c862b55c25"
+  },
+  "table-actual-after-baseline.json": {
+    "raw_bytes": 130469384,
+    "raw_sha256": "7e9daddb3e436df57080b2715010666e96da76cca86ad7e3a2f46c118cea1378",
+    "compressed": "table-actual-after-baseline.json.gz",
+    "compressed_bytes": 30915234,
+    "compressed_sha256": "cb53eac642ba841d7154cfa947a426e74276544627baa6dbaa2bbee01f36fad9"
+  },
+  "table-actual-after-restored.json": {
+    "raw_bytes": 130469384,
+    "raw_sha256": "7e9daddb3e436df57080b2715010666e96da76cca86ad7e3a2f46c118cea1378",
+    "compressed": "table-actual-after-restored.json.gz",
+    "compressed_bytes": 30915234,
+    "compressed_sha256": "cb53eac642ba841d7154cfa947a426e74276544627baa6dbaa2bbee01f36fad9"
+  },
+  "table-actual-before-baseline.json": {
+    "raw_bytes": 65172422,
+    "raw_sha256": "07bde5ed5f4a1caa3e79bca5b23f12e017507f877051e63bc4875c281961a113",
+    "compressed": "table-actual-before-baseline.json.gz",
+    "compressed_bytes": 15403062,
+    "compressed_sha256": "e78c1433b94f8fbd4aae6dcfddaadae2f3a0e3527edc81bb61271d3944ddc9d3"
+  },
+  "table-actual-before-restored.json": {
+    "raw_bytes": 65172422,
+    "raw_sha256": "07bde5ed5f4a1caa3e79bca5b23f12e017507f877051e63bc4875c281961a113",
+    "compressed": "table-actual-before-restored.json.gz",
+    "compressed_bytes": 15403062,
+    "compressed_sha256": "e78c1433b94f8fbd4aae6dcfddaadae2f3a0e3527edc81bb61271d3944ddc9d3"
+  },
+  "table-weights-after-baseline.json": {
+    "raw_bytes": 6415538,
+    "raw_sha256": "5d04ef54866cc675905ddbfc52f171e1f506b086e2a1f65ac8145eedf4b449d0",
+    "compressed": "table-weights-after-baseline.json.gz",
+    "compressed_bytes": 1509691,
+    "compressed_sha256": "d73fe210a7e005ca7b90a2565ab1cde1eb7fd66cf52edf97b020c836a57fa771"
+  },
+  "table-weights-after-restored.json": {
+    "raw_bytes": 6415538,
+    "raw_sha256": "5d04ef54866cc675905ddbfc52f171e1f506b086e2a1f65ac8145eedf4b449d0",
+    "compressed": "table-weights-after-restored.json.gz",
+    "compressed_bytes": 1509691,
+    "compressed_sha256": "d73fe210a7e005ca7b90a2565ab1cde1eb7fd66cf52edf97b020c836a57fa771"
+  },
+  "table-weights-before-baseline.json": {
+    "raw_bytes": 2972313,
+    "raw_sha256": "55987824ea6e35c9ae695ad2a872158d9a4477927f4e7554a2a410bab712616d",
+    "compressed": "table-weights-before-baseline.json.gz",
+    "compressed_bytes": 700358,
+    "compressed_sha256": "ae8df4950ca6f58563d18eba42d4ecb1e8e01530720f6de3022b812ab8587342"
+  },
+  "table-weights-before-restored.json": {
+    "raw_bytes": 2972313,
+    "raw_sha256": "55987824ea6e35c9ae695ad2a872158d9a4477927f4e7554a2a410bab712616d",
+    "compressed": "table-weights-before-restored.json.gz",
+    "compressed_bytes": 700358,
+    "compressed_sha256": "ae8df4950ca6f58563d18eba42d4ecb1e8e01530720f6de3022b812ab8587342"
+  }
+}

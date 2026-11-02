@@ -1,0 +1,158 @@
+{
+  "gate": "PASS_READONLY_NATIVE_RAW_HIERARCHY_CACHE_BOUNDARY_WITH_RESTORATION_AND_LEGACY_COMPATIBILITY",
+  "counts": {
+    "snapshots": 4010,
+    "bones": 316790,
+    "global_dirty": 272638,
+    "local_dirty": 19584,
+    "clean_typed_global_exact": 10011,
+    "active_leg_ball_dirty": 1330
+  },
+  "one_additive_array_under_existing_opt_in_only": true,
+  "raw_cache_capture_before_existing_item_getters": true,
+  "no_new_pose_getter_tracking_state_configuration_or_source_algorithm": true,
+  "allocating_pose_version_getter_deliberately_excluded": true,
+  "dirty_cache_values_not_claimed_current_evaluated_transforms": true,
+  "complete_old_body_transparency_all_four_histories": true,
+  "baseline_restored_all4010_cache_tables_byte_equal": true,
+  "metadata_only_negative_cases": [
+    {
+      "gate": "PASS_METADATA_ONLY_CACHE_ABLATION_REJECTED_WITH_OLD_BODY_UNCHANGED",
+      "case": "global-false",
+      "snapshots": 130,
+      "changed_cache_records": 8540,
+      "only_selected_metadata_changed": true
+    },
+    {
+      "gate": "PASS_METADATA_ONLY_CACHE_ABLATION_REJECTED_WITH_OLD_BODY_UNCHANGED",
+      "case": "global-identity",
+      "snapshots": 130,
+      "changed_cache_records": 10260,
+      "only_selected_metadata_changed": true
+    }
+  ],
+  "whole_default_rig_character_and_three_axis_curvevector_compatibility": true,
+  "canonical_source_bytes_restored_same_package_full_terminal_rebuild": true,
+  "reader_migration": "docs/audit/bf144/481a/reader-migration.json",
+  "other395_and_six_libraries_unchanged": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/476/inputs.json",
+      "bytes": 9301936,
+      "sha256": "3c457846190eceb29dde77c53e47ca1aa6dcc3e12c0ee2b6b6552a26361b2ff8"
+    },
+    {
+      "path": "docs/audit/bf144/476/actual-before.request.json.gz",
+      "bytes": 2229452,
+      "sha256": "b56da4d08f65cdc60d54ad2bf2491e4c2e216ee0fd14aa96f758061abea60c6b"
+    },
+    {
+      "path": "docs/audit/bf144/476/actual-after.request.json.gz",
+      "bytes": 2229460,
+      "sha256": "cabdfd01118a04a480fbf9a2ca1ddbb8882678e4d037302d8c6a3218a573dbfe"
+    },
+    {
+      "path": "docs/audit/bf144/476/weights-before.request.json",
+      "bytes": 593258,
+      "sha256": "9ec840cb1036993b96447cc5d6d295f5a039ce743613dbc041da1f0823578080"
+    },
+    {
+      "path": "docs/audit/bf144/476/weights-after.request.json",
+      "bytes": 593265,
+      "sha256": "519621675295bf1322f9068db4948a089c9a2f66d68d1f0ddfd7a85ae21c30de"
+    },
+    {
+      "path": "docs/audit/bf144/476/actual-before.native.json.gz",
+      "bytes": 32815282,
+      "sha256": "f55b3b01f970ff9decd12169554ad946f92ae08d4955bfc9a4c743b21611fbb0"
+    },
+    {
+      "path": "docs/audit/bf144/476/actual-after.native.json.gz",
+      "bytes": 33339828,
+      "sha256": "92701c389c02a1d31b78c0e626441bc6730a55486a9276c94ee0514057a5c846"
+    },
+    {
+      "path": "docs/audit/bf144/476/weights-before.native.json.gz",
+      "bytes": 1832517,
+      "sha256": "90176865ccbc7e312156d973a1be7fa392153ed34303b48a647a6db5d7ead88b"
+    },
+    {
+      "path": "docs/audit/bf144/476/weights-after.native.json.gz",
+      "bytes": 1863149,
+      "sha256": "fc461cf1c372edbac986dd213195aa457cc2dc37e03a80ed6cbd68aeabd889d3"
+    },
+    {
+      "path": "docs/audit/bf144/474a/reader-migration.json",
+      "bytes": 497,
+      "sha256": "f486ece869fd2658f4b9bfeab54ac8bef82f7bbed4e60c74634bd3739007a529"
+    },
+    {
+      "path": "docs/audit/bf144/462/cache_identity.py",
+      "bytes": 814,
+      "sha256": "d5af8364a217e80c9d04d07ff120d8c27f7b60d24085ebfd2e3651183f019799"
+    },
+    {
+      "path": "docs/audit/bf144/462/request.json",
+      "bytes": 11271211,
+      "sha256": "27108bc1ede21a850ec3ba6e9fb3a9513f24963dfa4bcdfd4124501cc18544c3"
+    },
+    {
+      "path": "docs/audit/bf144/462/restored.native.json.gz",
+      "bytes": 21303375,
+      "sha256": "6752b177f73d4f59acf7c68e2e31afff98b4f48d361e5c3a3bd0e018ea73dc17"
+    },
+    {
+      "path": "docs/audit/bf144/457/default.request.json",
+      "bytes": 145036,
+      "sha256": "09ee312d3797714dfe356eb54a42b63b8cdc59dcddf132e1958ef69fbe0a8afa"
+    },
+    {
+      "path": "docs/audit/bf144/457/default.native.json.gz",
+      "bytes": 9620886,
+      "sha256": "829c490c845e7da29c7b02fce38ab743230375400155cdbcd8b80b344328a685"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.request.json",
+      "bytes": 4198,
+      "sha256": "98f6b163e8583e510e6d91f9c9b37540581df41c9691e14acbf7b77ab846a5e6"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.native.json",
+      "bytes": 198719,
+      "sha256": "4b11e842693ad10a5e9ad576b3e185d86602a25107d53a1a652ae41a4bb57c6d"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/watchdog.self-test.json",
+      "bytes": 249,
+      "sha256": "a55daaedcd601b4d484d262d03ae64f4d1317d7d9c520e770ddbaa6662154763"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    },
+    {
+      "path": "tools/build_ue_source_reader.ps1",
+      "bytes": 980,
+      "sha256": "b3b96199aa6a047ab0931b39cadd18059f8e58930b7f60bb422c412ca6e5e16f"
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_engine_converters_source_assets_unchanged": true,
+  "writer_execution_counts_or_descendant_math_equivalence_claimed": false,
+  "full_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Source/target ordered three IK writers,dirty and Equals decisions,and full descendant local/global propagation using exact raw caches",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

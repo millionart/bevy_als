@@ -5311,6 +5311,22 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
                 BoundaryRow->SetStringField(TEXT("function"), BoundaryFunctionName);
                 BoundaryRow->SetStringField(TEXT("stage"), TEXT("after_native_unit_before_next_instruction"));
                 BoundaryRow->SetNumberField(TEXT("delta_seconds"), RigContext.GetDeltaTime());
+                TArray<TSharedPtr<FJsonValue>> HierarchyCache;
+                for (const FRigElementKey& CacheKey : Hierarchy->GetAllKeys())
+                {
+                    const FRigTransformElement* CacheElement = Hierarchy->Find<FRigTransformElement>(CacheKey);
+                    if (CacheElement == nullptr) { continue; }
+                    TSharedRef<FJsonObject> Cache = MakeShared<FJsonObject>();
+                    Cache->SetStringField(TEXT("name"), CacheKey.Name.ToString());
+                    Cache->SetStringField(TEXT("type"), StaticEnum<ERigElementType>()->GetNameStringByValue(static_cast<int64>(CacheKey.Type)));
+                    Cache->SetStringField(TEXT("parent"), Hierarchy->GetFirstParent(CacheKey).Name.ToString());
+                    Cache->SetBoolField(TEXT("current_local_dirty"), CacheElement->GetDirtyState().IsDirty(ERigTransformType::CurrentLocal));
+                    Cache->SetBoolField(TEXT("current_global_dirty"), CacheElement->GetDirtyState().IsDirty(ERigTransformType::CurrentGlobal));
+                    Cache->SetObjectField(TEXT("current_local_cache"), CaptureTransform(CacheElement->GetTransform().Get(ERigTransformType::CurrentLocal)));
+                    Cache->SetObjectField(TEXT("current_global_cache"), CaptureTransform(CacheElement->GetTransform().Get(ERigTransformType::CurrentGlobal)));
+                    HierarchyCache.Add(MakeShared<FJsonValueObject>(Cache));
+                }
+                BoundaryRow->SetArrayField(TEXT("hierarchy_cache_before_item_reads"), HierarchyCache);
                 TArray<TSharedPtr<FJsonValue>> Items;
                 for (int32 Index = 0; Index < BoundaryArguments.Num(); ++Index)
                 {

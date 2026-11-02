@@ -1,0 +1,14 @@
+{
+  "gate": "PASS_READONLY_RAW_HIERARCHY_CACHE_AND_COMPLETE_OLD_HISTORY_TRANSPARENCY",
+  "kind": "weights-before",
+  "counts": {
+    "snapshots": 60,
+    "bones": 4740,
+    "global_dirty": 4350,
+    "local_dirty": 95,
+    "clean_typed_global_exact": 180,
+    "active_leg_ball_dirty": 0
+  },
+  "all_old_fields_and_execution_pose_work_exact": true,
+  "raw_dirty_cache_not_claimed_evaluated": true
+}

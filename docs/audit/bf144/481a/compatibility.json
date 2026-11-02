@@ -1,0 +1,7 @@
+{
+  "gate": "PASS_NATIVE_LOCAL_DIRTY_FIELD_FULL_DEFAULT_RIG_CHARACTER_AND_CURVEVECTOR_COMPATIBILITY",
+  "whole_old_default_rig_exact": true,
+  "whole_old_default_character_exact": true,
+  "whole_old_three_axis_curvevector_exact": true,
+  "new_configuration_or_runtime_state_added": false
+}
