@@ -1,0 +1,39 @@
+{
+  "gate": "PASS_PARTIAL_WRAPPER_MINIMAL_NATIVE_COUNTEREXAMPLES_AND_CORE_ISOLATION",
+  "records": [
+    {
+      "case": "slerp",
+      "source_exact": 1,
+      "native_mismatched_cases": 1,
+      "pre_weight_core_exact": 2,
+      "public_control_exact": 2,
+      "public_control_zero_only": false
+    },
+    {
+      "case": "normalizer",
+      "source_exact": 0,
+      "native_mismatched_cases": 2,
+      "pre_weight_core_exact": 2,
+      "public_control_exact": 2,
+      "public_control_zero_only": false
+    },
+    {
+      "case": "vector",
+      "source_exact": 0,
+      "native_mismatched_cases": 2,
+      "pre_weight_core_exact": 2,
+      "public_control_exact": 2,
+      "public_control_zero_only": false
+    },
+    {
+      "case": "position-rebuild",
+      "source_exact": 0,
+      "native_mismatched_cases": 2,
+      "pre_weight_core_exact": 2,
+      "public_control_exact": 2,
+      "public_control_zero_only": true
+    }
+  ],
+  "source_solver_hold_removal_changed_records": 126,
+  "canonical_source_inputs_and_report_restored_byte_exact": true
+}

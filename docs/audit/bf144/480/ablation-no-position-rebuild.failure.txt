@@ -1,0 +1,6 @@
+
+thread 'main' (2995849) panicked at docs/audit/bf144/480/replay.rs:129:5:
+assertion `left == right` failed: Complete source weight wrapper TQS must match exact native post
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

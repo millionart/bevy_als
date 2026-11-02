@@ -1,0 +1,12 @@
+{
+  "case": "normalizer",
+  "bit": 2,
+  "source_rows": [
+    1294,
+    1295
+  ],
+  "weight": 0.25,
+  "source_solver_unchanged": true,
+  "source_sha256": "7fbc7e1fac39d8fd30c0b8d79db39bb38f9f9108140d58b3e0538ed0cefabe78",
+  "inputs_sha256": "6c843d6ca27ebc2a86d4150c92454fa6ce9180382f2bc8f0c5154df1f8541d4c"
+}

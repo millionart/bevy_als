@@ -1,0 +1,8 @@
+{
+  "gate": "PASS_FRESH_COMPLETE_PRE_WEIGHT_NATIVE_SOLVER_INPUTS",
+  "native_calls": 1330,
+  "full_actual_post_preserved": 1324,
+  "partial_core_inputs_qualified": 6,
+  "weight_zero_no_solver_claim": 2,
+  "fresh_rig_instructions_match": true
+}
