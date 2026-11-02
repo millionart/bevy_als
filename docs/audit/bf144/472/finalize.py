@@ -1,0 +1,22 @@
+import gzip
+import hashlib
+import json
+from pathlib import Path
+
+r=Path(__file__).resolve().parent;read=lambda name:json.loads((r/name).read_bytes())
+assert(r/'replay.rs').read_bytes()==(r/'replay.rs.final').read_bytes();assert hashlib.sha256((r/'replay.rs').read_bytes()).hexdigest()==read('final-source.json')['sha256'];assert(r/'replay-baseline.json').read_bytes()==(r/'replay-simplified.json').read_bytes()==(r/'replay-restored.json').read_bytes()
+for label in['baseline','simplified','restored']:assert read('replay-compile-'+label+'.report.json')['success']and read('replay-'+label+'.report.json')['success']
+for label in['no-source-pose','no-source-math']:assert read('replay-compile-'+label+'.report.json')['success']and read('replay-'+label+'.report.json')['process_exit_code']==101
+assert read('compare-current-f32-contract.report.json')['process_exit_code']==1 and read('identity-check.json')['six_libraries_unchanged']
+value=read('replay-restored.json');assert value['current_actual_exact']==value['source_endpoint_exact']==1272 and value['reused_source_vs_explicit_source_stage_differences']==0 and len(value['outputs'])==40704
+comparison=read('comparison.json');assert comparison['matrix_values']==40704;counts=comparison['counts']
+for mode in[0,1]:
+ assert counts[f'{mode}:15:1']==dict(double_differences=0,f32_differences=0);assert counts[f'{mode}:0:0']['f32_differences']==counts[f'{mode}:0:1']['f32_differences']==(139 if mode==0 else 128);assert counts[f'{mode}:1:0']['f32_differences']==1
+setter=read('setter-entry.json');assert setter['calls']==636 and all(row['source_weight']==1 and not row['initial']and row['space']=='GlobalSpace'for row in setter['rows'])
+for row in read('compression-map.json').values():
+ packed=(r/row['compressed']).read_bytes();raw=gzip.decompress(packed);assert len(raw)==row['raw_bytes']and hashlib.sha256(raw).hexdigest()==row['raw_sha256'];assert hashlib.sha256(packed).hexdigest()==row['compressed_sha256']
+external=[]
+for name in['docs/audit/bf144/471/replay.rs','docs/audit/bf144/471/replay.prototype.rs','docs/audit/bf144/471/inputs.json','docs/audit/bf144/469/inputs.json','docs/audit/bf144/469/replay-restored.json','docs/audit/bf144/469a/restored.native.json.gz','docs/audit/bf144/469a/reader-migration.json','docs/audit/bf144/441c/library-identities.json','docs/audit/bf144/441b/identities.start.json','tools/animgraph_authoring/ue_control_rig_contract.py','tools/animgraph_authoring/ue_control_rig_target.py','tools/run_ue_source_reader.ps1']:
+ raw=Path(name).read_bytes();external.append(dict(path=name,bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest()))
+summary=dict(gate='PASS_ACTUAL_ROTATION_INPUT_DATA_ALGORITHM_MATRIX_AND_SETROTATION_CONSUMER_ENTRY',actual_current_outputs_exact=1272,complete_source_data_source_math_endpoints_exact=1272,complete_data_algorithm_records=40704,data_groups=comparison['data_groups'],actual_f32_differences_original_and_trace_control=[139,128],source_math_alone_f32_differences_original_and_trace_control=[139,128],source_pose_only_current_math_f32_differences=[1,1],pose_input_substitution_is_diagnostic_not_root_cause=True,earlier_ik_pose_producer_not_yet_closed=True,all_source_data_and_math_complete_native_restoration=True,source_math_reuse_qualified_again_in_new_actual_input_domain=True,duplicate_explicit_source_reference_removed_after_full_report_byte_equality=True,setrotation_entries_source_exact=636,setrotation_value_and_item_directly_bound_to_rotation_output=True,setrotation_entry_arguments_no_later_alias_write=True,all_source_sample_weights_are_one=True,partial_weight_setter_and_hierarchy_writeback_not_claimed=True,source_pose_and_math_removal_rejected=True,source_bytes_restored_same_target_recompiled_all40704_records_byte_exact=True,external_source_files=external,new_differences=[],confirmed_difference_count=272,production_reader_engine_converters_source_assets_unchanged=True,full_rig_or_root_equivalence_claimed=False,next_boundary='Source and target full SetRotation writer on qualified pre-pose, source equality skip and weighted/partial native controls; audit earlier actual IK pose producer before attributing source-pose substitution',screenshots=0,performance_acceptance='paused')
+(r/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');print('Verified1272 actual endpoints,40704 data/math combinations,source pose necessity and636 direct SetRotation entries with exact restoration',flush=True)
