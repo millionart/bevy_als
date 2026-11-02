@@ -1,0 +1,7 @@
+{
+  "gate": "PASS_IK_EFFECTOR_LOCATION_AND_ROTATION_INPUTS_FROM_INDEPENDENT_SOURCE_PRODUCERS",
+  "calls": 1272,
+  "location_source": "docs/audit/bf144/468/inputs.json",
+  "rotation_input_source": "docs/audit/bf144/469/inputs.json",
+  "solver_output_not_used_as_input_oracle": true
+}

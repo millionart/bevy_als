@@ -1,0 +1,7 @@
+{
+  "gate": "NO_COUNTEREXAMPLE_POST_POSE_IK_IDEMPOTENT_IN_THIS_FULL_WEIGHT_COHORT",
+  "calls": 1272,
+  "wrong_post_pose_reproduces_final_current_outputs": true,
+  "final_output_equality_does_not_prove_consumed_input_time": true,
+  "not_accepted_as_necessary_negative_control": true
+}

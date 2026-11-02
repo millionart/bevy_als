@@ -1,0 +1,20 @@
+{
+  "gate": "PASS_NATIVE_PRE_IK_TEMPORAL_IDENTITY_CONTRACT_REJECTS_POST_IK_INPUTS",
+  "accepted_exact_pre_boundaries": 1332,
+  "rejected_post_boundaries": 1332,
+  "first_rejection": {
+    "dataset": "actual",
+    "case": 0,
+    "query": 1,
+    "pc": 91,
+    "function": "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+    "reason": "Before-IK sample is not from the readonly source PoleVector unit",
+    "typed_arguments": [
+      "ItemA",
+      "ItemB",
+      "EffectorItem"
+    ]
+  },
+  "final_output_idempotence_not_used_to_prove_input_time": true,
+  "solver_mathematics_not_claimed": true
+}

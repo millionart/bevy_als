@@ -1,0 +1,116 @@
+{
+  "gate": "PASS_NATIVE_IK_TEMPORAL_ABI_DATA_FOUNDATION_WITH_COMPLETE_HISTORY_TRANSPARENCY",
+  "source_native_leg_calls": 1332,
+  "source_native_pin_values": 29304,
+  "ordinary_and_hidden_source_refs_no_late_alias": true,
+  "source_hidden_cache_values_after_call_not_before": true,
+  "source_pre_post_changed": 1330,
+  "source_zero_weight_unchanged": 2,
+  "source_post_calf_and_foot_exact_downstream_consumers": true,
+  "source_effector_input_position_and_rotation_independently_crossed": 1272,
+  "source_automatic_lengths_requested_not_claimed_computed_for_zero_weight": true,
+  "full_native_and_current_histories_unchanged": true,
+  "current_shared_ik_observations": 2548,
+  "current_active_leg_calls": 1272,
+  "inactive_arm_and_initial_frame_not_solver_acceptance": true,
+  "native_pre_stage_contract_accepts": 1332,
+  "native_post_as_pre_contract_rejects": 1332,
+  "current_post_input_idempotence_no_counterexample_preserved": true,
+  "no_pole_input_echo_failure_not_accepted_as_pose_counterexample": true,
+  "current_public_final_recovery_and_parameter_pose_ablation_still_pending": true,
+  "parent476_full_objective_preserved": true,
+  "source_solver_mathematics_and_full_rig_not_claimed": true,
+  "current396_reader474a_and_six_libraries_unchanged": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/469a/request.json",
+      "bytes": 11271386,
+      "sha256": "e97e2098a5f679a2fe3af1c650dfaf5678f9f2cb3629947b93be902ac66a0c42"
+    },
+    {
+      "path": "docs/audit/bf144/469a/restored.native.json.gz",
+      "bytes": 35098372,
+      "sha256": "b267f874d6dfdd64c1b836e725ba2b361a31b383b32614d27a43cf26472776db"
+    },
+    {
+      "path": "docs/audit/bf144/473/weights.request.json",
+      "bytes": 593260,
+      "sha256": "232bff2d2bf9f7588507f96c956ef9b0349c6587cd1eb1562d4e7dd84eb33bee"
+    },
+    {
+      "path": "docs/audit/bf144/473/weights.native.json.gz",
+      "bytes": 1817270,
+      "sha256": "c4a8b9087d82503ce40a4606f29bce5b1374f89023791f8e31607227e8c17cee"
+    },
+    {
+      "path": "docs/audit/bf144/473/replay-baseline.json.gz",
+      "bytes": 7804186,
+      "sha256": "697429e5d72de23459bd35c481b8ca7b65140693a1cd44cfe8bc3c2395249770"
+    },
+    {
+      "path": "docs/audit/bf144/459/inputs.json",
+      "bytes": 29551067,
+      "sha256": "f3992070db213883da1179396296a1d7693fdf99da2f571bf6d0949f2f2477c7"
+    },
+    {
+      "path": "docs/audit/bf144/463/replay-restored.json",
+      "bytes": 1877571,
+      "sha256": "1dd56f10f60a1a232715e333cd52742bb7031ef7fa8443c973314cad00ac73fd"
+    },
+    {
+      "path": "docs/audit/bf144/468/inputs.json",
+      "bytes": 3243753,
+      "sha256": "dac45a45d12d0710dc5283a2f5ad2e414b40bbb37fa6e288f04626beff8f32f3"
+    },
+    {
+      "path": "docs/audit/bf144/469/inputs.json",
+      "bytes": 3882164,
+      "sha256": "9d8fe882d306191092a8aef9f6d8d739b7ed0886e5b1d18d73dc6f31946c7bbd"
+    },
+    {
+      "path": "docs/audit/bf144/474a/reader-migration.json",
+      "bytes": 497,
+      "sha256": "f486ece869fd2658f4b9bfeab54ac8bef82f7bbed4e60c74634bd3739007a529"
+    },
+    {
+      "path": "docs/audit/bf144/474a/reader.final.cpp",
+      "bytes": 466125,
+      "sha256": "7bcc48dba260111aa4c13d9223b2763b659b89d0a9f4ddd4f5d54214b6625995"
+    },
+    {
+      "path": "docs/audit/bf144/462/cache_identity.py",
+      "bytes": 814,
+      "sha256": "d5af8364a217e80c9d04d07ff120d8c27f7b60d24085ebfd2e3651183f019799"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_contract.py",
+      "bytes": 32819,
+      "sha256": "826062415d612532949ed8aec987fd80b188acf27fa52327231b3dd486776d82"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+      "bytes": 28928,
+      "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_reader_engine_converters_source_assets_unchanged": true,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

@@ -1,0 +1,6 @@
+{
+  "gate": "PASS_COMPLETE_NATIVE_IK_BOUNDARY_OBSERVATION_TRANSPARENCY",
+  "calls": 60,
+  "complete_old_native_execution_pose_work_state_and_hierarchy_unchanged": true,
+  "descriptor_binding_restored": true
+}
