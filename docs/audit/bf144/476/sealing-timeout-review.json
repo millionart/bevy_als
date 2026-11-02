@@ -1,0 +1,21 @@
+{
+  "previous_start": "2026-11-02T16:45:00+08:00",
+  "previous_estimated_end": "2026-11-02T17:25:00+08:00",
+  "review_time": "2026-11-02T17:59:28+08:00",
+  "last_verified_finalize": "2026-11-02T17:02:24+08:00",
+  "unverified_wall_clock_gap": [
+    "2026-11-02T17:02:24+08:00",
+    "2026-11-02T17:59:28+08:00"
+  ],
+  "gap_not_assumed_active_work_or_user_pause": true,
+  "implementation_and_new_runtime_stopped_for_review": true,
+  "remaining_scope": [
+    "final_git_evidence_manifest",
+    "privacy_and_staged_byte_verification",
+    "checklist_completion_and_commit"
+  ],
+  "next_start": "2026-11-02T18:00:00+08:00",
+  "next_estimated_end": "2026-11-02T19:00:00+08:00",
+  "derived_from_previous_window_multiplier": 1.5,
+  "original_scope_preserved": true
+}
