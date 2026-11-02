@@ -1,0 +1,311 @@
+{
+  "gate": "PASS_COMPLETE_ACTUAL_IK_ORIENTATION_NATIVE_PUBLIC_ISOLATED_FACTORS_AND_RESTORATION",
+  "native_source_cases_exact": 5192,
+  "current_public_models_exact": 5192,
+  "current_actual_default_rotations_and_positions_exact": 1272,
+  "native_primary_only_controls_independently_check_default_primary_stages": 2596,
+  "public_primary_only_controls_check_default_primary_stages": 2596,
+  "orientation_factor_positions_held_to_qualified_source": true,
+  "groups": {
+    "source_cm:secondary1": {
+      "31": {
+        "cases": 1324,
+        "exact_cases": 1324,
+        "double_different_quaternions": 0,
+        "f32_different_quaternions": 0
+      },
+      "0": {
+        "cases": 1324,
+        "exact_cases": 0,
+        "double_different_quaternions": 2646,
+        "f32_different_quaternions": 4
+      },
+      "30": {
+        "cases": 1324,
+        "exact_cases": 438,
+        "double_different_quaternions": 1188,
+        "f32_different_quaternions": 0
+      },
+      "29": {
+        "cases": 1324,
+        "exact_cases": 169,
+        "double_different_quaternions": 1700,
+        "f32_different_quaternions": 0
+      },
+      "27": {
+        "cases": 1324,
+        "exact_cases": 9,
+        "double_different_quaternions": 2589,
+        "f32_different_quaternions": 4
+      },
+      "23": {
+        "cases": 1324,
+        "exact_cases": 0,
+        "double_different_quaternions": 2618,
+        "f32_different_quaternions": 0
+      },
+      "15": {
+        "cases": 1324,
+        "exact_cases": 526,
+        "double_different_quaternions": 972,
+        "f32_different_quaternions": 0
+      }
+    },
+    "source_cm:secondary0": {
+      "31": {
+        "cases": 1324,
+        "exact_cases": 1324,
+        "double_different_quaternions": 0,
+        "f32_different_quaternions": 0
+      },
+      "0": {
+        "cases": 1324,
+        "exact_cases": 0,
+        "double_different_quaternions": 2642,
+        "f32_different_quaternions": 10
+      },
+      "30": {
+        "cases": 1324,
+        "exact_cases": 969,
+        "double_different_quaternions": 409,
+        "f32_different_quaternions": 0
+      },
+      "29": {
+        "cases": 1324,
+        "exact_cases": 666,
+        "double_different_quaternions": 756,
+        "f32_different_quaternions": 0
+      },
+      "27": {
+        "cases": 1324,
+        "exact_cases": 57,
+        "double_different_quaternions": 2496,
+        "f32_different_quaternions": 10
+      },
+      "23": {
+        "cases": 1324,
+        "exact_cases": 8,
+        "double_different_quaternions": 2449,
+        "f32_different_quaternions": 0
+      },
+      "15": {
+        "cases": 1324,
+        "exact_cases": 776,
+        "double_different_quaternions": 584,
+        "f32_different_quaternions": 0
+      }
+    },
+    "current_m:secondary1": {
+      "31": {
+        "cases": 1272,
+        "exact_cases": 1272,
+        "double_different_quaternions": 0,
+        "f32_different_quaternions": 0
+      },
+      "0": {
+        "cases": 1272,
+        "exact_cases": 0,
+        "double_different_quaternions": 2538,
+        "f32_different_quaternions": 1
+      },
+      "30": {
+        "cases": 1272,
+        "exact_cases": 347,
+        "double_different_quaternions": 1214,
+        "f32_different_quaternions": 0
+      },
+      "29": {
+        "cases": 1272,
+        "exact_cases": 78,
+        "double_different_quaternions": 1868,
+        "f32_different_quaternions": 0
+      },
+      "27": {
+        "cases": 1272,
+        "exact_cases": 25,
+        "double_different_quaternions": 2354,
+        "f32_different_quaternions": 1
+      },
+      "23": {
+        "cases": 1272,
+        "exact_cases": 0,
+        "double_different_quaternions": 2527,
+        "f32_different_quaternions": 1
+      },
+      "15": {
+        "cases": 1272,
+        "exact_cases": 505,
+        "double_different_quaternions": 946,
+        "f32_different_quaternions": 0
+      }
+    },
+    "current_m:secondary0": {
+      "31": {
+        "cases": 1272,
+        "exact_cases": 1272,
+        "double_different_quaternions": 0,
+        "f32_different_quaternions": 0
+      },
+      "0": {
+        "cases": 1272,
+        "exact_cases": 0,
+        "double_different_quaternions": 2523,
+        "f32_different_quaternions": 0
+      },
+      "30": {
+        "cases": 1272,
+        "exact_cases": 808,
+        "double_different_quaternions": 511,
+        "f32_different_quaternions": 0
+      },
+      "29": {
+        "cases": 1272,
+        "exact_cases": 399,
+        "double_different_quaternions": 1114,
+        "f32_different_quaternions": 1
+      },
+      "27": {
+        "cases": 1272,
+        "exact_cases": 211,
+        "double_different_quaternions": 1966,
+        "f32_different_quaternions": 0
+      },
+      "23": {
+        "cases": 1272,
+        "exact_cases": 1,
+        "double_different_quaternions": 2463,
+        "f32_different_quaternions": 0
+      },
+      "15": {
+        "cases": 1272,
+        "exact_cases": 749,
+        "double_different_quaternions": 565,
+        "f32_different_quaternions": 0
+      }
+    }
+  },
+  "isolated_orientation_factors": {
+    "30": {
+      "changed_cases": 2630,
+      "changed_quaternions": 3322,
+      "changed_f32_quaternions": 0
+    },
+    "29": {
+      "changed_cases": 3880,
+      "changed_quaternions": 5438,
+      "changed_f32_quaternions": 1
+    },
+    "27": {
+      "changed_cases": 4890,
+      "changed_quaternions": 9405,
+      "changed_f32_quaternions": 15
+    },
+    "23": {
+      "changed_cases": 5183,
+      "changed_quaternions": 10057,
+      "changed_f32_quaternions": 1
+    },
+    "15": {
+      "changed_cases": 2636,
+      "changed_quaternions": 3067,
+      "changed_f32_quaternions": 0
+    }
+  },
+  "source_position_primitive_reused_without_output_injection": true,
+  "nonunit_secondary_weights_opposite_axes_and_degenerate_branches_not_claimed": true,
+  "rotation_wrapper_partial_and_descendants_still_open": true,
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "five_minimal_native_counterexamples": true,
+  "position_hold_ablation_changed_records": 4048,
+  "canonical_source_and_full_inputs_restored_same_target_recompiled_report_byte_exact": true,
+  "current396_reader474a_and_six_libraries_unchanged": true,
+  "existing_differences": [
+    "D163",
+    "D247",
+    "D248",
+    "D249"
+  ],
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/476/inputs.json",
+      "bytes": 9301936,
+      "sha256": "3c457846190eceb29dde77c53e47ca1aa6dcc3e12c0ee2b6b6552a26361b2ff8"
+    },
+    {
+      "path": "docs/audit/bf144/476/summary.json",
+      "bytes": 4925,
+      "sha256": "dffc5714eff97074ab1e030e7a335ab7a358b614eecf3415f8d8e0e1b0566fe8"
+    },
+    {
+      "path": "docs/audit/bf144/478/inputs.json",
+      "bytes": 1198463,
+      "sha256": "77c6d806051205b1f4a0550d71b0cc5395bf577237bfcf62b7bf32539d1125d0"
+    },
+    {
+      "path": "docs/audit/bf144/478/request.request.json",
+      "bytes": 1222049,
+      "sha256": "c5d4d6f8cd36b5f1baef222b6aee62112af9952366cc5605d6a17af319c7d45f"
+    },
+    {
+      "path": "docs/audit/bf144/478/positions.native.json.gz",
+      "bytes": 1256520,
+      "sha256": "7013d07238aa7ca2d7c95e98022692d4d748d3729b827a26b8a197894d457466"
+    },
+    {
+      "path": "docs/audit/bf144/478/replay.rs",
+      "bytes": 4782,
+      "sha256": "4dd2abec6cf8415c9edbdc5d444e25d2753c284646f8567cf092a4cf75dee240"
+    },
+    {
+      "path": "docs/audit/bf144/478/summary.json",
+      "bytes": 5835,
+      "sha256": "34d17d3416dd78551a8ee9cbe13a7ca3cffb7d6a4cba1ead5da8236e7cba5033"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.rs",
+      "bytes": 8499,
+      "sha256": "70f84d0005783acdb3a463785cfc2b954afa44bde75fe44d91992ab7e22fde70"
+    },
+    {
+      "path": "docs/audit/bf144/474a/reader-migration.json",
+      "bytes": 497,
+      "sha256": "f486ece869fd2658f4b9bfeab54ac8bef82f7bbed4e60c74634bd3739007a529"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/watchdog.self-test.json",
+      "bytes": 249,
+      "sha256": "a55daaedcd601b4d484d262d03ae64f4d1317d7d9c520e770ddbaa6662154763"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_contract.py",
+      "bytes": 32819,
+      "sha256": "826062415d612532949ed8aec987fd80b188acf27fa52327231b3dd486776d82"
+    },
+    {
+      "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+      "bytes": 28928,
+      "sha256": "4f2ce9c875651e08dcb93cc98c2828c64dcb78c917280a6f6f0d61c9bd30068c"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "production_reader_engine_converters_source_assets_unchanged": true,
+  "full_rig_or_root_equivalence_claimed": false,
+  "next_boundary": "Source partial-weight IK wrapper and full descendant hierarchy on qualified solver inputs"
+}

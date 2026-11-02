@@ -1,0 +1,7 @@
+{
+  "gate": "ORIENTATION_ONLY_FACTOR_POSITION_ISOLATION",
+  "case": "factors",
+  "source_and_public_complete_endpoints_still_exact": true,
+  "changed_position_records": 0,
+  "first": []
+}

@@ -1,0 +1,221 @@
+{
+  "gate": "PASS_COMPLETE_IK_PRIMARY_SECONDARY_NATIVE_PUBLIC_ORIENTATION_AND_ISOLATED_FACTORS",
+  "native_source_cases_exact": 5192,
+  "current_public_models_exact": 5192,
+  "current_actual_default_rotations_and_positions_exact": 1272,
+  "native_primary_only_controls_independently_check_default_primary_stages": 2596,
+  "public_primary_only_controls_check_default_primary_stages": 2596,
+  "orientation_factor_positions_held_to_qualified_source": true,
+  "groups": {
+    "source_cm:secondary1": {
+      "31": {
+        "cases": 1324,
+        "exact_cases": 1324,
+        "double_different_quaternions": 0,
+        "f32_different_quaternions": 0
+      },
+      "0": {
+        "cases": 1324,
+        "exact_cases": 0,
+        "double_different_quaternions": 2646,
+        "f32_different_quaternions": 4
+      },
+      "30": {
+        "cases": 1324,
+        "exact_cases": 438,
+        "double_different_quaternions": 1188,
+        "f32_different_quaternions": 0
+      },
+      "29": {
+        "cases": 1324,
+        "exact_cases": 169,
+        "double_different_quaternions": 1700,
+        "f32_different_quaternions": 0
+      },
+      "27": {
+        "cases": 1324,
+        "exact_cases": 9,
+        "double_different_quaternions": 2589,
+        "f32_different_quaternions": 4
+      },
+      "23": {
+        "cases": 1324,
+        "exact_cases": 0,
+        "double_different_quaternions": 2618,
+        "f32_different_quaternions": 0
+      },
+      "15": {
+        "cases": 1324,
+        "exact_cases": 526,
+        "double_different_quaternions": 972,
+        "f32_different_quaternions": 0
+      }
+    },
+    "source_cm:secondary0": {
+      "31": {
+        "cases": 1324,
+        "exact_cases": 1324,
+        "double_different_quaternions": 0,
+        "f32_different_quaternions": 0
+      },
+      "0": {
+        "cases": 1324,
+        "exact_cases": 0,
+        "double_different_quaternions": 2642,
+        "f32_different_quaternions": 10
+      },
+      "30": {
+        "cases": 1324,
+        "exact_cases": 969,
+        "double_different_quaternions": 409,
+        "f32_different_quaternions": 0
+      },
+      "29": {
+        "cases": 1324,
+        "exact_cases": 666,
+        "double_different_quaternions": 756,
+        "f32_different_quaternions": 0
+      },
+      "27": {
+        "cases": 1324,
+        "exact_cases": 57,
+        "double_different_quaternions": 2496,
+        "f32_different_quaternions": 10
+      },
+      "23": {
+        "cases": 1324,
+        "exact_cases": 8,
+        "double_different_quaternions": 2449,
+        "f32_different_quaternions": 0
+      },
+      "15": {
+        "cases": 1324,
+        "exact_cases": 776,
+        "double_different_quaternions": 584,
+        "f32_different_quaternions": 0
+      }
+    },
+    "current_m:secondary1": {
+      "31": {
+        "cases": 1272,
+        "exact_cases": 1272,
+        "double_different_quaternions": 0,
+        "f32_different_quaternions": 0
+      },
+      "0": {
+        "cases": 1272,
+        "exact_cases": 0,
+        "double_different_quaternions": 2538,
+        "f32_different_quaternions": 1
+      },
+      "30": {
+        "cases": 1272,
+        "exact_cases": 347,
+        "double_different_quaternions": 1214,
+        "f32_different_quaternions": 0
+      },
+      "29": {
+        "cases": 1272,
+        "exact_cases": 78,
+        "double_different_quaternions": 1868,
+        "f32_different_quaternions": 0
+      },
+      "27": {
+        "cases": 1272,
+        "exact_cases": 25,
+        "double_different_quaternions": 2354,
+        "f32_different_quaternions": 1
+      },
+      "23": {
+        "cases": 1272,
+        "exact_cases": 0,
+        "double_different_quaternions": 2527,
+        "f32_different_quaternions": 1
+      },
+      "15": {
+        "cases": 1272,
+        "exact_cases": 505,
+        "double_different_quaternions": 946,
+        "f32_different_quaternions": 0
+      }
+    },
+    "current_m:secondary0": {
+      "31": {
+        "cases": 1272,
+        "exact_cases": 1272,
+        "double_different_quaternions": 0,
+        "f32_different_quaternions": 0
+      },
+      "0": {
+        "cases": 1272,
+        "exact_cases": 0,
+        "double_different_quaternions": 2523,
+        "f32_different_quaternions": 0
+      },
+      "30": {
+        "cases": 1272,
+        "exact_cases": 808,
+        "double_different_quaternions": 511,
+        "f32_different_quaternions": 0
+      },
+      "29": {
+        "cases": 1272,
+        "exact_cases": 399,
+        "double_different_quaternions": 1114,
+        "f32_different_quaternions": 1
+      },
+      "27": {
+        "cases": 1272,
+        "exact_cases": 211,
+        "double_different_quaternions": 1966,
+        "f32_different_quaternions": 0
+      },
+      "23": {
+        "cases": 1272,
+        "exact_cases": 1,
+        "double_different_quaternions": 2463,
+        "f32_different_quaternions": 0
+      },
+      "15": {
+        "cases": 1272,
+        "exact_cases": 749,
+        "double_different_quaternions": 565,
+        "f32_different_quaternions": 0
+      }
+    }
+  },
+  "isolated_orientation_factors": {
+    "30": {
+      "changed_cases": 2630,
+      "changed_quaternions": 3322,
+      "changed_f32_quaternions": 0
+    },
+    "29": {
+      "changed_cases": 3880,
+      "changed_quaternions": 5438,
+      "changed_f32_quaternions": 1
+    },
+    "27": {
+      "changed_cases": 4890,
+      "changed_quaternions": 9405,
+      "changed_f32_quaternions": 15
+    },
+    "23": {
+      "changed_cases": 5183,
+      "changed_quaternions": 10057,
+      "changed_f32_quaternions": 1
+    },
+    "15": {
+      "changed_cases": 2636,
+      "changed_quaternions": 3067,
+      "changed_f32_quaternions": 0
+    }
+  },
+  "source_position_primitive_reused_without_output_injection": true,
+  "nonunit_secondary_weights_opposite_axes_and_degenerate_branches_not_claimed": true,
+  "rotation_wrapper_partial_and_descendants_still_open": true,
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

@@ -1,0 +1,6 @@
+
+thread 'main' (2948804) panicked at docs/audit/bf144/479/replay.rs:125:5:
+assertion `left == right` failed: Complete actual/control source IK orientation arithmetic
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

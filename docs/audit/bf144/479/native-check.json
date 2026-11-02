@@ -1,0 +1,11 @@
+{
+  "gate": "PASS_NATIVE_PRIMARY_SECONDARY_ORIENTATION_INPUTS_AND_DEFAULT_SOURCE_CONSUMERS",
+  "native_cases": 5192,
+  "source_default_complete_prior_body_preserved": 1324,
+  "all_prior_position_results_preserved": 5192,
+  "current_original_metre_numeric_inputs": 2544,
+  "source_centimetre_inputs": 2648,
+  "primary_only_control_not_actual_default": true,
+  "float_lengths_and_parameter_echo_preserved": true,
+  "fresh_rig_instructions_match": true
+}

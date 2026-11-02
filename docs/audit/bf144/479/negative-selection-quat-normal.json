@@ -1,0 +1,13 @@
+{
+  "case": "quat-normal",
+  "orientation_factor_mask": 23,
+  "original_full_input_row": 3086,
+  "selected_row": 3086,
+  "domain": "current_m",
+  "selected_secondary_weight": 1,
+  "f32_counterexample": true,
+  "pair_qualification_from_full5192": true,
+  "positions_preserved": true,
+  "source_sha256": "9c033a2e18d3a147d467d1809a1f779801a9773152f025eedb39de22ee44df95",
+  "inputs_sha256": "89971bcf900c7823e1ebe8c096479473617abc495e6b3750accb03b30dc580d2"
+}

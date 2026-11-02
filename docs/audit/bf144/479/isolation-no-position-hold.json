@@ -1,0 +1,37 @@
+{
+  "gate": "ORIENTATION_ONLY_FACTOR_POSITION_ISOLATION",
+  "case": "no-position-hold",
+  "source_and_public_complete_endpoints_still_exact": true,
+  "changed_position_records": 4048,
+  "first": [
+    {
+      "row": 0,
+      "mask": 29,
+      "position_mask": 1,
+      "before": [
+        [
+          15.62855250058665,
+          1.4458263457696305,
+          53.43447585679091
+        ],
+        [
+          17.043955579890792,
+          -5.0620230257037715,
+          13.793355969238078
+        ]
+      ],
+      "after": [
+        [
+          15.62855250058665,
+          1.4458263457696305,
+          53.434475856790904
+        ],
+        [
+          17.043955579890792,
+          -5.0620230257037715,
+          13.793355969238078
+        ]
+      ]
+    }
+  ]
+}
