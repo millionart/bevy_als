@@ -1,0 +1,50 @@
+{
+  "inputs.json": {
+    "raw_bytes": 43396043,
+    "raw_sha256": "4348de5f618aeada508402ad376aecd58a1169b8e4f1f772e3c9a17aabd1457b",
+    "compressed": "inputs.json.gz",
+    "compressed_sha256": "5e47a948ed0c387fefd41f15ad556f294c1ce40415fd2b23716c32f12397cf54"
+  },
+  "replay-unit-baseline.json": {
+    "raw_bytes": 3903078,
+    "raw_sha256": "fd6bb54ca006570742649e6c118834abc55aaf43b8984e8360fe4fd50a152b5d",
+    "compressed": "replay-unit-baseline.json.gz",
+    "compressed_sha256": "1491c79e78c73bb106e1cea31d16cf9069dacd2bbc57f884cd5853708fc74a03"
+  },
+  "replay-unit-no-held-final.json": {
+    "raw_bytes": 385,
+    "raw_sha256": "96a2c5c327b456814d8ebc47d862da74038de8c6e71871c3ea5f970db5357e3c",
+    "compressed": "replay-unit-no-held-final.json.gz",
+    "compressed_sha256": "4474d0249fcde02ab337f10230387f43fb2b1ec070e402489f0f47ade5224f54"
+  },
+  "replay-unit-no-native-final.json": {
+    "raw_bytes": 45474,
+    "raw_sha256": "c77331e8310f0a46d0bbf1d2a0eca68c50dbda73da66c2742fd54a133d50cfe4",
+    "compressed": "replay-unit-no-native-final.json.gz",
+    "compressed_sha256": "8a50f35f6ad4d05322b0498e6a9f6d9de429e14d294744e62980902f9490d3de"
+  },
+  "replay-unit-no-prior-feedback.json": {
+    "raw_bytes": 29003,
+    "raw_sha256": "daab00ad82baad030d8f26a7df3c104ff1d9764f2b01a480b230a5af57708d71",
+    "compressed": "replay-unit-no-prior-feedback.json.gz",
+    "compressed_sha256": "88d4696b076d82faa71c8adc546e7d1388e5d7d98b29cbf8212d6c58ab51c112"
+  },
+  "replay-unit-restored.json": {
+    "raw_bytes": 3903078,
+    "raw_sha256": "fd6bb54ca006570742649e6c118834abc55aaf43b8984e8360fe4fd50a152b5d",
+    "compressed": "replay-unit-restored.json.gz",
+    "compressed_sha256": "1491c79e78c73bb106e1cea31d16cf9069dacd2bbc57f884cd5853708fc74a03"
+  },
+  "replay-unit-vector-order.json": {
+    "raw_bytes": 3914451,
+    "raw_sha256": "3440d762c332bc77c713db2928cc613d521a4a6b47d86d4a1d7ef868047a5c7d",
+    "compressed": "replay-unit-vector-order.json.gz",
+    "compressed_sha256": "157b51ce41504832fe2b2910615dc9b6f790398783630ea395a18e0d961653b5"
+  },
+  "inputs.json.final": {
+    "raw_bytes": 43396043,
+    "raw_sha256": "4348de5f618aeada508402ad376aecd58a1169b8e4f1f772e3c9a17aabd1457b",
+    "compressed": "inputs.json.final.gz",
+    "compressed_sha256": "5e47a948ed0c387fefd41f15ad556f294c1ce40415fd2b23716c32f12397cf54"
+  }
+}

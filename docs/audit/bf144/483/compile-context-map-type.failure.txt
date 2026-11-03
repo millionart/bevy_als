@@ -1,0 +1,18 @@
+error[E0308]: mismatched types
+   --> docs/audit/bf144/483/replay.rs:161:59
+    |
+161 |         let projected = AlsRootAnimationContext { curves: blend_animation_contexts([(context, weight)]).curves };
+    |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `HashMap<SourceCurveName, f32>`, found a different `HashMap<SourceCurveName, f32>`
+    |
+    = note: `HashMap<SourceCurveName, f32>` and `HashMap<SourceCurveName, f32>` have similar names, but are actually distinct types
+note: `HashMap<SourceCurveName, f32>` is defined in crate `bevy_platform`
+   --> <home>/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_platform-0.19.1/src/collections/hash_map.rs:49:1
+    |
+ 49 | pub struct HashMap<K, V, S = FixedHasher>(hb::HashMap<K, V, S>);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: `HashMap<SourceCurveName, f32>` is defined in crate `std`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/collections/hash/map.rs:246:0
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0308`.

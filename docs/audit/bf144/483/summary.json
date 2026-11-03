@@ -1,0 +1,199 @@
+{
+  "gate": "PASS_RIG_ROOT_AND_MESH_PUBLICATION_AUDIT",
+  "target_rig_root_pose_frames": 319,
+  "target_bone_publications": 25520,
+  "native_source_mesh_frames": 318,
+  "native_source_mesh_transforms": 25122,
+  "native_source_norm_changed": 17363,
+  "native_source_f32_projection_changed": 40,
+  "initialization_mesh_buffer_distinct": {
+    "translation": 21,
+    "rotation": 79,
+    "scale": 0
+  },
+  "source_prior_curve_bundles": 318,
+  "target_observed_feedback_fields_frames": 319,
+  "target_observed_feedback_fields": [
+    "projected_curve_count",
+    "projected_standing",
+    "projected_grounded",
+    "global_standing",
+    "global_grounded"
+  ],
+  "held_root_rotation_changes": 11552,
+  "held_changes_by_bone": {
+    "VB hand_l_to_hand_r": 145,
+    "VB hand_l_to_ik_hand_gun": 148,
+    "VB ik_hand_l": 151,
+    "calf_r": 60,
+    "calf_twist_01_l": 210,
+    "calf_twist_01_r": 196,
+    "clavicle_l": 165,
+    "clavicle_r": 160,
+    "hand_l": 172,
+    "hand_r": 175,
+    "ik_hand_gun": 97,
+    "ik_hand_l": 104,
+    "index_01_l": 196,
+    "index_01_r": 169,
+    "index_02_r": 179,
+    "index_03_l": 197,
+    "lowerarm_l": 183,
+    "middle_01_l": 171,
+    "middle_01_r": 212,
+    "middle_02_r": 162,
+    "middle_03_l": 184,
+    "middle_03_r": 161,
+    "neck_01": 202,
+    "pinky_01_l": 139,
+    "pinky_02_l": 248,
+    "pinky_02_r": 202,
+    "pinky_03_l": 149,
+    "ring_01_r": 151,
+    "ring_02_l": 194,
+    "ring_02_r": 178,
+    "ring_03_r": 192,
+    "spine_03": 189,
+    "thigh_l": 60,
+    "thigh_r": 79,
+    "thigh_twist_01_l": 208,
+    "thumb_01_l": 149,
+    "thumb_01_r": 139,
+    "thumb_02_l": 134,
+    "thumb_02_r": 194,
+    "thumb_03_l": 216,
+    "thumb_03_r": 228,
+    "upperarm_r": 184,
+    "upperarm_twist_01_l": 206,
+    "upperarm_twist_01_r": 181,
+    "VB foot_r": 138,
+    "ball_l": 217,
+    "ball_r": 209,
+    "calf_l": 106,
+    "foot_l": 84,
+    "head": 198,
+    "index_02_l": 202,
+    "index_03_r": 181,
+    "middle_02_l": 156,
+    "pinky_01_r": 142,
+    "ring_01_l": 185,
+    "ring_03_l": 183,
+    "spine_02": 209,
+    "thigh_twist_01_r": 209,
+    "VB hand_l": 156,
+    "lowerarm_r": 177,
+    "lowerarm_twist_01_l": 180,
+    "lowerarm_twist_01_r": 192,
+    "pinky_03_r": 193,
+    "spine_01": 193,
+    "upperarm_l": 186,
+    "foot_r": 91,
+    "VB foot_l": 110,
+    "pelvis": 81,
+    "ik_foot_l": 79,
+    "ik_foot_r": 75,
+    "root": 1
+  },
+  "held_root_max_quaternion_component_difference": 1.1920928955078125e-07,
+  "ik_foot_left_witness": {
+    "bone": "ik_foot_l",
+    "native_end_normalization": [
+      0.02744009904563427,
+      0.02639879658818245,
+      0.706666886806488,
+      0.7065210938453674
+    ],
+    "published": [
+      0.02744010090827942,
+      0.0263987984508276,
+      0.7066669464111328,
+      0.7065211534500122
+    ],
+    "query": 99,
+    "root_f32": [
+      0.02744010090827942,
+      0.0263987984508276,
+      0.7066669464111328,
+      0.7065211534500122
+    ]
+  },
+  "actual_target_writer_via_production_plugin_finish": true,
+  "controlled_writer_schedule_without_live_character_feedback": true,
+  "new_differences": [
+    "D276"
+  ],
+  "confirmed_difference_count": 273,
+  "existing_d245_fixed_in_held_root_input": true,
+  "full_root_feedback_equivalence_claimed": false,
+  "next_boundary": "Read published IK bones into next-frame foot world targets and separate D276 propagation",
+  "source_and_inputs_restored_same_target_report_byte_exact": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/455/main.native.json.gz",
+      "bytes": 104098,
+      "sha256": "517ac3367d7c0c6a79bb755e4b584780bc0f158f73cfa655b7a74ac217d2ffd1"
+    },
+    {
+      "path": "docs/audit/bf144/457/restored-final.native.json.gz",
+      "bytes": 23614137,
+      "sha256": "dd737cb03005d64d26093444d13a61e74c86937e3d131614610531a3733131f3"
+    },
+    {
+      "path": "docs/audit/bf144/458/runtime-restored/parameters.json.gz",
+      "bytes": 53946047,
+      "sha256": "179df9ce5458e46638e63bfc200fc505a8c782218262a56ef427696de1cab598"
+    },
+    {
+      "path": "docs/audit/bf144/458/summary.json",
+      "bytes": 2783,
+      "sha256": "131ef209f46d6e821b91406ba0e86fb295548a0d4a9e15061c2335ded2a2c362"
+    },
+    {
+      "path": "docs/audit/bf144/459/inputs.json",
+      "bytes": 29551067,
+      "sha256": "f3992070db213883da1179396296a1d7693fdf99da2f571bf6d0949f2f2477c7"
+    },
+    {
+      "path": "docs/audit/bf144/459/replay-restored.json.gz",
+      "bytes": 2631487,
+      "sha256": "9995a92a3ab43ffe51410cb31122d130319c291aac31c052eec06c7d9356fa3c"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.rs",
+      "bytes": 8499,
+      "sha256": "70f84d0005783acdb3a463785cfc2b954afa44bde75fe44d91992ab7e22fde70"
+    },
+    {
+      "path": "docs/audit/bf144/482/replay-unit-restored.json.gz",
+      "bytes": 22928242,
+      "sha256": "a843b35a27a85f2d14cfb1616404f614b7672729f9ee6b63995ed14492e0bb07"
+    },
+    {
+      "path": "docs/audit/bf144/481a/reader-migration.json",
+      "bytes": 509,
+      "sha256": "66318ae5008b859520c751c271c5f9d947185dca8c1fe0bd05f3fd090952f30c"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/watchdog.self-test.json",
+      "bytes": 249,
+      "sha256": "a55daaedcd601b4d484d262d03ae64f4d1317d7d9c520e770ddbaa6662154763"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    }
+  ],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

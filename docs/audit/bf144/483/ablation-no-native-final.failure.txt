@@ -1,0 +1,4 @@
+
+thread 'main' (5283512) panicked at docs/audit/bf144/483/replay.rs:206:5:
+Rig transport, native mesh, public writer or prior curve contract failed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

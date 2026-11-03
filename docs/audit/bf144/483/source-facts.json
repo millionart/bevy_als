@@ -1,0 +1,163 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/SkeletalMeshComponent.cpp",
+    "sha256": "c189e185a1a80c699d82c4677cbe1e6427cfeeb58b6dcd02c80edc8d7a055d04",
+    "excerpts": [
+      {
+        "start": 902,
+        "end": 933,
+        "text": "\tconst TArray<FTransform>& RefBonePose = InMesh->GetRefSkeleton().GetRefBonePose();\n\tif(InFinalPose.IsValid() && InFinalPose.GetNumBones() > 0)\n\t{\n\t\tInFinalPose.NormalizeRotations();\n\n\t\t// Bone index array is in increasing order, so we can fill gaps with reference pose\n\t\tconst auto FillReferencePose = [&](int32 BeginIndex, int32 EndIndex)\n\t\t{\n\t\t\tfor (int32 MeshPoseIndex = BeginIndex; MeshPoseIndex < EndIndex; ++MeshPoseIndex)\n\t\t\t{\n\t\t\t\tOutBoneSpaceTransforms[MeshPoseIndex] = RefBonePose[MeshPoseIndex];\n\t\t\t}\n\t\t};\n\n\t\tint32 LastMeshPoseIndex = 0;\n\t\tconst int32 BoneCount = RefBonePose.Num();\n\t\tOutBoneSpaceTransforms.SetNum(BoneCount);\n\t\tfor (const FCompactPoseBoneIndex BoneIndex : InFinalPose.ForEachBoneIndex())\n\t\t{\n\t\t\tconst int32 MeshPoseIndex = InFinalPose.GetBoneContainer().MakeMeshPoseIndex(BoneIndex).GetInt();\n\t\t\tFillReferencePose(LastMeshPoseIndex, MeshPoseIndex);\n\t\t\tOutBoneSpaceTransforms[MeshPoseIndex] = InFinalPose[BoneIndex];\n\t\t\tLastMeshPoseIndex = MeshPoseIndex + 1;\n\t\t}\n\t\tFillReferencePose(LastMeshPoseIndex, BoneCount);\n\t}\n\telse\n\t{\n\t\tOutBoneSpaceTransforms = RefBonePose;\n\t}\n\tOutRootBoneTranslation = OutBoneSpaceTransforms[0].GetTranslation() - RefBonePose[0].GetTranslation();\n}"
+      },
+      {
+        "start": 2560,
+        "end": 2581,
+        "text": "\tif(bInDoEvaluation && OutSpaceBases.Num() > 0)\n\t{\n\t\tFMemMark Mark(FMemStack::Get());\n\t\tFCompactPose EvaluatedPose;\n\n\t\tUE::Anim::FHeapAttributeContainer Attributes;\t\t\n\n\t\t// evaluate pure animations, and fill up BoneSpaceTransforms\n\t\tEvaluateAnimation(InSkeletalMesh, InAnimInstance, bInForceRefPose, OutRootBoneTranslation, OutCurve, EvaluatedPose, Attributes);\n\t\tEvaluatePostProcessMeshInstance(OutBoneSpaceTransforms, EvaluatedPose, OutCurve, InSkeletalMesh, OutRootBoneTranslation, Attributes, bInForceRefPose);\n\n\t\t// Finalize the transforms from the evaluation\n\t\tFinalizePoseEvaluationResult(InSkeletalMesh, OutBoneSpaceTransforms, OutRootBoneTranslation, EvaluatedPose);\n\n\t\tif (EvaluatedPose.IsValid())\n\t\t{\n\t\t\tFinalizeAttributeEvaluationResults(EvaluatedPose.GetBoneContainer(), Attributes, OutAttributes);\n\t\t}\n\n\t\t// Fill SpaceBases from LocalAtoms\n\t\tInSkeletalMesh->FillComponentSpaceTransforms(OutBoneSpaceTransforms, FillComponentSpaceTransformsRequiredBones, OutSpaceBases);\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Public/BonePose.h",
+    "sha256": "a8949ff9807d79cdd5592bceb024fef7ca311fe6ef041756a3b5b02b6a863c8c",
+    "excerpts": [
+      {
+        "start": 312,
+        "end": 324,
+        "text": "\n\n\t// Normalizes all rotations in this pose\n\tvoid NormalizeRotations()\n\t{\n\t\tfor (FTransform& Bone : this->Bones)\n\t\t{\n\t\t\tBone.NormalizeRotation();\n\t\t}\n\t}\n\n\tbool IsValid() const\n\t{"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+    "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+    "excerpts": [
+      {
+        "start": 1134,
+        "end": 1138,
+        "text": "\tinline void NormalizeRotation()\n\t{\n\t\tRotation = VectorNormalizeQuaternion(Rotation);\n\t\tDiagnosticCheckNaN_Rotate();\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorCommon.h.inl",
+    "sha256": "5f43e189d66b68c76ed29bda5713e8daa1fdf3201a76efee2fa9251d4fc01293",
+    "excerpts": [
+      {
+        "start": 375,
+        "end": 385,
+        "text": "FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(VectorRegister4Float Vec)\n{\n\treturn VectorReciprocalSqrt(Vec);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(VectorRegister4Double Vec)\n{\n\treturn VectorReciprocalSqrt(Vec);\n}\n\n/**"
+      },
+      {
+        "start": 433,
+        "end": 442,
+        "text": "\nFORCEINLINE VectorRegister4Double VectorNormalizeSafe(VectorRegister4Double Vector, VectorRegister4Double DefaultValue)\n{\n\tconst VectorRegister4Double SquareSum = VectorDot4(Vector, Vector);\n\tconst VectorRegister4Double NonZeroMask = VectorCompareGE(SquareSum, GlobalVectorConstants::DoubleSmallLengthThreshold);\n\tconst VectorRegister4Double InvLength = VectorReciprocalSqrtAccurate(SquareSum);\n\tconst VectorRegister4Double NormalizedVector = VectorMultiply(InvLength, Vector);\n\treturn VectorSelect(NonZeroMask, NormalizedVector, DefaultValue);\n}\n"
+      },
+      {
+        "start": 605,
+        "end": 608,
+        "text": "FORCEINLINE VectorRegister4Double VectorNormalizeQuaternion(VectorRegister4Double UnnormalizedQuat)\n{\n\treturn VectorNormalizeSafe(UnnormalizedQuat, GlobalVectorConstants::Double0001);\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/AnimNode_ControlRigBase.cpp",
+    "sha256": "45f8cd1bd28528c6bc571b59608d7c6ebdc010d1005a211b8bfc30cf09ecf394",
+    "excerpts": [
+      {
+        "start": 153,
+        "end": 170,
+        "text": "void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_ControlRig_UpdateOutput);\n\n\tif(!CanExecute())\n\t{\n\t\treturn;\n\t}\n\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tControlRigHierarchyMappings.UpdateOutput(ControlRig\n\t\t, InOutput\n\t\t, OutputSettings\n\t\t, NodeMappingContainer\n\t\t, bExecute\n\t\t, bTransferPoseInGlobalSpace);\n}"
+      },
+      {
+        "start": 188,
+        "end": 201,
+        "text": "\tExecuteConstructionIfNeeded();\n\n\tif(!ControlRigHierarchyMappings.CheckPoseAdapter())\n\t{\n\t\tOutput = SourcePose;\n\t\tensureMsgf(false, TEXT(\"At this point the pose adapter needs to be set!\"));\n\t\treturn;\n\t}\n\n\tif (CanExecute() && FAnimWeight::IsRelevant(InternalBlendAlpha) && GetControlRig())\n\t{\n\t\tif (FAnimWeight::IsFullWeight(InternalBlendAlpha))\n\t\t{\n\t\t\tExecuteControlRig(SourcePose);"
+      },
+      {
+        "start": 304,
+        "end": 329,
+        "text": "\n\t\t\t// evaluate control rig\n\t\t\tUpdateGetAssetUserDataDelegate(ControlRig);\n\t\t\tControlRig->Evaluate_AnyThread();\n\n#if ENABLE_ANIM_DEBUG \n\t\t\t// When Control Rig is at editing time (in CR editor), draw instructions are consumed by ControlRigEditMode, so we need to skip drawing here.\n\t\t\tbool bShowDebug = (CVarAnimNodeControlRigDebug.GetValueOnAnyThread() == 1 && ControlRig->ExecutionType != ERigExecutionType::Editing);\n\n\t\t\tif (bShowDebug)\n\t\t\t{ \n\t\t\t\tQueueControlRigDrawInstructions(ControlRig, InOutput.AnimInstanceProxy);\n\t\t\t}\n#endif\n\n#if WITH_EDITOR\n\t\t\tif(Hierarchy->IsTracingChanges())\n\t\t\t{\n\t\t\t\tHierarchy->StorePoseForTrace(TEXT(\"FAnimNode_ControlRigBase::AfterEvaluate\"));\n\t\t\t}\n#endif\n\t\t}\n\n\t\t// now update output\n\t\tUpdateOutput(ControlRig, InOutput);\n\t\tInOutput.CustomAttributes.CopyFrom(MeshAttributeContainer, InOutput.Pose.GetBoneContainer());"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Tools/ControlRigHierarchyMappings.cpp",
+    "sha256": "b0c576355c3da09e109164c724d23ffd323c317b28923c1c89e45fa515e2243f",
+    "excerpts": [
+      {
+        "start": 326,
+        "end": 400,
+        "text": "void FControlRigHierarchyMappings::UpdateOutput(UControlRig* ControlRig\n\t, FPoseContext& InOutput\n\t, const FControlRigIOSettings& InOutputSettings\n\t, TWeakObjectPtr<UNodeMappingContainer>& InNodeMappingContainer\n\t, bool bInExecute\n\t, bool bInTransferPoseInGlobalSpace)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tURigHierarchy* Hierarchy = ControlRig->GetHierarchy();\n\tif (!IsValid(Hierarchy))\n\t{\n\t\treturn;\n\t}\n\n\tif (bEnablePoseAdapter)\n\t{\n\t\tif (InOutputSettings.bUpdatePose)\n\t\t{\n\t\t\tif (PoseAdapter)\n\t\t\t{\n\t\t\t\t// make sure the local respectively global transforms are all ready\n\t\t\t\tif (PoseAdapter->GetTransferInLocalSpace())\n\t\t\t\t{\n\t\t\t\t\tPoseAdapter->ConvertToLocalPose();\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tPoseAdapter->ConvertToGlobalPose();\n\t\t\t\t}\n\n\t\t\t\t// if we transfered in global - let's convert back to local\n\t\t\t\tif (!PoseAdapter->GetTransferInLocalSpace())\n\t\t\t\t{\n\t\t\t\t\tif (PoseAdapter->GetGlobalPose().Num() == InOutput.Pose.GetNumBones())\n\t\t\t\t\t{\n\t\t\t\t\t\tPoseAdapter->ConvertToLocalPose();\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tInOutput.Pose.CopyBonesFrom(PoseAdapter->GetLocalPose());\n\t\t\t}\n\t\t}\n\n\t\tif (InOutputSettings.bUpdateCurves)\n\t\t{\n\t\t\tconst TArray<int32>& ChangedCurveIndices = Hierarchy->GetChangedCurveIndices();\n\t\t\tif (ChangedCurveIndices.Num() > 0)\n\t\t\t{\n\t\t\t\tconst TArray<FRigBaseElement*> HierarchyCurves = Hierarchy->GetCurvesFast();\n\n\t\t\t\tint32 CurveIndex = 0;\n\t\t\t\tint32 CurvesCopied = 0;\n\t\t\t\tInOutput.Curve.ForEachElement([this, &CurveIndex, &CurvesCopied, &HierarchyCurves](const UE::Anim::FCurveElement& InCurveElement)\n\t\t\t\t\t{\n\t\t\t\t\t\t// the index stored here is the sub index of the curve (the index of the curve within the list of curves)\n\t\t\t\t\t\tconst int32& HierarchyIndex = PoseAdapter->GetPoseCurveToHierarchyCurve()[CurveIndex];\n\t\t\t\t\t\tif (HierarchyIndex != INDEX_NONE)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tconst FRigCurveElement* HierarchyCurve = CastChecked<FRigCurveElement>(HierarchyCurves[HierarchyIndex]);\n\t\t\t\t\t\t\tif (HierarchyCurve->IsValueSet())\n\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\tconst_cast<UE::Anim::FCurveElement*>(&InCurveElement)->Value = HierarchyCurve->Get();\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tCurvesCopied++;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tCurveIndex++;\n\t\t\t\t\t});\n\n\t\t\t\tif (CurvesCopied < HierarchyCurves.Num())\n\t\t\t\t{\n\t\t\t\t\tHierarchyCurveCopied.SetNumUninitialized(Hierarchy->Num());\n\t\t\t\t\tFMemory::Memzero(HierarchyCurveCopied.GetData(), HierarchyCurveCopied.GetAllocatedSize());\n\n\t\t\t\t\tFBlendedCurve ControlRigCurves;"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/root_graph_boundaries.rs",
+    "sha256": "c25dcf197be887459859395ba190facebf6d655429e0e51ed4b80c143898fcd7",
+    "excerpts": [
+      {
+        "start": 308,
+        "end": 374,
+        "text": "        for bone in &definition.bones {\n            let mut matches = skeleton.iter_paths().filter(|path| {\n                path.parts\n                    .last()\n                    .is_some_and(|name| name.as_str().eq_ignore_ascii_case(&bone.name))\n            });\n            let matched = matches.next().map(|path| path.id());\n            if matches.next().is_some() {\n                return Err(format!(\"rig bone mapping is ambiguous: {}\", bone.name));\n            }\n            mapping.push(matched);\n        }\n        if self.transfer_input_pose {\n            let mut local = Vec::with_capacity(mapping.len());\n            for (index, &id) in mapping.iter().enumerate() {\n                let Some(id) = id else {\n                    local.push(runtime.hierarchy.transform(index, RigSpace::Local, false)?);\n                    continue;\n                };\n                if let Some(parent) = definition.bones[index].parent\n                    && mapping[parent] != skeleton.parent(&id)\n                {\n                    return Err(format!(\n                        \"rig local pose parents do not match: {}\",\n                        definition.bones[index].name\n                    ));\n                }\n                let defaults = skeleton\n                    .default_transforms(id)\n                    .ok_or(\"rig skeleton reference is missing\")?;\n                let transform = pose.get_bone(id).map_or(defaults.local, |bone| {\n                    bone.to_transform_with_base(defaults.local)\n                });\n                local.push(rig_transform(transform));\n            }\n            runtime.hierarchy.set_input_pose(&local)?;\n        }\n        if self.transfer_input_curves {\n            runtime.curves.clear();\n            for name in definition.curves.keys() {\n                if let Some(value) = state\n                    .context\n                    .curves\n                    .iter()\n                    .find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(*value))\n                {\n                    runtime.curves.insert(name.clone().into(), value);\n                }\n            }\n        }\n        state.executed_steps = execute(runtime, \"Forwards Solve\")?;\n        for (index, id) in mapping.into_iter().enumerate() {\n            let Some(id) = id else {\n                continue;\n            };\n            let transform = runtime.hierarchy.transform(index, RigSpace::Local, false)?;\n            let mut output = BonePose::from_transform(Transform {\n                rotation: transform.rotation.as_quat(),\n                translation: transform.translation.as_vec3(),\n                scale: transform.scale.as_vec3(),\n            });\n            if let Some(&index) = pose.paths.get(&id) {\n                output.weights = pose.bones[index].weights.clone();\n                pose.bones[index] = output;\n            } else {\n                pose.add_bone(output, id);\n            }"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/post_physics_animation.rs",
+    "sha256": "30779870ba2bc673a7d96ab547e770bd100b00b8dd6de8abc36fea62c7ec02c7",
+    "excerpts": [
+      {
+        "start": 60,
+        "end": 86,
+        "text": "        );\n    }\n\n    fn finish(&self, app: &mut App) {\n        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {\n            let count = schedule.remove_systems_in_set(animation_player, world,\n                ScheduleCleanupPolicy::RemoveSystemsOnly).expect(\"animation evaluation schedule must initialize\");\n            assert_eq!(count, 1, \"animation evaluation must replace exactly one default player system\");\n            let count = schedule.remove_systems_in_set(bevy_animation_graph::core::systems::apply_animation_to_targets, world,\n                ScheduleCleanupPolicy::RemoveSystemsOnly).expect(\"bone refresh schedule must initialize\");\n            assert_eq!(count, 1, \"bone refresh must replace exactly one default player system\");\n            let count = schedule.remove_systems_in_set(read_back_poses_avian, world,\n                ScheduleCleanupPolicy::RemoveSystemsOnly).expect(\"physics readback schedule must initialize\");\n            assert_eq!(count, 1, \"physics readback must replace exactly one default readback system\");\n            let count = schedule.remove_systems_in_set(update_relative_kinematic_position_based_body_velocities, world,\n                ScheduleCleanupPolicy::RemoveSystemsOnly).expect(\"kinematic velocity schedule must initialize\");\n            assert_eq!(count, 1, \"kinematic velocity update must replace exactly one default system\");\n        });\n        app.add_systems(PostUpdate, update_relative_kinematic_position_based_body_velocities\n            .after(update_ragdolls_avian).before(update_relative_kinematic_body_velocities)\n            .in_set(AnimationGraphSet::PrePhysics).run_if(|time: Res<Time>| !time.delta().is_zero()));\n        app.add_systems(PostUpdate, apply_animation_to_visible_targets.in_set(AnimationGraphSet::Final));\n        app.add_systems(PostUpdate,\n            (read_back_poses_avian, normalize_scaled_readback_pose, apply_readback_pose)\n                .chain().in_set(PostPhysicsAnimationSet::Readback),\n        );\n    }"
+      },
+      {
+        "start": 213,
+        "end": 228,
+        "text": "fn apply_animation_to_visible_targets(\n    mut targets: Query<(&mut Transform, Option<&mut bevy::mesh::morph::MorphWeights>, &AnimationTargetId, &AnimatedBy)>,\n    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,\n) {\n    for (mut transform, morphs, id, animated_by) in &mut targets {\n        let Ok((player, gate)) = players.get(animated_by.0) else { continue; };\n        if gate.is_some_and(|gate| !gate.refresh_bones) { continue; }\n        let Some(pose) = player.get_default_output_pose() else { continue; };\n        let Some(bone) = pose.get_bone(BoneId::from(*id)) else { continue; };\n        if let Some(value) = bone.translation { transform.translation = value; }\n        if let Some(value) = bone.rotation { transform.rotation = value; }\n        if let Some(value) = bone.scale { transform.scale = value; }\n        if let Some(weights) = &bone.weights && let Some(mut morphs) = morphs {\n            for (target, source) in morphs.weights_mut().iter_mut().zip(weights) { *target = *source; }\n        }\n    }"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "bf5b1061712f4f28a6120504790a2d8599666ee735942381d3f02ccb9de87671",
+    "excerpts": [
+      {
+        "start": 956,
+        "end": 991,
+        "text": "pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {\n    let mut output = poses.iter()\n        .map(|(pose, weight)| pose.scalar_mult(*weight))\n        .reduce(|accumulator, pose| accumulator.linear_add(&pose))\n        .unwrap_or_default().normalize_quat();\n    output.root_motion = crate::extensions::normalized_blendspace::blend_normalized_root_motion(\n        &poses.iter().map(|(pose, weight)| (pose.root_motion.clone(), *weight)).collect::<Vec<_>>(),\n    );\n    output\n}\n\npub fn blend_animation_contexts(\n    contexts: impl IntoIterator<Item = (AnimationContextState, f32)>,\n) -> AnimationContextState {\n    let mut output = AnimationContextState::default();\n    let mut relevant_assets = Vec::new();\n    for (context, weight) in contexts {\n        let weight = weight.max(0.0);\n        if weight > 1e-5 {\n            merge_inertialization_request(&mut output.inertialization_request, context.inertialization_request.as_ref());\n            merge_inertialization_request(&mut output.skipped_cached_pose_request, context.skipped_cached_pose_request.as_ref());\n        }\n        merge_sync_players(&mut output.sync_players, &context.sync_players, weight);\n        merge_asset_samples(&mut output.asset_samples, &context.asset_samples, weight);\n        output.curves_are_authoritative |= context.curves_are_authoritative;\n        for (name, value) in context.curves {\n            *output.curves.entry(name).or_default() += value * weight;\n        }\n        relevant_assets.push((context.relevant_asset, weight));\n    }\n    output.relevant_asset = select_relevant_asset(relevant_assets);\n    output\n}\n\nimpl NodeLike for SourceGameplayTagBlendNode {\n    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {"
+      },
+      {
+        "start": 1010,
+        "end": 1032,
+        "text": "            blend_time,\n            self.blend_mode,\n            delta,\n        );\n        let mut poses = Vec::new();\n        let mut contexts = Vec::new();\n        crate::extensions::source_cached_pose::prewarm_input_cached_poses(&ctx, self.pose_pin_names.iter().cloned().zip(weights.iter().copied()))?;\n        for (index, weight) in weights.into_iter().enumerate() {\n            if weight <= crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD {\n                continue;\n            }\n            let (pose, context) = crate::extensions::interruptible_fsm::with_machine_weight(weight, ||\n                read_blend_list_child(&ctx, &self.pose_pin_names[index], index,\n                    self.reset_child_on_activation, reset && index == active_index, &mut child_contexts))?;\n            if let Some(context) = context {\n                contexts.push((context, weight));\n            }\n            poses.push((pose, weight));\n        }\n        let output = blend_source_poses(&poses);\n        ctx.set_time(output.timestamp);\n        ctx.set_data_fwd(self.output_pin.clone(), output);\n        let state = ctx.state_mut::<SourceGameplayTagBlendState>()?;"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/animation_context_projection.rs",
+    "sha256": "805cbc105c7d9afe2371904f3863b17ec5195b80bd9eabcdb2a0f9a1026897ce",
+    "excerpts": [
+      {
+        "start": 21,
+        "end": 43,
+        "text": "pub struct AlsRootAnimationContext {\n    pub curves: HashMap<crate::extensions::SourceCurveName, f32>,\n}\n\nimpl AlsRootAnimationContext {\n    pub fn f32(&self, name: &str) -> Option<f32> {\n        self.curves\n            .get(&crate::extensions::SourceCurveName::from(name))\n            .copied()\n            .or_else(|| SOURCE_CURVE_DEFAULTS.iter().find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(*value)))\n            .filter(|value| value.is_finite())\n    }\n}\n\n#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]\npub struct AlsRootAnimationContextSet;\n\npub struct AlsRootAnimationContextPlugin;\n\nimpl Plugin for AlsRootAnimationContextPlugin {\n    fn build(&self, app: &mut App) {\n        app.configure_sets(\n            PostUpdate,"
+      },
+      {
+        "start": 68,
+        "end": 103,
+        "text": "}\n\nfn project_root_animation_context(\n    mut commands: Commands,\n    graphs: Res<Assets<AnimationGraph>>,\n    mut players: Query<(\n        Entity,\n        &AnimationGraphPlayer,\n        Option<&mut AlsRootAnimationContext>,\n    )>,\n) {\n    for (entity, player, current) in &mut players {\n        let AnimationSource::Graph(graph_handle) = player.get_animation_source() else {\n            continue;\n        };\n        let Some(graph) = graphs.get(graph_handle) else {\n            continue;\n        };\n        let curves = root_pose_source_node(graph)\n            .and_then(|node| player_animation_context_state(player, node))\n            .map(|state| {\n                state\n                    .curves\n                    .iter()\n                    .filter(|(_, value)| value.is_finite())\n                    .map(|(name, value)| (name.clone(), *value))\n                    .collect()\n            })\n            .unwrap_or_default();\n        let projected = AlsRootAnimationContext { curves };\n        if let Some(mut current) = current {\n            *current = projected;\n        } else {\n            commands.entity(entity).insert(projected);\n        }\n    }"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/ab_als_provider.rs",
+    "sha256": "d18d819f16dd42f94873f08f8f1c7ad1d48dbb37f9e34f45883cb117fb3f8030",
+    "excerpts": [
+      {
+        "start": 139,
+        "end": 161,
+        "text": "fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>) -> [(&'static str, f32); 9] {\n    let curve = |name| context.and_then(|state| state.f32(name)).unwrap_or(0.0);\n    [\n        (\n            \"feet_state.foot_planted_amount\",\n            curve(\"FootPlanted\").clamp(-1.0, 1.0),\n        ),\n        (\n            \"feet_state.feet_crossing_amount\",\n            curve(\"FeetCrossing\").clamp(0.0, 1.0),\n        ),\n        (\"pose_state.standing_amount\", curve(\"PoseStanding\")),\n        (\"pose_state.crouching_amount\", curve(\"PoseCrouching\")),\n        (\"pose_state.in_air_amount\", curve(\"PoseInAir\")),\n        (\"pose_state.grounded_amount\", curve(\"PoseGrounded\")),\n        (\n            \"pose_state.gait_walking_amount\",\n            curve(\"PoseGait\").clamp(0.0, 1.0),\n        ),\n        (\"pose_state.gait_running_amount\", (curve(\"PoseGait\") - 1.0).clamp(0.0, 1.0)),\n        (\"pose_state.gait_sprinting_amount\", (curve(\"PoseGait\") - 2.0).clamp(0.0, 1.0)),\n    ]\n}"
+      }
+    ]
+  }
+]
