@@ -1,0 +1,6 @@
+
+thread 'main' (5267063) panicked at docs/audit/bf144/482/replay.rs:143:5:
+assertion `left == right` failed: Every setter and final pose consumer matches
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
