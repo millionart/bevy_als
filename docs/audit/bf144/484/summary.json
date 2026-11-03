@@ -1,0 +1,149 @@
+{
+  "gate": "PASS_D276_PUBLISHED_FOOT_WORLD_AND_LOCK_FEEDBACK",
+  "live_old_trajectory_exact": true,
+  "actual_baseline_frames": 318,
+  "sides": 636,
+  "differences": {
+    "base_present": 0,
+    "final_location": 0,
+    "final_rotation": 105,
+    "lock_amount": 0,
+    "lock_location": 0,
+    "lock_rotation": 0,
+    "lock_rotation_before_limit": 0,
+    "target_location": 0,
+    "target_rotation": 149,
+    "rig_location": 0,
+    "rig_rotation": 103
+  },
+  "final_rotation_by_lock": {
+    "partial": 20,
+    "unlocked": 85
+  },
+  "first_rig_change": {
+    "query": 100,
+    "prior_root": 99,
+    "side": 0,
+    "published_target_rotation": [
+      0.6476548910140991,
+      0.6470688581466675,
+      0.28403204679489136,
+      0.28490501642227173
+    ],
+    "normalized_target_rotation": [
+      0.6476548910140991,
+      0.6470689177513123,
+      0.28403201699256897,
+      0.2849050462245941
+    ],
+    "actual_rig": [
+      0.08631793409585953,
+      0.08597026020288467,
+      0.7018641829490662,
+      0.7018155455589294
+    ],
+    "corrected_rig": [
+      0.08631795644760132,
+      0.08597026765346527,
+      0.7018641829490662,
+      0.7018155455589294
+    ],
+    "lock_amount": 0.6666666269302368,
+    "changed_bones_on_left_target_chain": [
+      "ik_foot_l"
+    ],
+    "actual_published_local": [
+      0.02744010090827942,
+      0.0263987984508276,
+      0.7066669464111328,
+      0.7065211534500122
+    ],
+    "normalized_published_local": [
+      0.02744009904563427,
+      0.02639879658818245,
+      0.706666886806488,
+      0.7065210938453674
+    ]
+  },
+  "each_control_uses_frozen_observed_prior_lock_state": true,
+  "counterfactual_cumulative_history_claimed": false,
+  "source_to_target_differences_added": [],
+  "new_differences": [],
+  "confirmed_difference_count": 273,
+  "functional_original_playground_passed": true,
+  "actual_rig_input_fields_exact": 1272,
+  "public_plugin_replayed_under_held_prior_lock_state": true,
+  "source_socket_contract_read": true,
+  "native_socket_value_equivalence_claimed": false,
+  "source_and_inputs_restored_same_target_report_byte_exact": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/458/runtime-restored/parameters.json.gz",
+      "bytes": 53946047,
+      "sha256": "179df9ce5458e46638e63bfc200fc505a8c782218262a56ef427696de1cab598"
+    },
+    {
+      "path": "docs/audit/bf144/458/playground_observed.rs",
+      "bytes": 99006,
+      "sha256": "0449ca3effbf314ef836d7b63376f35b510bc6417d3bd9ff4245cff789f24bae"
+    },
+    {
+      "path": "docs/audit/bf144/458/rustc-args.json",
+      "bytes": 4334,
+      "sha256": "a2d3990ebd29b8268cfa4c577d52f3cbebc654df581cb0450616aa6817614cb8"
+    },
+    {
+      "path": "docs/audit/bf144/459/inputs.json",
+      "bytes": 29551067,
+      "sha256": "f3992070db213883da1179396296a1d7693fdf99da2f571bf6d0949f2f2477c7"
+    },
+    {
+      "path": "docs/audit/bf144/483/replay-unit-restored.json.gz",
+      "bytes": 732659,
+      "sha256": "1491c79e78c73bb106e1cea31d16cf9069dacd2bbc57f884cd5853708fc74a03"
+    },
+    {
+      "path": "docs/audit/bf144/483/summary.json",
+      "bytes": 5812,
+      "sha256": "9e5843c04556e8bfb1196d9ef76f0758fe781edba413f17ff3d0776acc16fe8a"
+    },
+    {
+      "path": "docs/audit/bf144/481a/reader-migration.json",
+      "bytes": 509,
+      "sha256": "66318ae5008b859520c751c271c5f9d947185dca8c1fe0bd05f3fd090952f30c"
+    },
+    {
+      "path": "docs/audit/bf144/441b/identities.start.json",
+      "bytes": 46171,
+      "sha256": "71d8569b64012653c8b9c481cb413d070ee6125d61dfdc75dc20787cde7e5ee7"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/441b/watchdog.self-test.json",
+      "bytes": 249,
+      "sha256": "a55daaedcd601b4d484d262d03ae64f4d1317d7d9c520e770ddbaa6662154763"
+    },
+    {
+      "path": "tools/run_ue_source_reader.ps1",
+      "bytes": 20001,
+      "sha256": "9eca51f6a40faada540778c5f30cace4a11f28723838d685fc51f9ce6625a5a0"
+    },
+    {
+      "path": "tools/validate_animation_visual_evidence.py",
+      "bytes": 188529,
+      "sha256": "efe1c8efcdc361c40ef9469c96dc89f69ac43a6451cfba80496e1bcf0978785f"
+    },
+    {
+      "path": "assets/ALS/Character/CR_Als.runtime.json",
+      "bytes": 3134,
+      "sha256": "1661a1a8e3fa2ce7eb9a2f166be62a8301156376a28c568a3c6b11bf9f669f32"
+    }
+  ],
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "next_boundary": "Audit source mesh-to-socket feedback and trace the verified RigInput differences through the original VM"
+}
