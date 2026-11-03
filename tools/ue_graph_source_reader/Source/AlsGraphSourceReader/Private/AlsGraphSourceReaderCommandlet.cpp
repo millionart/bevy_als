@@ -4535,6 +4535,11 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         if (!CaseValue->TryGetObject(Case) || !(*Case)->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
             !(*Case)->TryGetBoolField(TEXT("dynamic_base"), bDynamicBase) || !(*Case)->TryGetNumberField(TEXT("spawn_height_cm"), Height) || !FMath::IsFinite(Height) || Height <= 0 ||
             !(*Case)->TryGetArrayField(TEXT("frames"), Frames) || Frames->IsEmpty() || Frames->Num() > 318) { return nullptr; }
+        const bool bOverrideFootIkBones = (*Case)->HasField(TEXT("initial_use_foot_ik_bones"));
+        bool bInitialFootIkBones = true;
+        if (bOverrideFootIkBones &&
+            (!bCapturePoseBoundaries || (*Case)->TryGetField(TEXT("initial_use_foot_ik_bones"))->Type != EJson::Boolean ||
+                !(*Case)->TryGetBoolField(TEXT("initial_use_foot_ik_bones"), bInitialFootIkBones))) { return nullptr; }
         FVector2D SpawnXY = FVector2D::ZeroVector;
         double SpawnYaw = 0;
         if ((*Case)->HasField(TEXT("spawn_xy_cm")))
@@ -4594,6 +4599,9 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         TWeakObjectPtr<UAnimInstance> ObservedBaseProviderOwner;
         TWeakObjectPtr<UControlRig> ObservedRig;
         bool bInvalidObservationOwner = false;
+        UObject* FootSettingsOverride = nullptr;
+        const FStructProperty* FootSettingsGeneral = nullptr;
+        const FBoolProperty* UseFootIkBonesProperty = nullptr;
         FDelegateHandle ConstructedHandle;
         ON_SCOPE_EXIT
         {
@@ -4620,6 +4628,21 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 if (UAnimInstance* Main = Cast<UAnimInstance>(Object); Main != nullptr && Main->GetClass() == MainClass && Main->GetWorld() == World && !Main->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
                 {
                     if (ObservedBaseProvider != nullptr) { bInvalidObservationOwner = true; return; }
+                    if (bOverrideFootIkBones)
+                    {
+                        const FObjectPropertyBase* Property = FindFProperty<FObjectPropertyBase>(Main->GetClass(), TEXT("Settings"));
+                        UObject* Original = Property != nullptr ? Property->GetObjectPropertyValue_InContainer(Main) : nullptr;
+                        FootSettingsGeneral = Original != nullptr ? FindFProperty<FStructProperty>(Original->GetClass(), TEXT("General")) : nullptr;
+                        UseFootIkBonesProperty = FootSettingsGeneral != nullptr
+                            ? FindFProperty<FBoolProperty>(FootSettingsGeneral->Struct, TEXT("bUseFootIkBones")) : nullptr;
+                        if (UseFootIkBonesProperty == nullptr) { bInvalidObservationOwner = true; return; }
+                        FootSettingsOverride = StaticDuplicateObject(Original, Main);
+                        if (FootSettingsOverride == nullptr || FootSettingsOverride == Original) { bInvalidObservationOwner = true; return; }
+                        FootSettingsOverride->SetFlags(RF_Transient);
+                        UseFootIkBonesProperty->SetPropertyValue_InContainer(
+                            FootSettingsGeneral->ContainerPtrToValuePtr<void>(FootSettingsOverride), bInitialFootIkBones);
+                        Property->SetObjectPropertyValue_InContainer(Main, FootSettingsOverride);
+                    }
                     ObservedBaseProvider = BaseProviderProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(Main);
                     if (ObservedBaseProvider->InputPoses.IsEmpty()) { bInvalidObservationOwner = true; ObservedBaseProvider = nullptr; return; }
                     BaseProviderInputObservation.Source = ObservedBaseProvider->InputPoses[0];
@@ -4726,6 +4749,8 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         const FObjectPropertyBase* SettingsProperty = FindFProperty<FObjectPropertyBase>(Instance->GetClass(), TEXT("Settings"));
         if (OwnerProperty == nullptr || SettingsProperty == nullptr || OwnerProperty->GetObjectPropertyValue_InContainer(Instance) != Character ||
             !IsValid(SettingsProperty->GetObjectPropertyValue_InContainer(Instance))) { return nullptr; }
+        if (bOverrideFootIkBones && (FootSettingsOverride == nullptr ||
+            SettingsProperty->GetObjectPropertyValue_InContainer(Instance) != FootSettingsOverride)) { return nullptr; }
         const IAnimClassInterface* Interface = IAnimClassInterface::GetFromClass(Instance->GetClass());
         if (Interface == nullptr) { return nullptr; }
         FAnimNode_ControlRig* RigNode = nullptr;
@@ -5010,6 +5035,14 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                     !(*Input)->TryGetNumberField(TEXT("x"), X) || !(*Input)->TryGetNumberField(TEXT("y"), Y) || !(*Input)->TryGetNumberField(TEXT("z"), Z) ||
                     !FMath::IsFinite(X) || !FMath::IsFinite(Y) || !FMath::IsFinite(Z)) { return nullptr; }
                 Character->AddMovementInput(FVector(X, Y, Z));
+            }
+            if ((*Frame)->HasField(TEXT("use_foot_ik_bones")))
+            {
+                bool bUseFootIkBones;
+                if (FootSettingsOverride == nullptr || (*Frame)->TryGetField(TEXT("use_foot_ik_bones"))->Type != EJson::Boolean ||
+                    !(*Frame)->TryGetBoolField(TEXT("use_foot_ik_bones"), bUseFootIkBones)) { return nullptr; }
+                UseFootIkBonesProperty->SetPropertyValue_InContainer(
+                    FootSettingsGeneral->ContainerPtrToValuePtr<void>(FootSettingsOverride), bUseFootIkBones);
             }
             TSharedPtr<FJsonObject> ControllerBefore;
             if (bLocalController) { ControllerBefore = CaptureController(); }

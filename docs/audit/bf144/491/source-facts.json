@@ -1,0 +1,93 @@
+[
+  {
+    "key": "source:Public/Settings/AlsGeneralAnimationSettings.h",
+    "sha256": "aad2bd4715d854947a8ab516c703ce3624e9bbe5215632a49a9df0b438afa4f9",
+    "excerpts": [
+      {
+        "start": 8,
+        "end": 21,
+        "text": "\tGENERATED_BODY()\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tuint8 bUseHandIkBones : 1 {true};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tuint8 bUseFootIkBones : 1 {true};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = 0, ForceUnits = \"cm/s\"))\n\tfloat MovingSmoothSpeedThreshold{150.0f};\n\n\t/// The lower the value, the faster the interpolation. A zero value means instant interpolation.\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = 0, ForceUnits = \"s\"))\n\tfloat LeanInterpolationHalfLife{0.2f};"
+      }
+    ]
+  },
+  {
+    "key": "source:Public/Settings/AlsAnimationInstanceSettings.h",
+    "sha256": "7d44ffd8041ab5a0448234f415fe3d2dd0a79c5cee95e8283c2e208b2ed20ac9",
+    "excerpts": [
+      {
+        "start": 15,
+        "end": 25,
+        "text": "#include \"AlsAnimationInstanceSettings.generated.h\"\n\nUCLASS(Blueprintable, BlueprintType)\nclass ALS_API UAlsAnimationInstanceSettings : public UDataAsset\n{\n\tGENERATED_BODY()\n\npublic:\n\tUPROPERTY(EditAnywhere, BlueprintReadOnly, Category = \"Settings\")\n\tFAlsGeneralAnimationSettings General;\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 235,
+        "end": 257,
+        "text": "FAlsControlRigInput UAlsAnimationInstance::GetControlRigInput() const\n{\n\t// In addition to being on the ground, allow pelvis offset if the\n\t// character is in the air, but only if GroundPredictionAmount is non-zero.\n\n\tconst auto PelvisOffsetAmount{\n\t\tUAlsMath::Clamp01(PoseState.GroundedAmount + PoseState.InAirAmount * InAirState.GroundPredictionAmount)\n\t};\n\n\treturn {\n\t\t.bUseHandIkBones = !IsValid(Settings) || Settings->General.bUseHandIkBones,\n\t\t.bUseFootIkBones = !IsValid(Settings) || Settings->General.bUseFootIkBones,\n\t\t.bFootTransformsValid = static_cast<bool>(FeetState.bValid),\n\t\t.VelocityBlendForwardAmount = GroundedState.VelocityBlend.ForwardAmount,\n\t\t.VelocityBlendBackwardAmount = GroundedState.VelocityBlend.BackwardAmount,\n\t\t.SpineYawAngle = SpineState.FinalYawAngle,\n\t\t.PelvisOffsetAmount = PelvisOffsetAmount,\n\t\t.FootLeftLocation{FVector{FeetState.Left.FinalLocation}},\n\t\t.FootLeftRotation{FQuat{FeetState.Left.FinalRotation}},\n\t\t.FootRightLocation{FVector{FeetState.Right.FinalLocation}},\n\t\t.FootRightRotation{FQuat{FeetState.Right.FinalRotation}},\n\t};\n}"
+      },
+      {
+        "start": 1277,
+        "end": 1295,
+        "text": "\n\tconst auto FootLeftTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootLeftIkBoneName()\n\t\t\t                         : UAlsConstants::FootLeftVirtualBoneName())\n\t};\n\n\tFeetState.Left.TargetLocationWorldSpace = FootLeftTargetTransform.GetLocation();\n\tFeetState.Left.TargetRotationWorldSpace = FootLeftTargetTransform.GetRotation();\n\n\tconst auto FootRightTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootRightIkBoneName()\n\t\t\t                         : UAlsConstants::FootRightVirtualBoneName())\n\t};\n\n\tFeetState.Right.TargetLocationWorldSpace = FootRightTargetTransform.GetLocation();\n\tFeetState.Right.TargetRotationWorldSpace = FootRightTargetTransform.GetRotation();\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/AnimNode_ControlRig.cpp",
+    "sha256": "80130984de66107a7fd783c5e34193c76b36a19e5159edd2541e7e597a4af6cd",
+    "excerpts": [
+      {
+        "start": 142,
+        "end": 155,
+        "text": "void FAnimNode_ControlRig::Initialize_AnyThread(const FAnimationInitializeContext& Context)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tFAnimNode_ControlRigBase::Initialize_AnyThread(Context);\n\n\tif (ControlRig)\n\t{\n\t\t//Don't Inititialize the Control Rig here it may have the wrong VM on the CDO\n\t\tSetTargetInstance(ControlRig);\n\t\tControlRig->RequestInit();\n\t\tbControlRigRequiresInitialization = true;\n\t\tLastBonesSerialNumberForCacheBones = 0;\n\t}"
+      },
+      {
+        "start": 249,
+        "end": 264,
+        "text": "void FAnimNode_ControlRig::UpdateInput(UControlRig* InControlRig, FPoseContext& InOutput)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tFAnimNode_ControlRigBase::UpdateInput(InControlRig, InOutput);\n\n\tControlRigVariableMappings.UpdateCurveInputs(InControlRig, InputMapping, InOutput.Curve);\n}\n\nvoid FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext& InOutput)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tFAnimNode_ControlRigBase::UpdateOutput(InControlRig, InOutput);\n\n\tControlRigVariableMappings.UpdateCurveOutputs(InControlRig, OutputMapping, InOutput.Curve);"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/AnimNode_ControlRigBase.cpp",
+    "sha256": "45f8cd1bd28528c6bc571b59608d7c6ebdc010d1005a211b8bfc30cf09ecf394",
+    "excerpts": [
+      {
+        "start": 174,
+        "end": 194,
+        "text": "\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()\n\n\tFPoseContext SourcePose(Output);\n\n\tif (Source.GetLinkNode())\n\t{\n\t\tSource.Evaluate(SourcePose);\n\t}\n\telse\n\t{\n\t\t// apply refpose\n\t\tSourcePose.ResetToRefPose();\n\t}\n\n\tExecuteConstructionIfNeeded();\n\n\tif(!ControlRigHierarchyMappings.CheckPoseAdapter())\n\t{\n\t\tOutput = SourcePose;\n\t\tensureMsgf(false, TEXT(\"At this point the pose adapter needs to be set!\"));\n\t\treturn;"
+      },
+      {
+        "start": 333,
+        "end": 348,
+        "text": "void FAnimNode_ControlRigBase::ExecuteConstructionIfNeeded()\n{\n\tSCOPE_CYCLE_COUNTER(STAT_ControlRig_Evaluate_Construction);\n\n\tif (UControlRig* ControlRig = GetControlRig())\n\t{\n\t\tif (!ControlRig->IsConstructionRequired())\n\t\t{\n\t\t\treturn;\n\t\t}\n\t\t\n\t\t// Before we start modifying the RigHierarchy, we need to lock the rig to avoid\n\t\t// corrupted state\n\t\tUE::TScopeLock LockRig(ControlRig->GetEvaluateMutex());\n\n\t\tURigHierarchy* Hierarchy = ControlRig->GetHierarchy();"
+      },
+      {
+        "start": 437,
+        "end": 474,
+        "text": "\t\t\t// the construction event may create a set of bones that we can map to. let's run construction now.\n\t\t\tif (bExecute)\n\t\t\t{\n\t\t\t\tconst bool bIsLODChange = !bControlRigRequiresInitialization && (BonesSerialNumber != LastBonesSerialNumberForCacheBones);\n\t\t\n\t\t\t\tif(ControlRig->IsConstructionModeEnabled() ||\n\t\t\t\t\t(ControlRig->IsConstructionRequired() && (bControlRigRequiresInitialization || bIsLODChange)))\n\t\t\t\t{\n\t\t\t\t\tUpdateGetAssetUserDataDelegate(ControlRig);\n\t\t\t\t\tControlRig->Execute(FRigUnit_PrepareForExecution::EventName);\n\t\t\t\t\tbControlRigRequiresInitialization = false;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tURigHierarchy* Hierarchy = ControlRig->GetHierarchy();\n\n\t\t\tControlRigHierarchyMappings.UpdateInputOutputMappingIfRequired(ControlRig\n\t\t\t\t, Hierarchy\n\t\t\t\t, RequiredBones\n\t\t\t\t, InputBonesToTransfer\n\t\t\t\t, OutputBonesToTransfer\n\t\t\t\t, NodeMappingContainer\n\t\t\t\t, bTransferPoseInGlobalSpace\n\t\t\t\t, bResetInputPoseToInitial);\n\n\t\t\tif(bControlRigRequiresInitialization)\n\t\t\t{\n\t\t\t\tif(bExecute)\n\t\t\t\t{\n\t\t\t\t\t// re-init only if this is the first run\n\t\t\t\t\t// and restore control values\n\t\t\t\t\tControlRig->RequestInit();\n\t\t\t\t\tbControlRigRequiresInitialization = false;\n\t\t\t\t}\n\t\t\t}\n\t\t\n\t\t\tLastBonesSerialNumberForCacheBones = BonesSerialNumber;\n"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/root_graph_boundaries.rs",
+    "sha256": "c25dcf197be887459859395ba190facebf6d655429e0e51ed4b80c143898fcd7",
+    "excerpts": [
+      {
+        "start": 218,
+        "end": 241,
+        "text": "        state.calls.clear();\n        state.traces.clear();\n        let rebuild = state.runtime.as_ref().is_none_or(|runtime| runtime.definition != *definition);\n        if rebuild {\n            state.runtime = Some(ControlRigRuntime {\n                definition: definition.clone(),\n                hierarchy: RigHierarchy::new(\n                    definition.bones.clone(),\n                    definition.translation_tolerance,\n                )?,\n                values: definition.program.initial_values.clone(),\n                curves: definition\n                    .curves\n                    .iter()\n                    .filter_map(|(key, value)| value.map(|value| (key.clone().into(), value)))\n                    .collect(),\n            });\n        }\n        let runtime = state.runtime.as_mut().unwrap();\n        for (binding, value) in inputs {\n            binding.write(\n                &mut runtime.values,\n                definition.program.literal_count,\n                value.clone(),"
+      },
+      {
+        "start": 295,
+        "end": 301,
+        "text": "                })\n        };\n        if rebuild {\n            execute(runtime, \"Construction\")?;\n            state.initialization_count += 1;\n        }\n        if !self.alpha_enabled {"
+      }
+    ]
+  }
+]

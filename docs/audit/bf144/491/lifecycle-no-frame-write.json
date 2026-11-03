@@ -1,0 +1,264 @@
+[
+  {
+    "case": "initial-ik",
+    "initial": {
+      "getter_flag": true,
+      "input_flag": true,
+      "foot_root": "ik_foot_root"
+    },
+    "settings": "/Temp/Untitled_2.Untitled:PersistentLevel.B_Als_Character_C_0.CharacterMesh0.AB_Als_C_0.AIS_Als_Default",
+    "frames": [
+      {
+        "frame": 0,
+        "requested": true,
+        "getter_before": true,
+        "getter_after": true,
+        "valid": false,
+        "input_flag": true,
+        "foot_root": "ik_foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 1,
+        "requested": true,
+        "getter_before": true,
+        "getter_after": true,
+        "valid": true,
+        "input_flag": true,
+        "foot_root": "ik_foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 2,
+        "requested": false,
+        "getter_before": true,
+        "getter_after": true,
+        "valid": true,
+        "input_flag": true,
+        "foot_root": "ik_foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 3,
+        "requested": false,
+        "getter_before": true,
+        "getter_after": true,
+        "valid": true,
+        "input_flag": true,
+        "foot_root": "ik_foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 4,
+        "requested": false,
+        "getter_before": true,
+        "getter_after": true,
+        "valid": true,
+        "input_flag": true,
+        "foot_root": "ik_foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 5,
+        "requested": true,
+        "getter_before": true,
+        "getter_after": true,
+        "valid": true,
+        "input_flag": true,
+        "foot_root": "ik_foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 6,
+        "requested": true,
+        "getter_before": true,
+        "getter_after": true,
+        "valid": true,
+        "input_flag": true,
+        "foot_root": "ik_foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 7,
+        "requested": true,
+        "getter_before": true,
+        "getter_after": true,
+        "valid": true,
+        "input_flag": true,
+        "foot_root": "ik_foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case": "initial-virtual",
+    "initial": {
+      "getter_flag": false,
+      "input_flag": false,
+      "foot_root": "VB foot_root"
+    },
+    "settings": "/Temp/Untitled_3.Untitled:PersistentLevel.B_Als_Character_C_0.CharacterMesh0.AB_Als_C_0.AIS_Als_Default",
+    "frames": [
+      {
+        "frame": 0,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": false,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 1,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 2,
+        "requested": true,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 3,
+        "requested": true,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 4,
+        "requested": true,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 5,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 6,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 7,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      }
+    ]
+  }
+]
