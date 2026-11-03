@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.497 Run Start之前Lean样本、施加alpha与足缩放。依赖496实际Movement链和495原图观测。fresh核当前三个活动Lean叶在原生压缩模式的实际时点，并在真实Playground读Lean输出、缓存生效值、alpha状态与施加时钟。固定实际Base和alpha，仅替换原生raw参考，判断缓存Movement的首ULP归属并核无新时点差的适用域。Gate含原生读数、生产公用算子、实时轨迹对照、消融恢复及Git封存。开始2026-11-04 07:46:31 +0800，预估结束2026-11-04 08:36:31 +0800。参考496约7分钟和495约10分钟，本项含三原生叶、首次激活连续时钟和真实Gate，按50分钟估。截图0，性能暂停。
+
+  - 07:47 source/static及真实Gate前：原生实际Standing实例在对应运动窗的Lean使用中心/前/右、采样0，目标同三活动叶亦请求Absolute(0)。准备原可见场景只读16个连续帧，额外记录真实映射alpha的前态/当前态、图时间和BlendSpace坐标，截图0。
+
+  - 07:52 实际Gate通过，query105除新增只读字段外与496完全一致。目标99激活、99–104 alpha=0.5、105起超过半步门槛。十二活跃帧同输入复算权重、插值与缩放精确；三个源0时点压缩delta全零，raw Lean替换去掉105–110六帧缩放增量，归D235。原生104 tick权重的末位差可由当帧实际原始运行量差用同一算子重现；其余原生tick含父权重，保持边界。消融及封存继续。
+  - Gate通过。三源压缩叶0时点delta为0，原生104实际样本[0,1,4]皆0；目标16帧中12活跃，三角权重、状态插值与施加scale逐值。query99–104 alpha=0.5，query105达到0.618603885；换raw Lean参考后105–110六帧缩放恢复。原生104运行量0.6779059171676636，同前态0.5和Delta复算原生tick 0.6186039447784424，单换该alpha不改变目标见证scale。首次读求值后图时钟失败已改保留播放器Delta并按实际前后状态复算；采样Absolute(0)另记。去Delta或raw参考触发对应预期失败，恢复原字节同六库重编报告字节一致。证据 docs/audit/bf144/497/summary.json。归D235，累计276（117P2/159P3）。下一轮追溯同帧原始运行量差异到gait输入及映射，区分D268。实际结束2026-11-04 07:54:00 +0800，实耗449秒，偏差-2550秒。截图0，性能暂停。
+
 - [x] BF144.496 运动左虚拟足scale的 Run Start 与 Layering 因素。依赖495的query105/158真实缓存。fresh核实际运行的两个Acceleration叶与共同Lean参考，沿Run Start局部施加、动态Locomotion加性与Legs实际权重恢复对应scale，分开参考输入、F32算序和活动分支。Gate含本地源、实测同输入复算、因子消融恢复及Git封存。开始2026-11-04 07:39:20 +0800，预估结束2026-11-04 08:29:20 +0800。参考495实耗约10分钟，本项含三次原生读取、实际权重观察与两条上游链，按50分钟估。截图0，性能暂停。
 
   - 07:39 source/static及真实Gate前：query105已确认由活动Run Start Apply Additive生产Locomotion缩放，虽Lean样本已评估，不能据此当作该输出。Layering的动态加性以普通Stand为参考，再经Legs TwoWay。复用原可见场景，仅补缓存的实际Legs alpha和Run Start输入权重，截图0。
@@ -6356,6 +6363,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 全量/边界：当前1875次双边相关TwoWay中95次回算改变alpha，隔离相同精度/数值空间后3516个骨骼改变，gait相同控制715骨归D216。31个实际alpha的原生标量回算均确认；其中替代不等curve端点的21例只作独立控制，不宣称自然曲线后果。证据`target/bf144/182/complement-witness-check.json`、`complement-native-check.json`、`parent-math-check.json`及`roundtrip-api-check.json`；仅登记，未修生产，未声明可见故障或完整角色反馈已通过。
 
 - [ ] BF144-D235 / P3 — Lean共同加性参考数据不符合源强制raw完整姿态合同。
+  - BF144.497 Run Start之前的Lean实际时钟消费者。原生三活动叶的0时点delta均零，目标12帧真实权重/alpha/输出逐值，query105–110仅换raw Lean参考即去掉左虚拟足缩放增量。证据 docs/audit/bf144/497/summary.json。
   - BF144.496 Run Start实际消费者。query105两活动方向前/右的压缩加性scale为0，普通Lean参考下目标各一ULP。固定实际方向权重、Movement、Layering及Head输入，仅raw Lean参考使Run Start和Legs各少一ULP。动态加性普通Stand因子分开，证据 docs/audit/bf144/496/summary.json。
   - BF144.495 左虚拟足首个非均匀Head输出。实际 Default Overlay 的 Idle 局部加性与 Head 的 Look 网格加性均读取普通 Stand，两个算子各贡献一个F32步长。原生raw Stand scale=1且Idle/Look压缩delta=0；固定目标绝对值和权重，单换参考时query2/3仍余一ULP，双换时y=1。运动段另有上游缩放，证据 docs/audit/bf144/495/summary.json。
   - BF144.450当前Head参考X补充：fresh raw absolute Forward.5与raw Stand0的pelvis X同1.7007638171697125e−28cm、raw additive X0；actual target reference X0与absolute约1.7007637193685825e−30，在319 public差分核精确。No-route域仅换物理raw ref X后得−1.88079096131566e−37，保余量且由absolute仍处float导出单位阶段D275解释；同导出系数raw ref与absolute相等则差0。该参考输入因素独立于D224压缩delta；当前public微量counter不宣称完整raw姿态/Root恢复。记录`docs/audit/bf144/450a/`、`.450/endpoints.json`、`.450b/check-no-route.json`。

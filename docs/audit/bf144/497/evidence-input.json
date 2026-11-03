@@ -1,0 +1,659 @@
+{
+  "timeline": [
+    {
+      "query": 95,
+      "active": false
+    },
+    {
+      "query": 96,
+      "active": false
+    },
+    {
+      "query": 97,
+      "active": false
+    },
+    {
+      "query": 98,
+      "active": false
+    },
+    {
+      "query": 99,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": null,
+        "raw": 0.0,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "position": [
+        0.07404465228319168,
+        0.08048812299966812
+      ]
+    },
+    {
+      "query": 100,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "raw": 0.0,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "position": [
+        0.13356460630893707,
+        0.1576433777809143
+      ]
+    },
+    {
+      "query": 101,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "raw": 0.0,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "position": [
+        0.1780932992696762,
+        0.23240181803703308
+      ]
+    },
+    {
+      "query": 102,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "raw": 0.0,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "position": [
+        0.21004967391490936,
+        0.3035018742084503
+      ]
+    },
+    {
+      "query": 103,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "raw": 0.06103098392486572,
+        "time_update": "None"
+      },
+      "base": [
+        0.9999999403953552,
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        0.9999999403953552,
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "position": [
+        0.23163506388664246,
+        0.37018677592277527
+      ]
+    },
+    {
+      "query": 104,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "raw": 0.4870109558105469,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "position": [
+        0.23035554587841034,
+        0.39367491006851196
+      ]
+    },
+    {
+      "query": 105,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.6186038851737976
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.5
+        },
+        "raw": 0.677905797958374,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0000001192092896,
+        1.0
+      ],
+      "position": [
+        0.20516961812973022,
+        0.3506179451942444
+      ]
+    },
+    {
+      "query": 106,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.6946898102760315
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.6186038851737976
+        },
+        "raw": 0.7327327728271484,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0000001192092896,
+        1.0
+      ],
+      "position": [
+        0.1827310174703598,
+        0.31227222084999084
+      ]
+    },
+    {
+      "query": 107,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.7501215934753418
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.6946898102760315
+        },
+        "raw": 0.7778375148773193,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0000001192092896,
+        1.0
+      ],
+      "position": [
+        0.16274642944335938,
+        0.278120219707489
+      ]
+    },
+    {
+      "query": 108,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.7950741648674011
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.7501215934753418
+        },
+        "raw": 0.8175504207611084,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920930376163597e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0000001192092896,
+        1.0
+      ],
+      "position": [
+        0.14494748413562775,
+        0.24770328402519226
+      ]
+    },
+    {
+      "query": 109,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.8348925113677979
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.7950741648674011
+        },
+        "raw": 0.8548016548156738,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0000001192092896,
+        1.0
+      ],
+      "position": [
+        0.12910254299640656,
+        0.22061169147491455
+      ]
+    },
+    {
+      "query": 110,
+      "active": true,
+      "alpha": {
+        "delta": 0.03333333507180214,
+        "mapped": {
+          "initialized": true,
+          "value": 0.8729293346405029
+        },
+        "player_delta": 0.03333333507180214,
+        "previous": {
+          "initialized": true,
+          "value": 0.8348925113677979
+        },
+        "raw": 0.8919477462768555,
+        "time_update": "None"
+      },
+      "base": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "output": [
+        1.0,
+        1.0000001192092896,
+        1.0
+      ],
+      "position": [
+        0.11498309671878815,
+        0.1964842528104782
+      ]
+    }
+  ],
+  "configuration": {
+    "max": [
+      1.0,
+      1.0
+    ],
+    "min": [
+      -1.0,
+      -1.0
+    ],
+    "points": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ],
+      [
+        0.0,
+        -1.0
+      ],
+      [
+        -1.0,
+        0.0
+      ],
+      [
+        1.0,
+        0.0
+      ]
+    ],
+    "position": [
+      0.20516961812973022,
+      0.3506179451942444
+    ],
+    "teleport": true,
+    "triangles": [
+      [
+        2,
+        0,
+        3
+      ],
+      [
+        2,
+        4,
+        0
+      ],
+      [
+        0,
+        1,
+        3
+      ],
+      [
+        4,
+        1,
+        0
+      ]
+    ]
+  },
+  "native_player": {
+    "property": "AnimGraphNode_BlendSpaceEvaluator",
+    "node_type": "/Script/AnimGraphRuntime.AnimNode_BlendSpaceEvaluator",
+    "asset": "/ALS/ALS/Animations/Grounded/Lean/BS_Als_Lean.BS_Als_Lean",
+    "current_asset_time": 0,
+    "cached_blend_weight": 0.6186039447784424,
+    "sync_read_buffer_tick_present": true,
+    "sync_read_buffer_tick_matches": 1,
+    "tick_group": "",
+    "tick_weight": 0.6186039447784424,
+    "tick_evaluator": true,
+    "tick_previous_valid": true,
+    "tick_previous": 0,
+    "tick_delta": 0,
+    "tick_accumulator": 0,
+    "required_bones_valid": true,
+    "node_guid": "34f57700-443d-7c77-5457-2cb100b5b922",
+    "blend_samples": [
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean.A_Als_Lean",
+        "time": 0,
+        "cached_time": 0,
+        "weight": 0.44420668482780457,
+        "pose_mode_at_observation": "compressed"
+      },
+      {
+        "index": 1,
+        "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.A_Als_Lean_Forward",
+        "time": 0,
+        "cached_time": 0,
+        "weight": 0.3506253957748413,
+        "pose_mode_at_observation": "compressed"
+      },
+      {
+        "index": 4,
+        "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.A_Als_Lean_Right",
+        "time": 0,
+        "cached_time": 0,
+        "weight": 0.2051679790019989,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  },
+  "native_alpha": {
+    "raw": 0.6779059171676636,
+    "previous_tick_weight": 0.5,
+    "tick_weight": 0.6186039447784424,
+    "delta": 0.03333333507180214
+  },
+  "native_leaf_scale": {
+    "center": [
+      0,
+      0,
+      0
+    ],
+    "forward": [
+      0,
+      0,
+      0
+    ],
+    "right": [
+      0,
+      0,
+      0
+    ]
+  },
+  "tracks": {
+    "center": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "forward": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "right": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "reference": [
+      1.0,
+      0.9999998807907104,
+      1.0
+    ]
+  },
+  "raw_reference": [
+    1,
+    1,
+    1
+  ],
+  "mapping": {
+    "source_semantics": true,
+    "map_range": false,
+    "input_min": 0.0,
+    "input_max": 1.0,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "scale": 1.0,
+    "bias": 0.0,
+    "clamp_result": true,
+    "clamp_min": 0.5,
+    "clamp_max": 1.0,
+    "interpolate_result": true,
+    "interpolate_speed_increasing": 20.0,
+    "interpolate_speed_decreasing": 1.0
+  },
+  "point_times": [
+    {
+      "id": "sample_0",
+      "requested_time": "Absolute(0.0)"
+    },
+    {
+      "id": "sample_1",
+      "requested_time": "Absolute(0.0)"
+    },
+    {
+      "id": "sample_2",
+      "requested_time": null
+    },
+    {
+      "id": "sample_3",
+      "requested_time": null
+    },
+    {
+      "id": "sample_4",
+      "requested_time": "Absolute(0.0)"
+    }
+  ],
+  "assets": {
+    "center": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean",
+    "forward": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward",
+    "right": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Right",
+    "reference": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose"
+  },
+  "graph": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron"
+}

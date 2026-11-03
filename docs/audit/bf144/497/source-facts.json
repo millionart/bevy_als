@@ -1,0 +1,87 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimSequence.cpp",
+    "sha256": "909902b795754cf5bc556e1602d6b124a1066c55d7361c9c0bfc42bdb1fb7962",
+    "excerpts": [
+      {
+        "start": 1938,
+        "end": 1973,
+        "text": "void UAnimSequence::GetAdditiveBasePose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const\n{\n\tswitch (RefPoseType)\n\t{\n\t\t// use whole animation as a base pose. Need BasePoseSeq.\n\t\tcase ABPT_AnimScaled:\n\t\t{\n\t\t\t// normalize time to fit base seq\n\t\t\tPRAGMA_DISABLE_DEPRECATION_WARNINGS\n\t\t\tconst double Fraction = (GetPlayLength() > 0.0)? FMath::Clamp<double>(ExtractionContext.CurrentTime / (double)GetPlayLength(), 0.0, 1.0) : 0.0;\n\t\t\tconst double BasePoseTime = (double)RefPoseSeq->GetPlayLength() * Fraction;\n\t\t\tPRAGMA_ENABLE_DEPRECATION_WARNINGS\n\n\t\t\tFAnimExtractContext BasePoseExtractionContext(ExtractionContext);\n\t\t\tBasePoseExtractionContext.CurrentTime = BasePoseTime;\n\t\t\tRefPoseSeq->GetBonePose(OutAnimationPoseData, BasePoseExtractionContext, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use animation as a base pose. Need BasePoseSeq and RefFrameIndex (will clamp if outside).\n\t\tcase ABPT_AnimFrame:\n\t\t{\n\t\t\tGetSequencePose(OutAnimationPoseData, ExtractionContext, *RefPoseSeq, RefFrameIndex, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use this animation as a base pose. Need RefFrameIndex (will clamp if outside).\n\t\tcase ABPT_LocalAnimFrame:\n\t\t{\n\t\t\tGetSequencePose(OutAnimationPoseData, ExtractionContext, *this, RefFrameIndex, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use ref pose of Skeleton as base\n\t\tcase ABPT_RefPose:\n\t\tdefault:\n\t\t\tOutAnimationPoseData.GetPose().ResetToRefPose();\n\t\t\tbreak;\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/AnimGraphRuntime/Private/AnimNodes/AnimNode_ApplyAdditive.cpp",
+    "sha256": "8de6f9d20293c788b1b39180a202ecfd739528fbbaef081e3ab12828e77c319b",
+    "excerpts": [
+      {
+        "start": 37,
+        "end": 101,
+        "text": "\tBase.Update(Context);\n\n\tActualAlpha = 0.f;\n\tif (IsLODEnabled(Context.AnimInstanceProxy))\n\t{\n\t\t// @note: If you derive from this class, and if you have input that you rely on for base\n\t\t// this is not going to work\t\n\t\tGetEvaluateGraphExposedInputs().Execute(Context);\n\n\t\tswitch (AlphaInputType)\n\t\t{\n\t\tcase EAnimAlphaInputType::Float:\n\t\t\tActualAlpha = AlphaScaleBias.ApplyTo(AlphaScaleBiasClamp.ApplyTo(Alpha, Context.GetDeltaTime()));\n\t\t\tbreak;\n\t\tcase EAnimAlphaInputType::Bool:\n\t\t\tActualAlpha = AlphaBoolBlend.ApplyTo(bAlphaBoolEnabled, Context.GetDeltaTime());\n\t\t\tbreak;\n\t\tcase EAnimAlphaInputType::Curve:\n\t\t\tif (UAnimInstance* AnimInstance = Cast<UAnimInstance>(Context.AnimInstanceProxy->GetAnimInstanceObject()))\n\t\t\t{\n\t\t\t\tActualAlpha = AlphaScaleBiasClamp.ApplyTo(AnimInstance->GetCurveValue(AlphaCurveName), Context.GetDeltaTime());\n\t\t\t}\n\t\t\tbreak;\n\t\t};\n\n\t\tif (FAnimWeight::IsRelevant(ActualAlpha))\n\t\t{\n\t\t\tAdditive.Update(Context.FractionalWeight(ActualAlpha));\n\t\t}\n\t}\n\n\tTRACE_ANIM_NODE_VALUE(Context, TEXT(\"Alpha\"), ActualAlpha);\n}\n\nvoid FAnimNode_ApplyAdditive::Evaluate_AnyThread(FPoseContext& Output)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)\n\tANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(ApplyAdditive, !IsInGameThread());\n\n\t//@TODO: Could evaluate Base into Output and save a copy\n\tif (FAnimWeight::IsRelevant(ActualAlpha))\n\t{\n\t\tconst bool bExpectsAdditivePose = true;\n\t\tFPoseContext AdditiveEvalContext(Output, bExpectsAdditivePose);\n\n\t\tBase.Evaluate(Output);\n\t\tAdditive.Evaluate(AdditiveEvalContext);\n\n\t\tFAnimationPoseData OutAnimationPoseData(Output);\n\t\tconst FAnimationPoseData AdditiveAnimationPoseData(AdditiveEvalContext);\n\n\t\tFAnimationRuntime::AccumulateAdditivePose(OutAnimationPoseData, AdditiveAnimationPoseData, ActualAlpha, AAT_LocalSpaceBase);\n\t\tOutput.Pose.NormalizeRotations();\n\t}\n\telse\n\t{\n\t\tBase.Evaluate(Output);\n\t}\n}\n\nFAnimNode_ApplyAdditive::FAnimNode_ApplyAdditive()\n\t: Alpha(1.0f)\n\t, LODThreshold(INDEX_NONE)\n\t, AlphaCurveName(NAME_None)\n\t, ActualAlpha(0.f)"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "bf5b1061712f4f28a6120504790a2d8599666ee735942381d3f02ccb9de87671",
+    "excerpts": [
+      {
+        "start": 154,
+        "end": 193,
+        "text": "fn delta_seconds(ctx: &NodeContext) -> Result<f32, GraphError> {\n    Ok(match context_time_update(ctx)? {\n        TimeUpdate::Delta(value) => value.max(0.0),\n        TimeUpdate::Absolute(_) | TimeUpdate::PercentOfEvent { .. } => 0.0,\n    })\n}\n\npub fn apply_source_input_scale_bias_clamp(\n    state: &mut SourceInputScaleBiasClampState,\n    raw: f32,\n    mapping: &SourceAlphaMapping,\n    delta: f32,\n) -> f32 {\n    if !mapping.source_semantics {\n        return raw;\n    }\n    let mut target = raw;\n    if mapping.map_range {\n        let divisor = mapping.input_max - mapping.input_min;\n        let percent = if divisor.abs() <= 1.0e-8 {\n            if raw >= mapping.input_max { 1.0 } else { 0.0 }\n        } else {\n            (raw - mapping.input_min) / divisor\n        };\n        target = mapping.output_min + (mapping.output_max - mapping.output_min) * percent;\n    }\n    target = target * mapping.scale + mapping.bias;\n    if mapping.clamp_result {\n        target = target.clamp(mapping.clamp_min, mapping.clamp_max);\n    }\n    if mapping.interpolate_result {\n        if state.initialized {\n            let speed = if target >= state.value {\n                mapping.interpolate_speed_increasing\n            } else {\n                mapping.interpolate_speed_decreasing\n            };\n            target = f_interp_to(state.value, target, delta, speed);\n        }\n        state.value = target;"
+      },
+      {
+        "start": 521,
+        "end": 549,
+        "text": "        let mut base = ctx.data_back(\"Base\")?.into_pose()?;\n        let raw = self.alpha_input(&ctx)?;\n        let delta = delta_seconds(&ctx)?;\n        let alpha = source_blend_alpha(\n            ctx.state_mut::<SourceBlendState>()?,\n            raw,\n            0.0,\n            &self.mapping,\n            self.alpha_scale,\n            self.alpha_bias,\n            self.minimum_alpha,\n            self.maximum_alpha,\n            self.increasing_speed,\n            self.decreasing_speed,\n            delta,\n        );\n        let additive_is_relevant = alpha > 1e-5;\n        if additive_is_relevant {\n            let additive = crate::extensions::interruptible_fsm::with_machine_weight(alpha,\n                || ctx.data_back(\"Additive\"))?.into_pose()?;\n            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&base.skeleton)\n                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n            apply_local_space_additive(&mut base, &additive, alpha, skeleton);\n        }\n        ctx.set_time(base.timestamp);\n        ctx.set_data_fwd(\"Pose\", base);\n        let base_context = pose_input_context_state(&ctx, \"Base\");\n        let additive_context = additive_is_relevant\n            .then(|| pose_input_context_state(&ctx, \"Additive\"))"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/normalized_blendspace.rs",
+    "sha256": "5fee6663ccc1d5897a392f6d2acfd3e12c5a71d6e91871d77dbf31259ab1819b",
+    "excerpts": [
+      {
+        "start": 455,
+        "end": 469,
+        "text": "                    edge = Some(index);\n                    distance = value;\n                }\n            }\n            let Some(edge) = edge else {\n                let first = points[1] - points[0];\n                let second = points[2] - points[0];\n                let offset = position - points[0];\n                let area = first.perp_dot(second);\n                let y = offset.perp_dot(second) / area;\n                let z = first.perp_dot(offset) / area;\n                weights = indices\n                    .into_iter()\n                    .zip([(1.0 - y - z) as f32, y as f32, z as f32])\n                    .collect();"
+      },
+      {
+        "start": 513,
+        "end": 527,
+        "text": "        weights.retain(|(_, weight)| *weight > 1e-5);\n        for last in (1..weights.len()).rev() {\n            let mut smallest = 0;\n            for index in 1..=last {\n                if weights[smallest].1 > weights[index].1 {\n                    smallest = index;\n                }\n            }\n            weights.swap(smallest, last);\n        }\n        let total = weights.iter().map(|(_, weight)| *weight).sum::<f32>();\n        for (_, weight) in &mut weights {\n            *weight /= total;\n        }\n        Ok(weights)"
+      },
+      {
+        "start": 830,
+        "end": 844,
+        "text": "                    duration,\n                    &point_markers,\n                    point_hint,\n                    sample_looped,\n                )\n            };\n            let time = if self.teleport_to_normalized_time && point.asset_rate_scale < 0.0 { duration - time } else { time };\n            sample_times[index] = Some(time);\n            ctx.set_time_update_back(Self::time_pin(&point.id), TimeUpdate::Absolute(time));\n            poses.push((\n                ctx.data_back(Self::pose_pin(&point.id))?.into_pose()?,\n                weight,\n            ));\n            pose_indices.push(index);\n            for (name, value) in point.curves.sample_all(time) {"
+      }
+    ]
+  },
+  {
+    "key": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+    "sha256": "0aa77a0144efad90d6bbd326ab7650a74e0eb341d83107b95cfd539ef27c48bc",
+    "excerpts": [
+      {
+        "start": 11,
+        "end": 11,
+        "text": "        (id: \"7c742ec2-4a57-89f7-5699-fd9f6869c86c\", name: \"Apply Additive\", inner: { \"als_ext::SourceApplyAdditiveNode\": (alpha_key: \"pose_state.unweighted_gait_running_amount\", alpha_pin: \"Alpha\", expose_alpha_pin: true, use_constant_alpha: false, constant_alpha: 1.0, mapping: (source_semantics: true, map_range: false, input_min: 0.0, input_max: 1.0, output_min: 0.0, output_max: 1.0, scale: 1.0, bias: 0.0, clamp_result: true, clamp_min: 0.5, clamp_max: 1.0, interpolate_result: true, interpolate_speed_increasing: 20.0, interpolate_speed_decreasing: 1.0), alpha_scale: 1.0, alpha_bias: 0.0, minimum_alpha: 0.0, maximum_alpha: 1.0, increasing_speed: 0.0, decreasing_speed: 0.0, expose_source_alpha_controls: false, alpha_curve_name: \"None\", alpha_bool_enabled: true) }, should_debug: false),"
+      },
+      {
+        "start": 88,
+        "end": 88,
+        "text": "        (id: \"34f57700-443d-7c77-5457-2cb100b5b922\", name: \"BS_Als_Lean\\nBlendspace Evaluator\", inner: { \"als_ext::NormalizedBlendSpaceNode\": (looped: true, teleport_to_normalized_time: true, phase_duration: 0.0, phase_markers: [], points: [(id: \"sample_0\", point: (0.0, 0.0), duration: 0.0, markers: [], asset_rate_scale: 1.0, curves: ({})), (id: \"sample_1\", point: (0.0, 1.0), duration: 0.0, markers: [], asset_rate_scale: 1.0, curves: ({})), (id: \"sample_2\", point: (0.0, -1.0), duration: 0.0, markers: [], asset_rate_scale: 1.0, curves: ({})), (id: \"sample_3\", point: (-1.0, 0.0), duration: 0.0, markers: [], asset_rate_scale: 1.0, curves: ({})), (id: \"sample_4\", point: (1.0, 0.0), duration: 0.0, markers: [], asset_rate_scale: 1.0, curves: ({}))], playback: None, source_triangulation: Some((axis_min: (-1.0, -1.0), axis_max: (1.0, 1.0), triangles: [(2, 0, 3), (2, 4, 0), (0, 1, 3), (4, 1, 0)], segments: []))) }, should_debug: false),"
+      },
+      {
+        "start": 129,
+        "end": 133,
+        "text": "        NodeData(\"7c742ec2-4a57-89f7-5699-fd9f6869c86c\", \"Additive\"): NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose\"),\n        NodeData(\"a346c3af-4656-3fd8-2537-0a848322c8eb\", \"Source\"): NodeData(\"db9b7eed-4220-723a-aa03-03a126b968af\", \"Pose\"),\n        NodeData(\"399f03d7-4ff5-edce-96c3-35a0f7a7c922\", \"A\"): NodeData(\"92992f00-4a96-a667-a6b3-6b81e0f00ba2\", \"Pose\"),\n        NodeData(\"d68d1f35-4127-d675-2dfd-8697d49c44ad\", \"BlendPose_0\"): NodeData(\"ea9a0688-4200-e765-98ff-5299c7c83149\", \"Pose\"),\n        NodeData(\"7c742ec2-4a57-89f7-5699-fd9f6869c86c\", \"Base\"): NodeData(\"4c6fa15f-47e7-6389-0533-a99b2fc63aaf\", \"Pose\"),"
+      },
+      {
+        "start": 228,
+        "end": 236,
+        "text": "        NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"position\"): NodeData(\"6c1fffa0-d2ee-5aa2-99f8-54338425771f\", \"value\"),\n        NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"phase\"): NodeData(\"5a15c30a-083f-528e-a8ef-ee91db9ce5a8\", \"value\"),\n        NodeData(\"6c1fffa0-d2ee-5aa2-99f8-54338425771f\", \"x\"): NodeData(\"2e0f30f3-9389-5292-9521-25f7e55572a3\", \"lean_state.right_amount\"),\n        NodeData(\"6c1fffa0-d2ee-5aa2-99f8-54338425771f\", \"y\"): NodeData(\"8bf8140b-6f73-578b-9715-8961d134047d\", \"lean_state.forward_amount\"),\n        NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose_sample_0\"): NodeData(\"863b2d18-766c-56f3-b4f0-22197a1c75b5\", \"pose\"),\n        NodeTime(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"time_sample_0\"): NodeTime(\"863b2d18-766c-56f3-b4f0-22197a1c75b5\"),\n        NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose_sample_1\"): NodeData(\"bb3de85d-a5c7-5943-a0f5-350ac4abd0f6\", \"pose\"),\n        NodeTime(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"time_sample_1\"): NodeTime(\"bb3de85d-a5c7-5943-a0f5-350ac4abd0f6\"),\n        NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose_sample_2\"): NodeData(\"91865e50-8f44-5034-989c-7482d662ff35\", \"pose\"),"
+      }
+    ]
+  }
+]
