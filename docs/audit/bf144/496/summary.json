@@ -1,0 +1,128 @@
+{
+  "gate": "PASS_RUN_START_AND_LAYERING_VIRTUAL_FOOT_SCALE_FACTORS",
+  "new_differences": 0,
+  "known_total": 276,
+  "existing_difference": "D235",
+  "native_leaf_samples": 3,
+  "actual_motion_queries": [
+    105,
+    158
+  ],
+  "run_start_raw_lean_removes_one_f32_step": true,
+  "full_weight_dynamic_ordinary_stand_isolated": true,
+  "fixed_input_f64_delta_changes": 2,
+  "fixed_input_f64_projected_output_changes": 0,
+  "preceding_lean_application_traced": true,
+  "preceding_lean_application_isolated": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "lean.native.json": {
+      "bytes": 373916,
+      "sha256": "ca72de62ef92ab5e5e8fea0324f5b8e175c4f56966b0665a2e156501ce2fea4c"
+    },
+    "forward.native.json": {
+      "bytes": 615973,
+      "sha256": "db62617b09c820e7247e288185e804e98dbba16416996e35d275e26c5dc444fe"
+    },
+    "right.native.json": {
+      "bytes": 601906,
+      "sha256": "ecd6e01805d8c4688ba17e65decf91e29e2165d741894a5648bbcd27aaf94dc2"
+    },
+    "runtime-observed/parameters.json": {
+      "bytes": 3117790,
+      "sha256": "fb03b8fdfecf3b6103794cc09ffa154da0dc5836ddec10c14b6c43f146eeb366"
+    },
+    "runtime-observed/report.json": {
+      "bytes": 5043981,
+      "sha256": "8a792764818399da1b9a85525670b849f794e18c3a51d78b81ab730980258192"
+    }
+  },
+  "generated_observer": {
+    "path": "tools/tmp/bf144/496/playground_observed.rs",
+    "bytes": 103294,
+    "sha256": "ef084897c89e1741642395c68c2ea1e9e461c92ddc1f20202a1716fb29e18be5"
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/495/observer.py",
+      "bytes": 1291,
+      "sha256": "65fc03d32921097c76eff9b1547e77a90596dc1d859daccbb1c7fdbc85f3a41f"
+    },
+    {
+      "path": "docs/audit/bf144/495/runtime-moving/parameters.json.gz",
+      "bytes": 352991,
+      "sha256": "73d4ceae07d12421c227fd4c9172e2f6204d64d6a796c5f149d5662620c7946b"
+    },
+    {
+      "path": "docs/audit/bf144/495/summary.json",
+      "bytes": 4718,
+      "sha256": "1ecf35959688f2584bce6e847eaee0dae7c1c250205de0d25704fc90336354b8"
+    },
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM0_Movement_Details_States/S4_Run_Start_From_Walk.animgraph.ron",
+      "bytes": 9043,
+      "sha256": "ddcb63c181235e09d87f494ae176f3e87b0f21fa40cd9a1315c1ecb80799485f"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron",
+      "bytes": 58733,
+      "sha256": "00ec8672bacebafa98532cb49f6a3bc56999a7e7656fa8b0ab23862b58deb585"
+    },
+    {
+      "path": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.gltf",
+      "bytes": 116114,
+      "sha256": "1da347a62d4122fb1a89cd6c5bb2852a1ad05452c1cd2e42e3d86b467ceedf9a"
+    },
+    {
+      "path": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.bin",
+      "bytes": 685712,
+      "sha256": "9c7080d32b7e5adf2617f261dc724424e1bf9601fa2a6d2f28473ca58888b743"
+    },
+    {
+      "path": "assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.gltf",
+      "bytes": 116795,
+      "sha256": "1c719d1907b6828636a92ed5e4d2106c0aa3ded814511089190d5b7e25faa0fc"
+    },
+    {
+      "path": "assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.bin",
+      "bytes": 777468,
+      "sha256": "0fd303be3f2395733bc3920c083c3b93ee25203b097647baa0ee476777320d6f"
+    },
+    {
+      "path": "assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.gltf",
+      "bytes": 116791,
+      "sha256": "b1b78f2c89c9c92a8cc348e103cc68cc0d964ae4d81b4944f6b20b4f06a8e911"
+    },
+    {
+      "path": "assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.bin",
+      "bytes": 777468,
+      "sha256": "c6710556007adc8c8b5850e1f51bb002930f69edec3a9d84ca532ab52c57f6f7"
+    },
+    {
+      "path": "tools/import/audit_animation_transform_conversion.py",
+      "bytes": 12388,
+      "sha256": "e69c911be93b8f6888e1a5469f81d504402a6d99ca5285b291de703160cb257a"
+    }
+  ]
+}

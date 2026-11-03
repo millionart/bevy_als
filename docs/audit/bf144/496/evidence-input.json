@@ -1,0 +1,208 @@
+{
+  "rows": [
+    {
+      "query": 105,
+      "locomotion": [
+        1.0,
+        1.000000238418579,
+        1.0
+      ],
+      "ordinary_reference": [
+        1.0,
+        0.9999998807907104,
+        1.0
+      ],
+      "dynamic_delta": [
+        0.0,
+        3.5762786865234375e-07,
+        0.0
+      ],
+      "legs_overlay_base": [
+        1.0,
+        1.0000001192092896,
+        1.0
+      ],
+      "legs_overlay_applied": [
+        1.0,
+        1.0000004768371582,
+        1.0
+      ],
+      "legs_alpha": 0.664577305316925,
+      "legs_output": [
+        1.0,
+        1.0000003576278687,
+        1.0
+      ],
+      "head_delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "head_output": [
+        1.0,
+        1.0000004768371582,
+        1.0
+      ],
+      "movement_before_run_start": {
+        "state_machine": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "lean_delta": [
+          0.0,
+          1.1920928955078125e-07,
+          0.0
+        ],
+        "lean_output": [
+          1.0,
+          1.0000001192092896,
+          1.0
+        ],
+        "cached_movement": [
+          1.0,
+          1.0000001192092896,
+          1.0
+        ]
+      },
+      "run_start": {
+        "base": [
+          1.0,
+          1.0000001192092896,
+          1.0
+        ],
+        "delta": [
+          0.0,
+          1.1920928955078125e-07,
+          0.0
+        ],
+        "child_scales": [
+          [
+            0.0,
+            1.1920928955078125e-07,
+            0.0
+          ],
+          [
+            0.0,
+            1.1920928955078125e-07,
+            0.0
+          ]
+        ],
+        "desired": [
+          0.5457806587219238,
+          0.0,
+          0.0,
+          0.255878210067749
+        ]
+      }
+    },
+    {
+      "query": 158,
+      "locomotion": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "ordinary_reference": [
+        1.0,
+        0.9999998807907104,
+        1.0
+      ],
+      "dynamic_delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "legs_overlay_base": [
+        1.0,
+        1.0000001192092896,
+        1.0
+      ],
+      "legs_overlay_applied": [
+        1.0,
+        1.000000238418579,
+        1.0
+      ],
+      "legs_alpha": 1.0,
+      "legs_output": [
+        1.0,
+        1.000000238418579,
+        1.0
+      ],
+      "head_delta": [
+        0.0,
+        1.1920928955078125e-07,
+        0.0
+      ],
+      "head_output": [
+        1.0,
+        1.0000003576278687,
+        1.0
+      ]
+    }
+  ],
+  "native": {
+    "lean": {
+      "mode": "raw_model",
+      "time": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    "forward": {
+      "mode": "compressed",
+      "time": 0.3083333373069763,
+      "scale": [
+        0,
+        0,
+        0
+      ]
+    },
+    "right": {
+      "mode": "compressed",
+      "time": 0.3083333373069763,
+      "scale": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "tracks": {
+    "lean": {
+      "scale": [
+        1.0,
+        0.9999998807907104,
+        1.0
+      ],
+      "key_count": 2
+    },
+    "forward": {
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "key_count": 31
+    },
+    "right": {
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "key_count": 31
+    }
+  },
+  "assets": {
+    "lean": "Grounded/Lean/A_Als_Lean_Pose",
+    "forward": "Grounded/Acceleration/A_Als_Acceleration_Forward",
+    "right": "Grounded/Acceleration/A_Als_Acceleration_Right"
+  },
+  "graphs": [
+    "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM0_Movement_Details_States/S4_Run_Start_From_Walk.animgraph.ron",
+    "assets/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron"
+  ]
+}

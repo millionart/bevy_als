@@ -1,0 +1,104 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimSequence.cpp",
+    "sha256": "909902b795754cf5bc556e1602d6b124a1066c55d7361c9c0bfc42bdb1fb7962",
+    "excerpts": [
+      {
+        "start": 1895,
+        "end": 1926,
+        "text": "void UAnimSequence::GetBonePose_Additive(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const\n{\n\tFCompactPose& OutPose = OutAnimationPoseData.GetPose();\n\tFBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();\n\tUE::Anim::FStackAttributeContainer& OutAttributes = OutAnimationPoseData.GetAttributes();\n\n\tif (!IsValidAdditive())\n\t{\n\t\tOutPose.ResetToAdditiveIdentity();\n\t\treturn;\n\t}\n\n\t// Extract target pose\n\tGetBonePose(OutAnimationPoseData, ExtractionContext);\n\n\t// Extract base pose\n\tFCompactPose BasePose;\n\tFBlendedCurve BaseCurve;\n\tUE::Anim::FStackAttributeContainer BaseAttributes;\n\t\n\tBasePose.SetBoneContainer(&OutPose.GetBoneContainer());\n\tBaseCurve.InitFrom(OutCurve);\t\n\n\tFAnimationPoseData BasePoseData(BasePose, BaseCurve, BaseAttributes);\n\n\tGetAdditiveBasePose(BasePoseData, ExtractionContext);\n\n\t// Create Additive animation\n\tFAnimationRuntime::ConvertPoseToAdditive(OutPose, BasePose);\n\tOutCurve.ConvertToAdditive(BaseCurve);\n\n\tUE::Anim::Attributes::ConvertToAdditive(BaseAttributes, OutAttributes);"
+      },
+      {
+        "start": 1938,
+        "end": 1973,
+        "text": "void UAnimSequence::GetAdditiveBasePose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const\n{\n\tswitch (RefPoseType)\n\t{\n\t\t// use whole animation as a base pose. Need BasePoseSeq.\n\t\tcase ABPT_AnimScaled:\n\t\t{\n\t\t\t// normalize time to fit base seq\n\t\t\tPRAGMA_DISABLE_DEPRECATION_WARNINGS\n\t\t\tconst double Fraction = (GetPlayLength() > 0.0)? FMath::Clamp<double>(ExtractionContext.CurrentTime / (double)GetPlayLength(), 0.0, 1.0) : 0.0;\n\t\t\tconst double BasePoseTime = (double)RefPoseSeq->GetPlayLength() * Fraction;\n\t\t\tPRAGMA_ENABLE_DEPRECATION_WARNINGS\n\n\t\t\tFAnimExtractContext BasePoseExtractionContext(ExtractionContext);\n\t\t\tBasePoseExtractionContext.CurrentTime = BasePoseTime;\n\t\t\tRefPoseSeq->GetBonePose(OutAnimationPoseData, BasePoseExtractionContext, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use animation as a base pose. Need BasePoseSeq and RefFrameIndex (will clamp if outside).\n\t\tcase ABPT_AnimFrame:\n\t\t{\n\t\t\tGetSequencePose(OutAnimationPoseData, ExtractionContext, *RefPoseSeq, RefFrameIndex, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use this animation as a base pose. Need RefFrameIndex (will clamp if outside).\n\t\tcase ABPT_LocalAnimFrame:\n\t\t{\n\t\t\tGetSequencePose(OutAnimationPoseData, ExtractionContext, *this, RefFrameIndex, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use ref pose of Skeleton as base\n\t\tcase ABPT_RefPose:\n\t\tdefault:\n\t\t\tOutAnimationPoseData.GetPose().ResetToRefPose();\n\t\t\tbreak;\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimationRuntime.cpp",
+    "sha256": "cc1c1ab4a70fd3607deae8792cb48709eb5948c58a07eac704e6dcb264d8d159",
+    "excerpts": [
+      {
+        "start": 509,
+        "end": 525,
+        "text": "void FAnimationRuntime::BlendTwoPosesTogether(const FAnimationPoseData& SourcePoseOneData, const FAnimationPoseData& SourcePoseTwoData, const float WeightOfPoseOne, /*out*/ FAnimationPoseData& OutAnimationPoseData)\n{\n\tFCompactPose& OutPose = OutAnimationPoseData.GetPose();\n\tFBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();\n\tUE::Anim::FStackAttributeContainer& OutAttributes = OutAnimationPoseData.GetAttributes();\n\n\tconst float WeightOfPoseTwo = 1.f - WeightOfPoseOne;\n\n\tBlendPose<ETransformBlendMode::Overwrite>(SourcePoseOneData.GetPose(), OutPose, WeightOfPoseOne);\n\tBlendPose<ETransformBlendMode::Accumulate>(SourcePoseTwoData.GetPose(), OutPose, WeightOfPoseTwo);\n\n\t// Ensure that all of the resulting rotations are normalized\n\tOutPose.NormalizeRotations();\n\n\tOutCurve.Lerp(SourcePoseOneData.GetCurve(), SourcePoseTwoData.GetCurve(), WeightOfPoseTwo);\n\tUE::Anim::Attributes::BlendAttributes({ SourcePoseOneData.GetAttributes(), SourcePoseTwoData.GetAttributes() }, { WeightOfPoseOne, WeightOfPoseTwo }, { 0, 1 }, OutAttributes);\n}"
+      },
+      {
+        "start": 1109,
+        "end": 1119,
+        "text": "void FAnimationRuntime::ConvertTransformToAdditive(FTransform& TargetTransform, const FTransform& BaseTransform)\n{\n\tTargetTransform.SetRotation(TargetTransform.GetRotation() * BaseTransform.GetRotation().Inverse());\n\tTargetTransform.SetTranslation(TargetTransform.GetTranslation() - BaseTransform.GetTranslation());\n\t// additive scale considers how much it grow or lower\n\t// in order to support blending between different additive scale, we save [(target scale)/(source scale) - 1.f], and this can blend with \n\t// other delta scale value\n\t// when we apply to the another scale, we apply scale * (1 + [additive scale])\n\tTargetTransform.SetScale3D(TargetTransform.GetScale3D() * BaseTransform.GetSafeScaleReciprocal(BaseTransform.GetScale3D()) - 1.f);\n\tTargetTransform.NormalizeRotation();\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+    "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+    "excerpts": [
+      {
+        "start": 1091,
+        "end": 1109,
+        "text": "\tinline void AccumulateWithAdditiveScale(const TTransform<T>& Atom, const ScalarRegister& BlendWeightScalar)\n\t{\n\t\tconst TransformVectorRegister BlendWeight(BlendWeightScalar.Value);\n\t\tconst TransformVectorRegister DefaultScale = GlobalVectorConstants::Float1110;\n\n\t\t// SourceAtom = Atom * BlendWeight;\n\t\tconst TransformVectorRegister BlendedRotation = VectorMultiply(Atom.Rotation, BlendWeight);\n\n\t\t// Rotation = SourceAtom.Rotation * Rotation;\n\t\tRotation = VectorQuaternionMultiply2(BlendedRotation, Rotation);\n\n\t\t// Translation += SourceAtom.Translation;\n\t\t// Scale *= SourceAtom.Scale;\n\t\tTranslation = VectorMultiplyAdd(Atom.Translation, BlendWeight, Translation);\n\t\tScale3D = VectorMultiply(Scale3D, VectorMultiplyAdd(Atom.Scale3D, BlendWeight, DefaultScale));\n\n\n\t\tDiagnosticCheckNaN_All();\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "bf5b1061712f4f28a6120504790a2d8599666ee735942381d3f02ccb9de87671",
+    "excerpts": [
+      {
+        "start": 382,
+        "end": 429,
+        "text": "impl NodeLike for SourceTwoWayBlendNode {\n    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {\n        let raw = self.alpha_input(&ctx)?;\n        let delta = delta_seconds(&ctx)?;\n        let (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b) = {\n            let state = ctx.state_mut::<SourceTwoWayBlendState>()?;\n            state.input_alpha = raw;\n            let alpha = source_blend_alpha(\n                &mut state.alpha,\n                raw,\n                self.mapping_max,\n                &self.mapping,\n                self.alpha_scale,\n                self.alpha_bias,\n                0.0,\n                1.0,\n                self.increasing_speed,\n                self.decreasing_speed,\n                delta,\n            );\n            let (a_is_relevant, b_is_relevant, reset_a, reset_b) =\n                source_two_way_child_relevancy(state, alpha);\n            state.blend_alpha = alpha;\n            (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b)\n        };\n        let mut child_contexts = std::mem::take(&mut ctx.state_mut::<SourceTwoWayBlendState>()?.child_contexts);\n        crate::extensions::source_cached_pose::prewarm_input_cached_poses(&ctx, [\n            (\"A\".into(), if a_is_relevant { if b_is_relevant { 1.0 - alpha } else { 1.0 } } else { 0.0 }),\n            (\"B\".into(), if b_is_relevant { if a_is_relevant { alpha } else { 1.0 } } else { 0.0 }),\n        ])?;\n        let (mut base, context_a) = if a_is_relevant {\n            crate::extensions::interruptible_fsm::with_machine_weight(if b_is_relevant { 1.0 - alpha } else { 1.0 }, ||\n                read_blend_list_child(&ctx, \"A\", 0, self.reset_child_on_activation, reset_a, &mut child_contexts))?\n        } else {\n            (Pose::default(), None)\n        };\n        let (overlay, context_b) = if b_is_relevant {\n            crate::extensions::interruptible_fsm::with_machine_weight(if a_is_relevant { alpha } else { 1.0 }, ||\n                read_blend_list_child(&ctx, \"B\", 1, self.reset_child_on_activation, reset_b, &mut child_contexts))?\n        } else {\n            (Pose::default(), None)\n        };\n        if !a_is_relevant {\n            base = overlay;\n        } else if b_is_relevant {\n            base = blend_source_poses(&[(base, 1.0 - alpha), (overlay, alpha)]);\n        }\n        ctx.set_time(base.timestamp);"
+      },
+      {
+        "start": 717,
+        "end": 754,
+        "text": "pub struct SourceMakeDynamicAdditiveNode {\n    pub mesh_space_additive: bool,\n}\n\nfn make_dynamic_additive_difference(\n    base: &bevy_animation_graph::core::pose::Pose,\n    additive: &bevy_animation_graph::core::pose::Pose,\n    skeleton: &bevy_animation_graph::core::skeleton::Skeleton,\n    mesh_space_additive: bool,\n) -> bevy_animation_graph::core::pose::Pose {\n    if mesh_space_additive {\n        make_mesh_space_difference(base, additive, skeleton)\n    } else {\n        make_local_difference(base, additive, skeleton)\n    }\n}\n\nimpl NodeLike for SourceMakeDynamicAdditiveNode {\n    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {\n        let mut base = ctx.data_back(\"Base\")?.into_pose()?;\n        let additive = ctx.data_back(\"Additive\")?.into_pose()?;\n        if ctx\n            .graph_context\n            .resources\n            .skeleton_assets\n            .get(&base.skeleton)\n            .is_none()\n        {\n            base.skeleton = additive.skeleton.clone();\n        }\n        let skeleton = ctx\n            .graph_context\n            .resources\n            .skeleton_assets\n            .get(&base.skeleton)\n            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n        let mut difference =\n            make_dynamic_additive_difference(&base, &additive, skeleton, self.mesh_space_additive);"
+      },
+      {
+        "start": 956,
+        "end": 965,
+        "text": "pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {\n    let mut output = poses.iter()\n        .map(|(pose, weight)| pose.scalar_mult(*weight))\n        .reduce(|accumulator, pose| accumulator.linear_add(&pose))\n        .unwrap_or_default().normalize_quat();\n    output.root_motion = crate::extensions::normalized_blendspace::blend_normalized_root_motion(\n        &poses.iter().map(|(pose, weight)| (pose.root_motion.clone(), *weight)).collect::<Vec<_>>(),\n    );\n    output\n}"
+      }
+    ]
+  },
+  {
+    "key": "src/als/nodes/source_movement_nodes.rs",
+    "sha256": "7ddf03b052be8540922f1a331a5c79145309cc11ee5bed9f6dd17f7797b647b7",
+    "excerpts": [
+      {
+        "start": 62,
+        "end": 104,
+        "text": "        let key = self\n            .desired_alpha_keys\n            .get(index)\n            .ok_or_else(|| node_error(ctx, \"desired alpha key is missing\".to_owned()))?;\n        let default = self\n            .desired_alpha_defaults\n            .get(index)\n            .ok_or_else(|| node_error(ctx, \"desired alpha default is missing\".to_owned()))?;\n        let fallback = if key.is_empty() {\n            *default\n        } else {\n            global_f32_or_root_default(ctx, key)?\n        };\n        let input = ctx\n            .data_back(self.alpha_input(index))\n            .ok()\n            .and_then(|value| value.as_f32().ok());\n        Ok(input.unwrap_or(fallback))\n    }\n    pub(crate) fn active_weights(&self, ctx: &NodeContext) -> Result<Vec<(usize, f32)>, GraphError> {\n        if self.desired_alpha_keys.len() != self.pose_count\n            || self.desired_alpha_defaults.len() != self.pose_count\n        {\n            return Err(node_error(\n                ctx,\n                \"desired alpha configuration does not match pose count\".to_owned(),\n            ));\n        }\n        let desired = (0..self.pose_count).map(|index| self.alpha(ctx, index))\n            .collect::<Result<Vec<_>, _>>()?;\n        let total: f32 = desired.iter().sum();\n        let mut active = Vec::new();\n        if (total * self.alpha_scale).clamp(0.0, 1.0) > 1e-5 {\n            for (index, raw) in desired.into_iter().enumerate() {\n                let weight = ((if self.normalize_alpha { raw / total } else { raw }) * self.alpha_scale).clamp(0.0, 1.0);\n                if weight > 1e-5 { active.push((index, weight)); }\n            }\n        }\n        Ok(active)\n    }\n\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/reference_local_difference.rs",
+    "sha256": "8371f15916b2e3d593115ab57f5c3629f5ef7863ea1e5772656f3a584184f25b",
+    "excerpts": [
+      {
+        "start": 46,
+        "end": 51,
+        "text": "pub(crate) fn scale_difference(target: Vec3, reference: Vec3) -> Option<Vec3> {\n    let reciprocal = Vec3::select(reference.abs().cmple(Vec3::splat(SCALE_EPSILON)), Vec3::ZERO, reference.recip());\n    let difference = target * reciprocal - Vec3::ONE;\n    (difference != Vec3::ZERO).then_some(difference)\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/mesh_space_additive.rs",
+    "sha256": "f3c39c55775b6368e04b6f287f4faa0be10da407dd6182ceb0b9546f31ca299e",
+    "excerpts": [
+      {
+        "start": 51,
+        "end": 58,
+        "text": "fn merge_scale(base: Option<Vec3>, additive: Option<Vec3>, alpha: f32) -> Option<Vec3> {\n    match (base, additive) {\n        (Some(base), Some(additive)) => Some(base * (Vec3::ONE + alpha * additive)),\n        (Some(base), None) => Some(base),\n        (None, Some(additive)) => Some(Vec3::ONE + alpha * additive),\n        (None, None) => None,\n    }\n}"
+      },
+      {
+        "start": 162,
+        "end": 181,
+        "text": "pub fn apply_local_space_additive(base: &mut Pose, additive: &Pose, alpha: f32, skeleton: &Skeleton) {\n    if alpha.abs() <= ALPHA_THRESHOLD { return; }\n    for (bone, additive_index) in &additive.paths {\n        if !base.paths.contains_key(bone)\n            && let Some(transform) = skeleton.default_transforms(*bone) {\n            base.add_bone(BonePose::from_transform(transform.local), *bone);\n        }\n        let Some(base_index) = base.paths.get(bone).copied() else { continue; };\n        let additive_bone = &additive.bones[*additive_index];\n        let base_rotation = base_local_rotation(base, skeleton, *bone);\n        let base_bone = &mut base.bones[base_index];\n        if let Some(rotation) = additive_bone.rotation {\n            base_bone.rotation = Some(blend_additive_rotation(base_rotation, rotation, alpha));\n        }\n        merge_non_rotation(base_bone, additive_bone, alpha);\n    }\n    if let Some(additive_motion) = &additive.root_motion {\n        let motion = base.root_motion.get_or_insert_with(RootMotionDelta::default);\n        motion.translation += additive_motion.translation * alpha;\n        motion.rotation = blend_additive_rotation(motion.rotation, additive_motion.rotation, alpha);"
+      }
+    ]
+  }
+]
