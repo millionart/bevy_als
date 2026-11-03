@@ -1,0 +1,23 @@
+{
+  "source_indices": {
+    "ik_foot_l": 62,
+    "ik_foot_r": 63,
+    "VB foot_l": 69,
+    "VB foot_r": 70,
+    "ik_foot_root": 61,
+    "VB foot_root": 68
+  },
+  "target_indices": {
+    "ik_foot_l": 70,
+    "ik_foot_r": 71,
+    "VB foot_l": 77,
+    "VB foot_r": 78,
+    "ik_foot_root": 69,
+    "VB foot_root": 76
+  },
+  "target_queries": [
+    1,
+    105,
+    203
+  ]
+}
