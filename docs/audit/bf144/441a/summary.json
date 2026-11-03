@@ -1,0 +1,86 @@
+{
+  "gate": "PASS_CURRENT_CURVEVECTOR_ABLATION_RESTORE_AND_LEGACY_COMPATIBILITY",
+  "original_probe_commit": "ee52e16a",
+  "original_reports_and_identity_snapshot": "missing",
+  "reader_sha256": "351686e58432342e1711936b1f89460dc6734b9ec2227e4641bf48d054a27256",
+  "axes": 3,
+  "keys": 12,
+  "native_samples": 183,
+  "previous_common_samples_exact": 39,
+  "forced_axis_zero_changed_samples": [
+    61,
+    61
+  ],
+  "old_float_curves": 2,
+  "old_float_samples_per_curve": 38,
+  "natural_character_frames": 240,
+  "uncompared_character_export_differences": [
+    "asset_objects",
+    "graphs"
+  ],
+  "schema_self_test_negatives": 7,
+  "native_rejections": 3,
+  "decoded": {
+    "character-baseline.native.json": {
+      "bytes": 80596069,
+      "sha256": "f9f8b8c2200c98dfdc2431c31816f80284fe2a98a48186f6dc920b7e11f028f1"
+    },
+    "character-restored.native.json": {
+      "bytes": 80596083,
+      "sha256": "41e1f46da9b230abc5343ff1e7f3a6a59d39f4a1ea28475601e95d1c9cc9764c"
+    },
+    "float-baseline.native.json": {
+      "bytes": 341770,
+      "sha256": "13c0300d5bcf4bcfbc9ea8db87a7843d39c1de44e68b7c8a6517b20723aea519"
+    },
+    "float-restored.native.json": {
+      "bytes": 341770,
+      "sha256": "13c0300d5bcf4bcfbc9ea8db87a7843d39c1de44e68b7c8a6517b20723aea519"
+    },
+    "string-guard-ablated.native.json": {
+      "bytes": 238497,
+      "sha256": "e845e51a478209a8a22c8f37168571f46a0f72b8736b6036d29cd64889a41796"
+    },
+    "vector-axis-ablated.native.json": {
+      "bytes": 680296,
+      "sha256": "e98db0e8a8e714d39c0067a82e31ef0d7dddc4da08639fc747a2f9137cef8a17"
+    },
+    "vector-baseline.native.json": {
+      "bytes": 464291,
+      "sha256": "f7c11af4a6478ec2e3554f2a983d8907a5e99e8e513987137954ef28a716ffbf"
+    },
+    "vector-restored.native.json": {
+      "bytes": 464291,
+      "sha256": "f7c11af4a6478ec2e3554f2a983d8907a5e99e8e513987137954ef28a716ffbf"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "tools/tests/test_vector_curve_probe.py",
+      "bytes": 3923,
+      "sha256": "987736008d150db334e3bf6b6022c06a35d61fc4ed90b6f7f5021c8dd13dbc5e"
+    },
+    {
+      "path": "tools/tests/fixtures/vector_curve.request.json",
+      "bytes": 1987,
+      "sha256": "ea8d712c3d297856674418d065400b379318a28085b24e82650069a68b03a025"
+    },
+    {
+      "path": "docs/audit/bf144/441b/character.request.json",
+      "bytes": 54424,
+      "sha256": "ed00020e812f41f6e284d88634a7d5ffb3f39a906efed6dd85e709e43849b914"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.native.json",
+      "bytes": 198719,
+      "sha256": "4b11e842693ad10a5e9ad576b3e185d86602a25107d53a1a652ae41a4bb57c6d"
+    },
+    {
+      "path": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+      "bytes": 467679,
+      "sha256": "351686e58432342e1711936b1f89460dc6734b9ec2227e4641bf48d054a27256"
+    }
+  ],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

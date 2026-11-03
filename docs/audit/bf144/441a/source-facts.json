@@ -1,0 +1,35 @@
+{
+  "Engine/Source/Runtime/Engine/Classes/Curves/CurveVector.h": {
+    "sha256": "d347346cfc934d6fa9c26cc75992c376861b56f6970994c08d31c6b5f274aa64",
+    "start_line": 36,
+    "excerpt": [
+      "\tFRichCurve FloatCurves[3];",
+      "",
+      "\t/** Evaluate this float curve at the specified time */",
+      "\tUFUNCTION(BlueprintCallable, Category=\"Math|Curves\")",
+      "\tENGINE_API FVector GetVectorValue(float InTime) const;"
+    ]
+  },
+  "Engine/Source/Runtime/Engine/Private/Curves/CurveFloat.cpp": {
+    "sha256": "86897028f26ccc10588e081332094cf203d7f76ebfb8ce60a1ef564e892dd8fa",
+    "start_line": 47,
+    "excerpt": [
+      "\treturn FloatCurve.Eval(InTime);",
+      "}",
+      "",
+      "TArray<FRichCurveEditInfoConst> UCurveFloat::GetCurves() const",
+      "{"
+    ]
+  },
+  "Engine/Source/Runtime/Engine/Private/Curves/RichCurve.cpp": {
+    "sha256": "856d859b21d686d05f2f39c99957f6af8d3b964c92559d92171628b93d459e1b",
+    "start_line": 1163,
+    "excerpt": [
+      "float FRichCurve::Eval(float InTime, float InDefaultValue) const",
+      "{",
+      "\t// Remap time if extrapolation is present and compute offset value to use if cycling ",
+      "\tfloat CycleValueOffset = 0;",
+      "\tRemapTimeValue(InTime, CycleValueOffset);"
+    ]
+  }
+}
