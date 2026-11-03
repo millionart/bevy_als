@@ -1,0 +1,168 @@
+{
+  "gate": "PASS_D278_FOOT_LOCK_AND_VM_ROTATION_PROPAGATION",
+  "new_differences": 0,
+  "existing_difference": "D278",
+  "actual_foot_frames": 318,
+  "actual_vm_frames": 319,
+  "actual_vm_calls": 13378,
+  "actual_vm_traces": 636,
+  "controlled_world_rotation_sides": 190,
+  "controls": {
+    "unit": {
+      "foot_fields": {
+        "final_rotation": 164,
+        "target_rotation": 185
+      },
+      "rig_rotations": 161,
+      "lock_cohorts": {
+        "partial": 12,
+        "zero": 149
+      },
+      "vm_local_f32_rows": 161,
+      "vm_changed_frames": 83,
+      "max_final_angle": [
+        0.08944669796065119,
+        203,
+        "foot_l"
+      ],
+      "max_rig_angle": [
+        0.08944453849386033,
+        203,
+        "foot_l"
+      ],
+      "max_vm_angle": [
+        0.08944453849386054,
+        203,
+        "foot_l"
+      ]
+    },
+    "uniform": {
+      "foot_fields": {
+        "final_rotation": 176,
+        "target_rotation": 190
+      },
+      "rig_rotations": 176,
+      "lock_cohorts": {
+        "partial": 12,
+        "zero": 164
+      },
+      "vm_local_f32_rows": 176,
+      "vm_changed_frames": 93,
+      "max_final_angle": [
+        6.983238744701867,
+        105,
+        "foot_l"
+      ],
+      "max_rig_angle": [
+        6.983241914207377,
+        105,
+        "foot_l"
+      ],
+      "max_vm_angle": [
+        6.98324191420738,
+        105,
+        "foot_l"
+      ]
+    }
+  },
+  "vm_trace_changes": 0,
+  "actual_target_positions_frozen": true,
+  "continuous_counterfactual": false,
+  "generated_sources": {
+    "production.rs": {
+      "bytes": 4474,
+      "sha256": "c3bbe09f91c7d217498c5b1a0f676549620766492c4a799bba7beec7370ec00d"
+    },
+    "foot_types.rs": {
+      "bytes": 2061,
+      "sha256": "cbad34ceb5df057e9df30047f800deb1e88e068d4d6996bc01a47d9ebe925ff0"
+    },
+    "foot.rs": {
+      "bytes": 3400,
+      "sha256": "dc2d394db509d08127b812cd7b5c81fcc98477f1168c0ceee257df29456e1e7a"
+    },
+    "vm.rs": {
+      "bytes": 13852,
+      "sha256": "e456105ded347a70ce5aaa141553c67f8c11e228e9faed4fcf38df3adc9c35a0"
+    }
+  },
+  "decoded": {
+    "foot-no-rotation-toggle.json": {
+      "bytes": 1539571,
+      "sha256": "c0ca70995c9444cfef513dc1829dd1f128ff180b3de06c870bbbc1ce5a73a574"
+    },
+    "foot-restored.json": {
+      "bytes": 1539645,
+      "sha256": "61ff707924c3c6795ef11d5bbd973253bb8058a0af1c8a9d13d59b0980126c9f"
+    },
+    "foot-baseline.json": {
+      "bytes": 1539645,
+      "sha256": "61ff707924c3c6795ef11d5bbd973253bb8058a0af1c8a9d13d59b0980126c9f"
+    },
+    "vm-baseline-uniform.json": {
+      "bytes": 927952,
+      "sha256": "4f114be9304df15b50139091cfd2b002ddaef44a3be7814230b4d1486ca3c820"
+    },
+    "vm-restored-uniform.json": {
+      "bytes": 927952,
+      "sha256": "4f114be9304df15b50139091cfd2b002ddaef44a3be7814230b4d1486ca3c820"
+    },
+    "vm-baseline-unit.json": {
+      "bytes": 847437,
+      "sha256": "38b032d19ddef903cec5299dbc84bfd1933a5c75a5a0476df084c0b33098219f"
+    },
+    "vm-restored-unit.json": {
+      "bytes": 847437,
+      "sha256": "38b032d19ddef903cec5299dbc84bfd1933a5c75a5a0476df084c0b33098219f"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/484/inputs.json.gz",
+      "bytes": 2187575,
+      "sha256": "f6859459d9b41838a9541563ea94605585d7e75b09f39fdb8f21de7848fdc146"
+    },
+    {
+      "path": "docs/audit/bf144/484/replay.rs",
+      "bytes": 10119,
+      "sha256": "01a3db79b96e1dcc49a46754c0a8139ed13767e262af4ba4d109ae620451df7a"
+    },
+    {
+      "path": "docs/audit/bf144/485/replay.rs",
+      "bytes": 14194,
+      "sha256": "6928776a4cfe4c0f24cb2afb8daff98a1404a87fc38e747038a650090c4fa92d"
+    },
+    {
+      "path": "docs/audit/bf144/459/inputs.json",
+      "bytes": 29551067,
+      "sha256": "f3992070db213883da1179396296a1d7693fdf99da2f571bf6d0949f2f2477c7"
+    },
+    {
+      "path": "docs/audit/bf144/487/prepare.py",
+      "bytes": 3556,
+      "sha256": "c7e4f4d3c8fb178b0a351ac9f153fb8cfef5d317796ebb097d784d440d23eaf2"
+    },
+    {
+      "path": "docs/audit/bf144/487/replay.rs",
+      "bytes": 6949,
+      "sha256": "a700e8c5c225bbe2607a242ea900724e86a5c6db0add4c57a21019807829d1d3"
+    },
+    {
+      "path": "docs/audit/bf144/488/replay-restored.json.gz",
+      "bytes": 90612,
+      "sha256": "f731d56623a8fa5fe78121f573fd26f4bce75610f7e0ea13ea3bc7203a9a1d77"
+    },
+    {
+      "path": "docs/audit/bf144/481a/reader-migration.json",
+      "bytes": 509,
+      "sha256": "66318ae5008b859520c751c271c5f9d947185dca8c1fe0bd05f3fd090952f30c"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

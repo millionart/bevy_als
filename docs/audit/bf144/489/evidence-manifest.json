@@ -1,0 +1,125 @@
+{
+  "gate": "PASS_D278_FOOT_LOCK_AND_VM_ROTATION_PROPAGATION",
+  "files": {
+    "README.md": {
+      "sha256": "6f3a4e0cadfd293380d3b845f9b8c4b86d3c84f0edf3a9db7b8e406b82fac3d9",
+      "bytes": 970
+    },
+    "final-source.json": {
+      "sha256": "7bf0d83ed85f89bb367c42c4a1e985f55843bfbf5cf934fff6b0415d8acfcd41",
+      "bytes": 144
+    },
+    "finalize.py": {
+      "sha256": "86ef25fbf707e949a58f6bc8d5f950b0a4b961ce0f5e9593481b030546840709",
+      "bytes": 5990
+    },
+    "finalize.report.json": {
+      "sha256": "2ec66a89f8c921828927ce93d34420c2598ed9f248d064fd4caf72e1fac8784b",
+      "bytes": 405
+    },
+    "foot-baseline.json.gz": {
+      "sha256": "bd79dda00d00983e1f3c3d674daec40ec13cc06213d476587bc767f24a440cd6",
+      "bytes": 90730
+    },
+    "foot-no-rotation-toggle.json.gz": {
+      "sha256": "ef72883e441011695244f042900f0c15e3360301047c5687655cd2dac5bc04dc",
+      "bytes": 65173
+    },
+    "foot-restored.json.gz": {
+      "sha256": "bd79dda00d00983e1f3c3d674daec40ec13cc06213d476587bc767f24a440cd6",
+      "bytes": 90730
+    },
+    "identity-check.json": {
+      "sha256": "abf7ef61eaeead012d1e07e16d696574660ca1a9df585d983cb621730580e359",
+      "bytes": 326
+    },
+    "identity.py": {
+      "sha256": "6b2e0d45669c4e598f0762d5a47b1cb83b3c6a78c2b78618b22f8db782a05d77",
+      "bytes": 2816
+    },
+    "identity.report.json": {
+      "sha256": "44671749a70d6d716607f3f3427ad2938abcaff6d0551aef6f832fca6937d0c0",
+      "bytes": 406
+    },
+    "prepare.py": {
+      "sha256": "c529e1bda2c58b61403fdea7430ceec584a342f0c8ad1719d1fa44e813d67d6e",
+      "bytes": 738
+    },
+    "prepare.report.json": {
+      "sha256": "6f3468e52be2b2a3d311cf88062c9726d9ab93c57d7bdee4a231cf89701c4c50",
+      "bytes": 405
+    },
+    "replay-baseline.report.json": {
+      "sha256": "42afdd59dd214c11c3afe55d9f1777af286047165daf2b152c2590715b2678dd",
+      "bytes": 412
+    },
+    "replay-compile-baseline.report.json": {
+      "sha256": "35859ef63e997293f69429cfcd5286c7324126d8e26c3a03bc172ecec1313537",
+      "bytes": 421
+    },
+    "replay-compile-no-rotation-toggle.report.json": {
+      "sha256": "6dbf990203cc912ea26021006a81ff6f392454a8a5ac4772c2c91ab8f0bdea7d",
+      "bytes": 432
+    },
+    "replay-compile-restored.report.json": {
+      "sha256": "45d08dd4d960b878e740438b9cad868949f2f30b748f9236dd2f67feaa61bf2f",
+      "bytes": 422
+    },
+    "replay-no-rotation-toggle.report.json": {
+      "sha256": "61283d53a354b9b6298236221821022a226f96328616e0dde21c3be916dc4a30",
+      "bytes": 425
+    },
+    "replay-restored.report.json": {
+      "sha256": "b71a27ab41927340d8d9d3dc1ce464b2ece34f6f9194a87c6052352895d445d5",
+      "bytes": 412
+    },
+    "replay.rs": {
+      "sha256": "93f5d1686742bd45762175b2a460b34be704aeb821d867f2f47b1fe1caf71de6",
+      "bytes": 3960
+    },
+    "run_python.ps1": {
+      "sha256": "461d572eab8d283bf6a25ce7eef37010efe585cd0e2c5d83a9420d51e9054c59",
+      "bytes": 893
+    },
+    "run_replay.ps1": {
+      "sha256": "8bf6a2284a015153c6f21435ce31b8f38a135660348153ef5d5ddf1e6bbc20b7",
+      "bytes": 1582
+    },
+    "rustc-args.json": {
+      "sha256": "e77f102eb3c1b692899f497181b84d578756b3b05fa43392e7e9b7a50e929ca0",
+      "bytes": 4337
+    },
+    "seal.py": {
+      "sha256": "ad68aa74f55c7598b13e97a32ee52de2ee53bed5f9a6b533866a44bd7835170d",
+      "bytes": 1476
+    },
+    "source-facts.json": {
+      "sha256": "51aa3f8c8558298dd8563b45227ba01b24e4b2fbf40cc5daf91babe302de5591",
+      "bytes": 19997
+    },
+    "summary.json": {
+      "sha256": "778d44b3ff00a3d2427dd79122859b5c4922756607703565bf1be6b011207c07",
+      "bytes": 4741
+    },
+    "vm-baseline-uniform.json.gz": {
+      "sha256": "c23af83fc4daa7408e47ecbc808cdd958acbddd2da15d0692f5559eb3c85986e",
+      "bytes": 84361
+    },
+    "vm-baseline-unit.json.gz": {
+      "sha256": "dfc0b0dc13936928b699a0c3d4d670591ad27b3928d741a99cdc74dcae1fea79",
+      "bytes": 72551
+    },
+    "vm-restored-uniform.json.gz": {
+      "sha256": "c23af83fc4daa7408e47ecbc808cdd958acbddd2da15d0692f5559eb3c85986e",
+      "bytes": 84361
+    },
+    "vm-restored-unit.json.gz": {
+      "sha256": "dfc0b0dc13936928b699a0c3d4d670591ad27b3928d741a99cdc74dcae1fea79",
+      "bytes": 72551
+    }
+  },
+  "full_root_or_als_equivalence_claimed": false,
+  "new_differences": 0,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
