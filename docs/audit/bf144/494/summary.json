@@ -1,0 +1,215 @@
+{
+  "gate": "PASS_D278_VIRTUAL_FOOT_SCALE_AND_LOCK_CONSUMER",
+  "new_differences": 0,
+  "existing_difference": "D278",
+  "known_total": 276,
+  "native_exact_samples": 314,
+  "native_rotation_changes": 0,
+  "native_translation_changes": 104,
+  "target_exact_samples": 316,
+  "target_rotation_changes": 104,
+  "target_changed_frames": 52,
+  "peak_world_orientation": {
+    "actual_norm_sq": 0.9682211133475604,
+    "actual_q": [
+      0.7524072527885437,
+      0.18870455026626587,
+      0.19356942176818848,
+      0.5736078023910522
+    ],
+    "actual_shear": 0.2550116791357854,
+    "actual_t": [
+      -14.898638725280762,
+      0.3319092392921448,
+      -15.193696022033691
+    ],
+    "control_scale": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "normalized_orientation_delta_deg": 6.982854751097938,
+    "query": 105,
+    "scale": [
+      1.3432260751724243,
+      1.0,
+      1.3432260751724243
+    ],
+    "side": 0,
+    "uniform_norm_sq": 0.9999999346646335,
+    "uniform_q": [
+      0.7419768571853638,
+      0.22769874334335327,
+      0.16198107600212097,
+      0.6094142198562622
+    ],
+    "uniform_shear": 7.201694494224364e-08,
+    "uniform_t": [
+      -14.775482177734375,
+      0.3319092392921448,
+      -15.144207000732422
+    ]
+  },
+  "target_consumer_frames": 158,
+  "controls": {
+    "unit": {
+      "changes": {
+        "final_rotation": 90,
+        "target_rotation": 100,
+        "rig_rotation": 88
+      },
+      "locks": {
+        "partial": 6,
+        "zero": 82
+      },
+      "maximum_rig_direction_delta": [
+        0.07179291683926847,
+        103,
+        1
+      ]
+    },
+    "uniform": {
+      "changes": {
+        "final_rotation": 96,
+        "target_rotation": 104,
+        "rig_rotation": 96
+      },
+      "locks": {
+        "partial": 6,
+        "zero": 90
+      },
+      "maximum_rig_direction_delta": [
+        6.982850165629678,
+        105,
+        0
+      ]
+    }
+  },
+  "vm_replayed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "replay-baseline.json": {
+      "bytes": 370668,
+      "sha256": "d16558c71c25f7c98c2def8ceef86d65954cef19b885fef441d385758c8693c6"
+    },
+    "consumers-baseline.json": {
+      "bytes": 762933,
+      "sha256": "f044b1cbb507cf57285346780cb565cb4a907d6f20816ff85430b138a7d20f1b"
+    },
+    "replay-restored.json": {
+      "bytes": 370668,
+      "sha256": "d16558c71c25f7c98c2def8ceef86d65954cef19b885fef441d385758c8693c6"
+    },
+    "consumers-restored.json": {
+      "bytes": 762933,
+      "sha256": "f044b1cbb507cf57285346780cb565cb4a907d6f20816ff85430b138a7d20f1b"
+    },
+    "replay-no-scale-toggle.json": {
+      "bytes": 373203,
+      "sha256": "effa3d863b307a824d9590f1855b47c07a6e0010cc1d31936b68ea3b4bd3e6e0"
+    },
+    "replay-no-rotation-toggle.json": {
+      "bytes": 370668,
+      "sha256": "d16558c71c25f7c98c2def8ceef86d65954cef19b885fef441d385758c8693c6"
+    },
+    "consumers-no-rotation-toggle.json": {
+      "bytes": 762893,
+      "sha256": "8eb599c0ae17e725e9051c835b7c870fbab5c6521f0cde1d119178313cfb38e2"
+    }
+  },
+  "generated_sources": [
+    {
+      "path": "tools/tmp/bf144/494/scale.rs",
+      "bytes": 6751,
+      "sha256": "95da64f994277e0d0ae3213d46a240df2763bb098be1c4b7078f610931029f24"
+    },
+    {
+      "path": "tools/tmp/bf144/494/foot.rs",
+      "bytes": 3288,
+      "sha256": "ddbb848d90f22d0fdada05942112d6ff888d3485d2dff358d9f547e65233fac1"
+    },
+    {
+      "path": "tools/tmp/bf144/494/production.rs",
+      "bytes": 4477,
+      "sha256": "f882f2810d7a41e03511ddf1c721c274c508791b16e8d5a43acc3bbb42b9bc42"
+    },
+    {
+      "path": "tools/tmp/bf144/494/foot_types.rs",
+      "bytes": 2061,
+      "sha256": "cbad34ceb5df057e9df30047f800deb1e88e068d4d6996bc01a47d9ebe925ff0"
+    }
+  ],
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/493/virtual-motion.native.json.gz",
+      "bytes": 11054102,
+      "sha256": "de21a37ab7fdf8724d50144112da17adb12bf00fae5d8abd2304e5e2a6415ae0"
+    },
+    {
+      "path": "docs/audit/bf144/493/runtime-virtual/parameters.json.gz",
+      "bytes": 2897074,
+      "sha256": "73b93000f7b000d5451cdeeaf9eed8e45411417b0808f3f6262791640fe242ed"
+    },
+    {
+      "path": "docs/audit/bf144/493/summary.json",
+      "bytes": 6339,
+      "sha256": "8206268105c3469332b1c26ff2528532e3380c3597d31f4a1b148b753b860473"
+    },
+    {
+      "path": "docs/audit/bf144/488/replay.rs",
+      "bytes": 6804,
+      "sha256": "475a4176b8acaf3751a9e40ed1a5cff21ab00005a8fa701cadd5b1c359fdf812"
+    },
+    {
+      "path": "docs/audit/bf144/486/replay.rs",
+      "bytes": 10104,
+      "sha256": "aa3c6f588ea782a2351215a18256a9f0a42c547d7ffc062d3e477ee6f9e17367"
+    },
+    {
+      "path": "docs/audit/bf144/485/native.rs",
+      "bytes": 4108,
+      "sha256": "265a1ba38d1b3537c2937404ca3801ae42c6deb1152c38af825ef26a98b523db"
+    },
+    {
+      "path": "docs/audit/bf144/479/replay.rs",
+      "bytes": 7922,
+      "sha256": "b10a74018d01fb29b66c3f5bd4c3397ade9aabf03228b38966df3edfae811005"
+    },
+    {
+      "path": "docs/audit/bf144/478/replay.rs",
+      "bytes": 4782,
+      "sha256": "4dd2abec6cf8415c9edbdc5d444e25d2753c284646f8567cf092a4cf75dee240"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.rs",
+      "bytes": 8499,
+      "sha256": "70f84d0005783acdb3a463785cfc2b954afa44bde75fe44d91992ab7e22fde70"
+    },
+    {
+      "path": "docs/audit/bf144/487/prepare.py",
+      "bytes": 3556,
+      "sha256": "c7e4f4d3c8fb178b0a351ac9f153fb8cfef5d317796ebb097d784d440d23eaf2"
+    },
+    {
+      "path": "docs/audit/bf144/487/replay.rs",
+      "bytes": 6949,
+      "sha256": "a700e8c5c225bbe2607a242ea900724e86a5c6db0add4c57a21019807829d1d3"
+    },
+    {
+      "path": "docs/audit/bf144/484/replay.rs",
+      "bytes": 10119,
+      "sha256": "01a3db79b96e1dcc49a46754c0a8139ed13767e262af4ba4d109ae620451df7a"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}
