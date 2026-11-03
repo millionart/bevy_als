@@ -1,0 +1,138 @@
+{
+  "gate": "PASS_INDEPENDENT_COMPONENT_SPACE_FOOT_ROTATION_STAGE",
+  "new_differences": 1,
+  "difference": "D277",
+  "priority": "P3",
+  "known_total": 274,
+  "source_socket_rows": 634,
+  "target_public_affine_rows": 636,
+  "source_negative_misses": 634,
+  "counts": {
+    "source": [
+      {
+        "q64": 633,
+        "t64": 2
+      },
+      {
+        "q64": 634,
+        "q32": 4,
+        "t64": 4
+      },
+      {
+        "q64": 293,
+        "q32": 1
+      },
+      {
+        "q64": 614,
+        "t64": 2,
+        "q32": 3
+      }
+    ],
+    "target": [
+      {
+        "q64": 636,
+        "q32": 398,
+        "t64": 4
+      },
+      {
+        "q64": 636,
+        "q32": 344,
+        "t64": 4
+      },
+      {
+        "q32": 46,
+        "q64": 155,
+        "t64": 2
+      },
+      {
+        "q32": 147,
+        "q64": 155,
+        "t64": 2
+      }
+    ]
+  },
+  "target_q32_component_change_without_d276_output_change": 352,
+  "witness": {
+    "query": 3,
+    "side": "left",
+    "runtime_qz_without_with_component_normalization": [
+      -0.2382742464542389,
+      -0.2382742315530777
+    ]
+  },
+  "actual_affine_and_control_are_separate": true,
+  "continuous_feedback_claimed": false,
+  "decoded": {
+    "replay-baseline.json": {
+      "bytes": 1504836,
+      "sha256": "59b8371c298a4c2a7638c014520db7da06ec948ca6723a8063c1ccd73642f839"
+    },
+    "replay-restored.json": {
+      "bytes": 1504836,
+      "sha256": "59b8371c298a4c2a7638c014520db7da06ec948ca6723a8063c1ccd73642f839"
+    },
+    "replay-no-component-normalization.json": {
+      "bytes": 1512141,
+      "sha256": "7acc0ae74835aa5dda5c18f0d1fc1ac7986ef8d625af80bca2f5e00242a2800b"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/485/native-input.json.gz",
+      "bytes": 2611110,
+      "sha256": "126250b6e56aadffdd1ac4821010ac7adeb46fb504f63a2f428a539a435abbcb"
+    },
+    {
+      "path": "docs/audit/bf144/485/native.rs",
+      "bytes": 4108,
+      "sha256": "265a1ba38d1b3537c2937404ca3801ae42c6deb1152c38af825ef26a98b523db"
+    },
+    {
+      "path": "docs/audit/bf144/485/native.json.gz",
+      "bytes": 51837,
+      "sha256": "2d70720a42b3427328d822881ac7281b17c931c8869519d245d418f807712618"
+    },
+    {
+      "path": "docs/audit/bf144/484/inputs.json.gz",
+      "bytes": 2187575,
+      "sha256": "f6859459d9b41838a9541563ea94605585d7e75b09f39fdb8f21de7848fdc146"
+    },
+    {
+      "path": "docs/audit/bf144/484/replay-unit-restored.json.gz",
+      "bytes": 169557,
+      "sha256": "1b440b8d35648754f78084f39b497d59b5e07d924425f800b6c4d1076ec220cf"
+    },
+    {
+      "path": "docs/audit/bf144/483/replay-unit-restored.json.gz",
+      "bytes": 732659,
+      "sha256": "1491c79e78c73bb106e1cea31d16cf9069dacd2bbc57f884cd5853708fc74a03"
+    },
+    {
+      "path": "docs/audit/bf144/479/replay.rs",
+      "bytes": 7922,
+      "sha256": "b10a74018d01fb29b66c3f5bd4c3397ade9aabf03228b38966df3edfae811005"
+    },
+    {
+      "path": "docs/audit/bf144/478/replay.rs",
+      "bytes": 4782,
+      "sha256": "4dd2abec6cf8415c9edbdc5d444e25d2753c284646f8567cf092a4cf75dee240"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.rs",
+      "bytes": 8499,
+      "sha256": "70f84d0005783acdb3a463785cfc2b954afa44bde75fe44d91992ab7e22fde70"
+    },
+    {
+      "path": "docs/audit/bf144/481a/reader-migration.json",
+      "bytes": 509,
+      "sha256": "66318ae5008b859520c751c271c5f9d947185dca8c1fe0bd05f3fd090952f30c"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

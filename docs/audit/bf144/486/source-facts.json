@@ -1,0 +1,126 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 1277,
+        "end": 1295,
+        "text": "\n\tconst auto FootLeftTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootLeftIkBoneName()\n\t\t\t                         : UAlsConstants::FootLeftVirtualBoneName())\n\t};\n\n\tFeetState.Left.TargetLocationWorldSpace = FootLeftTargetTransform.GetLocation();\n\tFeetState.Left.TargetRotationWorldSpace = FootLeftTargetTransform.GetRotation();\n\n\tconst auto FootRightTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootRightIkBoneName()\n\t\t\t                         : UAlsConstants::FootRightVirtualBoneName())\n\t};\n\n\tFeetState.Right.TargetLocationWorldSpace = FootRightTargetTransform.GetLocation();\n\tFeetState.Right.TargetRotationWorldSpace = FootRightTargetTransform.GetRotation();\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/SkinnedAsset.cpp",
+    "sha256": "cad970f3bf0ec476b578a9a5e0af61b4dd30d459fa1bced991ab00ed262b3d52",
+    "excerpts": [
+      {
+        "start": 484,
+        "end": 495,
+        "text": "\n\tconst FTransform* LocalTransformsData = InBoneSpaceTransforms.GetData();\n\tFTransform* ComponentSpaceData = OutComponentSpaceTransforms.GetData();\n\n\t// First bone (if we have one) is always root bone, and it doesn't have a parent.\n\t{\n\t\tcheck(InFillComponentSpaceTransformsRequiredBones.Num() == 0 || InFillComponentSpaceTransformsRequiredBones[0] == 0);\n\t\tOutComponentSpaceTransforms[0] = InBoneSpaceTransforms[0];\n\n#if DO_GUARD_SLOW\n\t\t// Mark bone as processed\n\t\tBoneProcessed[0] = 1;"
+      },
+      {
+        "start": 520,
+        "end": 547,
+        "text": "\telse\n\t{\n\t\tfor (int32 i = 1; i < InFillComponentSpaceTransformsRequiredBones.Num(); i++)\n\t\t{\n\t\t\tconst int32 BoneIndex = InFillComponentSpaceTransformsRequiredBones[i];\n\t\t\tFTransform* SpaceBase = ComponentSpaceData + BoneIndex;\n\n\t\t\tFPlatformMisc::Prefetch(SpaceBase);\n\n#if DO_GUARD_SLOW\n\t\t\t// Mark bone as processed\n\t\t\tBoneProcessed[BoneIndex] = 1;\n#endif\n\t\t\t// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.\n\t\t\tconst int32 ParentIndex = GetRefSkeleton().GetParentIndex(BoneIndex);\n\t\t\tFTransform* ParentSpaceBase = ComponentSpaceData + ParentIndex;\n\t\t\tFPlatformMisc::Prefetch(ParentSpaceBase);\n\n#if DO_GUARD_SLOW\n\t\t\t// Check the precondition that Parents occur before Children in the RequiredBones array.\n\t\t\tcheckSlow(BoneProcessed[ParentIndex] == 1);\n#endif\n\t\t\tFTransform::Multiply(SpaceBase, LocalTransformsData + BoneIndex, ParentSpaceBase);\n\n\t\t\tSpaceBase->NormalizeRotation();\n\n\t\t\tcheckSlow(SpaceBase->IsRotationNormalized());\n\t\t\tcheckSlow(!SpaceBase->ContainsNaN());"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/SkinnedMeshComponent.cpp",
+    "sha256": "67302f17ccd18a95695111399619c7889e4477673de94d903e49e618165d99b6",
+    "excerpts": [
+      {
+        "start": 2465,
+        "end": 2476,
+        "text": "\t\t\treturn FTransform::Identity;\n\t\t}\n\t}\n\telse\n\t{\n\t\tconst int32 NumTransforms = GetNumComponentSpaceTransforms();\n\t\tif(BoneIdx >= 0 && BoneIdx < NumTransforms)\n\t\t{\n\t\t\treturn GetComponentSpaceTransforms()[BoneIdx] * LocalToWorld;\n\t\t}\n\t\telse\n\t\t{"
+      },
+      {
+        "start": 3525,
+        "end": 3565,
+        "text": "FTransform USkinnedMeshComponent::GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace) const\n{\n\t//QUICK_SCOPE_CYCLE_COUNTER(USkinnedMeshComponent_GetSocketTransform);\n\n\tFTransform OutSocketTransform = GetComponentTransform();\n\n\tif (InSocketName != NAME_None)\n\t{\n\t\tint32 SocketBoneIndex;\n\t\tFTransform SocketLocalTransform;\n\t\tUSkeletalMeshSocket const* const Socket = GetSocketInfoByName(InSocketName, SocketLocalTransform, SocketBoneIndex);\n\t\t// apply the socket transform first if we find a matching socket\n\t\tif (Socket)\n\t\t{\n\t\t\tif (TransformSpace == RTS_ParentBoneSpace)\n\t\t\t{\n\t\t\t\t//we are done just return now\n\t\t\t\treturn SocketLocalTransform;\n\t\t\t}\n\n\t\t\tif (SocketBoneIndex != INDEX_NONE)\n\t\t\t{\n\t\t\t\tFTransform BoneTransform = GetBoneTransform(SocketBoneIndex);\n\t\t\t\tOutSocketTransform = SocketLocalTransform * BoneTransform;\n\t\t\t}\n\t\t}\n\t\telse\n\t\t{\n\t\t\tint32 BoneIndex = GetBoneIndex(InSocketName);\n\t\t\tif (BoneIndex != INDEX_NONE)\n\t\t\t{\n\t\t\t\tOutSocketTransform = GetBoneTransform(BoneIndex);\n\n\t\t\t\tif (TransformSpace == RTS_ParentBoneSpace)\n\t\t\t\t{\n\t\t\t\t\tFName ParentBone = GetParentBone(InSocketName);\n\t\t\t\t\tint32 ParentIndex = GetBoneIndex(ParentBone);\n\t\t\t\t\tif (ParentIndex != INDEX_NONE)\n\t\t\t\t\t{\n\t\t\t\t\t\treturn OutSocketTransform.GetRelativeTransform(GetBoneTransform(ParentIndex));\n\t\t\t\t\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Private/Math/TransformVectorized.cpp",
+    "sha256": "a8f400c15b1ef5e3ffe377b9fba63dcc8a8b06a4b08664fa18c8e606be5c020c",
+    "excerpts": [
+      {
+        "start": 295,
+        "end": 343,
+        "text": "void TTransform<T>::Multiply(TTransform<T>* OutTransform, const TTransform<T>* A, const TTransform<T>* B)\n{\n\tA->DiagnosticCheckNaN_All();\n\tB->DiagnosticCheckNaN_All();\n\n\tcheckSlow(A->IsRotationNormalized());\n\tcheckSlow(B->IsRotationNormalized());\n\n\t//\tWhen Q = quaternion, S = single scalar scale, and T = translation\n\t//\tQST(A) = Q(A), S(A), T(A), and QST(B) = Q(B), S(B), T(B)\n\n\t//\tQST (AxB) \n\n\t// QST(A) = Q(A)*S(A)*P*-Q(A) + T(A)\n\t// QST(AxB) = Q(B)*S(B)*QST(A)*-Q(B) + T(B)\n\t// QST(AxB) = Q(B)*S(B)*[Q(A)*S(A)*P*-Q(A) + T(A)]*-Q(B) + T(B)\n\t// QST(AxB) = Q(B)*S(B)*Q(A)*S(A)*P*-Q(A)*-Q(B) + Q(B)*S(B)*T(A)*-Q(B) + T(B)\n\t// QST(AxB) = [Q(B)*Q(A)]*[S(B)*S(A)]*P*-[Q(B)*Q(A)] + Q(B)*S(B)*T(A)*-Q(B) + T(B)\n\n\t//\tQ(AxB) = Q(B)*Q(A)\n\t//\tS(AxB) = S(A)*S(B)\n\t//\tT(AxB) = Q(B)*S(B)*T(A)*-Q(B) + T(B)\n\tcheckSlow(VectorGetComponent(A->Scale3D, 3) == 0.f);\n\tcheckSlow(VectorGetComponent(B->Scale3D, 3) == 0.f);\n\n\tif (Private_AnyHasNegativeScale(A->Scale3D, B->Scale3D))\n\t{\n\t\t// @note, if you have 0 scale with negative, you're going to lose rotation as it can't convert back to quat\n\t\tMultiplyUsingMatrixWithScale(OutTransform, A, B);\n\t}\n\telse\n\t{\n\t\tconst TransformVectorRegister QuatA = A->Rotation;\n\t\tconst TransformVectorRegister QuatB = B->Rotation;\n\t\tconst TransformVectorRegister TranslateA = A->Translation;\n\t\tconst TransformVectorRegister TranslateB = B->Translation;\n\t\tconst TransformVectorRegister ScaleA = A->Scale3D;\n\t\tconst TransformVectorRegister ScaleB = B->Scale3D;\n\n\t\t// RotationResult = B.Rotation * A.Rotation\n\t\tOutTransform->Rotation = VectorQuaternionMultiply2(QuatB, QuatA);\n\n\t\t// TranslateResult = B.Rotate(B.Scale * A.Translation) + B.Translate\n\t\tconst TransformVectorRegister ScaledTransA = VectorMultiply(TranslateA, ScaleB);\n\t\tconst TransformVectorRegister RotatedTranslate = VectorQuaternionRotateVector(QuatB, ScaledTransA);\n\t\tOutTransform->Translation = VectorAdd(RotatedTranslate, TranslateB);\n\n\t\t// ScaleResult = Scale.B * Scale.A\n\t\tOutTransform->Scale3D = VectorMultiply(ScaleA, ScaleB);"
+      }
+    ]
+  },
+  {
+    "key": "dependency:bevy_transform-0.19.1/src/helper.rs",
+    "sha256": "9fb01491cb3309e0fa022eaa70ffb40b9bc0c2c737cc7c98aea9cf77aab60218",
+    "excerpts": [
+      {
+        "start": 26,
+        "end": 46,
+        "text": "impl<'w, 's> TransformHelper<'w, 's> {\n    /// Computes the [`GlobalTransform`] of the given entity from the [`Transform`] component on it and its ancestors.\n    pub fn compute_global_transform(\n        &self,\n        entity: Entity,\n    ) -> Result<GlobalTransform, ComputeGlobalTransformError> {\n        let transform = self\n            .transform_query\n            .get(entity)\n            .map_err(|err| map_error(err, false))?;\n\n        let mut global_transform = GlobalTransform::from(*transform);\n\n        for entity in self.parent_query.iter_ancestors(entity) {\n            let transform = self\n                .transform_query\n                .get(entity)\n                .map_err(|err| map_error(err, true))?;\n\n            global_transform = *transform * global_transform;\n        }"
+      }
+    ]
+  },
+  {
+    "key": "dependency:bevy_transform-0.19.1/src/components/transform.rs",
+    "sha256": "f2dfe5e97c277df925eb6f9eaf38d94f9bb810c9c8a3afc716ed918e33e0ce8b",
+    "excerpts": [
+      {
+        "start": 270,
+        "end": 281,
+        "text": "    /// Returns the 3d affine transformation matrix from this transforms translation,\n    /// rotation, and scale.\n    #[inline]\n    pub fn compute_affine(&self) -> Affine3A {\n        Affine3A::from_scale_rotation_translation(self.scale, self.rotation, self.translation)\n    }\n\n    /// Get the unit vector in the local `X` direction.\n    #[inline]\n    pub fn local_x(&self) -> Dir3 {\n        // Quat * unit vector is length 1\n        Dir3::new_unchecked(self.rotation * Vec3::X)"
+      },
+      {
+        "start": 641,
+        "end": 654,
+        "text": "impl Mul<GlobalTransform> for Transform {\n    type Output = GlobalTransform;\n\n    #[inline]\n    fn mul(self, global_transform: GlobalTransform) -> Self::Output {\n        GlobalTransform::from(self) * global_transform\n    }\n}\n\nimpl Mul<Vec3> for Transform {\n    type Output = Vec3;\n\n    fn mul(self, value: Vec3) -> Self::Output {\n        self.transform_point(value)"
+      }
+    ]
+  },
+  {
+    "key": "dependency:bevy_transform-0.19.1/src/components/global_transform.rs",
+    "sha256": "4e932e4acbe0d048cf91f354f220e545fbc191ef78157c5591fca2e3b5bedeac",
+    "excerpts": [
+      {
+        "start": 190,
+        "end": 208,
+        "text": "            rotation,\n            scale,\n        }\n    }\n\n    /// Extracts `scale`, `rotation` and `translation` from `self`.\n    ///\n    /// The transform is expected to be non-degenerate and without shearing, or the output\n    /// will be invalid.\n    #[inline]\n    pub fn to_scale_rotation_translation(&self) -> (Vec3, Quat, Vec3) {\n        self.0.to_scale_rotation_translation()\n    }\n\n    impl_local_axis!(right, left, X);\n    impl_local_axis!(up, down, Y);\n    impl_local_axis!(back, forward, Z);\n\n    /// Get the translation as a [`Vec3`]."
+      },
+      {
+        "start": 224,
+        "end": 232,
+        "text": "    /// # Warning\n    ///\n    /// This is calculated using `to_scale_rotation_translation`, meaning that you\n    /// should probably use it directly if you also need translation or scale.\n    #[inline]\n    pub fn rotation(&self) -> Quat {\n        self.to_scale_rotation_translation().1\n    }\n"
+      },
+      {
+        "start": 307,
+        "end": 326,
+        "text": "\nimpl From<Transform> for GlobalTransform {\n    fn from(transform: Transform) -> Self {\n        Self(transform.compute_affine())\n    }\n}\n\nimpl From<Mat4> for GlobalTransform {\n    fn from(world_from_local: Mat4) -> Self {\n        Self(Affine3A::from_mat4(world_from_local))\n    }\n}\n\nimpl Mul<GlobalTransform> for GlobalTransform {\n    type Output = GlobalTransform;\n\n    #[inline]\n    fn mul(self, global_transform: GlobalTransform) -> Self::Output {\n        GlobalTransform(self.0 * global_transform.0)\n    }"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/foot_ik_apply.rs",
+    "sha256": "4589e13cf4416e578a74c3ad009747839b2cb696a98593cc035f79051ae2fc16",
+    "excerpts": [
+      {
+        "start": 632,
+        "end": 677,
+        "text": "        for side in 0..2usize {\n            let Ok(target) = transforms.compute_global_transform(bones.target(side, use_ik_bones)) else {\n                continue;\n            };\n            let (foot_state, ik_amount, lock_amount) = match side {\n                0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),\n                _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),\n            };\n            if became_valid {\n                reset_foot_lock_to_target(foot_state, target.translation(), target.rotation());\n            }\n            refresh_foot_lock(\n                foot_state,\n                target.translation(),\n                target.rotation(),\n                ik_amount,\n                lock_amount,\n                settings.allow_foot_lock,\n                lock_input.moving_smooth,\n                *locomotion == LocomotionState::Grounded,\n                became_valid,\n                dt,\n                current_base,\n            );\n            let chain = bones.chain(side);\n            let thigh_axis_pelvis_space = Vec3::from(if side == 0 {\n                profile.0.target.foot_left_thigh_axis_pelvis_space\n            } else {\n                profile.0.target.foot_right_thigh_axis_pelvis_space\n            });\n            if let Ok(thigh_parent) = parents.get(chain.thigh)\n                && let Ok(pelvis_world) = transforms.compute_global_transform(thigh_parent.0)\n            {\n                source_constrain_foot_lock(\n                    foot_state,\n                    &armature,\n                    &pelvis_world,\n                    thigh_axis_pelvis_space,\n                    settings,\n                );\n            }\n        }\n        if let Some(input) = rig_input.as_mut() {\n            input.foot_transforms_valid = lock_state.valid;\n            input.foot_left_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.left.final_location)).0;\n            input.foot_left_rotation_armature = armature_rotation_from_world(&armature, WorldRotation(lock_state.left.final_rotation)).0;"
+      }
+    ]
+  },
+  {
+    "key": "src/als/state/foot_ik.rs",
+    "sha256": "6594018cb4b68a408be80e89627c6ea9cb64e8f019723eb9f7070618283f1ae8",
+    "excerpts": [
+      {
+        "start": 298,
+        "end": 318,
+        "text": "pub fn refresh_foot_lock(\n    state: &mut AlsFootLockFootState,\n    target_location: Vec3,\n    target_rotation: Quat,\n    ik_amount: f32,\n    requested_lock_amount: f32,\n    allow_foot_lock: bool,\n    moving_smooth: bool,\n    grounded: bool,\n    became_valid: bool,\n    delta_seconds: f32,\n    current_base: Option<AlsFootLockMovementBase>,\n) {\n    state.target_location = target_location;\n    state.target_rotation = target_rotation;\n\n    if (became_valid || state.movement_base.map(|base| base.entity) != current_base.map(|base| base.entity))\n        && is_relevant_animation_weight(ik_amount * state.lock_amount)\n    {\n        if became_valid {\n            state.lock_location = target_location;"
+      }
+    ]
+  }
+]

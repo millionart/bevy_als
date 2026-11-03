@@ -1,0 +1,117 @@
+{
+  "gate": "PASS_INDEPENDENT_COMPONENT_SPACE_FOOT_ROTATION_STAGE",
+  "files": {
+    "README.md": {
+      "sha256": "7bb21164465962d5112f75de3a7a7fa7c0b062c64d2c44718da81462d2dc70a6",
+      "bytes": 1190
+    },
+    "final-source.json": {
+      "sha256": "f6529b546d41232eb812050cab8b13a08f6053ad8d1988106872e71e0488bdb5",
+      "bytes": 145
+    },
+    "finalize.py": {
+      "sha256": "b2817e848e7b837b234faf48fef585b8f19c63f6a03fe22724139452f874010e",
+      "bytes": 4481
+    },
+    "finalize.report.json": {
+      "sha256": "7040b11b46c672e31c01ea4af35b3c944d1810177a1c0e6b6b0d5c595d14f00f",
+      "bytes": 406
+    },
+    "identity-check.json": {
+      "sha256": "4cd6c35c3d8d7f39ae9b19211237e49ef74e17fc2d5515e1a4813195ee5d1b55",
+      "bytes": 316
+    },
+    "identity.py": {
+      "sha256": "9fb1867433e02403ef4f5b269dbcb9304180eb250d24b6436cf70816a34d1fe0",
+      "bytes": 2806
+    },
+    "identity.report.json": {
+      "sha256": "abd7317dd9a41672a50bae4b709cfaa37086e4bf755b1f571fa951a46d053bef",
+      "bytes": 406
+    },
+    "prepare.py": {
+      "sha256": "560851566f1391f9a0c30f10b9dbe3e0df8b52c8838605f5fb20408f78145cc7",
+      "bytes": 2197
+    },
+    "prepare.report.json": {
+      "sha256": "ebdb00dbfbcfd829ecec2fee5d67bc103a30683debd235ac4f1c6d0247c5c1db",
+      "bytes": 405
+    },
+    "replay-baseline-index-assumption.report.json": {
+      "sha256": "beb59df39626e37929fca215e13966a72db6f90eebb1fe6aa0629b8d6d10a0cf",
+      "bytes": 415
+    },
+    "replay-baseline.json.gz": {
+      "sha256": "fa4dd223e9d21b6085e58a3857f3095f5f3b0f52c34791a11be32b92a9eb8e9a",
+      "bytes": 119916
+    },
+    "replay-baseline.report.json": {
+      "sha256": "8dc2383b27b43ab67a2bc0fd33de7eb9b34f2d61b52680ec0efbb2472cc958f6",
+      "bytes": 412
+    },
+    "replay-compile-baseline-index-assumption.report.json": {
+      "sha256": "b9beccaf1a130b501204db3677fd5f483562eb4950a88250c4529996374b838b",
+      "bytes": 422
+    },
+    "replay-compile-baseline.report.json": {
+      "sha256": "661afa21fb015d6630775002a0ffe8358dcee9230b38dd41280b4c0667359055",
+      "bytes": 422
+    },
+    "replay-compile-no-component-normalization.report.json": {
+      "sha256": "64f32ee57d06a7c64b858417125da641a86ad657667746419b9500dc9ce2ee23",
+      "bytes": 440
+    },
+    "replay-compile-restored.report.json": {
+      "sha256": "15488ca8e73ebccd8ce53b3663172105ff1c7cb686fc2996b68d4d50c193c266",
+      "bytes": 421
+    },
+    "replay-no-component-normalization.json.gz": {
+      "sha256": "5c152168814d03a2c1b32b4afeef7e089f7e7e84b920a05c9b67f89dfb49335d",
+      "bytes": 102000
+    },
+    "replay-no-component-normalization.report.json": {
+      "sha256": "0cc9e45d7f8f911729390ac3465be2ac3b42e82a359a94e8221c3aead71a9f99",
+      "bytes": 433
+    },
+    "replay-restored.json.gz": {
+      "sha256": "fa4dd223e9d21b6085e58a3857f3095f5f3b0f52c34791a11be32b92a9eb8e9a",
+      "bytes": 119916
+    },
+    "replay-restored.report.json": {
+      "sha256": "f99ae84b0e53bf82f066863fa67857946c71727ef6d23f56dcecdad6521ee576",
+      "bytes": 412
+    },
+    "replay.rs": {
+      "sha256": "aa3c6f588ea782a2351215a18256a9f0a42c547d7ffc062d3e477ee6f9e17367",
+      "bytes": 10104
+    },
+    "run_python.ps1": {
+      "sha256": "3a49c46c848a66b81d65bc59ffeb9bd3b2f94dd1ec9ce2e25fe529d519c80b6f",
+      "bytes": 893
+    },
+    "run_replay.ps1": {
+      "sha256": "9a85885533773110fee6716812536c9bb710960dc870e5012f8a437804d8f5cd",
+      "bytes": 1582
+    },
+    "rustc-args.json": {
+      "sha256": "e77f102eb3c1b692899f497181b84d578756b3b05fa43392e7e9b7a50e929ca0",
+      "bytes": 4337
+    },
+    "seal.py": {
+      "sha256": "ccc6386ff59a3ac834c42cd237fc93967a3f4b4731c6c55dddf27e57cd3e3d20",
+      "bytes": 1488
+    },
+    "source-facts.json": {
+      "sha256": "49c4fa302dd4c426cb730dd22ae52669983901caa66d7c35021ae44f9aa4b3de",
+      "bytes": 14969
+    },
+    "summary.json": {
+      "sha256": "f053d26df888d58ca85204af59677e18059e3157005dd5b3c5ee57d9e8b97b46",
+      "bytes": 3665
+    }
+  },
+  "full_root_or_als_equivalence_claimed": false,
+  "new_differences": 1,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

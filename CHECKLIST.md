@@ -4133,6 +4133,11 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.486 足部组件空间逐骨归一化的独立差异。依赖483已分离 D276、484真实骨链与 FootIk、485原生 Socket 精确复算。固定原已发布局部姿态、世界变换及其他 TQS 算子，仅移除 UE 组件空间逐骨 NormalizeRotation；再对实际目标骨链与冻结的 D276 替代骨链作交叉控制。复算注册库实际 TransformHelper 及 FootTarget，独立报告组件归一化和仿射取旋转的因素。Gate 含两端已观测输入、F32 对照、消融恢复、身份及 Git 封存。开始2026-11-04 06:31:05 +0800，预估结束2026-11-04 07:11:05 +0800。参考485实耗不足5分钟，增加两组交叉因素、当前锁定依赖核对和反例，按40分钟估。截图0，性能暂停。
+
+  - 06:33:53 source/static：按骨名和各自父索引复原同一三骨路径，634个原生 Socket T/Q 和636个真实目标 TransformHelper/FootTarget T/Q/矩阵精确。固定已发布局部姿态，组件归一化使633侧原生 F64 Q 改变，原生 F32 Q 投影不变。目标实际局部骨值提升后的同算术控制398侧 F32 Q 改变，先补 D276 再切换本因素仍344侧。登记独立 D277，消融和封存待过。
+  - Gate通过。去除组件归一化后634侧原生样本失配（633侧Q、2侧T，合并去重），恢复源码字节并用同一 target_game 六库重编，全部结果与基线字节一致。修正了夹具最初的跨引擎同索引假设，按各自骨名和父索引验证。Git 证据 docs/audit/bf144/486/summary.json。新增 D277/P3，累计274（116P2/158P3）。下轮追踪独立数值因素进入足锁定和 RigInput 时是否保留。实际结束2026-11-04 06:35:11 +0800，实耗246秒，偏差-2153秒。截图0，性能暂停。
+
 - [x] BF144.485 原生已发布 IK 骨到 Socket 与目标 RigInput 消费。依赖457原生角色、459实际目标 VM 和484已证的103侧 D276 旋转变化。先按本地 UE 骨链与世界变换复算原生足目标及其采样时点，再用原目标逐帧 VM 前态验证 D276 旋转能否到达最终姿态。Gate 含原生数值与时点反例、实际目标 baseline、最小消融恢复及 Git 证据。开始2026-11-04 06:14:48 +0800，预估结束2026-11-04 07:04:48 +0800。参考483实耗7:38、484实耗12:36，另计原生采样时点核对及完整 VM 对照。截图0，性能暂停。
 
   - 06:18:42 source/static：317个有效原生帧的双脚T/Q以 prior mesh + 当前 mesh-to-world 精确复算；首帧无效态仅当前发布姿态与读数精确。去掉组件空间逐骨归一化或换错发布时点均失配。目标319帧 baseline 的13378次调用与636条trace精确。只替换84帧的103侧 RigInput Q 后，输出局部足骨103行F32变化，trace一致。消融/封存核对中。
@@ -4224,7 +4229,13 @@
 
 ### 已确认差异（仅登记，未实施修复）
 
+- [ ] BF144-D277 / P3 — 足部世界采样缺少源组件空间逐骨旋转归一化。
+  - 源 `USkinnedAsset::FillComponentSpaceTransforms` 在已发布 Mesh local 之后对非根骨执行 `FTransform::Multiply` 与 `NormalizeRotation`，根直接复制。ALS 通过 `GetSocketTransform` 读取 IK 骨，其组件空间变换再与当前 mesh-to-world 相乘。BF144.485/.486 的 317 个有效源帧、634 侧 T/Q 全部精确。只关闭逐骨归一化时 633 侧原生 F64 Q 改变，F32 Q 投影相同。
+  - 目标实际 `TransformHelper` 从叶到根累乘仿射矩阵，`GlobalTransform::rotation` 在末端提取旋转，FootIk 将其写进目标足状态。318 个实测帧、636 侧矩阵和状态 T/Q 精确。固定同批目标局部输入并换算为源基，在同一套 TQS 算术中单独切换组件空间归一化，398 侧 F32 Q 改变。预先补 D276 发布归一化后，该单因素仍改变 344 侧 F32 Q。
+  - query3 左脚的 D276 开关在该骨链无影响。只切换组件归一化，投影后的 Q.z 从 -0.2382742464542389 变为 -0.2382742315530777，位置一致。该控制隔离的是世界采样前的步骤，D276 发生在实体写入，D248 则涉及归一化算子本身。目标实际仿射与源 TQS 的复合差异保留独立边界。证据 docs/audit/bf144/486/summary.json。
+
 - [ ] BF144-D276 / P3 — 骨骼写入阶段缺少源在 Root 之后的旋转归一化。
+  - BF144.485 后续 VM。实测319帧/13378调用/636条trace精确；固定逐帧前态替换103侧 RigInput Q 后，103行足骨局部 F32 Q 改变，trace保持。连续反事实轨迹待核。
   - BF144.484 足部消费者。318 个有效实际帧的目标矩阵和锁定状态经生产 FootIk 系统逐值重放，1272 个 T/Q 字段与当前帧 VM 输入一致。固定每个实测前态，仅换 D276 的前帧发布旋转，149 侧世界目标 Q、105 侧最终 Q 和 103 侧 RigInput Q 改变。105 中未锁定85、部分锁定20，锁定姿态和量相等。query100 左脚的链内唯一改动是 prior Root99 的 ik_foot_l，RigInput x 从 0.08631793409585953 变为 0.08631795644760132。证据 docs/audit/bf144/484/comparison.json。该对照是逐帧固定前态，连续反事实与后续 VM 输出另核。
   - 源在 EvaluateAnimation 和 PostProcess 后进入 USkeletalMeshComponent::FinalizePoseEvaluationResult，先对全部有效骨调用 NormalizeRotations，再写入 BoneSpaceTransforms。BF144.457 的 318 个普通帧中，按源 F64 归一化复算的 25122 骨 T/Q/S 全部等于实际 mesh local，17363 个四元数改变，40 个改变 F32 投影。初始化 mesh 缓冲单独记录。
   - 目标在 PostPhysicsAnimationPlugin::finish 注册的 apply_animation_to_visible_targets 中直接写入 Root 四元数。使用实际公开注册并隔离写入系统，319 份既有 Root 逐骨均按原值发布。固定已算出的同一份目标 Root F32，再提升到源 F64 基，补末端归一化后投回 F32，有 11552 个旋转记录不同。ik_foot_l 有 79 个，ik_foot_r 有 75 个。最大分量差 1.1920928955078125e-7。
