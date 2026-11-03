@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.493 非默认虚拟足骨真实姿态与足锁定输入。依赖491原生设置入口、492构造闭环和484实际姿态/状态观察。使用相同已有可见 Playground 驱动，分别观察默认和虚拟足骨初始配置；原生以同运动窗口读取非默认配置。沿上帧发布→虚拟骨世界目标→足状态→同帧RigInput 校验两端自产，复核目标真实几何功能Gate与记录透明性。初轮聚焦80运动帧和加载预热，发现差异须按单因素和旧D归属。开始2026-11-04 07:13:23 +0800，预估结束2026-11-04 08:08:23 +0800。参考484实耗12:36及491原生约11分钟，本项含两次真实运行、原生读取、压缩及独立复算，按55分钟估。截图0，性能暂停。
+
+  - 07:17 source/static及真实 Gate 前：原生80帧虚拟选择的160侧 Socket 和320个最终姿态→Getter→RigInput字段逐值通过。目标重用原可见 Playground，actor 添加事件只设置非默认 foot selector。排除私有调度系统引用并修正观察器参数顺序后编译，成功后启动两组原场景，截图0、功能专用验收。
+
+  - 07:22:29 两组真实功能Gate均通过。目标各159帧，默认完整前缀精确，虚拟自首构造起选VB foot_root。两组各158有效帧足锁定公开插件重放精确。原生80帧仅预热，已扩至同窗口158普通帧，前80完整前缀相同，316 Socket与632字段通过。两端各52帧写虚拟足根；目标末端12个虚拟足旋转逐值符合已登记D245。选择和满权重消融均按预期失败，恢复结果字节一致，封存中。
+  - Gate通过。两组真实可见Playground各159帧、功能专用验收及截图0通过，默认与历史前缀逐值相同。原生158普通帧、316 Socket及632姿态绑定字段精确；目标两组各158个有效足锁定帧、各1264个上一帧Root骨链节点与632个Rig字段精确。强制IK在虚拟配置158帧失败，12个目标Root旋转归既有D245，直接传递消融失败。字节恢复同六库重编，Git封存88项。无新差异，累计276（117P2/159P3）。证据 docs/audit/bf144/493/summary.json。下一轮隔离同输入虚拟足根的缩放与世界旋转，核对D278的非默认分支。实际结束2026-11-04 07:23:24 +0800，实耗601秒，偏差-2698秒。截图0，性能暂停。
+
 - [x] BF144.492 目标已构造 Rig 的足骨切换和实际调用。依赖491两套原生序列与490目标发布。通过生产 ControlRigBoundaryNode 和 evaluate_players 跑同两组开关，以459实测的姿态、曲线、绑定和几何重放默认基线并验证实际调用。核构造次数、FootRootBone、根的 GetTransform/SetScale 和腿单元的骨引用，再用重建对照确认是否重新读取开关。Gate 含默认实测复算、切换/重建消融恢复及Git封存。开始2026-11-04 07:05:47 +0800，预估结束2026-11-04 07:50:47 +0800。参考490实耗约6分钟与491约11分钟，本项另含完整生产图节点夹具和负对照，按45分钟估。截图0，性能暂停。
   - 07:10:59 source/graph闭环及Gate通过。默认8帧的316调用、14条真实几何射线、3240寄存器和632骨局部状态逐值吻合。生产图两套16帧切换与原生当前输入及已构造根完全一致；图帧计数1至8连续，根GetTransform/SetScale读锁存根，腿IK仍读解剖thigh/calf/foot。显式重建两次重读开关，强制重建与删显式重建分别产生6/3帧失配。原字节同六库恢复，报告字节相同。命名层级及首帧缺失曲线两处夹具已按真实输入修正。证据 docs/audit/bf144/492/summary.json。无新差异，累计276（117P2/159P3）。下一轮核对非默认虚拟足骨的实际姿态生产和足锁定输入，不用本项的冻结默认输入替代。实际结束2026-11-04 07:10:59 +0800，实耗312秒，偏差-2387秒。截图0，性能暂停。
 
@@ -4517,6 +4524,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - BF144.281原始全部trace扩展：164个native offset由实际world高度与原box/射线区间独立复算精确，80次非零target命中高度与原F32 offset投影不等的key集合相同；只用同平面精确命中点，164投影全恢复。保持actual Location前态/骨盆等其余输入，80个trace scalar变更中12个直接Target/状态/位置改变，12 Target均恢复native投影。平面控制后另有6个厘米float物理米值不能被相同F32米投影精确表示，按D165厘米舍入控制164物理标量全等，不把该边界误归query点。移除平面步骤丢全部恢复/变化，源码字节恢复同target重编后结果精确；证据`target/bf144/281/factors-check.json`、`controls-check.json`、`summary.json`。未修生产或宣称整个状态反馈恢复。
 
 - [ ] BF144-D245 / P3 — 单个满权重BlendList输入仍被额外归一化，丢失源直接传递阶段。
+  - BF144.493 非默认实际消费者。真实虚拟配置159帧三骨的公开满权重混合精确预测Root，VB foot_l/r额外旋转3/9；原生158帧该段虚拟足骨旋转保持。直接传递对照无法匹配目标Root，证据 docs/audit/bf144/493/root-blend-virtual.json。
   - BF144.458当前完整消费者：fresh Ragdolling编译外层a88 Profile None/Base→277与继承BlendListBase单满权重Evaluate直传已核。目标actual319状态全[1,0]/child0、内层从未求值，Base完整等于真实Rig输出；公开blend_source_poses完整重放a88/graphRoot/最终Root，319共3728、匹配318共3714旋转骨行额外变化，T/S/weight/meta保持。原生API对同319×79已按真实Skeleton骨序校准的25201骨TQS/curve，输出完整直传child0；delta0为独立Evaluate fixture，不冒连续Update。首ball_l整个quat当前合同失败/copy值控制通过，copy仅副本不改真实图。删观察与常量state-reader两反例拒，非默认[.25,.75]/child1验证upcoming/last路径，字节恢复同target后全新旧参数/check及fixture精确，两functional过。见`docs/audit/bf144/458/summary.json`；初错误Rig骨序请求已拒并保留，无新D、不称实际Ragdoll动作或双输入过渡等价。
   - Source：fresh `AlsAnimNode_GameplayTagsBlend.h`只继承BlendListBase的Evaluate，cpp仅选择child；`AnimNode_BlendListBase.cpp:312–317`在一个活动pose、满权重且无Profile时直接Evaluate该child。当前Ragdolling两个编译节点Profile均None，原生同输入控制的三个满权重帧完整保留79骨TQS及14curve，双输入控制则会归一化。
   - Target：`src/animation_graph_ext/source_pose_nodes.rs:956–960,1029`将实际非零输入交给共享`blend_source_poses`，即使仅[(pose,1)]也无条件`normalize_quat()`。actual Ragdolling外层a88d5696权重[1,0]，其缓存输入等于真实Rig输出，公共helper预测精确等于该节点输出及最终Root。

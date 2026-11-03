@@ -1,0 +1,83 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 235,
+        "end": 257,
+        "text": "FAlsControlRigInput UAlsAnimationInstance::GetControlRigInput() const\n{\n\t// In addition to being on the ground, allow pelvis offset if the\n\t// character is in the air, but only if GroundPredictionAmount is non-zero.\n\n\tconst auto PelvisOffsetAmount{\n\t\tUAlsMath::Clamp01(PoseState.GroundedAmount + PoseState.InAirAmount * InAirState.GroundPredictionAmount)\n\t};\n\n\treturn {\n\t\t.bUseHandIkBones = !IsValid(Settings) || Settings->General.bUseHandIkBones,\n\t\t.bUseFootIkBones = !IsValid(Settings) || Settings->General.bUseFootIkBones,\n\t\t.bFootTransformsValid = static_cast<bool>(FeetState.bValid),\n\t\t.VelocityBlendForwardAmount = GroundedState.VelocityBlend.ForwardAmount,\n\t\t.VelocityBlendBackwardAmount = GroundedState.VelocityBlend.BackwardAmount,\n\t\t.SpineYawAngle = SpineState.FinalYawAngle,\n\t\t.PelvisOffsetAmount = PelvisOffsetAmount,\n\t\t.FootLeftLocation{FVector{FeetState.Left.FinalLocation}},\n\t\t.FootLeftRotation{FQuat{FeetState.Left.FinalRotation}},\n\t\t.FootRightLocation{FVector{FeetState.Right.FinalLocation}},\n\t\t.FootRightRotation{FQuat{FeetState.Right.FinalRotation}},\n\t};\n}"
+      },
+      {
+        "start": 1277,
+        "end": 1295,
+        "text": "\n\tconst auto FootLeftTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootLeftIkBoneName()\n\t\t\t                         : UAlsConstants::FootLeftVirtualBoneName())\n\t};\n\n\tFeetState.Left.TargetLocationWorldSpace = FootLeftTargetTransform.GetLocation();\n\tFeetState.Left.TargetRotationWorldSpace = FootLeftTargetTransform.GetRotation();\n\n\tconst auto FootRightTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootRightIkBoneName()\n\t\t\t                         : UAlsConstants::FootRightVirtualBoneName())\n\t};\n\n\tFeetState.Right.TargetLocationWorldSpace = FootRightTargetTransform.GetLocation();\n\tFeetState.Right.TargetRotationWorldSpace = FootRightTargetTransform.GetRotation();\n}"
+      },
+      {
+        "start": 1300,
+        "end": 1327,
+        "text": "\t{\n\t\treturn;\n\t}\n\n\tFeetState.FootPlantedAmount = FMath::Clamp(GetCurveValue(UAlsConstants::FootPlantedCurveName()), -1.0f, 1.0f);\n\tFeetState.FeetCrossingAmount = GetCurveValueClamped01(UAlsConstants::FeetCrossingCurveName());\n\n\tconst auto ComponentTransform{GetProxyOnAnyThread<FAnimInstanceProxy>().GetComponentTransform()};\n\n\tFAlsFootUpdateContext Context{\n\t\t.ComponentTransform{ComponentTransform},\n\t\t.ComponentTransformInverse{ComponentTransform.Inverse()},\n\t\t.DeltaTime = DeltaTime\n\t};\n\n\tContext.FootState = &FeetState.Left;\n\tContext.IkAmount = GetCurveValueClamped01(UAlsConstants::FootLeftIkCurveName());\n\tContext.LockAmount = GetCurveValueClamped01(UAlsConstants::FootLeftLockCurveName());\n\n\tProcessFootLockTeleport(Context);\n\tProcessFootLockBaseChange(Context);\n\tRefreshFootLock(Context);\n\n\tContext.FootState = &FeetState.Right;\n\tContext.IkAmount = GetCurveValueClamped01(UAlsConstants::FootRightIkCurveName());\n\tContext.LockAmount = GetCurveValueClamped01(UAlsConstants::FootRightLockCurveName());\n\n\tProcessFootLockTeleport(Context);"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/ReferenceSkeleton.cpp",
+    "sha256": "5751f74cc22f212de6973fcb916318788d3f7ad211b329c2349785eed0a73862",
+    "excerpts": [
+      {
+        "start": 510,
+        "end": 531,
+        "text": "\t\tfor (int32 VirtualBoneIdx = 0; VirtualBoneIdx < NumVirtualBones; ++VirtualBoneIdx)\n\t\t{\n\t\t\tconst int32 ActualIndex = VirtualBoneIdx + RawRefBoneInfo.Num();\n\t\t\tconst FVirtualBone& VB = Skeleton->GetVirtualBones()[VirtualBoneIdx];\n\n\t\t\tconst int32 SourceIndex = GetRawSourceBoneIndex(Skeleton, VB.SourceBoneName);\t//-V595\n\t\t\tconst int32 ParentIndex = FindBoneIndex(VB.SourceBoneName);\n\t\t\tconst int32 TargetIndex = FindBoneIndex(VB.TargetBoneName);\n\t\t\tif(ParentIndex != INDEX_NONE && TargetIndex != INDEX_NONE)\n\t\t\t{\n\t\t\t\tFinalRefBoneInfo.Add(FMeshBoneInfo(VB.VirtualBoneName, VB.VirtualBoneName.ToString(), ParentIndex));\n\n\t\t\t\tconst FTransform TargetCS = GetComponentSpaceTransform(ComponentSpaceFlags, ComponentSpaceTransforms, *this, TargetIndex);\n\t\t\t\tconst FTransform SourceCS = GetComponentSpaceTransform(ComponentSpaceFlags, ComponentSpaceTransforms, *this, SourceIndex);\n\n\t\t\t\tFTransform VBTransform = TargetCS.GetRelativeTransform(SourceCS);\n\n\t\t\t\tconst int32 NewBoneIndex = FinalRefBonePose.Add(VBTransform);\n\t\t\t\tFinalNameToIndexMap.Add(VB.VirtualBoneName) = NewBoneIndex;\n\t\t\t\tRequiredVirtualBones.Add(NewBoneIndex);\n\t\t\t\tUsedVirtualBoneData.Add(FVirtualBoneRefData(NewBoneIndex, SourceIndex, TargetIndex));\n\t\t\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimDataModel.cpp",
+    "sha256": "f56a2a6690794dc343f0b15190f2fd29174facad921016c27a4fcfc401704a34",
+    "excerpts": [
+      {
+        "start": 671,
+        "end": 695,
+        "text": "\n\t//Build Virtual Bones\n\tif (VBCompactPoseData.Num() > 0)\n\t{\n\t\tFCSPose<FCompactPose> CSPose1;\n\t\tCSPose1.InitPose(InOutPose);\n\n\t\tFCSPose<FCompactPose> CSPose2;\n\t\tif (bInterpolateT)\n\t\t{\n\t\t\tCSPose2.InitPose(Key2Pose);\n\t\t}\n\n\t\tfor (FVirtualBoneCompactPoseData& VB : VBCompactPoseData)\n\t\t{\n\t\t\tFTransform Source = CSPose1.GetComponentSpaceTransform(VB.SourceIndex);\n\t\t\tFTransform Target = CSPose1.GetComponentSpaceTransform(VB.TargetIndex);\n\t\t\tInOutPose[VB.VBIndex] = Target.GetRelativeTransform(Source);\n\n\t\t\tif (bInterpolateT)\n\t\t\t{\n\t\t\t\tFTransform Source2 = CSPose2.GetComponentSpaceTransform(VB.SourceIndex);\n\t\t\t\tFTransform Target2 = CSPose2.GetComponentSpaceTransform(VB.TargetIndex);\n\t\t\t\tKey2Pose[VB.VBIndex] = Target2.GetRelativeTransform(Source2);\n\t\t\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/SkinnedAsset.cpp",
+    "sha256": "cad970f3bf0ec476b578a9a5e0af61b4dd30d459fa1bced991ab00ed262b3d52",
+    "excerpts": [
+      {
+        "start": 520,
+        "end": 547,
+        "text": "\telse\n\t{\n\t\tfor (int32 i = 1; i < InFillComponentSpaceTransformsRequiredBones.Num(); i++)\n\t\t{\n\t\t\tconst int32 BoneIndex = InFillComponentSpaceTransformsRequiredBones[i];\n\t\t\tFTransform* SpaceBase = ComponentSpaceData + BoneIndex;\n\n\t\t\tFPlatformMisc::Prefetch(SpaceBase);\n\n#if DO_GUARD_SLOW\n\t\t\t// Mark bone as processed\n\t\t\tBoneProcessed[BoneIndex] = 1;\n#endif\n\t\t\t// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.\n\t\t\tconst int32 ParentIndex = GetRefSkeleton().GetParentIndex(BoneIndex);\n\t\t\tFTransform* ParentSpaceBase = ComponentSpaceData + ParentIndex;\n\t\t\tFPlatformMisc::Prefetch(ParentSpaceBase);\n\n#if DO_GUARD_SLOW\n\t\t\t// Check the precondition that Parents occur before Children in the RequiredBones array.\n\t\t\tcheckSlow(BoneProcessed[ParentIndex] == 1);\n#endif\n\t\t\tFTransform::Multiply(SpaceBase, LocalTransformsData + BoneIndex, ParentSpaceBase);\n\n\t\t\tSpaceBase->NormalizeRotation();\n\n\t\t\tcheckSlow(SpaceBase->IsRotationNormalized());\n\t\t\tcheckSlow(!SpaceBase->ContainsNaN());"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/foot_ik_apply.rs",
+    "sha256": "4589e13cf4416e578a74c3ad009747839b2cb696a98593cc035f79051ae2fc16",
+    "excerpts": [
+      {
+        "start": 633,
+        "end": 681,
+        "text": "            let Ok(target) = transforms.compute_global_transform(bones.target(side, use_ik_bones)) else {\n                continue;\n            };\n            let (foot_state, ik_amount, lock_amount) = match side {\n                0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),\n                _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),\n            };\n            if became_valid {\n                reset_foot_lock_to_target(foot_state, target.translation(), target.rotation());\n            }\n            refresh_foot_lock(\n                foot_state,\n                target.translation(),\n                target.rotation(),\n                ik_amount,\n                lock_amount,\n                settings.allow_foot_lock,\n                lock_input.moving_smooth,\n                *locomotion == LocomotionState::Grounded,\n                became_valid,\n                dt,\n                current_base,\n            );\n            let chain = bones.chain(side);\n            let thigh_axis_pelvis_space = Vec3::from(if side == 0 {\n                profile.0.target.foot_left_thigh_axis_pelvis_space\n            } else {\n                profile.0.target.foot_right_thigh_axis_pelvis_space\n            });\n            if let Ok(thigh_parent) = parents.get(chain.thigh)\n                && let Ok(pelvis_world) = transforms.compute_global_transform(thigh_parent.0)\n            {\n                source_constrain_foot_lock(\n                    foot_state,\n                    &armature,\n                    &pelvis_world,\n                    thigh_axis_pelvis_space,\n                    settings,\n                );\n            }\n        }\n        if let Some(input) = rig_input.as_mut() {\n            input.foot_transforms_valid = lock_state.valid;\n            input.foot_left_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.left.final_location)).0;\n            input.foot_left_rotation_armature = armature_rotation_from_world(&armature, WorldRotation(lock_state.left.final_rotation)).0;\n            input.foot_right_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.right.final_location)).0;\n            input.foot_right_rotation_armature = armature_rotation_from_world(&armature, WorldRotation(lock_state.right.final_rotation)).0;\n        }\n        dynamic_transition.update("
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/control_rig_apply.rs",
+    "sha256": "edc0216c5c4edaffce760df3d92268fb98f174066e593de6996454591a2bae65",
+    "excerpts": [
+      {
+        "start": 272,
+        "end": 290,
+        "text": "    mut commands: Commands,\n    characters: Query<(Entity, Option<&AlsControlRigSettings>, Has<AlsControlRigInput>, Option<&AlsFootTargetSelection>), With<AlsCharacter>>,\n) {\n    for (entity, settings, has_input, selection) in &characters {\n        let settings = settings.copied().unwrap_or_default();\n        if !has_input {\n            commands.entity(entity).insert(AlsControlRigInput {\n                use_hand_ik_bones: settings.use_hand_ik_bones,\n                use_foot_ik_bones: settings.use_foot_ik_bones,\n                ..default()\n            });\n        }\n        if selection.is_none_or(|selection| selection.use_ik_bones != settings.use_foot_ik_bones) {\n            commands.entity(entity).insert(AlsFootTargetSelection {\n                use_ik_bones: settings.use_foot_ik_bones,\n            });\n        }\n    }\n}"
+      },
+      {
+        "start": 410,
+        "end": 427,
+        "text": "            .with_mask(crate::als::character::AlsCollisionLayer::Visibility);\n        use bevy_animation_graph::core::edge_data::DataValue;\n        for (field, value) in [\n            (\"b_use_hand_ik_bones\", DataValue::Bool(input.use_hand_ik_bones)),\n            (\"b_use_foot_ik_bones\", DataValue::Bool(input.use_foot_ik_bones)),\n            (\"b_foot_transforms_valid\", DataValue::Bool(input.foot_transforms_valid)),\n            (\"velocity_blend_forward_amount\", DataValue::F32(input.velocity_blend_forward_amount)),\n            (\"velocity_blend_backward_amount\", DataValue::F32(input.velocity_blend_backward_amount)),\n            (\"spine_yaw_angle\", DataValue::F32(-input.spine_yaw_angle_degrees)),\n            (\"pelvis_offset_amount\", DataValue::F32(input.pelvis_offset_amount)),\n            (\"foot_left_location\", DataValue::Vec3(input.foot_left_location_armature)),\n            (\"foot_left_rotation\", DataValue::Quat(input.foot_left_rotation_armature)),\n            (\"foot_right_location\", DataValue::Vec3(input.foot_right_location_armature)),\n            (\"foot_right_rotation\", DataValue::Quat(input.foot_right_rotation_armature)),\n        ] {\n            set_source_frame_input(&mut player, &format!(\"control_rig_input.{field}\"), value);\n        }\n        set_source_frame_input(&mut player, crate::extensions::root_graph_boundaries::RIG_GAME_WORLD_KEY, true);"
+      }
+    ]
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "gate": "PASS_ACTUAL_PRIOR_POSE_AND_RIG_BINDING",
+  "observed_frames": 159,
+  "valid_frames": 158,
+  "markers": [
+    "VB foot_l",
+    "VB foot_r"
+  ],
+  "foot_root": "VB foot_root",
+  "exact_chain_nodes": 1264,
+  "rig_binding_fields": 632,
+  "local_pose_changes": {
+    "rig_source_to_rig_output": {
+      "VB foot_root": 52,
+      "VB foot_l": 0,
+      "VB foot_r": 0
+    },
+    "rig_output_to_root_result": {
+      "VB foot_root": 0,
+      "VB foot_l": 3,
+      "VB foot_r": 9
+    }
+  }
+}

@@ -1,0 +1,2383 @@
+[
+  {
+    "case": "virtual-foot-natural-80",
+    "initial": {
+      "getter_flag": false,
+      "input_flag": false,
+      "foot_root": "VB foot_root"
+    },
+    "settings": "/Temp/Untitled_1.Untitled:PersistentLevel.B_Als_Character_C_0.CharacterMesh0.AB_Als_C_0.AIS_Als_Default",
+    "frames": [
+      {
+        "frame": 0,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": false,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 1,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 2,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 3,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 4,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 5,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 6,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 7,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 8,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 9,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 10,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 11,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 12,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 13,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 14,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 15,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 16,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 17,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 18,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 19,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 20,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 21,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 22,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 23,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 24,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 25,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 26,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 27,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 28,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 29,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 30,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 31,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 32,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 33,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 34,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 35,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 36,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 37,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 38,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 39,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 40,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 41,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 42,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 43,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 44,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 45,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 46,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 47,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 48,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 49,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 50,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 51,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 52,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 53,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 54,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 55,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 56,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 57,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 58,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 59,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 60,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 61,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 62,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 63,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 64,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 65,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 66,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 67,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 68,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 69,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 70,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 71,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 72,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 73,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 74,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 75,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 76,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 77,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 78,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 79,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 80,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 81,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 82,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 83,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 84,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 85,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 86,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 87,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 88,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 89,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 90,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 91,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 92,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 93,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 94,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 95,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 96,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 97,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 98,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 99,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 100,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 101,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 102,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 103,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 104,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 105,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 106,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 107,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 108,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 109,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 110,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 111,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 112,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 113,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 114,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 115,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 116,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 117,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 118,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 119,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 120,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 121,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 122,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 123,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 124,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 125,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 126,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 127,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 128,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 129,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 130,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 131,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 132,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 133,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 134,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 135,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 136,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 137,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 138,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 139,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 140,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 141,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 142,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 143,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 144,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 145,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 146,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 147,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 148,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 149,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 150,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 151,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 152,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 153,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 154,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 155,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 156,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      },
+      {
+        "frame": 157,
+        "requested": false,
+        "getter_before": false,
+        "getter_after": false,
+        "valid": true,
+        "input_flag": false,
+        "foot_root": "VB foot_root",
+        "executions": [
+          {
+            "entry": "Forwards Solve",
+            "succeeded": true
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,198 @@
+{
+  "gate": "PASS_ACTUAL_VIRTUAL_FOOT_POSE_PUBLICATION_AND_CONSUMERS",
+  "new_differences": 0,
+  "known_total": 276,
+  "native": {
+    "native_frames": 158,
+    "exact_sockets": 316,
+    "exact_final_getter_rig_fields": 632,
+    "wrong_marker_rejections": 316,
+    "local_pose_changes": {
+      "rig_source_to_rig_output/VB foot_root": 52,
+      "rig_output_to_root_result/VB foot_root": 0,
+      "rig_source_to_rig_output/VB foot_l": 0,
+      "rig_output_to_root_result/VB foot_l": 0,
+      "rig_source_to_rig_output/VB foot_r": 0,
+      "rig_output_to_root_result/VB foot_r": 0
+    }
+  },
+  "target": {
+    "virtual": {
+      "gate": "PASS_ACTUAL_PRIOR_POSE_AND_RIG_BINDING",
+      "observed_frames": 159,
+      "valid_frames": 158,
+      "markers": [
+        "VB foot_l",
+        "VB foot_r"
+      ],
+      "foot_root": "VB foot_root",
+      "exact_chain_nodes": 1264,
+      "rig_binding_fields": 632,
+      "local_pose_changes": {
+        "rig_source_to_rig_output": {
+          "VB foot_root": 52,
+          "VB foot_l": 0,
+          "VB foot_r": 0
+        },
+        "rig_output_to_root_result": {
+          "VB foot_root": 0,
+          "VB foot_l": 3,
+          "VB foot_r": 9
+        }
+      }
+    },
+    "default": {
+      "gate": "PASS_ACTUAL_PRIOR_POSE_AND_RIG_BINDING",
+      "observed_frames": 159,
+      "valid_frames": 158,
+      "markers": [
+        "ik_foot_l",
+        "ik_foot_r"
+      ],
+      "foot_root": "ik_foot_root",
+      "exact_chain_nodes": 1264,
+      "rig_binding_fields": 632,
+      "local_pose_changes": {
+        "rig_source_to_rig_output": {
+          "ik_foot_root": 52,
+          "ik_foot_l": 0,
+          "ik_foot_r": 0
+        },
+        "rig_output_to_root_result": {
+          "ik_foot_root": 0,
+          "ik_foot_l": 4,
+          "ik_foot_r": 1
+        }
+      }
+    }
+  },
+  "virtual_root_blend_rotations_existing_D245": 12,
+  "default_scene_baseline_prefix_exact": true,
+  "virtual_wrong_selector_frames": 158,
+  "source_original_80_prefix_exact": true,
+  "whole_cross_engine_pose_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "virtual-motion.native.json": {
+      "bytes": 112545146,
+      "sha256": "acd3cfd11fee2dfe4a5e9b13566cadeb745d5249a57fa737c654fcb73a3b5a4d"
+    },
+    "replay-unit-target-default.json": {
+      "bytes": 520452,
+      "sha256": "5606b05a817fc8ba196e7ab3927f233f7c717ca33c379fb4032e4d4589723b2b"
+    },
+    "replay-unit-target-virtual.json": {
+      "bytes": 521525,
+      "sha256": "995bf8d077ad677ef6b95a2fd05d25aa3e5190bc619e08eaafa075563a2abfaa"
+    },
+    "replay-unit-target-virtual-ik.json": {
+      "bytes": 1569529,
+      "sha256": "bae6d38a8d7de30d7bade90d087b5249622cd90c16ca56b5a36c16a433d43dbd"
+    },
+    "replay-unit-target-virtual-restored.json": {
+      "bytes": 521525,
+      "sha256": "995bf8d077ad677ef6b95a2fd05d25aa3e5190bc619e08eaafa075563a2abfaa"
+    },
+    "runtime-virtual/parameters.json": {
+      "bytes": 36700851,
+      "sha256": "8d7c6638f67ac8aab646e3d6e4fdb50c860739a8478901f6b21daa4c7c2e5920"
+    },
+    "runtime-virtual/report.json": {
+      "bytes": 4116508,
+      "sha256": "f897ce4584d0932ab28ea3d1da64f3b79801bec8b0049c1c06c3e00470df7a14"
+    },
+    "runtime-default/parameters.json": {
+      "bytes": 36706298,
+      "sha256": "64bbad219caa4aadf839213b69603ab646e95dc2d60332d09784f91bf348aafb"
+    },
+    "runtime-default/report.json": {
+      "bytes": 4486798,
+      "sha256": "369e66c2693fccf39e6b78275416c920759b1f3c5a52d169182550bfd50f6c89"
+    }
+  },
+  "generated_sources": [
+    {
+      "path": "tools/tmp/bf144/493/playground_observed.rs",
+      "bytes": 100205,
+      "sha256": "b39f73834d434a2322934c92418e8c8dee0249583746ae0a5f6f363fbb9d2c6f"
+    },
+    {
+      "path": "tools/tmp/bf144/493/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "tools/tmp/bf144/493/target.rs",
+      "bytes": 9828,
+      "sha256": "8670b9c9fc63390ee59a0a671e5a177cd830c2dbc7bf992d0bbb70f6f24f2bd5"
+    }
+  ],
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/457/request.json",
+      "bytes": 145101,
+      "sha256": "32f3fb3626f5f06cd111be9306b14434993d8910d54b71c1de43a7e975f6e700"
+    },
+    {
+      "path": "docs/audit/bf144/459/inputs.json",
+      "bytes": 29551067,
+      "sha256": "f3992070db213883da1179396296a1d7693fdf99da2f571bf6d0949f2f2477c7"
+    },
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/484/replay.rs",
+      "bytes": 10119,
+      "sha256": "01a3db79b96e1dcc49a46754c0a8139ed13767e262af4ba4d109ae620451df7a"
+    },
+    {
+      "path": "docs/audit/bf144/484/runtime-observed/parameters.json.gz",
+      "bytes": 51471692,
+      "sha256": "96de8889447f7b6a8c9a2b897ef8e1392b9d92f9ca2a37f28f1aa95d4e492828"
+    },
+    {
+      "path": "docs/audit/bf144/486/replay.rs",
+      "bytes": 10104,
+      "sha256": "aa3c6f588ea782a2351215a18256a9f0a42c547d7ffc062d3e477ee6f9e17367"
+    },
+    {
+      "path": "docs/audit/bf144/485/native.rs",
+      "bytes": 4108,
+      "sha256": "265a1ba38d1b3537c2937404ca3801ae42c6deb1152c38af825ef26a98b523db"
+    },
+    {
+      "path": "docs/audit/bf144/479/replay.rs",
+      "bytes": 7922,
+      "sha256": "b10a74018d01fb29b66c3f5bd4c3397ade9aabf03228b38966df3edfae811005"
+    },
+    {
+      "path": "docs/audit/bf144/478/replay.rs",
+      "bytes": 4782,
+      "sha256": "4dd2abec6cf8415c9edbdc5d444e25d2753c284646f8567cf092a4cf75dee240"
+    },
+    {
+      "path": "docs/audit/bf144/471/replay.rs",
+      "bytes": 8499,
+      "sha256": "70f84d0005783acdb3a463785cfc2b954afa44bde75fe44d91992ab7e22fde70"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}

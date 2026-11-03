@@ -1,0 +1,14 @@
+{
+  "native_frames": 158,
+  "exact_sockets": 316,
+  "exact_final_getter_rig_fields": 632,
+  "wrong_marker_rejections": 316,
+  "local_pose_changes": {
+    "rig_source_to_rig_output/VB foot_root": 52,
+    "rig_output_to_root_result/VB foot_root": 0,
+    "rig_source_to_rig_output/VB foot_l": 0,
+    "rig_output_to_root_result/VB foot_l": 0,
+    "rig_source_to_rig_output/VB foot_r": 0,
+    "rig_output_to_root_result/VB foot_r": 0
+  }
+}
