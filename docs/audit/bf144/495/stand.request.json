@@ -1,0 +1,9 @@
+{
+  "times": [
+    0.0
+  ],
+  "animation_pose": true,
+  "raw_absolute_pose": true,
+  "capture_source_channels": true,
+  "mesh_asset": "/ALS/ALS/Character/SKM_Als.SKM_Als"
+}

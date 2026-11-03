@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.495 左虚拟足骨局部微量缩放的上游归因。依赖494非均匀缩放边界、493原生/目标姿态、484完整Head输入和449已区分的Stand raw/普通数据。fresh核源参考和实际样点，定位目标左足非均匀值首次发生的生产阶段，分别隔离Base与Head additive因素，按现有D归类或登记最小新差异。Gate 含实测上游、同输入公开算子、消融恢复及Git封存。开始2026-11-04 07:30:11 +0800，预估结束2026-11-04 08:20:11 +0800。参考493实耗约11分钟与491三包约11分钟，本项可能需真实上游观察、三份原生读取及分因，按50分钟估。截图0，性能暂停。
+
+  - 07:31 source/static及真实Gate前：源角色的Head additive左虚拟足scale为零。实测目标query2的Head Base y为1.0000001192，加性为1.1920929e−7，Rig Source y为1.0000002384；数值先于Rig且两种选择相同。运行原可见场景只增加首四帧缓存观测，核Base与加性首发生节点，截图0。
+
+  - 07:33 首次真实Gate通过。缓存确认默认Overlay的Idle局部加性与Head的Look网格加性各贡献一ULP，均读普通Stand参考。新鲜raw Stand与原生Idle/Look压缩的scale合同已读。因运动query105的Base幅值更高，追加同一场景的query105/158只读缓存控制，避免把全部运动缩放归同一因。截图0。
+  - Gate通过。三份原生请求的5样本及glTF scale accessor核验；两次真实可见场景功能专用验收通过，新增观察之外与历史原输出相同。首query2/3的默认Overlay Idle与Head Look各贡献一ULP，只换任一参考仍余一ULP，双raw参考后y精确1。仅取消raw输入替换即失败；恢复字节同六库重编报告一致。另保存运动query105/158的Locomotion上游残差和Lean在105有效、158未执行的边界。Git证据 docs/audit/bf144/495/summary.json。归D235，累计276（117P2/159P3）。下一步核对运动段额外的Lean、Locomotion与Layering缩放，分离输入数据、混合和参考差异。实际结束2026-11-04 07:37:18 +0800，实耗427秒，偏差-2572秒。截图0，性能暂停。
+
 - [x] BF144.494 虚拟足根缩放、世界采样与足锁定传播。依赖493两端实测虚拟骨链、488的D278因子和489固定前态对照。只切换 VB foot_root 的正非均匀缩放，分别精确恢复原生和真实目标世界姿态；锁定对照固定实际足位置和前态，分离四元数长度与方向传播。Gate 含双端基线、因子与消费者消融、恢复及Git封存。开始2026-11-04 07:24:37 +0800，预估结束2026-11-04 08:09:37 +0800。参考488和489各不足5分钟，另含虚拟链的原生实测复算和锁定复用，按45分钟估。截图0，性能暂停。
 
   - 07:26:26 source/static：314原生、316目标虚拟足世界样本及158帧实际足状态/RigInput精确。只改父骨缩放，原生104侧位置变而Q保持；目标104侧Q变，96侧进RigInput，方向峰值6.98285°，仅单位化峰值0.07179°。保持左虚拟足自身的微小非均匀scale。归既有D278，消融、恢复及封存继续。
@@ -6342,6 +6349,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 全量/边界：当前1875次双边相关TwoWay中95次回算改变alpha，隔离相同精度/数值空间后3516个骨骼改变，gait相同控制715骨归D216。31个实际alpha的原生标量回算均确认；其中替代不等curve端点的21例只作独立控制，不宣称自然曲线后果。证据`target/bf144/182/complement-witness-check.json`、`complement-native-check.json`、`parent-math-check.json`及`roundtrip-api-check.json`；仅登记，未修生产，未声明可见故障或完整角色反馈已通过。
 
 - [ ] BF144-D235 / P3 — Lean共同加性参考数据不符合源强制raw完整姿态合同。
+  - BF144.495 左虚拟足首个非均匀Head输出。实际 Default Overlay 的 Idle 局部加性与 Head 的 Look 网格加性均读取普通 Stand，两个算子各贡献一个F32步长。原生raw Stand scale=1且Idle/Look压缩delta=0；固定目标绝对值和权重，单换参考时query2/3仍余一ULP，双换时y=1。运动段另有上游缩放，证据 docs/audit/bf144/495/summary.json。
   - BF144.450当前Head参考X补充：fresh raw absolute Forward.5与raw Stand0的pelvis X同1.7007638171697125e−28cm、raw additive X0；actual target reference X0与absolute约1.7007637193685825e−30，在319 public差分核精确。No-route域仅换物理raw ref X后得−1.88079096131566e−37，保余量且由absolute仍处float导出单位阶段D275解释；同导出系数raw ref与absolute相等则差0。该参考输入因素独立于D224压缩delta；当前public微量counter不宣称完整raw姿态/Root恢复。记录`docs/audit/bf144/450a/`、`.450/endpoints.json`、`.450b/check-no-route.json`。
   - Source：fresh `AnimSequence.cpp:1895–1925,1935–1972`的GetBonePose_Additive先求当前完整绝对pose，再按ABPT_AnimFrame调用共同A_Als_Lean_Pose/frame0的GetBonePose，编辑器可raw时明确force raw；参考不是其普通播放的prepared compressed结果。六资产24份完整raw绝对输出，经相同参考frame0的double ConvertTransformToAdditive控制重现五资产20份公共raw delta/1580骨骼全部f64精确，排除参考frame、坐标或source oracle猜测。
   - Target：两个stance的五条ReferenceLocalDifference链都使用普通A_Als_Lean_Pose.anim.ron→GltfNamed数据；该绝对参考的calf_twist_01_l旋转与fresh完整raw不等，spine_03平移也差约5.05817e−5m。`apply_additive_reference_deltas.py`/converter只传参考资产与frame，没有为源强制raw参考生成独立数据合同。当前目标参考同时不精确匹配legacy/raw/compressed，未推断具体历史导出算法或改原始glTF。

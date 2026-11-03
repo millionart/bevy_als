@@ -1,0 +1,93 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimSequence.cpp",
+    "sha256": "909902b795754cf5bc556e1602d6b124a1066c55d7361c9c0bfc42bdb1fb7962",
+    "excerpts": [
+      {
+        "start": 1895,
+        "end": 1926,
+        "text": "void UAnimSequence::GetBonePose_Additive(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const\n{\n\tFCompactPose& OutPose = OutAnimationPoseData.GetPose();\n\tFBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();\n\tUE::Anim::FStackAttributeContainer& OutAttributes = OutAnimationPoseData.GetAttributes();\n\n\tif (!IsValidAdditive())\n\t{\n\t\tOutPose.ResetToAdditiveIdentity();\n\t\treturn;\n\t}\n\n\t// Extract target pose\n\tGetBonePose(OutAnimationPoseData, ExtractionContext);\n\n\t// Extract base pose\n\tFCompactPose BasePose;\n\tFBlendedCurve BaseCurve;\n\tUE::Anim::FStackAttributeContainer BaseAttributes;\n\t\n\tBasePose.SetBoneContainer(&OutPose.GetBoneContainer());\n\tBaseCurve.InitFrom(OutCurve);\t\n\n\tFAnimationPoseData BasePoseData(BasePose, BaseCurve, BaseAttributes);\n\n\tGetAdditiveBasePose(BasePoseData, ExtractionContext);\n\n\t// Create Additive animation\n\tFAnimationRuntime::ConvertPoseToAdditive(OutPose, BasePose);\n\tOutCurve.ConvertToAdditive(BaseCurve);\n\n\tUE::Anim::Attributes::ConvertToAdditive(BaseAttributes, OutAttributes);"
+      },
+      {
+        "start": 1935,
+        "end": 1973,
+        "text": "\tSeq.GetBonePose(OutAnimationPoseData, BasePoseExtractionContext, bForceUseRawData);\n}\n\nvoid UAnimSequence::GetAdditiveBasePose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const\n{\n\tswitch (RefPoseType)\n\t{\n\t\t// use whole animation as a base pose. Need BasePoseSeq.\n\t\tcase ABPT_AnimScaled:\n\t\t{\n\t\t\t// normalize time to fit base seq\n\t\t\tPRAGMA_DISABLE_DEPRECATION_WARNINGS\n\t\t\tconst double Fraction = (GetPlayLength() > 0.0)? FMath::Clamp<double>(ExtractionContext.CurrentTime / (double)GetPlayLength(), 0.0, 1.0) : 0.0;\n\t\t\tconst double BasePoseTime = (double)RefPoseSeq->GetPlayLength() * Fraction;\n\t\t\tPRAGMA_ENABLE_DEPRECATION_WARNINGS\n\n\t\t\tFAnimExtractContext BasePoseExtractionContext(ExtractionContext);\n\t\t\tBasePoseExtractionContext.CurrentTime = BasePoseTime;\n\t\t\tRefPoseSeq->GetBonePose(OutAnimationPoseData, BasePoseExtractionContext, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use animation as a base pose. Need BasePoseSeq and RefFrameIndex (will clamp if outside).\n\t\tcase ABPT_AnimFrame:\n\t\t{\n\t\t\tGetSequencePose(OutAnimationPoseData, ExtractionContext, *RefPoseSeq, RefFrameIndex, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use this animation as a base pose. Need RefFrameIndex (will clamp if outside).\n\t\tcase ABPT_LocalAnimFrame:\n\t\t{\n\t\t\tGetSequencePose(OutAnimationPoseData, ExtractionContext, *this, RefFrameIndex, CanEvaluateRawAnimationData());\n\t\t\tbreak;\n\t\t}\n\t\t// use ref pose of Skeleton as base\n\t\tcase ABPT_RefPose:\n\t\tdefault:\n\t\t\tOutAnimationPoseData.GetPose().ResetToRefPose();\n\t\t\tbreak;\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Plugins/Enterprise/GLTFExporter/Source/GLTFExporter/Private/Tasks/GLTFDelayedAnimationTasks.cpp",
+    "sha256": "a66975cba3c60c7acfdeeacb0f7433bc156764db8c3f59dc45f7ef8174e3e841",
+    "excerpts": [
+      {
+        "start": 114,
+        "end": 124,
+        "text": "\n\t\t{\n\t\t\tTArray<FGLTFVector3> Scales;\n\t\t\tScales.AddUninitialized(FrameCount);\n\n\t\t\tfor (int32 Frame = 0; Frame < FrameCount; ++Frame)\n\t\t\t{\n\t\t\t\tconst FVector3f KeyScale = FVector3f(FrameTransforms[Frame][BoneIndex].GetScale3D());\n\t\t\t\tScales[Frame] = FGLTFCoreUtilities::ConvertScale(KeyScale);\n\t\t\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_sequence_player.rs",
+    "sha256": "e0458f674739539fdc3a95b2f1058ec622bc2ab8fdc209a90e6f63185d4b0d5c",
+    "excerpts": [
+      {
+        "start": 117,
+        "end": 135,
+        "text": "    reference_position: f32,\n    mesh_space: bool,\n    root_lock: Option<SourceRootLock>,\n) -> Result<Pose, GraphError> {\n    let target = sample_pose(clip, time);\n    let mut pose = if let Some(reference_handle) = additive_reference {\n        let reference_clip = ctx.graph_context.resources.graph_clip_assets.get(reference_handle)\n            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n        let reference = sample_pose(reference_clip, reference_position.max(0.0));\n        let skeleton = ctx.graph_context.resources.skeleton_assets.get(&reference.skeleton)\n            .or_else(|| ctx.graph_context.resources.skeleton_assets.get(&target.skeleton))\n            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n        if mesh_space { make_mesh_space_difference(&reference, &target, skeleton) }\n        else { make_local_difference(&reference, &target, skeleton) }\n    } else { target };\n    pose.timestamp = time;\n    if let Some(mode) = root_lock {\n        let skeleton = ctx.graph_context.resources.skeleton_assets.get(&pose.skeleton)\n            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/reference_local_difference.rs",
+    "sha256": "8371f15916b2e3d593115ab57f5c3629f5ef7863ea1e5772656f3a584184f25b",
+    "excerpts": [
+      {
+        "start": 46,
+        "end": 51,
+        "text": "pub(crate) fn scale_difference(target: Vec3, reference: Vec3) -> Option<Vec3> {\n    let reciprocal = Vec3::select(reference.abs().cmple(Vec3::splat(SCALE_EPSILON)), Vec3::ZERO, reference.recip());\n    let difference = target * reciprocal - Vec3::ONE;\n    (difference != Vec3::ZERO).then_some(difference)\n}\n"
+      },
+      {
+        "start": 80,
+        "end": 90,
+        "text": "                .translation\n                .map(|value| value - reference_translation(reference_bone, default)),\n            rotation: target_bone.rotation.map(|value| {\n                (value * reference_rotation(reference_bone, default).inverse()).normalize()\n            }),\n            scale: target_bone.scale.and_then(|value| {\n                scale_difference(value, reference_scale(reference_bone, default))\n            }),\n            weights: target_bone.weights.as_ref().map(|target_weights| {\n                reference_bone\n                    .and_then(|bone| bone.weights.as_ref())"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/mesh_space_additive.rs",
+    "sha256": "f3c39c55775b6368e04b6f287f4faa0be10da407dd6182ceb0b9546f31ca299e",
+    "excerpts": [
+      {
+        "start": 51,
+        "end": 59,
+        "text": "fn merge_scale(base: Option<Vec3>, additive: Option<Vec3>, alpha: f32) -> Option<Vec3> {\n    match (base, additive) {\n        (Some(base), Some(additive)) => Some(base * (Vec3::ONE + alpha * additive)),\n        (Some(base), None) => Some(base),\n        (None, Some(additive)) => Some(Vec3::ONE + alpha * additive),\n        (None, None) => None,\n    }\n}\n"
+      },
+      {
+        "start": 162,
+        "end": 181,
+        "text": "pub fn apply_local_space_additive(base: &mut Pose, additive: &Pose, alpha: f32, skeleton: &Skeleton) {\n    if alpha.abs() <= ALPHA_THRESHOLD { return; }\n    for (bone, additive_index) in &additive.paths {\n        if !base.paths.contains_key(bone)\n            && let Some(transform) = skeleton.default_transforms(*bone) {\n            base.add_bone(BonePose::from_transform(transform.local), *bone);\n        }\n        let Some(base_index) = base.paths.get(bone).copied() else { continue; };\n        let additive_bone = &additive.bones[*additive_index];\n        let base_rotation = base_local_rotation(base, skeleton, *bone);\n        let base_bone = &mut base.bones[base_index];\n        if let Some(rotation) = additive_bone.rotation {\n            base_bone.rotation = Some(blend_additive_rotation(base_rotation, rotation, alpha));\n        }\n        merge_non_rotation(base_bone, additive_bone, alpha);\n    }\n    if let Some(additive_motion) = &additive.root_motion {\n        let motion = base.root_motion.get_or_insert_with(RootMotionDelta::default);\n        motion.translation += additive_motion.translation * alpha;\n        motion.rotation = blend_additive_rotation(motion.rotation, additive_motion.rotation, alpha);"
+      }
+    ]
+  },
+  {
+    "key": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron",
+    "sha256": "bb080c56f53445e819b155bd3b908ea5dd8bd49632177e124a32b3ea8811855c",
+    "excerpts": [
+      {
+        "start": 4,
+        "end": 4,
+        "text": "        (id: \"67ab4097-46de-1ab4-e8e9-7eb9f79d6505\", name: \"Apply Additive\", inner: { \"als_ext::SourceApplyAdditiveNode\": (alpha_key: \"\", alpha_pin: \"Alpha\", expose_alpha_pin: true, use_constant_alpha: true, constant_alpha: 0.75, mapping: (source_semantics: true, map_range: false, input_min: 0.0, input_max: 1.0, output_min: 0.0, output_max: 1.0, scale: 1.0, bias: 0.0, clamp_result: false, clamp_min: 0.0, clamp_max: 1.0, interpolate_result: false, interpolate_speed_increasing: 10.0, interpolate_speed_decreasing: 10.0), alpha_scale: 1.0, alpha_bias: 0.0, minimum_alpha: 0.0, maximum_alpha: 1.0, increasing_speed: 0.0, decreasing_speed: 0.0, expose_source_alpha_controls: false, alpha_curve_name: \"None\", alpha_bool_enabled: true) }, should_debug: false),"
+      },
+      {
+        "start": 13,
+        "end": 13,
+        "text": "        (id: \"95e7e1d3-44eb-9b93-3f7f-ba8a92e9cc0e\", name: \"A_Als_Idle\\nSequence Player\\nSync group Secondary Motion\", inner: { \"als_ext::SourceSequencePlayerNode\": (clip: \"ALS/Animations/Base/A_Als_Idle.anim.ron\", curves: ({}), additive_reference: Some(\"ALS/Animations/Base/A_Als_Stand_Pose.anim.ron\"), additive_reference_position: 0.0, additive_mesh_space: false, play_rate: 1.0, asset_rate_scale: 1.0, play_rate_key: \"\", play_rate_pin: \"PlayRate\", expose_play_rate_pin: false, play_rate_basis: 1.0, play_rate_mapping: (source_semantics: true, map_range: false, input_min: 0.0, input_max: 1.0, output_min: 0.0, output_max: 1.0, scale: 1.0, bias: 0.0, clamp_result: false, clamp_min: 0.0, clamp_max: 1.0, interpolate_result: false, interpolate_speed_increasing: 10.0, interpolate_speed_decreasing: 10.0), start_position: 0.0, start_position_pin: \"StartPosition\", expose_start_position_pin: false, loop_animation: true, loop_animation_key: \"\", loop_animation_pin: \"bLoopAnimation\", expose_loop_animation_pin: false, sync_group: \"Secondary Motion\", root_lock: None, synchronization: Some((key: \"sync_groups.secondary_motion.phase\", role: CanBeLeader, delta_seconds_key: \"animation.delta_seconds\", phase_duration: 2.666667, phase_markers: [], markers: []))) }, should_debug: false),"
+      },
+      {
+        "start": 25,
+        "end": 27,
+        "text": "        NodeData(\"78acff87-4662-4469-d30e-80b5c9a53754\", \"A\"): NodeData(\"b8f30b3f-4d30-eab1-ce6b-6bb9ec868234\", \"Pose\"),\n        NodeData(\"67ab4097-46de-1ab4-e8e9-7eb9f79d6505\", \"Additive\"): NodeData(\"95e7e1d3-44eb-9b93-3f7f-ba8a92e9cc0e\", \"Pose\"),\n        NodeData(\"4443c628-4115-9b8c-5c21-f58f9ec43ad2\", \"Source\"): NodeData(\"67ab4097-46de-1ab4-e8e9-7eb9f79d6505\", \"Pose\"),"
+      }
+    ]
+  }
+]
