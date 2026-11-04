@@ -320,6 +320,10 @@ pub(crate) fn simulate_grounded_motion_until_mode_change(
             break;
         }
         current = actual_velocity;
+        if applied == Vec3::ZERO {
+            remaining = 0.0;
+            break;
+        }
     }
     (current, substeps, displacement, remaining)
 }
@@ -1083,6 +1087,26 @@ mod tests {
                 assert!((velocity.with_y(0.0).length() - speed).abs() < 0.03,
                     "Source walkable stair contact must preserve horizontal speed: gait={gait:?} frame={frame} before={before:?} after={after:?} velocity={velocity:?} source_tail={:?}", runtime.grounded_collision_velocity);
             }
+        }
+    }
+
+    #[test]
+    fn walking_stops_after_an_exactly_unchanged_substep() {
+        let dynamics = GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
+        for (applied, feedback, expected_steps) in [
+            (Vec3::ZERO, Vec3::ZERO, 1),
+            (Vec3::ZERO, Vec3::X * 6.25, 1),
+            (Vec3::X * 0.001, Vec3::X * 6.25, 2),
+        ] {
+            let mut calls = 0;
+            let (velocity, steps, displacement, remaining) = simulate_grounded_motion_until_mode_change(
+                Vec3::X * 6.25, Vec3::X, 6.25, dynamics, &CmcAdapterParams::default(), 0.0, 0.1,
+                |_, _| { calls += 1; (feedback, applied, true) });
+            assert_eq!(calls, expected_steps);
+            assert_eq!(steps, expected_steps);
+            assert_eq!(velocity, feedback);
+            assert_eq!(displacement, applied * expected_steps as f32);
+            assert_eq!(remaining, 0.0);
         }
     }
 

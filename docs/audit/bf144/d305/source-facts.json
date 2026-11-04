@@ -1,0 +1,14 @@
+{
+  "path": "ALS/Private/AlsCharacterMovementComponent.cpp",
+  "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+  "excerpts": [
+    {
+      "line": 391,
+      "text": "const FVector OldLocation = UpdatedComponent->GetComponentLocation();"
+    },
+    {
+      "line": 564,
+      "text": "// Allow overlap events and such to change physics state and velocity\n\t\tif (IsMovingOnGround())\n\t\t{\n\t\t\t// Make velocity reflect actual move\n\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\n\t\t\t{\n\t\t\t\t// TODO Start of custom ALS code block.\n\n\t\t\t\tPrePenetrationAdjustmentVelocity = MoveVelocity;\n\t\t\t\tbPrePenetrationAdjustmentVelocityValid = true;\n\n\t\t\t\t// TODO End of custom ALS code block.\n\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\n\t\t\t\tMaintainHorizontalGroundVelocity();\n\t\t\t}\n\t\t}\n\n\t\t// If we didn't move at all this iteration then abort (since future iterations will also be stuck).\n\t\tif (UpdatedComponent->GetComponentLocation() == OldLocation)\n\t\t{\n\t\t\tremainingTime = 0.f;\n\t\t\tbreak;\n\t\t}\n\t}"
+    }
+  ]
+}
