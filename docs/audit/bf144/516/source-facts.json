@@ -1,0 +1,71 @@
+[
+  {
+    "key": "source:Private/AlsCharacterMovementComponent.cpp",
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 292,
+        "end": 301,
+        "text": "float UAlsCharacterMovementComponent::GetMaxAcceleration() const\n{\n\tif (IsMovingOnGround())\n\t{\n\t\treturn MaxAccelerationWalking;\n\t}\n\n\treturn Super::GetMaxAcceleration();\n}\n\n"
+      },
+      {
+        "start": 333,
+        "end": 341,
+        "text": "void UAlsCharacterMovementComponent::PhysWalking(const float DeltaTime, int32 IterationsCount)\n{\n\tRefreshGroundedMovementSettings();\n\n\tauto Iterations{IterationsCount};\n\n\t// TODO Copied with modifications from UCharacterMovementComponent::PhysWalking(). After the\n\t// TODO release of a new engine version, this code should be updated to match the source code.\n\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 4827,
+        "end": 4858,
+        "text": "FVector UCharacterMovementComponent::GetFallingLateralAcceleration(float DeltaTime)\n{\n\t// No acceleration in Z\n\tFVector FallAcceleration = ProjectToGravityFloor(Acceleration);\n\n\t// bound acceleration, falling object has minimal ability to impact acceleration\n\tif (!HasAnimRootMotion() && FallAcceleration.SizeSquared() > 0.f)\n\t{\n\t\tFallAcceleration = GetAirControl(DeltaTime, AirControl, FallAcceleration);\n\t\tFallAcceleration = FallAcceleration.GetClampedToMaxSize(GetMaxAcceleration());\n\t}\n\n\treturn FallAcceleration;\n}\n\n\nbool UCharacterMovementComponent::ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const\n{\n\treturn (ProjectToGravityFloor(FallAcceleration).SizeSquared() > 0.f);\n}\n\nFVector UCharacterMovementComponent::GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration)\n{\n\t// Boost\n\tif (TickAirControl != 0.f)\n\t{\n\t\tTickAirControl = BoostAirControl(DeltaTime, TickAirControl, FallAcceleration);\n\t}\n\n\treturn TickAirControl * FallAcceleration;\n}\n\n"
+      },
+      {
+        "start": 5427,
+        "end": 5457,
+        "text": "void UCharacterMovementComponent::StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc)\n{\n\t// start falling \n\tconst float DesiredDist = Delta.Size();\n\tconst float ActualDist = ProjectToGravityFloor(UpdatedComponent->GetComponentLocation() - subLoc).Size();\n\tremainingTime = (DesiredDist < UE_KINDA_SMALL_NUMBER)\n\t\t\t\t\t? 0.f\n\t\t\t\t\t: remainingTime + timeTick * (1.f - FMath::Min(1.f,ActualDist/DesiredDist));\n\n\tif ( IsMovingOnGround() )\n\t{\n\t\t// This is to catch cases where the first frame of PIE is executed, and the\n\t\t// level is not yet visible. In those cases, the player will fall out of the\n\t\t// world... So, don't set MOVE_Falling straight away.\n\t\tif ( !GIsEditor || (GetWorld()->HasBegunPlay() && (GetWorld()->GetTimeSeconds() >= 1.f)) )\n\t\t{\n\t\t\tSetMovementMode(MOVE_Falling); //default behavior if script didn't change physics\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Make sure that the floor check code continues processing during this delay.\n\t\t\tbForceNextFloorCheck = true;\n\t\t}\n\t}\n\tStartNewPhysics(remainingTime,Iterations);\n}\n\n\nvoid UCharacterMovementComponent::RevertMove(const FVector& OldLocation, FMovementBaseInterfaceData* OldMovementBaseInterfaceData, const FVector& PreviousBaseLocation, const FFindFloorResult& OldFloor, bool bFailMove)\n{\n\t//UE_LOGF(LogCharacterMovement, Log, \"RevertMove from %f %f %f to %f %f %f\", CharacterOwner->Location.X, CharacterOwner->Location.Y, CharacterOwner->Location.Z, OldLocation.X, OldLocation.Y, OldLocation.Z);\n"
+      },
+      {
+        "start": 6442,
+        "end": 6457,
+        "text": "{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}\n\n\tif (CharacterOwner->GetLocalRole() == ROLE_Authority)\n\t{\n\t\tPerformMovement(DeltaSeconds);\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/dynamics.rs",
+    "sha256": "c4012c45ae1cafc2ef5e7839907cb995ef0d2e7187ff3eb109aaa6e45159765b",
+    "excerpts": [
+      {
+        "start": 303,
+        "end": 327,
+        "text": "            dynamics,\n            cmc.min_analog_walk_speed,\n            braking_friction_factor,\n            cmc.braking_substep_time,\n            step,\n        );\n        let (actual_velocity, applied, continue_walking) = movement(current, step);\n        remaining -= step;\n        substeps += 1;\n        displacement += applied;\n        if !continue_walking {\n            let desired_distance = current.length() * step;\n            remaining = if desired_distance < crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE {\n                0.0\n            } else {\n                remaining + step * (1.0 - (applied.with_y(0.0).length() / desired_distance).min(1.0))\n            };\n            break;\n        }\n        current = actual_velocity;\n    }\n    (current, substeps, displacement, remaining)\n}\n\npub fn predict_grounded_stop_distance(\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 118,
+        "end": 129,
+        "text": "pub fn air_acceleration_for_horizontal_speed(\n    params: &AlsMovementParams,\n    horizontal_speed: f32,\n) -> f32 {\n    let multiplier = if horizontal_speed < AIR_CONTROL_BOOST_SPEED {\n        AIR_CONTROL_BOOST_MULTIPLIER\n    } else {\n        1.0\n    };\n    params.acceleration.max_acceleration * AIR_CONTROL * multiplier\n}\n\n"
+      },
+      {
+        "start": 2752,
+        "end": 2779,
+        "text": "fn falling_movement_transaction(\n    spatial: &SpatialQuery, capsule: &Collider, mut transform: Transform, mut velocity: Vec3,\n    desired_motion: Vec3, mut max_speed: f32, params: &AlsMovementParams, gravity: Vec3,\n    grounded: (Stance, RotationMode, Gait, f32), landing: (f32, bool, bool),\n    terminal: f32, mut remaining: f32, mut iterations: u32, entity: Entity,\n    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,\n    step_permissions: &Query<&AlsMantleTargetPermission>,\n    transitions: &mut MessageWriter<StateTransitionEvent>,\n) -> (Transform, Vec3, u32, bool, LocomotionState) {\n    let mut acceleration = air_acceleration_for_horizontal_speed(params, velocity.with_y(0.0).length())\n        .min(params.acceleration.max_acceleration);\n    let mut contact = false;\n    let mut mode = LocomotionState::Air;\n    while remaining >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS\n        && iterations < params.cmc.max_simulation_iterations {\n        iterations += 1;\n        let step = crate::als::dynamics::source_movement_time_step(remaining, &params.cmc, iterations);\n        let old_velocity = velocity;\n        let horizontal = crate::als::dynamics::grounded_velocity_step_with_braking_friction(\n            velocity.with_y(0.0), desired_motion, max_speed,\n            crate::als::params::GroundedDynamics { acceleration, braking_deceleration: 0.0, ground_friction: 0.0 },\n            params.cmc.min_analog_walk_speed, 0.0, params.cmc.braking_substep_time, step);\n        velocity = crate::als::dynamics::clamp_falling_velocity(horizontal + Vec3::Y * velocity.y + gravity * step,\n            gravity, terminal);\n        let requested = (old_velocity + velocity) * (0.5 * step);\n        let (applied, deflected, hit, landing_remaining) = falling_movement_sweep(spatial, capsule, transform.translation,\n            transform.rotation, requested, velocity, step, Some(&params.cmc), entity, candidates);\n        transform.translation += applied;\n"
+      },
+      {
+        "start": 3770,
+        "end": 3807,
+        "text": "            let support = base.support_velocity.with_y(0.0);\n            let (moved, mut final_velocity, iterations, remaining_time, lost_floor, last_input) = walking_movement_transaction(\n                &spatial_query, capsule, current_transform, half, radius, base.relative_velocity,\n                controller.basis.desired_motion, max_speed, dynamics.0, &params.cmc, factor, delta_seconds, entity, &candidates, &step_permissions);\n            current_transform = moved;\n            if lost_floor {\n                *loco = LocomotionState::Air;\n                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,\n                    from: StateValue::LocomotionState(LocomotionState::Grounded),\n                    to: StateValue::LocomotionState(LocomotionState::Air) });\n                final_velocity += support;\n                let terminal = physics_modes.get(entity).ok().and_then(|(_, volume, _)| volume)\n                    .unwrap_or(&default_volume.0).terminal_velocity;\n                let (moved, falling_velocity, _, contact, mode) = falling_movement_transaction(&spatial_query,\n                    capsule, current_transform, final_velocity, controller.basis.desired_motion, max_speed,\n                    params, gravity.value, grounded, landing, terminal, remaining_time, iterations, entity, &candidates, &step_permissions, &mut transitions);\n                if *loco != mode { *loco = mode; }\n                if mode == LocomotionState::None {\n                    commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,\n                        crate::als::dynamics::AlsMovementBase::default(), LinearVelocity::ZERO));\n                    *base = default();\n                }\n                current_transform = moved;\n                final_velocity = falling_velocity;\n                runtime.airborne_sweep_contact |= contact;\n            }\n            runtime.grounded_movement_delta = None;\n            runtime.grounded_collision_velocity = Some(if *loco == LocomotionState::None { Vec3::ZERO }\n                else if lost_floor { final_velocity } else { final_velocity + support });\n            runtime.grounded_move_start = None;\n            base.pre_collision_velocity = Some(last_input);\n            let world_position = current_transform.translation;\n            *transform = current_transform;\n            transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n            commands.entity(entity).insert(Position(world_position));\n            motor.lin.boost.x = support.x - velocity.x;\n            motor.lin.boost.z = support.z - velocity.z;\n            motor.lin.acceleration.x = 0.0;\n"
+      }
+    ]
+  }
+]

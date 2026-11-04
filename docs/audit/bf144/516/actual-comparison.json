@@ -1,0 +1,385 @@
+{
+  "native": {
+    "ledge": {
+      "frame": 46,
+      "width_cm": 35,
+      "cached_acceleration": 20.0,
+      "air_control": 0.15000000596046448,
+      "air_time": 0.029999999329447746,
+      "walking_speed": 4.600000203833713,
+      "air_increment": 0.09000001127700052,
+      "end_speed": 4.690000215110714
+    },
+    "late": {
+      "frame": 48,
+      "width_cm": 70,
+      "cached_acceleration": 11.3631494140625,
+      "air_control": 0.15000000596046448,
+      "air_time": 0.029999999329447746,
+      "walking_speed": 5.573304510856964,
+      "air_increment": 0.05113418861160479,
+      "end_speed": 5.624438699468569
+    }
+  },
+  "late": {
+    "late-baseline": {
+      "cached": 12.007458686828613,
+      "used_maximum": 20.0,
+      "walking_speed": 5.260549068450928,
+      "air_time": 0.030000000729108772,
+      "air_increment": 0.09000015258789062,
+      "end_speed": 5.350549221038818,
+      "lean_goal": [
+        1.5228807926177979,
+        0.08244016766548157
+      ],
+      "lean_amounts": [
+        0.7513930797576904,
+        0.13633204996585846
+      ]
+    },
+    "late-air-cached": {
+      "cached": 12.007458686828613,
+      "used_maximum": 12.007458686828613,
+      "walking_speed": 5.260549068450928,
+      "air_time": 0.030000000729108772,
+      "air_increment": 0.054033756256103516,
+      "end_speed": 5.314582824707031,
+      "lean_goal": [
+        1.5126439332962036,
+        0.08188599348068237
+      ],
+      "lean_amounts": [
+        0.7494701743125916,
+        0.13622795045375824
+      ]
+    }
+  },
+  "early_baseline": {
+    "before": {
+      "air_maximum": 20.0,
+      "cached_acceleration": 20.0,
+      "cached_world_velocity": [
+        4.000053405761719,
+        0.0,
+        0.0
+      ],
+      "delta": 0.05999999865889549,
+      "frame": 46,
+      "fresh_acceleration": 16.971708297729492,
+      "mode": "Grounded",
+      "planned_move": [
+        0.28582683205604553,
+        0.0,
+        -1.6379363643181932e-08
+      ],
+      "planned_velocity": [
+        5.0183563232421875,
+        0.0,
+        -3.6081863186154806e-07
+      ],
+      "position": [
+        -14.533327102661133,
+        2.898033380508423,
+        -15.0
+      ],
+      "relative": [
+        4.000053405761719,
+        0.0,
+        0.0
+      ],
+      "substeps": 2,
+      "support": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "walking_acceleration": 16.971708297729492
+    },
+    "after": {
+      "collision_velocity": [
+        4.599205017089844,
+        -0.2943006753921509,
+        -2.026838217261684e-07
+      ],
+      "delta": 0.05999999865889549,
+      "frame": 46,
+      "mode": "Air",
+      "position": [
+        -14.261425018310547,
+        2.8936188220977783,
+        -15.0
+      ],
+      "published_grounded_acceleration": 16.971708297729492,
+      "substeps": 2,
+      "walking_last_input": [
+        4.509204864501953,
+        0.0,
+        -1.851601325597585e-07
+      ]
+    },
+    "output": {
+      "acceleration": {
+        "acceleration": [
+          9.985860824584961,
+          -4.905011177062988,
+          -3.3780638659663964e-06
+        ],
+        "max_acceleration": 16.971708297729492,
+        "max_braking": 11.818036079406738,
+        "rotation": [
+          0.0,
+          -0.6573392152786255,
+          0.0,
+          0.7535949349403381
+        ],
+        "standing_acceleration": 0.9907349944114685,
+        "standing_write_frame": 125,
+        "velocity": [
+          4.599205017089844,
+          -0.2943006753921509,
+          -2.026838217261684e-07
+        ]
+      },
+      "animation_frame": 126,
+      "desired_gait": "Als.Gait.Sprinting",
+      "gait": "Als.Gait.Sprinting",
+      "gameplay": "Air",
+      "graph_error": null,
+      "graph_tag": "Als.LocomotionMode.InAir",
+      "input": [
+        0.0,
+        1.0
+      ],
+      "lean": {
+        "air_half_life": 0.20000000298023224,
+        "amounts": [
+          0.6194272041320801,
+          0.1711886078119278
+        ],
+        "goal": [
+          1.2988027334213257,
+          0.1780405193567276
+        ],
+        "pending": false,
+        "write_frame": 126
+      },
+      "ordinal": 46,
+      "position": [
+        -14.261425018310547,
+        2.8936188220977783,
+        -15.0
+      ],
+      "rig_poses": null,
+      "sprint": {
+        "acceleration": 0.9907349944114685,
+        "flag": 1.0,
+        "mixed": [],
+        "override": null,
+        "pending": false,
+        "time": 0.03333333507180214,
+        "written": [
+          125,
+          125
+        ]
+      },
+      "sprint_leaves": [],
+      "velocity": [
+        4.599205017089844,
+        -0.2943006753921509,
+        -2.026838217261684e-07
+      ],
+      "velocity_blend": {
+        "amounts": [
+          0.5709811449050903,
+          0.0,
+          0.0,
+          0.17910955846309662
+        ],
+        "calls": [],
+        "candidates": null,
+        "delta": 0.05999999865889549,
+        "instance_id": 7,
+        "required": false,
+        "rotation": [
+          0.0,
+          -0.6573392152786255,
+          0.0,
+          0.7535949349403381
+        ],
+        "velocity": [
+          4.599205017089844,
+          -0.2943006753921509,
+          -2.026838217261684e-07
+        ],
+        "write_frame": 125
+      }
+    }
+  },
+  "early_cached": {
+    "before": {
+      "air_maximum": 20.0,
+      "cached_acceleration": 20.0,
+      "cached_world_velocity": [
+        4.000053405761719,
+        0.0,
+        0.0
+      ],
+      "delta": 0.05999999865889549,
+      "frame": 46,
+      "fresh_acceleration": 16.971708297729492,
+      "mode": "Grounded",
+      "planned_move": [
+        0.28582683205604553,
+        0.0,
+        -1.6379363643181932e-08
+      ],
+      "planned_velocity": [
+        5.0183563232421875,
+        0.0,
+        -3.6081863186154806e-07
+      ],
+      "position": [
+        -14.533327102661133,
+        2.898033380508423,
+        -15.0
+      ],
+      "relative": [
+        4.000053405761719,
+        0.0,
+        0.0
+      ],
+      "substeps": 2,
+      "support": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "walking_acceleration": 20.0
+    },
+    "after": {
+      "collision_velocity": [
+        4.690053462982178,
+        -0.2943003177642822,
+        -2.203726978677878e-07
+      ],
+      "delta": 0.05999999865889549,
+      "frame": 46,
+      "mode": "Air",
+      "position": [
+        -14.255973815917969,
+        2.8936188220977783,
+        -15.0
+      ],
+      "published_grounded_acceleration": 16.971708297729492,
+      "substeps": 2,
+      "walking_last_input": [
+        4.600053310394287,
+        0.0,
+        -2.0284903712308733e-07
+      ]
+    },
+    "output": {
+      "acceleration": {
+        "acceleration": [
+          11.500000953674316,
+          -4.90500545501709,
+          -3.6728783925354946e-06
+        ],
+        "max_acceleration": 16.971708297729492,
+        "max_braking": 11.818036079406738,
+        "rotation": [
+          0.0,
+          -0.6573392152786255,
+          0.0,
+          0.7535949349403381
+        ],
+        "standing_acceleration": 0.9907349944114685,
+        "standing_write_frame": 125,
+        "velocity": [
+          4.690053462982178,
+          -0.2943003177642822,
+          -2.203726978677878e-07
+        ]
+      },
+      "animation_frame": 126,
+      "desired_gait": "Als.Gait.Sprinting",
+      "gait": "Als.Gait.Sprinting",
+      "gameplay": "Air",
+      "graph_error": null,
+      "graph_tag": "Als.LocomotionMode.InAir",
+      "input": [
+        0.0,
+        1.0
+      ],
+      "lean": {
+        "air_half_life": 0.20000000298023224,
+        "amounts": [
+          0.6242464184761047,
+          0.17184920608997345
+        ],
+        "goal": [
+          1.3244580030441284,
+          0.181557297706604
+        ],
+        "pending": false,
+        "write_frame": 126
+      },
+      "ordinal": 46,
+      "position": [
+        -14.255973815917969,
+        2.8936188220977783,
+        -15.0
+      ],
+      "rig_poses": null,
+      "sprint": {
+        "acceleration": 0.9907349944114685,
+        "flag": 1.0,
+        "mixed": [],
+        "override": null,
+        "pending": false,
+        "time": 0.03333333507180214,
+        "written": [
+          125,
+          125
+        ]
+      },
+      "sprint_leaves": [],
+      "velocity": [
+        4.690053462982178,
+        -0.2943003177642822,
+        -2.203726978677878e-07
+      ],
+      "velocity_blend": {
+        "amounts": [
+          0.5709811449050903,
+          0.0,
+          0.0,
+          0.17910955846309662
+        ],
+        "calls": [],
+        "candidates": null,
+        "delta": 0.05999999865889549,
+        "instance_id": 7,
+        "required": false,
+        "rotation": [
+          0.0,
+          -0.6573392152786255,
+          0.0,
+          0.7535949349403381
+        ],
+        "velocity": [
+          4.690053462982178,
+          -0.2943003177642822,
+          -2.203726978677878e-07
+        ],
+        "write_frame": 125
+      }
+    }
+  },
+  "restored_first_difference": {
+    "after": null,
+    "before": null,
+    "dynamics": null
+  }
+}
