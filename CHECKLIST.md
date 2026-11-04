@@ -4133,6 +4133,14 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.567 Walking 换台后旧台晚到位移的消费者。依赖566首子步换台。延长新台使100ms双步后仍Walking，在已完成移动后横移旧台20cm；同夹具控制旧台不动。核源MovementUpdated绑定与目标post-physics跟随前后、最终绑定和位移。历史.10确认一般切换/失效，D36是起跳前旧台跟随，D313是走离速度。开始2026-11-04 23:20:21 +0800，预估结束2026-11-04 23:50:21 +0800。依据566约6分钟，增加late回调和阶段控制估30分钟。截图0，性能暂停。
+  - source/static：fresh ALS每步SetBaseFromFloor；UE Character换基座立即SaveBaseLocation，MovementUpdated在CMC移动完成后。目标post-physics follow在locomotion_state_sync前，前者按旧base.entity，后者重查floor改绑。
+  - 23:23 runtime Gate 前：按历史和Git复核未找到已跨台仍Grounded且旧台晚到位移的记录。两组仅在已完成Walking事务后改变旧台Z 20cm，目标确认编译通过，原生隔离包构建中。
+  - 23:24 首轮夹具查错：PostUpdate读取已递增计数，写到事务前一帧；旧台未换时的携带不能作为反例。记录首轮并改用与现有contact相同的帧偏移，同target重编。
+  - 23:25 对齐复验前：修正帧后，原生换台稳定且旧台不携带，目标晚于物理注入会多移20cm。额外将目标注入提前到Walking完成、物理步前，确认同相位仍复现，并保留既有读数。
+  - runtime Gate 后：UE MovementUpdated内已绑定新台，旧台实际横移20cm且角色不动。目标事务末floor为新台，物理步未移动角色，post-physics仍按旧台移约20cm，然后发布新基座。静止台控制横向一致，两组保持Walking且功能Gate通过。首轮watchdog自测在并行构建时子夹具未在1秒内启动，错峰复验六项全通过。
+  - 完成 Gate `PASS_WALKING_SWITCH_BEFORE_OLD_BASE_POST_PHYSICS`。归入D313同一基座绑定时机，新增0，累计309（142 P2、167 P3）。watchdog、396身份与六库、9份原始报告解压哈希、80份暂存证据及外部引用通过。实际结束2026-11-04 23:27:00 +0800，实耗399秒，偏差-1401秒；已有两台夹具且增加后置观测的同类项可按约7–12分钟估计。证据 `docs/audit/bf144/567/`。截图0，性能暂停。
+
 - [x] BF144.566 Walking 同帧先换基座后走离的速度。依赖565实体选择及.11走离继承。100ms两步，第一从旧台到窄新台，第二走离；新台只沿横向运动。原生另用同首50ms控制证明实际设新基座，目标记录同位置floor、旧支持和发布。按当前与历史查重，分离D312起跳、D34竖直量及D287输入缓存。开始2026-11-04 23:14:11 +0800，预估结束2026-11-04 23:59:11 +0800。参考565约6分钟，估45分钟含窄台几何及原生首步控制。截图0，性能暂停。
   - 23:15 source/static：UE PhysWalking每步可走floor后SetBaseFromFloor，下一步StartFalling读此基座；目标多步回调只保floor有效布尔，外层固定整帧的初始support。历史.11与BF134.K15a2覆盖单基座/整帧携带，未找到同帧先换台再离开的速度实证。
   - 23:17 runtime Gate 前：原生首50ms已确认新台成为基座，100ms两组离地时分别读到横向100/0cm/s。目标探针编译通过，使用真实Playground同一初始基座与窄台，验证子步floor及最终马达输出。
@@ -4770,9 +4778,10 @@
 
 ### 已确认差异（仅登记，未实施修复）
 
-- [ ] BF144-D313 / P2 — Walking 同帧换台后走离，继承帧初旧台速度。
+- [ ] BF144-D313 / P2 — Walking 子步选中新基座后，离地速度与物理后跟随仍使用旧台。
   - Source：每个 Walking 子步在可走 floor 上调用 SetBaseFromFloor，进入 Falling 时继承最后绑定基座的速度。Target：子步仅返回 floor 是否有效，外层离地时加上整帧开始的 support_velocity。
   - 反例：100ms 内首步从静止旧台切到横向1m/s的新台，第二步走离。两端位置一致，原生 Falling 继承1m/s，目标约0。新台静止时两端均约0。D312覆盖跳键帧的实体选择。证据 `docs/audit/bf144/566/`。
+  - 同根补证：两步后仍Walking，旧台在事务结束后沿横向平移20cm。原生MovementUpdated已绑定新台，角色不受旧台携带。目标末端floor已为新台，post-physics先按旧台携带20cm，随后才更新基座。旧台静止对照横向一致。D36覆盖跳键前的跟随。证据 `docs/audit/bf144/567/`。
 
 - [ ] BF144-D312 / P2 — 起跳帧基座改选时，速度继承从新传感器实体读取。
   - Source：CheckJumpInput先于当帧运动和地面更新，ApplyImpartedMovementBaseVelocity读取已绑定旧基座。Target Air动力用Tnua当帧standing_on_entity覆盖上一帧的基座实体。
