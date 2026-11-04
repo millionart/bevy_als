@@ -4,7 +4,7 @@ use crate::als::{character::{AlsCharacter, AlsCollisionLayerOwnership}, state::{
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
     Collider, ColliderOf, CollisionLayers, CustomPositionIntegration, Physics, PhysicsSchedule,
-    PhysicsSystems, Position, RigidBody, Sensor, ShapeCastConfig, SpatialQueryFilter,
+    PhysicsSystems, Position, RigidBody, Rotation, Sensor, ShapeCastConfig, SpatialQueryFilter,
     SubstepCount, SubstepSchedule,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
@@ -167,6 +167,7 @@ fn integrate_character_position(
     substeps: Res<SubstepCount>,
     spatial: SpatialQuery,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    shapes: Query<(&Collider, &Position, &Rotation)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,
         Option<&SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
@@ -198,7 +199,7 @@ fn integrate_character_position(
         let start = position.0 + body.delta_position;
         if *locomotion == LocomotionState::Air {
             let (applied, velocity, contact, _, _) = crate::als::motion::falling_movement_sweep(&spatial, collider,
-                start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, None, entity, &candidates);
+                start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, None, entity, &candidates, &shapes);
             body.delta_position += applied;
             body.linear_velocity = velocity;
             runtime.airborne_sweep_contact |= contact;

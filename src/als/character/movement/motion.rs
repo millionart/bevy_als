@@ -2704,11 +2704,110 @@ pub fn movement_sweep_travel(distance: f32, hit_distance: f32) -> f32 {
     (hit_distance - pullback).max(0.0)
 }
 
+fn box_impact_normal(normal: Vec3, trace: Vec3, rotation: Quat) -> Vec3 {
+    let inverse = rotation.inverse();
+    let local_normal = inverse * normal;
+    let local_trace = inverse * trace;
+    let mut best_normal = local_normal;
+    let mut best_dot = f32::INFINITY;
+    for axis in [0, 2, 1] {
+        let sign = if local_normal[axis] > 1e-4 { 1.0 }
+            else if local_normal[axis] < -1e-4 { -1.0 } else { continue };
+        let dot = local_trace[axis] * sign;
+        if dot < best_dot {
+            best_dot = dot;
+            best_normal = Vec3::ZERO;
+            best_normal[axis] = sign;
+        }
+    }
+    rotation * best_normal
+}
+
+fn shape_impact_normal(
+    shape: &(dyn avian3d::parry::shape::Shape + 'static), pose: avian3d::parry::math::Pose3,
+    point: Vec3, normal: Vec3, trace: Vec3, sweep_start: Vec3, sweep_rotation: Quat, capsule: &Collider,
+) -> Vec3 {
+    use avian3d::parry::{bounding_volume::Aabb, query::{DefaultQueryDispatcher, PointQuery, ShapeCastOptions},
+        shape::{CompositeShapeRef, Triangle}};
+    if let Some(compound) = shape.as_compound() {
+        if let Ok((direction, distance)) = Dir3::new_and_length(trace) {
+            let query_pose = avian3d::parry::math::Pose3::from_parts(sweep_start, sweep_rotation);
+            let relative = pose.inv_mul(&query_pose);
+            let options = ShapeCastOptions { max_time_of_impact: distance, target_distance: 0.0,
+                stop_at_penetration: false, compute_impact_geometry_on_penetration: true };
+            if let Some((index, _)) = CompositeShapeRef(compound).cast_shape(&DefaultQueryDispatcher, &relative,
+                pose.inverse_transform_vector(*direction), capsule.shape_scaled().as_ref(), options) {
+                let (child_pose, child_shape) = &compound.shapes()[index as usize];
+                return shape_impact_normal(child_shape.as_ref(), pose * *child_pose, point, normal, trace,
+                    sweep_start, sweep_rotation, capsule);
+            }
+        }
+        return normal;
+    }
+    if shape.as_cuboid().is_some() { return box_impact_normal(normal, trace, pose.rotation); }
+    let local_point = pose.inverse_transform_point(point);
+    let local_trace = pose.inverse_transform_vector(trace);
+    if let Some(convex) = shape.as_convex_polyhedron() {
+        let search = 0.01_f32.max(shape.compute_local_aabb().half_extents().abs().max_element() * 2e-4);
+        let mut selected = None;
+        let mut best_dot = f32::INFINITY;
+        for face in convex.faces() {
+            let index = convex.vertices_adj_to_face()[face.first_vertex_or_edge as usize] as usize;
+            let vertex = convex.points()[index];
+            let dot = face.normal.dot(local_trace);
+            if face.normal.dot(local_point - vertex).abs() < search && dot < best_dot {
+                best_dot = dot;
+                selected = Some(face.normal);
+            }
+        }
+        return selected.map_or(normal, |face| pose.transform_vector(face));
+    }
+    if let Some(triangle) = shape.as_triangle() {
+        return triangle.normal().map_or(normal, |face| pose.transform_vector(face));
+    }
+    let search = Vec3::splat(0.01);
+    let bounds = Aabb::new(local_point - search, local_point + search);
+    let mut selected = None;
+    let mut best_dot = f32::INFINITY;
+    let mut consider = |triangle: &Triangle| {
+        let projection = triangle.project_local_point(local_point, false).point;
+        if projection.distance_squared(local_point) < 0.0001 && let Some(face) = triangle.normal() {
+            let dot = face.dot(local_trace);
+            if dot < best_dot { best_dot = dot; selected = Some(face); }
+        }
+    };
+    if let Some(mesh) = shape.as_trimesh() {
+        for index in mesh.bvh().intersect_aabb(&bounds) { consider(&mesh.triangle(index)); }
+    } else if let Some(heightfield) = shape.as_heightfield() {
+        heightfield.map_elements_in_local_aabb(&bounds, &mut |_, triangle| consider(triangle));
+    }
+    selected.map_or(normal, |face| pose.transform_vector(face))
+}
+
+fn landing_hit_qualification(
+    normal: Vec3, impact_normal: Vec3, point: Vec3, hit_location: Vec3, position: Vec3,
+    half: f32, radius: f32, penetrating: bool,
+) -> (bool, bool) {
+    let within_edge = |location: Vec3| {
+        let offset = point - location;
+        let reduced = (radius - EDGE_REJECT_DISTANCE).max(SWEEP_EDGE_MIN_RADIUS);
+        Vec2::new(offset.x, offset.z).length_squared() < reduced * reduced
+    };
+    let direct = if penetrating { normal.y >= 1e-4 } else {
+        impact_normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
+            && point.y < hit_location.y - half + radius && within_edge(hit_location)
+    };
+    let edge = !penetrating && normal.y > 1e-4
+        && (normal - impact_normal).abs().max_element() > 1e-4 && within_edge(position);
+    (direct, edge)
+}
+
 pub(crate) fn falling_movement_sweep(
     spatial: &SpatialQuery, capsule: &Collider, start: Vec3, rotation: Quat,
     movement: Vec3, mut velocity: Vec3, step: f32, air_control: Option<(Vec3, Vec3)>,
     mut landing: Option<(&crate::als::params::CmcAdapterParams, f32, f32, &mut u32)>, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    shapes: &Query<(&Collider, &Position, &Rotation)>,
 ) -> (Vec3, Vec3, bool, Option<(f32, bool)>, Option<LocomotionState>) {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, candidates);
@@ -2784,14 +2883,26 @@ pub(crate) fn falling_movement_sweep(
         }
         let Some(normal) = hit.normal1.try_normalize() else { break };
         if sweep == 0 { first_impact_normal = Some(normal); }
-        contact |= normal.y > 0.0 && remaining.dot(normal) < 0.0;
+        let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
+        let position = start + applied;
+        let qualification = shapes.get(hit.entity).ok().map(|(shape, shape_position, shape_rotation)| {
+            let pose = avian3d::parry::math::Pose3::from_parts(shape_position.0, shape_rotation.0);
+            let sweep_start = position - *direction * travel;
+            let impact_normal = shape_impact_normal(shape.shape_scaled().as_ref(), pose, hit.point1, normal,
+                remaining, sweep_start, rotation, capsule);
+            let hit_location = sweep_start + *direction * hit.distance;
+            let penetrating = hit.distance == 0.0 && (hit.point1 - hit.point2).dot(normal) > 0.0;
+            landing_hit_qualification(normal, impact_normal, hit.point1, hit_location, position,
+                extent.y, extent.x.min(extent.z), penetrating)
+        });
+        let direct_landing = qualification.map_or(normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos(), |(direct, _)| direct);
+        let candidate_contact = qualification.map_or(normal.y > 0.0, |(direct, edge)| direct || edge);
+        contact |= candidate_contact && remaining.dot(normal) < 0.0;
         let previous_time = remaining_time;
         if !sidestepped { remaining_time *= 1.0 - travel / distance; }
-        if normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
+        if direct_landing
             && remaining.dot(normal) < 0.0
             && let Some((cmc, ..)) = landing.as_ref() {
-            let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
-            let position = start + applied;
             if find_ground_floor(spatial, position, extent.y, extent.x.min(extent.z), cmc,
                 LocomotionState::Air, &filter, entity, candidates)
                 .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
@@ -2838,6 +2949,7 @@ fn falling_movement_transaction(
     step_permissions: &Query<&AlsMantleTargetPermission>,
     bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
     owners: &Query<&ColliderOf>,
+    shapes: &Query<(&Collider, &Position, &Rotation)>,
     transitions: &mut MessageWriter<StateTransitionEvent>,
 ) -> (Transform, Vec3, u32, bool, LocomotionState, Option<Entity>, f32, Option<LocomotionState>) {
     let mut acceleration = air_acceleration_for_horizontal_speed(params, velocity.with_y(0.0).length())
@@ -2864,7 +2976,7 @@ fn falling_movement_transaction(
         let requested = (old_velocity + velocity) * (0.5 * step);
         let (applied, deflected, hit, landing_remaining, step_collision_mode) = falling_movement_sweep(spatial, capsule, transform.translation,
             transform.rotation, requested, velocity, step, air_control,
-            Some((&params.cmc, params.jump.jump_z_velocity, max_speed, &mut *random_seed)), entity, candidates);
+            Some((&params.cmc, params.jump.jump_z_velocity, max_speed, &mut *random_seed)), entity, candidates, shapes);
         collision_mode = step_collision_mode;
         transform.translation += applied;
         contact |= hit;
@@ -3849,6 +3961,7 @@ pub(crate) fn cmc_movement_transaction_system(
         Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
         Query<&ColliderOf>,
         Query<&mut crate::als::dynamics::AlsMovementBase, With<AlsCharacter>>,
+        Query<(&Collider, &Position, &Rotation)>,
     ),
     mut q: Query<
         (
@@ -3873,7 +3986,7 @@ pub(crate) fn cmc_movement_transaction_system(
         With<AlsCharacter>,
     >,
 ) {
-    let (bases, owners, mut movement_bases) = base_queries;
+    let (bases, owners, mut movement_bases, shapes) = base_queries;
     for (entity, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, mut loco, controller, handle, stance, parent, (rotation_mode, view_yaw, max_allowed_gait, dynamics, braking, mut base)) in &mut q {
         let Some(params) = params_assets.get(handle.id()) else { continue };
         let Ok(world) = transforms.p0().compute_global_transform(entity) else { continue };
@@ -3910,7 +4023,7 @@ pub(crate) fn cmc_movement_transaction_system(
                 initial_transform, initial, controller.basis.desired_motion, max_speed, params,
                 gravity.value + motor.lin.acceleration, grounded, landing, volume.unwrap_or(&default_volume.0).terminal_velocity,
                 delta_seconds, 0, entity, &mut runtime.random_seed, &candidates, &step_permissions,
-                &bases, &owners, &mut transitions);
+                &bases, &owners, &shapes, &mut transitions);
             runtime.grounded_max_speed = grounded_max_speed;
             runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
             if *loco != mode { *loco = mode; }
@@ -3988,7 +4101,7 @@ pub(crate) fn cmc_movement_transaction_system(
                 let (moved, falling_velocity, _, contact, mode, landing_base, grounded_max_speed, collision_mode) = falling_movement_transaction(&spatial_query,
                     capsule, current_transform, final_velocity, controller.basis.desired_motion, max_speed,
                     params, gravity.value, grounded, landing, terminal, remaining_time, iterations, entity,
-                    &mut runtime.random_seed, &candidates, &step_permissions, &bases, &owners, &mut transitions);
+                    &mut runtime.random_seed, &candidates, &step_permissions, &bases, &owners, &shapes, &mut transitions);
                 runtime.grounded_max_speed = grounded_max_speed;
                 runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
                 floor = landing_base;
@@ -4529,6 +4642,78 @@ mod tests {
     use super::*;
 
     #[test]
+    fn box_impact_and_edge_qualification_follow_source_face_rules() {
+        let rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4);
+        let normal = Vec3::new(-0.6260943, 0.4647709, -0.6260943);
+        let impact = box_impact_normal(normal, Vec3::new(0.24, -0.007, 0.0), rotation);
+        assert!(impact.distance(rotation * Vec3::NEG_X) < 1e-6);
+        let point = Vec3::new(0.1, -0.5, 0.0);
+        assert_eq!(landing_hit_qualification(normal, impact, point, Vec3::ZERO, Vec3::ZERO, 0.9, 0.3, false), (false, true));
+        assert_eq!(landing_hit_qualification(normal, impact, Vec3::new(0.299, -0.5, 0.0),
+            Vec3::ZERO, Vec3::ZERO, 0.9, 0.3, false), (false, false));
+        let shallow = Vec3::new(-1.0, 0.000052, 0.0).normalize();
+        assert_eq!(landing_hit_qualification(shallow, shallow, point, Vec3::ZERO, Vec3::ZERO, 0.9, 0.3, false), (false, false));
+        assert_eq!(landing_hit_qualification(Vec3::Y, Vec3::Y, Vec3::NEG_Y * 0.9,
+            Vec3::ZERO, Vec3::ZERO, 0.9, 0.3, false), (true, false));
+    }
+
+    #[test]
+    fn impact_face_selection_covers_convex_mesh_heightfield_and_compound() {
+        let points: Vec<_> = [-0.5, 0.5].into_iter().flat_map(|x| {
+            [-0.5, 0.5].into_iter().flat_map(move |y| [-0.5, 0.5].map(move |z| Vec3::new(x, y, z)))
+        }).collect();
+        let convex = Collider::convex_hull(points).unwrap();
+        let mesh = Collider::trimesh(vec![
+            Vec3::new(-0.5, -0.5, -0.5), Vec3::new(-0.5, -0.5, 0.5),
+            Vec3::new(-0.5, 0.5, 0.5), Vec3::new(-0.5, 0.5, -0.5), Vec3::new(0.5, 0.5, 0.5),
+        ], vec![[0, 1, 2], [0, 2, 3], [3, 2, 4]]);
+        let compound = Collider::compound(vec![(Vec3::ZERO, Quat::IDENTITY, Collider::cuboid(1.0, 1.0, 1.0))]);
+        let capsule = als_character_capsule(0.9, 0.3);
+        let normal = Vec3::new(-1.0, 1.0, 0.0).normalize();
+        for shape in [&convex, &mesh, &compound] {
+            let impact = shape_impact_normal(shape.shape_scaled().as_ref(), avian3d::parry::math::Pose3::IDENTITY,
+                Vec3::new(-0.5, 0.5, 0.0), normal, Vec3::new(2.0, -0.4, 0.0),
+                Vec3::new(-2.0, 1.0, 0.0), Quat::IDENTITY, &capsule);
+            assert!(impact.distance(Vec3::NEG_X) < 1e-5, "shape={shape:?} impact={impact:?}");
+        }
+        let heightfield = Collider::heightfield(vec![vec![0.0, 0.0], vec![0.0, 0.0]], Vec3::splat(2.0));
+        let impact = shape_impact_normal(heightfield.shape_scaled().as_ref(), avian3d::parry::math::Pose3::IDENTITY,
+            Vec3::ZERO, Vec3::new(0.2, 0.98, 0.0).normalize(), Vec3::NEG_Y,
+            Vec3::Y * 2.0, Quat::IDENTITY, &capsule);
+        assert!(impact.distance(Vec3::Y) < 1e-5, "heightfield impact={impact:?}");
+        let sphere = Collider::sphere(0.5);
+        assert_eq!(shape_impact_normal(sphere.shape_scaled().as_ref(), avian3d::parry::math::Pose3::IDENTITY,
+            Vec3::NEG_X * 0.5, normal, Vec3::X, Vec3::NEG_X * 2.0, Quat::IDENTITY, &capsule), normal);
+    }
+
+    #[test]
+    fn falling_wall_contact_requires_the_source_edge_qualification() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (top, pitch, expected) in [(2.16, 0.0_f32, true), (2.29, 0.0, false),
+            (5.0, -0.003, false), (5.0, -0.03, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            let bottom = 1.0;
+            let rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4) * Quat::from_rotation_z(pitch.to_radians());
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, top - bottom, 2.0),
+                Transform::from_xyz(-13.38, (top + bottom) * 0.5, -15.0).with_rotation(rotation)));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let contact = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                shapes: Query<(&Collider, &Position, &Rotation)>| {
+                falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.7582617, 2.9012036, -15.0849314), Quat::IDENTITY,
+                    Vec3::new(0.24020796, -0.00735, 0.0), Vec3::new(6.230996, -0.379746, 0.0),
+                    0.03871007, None, None, actor, &candidates, &shapes).2
+            }).unwrap();
+            assert_eq!(contact, expected, "top={top} pitch={pitch}");
+        }
+    }
+
+    #[test]
     fn line_floor_keeps_the_wide_hit_and_does_not_publish_a_wall_landing() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy_tnua::{TnuaBasis, TnuaBasisContext, TnuaProximitySensor, TnuaRigidBodyTracker};
@@ -4944,14 +5129,14 @@ mod tests {
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
-                owners: Query<&ColliderOf>, mut transitions: MessageWriter<StateTransitionEvent>| {
+                owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>, mut transitions: MessageWriter<StateTransitionEvent>| {
                 let mut seed = 123;
                 falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Transform::from_xyz(-13.0, 4.0, -15.0), Vec3::new(4.0, -2.0, 2.0), desired,
                     6.5, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
                     (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                     (0.0, false, false), 40.0, 0.05, 0, actor, &mut seed,
-                    &candidates, &permissions, &bases, &owners, &mut transitions)
+                    &candidates, &permissions, &bases, &owners, &shapes, &mut transitions)
             }).unwrap();
             assert_eq!(result.4, LocomotionState::Air);
             assert!(result.1.distance(expected) < 0.002, "input={desired:?} actual={:?} expected={expected:?}", result.1);
@@ -4987,7 +5172,8 @@ mod tests {
             app.update();
             app.update();
             let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
-                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                shapes: Query<(&Collider, &Position, &Rotation)>| {
                 let cmc = crate::als::params::CmcAdapterParams::default();
                 let mut seed = 123;
                 let old_y = if slope_case { 0.0 } else { -1.0 };
@@ -4995,7 +5181,7 @@ mod tests {
                 let velocity = Vec3::new(4.0, old_y - 9.81 * step, 4.0);
                 let movement = Vec3::new(0.2, (old_y + velocity.y) * 0.5 * step, 0.2);
                 falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3), start, Quat::IDENTITY,
-                    movement, velocity, step, None, Some((&cmc, 4.2, 3.75, &mut seed)), actor, &candidates)
+                    movement, velocity, step, None, Some((&cmc, 4.2, 3.75, &mut seed)), actor, &candidates, &shapes)
             }).unwrap();
             match case {
                 "floor-stuck" => {
@@ -5055,14 +5241,14 @@ mod tests {
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
-                owners: Query<&ColliderOf>, mut transitions: MessageWriter<StateTransitionEvent>| {
+                owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>, mut transitions: MessageWriter<StateTransitionEvent>| {
                 let mut seed = 123;
                 falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Transform::from_xyz(0.0, 4.0, 0.0), Vec3::new(4.0, -2.0, 2.0), Vec3::ZERO,
                     7.0, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
                     (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                     (0.0, false, false), 40.0, 0.1, 0, actor, &mut seed,
-                    &candidates, &permissions, &bases, &owners, &mut transitions)
+                    &candidates, &permissions, &bases, &owners, &shapes, &mut transitions)
             }).unwrap();
             assert_eq!(result.4, LocomotionState::Grounded, "floor={floor_top}");
             let expected_cap = if third_impact { 7.0 } else { 3.75 };
@@ -5263,13 +5449,14 @@ mod tests {
             app.update();
             app.update();
             let (result, seed) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
-                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                shapes: Query<(&Collider, &Position, &Rotation)>| {
                 let cmc = crate::als::params::CmcAdapterParams { perch_radius_threshold: perch, ..default() };
                 let mut seed = 123_u32;
                 let result = falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(0.0, 4.0, 0.0), Quat::IDENTITY, Vec3::new(-0.025, -0.1122625, 0.001),
                     Vec3::new(-0.5, -2.4905, 0.02), 0.05, None, Some((&cmc, jump_z, 3.75, &mut seed)),
-                    actor, &candidates);
+                    actor, &candidates, &shapes);
                 (result, seed)
             }).unwrap();
             assert_eq!(seed, if expected_y.is_some() { 1238442549 } else { 123 }, "gap={gap:?} perch={perch}");

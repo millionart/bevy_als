@@ -5031,12 +5031,16 @@
   - BF144.527 发布阶段边界。合格20.5cm墙顶源49已Walking，目标因后置地面间隙2.556cm保持Air至50、51才Grounded。仅在物理后下移3mm至2.213cm便在49发布；19cm墙顶反向上移4.5mm从2.072到2.532cm使49保Air，真实Falling事务、墙contact和墙顶对象均保持。证据 docs/audit/bf144/527/summary.json。
   - UE PhysFalling通过边缘回查的非line floor后，ProcessLanded以未消费步长继续StartNewPhysics，实际同帧进入Walking。目标falling_movement_sweep只在自身命中法线可走时返回余时，边缘命中走Falling slide；PostUpdate只发布Grounded并清速度，没有继续同帧Walking。
   - 16cm墙顶的第49帧，源首墙Normal.z=0.46410、ImpactNormal.z=0，pullback后在边缘容差内，独立capsule floor为墙顶。源剩30.85582ms，第二次纯水平Walking sweep前进20.05628cm，接着执行StepUp；角色帧末中心映射约3.05136m。目标同帧Grounded但只执行Falling滑动，发布前后位置相同，帧末中心约2.89970m。资格放宽和余时交接是可分别观察的机制；D291记录无资格碰撞导致的提前发布。证据 docs/audit/bf144/526/summary.json。
+  - 修复第1轮：开始2026-11-05 03:53 +08:00；预估结束04:48 +08:00。依据：526–532已有命中点、地面结果和余时证据；有效边缘回查依赖D291先区分接触与几何法线及边缘资格，先处理D291，测试统一后置。
 
-- [ ] BF144-D291 / P2 — Falling 微倾墙面的正法线可绕过源落地回查资格，提前落地。
+- [x] BF144-D291 / P2 — Falling 微倾墙面的正法线可绕过源落地回查资格，提前落地。
   - BF144.526 容差外边缘。源实际Normal/ImpactNormal不同且可查到非line低台，但pullback后边缘容差失败，49/50仍Falling，51才Walking；目标49已Grounded。证据 docs/audit/bf144/526/summary.json。
   - BF144.525 同根因覆盖阈值之上的平面。实际UE Hit竖直约0.000523599，Normal与ImpactNormal按Equals相等，命中点亦不在边缘容差内；独立查询已找到低台的胶囊floor，源仍在下一帧实际触地才落地。目标提早一帧，只清墙contact恢复。证据 docs/audit/bf144/525/summary.json。
   - UE PhysFalling的直接落地检查ImpactNormal，边缘回查要求胶囊Normal竖直大于0.0001且与ImpactNormal不等。目标任意受阻正竖直法线均可置墙contact；后置状态同步把它与独立地面查询组合即发布Grounded。
   - 45°偏航、−0.003°俯仰的墙使实际Chaos与Bevy法线竖直都约+0.00005236。第49帧只撞墙，脚底仍离台约1.35cm，无求解器接触或Tnua地面位移，目标已落地并清竖直速度。反向微倾及只清contact均保Air，真实第50帧落地；源两案均第50帧落地。几何正号无需D290数值偏差。证据 docs/audit/bf144/524/summary.json。
+
+  - 修复第1轮：开始2026-11-05 03:53 +08:00；预估结束04:48 +08:00。依据：524–526已有阈值、平面相等和内外边缘反例；需核UE碰撞几何法线与目标形体/姿态、当帧资格及落地消费者，作为D292前置，测试统一后置。
+  - 04:14实现摘要：fresh核UE碰撞转换、盒体/凸包/网格/地形面选择、直接落地及边缘容差，证据 `docs/audit/bf144/d291/source-facts.json`。目标按实际碰撞形体和姿态取得几何面法线，与胶囊接触法线分开检查阈值、相等性、半球和边缘；复合体重用目标实际子形体扫掠身份，光滑形体沿用源默认法线。已写524–526墙面及形体对照，尚未执行。实现结束04:14、偏差−34分钟；测试、消融与真实入口 Gate 待整体实现完成，不视为已验证。D292恢复。
 
 - [ ] BF144-D290 / P3 — 斜置静态墙的胶囊 sweep 法线偏离平面，改变 Falling 滑动速度。
   - BF144.523 实际模式消费者。同墙下加低台，第49帧无地面命中、脚底仍离台1.35cm，目标因墙contact提前发布Grounded、清−0.37962574m/s竖直速度并给Root写Grounded标签。仅清contact则同帧保Air、第50帧实际着陆，符合原生时序。几何法线本身为正时的独立资格差异由D291记录。证据 docs/audit/bf144/523/summary.json。
