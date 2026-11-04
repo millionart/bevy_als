@@ -1,0 +1,58 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "bytes": 545515,
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 7632,
+        "end": 7656,
+        "text": "\t\t// Undo movement\n\t\tScopedStepUpMovement.RevertMove();\n\t\treturn false;\n\t}\n\n\t// step fwd\n\tFHitResult Hit(1.f);\n\tMoveUpdatedComponent( Delta, PawnRotation, true, &Hit);\n\n\t// Check result of forward movement\n\tif (Hit.bBlockingHit)\n\t{\n\t\tif (Hit.bStartPenetrating)\n\t\t{\n\t\t\t// Undo movement\n\t\t\tScopedStepUpMovement.RevertMove();\n\t\t\treturn false;\n\t\t}\n\n\t\t// If we hit something above us and also something ahead of us, we should notify about the upward hit as well.\n\t\t// The forward hit will be handled later (in the bSteppedOver case below).\n\t\t// In the case of hitting something above but not forward, we are not blocked from moving so we don't need the notification.\n\t\tif (SweepUpHit.bBlockingHit && Hit.bBlockingHit)\n\t\t{\n\t\t\tHandleImpact(SweepUpHit);\n"
+      },
+      {
+        "start": 7683,
+        "end": 7697,
+        "text": "\t\n\t// Step down\n\tMoveUpdatedComponent(GravDir * StepTravelDownHeight, UpdatedComponent->GetComponentQuat(), true, &Hit);\n\n\t// If step down was initially penetrating abort the step up\n\tif (Hit.bStartPenetrating)\n\t{\n\t\tScopedStepUpMovement.RevertMove();\n\t\treturn false;\n\t}\n\n\tFStepDownResult StepDownResult;\n\tif (Hit.IsValidBlockingHit())\n\t{\t\n\t\t// See if this step sequence would have allowed us to travel higher than our max step height allows.\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "bytes": 378291,
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 3560,
+        "end": 3597,
+        "text": "            let tail = remaining_delta - advance;\n            let slide = tail - normal * tail.dot(normal);\n            let mut progressed = advance;\n            if slide.dot(remaining_delta) > 0.0 && let Ok((slide_direction, slide_distance)) = Dir3::new_and_length(slide) {\n                let slide_config = ShapeCastConfig { max_distance: slide_distance, ..forward_config };\n                let slide_hit = spatial_query.cast_shape_predicate(capsule, raised + advance, Quat::IDENTITY,\n                    slide_direction, &slide_config, &filter, &accepts);\n                if slide_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { return Some(result); }\n                progressed += *slide_direction * slide_hit.map_or(slide_distance,\n                    |hit| movement_sweep_travel(slide_distance, hit.distance));\n            }\n            if progressed.length_squared() <= f32::EPSILON { return Some(result); }\n            remaining_delta = progressed;\n        }\n    }\n    let destination = raised + remaining_delta;\n    let Some(floor) = floor_sweep_hit(&spatial_query, capsule, radius, destination,\n        MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE * 2.0, &filter, &accepts)\n        .filter(|hit| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) else {\n        return Some(result);\n    };\n    if floor.distance == 0.0 && (floor.point1 - floor.point2).dot(floor.normal1) > 0.0 { return Some(result); }\n    let next_y = destination.y - floor.distance + clearance;\n    if initial_floor_y.is_some_and(|initial| floor.point1.y > initial) && !can_step_up(floor.entity) {\n        return Some(result);\n    }\n    if initial_floor_y.is_some() && find_ground_floor(&spatial_query, destination.with_y(next_y), half, radius,\n        cmc, mode, &filter, entity, &candidates).is_none() { return Some(result); }\n    if (next_y - center.y).abs() > MAX_STEP_HEIGHT\n        || initial_floor_y.is_some_and(|initial| floor.point1.y - initial > MAX_STEP_HEIGHT) {\n        return Some(result);\n    }\n    if initial_floor_y.is_some() && spatial_query.shape_intersections(capsule, destination.with_y(next_y),\n        rotation, &filter).into_iter().any(accepts) { return Some(result); }\n    if result.1.is_some() { result.1 = Some(remaining_delta); }\n    result.2 = Some(next_y);\n    Some(result)\n}\n"
+      },
+      {
+        "start": 3814,
+        "end": 3831,
+        "text": "        }\n        let center = position.0;\n        let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query, capsule,\n            center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };\n        runtime.grounded_move_start = Some(center);\n        let world_position = next_y.filter(|height| *height > center.y).map_or(advanced, |height| advanced.with_y(height));\n        transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n        commands.entity(entity).insert(Position(world_position));\n        let remaining_velocity = remaining.unwrap_or(delta) / time.delta_secs();\n        motor.lin.boost.x = remaining_velocity.x - velocity.x;\n        motor.lin.boost.z = remaining_velocity.z - velocity.z;\n        motor.lin.acceleration.x = 0.0;\n        motor.lin.acceleration.z = 0.0;\n        if next_y.is_none() { continue; }\n        motor.lin.boost.y = -velocity.y;\n        motor.lin.acceleration.y = -gravity.value.y;\n        *margin = SpeculativeMargin::ZERO;\n    }\n"
+      }
+    ]
+  },
+  {
+    "key": "dependency:avian3d-0.7.0/src/dynamics/solver/schedule.rs",
+    "bytes": 8700,
+    "sha256": "2aa9434ade75c9e07806cb5e4747afe966934f2af3bb6b56818c010d9c3e09a4",
+    "excerpts": [
+      {
+        "start": 39,
+        "end": 53,
+        "text": "                SolverSystems::PostSubstep,\n                SolverSystems::Restitution,\n                SolverSystems::Finalize,\n                SolverSystems::StoreContactImpulses,\n            )\n                .chain()\n                .in_set(PhysicsStepSystems::Solver),\n        );\n\n        // Run the substepping loop.\n        physics.add_systems(run_substep_schedule.in_set(SolverSystems::Substep));\n\n        // Set up the substep schedule, the schedule that runs systems in the inner substepping loop.\n        app.edit_schedule(SubstepSchedule, |schedule| {\n            schedule\n"
+      },
+      {
+        "start": 62,
+        "end": 75,
+        "text": "                        SubstepSolverSystems::WarmStart,\n                        SubstepSolverSystems::SolveConstraints,\n                        IntegrationSystems::Position,\n                        SubstepSolverSystems::Relax,\n                        SubstepSolverSystems::Damping,\n                    )\n                        .chain(),\n                );\n        });\n    }\n}\n\n/// The substepping schedule that runs in [`SolverSystems::Substep`].\n/// The number of substeps per physics step is configured through the [`SubstepCount`] resource.\n"
+      },
+      {
+        "start": 125,
+        "end": 145,
+        "text": "/// # Steps\n///\n/// 1. Integrate velocity ([`IntegrationSystems::Velocity`])\n/// 2. Warm start ([`SubstepSolverSystems::WarmStart`])\n/// 3. Solve constraints with bias ([`SubstepSolverSystems::SolveConstraints`])\n/// 4. Integrate positions ([`IntegrationSystems::Position`])\n/// 5. Solve constraints without bias to relax velocities ([`SubstepSolverSystems::Relax`])\n/// 6. Apply velocity-based constraint damping ([`SubstepSolverSystems::Damping`])\n#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]\npub enum SubstepSolverSystems {\n    /// Warm starts the solver by applying the impulses from the previous frame or substep.\n    ///\n    /// This significantly improves convergence, but by itself can lead to overshooting.\n    /// Overshooting is reduced by [relaxing](SubstepSolverSystems::Relax) the biased velocities\n    /// by running the solver a second time *without* bias.\n    WarmStart,\n    /// Solves velocity constraints using a position bias that boosts the response\n    /// to account for the constraint error.\n    SolveConstraints,\n    /// Solves velocity constraints without a position bias to relax the biased velocities\n    /// and impulses. This reduces overshooting caused by [warm starting](SubstepSolverSystems::WarmStart).\n"
+      }
+    ]
+  }
+]
