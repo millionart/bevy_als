@@ -1,0 +1,75 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "bytes": 545515,
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 5047,
+        "end": 5083,
+        "text": "\t\t}\n\t\telse if ( Hit.bBlockingHit )\n\t\t{\n\t\t\tif (IsValidLandingSpot(UpdatedComponent->GetComponentLocation(), Hit))\n\t\t\t{\n\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\tProcessLanded(Hit, remainingTime, Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\t// Compute impact deflection based on final velocity, not integration step.\n\t\t\t\t// This allows us to compute a new velocity from the deflected vector, and ensures the full gravity effect is included in the slide result.\n\t\t\t\tAdjusted = Velocity * timeTick;\n\n\t\t\t\t// See if we can convert a normally invalid landing spot (based on the hit result) to a usable one.\n\t\t\t\tif (!Hit.bStartPenetrating && ShouldCheckForValidLandingSpot(timeTick, Adjusted, Hit))\n\t\t\t\t{\n\t\t\t\t\tconst FVector PawnLocation = UpdatedComponent->GetComponentLocation();\n\t\t\t\t\tFFindFloorResult FloorResult;\n\t\t\t\t\tFindFloor(PawnLocation, FloorResult, false);\n\n\t\t\t\t\t// Note that we only care about capsule sweep floor results, since the line trace may detect a lower walkable surface that our falling capsule wouldn't actually reach yet.\n\t\t\t\t\tif (!FloorResult.bLineTrace && FloorResult.IsWalkableFloor() && IsValidLandingSpot(PawnLocation, FloorResult.HitResult))\n\t\t\t\t\t{\n\t\t\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\t\t\tProcessLanded(FloorResult.HitResult, remainingTime, Iterations);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tHandleImpact(Hit, LastMoveTimeSlice, Adjusted);\n\t\t\t\t\n\t\t\t\t// If we've changed physics mode, abort.\n\t\t\t\tif (!HasValidData() || !IsFalling())\n\t\t\t\t{\n\t\t\t\t\treturn;\n"
+      },
+      {
+        "start": 6983,
+        "end": 7016,
+        "text": "bool UCharacterMovementComponent::IsWalkable(const FHitResult& Hit) const\n{\n\tif (!Hit.IsValidBlockingHit())\n\t{\n\t\t// No hit, or starting in penetration\n\t\treturn false;\n\t}\n\n\t// Never walk up vertical surfaces.\n\tconst FVector::FReal ImpactNormalZ = GetGravitySpaceZ(Hit.ImpactNormal);\n\tif (ImpactNormalZ < UE_KINDA_SMALL_NUMBER)\n\t{\n\t\treturn false;\n\t}\n\n\tfloat TestWalkableZ = WalkableFloorZ;\n\n\t// See if this component overrides the walkable floor z.\n\tconst UPrimitiveComponent* HitComponent = Hit.Component.Get();\n\tif (HitComponent)\n\t{\n\t\tconst FWalkableSlopeOverride& SlopeOverride = HitComponent->GetWalkableSlopeOverride();\n\t\tTestWalkableZ = SlopeOverride.ModifyWalkableFloorZ(TestWalkableZ);\n\t}\n\telse\n\t{\n\t\tFMovementBaseInterfaceData MovementBaseData = MovementBaseUtility::GetMovementBaseDataFromHitResult(&Hit);\n\t\tif (MovementBaseData.IsValid())\n\t\t{\n\t\t\tconst FWalkableSlopeOverride& SlopeOverride = MovementBaseData.GetBodyInstanceOwner()->GetWalkableSlopeOverride();\n\t\t\tTestWalkableZ = SlopeOverride.ModifyWalkableFloorZ(TestWalkableZ);\n\t\t}\n\t}\n\n"
+      },
+      {
+        "start": 7374,
+        "end": 7442,
+        "text": "bool UCharacterMovementComponent::IsValidLandingSpot(const FVector& CapsuleLocation, const FHitResult& Hit) const\n{\n\tif (!Hit.bBlockingHit)\n\t{\n\t\treturn false;\n\t}\n\n\t// Skip some checks if penetrating. Penetration will be handled by the FindFloor call (using a smaller capsule)\n\tif (!Hit.bStartPenetrating)\n\t{\n\t\t// Reject unwalkable floor normals.\n\t\tif (!IsWalkable(Hit))\n\t\t{\n\t\t\treturn false;\n\t\t}\n\n\t\tfloat PawnRadius, PawnHalfHeight;\n\t\tCharacterOwner->GetCapsuleComponent()->GetScaledCapsuleSize(PawnRadius, PawnHalfHeight);\n\n\t\t// Reject hits that are above our lower hemisphere (can happen when sliding down a vertical surface).\n\t\tconst FVector::FReal LowerHemisphereZ = GetGravitySpaceZ(Hit.Location) - PawnHalfHeight + PawnRadius;\n\t\tif (GetGravitySpaceZ(Hit.ImpactPoint) >= LowerHemisphereZ)\n\t\t{\n\t\t\treturn false;\n\t\t}\n\n\t\t// Reject hits that are barely on the cusp of the radius of the capsule\n\t\tif (!IsWithinEdgeTolerance(Hit.Location, Hit.ImpactPoint, PawnRadius))\n\t\t{\n\t\t\treturn false;\n\t\t}\n\t}\n\telse\n\t{\n\t\t// Penetrating\n\t\tif (GetGravitySpaceZ(Hit.Normal) < UE_KINDA_SMALL_NUMBER)\n\t\t{\n\t\t\t// Normal is nearly horizontal or downward, that's a penetration adjustment next to a vertical or overhanging wall. Don't pop to the floor.\n\t\t\treturn false;\n\t\t}\n\t}\n\n\tFFindFloorResult FloorResult;\n\tFindFloor(CapsuleLocation, FloorResult, false, &Hit);\n\n\tif (!FloorResult.IsWalkableFloor())\n\t{\n\t\treturn false;\n\t}\n\n\treturn true;\n}\n\n\nbool UCharacterMovementComponent::ShouldCheckForValidLandingSpot(float DeltaTime, const FVector& Delta, const FHitResult& Hit) const\n{\n\t// See if we hit an edge of a surface on the lower portion of the capsule.\n\t// In this case the normal will not equal the impact normal, and a downward sweep may find a walkable surface on top of the edge.\n\tif (GetGravitySpaceZ(Hit.Normal) > UE_KINDA_SMALL_NUMBER && !Hit.Normal.Equals(Hit.ImpactNormal))\n\t{\n\t\tconst FVector PawnLocation = UpdatedComponent->GetComponentLocation();\n\t\tif (IsWithinEdgeTolerance(PawnLocation, Hit.ImpactPoint, CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius()))\n\t\t{\t\t\t\t\t\t\n\t\t\treturn true;\n\t\t}\n\t}\n\n\treturn false;\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+    "bytes": 112571,
+    "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+    "excerpts": [
+      {
+        "start": 128,
+        "end": 132,
+        "text": "\n#define UE_PI \t\t\t\t\t(3.1415926535897932f)\t/* Extra digits if needed: 3.1415926535897932384626433832795f */\n#define UE_SMALL_NUMBER\t\t\t(1.e-8f)\n#define UE_KINDA_SMALL_NUMBER\t(1.e-4f)\n#define UE_BIG_NUMBER\t\t\t(3.4e+38f)\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "bytes": 378291,
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 2723,
+        "end": 2747,
+        "text": "        let Some(hit) = spatial.cast_shape_predicate(capsule, start + applied, rotation,\n            direction, &config, &filter, &accepts) else { applied += remaining; break };\n        let travel = movement_sweep_travel(distance, hit.distance);\n        applied += *direction * travel;\n        let Some(normal) = hit.normal1.try_normalize() else { break };\n        contact |= normal.y > 0.0 && remaining.dot(normal) < 0.0;\n        remaining_time *= 1.0 - travel / distance;\n        if normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()\n            && remaining.dot(normal) < 0.0\n            && let Some(cmc) = landing_cmc {\n            let extent = capsule.shape_scaled().compute_local_aabb().half_extents();\n            let position = start + applied;\n            if find_ground_floor(spatial, position, extent.y, extent.x.min(extent.z), cmc,\n                LocomotionState::Air, &filter, entity, candidates)\n                .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE\n                    && impact < position.y - extent.y + extent.x.min(extent.z)) {\n                return (applied, velocity, contact, Some(remaining_time));\n            }\n        }\n        let budget = velocity * remaining_time;\n        let slide = crate::extensions::motion::falling_slide(budget, normal, previous_normal);\n        previous_normal = Some(normal);\n        if remaining_time > f32::EPSILON { velocity = slide / remaining_time; }\n        if slide.dot(budget) <= 0.0 { break; }\n        remaining = slide;\n"
+      },
+      {
+        "start": 2923,
+        "end": 2934,
+        "text": "    let walkable_y = deg_to_rad(MAX_SLOPE_DEGREES).cos();\n    for (entity, position, rotation, collider, locomotion, entities) in &characters {\n        let Some(sensor_entity) = entities.ground else { continue; };\n        let Ok(mut sensor) = sensors.get_mut(sensor_entity) else { continue; };\n        if *locomotion == LocomotionState::Air {\n            sensor.output = None;\n            continue;\n        }\n        if *locomotion != LocomotionState::Grounded { continue; }\n        let origin = position.0 + rotation.0 * (collider.scale() * sensor.cast_origin);\n        let direction = sensor.cast_direction;\n        let range = sensor.cast_range;\n"
+      },
+      {
+        "start": 3979,
+        "end": 4008,
+        "text": "    for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, parent, mut runtime) in &mut q {\n        let sweep_contact = std::mem::take(&mut runtime.airborne_sweep_contact);\n        let has_animation_root_velocity = std::mem::take(&mut runtime.has_animation_root_velocity);\n        if let Some(mut source_velocity) = runtime.grounded_collision_velocity.take() {\n            if *current == LocomotionState::Air && has_animation_root_velocity {\n                source_velocity.y = velocity.y;\n            }\n            velocity.0 = source_velocity;\n        }\n        if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit\n            || action == Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling) {\n            continue;\n        }\n        let Ok(basis) = controller.basis_access() else {\n            continue;\n        };\n        let jumping = controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);\n        let Ok(world) = transforms.compute_global_transform(entity) else { continue };\n        let scale = world.to_scale_rotation_translation().0;\n        let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue };\n        let floor_result = params_assets.get(handle.id()).and_then(|params| {\n            let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }\n                else { params.crouch.standing_capsule_half_height } * scale.y;\n            let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);\n            find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc, *current,\n                &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates)\n        });\n        let validated_floor = floor_result.map(|(floor, _)| floor);\n        let floor_penetration = floor_result.and_then(|(_, penetration)| penetration);\n        let mut floor_supported = false;\n"
+      },
+      {
+        "start": 4070,
+        "end": 4124,
+        "text": "                }\n            }\n        }\n        let airborne = TnuaBuiltinWalk::displacement(&basis).is_none()\n            || jumping || validated_floor.is_none();\n        let landed_on_contact = airborne && validated_floor.is_some() && collisions.collisions_with(entity)\n            .any(|contact| resolved_walkable_contact(contact, entity));\n        let capsule_contact = airborne && !landed_on_contact && !floor_supported\n            && collisions.collisions_with(entity).any(|contact| {\n                contact.flags.contains(ContactPairFlags::GENERATE_CONSTRAINTS)\n                    && contact.manifolds.iter().any(|manifold| {\n                        let normal = if contact.collider1 == entity { -manifold.normal } else { manifold.normal };\n                        normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)\n                    })\n            });\n        let landed_on_capsule = airborne && !landed_on_contact && !floor_supported\n            && (capsule_contact || sweep_contact)\n            && params_assets.get(handle.id()).is_some_and(|params| {\n                let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * scale.y;\n                let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);\n                validated_floor.is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE\n                        && impact < position.y - half + radius)\n            });\n        let target = if airborne && !landed_on_contact && !floor_supported && !landed_on_capsule {\n            LocomotionState::Air\n        } else {\n            LocomotionState::Grounded\n        };\n        if *current != target && request.locomotion_state.is_none() {\n            info!(\n                \"[MOTION] entity={entity:?} locomotion sync {:?} -> {:?}\",\n                current, target\n            );\n            transitions.write(StateTransitionEvent {\n                entity,\n                dimension: Dimension::LocomotionState,\n                from: StateValue::LocomotionState(*current),\n                to: StateValue::LocomotionState(target),\n            });\n            let ragdoll_on_land = *current == LocomotionState::Air && target == LocomotionState::Grounded\n                && crate::get_up::RAGDOLL_SETTINGS.start_on_land\n                && motion.get(entity).is_ok_and(|state| state.world_velocity.y\n                    <= -crate::get_up::RAGDOLL_SETTINGS.on_land_speed_threshold_mps);\n            let ragdoll_on_air_roll = target == LocomotionState::Air\n                && action == Some(&crate::als::state::AlsNotifyLocomotionAction::Rolling)\n                && params_assets.get(handle.id()).is_some_and(|params| params.rolling.interrupt_when_in_air);\n            *current = target;\n            if target == LocomotionState::Grounded { velocity.y = 0.0; }\n            if ragdoll_on_land || ragdoll_on_air_roll {\n                *current = LocomotionState::None;\n                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,\n                    from: StateValue::LocomotionState(target), to: StateValue::LocomotionState(LocomotionState::None) });\n                commands.entity(entity).insert(crate::als::state::AlsNotifyLocomotionAction::Ragdolling);\n            }\n        }\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/settings/movement_constants.rs",
+    "bytes": 1489,
+    "sha256": "15bf45df86ec934a5e795cbd1049b35737f2933ffa467dec2ca48693de833499",
+    "excerpts": [
+      {
+        "start": 1,
+        "end": 5,
+        "text": "pub(crate) const MAX_STEP_HEIGHT: f32 = 0.45;\npub(crate) const MAX_SLOPE_DEGREES: f32 = 44.765083;\npub(crate) const MIN_FLOOR_DISTANCE: f32 = 0.019;\npub(crate) const MAX_FLOOR_DISTANCE: f32 = 0.024;\npub(crate) const EDGE_REJECT_DISTANCE: f32 = 0.0015;\n"
+      }
+    ]
+  }
+]
