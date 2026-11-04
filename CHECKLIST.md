@@ -4133,6 +4133,10 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [ ] BF144.581 Falling近同法线重撞的离墙微移。依赖.06历史未触发nudge和580连续碰撞夹具。两近共面竖墙使第一次偏转后撞第二面；0.5°在阈值内，1.25°在阈值外，均约在沿墙14cm处接触。原生和真实Playground核前两命中、第二余时及第二法线速度分量；移除第二墙控制。开始2026-11-05 01:00:13 +0800，预估结束2026-11-05 01:40:13 +0800。参考580约7分钟，含近共面两形体与亚毫米扫掠估40分钟。截图0，性能暂停。
+  - source/static：fresh UMovementComponent::TwoWallAdjust在同向法线dot距1小于UE_KINDA_SMALL_NUMBER且有效投影时加Hit.Normal×0.01cm；CMC Falling回写Delta/次撞余时。目标falling_slide只投影。竖墙隔离D307向上法线、D308零时侧移及D315虚拟夹缝，需实测触发及速度。
+  - 01:02 runtime Gate 前：目标已编译，原生构建中。两角仅改变第二平面法线与匹配碰撞距离，固定首墙、三轴速度与步时；测第二碰后的法线位移和速度，避免将正常几何侧移当成nudge。
+
 - [x] BF144.580 Falling虚拟夹缝的向上脱困。依赖.06留下的可达性边界和562第三扫掠先例。默认胶囊近40°窄斜台外沿，首碰法线可走但无法窄perch，随后撞直墙并沿交线几乎不动。比对紧墙、宽墙、移除墙的原生实际事件/速度；原生触发后用同几何真实Playground核目标。开始2026-11-05 00:52:34 +0800，预估结束2026-11-05 01:37:34 +0800。参考562约6分钟但本项新窄台碰撞和可达性估45分钟。截图0，性能暂停。
   - source/static：fresh PhysFalling第三次移动无Hit、旧面Up≥WalkableFloorZ、perch阈值>0且本步水平/竖直进展极小才写随机XY与Z=max(JumpZ×.25,1)。仍Falling，与D19/D308的ProcessLanded不同。先证明原生公开几何可触发。
   - 00:55 runtime Gate 前：目标探针编译通过，原生同几何隔离包构建。三组仅改变侧墙间隙或移除侧墙；q49使用下落初速且无跳键、无移动输入。先比首碰、次碰、末速及模式，再判是否新增。
