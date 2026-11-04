@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.529 目标低台floor的实际查询来源。依赖528。20.5、21.5原/抬、22.5同Playground，在状态同步前记录实际位置、目标拉回停止点及源同输入停止点。由生产函数生成只读查询副本，记录初始/重试胶囊、短射线、perch和中心射线；逐值对照公开查询，再分别去掉三条候选路径判断必要性。对照实际Grounded与原生Landed，按证据归属既有编号。开始2026-11-04 19:14:19 +0800，预估结束2026-11-04 19:54:19 +0800。参考528约5分钟，本轮只构建目标观察器并运行四个功能场景，另留三位置复算，估40分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh目标先胶囊边缘拒绝，再对陡法线做同实体短射线；若胶囊未给有效floor则可查中心射线，perch仅在非line时运行。公开floor投影丢弃line标志，源PhysFalling回查显式排除line。当前只读复制生产函数并在目标同帧三位置逐值校准，不改运动/配置。截图0。
+  - 真实Gate后：12位置公开查询逐值复现，全部选中胶囊floor。21.5原案目标/源停止点用短射线把墙顶法线修为Up，滑动后第一胶囊直接中低台；其余见证在三个位置对象保持。关中心射线/perch不改这些实际结果，关短射线使墙顶改为低台。20.5帧末仅在关闭短射线的诊断变体才出现line低台，实际落地消费未走line。记录D292阶段证据，无独立差异。截图0。
+  - Gate通过。四次Playground功能、12基准逐值、36诊断分支及与旧证据的49/50闭合。三份完整参数逐字节，抬台案整段首差54。六库/396身份及91份Git证据通过。补D292、无新增，累计289（122P2/167P3）。实际结束2026-11-04 19:18:49 +0800，实耗270秒，偏差-2130秒。证据 docs/audit/bf144/529/summary.json。截图0，性能暂停。
+  - 后继边界：现有真实场景无line选中。下一轮构造原生实际非有效capsule但中心射线有效的边缘场景，保留bLineTrace与实际Landed，对比目标是否以line结果单独发布Grounded。
+
 - [x] BF144.528 墙顶回查的二次floor Hit资格。依赖527。复核21.5cm首Hit已进边缘回查但源保持Falling，记录源K2_FindFloor的完整Hit、IsValidLandingSpot逐条件与真实Landed事件；以20.5cm同墙顶、22.5cm低台的实际通过及只抬21.5低台5mm作对照。复用目标同二进制，核后置floor、接触和落地。观察开关必须保持原生结果。开始2026-11-04 19:07:14 +0800，预估结束2026-11-04 19:47:14 +0800。参考525原生监听及527矩阵，需扩只读floor字段与Landed委托，估40分钟。截图0，性能暂停。
 
   - 真实Gate前：fresh源先校验墙Hit资格，再把非line的FloorResult.HitResult交IsValidLandingSpot。独立重查保实际查询模式，公开调用前后恢复bForceNextFloorCheck；真正落地以LandedDelegate记录。共同几何21.5只抬低台5mm，目标仍用526同身份。截图0。
@@ -4522,6 +4529,7 @@
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D292 / P2 — Falling 的有效边缘回查没有在撞击点交还 Walking 余时。
+  - BF144.529 查询阶段取证。21.5cm原案在目标和源拉回停止点查到短射线修正后的墙顶，目标继续滑动后才由第一胶囊选低台；12位置实际结果均为胶囊。该案候选变化随查询位置发生，保留line消费者为独立待证边界。证据 docs/audit/bf144/529/summary.json。
   - BF144.528 实际低台Landed。21.5cm墙顶的原案二次floor Hit因高于下半球0.4611cm被拒；只抬低台5mm后第一墙Hit保持，源以低台触发Landed，49用余35.83426ms走23.29227cm。目标撞墙运动不变，49只在PostUpdate转Grounded。证据 docs/audit/bf144/528/summary.json。
   - BF144.527 发布阶段边界。合格20.5cm墙顶源49已Walking，目标因后置地面间隙2.556cm保持Air至50、51才Grounded。仅在物理后下移3mm至2.213cm便在49发布；19cm墙顶反向上移4.5mm从2.072到2.532cm使49保Air，真实Falling事务、墙contact和墙顶对象均保持。证据 docs/audit/bf144/527/summary.json。
   - UE PhysFalling通过边缘回查的非line floor后，ProcessLanded以未消费步长继续StartNewPhysics，实际同帧进入Walking。目标falling_movement_sweep只在自身命中法线可走时返回余时，边缘命中走Falling slide；PostUpdate只发布Grounded并清速度，没有继续同帧Walking。

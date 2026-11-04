@@ -1,0 +1,18 @@
+{
+  "collision_velocity": [
+    3.114408493041992,
+    0.0,
+    -3.115497589111328
+  ],
+  "delta": 0.03871007263660431,
+  "frame": 49,
+  "mode": "Air",
+  "position": [
+    -13.630803108215332,
+    2.9007797241210938,
+    -15.198577880859375
+  ],
+  "published_grounded_acceleration": 9.817638397216797,
+  "substeps": 1,
+  "walking_last_input": null
+}
