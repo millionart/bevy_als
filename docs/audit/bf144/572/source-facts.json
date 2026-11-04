@@ -1,0 +1,82 @@
+[
+  {
+    "key": "tools/animation_visual_validation.rs",
+    "bytes": 238974,
+    "sha256": "4aef9b6dad9be876e5d41f48dafa1e32effd03cc4cc98b2d4270433d5b557df9",
+    "excerpts": [
+      {
+        "start": 92,
+        "end": 113,
+        "text": "];\n\nconst TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND: f32 = 40.0;\nconst TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS: f32 = 0.35;\nconst TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND: f32 = 14.0;\nconst TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS: f32 = 2.2;\nconst TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND: f32 = 80.0;\nconst TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS: f32 = 0.75;\nconst TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND: f32 = 30.0;\nconst TEMPORAL_SCALE_RATIO: f32 = 1.5;\nconst TEMPORAL_SEGMENT_RATIO: f32 = 0.35;\nconst TEMPORAL_SEGMENT_MIN_DELTA_METERS: f32 = 0.05;\nconst TEMPORAL_LIMB_PLANE_FLIP_DOT: f32 = -0.5;\nconst ANIMATION_VISUAL_EVIDENCE_FORMAT_SOURCE: &str =\n    include_str!(\"animation_visual_evidence_format.txt\");\n\nfn animation_visual_evidence_format() -> &'static str {\n    ANIMATION_VISUAL_EVIDENCE_FORMAT_SOURCE.trim()\n}\nconst TEMPORAL_LIMB_BEND_SINE: f32 = 0.08;\nconst MAX_TEMPORAL_ANOMALIES: usize = 64;\nconst AUTOMATION_PROGRESS_STALL: Duration = Duration::from_secs(12);\n"
+      },
+      {
+        "start": 912,
+        "end": 975,
+        "text": "fn limb_plane(\n    bones: &BTreeMap<String, FinalBone>,\n    first: &str,\n    second: &str,\n    third: &str,\n) -> Option<LimbPlane> {\n    let first = bones.get(first)?.0;\n    let second = bones.get(second)?.0;\n    let third = bones.get(third)?.0;\n    let upper = second - first;\n    let lower = third - second;\n    let lengths = upper.length() * lower.length();\n    if !lengths.is_finite() || lengths <= f32::EPSILON {\n        return None;\n    }\n    let normal = upper.cross(lower);\n    let bend_sine = normal.length() / lengths;\n    if !bend_sine.is_finite() || bend_sine < TEMPORAL_LIMB_BEND_SINE {\n        return None;\n    }\n    Some(LimbPlane {\n        normal: normal.normalize(),\n    })\n}\n\nfn limb_crosses_degenerate_joint_plane(\n    previous: &BTreeMap<String, LocalBonePose>, current: &BTreeMap<String, LocalBonePose>,\n    previous_positions: &BTreeMap<String, Vec3>, bones: &BTreeMap<String, FinalBone>,\n    first: &str, second: &str, third: &str, frame_seconds: f32,\n) -> bool {\n    let (Some(old_joint), Some(new_joint), Some(old_tip), Some(new_tip)) =\n        (previous.get(second), current.get(second), previous.get(third), current.get(third)) else { return false };\n    if rotation_delta_radians(old_joint.rotation, new_joint.rotation) / frame_seconds\n        >= TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND {\n        return false;\n    }\n    let (Some(old_a), Some(old_b), Some(old_c), Some(new_a), Some(new_b), Some(new_c)) =\n        (previous_positions.get(first), previous_positions.get(second), previous_positions.get(third),\n            bones.get(first), bones.get(second), bones.get(third)) else { return false };\n    let old_lower = old_joint.rotation * (old_joint.scale * old_tip.translation);\n    let new_lower = new_joint.rotation * (new_joint.scale * new_tip.translation);\n    for (upper, lower, actual_upper, actual_lower) in [\n        (old_joint.translation, old_lower, *old_b - *old_a, *old_c - *old_b),\n        (new_joint.translation, new_lower, new_b.0 - new_a.0, new_c.0 - new_b.0),\n    ] {\n        let local_lengths = upper.length() * lower.length();\n        let actual_lengths = actual_upper.length() * actual_lower.length();\n        if !local_lengths.is_finite() || !actual_lengths.is_finite()\n            || local_lengths <= f32::EPSILON || actual_lengths <= f32::EPSILON\n            || (upper.cross(lower).length() / local_lengths\n                - actual_upper.cross(actual_lower).length() / actual_lengths).abs() > TEMPORAL_LIMB_BEND_SINE {\n            return false;\n        }\n    }\n    (1..32).any(|index| {\n        let alpha = index as f32 / 32.0;\n        let upper = old_joint.translation.lerp(new_joint.translation, alpha);\n        let lower = old_joint.rotation.slerp(new_joint.rotation, alpha)\n            * (old_joint.scale.lerp(new_joint.scale, alpha) * old_tip.translation.lerp(new_tip.translation, alpha));\n        let lengths = upper.length() * lower.length();\n        lengths.is_finite() && lengths > f32::EPSILON\n            && upper.cross(lower).length() / lengths < TEMPORAL_LIMB_BEND_SINE\n    })\n}\n"
+      },
+      {
+        "start": 1016,
+        "end": 1052,
+        "text": "                        current: speed,\n                        threshold: TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND,\n                        trigger: \"rate\",\n                        rate: Some(speed),\n                        rate_threshold: Some(TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND),\n                    });\n                }\n            }\n        }\n        for (name, current) in local {\n            if let Some(previous) = self.previous_local.get(name).copied() {\n                let translation_delta = previous.translation.distance(current.translation);\n                let translation_speed = translation_delta / frame_seconds;\n                let translation_trigger =\n                    if translation_delta > TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS {\n                        Some((\"jump\", TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS))\n                    } else if translation_delta > TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS * 0.35\n                        && translation_speed > TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND\n                    {\n                        Some((\"rate\", TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND))\n                    } else {\n                        None\n                    };\n                if let Some((trigger, threshold)) = translation_trigger {\n                    metrics.push(TemporalSkeletonMetric {\n                        kind: \"local_translation_spike\",\n                        subject: name.clone(),\n                        previous: 0.0,\n                        current: translation_delta,\n                        threshold,\n                        trigger,\n                        rate: Some(translation_speed),\n                        rate_threshold: Some(TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND),\n                    });\n                }\n                let rotation_delta = rotation_delta_radians(previous.rotation, current.rotation);\n                let rotation_speed = rotation_delta / frame_seconds;\n"
+      },
+      {
+        "start": 1108,
+        "end": 1140,
+        "text": "                        rate_threshold: None,\n                    });\n                }\n            }\n            self.previous_segments.insert(name.clone(), *length);\n        }\n        let mut limb_planes = BTreeMap::new();\n        for (name, first, second, third) in LIMB_CHAINS {\n            let Some(current) = limb_plane(bones, first, second, third) else {\n                continue;\n            };\n            if let Some(previous) = self.previous_limb_planes.get(*name) {\n                let dot = previous.normal.dot(current.normal);\n                let plane_rate = dot.clamp(-1.0, 1.0).acos() / frame_seconds;\n                if dot < TEMPORAL_LIMB_PLANE_FLIP_DOT\n                    && plane_rate > TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND\n                    && !limb_crosses_degenerate_joint_plane(&self.previous_local, local, &self.previous_relative,\n                        bones, first, second, third, frame_seconds) {\n                    metrics.push(TemporalSkeletonMetric {\n                        kind: \"limb_plane_flip\",\n                        subject: (*name).to_owned(),\n                        previous: 1.0,\n                        current: dot,\n                        threshold: TEMPORAL_LIMB_PLANE_FLIP_DOT,\n                        trigger: \"plane_flip\",\n                        rate: Some(plane_rate),\n                        rate_threshold: Some(TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND),\n                    });\n                }\n            }\n            limb_planes.insert((*name).to_owned(), current);\n        }\n        self.previous_limb_planes = limb_planes;\n"
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "bytes": 470425,
+    "sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "excerpts": [
+      {
+        "start": 4904,
+        "end": 4929,
+        "text": "        const auto CapturePoseBoundaries = [&]()\n        {\n            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();\n            Value->SetStringField(TEXT(\"stage\"), TEXT(\"actual_rig_source_and_main_root_result\"));\n            Value->SetObjectField(TEXT(\"rig_source\"), HeadObservation.Latest.ToSharedRef());\n            if (bCaptureRigOutput)\n            {\n                Value->SetObjectField(TEXT(\"rig_output\"), RigOutputObservation.Latest.ToSharedRef());\n                const TSharedRef<FJsonObject> Action = CaptureAction(ActionProperty->ContainerPtrToValuePtr<void>(Character));\n                Action->SetStringField(TEXT(\"stage\"), TEXT(\"after_pose_evaluation_capture\"));\n                Action->SetNumberField(TEXT(\"engine_frame\"), GFrameCounter);\n                Value->SetObjectField(TEXT(\"locomotion_action\"), Action);\n            }\n            Value->SetObjectField(TEXT(\"root_result\"), RootObservation.Latest.ToSharedRef());\n            Value->SetObjectField(TEXT(\"head_base\"), HeadBaseObservation.Latest.ToSharedRef());\n            Value->SetObjectField(TEXT(\"head_additive\"), HeadAdditiveObservation.Latest.ToSharedRef());\n            Value->SetNumberField(TEXT(\"head_alpha\"), ObservedHeadNode->ActualAlpha);\n            Value->SetBoolField(TEXT(\"head_root_space_additive\"), ObservedHeadNode->bRootSpaceAdditive);\n            Value->SetStringField(TEXT(\"head_instance_class\"), ObjectPath(ObservedHeadInstance->GetClass()));\n            Value->SetStringField(TEXT(\"head_property\"), HeadProperty->GetName());\n            Value->SetObjectField(TEXT(\"base_provider_input\"), BaseProviderInputObservation.Latest.ToSharedRef());\n            Value->SetStringField(TEXT(\"base_provider_class\"), ObjectPath(BaseProviderClass));\n            return Value;\n        };\n        int32 Forward = 0;\n        TArray<TSharedPtr<FJsonValue>> Executions;\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "bytes": 545515,
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 6373,
+        "end": 6386,
+        "text": "void UCharacterMovementComponent::ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_CharProcessLanded);\n\n\tif( CharacterOwner && CharacterOwner->ShouldNotifyLanded(Hit) )\n\t{\n\t\tCharacterOwner->Landed(Hit);\n\t}\n\tif( IsFalling() )\n\t{\n\t\tif (GroundMovementMode == MOVE_NavWalking)\n\t\t{\n\t\t\t// verify navmesh projection and current floor\n\t\t\t// otherwise movement will be stuck in infinite loop:\n"
+      },
+      {
+        "start": 6399,
+        "end": 6410,
+        "text": "\n\t\tSetPostLandedPhysics(Hit);\n\t}\n\t\n\tIPathFollowingAgentInterface* PFAgent = GetPathFollowingAgent();\n\tif (PFAgent)\n\t{\n\t\tPFAgent->OnLanded();\n\t}\n\n\tStartNewPhysics(remainingTime, Iterations);\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "docs/audit/bf144/516/ledge_observer.rs",
+    "bytes": 6699,
+    "sha256": "0a38cc87160585f27167ca4f721372d8c74a4a5ae36874106541b3b8e3fd68d0",
+    "excerpts": [
+      {
+        "start": 76,
+        "end": 82,
+        "text": "fn c516_delta(probe:Res<C458Probe>,control:Res<C516Control>,mut time:ResMut<TimeUpdateStrategy>) {\n    if probe.frame==control.frame {\n        *time=TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(0.06));\n    } else if probe.frame==control.frame+1 {\n        *time=TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0/30.0));\n    }\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "docs/audit/bf144/571/timer_probe.inc",
+    "bytes": 1834,
+    "sha256": "5e57944a044c8eb1237c514c2dd882d8fb1bce641527144edff4ab4ea145bad6",
+    "excerpts": [
+      {
+        "start": 7,
+        "end": 11,
+        "text": "fn c571_clock(probe: Res<C458Probe>, mut clock: ResMut<TimeUpdateStrategy>) {\n    if (41..=75).contains(&probe.frame) {\n        *clock = TimeUpdateStrategy::ManualDuration(Duration::from_micros(31_250));\n    }\n}\n"
+      }
+    ]
+  }
+]

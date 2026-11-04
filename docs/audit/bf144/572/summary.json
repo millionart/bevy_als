@@ -1,0 +1,221 @@
+{
+  "gate": "PASS_LANDING_POSE_GUARD_MATCHES_NATIVE_BOUNDARIES",
+  "findings": [],
+  "new_differences": 0,
+  "total_differences": 310,
+  "native": {
+    "coarse": {
+      "landing": 58,
+      "pelvis_delta": {
+        "rig_source": [
+          0.39888631318999096,
+          0.14388417388005137,
+          0.03300197285545406
+        ],
+        "rig_output": [
+          0.40156581120731444,
+          0.14490250219260217,
+          0.02816713758856718
+        ],
+        "root_result": [
+          0.40156581120731444,
+          0.14490250219260217,
+          0.02816713758856718
+        ]
+      }
+    },
+    "fixed": {
+      "landing": 79,
+      "pelvis_delta": {
+        "rig_source": [
+          0.032819277799681947,
+          0.22218125229478017,
+          0.12562049491275057
+        ],
+        "rig_output": [
+          0.04562449900046091,
+          0.21772073929503932,
+          0.1206975539133836
+        ],
+        "root_result": [
+          0.04562449900046091,
+          0.21772073929503932,
+          0.1206975539133836
+        ]
+      },
+      "pre_rig_bones": {
+        "dot": -0.9508590867051611,
+        "bend": [
+          0.6013058988272381,
+          0.35084859874724317
+        ]
+      },
+      "bones": {
+        "dot": 0.9694947553617497,
+        "bend": [
+          0.9197001277608342,
+          0.9135943195070769
+        ]
+      },
+      "calf_local_angular_rate": 32.074974650462515
+    }
+  },
+  "target": {
+    "coarse": {
+      "landing": 58,
+      "pelvis_delta": {
+        "rig_source": [
+          0.39823139790489825,
+          0.14040203178002253,
+          0.021748739272586713
+        ],
+        "rig_output": [
+          0.40084801488549093,
+          0.14134775143550826,
+          0.02192957878962778
+        ],
+        "root_result": [
+          0.40084801488549093,
+          0.14134775143550826,
+          0.02192957878962778
+        ]
+      },
+      "report_ordinal": 58,
+      "anomaly": {
+        "stage": "pre_rig",
+        "kind": "local_translation_spike",
+        "subject": "pelvis",
+        "previous": 0.0,
+        "current": 0.3982314,
+        "threshold": 0.35,
+        "trigger": "jump",
+        "rate": 3.185851,
+        "rate_threshold": 14.0,
+        "elapsed_secs": 5.557926542,
+        "frame_ms": 34.90225,
+        "animation_delta_seconds": 0.125,
+        "direction_case": null,
+        "phase": null
+      }
+    },
+    "fixed": {
+      "landing": 79,
+      "pelvis_delta": {
+        "rig_source": [
+          0.03292857730270483,
+          0.22025316832674877,
+          0.12751904945913828
+        ],
+        "rig_output": [
+          0.04596102210734778,
+          0.21610323990350486,
+          0.12310136195651858
+        ],
+        "root_result": [
+          0.04596102210734778,
+          0.21610323990350486,
+          0.12310136195651858
+        ]
+      },
+      "report_ordinal": 81,
+      "anomaly": {
+        "stage": "pre_rig",
+        "kind": "limb_plane_flip",
+        "subject": "right_leg",
+        "previous": 1.0,
+        "current": -0.9552538,
+        "threshold": -0.5,
+        "trigger": "plane_flip",
+        "rate": 90.92201,
+        "rate_threshold": 30.0,
+        "elapsed_secs": 6.319491792,
+        "frame_ms": 37.021542,
+        "animation_delta_seconds": 0.03125,
+        "direction_case": null,
+        "phase": null
+      },
+      "pre_rig_bones": {
+        "dot": -0.955255524335541,
+        "bend": [
+          0.6191517732857517,
+          0.3332098074475773
+        ]
+      },
+      "bones": {
+        "dot": 0.9721179298443056,
+        "bend": [
+          0.9228028396276713,
+          0.91804085176788
+        ]
+      }
+    }
+  },
+  "public_functional_pass": false,
+  "decompressed_files": {
+    "pelvis.native.json.gz": {
+      "bytes": 138500720,
+      "sha256": "546d67bbbb4ff5145bef78875d8fc5c2f79dd364e8f34433e6c248ead60c9dfa"
+    },
+    "prior-full-input.json.gz": {
+      "bytes": 381970,
+      "sha256": "6f1f7e0ada001e0efdb4be8b41883a98d4f5d9171e647a927554d2c083ccb71b"
+    },
+    "prior-low-input.json.gz": {
+      "bytes": 352928,
+      "sha256": "f01137a48f98a8a0b9c41ee24b604eda7a72093a2028252f4dd84f1ea3fa4f07"
+    },
+    "runtime-coarse/parameters.json.gz": {
+      "bytes": 693415,
+      "sha256": "afec0f0eccdd421ad025e5894c22fc66def82a0786509c03ddafef96f4bc2990"
+    },
+    "runtime-coarse/report.json.gz": {
+      "bytes": 6248627,
+      "sha256": "4078e7373539d7a2708b1bae6d3303d072714d207488224b34f3213db5e2cf1c"
+    },
+    "runtime-fixed/parameters.json.gz": {
+      "bytes": 1211869,
+      "sha256": "7702bbaa9ab4588fc50f7eb8f9e3778e53cc9745894e3262300abd6e491820ba"
+    },
+    "runtime-fixed/report.json.gz": {
+      "bytes": 5320112,
+      "sha256": "886cc24dcd846813259898b4d32839ac7ca125171127716caabfb7d6e48ca121"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/571/full-input.request.json",
+      "bytes": 24886,
+      "sha256": "99a22fa308362922f867ae290fdb25546046fe9d4210f838d758c3adee69df02"
+    },
+    {
+      "path": "docs/audit/bf144/571/full-input-visual.json.gz",
+      "bytes": 457971,
+      "sha256": "f809b2e12be73af21879f0ae30510dc22a34b45c1c7f3b213cb34d9eaf2dec82"
+    },
+    {
+      "path": "docs/audit/bf144/571/low-input-visual.json.gz",
+      "bytes": 457062,
+      "sha256": "1e9dde36d3d744c6cecb00b8258f54352d94e16977ce14f655ca2805a7aa61ec"
+    },
+    {
+      "path": "docs/audit/bf144/571/prepare_reader.py",
+      "bytes": 1054,
+      "sha256": "b6331f778e41b84c2a77834fbcb138998391909bddbc3f8f389dc8427684760c"
+    },
+    {
+      "path": "docs/audit/bf144/570/observer.py",
+      "bytes": 893,
+      "sha256": "2e2847129fdec4796a43d0965de7ce330a7c3cef3b1e4b91a9692a5d713d02d6"
+    },
+    {
+      "path": "docs/audit/bf144/523/observer.py",
+      "bytes": 1678,
+      "sha256": "401322ce7c99a7d57d5536f2c260145b72c17e31bba726f8d4cbcc9d8b7ef8a5"
+    },
+    {
+      "path": "docs/audit/bf144/523/deck.rs",
+      "bytes": 7118,
+      "sha256": "6a44b0ddd6a496c7418dbf903ef1da7269d767ed271de130ed6593d0387df25d"
+    }
+  ]
+}
