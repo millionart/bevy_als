@@ -1,0 +1,68 @@
+[
+  {
+    "key": "source:Private/AlsCharacterMovementComponent.cpp",
+    "bytes": 40375,
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 333,
+        "end": 349,
+        "text": "void UAlsCharacterMovementComponent::PhysWalking(const float DeltaTime, int32 IterationsCount)\r\n{\r\n\tRefreshGroundedMovementSettings();\r\n\r\n\tauto Iterations{IterationsCount};\r\n\r\n\t// TODO Copied with modifications from UCharacterMovementComponent::PhysWalking(). After the\r\n\t// TODO release of a new engine version, this code should be updated to match the source code.\r\n\r\n\t// ReSharper disable All\r\n\r\n\t// SCOPE_CYCLE_COUNTER(STAT_CharPhysWalking);\r\n\r\n\tif (DeltaTime < MIN_TICK_TIME)\r\n\t{\r\n\t\treturn;\r\n\t}\r\n"
+      },
+      {
+        "start": 568,
+        "end": 581,
+        "text": "\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\r\n\t\t\t{\r\n\t\t\t\t// TODO Start of custom ALS code block.\r\n\r\n\t\t\t\tPrePenetrationAdjustmentVelocity = MoveVelocity;\r\n\t\t\t\tbPrePenetrationAdjustmentVelocityValid = true;\r\n\r\n\t\t\t\t// TODO End of custom ALS code block.\r\n\r\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\r\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\r\n\t\t\t\tMaintainHorizontalGroundVelocity();\r\n\t\t\t}\r\n\t\t}\r\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "bytes": 545515,
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 4918,
+        "end": 4939,
+        "text": "\t\tif (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())\n\t\t{\n\t\t\t// Compute Velocity\n\t\t\t{\n\t\t\t\t// Acceleration = FallAcceleration for CalcVelocity(), but we restore it after using it.\n\t\t\t\tTGuardValue<FVector> RestoreAcceleration(Acceleration, FallAcceleration);\n\t\t\t\tif (HasCustomGravity())\n\t\t\t\t{\n\t\t\t\t\tVelocity = ProjectToGravityFloor(Velocity);\n\t\t\t\t\tconst FVector GravityRelativeOffset = OldVelocity - Velocity;\n\t\t\t\t\tCalcVelocity(timeTick, FallingLateralFriction, false, MaxDecel);\n\t\t\t\t\tVelocity += GravityRelativeOffset;\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tVelocity.Z = 0.f;\n\t\t\t\t\tCalcVelocity(timeTick, FallingLateralFriction, false, MaxDecel);\n\t\t\t\t\tVelocity.Z = OldVelocity.Z;\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\n"
+      },
+      {
+        "start": 5045,
+        "end": 5056,
+        "text": "\t\t\tStartSwimming(OldLocation, OldVelocity, timeTick, remainingTime, Iterations);\n\t\t\treturn;\n\t\t}\n\t\telse if ( Hit.bBlockingHit )\n\t\t{\n\t\t\tif (IsValidLandingSpot(UpdatedComponent->GetComponentLocation(), Hit))\n\t\t\t{\n\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\tProcessLanded(Hit, remainingTime, Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\telse\n"
+      },
+      {
+        "start": 6399,
+        "end": 6410,
+        "text": "\n\t\tSetPostLandedPhysics(Hit);\n\t}\n\t\n\tIPathFollowingAgentInterface* PFAgent = GetPathFollowingAgent();\n\tif (PFAgent)\n\t{\n\t\tPFAgent->OnLanded();\n\t}\n\n\tStartNewPhysics(remainingTime, Iterations);\n}\n"
+      },
+      {
+        "start": 6441,
+        "end": 6458,
+        "text": "void UCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds)\n{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}\n\n\tif (CharacterOwner->GetLocalRole() == ROLE_Authority)\n\t{\n\t\tPerformMovement(DeltaSeconds);\n\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "bytes": 378291,
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 3627,
+        "end": 3643,
+        "text": "    let mut last_input = velocity;\n    let mut lost_floor = false;\n    let (velocity, steps, _, remaining_time) = crate::als::dynamics::simulate_grounded_motion_until_mode_change(\n        velocity, desired_motion, max_speed, dynamics, cmc, friction, delta, |step_velocity, step_seconds| {\n            last_input = step_velocity;\n            let center = transform.translation;\n            let requested = step_velocity * step_seconds;\n            let Some((advanced, remaining, next_y)) = grounded_movement_transaction(spatial, capsule, center,\n                transform.rotation, half, radius, requested, cmc, LocomotionState::Grounded, entity, candidates, step_permissions)\n                else { return (step_velocity, Vec3::ZERO, true) };\n            transform.translation = advanced + remaining.unwrap_or(requested);\n            if let Some(next_y) = next_y && next_y > center.y { transform.translation.y = next_y; }\n            lost_floor = !adjust_walking_floor_height(spatial, capsule, &mut transform, half, radius, cmc, entity, candidates);\n            let applied = transform.translation - center;\n            (applied.with_y(0.0) / step_seconds, applied, !lost_floor)\n        });\n    (transform, velocity, steps, remaining_time, lost_floor, last_input)\n"
+      },
+      {
+        "start": 2766,
+        "end": 2804,
+        "text": "        && iterations < params.cmc.max_simulation_iterations {\n        iterations += 1;\n        let step = crate::als::dynamics::source_movement_time_step(remaining, &params.cmc, iterations);\n        let old_velocity = velocity;\n        let horizontal = crate::als::dynamics::grounded_velocity_step_with_braking_friction(\n            velocity.with_y(0.0), desired_motion, max_speed,\n            crate::als::params::GroundedDynamics { acceleration, braking_deceleration: 0.0, ground_friction: 0.0 },\n            params.cmc.min_analog_walk_speed, 0.0, params.cmc.braking_substep_time, step);\n        velocity = crate::als::dynamics::clamp_falling_velocity(horizontal + Vec3::Y * velocity.y + gravity * step,\n            gravity, terminal);\n        let requested = (old_velocity + velocity) * (0.5 * step);\n        let (applied, deflected, hit, landing_remaining) = falling_movement_sweep(spatial, capsule, transform.translation,\n            transform.rotation, requested, velocity, step, Some(&params.cmc), entity, candidates);\n        transform.translation += applied;\n        contact |= hit;\n        let extent = capsule.shape_scaled().compute_local_aabb().half_extents();\n        if let Some(landing_remaining) = landing_remaining {\n            remaining = remaining - step + landing_remaining;\n            transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,\n                from: StateValue::LocomotionState(LocomotionState::Air), to: StateValue::LocomotionState(LocomotionState::Grounded) });\n            mode = LocomotionState::Grounded;\n            adjust_walking_floor_height(spatial, capsule, &mut transform, extent.y, extent.x.min(extent.z),\n                &params.cmc, entity, candidates);\n            velocity.y = 0.0;\n            if landing.1 {\n                mode = LocomotionState::None;\n                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,\n                    from: StateValue::LocomotionState(LocomotionState::Grounded), to: StateValue::LocomotionState(mode) });\n                break;\n            }\n            let (stance, rotation, gait, yaw) = grounded;\n            let thresholds = params.gait_speed_thresholds(stance, rotation, velocity, yaw);\n            let gait_amount = crate::als::gait::calculate_gait_amount_for_thresholds(velocity.length(), thresholds);\n            let dynamics = params.grounded_dynamics(stance, rotation, gait_amount);\n            let speed = crate::als::dynamics::max_allowed_speed(params, stance, rotation, gait, velocity, yaw);\n            let mut cmc = params.cmc.clone();\n            cmc.max_simulation_iterations = cmc.max_simulation_iterations.saturating_sub(iterations);\n            let (moved, next_velocity, steps, next_remaining, lost_floor, _) = walking_movement_transaction(\n                spatial, capsule, transform, extent.y, extent.x.min(extent.z), velocity, desired_motion,\n"
+      },
+      {
+        "start": 3714,
+        "end": 3737,
+        "text": "            let initial = velocity.0 + motor.lin.boost;\n            let initial_horizontal = initial.with_y(0.0);\n            let max_speed = crate::als::dynamics::max_allowed_speed(params, *stance, *rotation_mode,\n                max_allowed_gait.0, initial_horizontal, view_yaw.0);\n            let (moved, final_velocity, steps, contact, mode) = falling_movement_transaction(&spatial_query, capsule,\n                initial_transform, initial, controller.basis.desired_motion, max_speed, params,\n                gravity.value + motor.lin.acceleration, grounded, landing, volume.unwrap_or(&default_volume.0).terminal_velocity,\n                delta_seconds, 0, entity, &candidates, &step_permissions, &mut transitions);\n            if *loco != mode { *loco = mode; }\n            if mode == LocomotionState::None {\n                commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,\n                    crate::als::dynamics::AlsMovementBase::default(), LinearVelocity::ZERO));\n                if let Some(base) = base.as_deref_mut() { *base = default(); }\n            }\n            runtime.simulation_delta_seconds = delta_seconds;\n            runtime.simulation_substeps = steps;\n            runtime.grounded_movement_delta = None;\n            runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { final_velocity });\n            runtime.airborne_sweep_contact |= contact;\n            let world_position = moved.translation;\n            *transform = moved;\n            transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n            commands.entity(entity).insert(Position(moved.translation));\n            motor.lin.boost = -velocity.0;\n"
+      }
+    ]
+  }
+]
