@@ -1,0 +1,86 @@
+{
+  "near-normal": {
+    "functional": {
+      "pass": true,
+      "issues": [],
+      "images": [],
+      "validation_scope": "functional",
+      "full_pass": false,
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_frame_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ]
+    },
+    "process": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-04T17:40:04.1911490Z",
+      "last_progress_at_utc": "2026-11-04T17:40:04.3176431Z",
+      "last_progress_source": "runtime-near-normal-revalidation.stdout.json",
+      "finished_at_utc": "2026-11-04T17:40:04.5008920Z",
+      "elapsed_seconds": 0.31,
+      "no_progress_seconds": 0.183,
+      "no_progress_limit_seconds": 30,
+      "timeout_seconds": 60,
+      "process_exit_code": 0
+    }
+  },
+  "single": {
+    "functional": {
+      "pass": true,
+      "issues": [],
+      "images": [],
+      "validation_scope": "functional",
+      "full_pass": false,
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_frame_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ]
+    },
+    "process": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-04T17:40:04.7976470Z",
+      "last_progress_at_utc": "2026-11-04T17:40:04.8886248Z",
+      "last_progress_source": "runtime-single-revalidation.stdout.json",
+      "finished_at_utc": "2026-11-04T17:40:05.0762200Z",
+      "elapsed_seconds": 0.279,
+      "no_progress_seconds": 0.188,
+      "no_progress_limit_seconds": 30,
+      "timeout_seconds": 60,
+      "process_exit_code": 0
+    }
+  },
+  "outside-angle": {
+    "functional": {
+      "pass": true,
+      "issues": [],
+      "images": [],
+      "validation_scope": "functional",
+      "full_pass": false,
+      "deferred_performance_issues": [
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_frame_ms",
+        "performance budget exceeded: max_eval_p95_ms"
+      ]
+    },
+    "process": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-04T17:40:04.5174680Z",
+      "last_progress_at_utc": "2026-11-04T17:40:04.6162139Z",
+      "last_progress_source": "runtime-outside-angle-revalidation.stdout.json",
+      "finished_at_utc": "2026-11-04T17:40:04.7957320Z",
+      "elapsed_seconds": 0.278,
+      "no_progress_seconds": 0.18,
+      "no_progress_limit_seconds": 30,
+      "timeout_seconds": 60,
+      "process_exit_code": 0
+    }
+  }
+}

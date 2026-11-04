@@ -35,6 +35,8 @@ assert all(result == 'PASS' for result in read(root / 'watchdog-selftest.json').
 source_path = root / 'nudge.native.json'
 cases = {case['name']: case['frames'] for case in read(source_path)['character_animation_probe']['cases']}
 assert set(cases) == set(labels)
+revalidated = read(root / 'runtime-revalidation.json')
+assert set(revalidated) == set(labels)
 native, target = {}, {}
 for label in labels:
     row = cases[label][49]
@@ -72,12 +74,19 @@ for label in labels:
         else:
             assert 1-cosine > 1e-4
             assert abs(displacement) < 2e-6 and abs(projected*remaining) < 2e-6
+        nudge_cm = .01 if label == 'near-normal' else 0
+        without_nudge = [value - nudge_cm * axis for value, axis in zip(delta, normal)]
+        assert abs(dot(without_nudge, normal)) < 2e-6
         native[label] = dict(normal_dot=cosine, remaining_seconds=remaining,
-                             displacement_cm=displacement, velocity_cm_s=projected)
+                             displacement_cm=displacement, velocity_cm_s=projected,
+                             without_nudge_displacement_cm=dot(without_nudge, normal))
 
     path = root / f'runtime-{label}'
     functional = read(root / f'{label}-functional.json')
     assert functional['pass'] and functional['images'] == [] and not functional['issues']
+    assert revalidated[label]['process']['success'] and revalidated[label]['functional'] == functional
+    report = read(path / 'report.json')
+    assert report['primary_failure'] is None and not report['graph_errors'] and report['screenshots'] == []
     assert read(path / 'process.report.json')['success']
     initial = read(path / 'initial-observed.json')
     assert initial['initial_with_motor'] == [2,-2,4] and initial['desired'] == [0,0,0]
