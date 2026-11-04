@@ -1,0 +1,1 @@
+error[B0001]: Query<'_, '_, (Position, Rotation, Collider)> in system bf144_phase553::c553_adjust accesses component(s) Position in a way that conflicts with a previous system parameter. Consider using `Without<T>` to create disjoint Queries or merging conflicting Queries into a `ParamSet`. See: https://bevy.org/learn/errors/b0001

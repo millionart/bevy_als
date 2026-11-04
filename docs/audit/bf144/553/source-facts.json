@@ -1,0 +1,68 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "bytes": 545515,
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 6295,
+        "end": 6351,
+        "text": "void UCharacterMovementComponent::AdjustFloorHeight()\n{\n\tSCOPE_CYCLE_COUNTER(STAT_CharAdjustFloorHeight);\n\n\t// If we have a floor check that hasn't hit anything, don't adjust height.\n\tif (!CurrentFloor.IsWalkableFloor())\n\t{\n\t\treturn;\n\t}\n\n\tfloat OldFloorDist = CurrentFloor.FloorDist;\n\tif (CurrentFloor.bLineTrace)\n\t{\n\t\tif (OldFloorDist < MIN_FLOOR_DIST && CurrentFloor.LineDist >= MIN_FLOOR_DIST)\n\t\t{\n\t\t\t// This would cause us to scale unwalkable walls\n\t\t\tUE_LOGF(LogCharacterMovement, VeryVerbose, \"Adjust floor height aborting due to line trace with small floor distance (line: %.2f, sweep: %.2f)\", CurrentFloor.LineDist, CurrentFloor.FloorDist);\n\t\t\treturn;\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Falling back to a line trace means the sweep was unwalkable (or in penetration). Use the line distance for the vertical adjustment.\n\t\t\tOldFloorDist = CurrentFloor.LineDist;\n\t\t}\n\t}\n\n\t// Move up or down to maintain floor height.\n\tif (OldFloorDist < MIN_FLOOR_DIST || OldFloorDist > MAX_FLOOR_DIST)\n\t{\n\t\tFHitResult AdjustHit(1.f);\n\t\tconst double InitialZ = GetGravitySpaceZ(UpdatedComponent->GetComponentLocation());\n\t\tconst float AvgFloorDist = (MIN_FLOOR_DIST + MAX_FLOOR_DIST) * 0.5f;\n\t\tconst float MoveDist = AvgFloorDist - OldFloorDist;\n\t\tSafeMoveUpdatedComponent(MoveDist * -GetGravityDirection(), UpdatedComponent->GetComponentQuat(), true, AdjustHit );\n\t\tUE_LOGF(LogCharacterMovement, VeryVerbose, \"Adjust floor height %.3f (Hit = %d)\", MoveDist, AdjustHit.bBlockingHit);\n\n\t\tif (!AdjustHit.IsValidBlockingHit())\n\t\t{\n\t\t\tCurrentFloor.FloorDist += MoveDist;\n\t\t}\n\t\telse if (MoveDist > 0.f)\n\t\t{\n\t\t\tconst double CurrentZ = GetGravitySpaceZ(UpdatedComponent->GetComponentLocation());\n\t\t\tCurrentFloor.FloorDist += CurrentZ - InitialZ;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tcheckSlow(MoveDist < 0.f);\n\t\t\tCurrentFloor.FloorDist = GetGravitySpaceZ(UpdatedComponent->GetComponentLocation() - AdjustHit.Location);\n\t\t\tif (IsWalkable(AdjustHit))\n\t\t\t{\n\t\t\t\tCurrentFloor.SetFromSweep(AdjustHit, CurrentFloor.FloorDist, true);\n\t\t\t}\n\t\t}\n\n\t\t// Don't recalculate velocity based on this height adjustment, if considering vertical adjustments.\n\t\t// Also avoid it if we moved out of penetration\n"
+      },
+      {
+        "start": 7219,
+        "end": 7239,
+        "text": "\n\tUE_LOGF(LogCharacterMovement, VeryVerbose, \"[Role:%d] FindFloor: %ls at location %ls\", (int32)CharacterOwner->GetLocalRole(), *GetNameSafe(CharacterOwner), *CapsuleLocation.ToString());\n\tcheck(CharacterOwner->GetCapsuleComponent());\n\n\t// Increase height check slightly if walking, to prevent floor height adjustment from later invalidating the floor result.\n\tconst float HeightCheckAdjust = (IsMovingOnGround() ? MAX_FLOOR_DIST + UE_KINDA_SMALL_NUMBER : -MAX_FLOOR_DIST);\n\n\tfloat FloorSweepTraceDist = FMath::Max(MAX_FLOOR_DIST, MaxStepHeight + HeightCheckAdjust);\n\tfloat FloorLineTraceDist = FloorSweepTraceDist;\n\tbool bNeedToValidateFloor = true;\n\t\n\t// Sweep floor\n\tif (FloorLineTraceDist > 0.f || FloorSweepTraceDist > 0.f)\n\t{\n\t\tUCharacterMovementComponent* MutableThis = const_cast<UCharacterMovementComponent*>(this);\n\n\t\tif ( bAlwaysCheckFloor || !bCanUseCachedLocation || bForceNextFloorCheck || bJustTeleported )\n\t\t{\n\t\t\tMutableThis->bForceNextFloorCheck = false;\n\t\t\tComputeFloorDist(CapsuleLocation, FloorLineTraceDist, FloorSweepTraceDist, OutFloorResult, CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius(), DownwardSweepResult);\n\t\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Private/AlsCharacterMovementComponent.cpp",
+    "bytes": 40375,
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 462,
+        "end": 470,
+        "text": "\t\tif (StepDownResult.bComputedFloor)\r\n\t\t{\r\n\t\t\tCurrentFloor = StepDownResult.FloorResult;\r\n\t\t}\r\n\t\telse\r\n\t\t{\r\n\t\t\tFindFloor(UpdatedComponent->GetComponentLocation(), CurrentFloor, bZeroDelta, NULL);\r\n\t\t}\r\n\r\n"
+      },
+      {
+        "start": 512,
+        "end": 528,
+        "text": "\t\t\tif (CurrentFloor.IsWalkableFloor())\r\n\t\t\t{\r\n\t\t\t\tif (ShouldCatchAir(OldFloor, CurrentFloor))\r\n\t\t\t\t{\r\n\t\t\t\t\tHandleWalkingOffLedge(OldFloor.HitResult.ImpactNormal, OldFloor.HitResult.Normal, OldLocation, timeTick);\r\n\t\t\t\t\tif (IsMovingOnGround())\r\n\t\t\t\t\t{\r\n\t\t\t\t\t\t// If still walking, then fall. If not, assume the user set a different mode they want to keep.\r\n\t\t\t\t\t\tStartFalling(Iterations, remainingTime, timeTick, Delta, OldLocation);\r\n\t\t\t\t\t}\r\n\t\t\t\t\treturn;\r\n\t\t\t\t}\r\n\r\n\t\t\t\tAdjustFloorHeight();\r\n\t\t\t\tSetBaseFromFloor(CurrentFloor);\r\n\t\t\t}\r\n\r\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "bytes": 378291,
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 3599,
+        "end": 3619,
+        "text": "fn adjust_walking_floor_height(\n    spatial: &SpatialQuery, capsule: &Collider, transform: &mut Transform, half: f32, radius: f32,\n    cmc: &crate::als::params::CmcAdapterParams, entity: Entity,\n    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,\n) -> bool {\n    let filter = SpatialQueryFilter::from_excluded_entities([entity]);\n    let Some((center, _, _)) = find_ground_floor(spatial, transform.translation, half, radius, cmc,\n        LocomotionState::Grounded, &filter, entity, candidates) else { return false };\n    if !(MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&(transform.translation.y - center)) {\n        let adjustment = Vec3::Y * (center + (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5 - transform.translation.y);\n        if let Ok((direction, distance)) = Dir3::new_and_length(adjustment) {\n            let hit = spatial.cast_shape_predicate(capsule, transform.translation, transform.rotation,\n                direction, &ShapeCastConfig { ignore_origin_penetration: true,\n                    ..ShapeCastConfig::from_max_distance(distance) }, &filter,\n                &|candidate| character_blocks_collider(entity, candidate, candidates));\n            transform.translation += *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));\n        }\n    }\n    true\n}\n\n"
+      },
+      {
+        "start": 3814,
+        "end": 3832,
+        "text": "        }\n        let center = position.0;\n        let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query, capsule,\n            center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };\n        runtime.grounded_move_start = Some(center);\n        let world_position = next_y.filter(|height| *height > center.y).map_or(advanced, |height| advanced.with_y(height));\n        transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n        commands.entity(entity).insert(Position(world_position));\n        let remaining_velocity = remaining.unwrap_or(delta) / time.delta_secs();\n        motor.lin.boost.x = remaining_velocity.x - velocity.x;\n        motor.lin.boost.z = remaining_velocity.z - velocity.z;\n        motor.lin.acceleration.x = 0.0;\n        motor.lin.acceleration.z = 0.0;\n        if next_y.is_none() { continue; }\n        motor.lin.boost.y = -velocity.y;\n        motor.lin.acceleration.y = -gravity.value.y;\n        *margin = SpeculativeMargin::ZERO;\n    }\n}\n"
+      },
+      {
+        "start": 3914,
+        "end": 3920,
+        "text": "        MAX_FLOOR_DISTANCE + crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE\n    } else { -MAX_FLOOR_DISTANCE };\n    let max_floor = MAX_FLOOR_DISTANCE.max(MAX_STEP_HEIGHT + height_adjust);\n    let (mut hit, mut floor_distance, valid, line, retained_penetration) = compute(origin, radius, max_floor, max_floor)?;\n    let threshold = cmc.perch_radius_threshold.max(0.0);\n    let perch_radius = (radius - threshold).max(crate::als::movement_constants::MIN_PERCH_RADIUS).min(radius);\n    let edge_distance = Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared();\n"
+      },
+      {
+        "start": 4003,
+        "end": 4024,
+        "text": "            find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc, *current,\n                &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates)\n        });\n        let validated_floor = floor_result.map(|(floor, _)| floor);\n        let floor_penetration = floor_result.and_then(|(_, penetration)| penetration);\n        let mut floor_supported = false;\n        let mut floor_entity = None;\n        if *current == LocomotionState::Grounded && !blocked.contains(entity) && !jumping\n            && params_assets.get(handle.id()).is_some() {\n            let filter = SpatialQueryFilter::from_excluded_entities([entity]);\n            if let Some((floor_center_y, _, floor)) = validated_floor {\n                let floor_distance = position.y - floor_center_y;\n                let next_y = if (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&floor_distance) {\n                    position.y\n                } else {\n                    floor_center_y + (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5\n                };\n                if (next_y - position.y).abs() <= MAX_STEP_HEIGHT {\n                    let mut next_transform = *transform;\n                    next_transform.translation = position.0;\n                    let (direction, distance) = Dir3::new_and_length(Vec3::Y * (next_y - position.y))\n                        .unwrap_or((Dir3::NEG_Y, 0.0));\n"
+      },
+      {
+        "start": 4063,
+        "end": 4077,
+        "text": "                        * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));\n                    let world_position = next_transform.translation;\n                    next_transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n                    commands.entity(entity).insert((Position(world_position), next_transform));\n                    velocity.0.y = 0.0;\n                    floor_supported = true;\n                    floor_entity = Some(floor);\n                }\n            }\n        }\n        let airborne = TnuaBuiltinWalk::displacement(&basis).is_none()\n            || jumping || validated_floor.is_none();\n        let landed_on_contact = airborne && validated_floor.is_some() && collisions.collisions_with(entity)\n            .any(|contact| resolved_walkable_contact(contact, entity));\n        let capsule_contact = airborne && !landed_on_contact && !floor_supported\n"
+      }
+    ]
+  }
+]

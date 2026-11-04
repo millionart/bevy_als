@@ -1,0 +1,555 @@
+{
+  "gate": "PASS_WALKING_POST_FLOOR_DOWN_ADJUSTMENT_CAP",
+  "findings": [
+    "BF144-D306"
+  ],
+  "new_differences": 1,
+  "total_differences": 303,
+  "ordinal": 40,
+  "native": {
+    "within": {
+      "start": [
+        -13.667499995343388,
+        2.9215,
+        -15.0
+      ],
+      "end": [
+        -13.667499995343388,
+        2.4744999923706055,
+        -15.0
+      ],
+      "floor": {
+        "blocking": true,
+        "walkable": true,
+        "line_trace": false,
+        "distance_cm": 2.1500015258789062,
+        "trace_start_cm": {
+          "x": -1366.7499995343387,
+          "y": -1500,
+          "z": 92.15
+        },
+        "trace_end_cm": {
+          "x": -1366.7499995343387,
+          "y": -1500,
+          "z": 38.74989929199219
+        },
+        "hit": {
+          "component": "AuditLandingDeck",
+          "blocking": true,
+          "penetrating": false,
+          "time": 0.9896985292434692,
+          "location_cm": {
+            "x": -1366.7499995343387,
+            "y": -1500,
+            "z": 39.29999886783153
+          },
+          "impact_point_cm": {
+            "x": -1366.75,
+            "y": -1500,
+            "z": -44.700007629394534
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "impact_normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "lower_hemisphere_cm": -20.700001132168467,
+          "impact_height_cm": -44.700007629394534,
+          "below_lower_hemisphere": true,
+          "edge_within": true,
+          "walkable": true
+        }
+      },
+      "world_delta_seconds": 0.05000000074505806
+    },
+    "beyond": {
+      "start": [
+        -13.667499995343388,
+        2.9215,
+        -15.0
+      ],
+      "end": [
+        -13.667499995343388,
+        2.4710000457763672,
+        -15.0
+      ],
+      "floor": {
+        "blocking": true,
+        "walkable": true,
+        "line_trace": false,
+        "distance_cm": 2.1500015258789062,
+        "trace_start_cm": {
+          "x": -1366.7499995343387,
+          "y": -1500,
+          "z": 92.15
+        },
+        "trace_end_cm": {
+          "x": -1366.7499995343387,
+          "y": -1500,
+          "z": 38.74989929199219
+        },
+        "hit": {
+          "component": "AuditLandingDeck",
+          "blocking": true,
+          "penetrating": false,
+          "time": 0.9962527751922607,
+          "location_cm": {
+            "x": -1366.7499995343387,
+            "y": -1500,
+            "z": 38.950001474101015
+          },
+          "impact_point_cm": {
+            "x": -1366.75,
+            "y": -1500,
+            "z": -45.05000762939453
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "impact_normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "lower_hemisphere_cm": -21.049998525898985,
+          "impact_height_cm": -45.05000762939453,
+          "below_lower_hemisphere": true,
+          "edge_within": true,
+          "walkable": true
+        }
+      },
+      "world_delta_seconds": 0.05000000074505806
+    }
+  },
+  "target": {
+    "within": {
+      "adjustment": {
+        "enabled": false,
+        "end": [
+          -13.667499542236328,
+          2.474687099456787,
+          -15.0
+        ],
+        "floor": {
+          "center": 2.4531869888305664,
+          "impact": 1.5529999732971191,
+          "name": "AuditLandingDeck"
+        },
+        "hit": null,
+        "request_y": -0.44681286811828613,
+        "selected": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "start": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ]
+      },
+      "before": {
+        "consumed_contact": false,
+        "floor": {
+          "center": 2.4531869888305664,
+          "gap": 0.46831297874450684,
+          "impact": 1.5529999732971191,
+          "lower_hemisphere": 2.321500062942505,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": false,
+        "has_basis_displacement": true,
+        "manifolds": [],
+        "mode": "Grounded",
+        "ordinal": 40,
+        "planned_velocity": null,
+        "position": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "raw_velocity": [
+          6.25,
+          0.0,
+          -6.888225811962911e-08
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 40,
+        "position": [
+          -13.667499542236328,
+          2.474687099456787,
+          -15.0
+        ],
+        "published": [
+          6.25,
+          0.0,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          6.25,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "beyond": {
+      "adjustment": {
+        "enabled": false,
+        "end": [
+          -13.667499542236328,
+          2.4710500240325928,
+          -15.0
+        ],
+        "floor": {
+          "center": 2.449549913406372,
+          "impact": 1.5494999885559082,
+          "name": "AuditLandingDeck"
+        },
+        "hit": null,
+        "request_y": -0.45044994354248047,
+        "selected": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "start": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ]
+      },
+      "before": {
+        "consumed_contact": false,
+        "floor": {
+          "center": 2.449549913406372,
+          "gap": 0.47195005416870117,
+          "impact": 1.5494999885559082,
+          "lower_hemisphere": 2.321500062942505,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": false,
+        "has_basis_displacement": true,
+        "manifolds": [],
+        "mode": "Grounded",
+        "ordinal": 40,
+        "planned_velocity": null,
+        "position": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "raw_velocity": [
+          6.25,
+          0.0,
+          -6.888225811962911e-08
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 40,
+        "position": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "published": [
+          6.25,
+          0.0,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          6.25,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "beyond-adjusted": {
+      "adjustment": {
+        "enabled": true,
+        "end": [
+          -13.667499542236328,
+          2.4710500240325928,
+          -15.0
+        ],
+        "floor": {
+          "center": 2.449549913406372,
+          "impact": 1.5494999885559082,
+          "name": "AuditLandingDeck"
+        },
+        "hit": null,
+        "request_y": -0.45044994354248047,
+        "selected": [
+          -13.667499542236328,
+          2.4710500240325928,
+          -15.0
+        ],
+        "start": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ]
+      },
+      "before": {
+        "consumed_contact": false,
+        "floor": {
+          "center": 2.449549913406372,
+          "gap": 0.47195005416870117,
+          "impact": 1.5494999885559082,
+          "lower_hemisphere": 2.321500062942505,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": false,
+        "has_basis_displacement": true,
+        "manifolds": [],
+        "mode": "Grounded",
+        "ordinal": 40,
+        "planned_velocity": null,
+        "position": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "raw_velocity": [
+          6.25,
+          0.0,
+          -6.888225811962911e-08
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 40,
+        "position": [
+          -13.667499542236328,
+          2.4710500240325928,
+          -15.0
+        ],
+        "published": [
+          6.25,
+          0.0,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          6.25,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "beyond-restored": {
+      "adjustment": {
+        "enabled": false,
+        "end": [
+          -13.667499542236328,
+          2.4710500240325928,
+          -15.0
+        ],
+        "floor": {
+          "center": 2.449549913406372,
+          "impact": 1.5494999885559082,
+          "name": "AuditLandingDeck"
+        },
+        "hit": null,
+        "request_y": -0.45044994354248047,
+        "selected": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "start": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ]
+      },
+      "before": {
+        "consumed_contact": false,
+        "floor": {
+          "center": 2.449549913406372,
+          "gap": 0.47195005416870117,
+          "impact": 1.5494999885559082,
+          "lower_hemisphere": 2.321500062942505,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": false,
+        "has_basis_displacement": true,
+        "manifolds": [],
+        "mode": "Grounded",
+        "ordinal": 40,
+        "planned_velocity": null,
+        "position": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "raw_velocity": [
+          6.25,
+          0.0,
+          -6.888225811962911e-08
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 40,
+        "position": [
+          -13.667499542236328,
+          2.9214999675750732,
+          -15.0
+        ],
+        "published": [
+          6.25,
+          0.0,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          6.25,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "decompressed_files": {
+    "lower.native.json.gz": {
+      "bytes": 35357792,
+      "sha256": "c2f484ebc798a2ab7add73b999231e1e47dfe8f9531405cad5e902fbed3080c6"
+    },
+    "runtime-within/parameters.json.gz": {
+      "bytes": 1290726,
+      "sha256": "2caa1b47362cb4aa22e855bb26a71aca5650cbf3494cdca76b2ce9c25ff73fb4"
+    },
+    "runtime-within/report.json.gz": {
+      "bytes": 4208732,
+      "sha256": "6594f769779d02dba31705939ec839031525b2e0223e3eace55cffb8c54ca4b6"
+    },
+    "runtime-within/walking-step.json.gz": {
+      "bytes": 11171,
+      "sha256": "4e42e2370fed8bb1a2ccd71fc63b1b9396ea0fc5096049c66fa2202b45380578"
+    },
+    "runtime-within/walking-transaction.json.gz": {
+      "bytes": 5515,
+      "sha256": "7a35863b923dc55ab5ef70d4573176d2142ccf343fbaef018065750fe536b67f"
+    },
+    "runtime-within/step-down-replay.json.gz": {
+      "bytes": 3155,
+      "sha256": "caf10e7e56fba4dc287dff8957b2b5080e83e5b88d994a4819a27f4ca7c60c89"
+    },
+    "runtime-beyond/parameters.json.gz": {
+      "bytes": 1337527,
+      "sha256": "b523c00ecfca77a7762ccf700d900428a65dd1daa7e8318ec5242dd4066edef0"
+    },
+    "runtime-beyond/report.json.gz": {
+      "bytes": 4208632,
+      "sha256": "212a2d2e74c1c0854b9684db95aeb6a0be85da793d9b5a8aeec7509eae164c59"
+    },
+    "runtime-beyond/walking-step.json.gz": {
+      "bytes": 11357,
+      "sha256": "d49cfaac0610d25737e15a2da41ab3068efe54f9f7d6daa309dbc0ff93fd09b0"
+    },
+    "runtime-beyond/walking-transaction.json.gz": {
+      "bytes": 5515,
+      "sha256": "7a35863b923dc55ab5ef70d4573176d2142ccf343fbaef018065750fe536b67f"
+    },
+    "runtime-beyond/step-down-replay.json.gz": {
+      "bytes": 3169,
+      "sha256": "01445cc617054488ac1b6613068700e408648d3d8b4ba867270fa8d53a3f340e"
+    },
+    "runtime-beyond-adjusted/parameters.json.gz": {
+      "bytes": 1291135,
+      "sha256": "0751064f021e995ec6b5325b2eb0a0b43c5bb79ed4193147bf2ffead6c43858d"
+    },
+    "runtime-beyond-adjusted/report.json.gz": {
+      "bytes": 4024365,
+      "sha256": "e366621062b0872e5c461d89138629b81d341ac0a810567a3a529b0dd5e5474e"
+    },
+    "runtime-beyond-adjusted/walking-step.json.gz": {
+      "bytes": 11357,
+      "sha256": "d49cfaac0610d25737e15a2da41ab3068efe54f9f7d6daa309dbc0ff93fd09b0"
+    },
+    "runtime-beyond-adjusted/walking-transaction.json.gz": {
+      "bytes": 5515,
+      "sha256": "7a35863b923dc55ab5ef70d4573176d2142ccf343fbaef018065750fe536b67f"
+    },
+    "runtime-beyond-adjusted/step-down-replay.json.gz": {
+      "bytes": 3169,
+      "sha256": "01445cc617054488ac1b6613068700e408648d3d8b4ba867270fa8d53a3f340e"
+    },
+    "runtime-beyond-restored/parameters.json.gz": {
+      "bytes": 1337538,
+      "sha256": "eec774ff0e11f648fe71de38776ac24fc996f8d6436b6400ab6bcd72bea35a69"
+    },
+    "runtime-beyond-restored/report.json.gz": {
+      "bytes": 4208141,
+      "sha256": "3a410c4efcbb2dcf8f4cbee4320a47b34332cab121c256da1cf844c4e9272db1"
+    },
+    "runtime-beyond-restored/walking-step.json.gz": {
+      "bytes": 11357,
+      "sha256": "d49cfaac0610d25737e15a2da41ab3068efe54f9f7d6daa309dbc0ff93fd09b0"
+    },
+    "runtime-beyond-restored/walking-transaction.json.gz": {
+      "bytes": 5515,
+      "sha256": "7a35863b923dc55ab5ef70d4573176d2142ccf343fbaef018065750fe536b67f"
+    },
+    "runtime-beyond-restored/step-down-replay.json.gz": {
+      "bytes": 3169,
+      "sha256": "01445cc617054488ac1b6613068700e408648d3d8b4ba867270fa8d53a3f340e"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/550/roof.request.json",
+      "bytes": 20389,
+      "sha256": "627495c15f8b9770d40862cd743890efd5fccae46e694ddc0bbbaf2e9659ca26"
+    },
+    {
+      "path": "docs/audit/bf144/537/observer.py",
+      "bytes": 1463,
+      "sha256": "5ce7053193d08da19fe4272d703135bf7928f435a0f4d56b7df0b364e274cebc"
+    },
+    {
+      "path": "docs/audit/bf144/536/prepare_reader.py",
+      "bytes": 2370,
+      "sha256": "06d2931d64a3bf9f63f2a91089db8aa8a568c02c0d61b8e474ab5124d2f79e3a"
+    },
+    {
+      "path": "docs/audit/bf144/536/step_down_floor.inc",
+      "bytes": 994,
+      "sha256": "1cee5112107c7d0dcc8a2bdf348dd2fcbc74b3e5f4a65477b37ad54b740b38a8"
+    },
+    {
+      "path": "docs/audit/bf144/536/observer.py",
+      "bytes": 4167,
+      "sha256": "1846af5ef85477f3c81ac5410fbb0db949736affb4e3c8d42ff6329f868d21b1"
+    },
+    {
+      "path": "docs/audit/bf144/536/step_probe.rs",
+      "bytes": 1761,
+      "sha256": "53c055d227d8cb50eea10fcf56c92095cb4f108afe44a77974ac9d13d486dfe9"
+    }
+  ]
+}
