@@ -1,0 +1,117 @@
+{
+  "gate": "PASS_INDEPENDENT_VELOCITY_BLEND_EUCLIDEAN_STAGE",
+  "files": {
+    "README.md": {
+      "sha256": "90cb29e2c6dd2eaa5d8b4def3a8e51a9c205a463323fbc17539dfa56142979d3",
+      "bytes": 1033
+    },
+    "evidence-input.json": {
+      "sha256": "6df2c22fbba29e0f96e87d6ab824879d6a66c1060339c83ade2a8efda3ba3388",
+      "bytes": 12254
+    },
+    "final-source.json": {
+      "sha256": "de79403f7c2d9a4afc72f0c799d177d345dc60f0c5a315601a610f96f965a489",
+      "bytes": 144
+    },
+    "finalize.py": {
+      "sha256": "b5bb36e6651d7fc5198bb0f5142f66b6af41328905d7ce42396edbfc9079cfb1",
+      "bytes": 4920
+    },
+    "finalize.report.json": {
+      "sha256": "907d40c94d01345e5c8d34a6956f773ca6ecfaa6a93096ebc8d6573e8bd5fcad",
+      "bytes": 406
+    },
+    "identity-check.json": {
+      "sha256": "a1098f7abbe9c2d8d07397fbd250a727ac011abaff86a42414825bb46d043d44",
+      "bytes": 325
+    },
+    "identity.py": {
+      "sha256": "9303e643aea2f07a4c831062360c536da77ff3da206cb74fc28d3ad39384b7b0",
+      "bytes": 2814
+    },
+    "identity.report.json": {
+      "sha256": "75e7a74cd62d28ebecbc38cae0a3ae5840c99d4b5d3a144bf65e93f451c6ee75",
+      "bytes": 406
+    },
+    "prepare.py": {
+      "sha256": "57928bc3f6f7df64c184ebaa2ec454dfb5712de96b51978a6b1231921d4e1f5f",
+      "bytes": 4418
+    },
+    "prepare.report.json": {
+      "sha256": "aa44aab178b1bd8541a0ac66238bad046baee6bba73d3c746045cbc9988cb634",
+      "bytes": 405
+    },
+    "replay-baseline.json.gz": {
+      "sha256": "0503d785d63b4b6ccb479827636da66ca54cb36528afb2703e12f64a3c0c260f",
+      "bytes": 11297
+    },
+    "replay-baseline.report.json": {
+      "sha256": "9c360407297d4160a09868064832ba3271a3e12f8eac1c5b823682f7fdc3dbeb",
+      "bytes": 412
+    },
+    "replay-compile-baseline.report.json": {
+      "sha256": "1cd1bdd4a7850816a3a416fbd1304c5b635e7c052671e4349557e3bad545c399",
+      "bytes": 422
+    },
+    "replay-compile-native-array-size.report.json": {
+      "sha256": "f90caad364814c40bbcf2d81906206afe178aa1f744fd9939edf49d74cd5f84e",
+      "bytes": 423
+    },
+    "replay-compile-no-euclidean.report.json": {
+      "sha256": "e7e91d18c162f0240b188492521bc80b487c10375a9aec1d06a8dd2ebc006772",
+      "bytes": 425
+    },
+    "replay-compile-restored.report.json": {
+      "sha256": "693d882db0f375d3d3de32e480fdfa05ea102fe977e3a2dba741c832c907e0fc",
+      "bytes": 421
+    },
+    "replay-no-euclidean.json.gz": {
+      "sha256": "411373b69a137df68bbb3e833e5310bc29ec6fea2dfb6d8e979fe1a0daa2b8b9",
+      "bytes": 11525
+    },
+    "replay-no-euclidean.report.json": {
+      "sha256": "c8a556435ec9a19ab75a340495520dba48311b421ca349ff748bb35032563501",
+      "bytes": 419
+    },
+    "replay-restored.json.gz": {
+      "sha256": "0503d785d63b4b6ccb479827636da66ca54cb36528afb2703e12f64a3c0c260f",
+      "bytes": 11297
+    },
+    "replay-restored.report.json": {
+      "sha256": "89766caec8e0bbd83ca1f80ef3fae0ef87b4c04cbc60b01881f2234f5274427d",
+      "bytes": 412
+    },
+    "replay.rs": {
+      "sha256": "190ea8a8889d8b2cb4898355ace43e05cc06a5cd3c0a55f292293849221cb020",
+      "bytes": 7099
+    },
+    "run_python.ps1": {
+      "sha256": "680016d9fe0f23a93ba5b5eb1ad7ca16d0cf1098f5fc65165c704b41526375d0",
+      "bytes": 901
+    },
+    "run_replay.ps1": {
+      "sha256": "5b6c04920b9c4745fb0a452d8f1740a74e3b523c5971c807ee63a5db2e4b8331",
+      "bytes": 1582
+    },
+    "rustc-args.json": {
+      "sha256": "e77f102eb3c1b692899f497181b84d578756b3b05fa43392e7e9b7a50e929ca0",
+      "bytes": 4337
+    },
+    "seal.py": {
+      "sha256": "4aff8265aa15e3e04c1f428a95da0858afa28f745a6045a97068e21ab4eeece3",
+      "bytes": 1495
+    },
+    "source-facts.json": {
+      "sha256": "538f30bf70b66d95494af0d53476566190fdd63c7327753d32431fdc7c6b66f7",
+      "bytes": 13862
+    },
+    "summary.json": {
+      "sha256": "78ebbe73fbebc2796d8e13391c234ed6af3590ecce53371ca185e5ba9190a9d5",
+      "bytes": 2174
+    }
+  },
+  "full_root_or_als_equivalence_claimed": false,
+  "new_differences": 1,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
