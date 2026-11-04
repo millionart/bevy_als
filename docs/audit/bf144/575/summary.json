@@ -1,0 +1,726 @@
+{
+  "gate": "PASS_COMMON_WORLD_INPUT_ISOLATES_RUNOFF_LATERAL_DRIFT",
+  "findings": [],
+  "new_differences": 0,
+  "total_differences": 310,
+  "samples": {
+    "natural": [
+      {
+        "frame": 52,
+        "direction": {
+          "frame": 52,
+          "mode": "Grounded",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0
+      },
+      {
+        "frame": 53,
+        "direction": {
+          "frame": 53,
+          "mode": "Grounded",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0
+      },
+      {
+        "frame": 54,
+        "direction": {
+          "frame": 54,
+          "mode": "Grounded",
+          "natural": [
+            0.9999997019767761,
+            0.0,
+            -0.0007593194022774696
+          ],
+          "published_yaw": -1.5700370073318481,
+          "submitted": [
+            0.9999997019767761,
+            0.0,
+            -0.0007593194022774696
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.00015926361083984375,
+        "speed": -0.001387483673170209
+      },
+      {
+        "frame": 55,
+        "direction": {
+          "frame": 55,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.00033283233642578125,
+        "speed": -0.0013665328733623028
+      },
+      {
+        "frame": 56,
+        "direction": {
+          "frame": 56,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.0004987716674804688,
+        "speed": -0.001290716347284615
+      },
+      {
+        "frame": 57,
+        "direction": {
+          "frame": 57,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.0006551742553710938,
+        "speed": -0.0012191098649054766
+      },
+      {
+        "frame": 58,
+        "direction": {
+          "frame": 58,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.0008020401000976562,
+        "speed": -0.0011208119103685021
+      }
+    ],
+    "axial": [
+      {
+        "frame": 52,
+        "direction": {
+          "frame": 52,
+          "mode": "Grounded",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 53,
+        "direction": {
+          "frame": 53,
+          "mode": "Grounded",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 54,
+        "direction": {
+          "frame": 54,
+          "mode": "Grounded",
+          "natural": [
+            0.999998927116394,
+            0.0,
+            0.0014701321488246322
+          ],
+          "published_yaw": -1.5722664594650269,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 55,
+        "direction": {
+          "frame": 55,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 56,
+        "direction": {
+          "frame": 56,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 57,
+        "direction": {
+          "frame": 57,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 58,
+        "direction": {
+          "frame": 58,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      }
+    ],
+    "positive": [
+      {
+        "frame": 52,
+        "direction": {
+          "frame": 52,
+          "mode": "Grounded",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 53,
+        "direction": {
+          "frame": 53,
+          "mode": "Grounded",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 54,
+        "direction": {
+          "frame": 54,
+          "mode": "Grounded",
+          "natural": [
+            0.999999463558197,
+            0.0,
+            0.0010385948698967695
+          ],
+          "published_yaw": -1.571834921836853,
+          "submitted": [
+            0.9999995231628418,
+            0.0,
+            0.0009765625
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0002040863037109375,
+        "speed": 0.0017844459507614374,
+        "source_position": 0.00020382968534931933,
+        "source_speed": 0.001784446039527918
+      },
+      {
+        "frame": 55,
+        "direction": {
+          "frame": 55,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.00042724609375,
+        "speed": 0.0017574088415130973,
+        "source_position": 0.00042637850443952627,
+        "source_speed": 0.0017574091074368662
+      },
+      {
+        "frame": 56,
+        "direction": {
+          "frame": 56,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.000640869140625,
+        "speed": 0.0016598154325038195,
+        "source_position": 0.0006399080316214168,
+        "source_speed": 0.0016598159223807896
+      },
+      {
+        "frame": 57,
+        "direction": {
+          "frame": 57,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0008420944213867188,
+        "speed": 0.0015676418552175164,
+        "source_position": 0.0008415797468660457,
+        "source_speed": 0.0015676423229793895
+      },
+      {
+        "frame": 58,
+        "direction": {
+          "frame": 58,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0010309219360351562,
+        "speed": 0.0014131976058706641,
+        "source_position": 0.0010298860864736525,
+        "source_speed": 0.0013827799977287366
+      }
+    ],
+    "negative": [
+      {
+        "frame": 52,
+        "direction": {
+          "frame": 52,
+          "mode": "Grounded",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 53,
+        "direction": {
+          "frame": 53,
+          "mode": "Grounded",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": 0.0,
+        "speed": 0.0,
+        "source_position": 0.0,
+        "source_speed": 0.0
+      },
+      {
+        "frame": 54,
+        "direction": {
+          "frame": 54,
+          "mode": "Grounded",
+          "natural": [
+            0.9999993443489075,
+            0.0,
+            -0.001150087220594287
+          ],
+          "published_yaw": -1.5696462392807007,
+          "submitted": [
+            0.9999995231628418,
+            0.0,
+            -0.0009765625
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.0002040863037109375,
+        "speed": -0.0017844459507614374,
+        "source_position": -0.00020382968534931933,
+        "source_speed": -0.001784446039527918
+      },
+      {
+        "frame": 55,
+        "direction": {
+          "frame": 55,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.00042724609375,
+        "speed": -0.0017574088415130973,
+        "source_position": -0.00042637850443952627,
+        "source_speed": -0.0017574091074368662
+      },
+      {
+        "frame": 56,
+        "direction": {
+          "frame": 56,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.000640869140625,
+        "speed": -0.0016598154325038195,
+        "source_position": -0.0006399080316214168,
+        "source_speed": -0.0016598159223807896
+      },
+      {
+        "frame": 57,
+        "direction": {
+          "frame": 57,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.0008420944213867188,
+        "speed": -0.0015676418552175164,
+        "source_position": -0.0008415797468660457,
+        "source_speed": -0.0015676423229793895
+      },
+      {
+        "frame": 58,
+        "direction": {
+          "frame": 58,
+          "mode": "Air",
+          "natural": [
+            1.0,
+            0.0,
+            -1.9470718370939721e-07
+          ],
+          "published_yaw": -1.5707961320877075,
+          "submitted": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "view_yaw": -1.5707963705062866
+        },
+        "position": -0.0010318756103515625,
+        "speed": -0.001457538572140038,
+        "source_position": -0.0010298860864736525,
+        "source_speed": -0.0013827799977287366
+      }
+    ]
+  },
+  "landing_velocity_residual": {
+    "positive": 3.0417608141927472e-05,
+    "negative": -7.475857441130137e-05
+  },
+  "public_functional_pass": false,
+  "decompressed_files": {
+    "lateral.native.json.gz": {
+      "bytes": 63529543,
+      "sha256": "8a865abf2184f20c2e91626b06fbe0595daba3897fe39d42fb92da1fd2967552"
+    },
+    "runtime-natural/parameters.json.gz": {
+      "bytes": 692914,
+      "sha256": "9b18d1a6badf0d0bad14f43409bcab8a7e473490280edc569fcf5958cda630f4"
+    },
+    "runtime-natural/report.json.gz": {
+      "bytes": 5507053,
+      "sha256": "dd21e80c383506ed424cc2e2fb16d255574a1a6efd8c05c799cda318f95d6f61"
+    },
+    "runtime-axial/parameters.json.gz": {
+      "bytes": 689591,
+      "sha256": "a2f910cd6241c9f2b94a71f4757bac577d7c4df75b41d39207db66970467f9b3"
+    },
+    "runtime-axial/report.json.gz": {
+      "bytes": 5411321,
+      "sha256": "98e7dd066c6284183e4e51cf89325005a467160206c5dbe6b020045ad6feced3"
+    },
+    "runtime-positive/parameters.json.gz": {
+      "bytes": 692375,
+      "sha256": "20200276bb6ea01b9a4fb6a08b18836da58b0adb4046ab4225e215fe6a8f2585"
+    },
+    "runtime-positive/report.json.gz": {
+      "bytes": 5507336,
+      "sha256": "4689f53d757476cb69fc70fa6d0c8f97ca63ee8ec0ab02420bbc3428ab7f0e33"
+    },
+    "runtime-negative/parameters.json.gz": {
+      "bytes": 692294,
+      "sha256": "221d9acbeaab49aa01cad75abd24c2190bb118f07a771af7cdd717d7bd4ed06b"
+    },
+    "runtime-negative/report.json.gz": {
+      "bytes": 5507149,
+      "sha256": "0dfbfffa8f70b9e8b25822fa617b2ca349f1c86f6ebf4162082af8e4e62abace"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/572/pelvis.request.json",
+      "bytes": 50651,
+      "sha256": "08a38c01572542ed819bc85e6afae7f8deac85e65e044fc6d9715f1813384bd8"
+    },
+    {
+      "path": "docs/audit/bf144/572/pelvis.package.json",
+      "bytes": 192,
+      "sha256": "be4b97f8e005ffbf1bfd91768541eb485c2ffcd5353525aeaa90af1fa1b17c54"
+    },
+    {
+      "path": "docs/audit/bf144/572/evidence-manifest.json",
+      "bytes": 10762,
+      "sha256": "b54cb603ea5fef96f0907e73cee7142f70683df4ad075ca8f94142f3f2880e27"
+    },
+    {
+      "path": "docs/audit/bf144/574/observer.py",
+      "bytes": 729,
+      "sha256": "dd24fb23590975f5cf7d483353ff4aa5c88b1af2e98c3a1ba5f416763cd8b2a5"
+    },
+    {
+      "path": "docs/audit/bf144/574/height_probe.inc",
+      "bytes": 4775,
+      "sha256": "ba8d2ca374c91a4f4c7eb8633264a15c6b187540eb2ff6f01b0c29e624754ce9"
+    },
+    {
+      "path": "docs/audit/bf144/574/summary.json",
+      "bytes": 13603,
+      "sha256": "2b214128967bde0bc62a09bba65e6d825910f3489caa156ac35ba8c2bc98c42a"
+    },
+    {
+      "path": "docs/audit/bf144/573/cached_acceleration.inc",
+      "bytes": 2781,
+      "sha256": "7eacbca8189b956a871d83223ed3ea4652fa6369e03f42546cd40bdf58ea4e27"
+    }
+  ]
+}

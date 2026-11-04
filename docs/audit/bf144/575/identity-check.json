@@ -1,0 +1,7 @@
+{
+  "gate": "PASS_REUSED_NATIVE_PACKAGE_SAME_SIX_LIBRARIES_AND_CURRENT396_IDENTITIES",
+  "six_libraries_unchanged": true,
+  "original_manual_playground_unchanged": true,
+  "archived_source_verified": true,
+  "current_source_identity_check": "docs/audit/bf144/445a/identity-check.json"
+}
