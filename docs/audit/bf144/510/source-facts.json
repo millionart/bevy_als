@@ -1,0 +1,78 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 829,
+        "end": 848,
+        "text": "FVector2f UAlsAnimationInstance::GetAccelerationAmount() const\n{\n\t// This value represents the current acceleration / deceleration. It is normalized to a range of -1 to 1, where\n\t// -1 equals max braking deceleration and 1 equals max acceleration from the character movement component.\n\n\tconst auto MaxAcceleration{\n\t\t(LocomotionState.AccelerationWorldSpace | LocomotionState.VelocityWorldSpace) >= 0.0f\n\t\t\t? LocomotionState.MaxAcceleration\n\t\t\t: LocomotionState.MaxBrakingDeceleration\n\t};\n\n\tif (MaxAcceleration <= UE_KINDA_SMALL_NUMBER)\n\t{\n\t\treturn FVector2f::ZeroVector;\n\t}\n\n\tconst FVector3f Acceleration{LocomotionState.RotationQuaternionWorldSpace.UnrotateVector(LocomotionState.AccelerationWorldSpace)};\n\n\treturn FVector2f{UAlsVector::ClampMagnitude01(Acceleration / MaxAcceleration)};\n}\n"
+      },
+      {
+        "start": 903,
+        "end": 919,
+        "text": "void UAlsAnimationInstance::RefreshGroundedLean()\n{\n\tconst auto TargetLeanAmount{GetAccelerationAmount()};\n\n\tif (bPendingUpdate || Settings->General.LeanInterpolationHalfLife <= 0.0f)\n\t{\n\t\tLeanState.RightAmount = TargetLeanAmount.Y;\n\t\tLeanState.ForwardAmount = TargetLeanAmount.X;\n\t}\n\telse\n\t{\n\t\tconst auto InterpolationAmount{UAlsMath::DamperExactAlpha(GetDeltaSeconds(), Settings->General.LeanInterpolationHalfLife)};\n\n\t\tLeanState.RightAmount = FMath::Lerp(LeanState.RightAmount, TargetLeanAmount.Y, InterpolationAmount);\n\t\tLeanState.ForwardAmount = FMath::Lerp(LeanState.ForwardAmount, TargetLeanAmount.X, InterpolationAmount);\n\t}\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Public/Utility/AlsVector.h",
+    "sha256": "4ace2c024b4c3c7ff6fb89b6f72eecdbc7c482f1720538880e78849bfb4db519",
+    "excerpts": [
+      {
+        "start": 100,
+        "end": 111,
+        "text": "inline FVector3f UAlsVector::ClampMagnitude01(const FVector3f Vector)\n{\n\tconst auto MagnitudeSquared{Vector.SizeSquared()};\n\n\tif (MagnitudeSquared <= 1.0f)\n\t{\n\t\treturn Vector;\n\t}\n\n\tconst auto Scale{FMath::InvSqrt(MagnitudeSquared)};\n\n\treturn {Vector.X * Scale, Vector.Y * Scale, Vector.Z * Scale};\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/Quat.h",
+    "sha256": "7004f385a524d92a6baba51c545c0460263551526813e4ed06d31ad6edb08300",
+    "excerpts": [
+      {
+        "start": 1252,
+        "end": 1259,
+        "text": "inline TVector<T> TQuat<T>::UnrotateVector(TVector<T> V) const\n{\t\n\tconst TVector<T> Q(-X, -Y, -Z); // Inverse\n\tconst TVector<T> TT = 2.f * TVector<T>::CrossProduct(Q, V);\n\tconst TVector<T> Result = V + (W * TT) + TVector<T>::CrossProduct(Q, TT);\n\treturn Result;\n}\n\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "excerpts": [
+      {
+        "start": 322,
+        "end": 329,
+        "text": "     */\n\ttemplate<typename FArg UE_REQUIRES(std::is_arithmetic_v<FArg>)>\n\t[[nodiscard]] TVector<T> operator/(FArg Scale) const\n\t{\n\t\tconst T RScale = T(1) / Scale;\n\t\treturn TVector<T>(X * RScale, Y * RScale, Z * RScale);\n\t}\n\n"
+      },
+      {
+        "start": 1726,
+        "end": 1729,
+        "text": "UE_FORCEINLINE_HINT T TVector<T>::SizeSquared() const\n{\n    return X*X + Y*Y + Z*Z;\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/utility/animation.rs",
+    "sha256": "9c42596c8c64beff0695403f1619a78632a57aab2cf68cbe469566ed5e25eb10",
+    "excerpts": [
+      {
+        "start": 12,
+        "end": 31,
+        "text": "pub fn acceleration_amount(\n    acceleration: Vec3,\n    velocity: Vec3,\n    rotation: Quat,\n    maximum_acceleration: f32,\n    maximum_braking_deceleration: f32,\n) -> Vec2 {\n    let maximum = if acceleration.dot(velocity) >= 0.0 {\n        maximum_acceleration\n    } else {\n        maximum_braking_deceleration\n    };\n    if maximum <= 1e-6 {\n        return Vec2::ZERO;\n    }\n    let amount = (acceleration / maximum).clamp_length_max(1.0);\n    Vec2::new(\n        amount.dot(rotation * Vec3::NEG_Z),\n        amount.dot(rotation * Vec3::X),\n    )\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/source_native_refresh.rs",
+    "sha256": "3ebcbf46289cd41384afbd6e1cc750b1ab7e5237769f311f94f184c090ce281a",
+    "excerpts": [
+      {
+        "start": 183,
+        "end": 204,
+        "text": "            set_source_property(ctx, key, scalar(key, 0.0)?.lerp(target, velocity_alpha))?;\n        }\n        let target_lean = crate::als::animation::acceleration_amount(\n            vector(\"locomotion_state.acceleration_world_space\")?,\n            velocity,\n            rotation,\n            scalar(\"locomotion_state.max_acceleration\", 0.0)?,\n            scalar(\"locomotion_state.max_braking_deceleration\", 0.0)?,\n        );\n        let lean_alpha = if boolean(\"animation.pending_update\", true)? {\n            1.0\n        } else {\n            alpha(0.2)\n        };\n        for (key, target) in [\n            (\"lean_state.forward_amount\", target_lean.x),\n            (\"lean_state.right_amount\", target_lean.y),\n        ] {\n            set_source_property(ctx, key, scalar(key, 0.0)?.lerp(target, lean_alpha))?;\n        }\n        set_source_property(ctx, \"standing_source.acceleration_forward\", target_lean.x)?;\n        Ok(())\n"
+      }
+    ]
+  }
+]

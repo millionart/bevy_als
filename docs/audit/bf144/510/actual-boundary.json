@@ -1,0 +1,186 @@
+{
+  "cancel": {
+    "acceleration": {
+      "acceleration": [
+        0.0005149772623553872,
+        0.0,
+        6.0
+      ],
+      "max_acceleration": 20.0,
+      "max_braking": 15.0,
+      "rotation": [
+        0.0,
+        -0.40180978178977966,
+        0.0,
+        0.9157232046127319
+      ],
+      "standing_acceleration": -0.20311041176319122,
+      "standing_write_frame": 100,
+      "velocity": [
+        0.6666755080223083,
+        0.0,
+        -5.722045534639619e-05
+      ]
+    },
+    "animation_frame": 100,
+    "gameplay": "Grounded",
+    "graph_error": null,
+    "graph_tag": "Als.LocomotionMode.Grounded",
+    "input": [
+      0.0,
+      1.0
+    ],
+    "lean": {
+      "air_half_life": 0.20000000298023224,
+      "amounts": [
+        -0.022213397547602654,
+        0.024146437644958496
+      ],
+      "goal": [
+        -0.20311041176319122,
+        0.22078536450862885
+      ],
+      "pending": false,
+      "write_frame": 100
+    },
+    "ordinal": 20,
+    "position": [
+      -14.977777481079102,
+      0.9243957996368408,
+      -15.000001907348633
+    ],
+    "velocity": [
+      0.6666755080223083,
+      0.0,
+      -5.722045534639619e-05
+    ],
+    "velocity_blend": {
+      "amounts": [
+        0.10747570544481277,
+        0.0,
+        0.0,
+        0.09887175261974335
+      ],
+      "calls": [
+        [
+          "18c00b87-478a-29b9-7505-1daa6d305742",
+          "GraphContextId(9)",
+          "Default"
+        ],
+        [
+          "74f5c4c5-443b-85dc-123b-5f80f77250f5",
+          "GraphContextId(9)",
+          "Default"
+        ]
+      ],
+      "candidates": null,
+      "delta": 0.03333333507180214,
+      "instance_id": 7,
+      "required": false,
+      "rotation": [
+        0.0,
+        -0.40180978178977966,
+        0.0,
+        0.9157232046127319
+      ],
+      "velocity": [
+        0.6666755080223083,
+        0.0,
+        -5.722045534639619e-05
+      ],
+      "write_frame": 100
+    }
+  },
+  "braking-only": {
+    "acceleration": {
+      "acceleration": [
+        0.0005149772623553872,
+        0.0,
+        6.0
+      ],
+      "max_acceleration": 15.0,
+      "max_braking": 15.0,
+      "rotation": [
+        0.0,
+        -0.40180978178977966,
+        0.0,
+        0.9157232046127319
+      ],
+      "standing_acceleration": -0.27081388235092163,
+      "standing_write_frame": 100,
+      "velocity": [
+        0.6666755080223083,
+        0.0,
+        -5.722045534639619e-05
+      ]
+    },
+    "animation_frame": 100,
+    "gameplay": "Grounded",
+    "graph_error": null,
+    "graph_tag": "Als.LocomotionMode.Grounded",
+    "input": [
+      0.0,
+      1.0
+    ],
+    "lean": {
+      "air_half_life": 0.20000000298023224,
+      "amounts": [
+        -0.02961786277592182,
+        0.03219525143504143
+      ],
+      "goal": [
+        -0.27081388235092163,
+        0.2943804860115051
+      ],
+      "pending": false,
+      "write_frame": 100
+    },
+    "ordinal": 20,
+    "position": [
+      -14.977777481079102,
+      0.9243957996368408,
+      -15.000001907348633
+    ],
+    "velocity": [
+      0.6666755080223083,
+      0.0,
+      -5.722045534639619e-05
+    ],
+    "velocity_blend": {
+      "amounts": [
+        0.10747570544481277,
+        0.0,
+        0.0,
+        0.09887175261974335
+      ],
+      "calls": [
+        [
+          "18c00b87-478a-29b9-7505-1daa6d305742",
+          "GraphContextId(9)",
+          "Default"
+        ],
+        [
+          "74f5c4c5-443b-85dc-123b-5f80f77250f5",
+          "GraphContextId(9)",
+          "Default"
+        ]
+      ],
+      "candidates": null,
+      "delta": 0.03333333507180214,
+      "instance_id": 7,
+      "required": false,
+      "rotation": [
+        0.0,
+        -0.40180978178977966,
+        0.0,
+        0.9157232046127319
+      ],
+      "velocity": [
+        0.6666755080223083,
+        0.0,
+        -5.722045534639619e-05
+      ],
+      "write_frame": 100
+    }
+  }
+}

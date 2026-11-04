@@ -1,0 +1,148 @@
+{
+  "gate": "PASS_GROUNDED_ACCELERATION_DOT_AND_LOCAL_CLAMP",
+  "differences": [
+    "BF144-D285",
+    "BF144-D286"
+  ],
+  "related": "BF144-D281",
+  "new_differences": 2,
+  "total_differences": 283,
+  "native_frames": 48,
+  "target_frames": 38,
+  "native_controlled_cases": 5,
+  "source_formula_changed_frames": [
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    30,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65
+  ],
+  "local_clamp_changed_frames": [
+    21,
+    23,
+    24,
+    59,
+    61,
+    62,
+    63,
+    64
+  ],
+  "shared_reciprocal_changed_frames": [
+    65
+  ],
+  "actual_branch_ordinal": 20,
+  "controlled_dot64": -4.0776618193127945e-12,
+  "controlled_dot32": 0.0,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "witness.native.json": {
+      "bytes": 29006714,
+      "sha256": "42cce8aca404a374d849650878061dd2f1e79c8bd1b9708fad72911748ad729c"
+    },
+    "runtime-baseline/report.json": {
+      "bytes": 4022939,
+      "sha256": "e4aaf80293665672c83063d9ee2b069bf9bae1df943856fa4c7379651f9a1ad3"
+    },
+    "runtime-baseline/parameters.json": {
+      "bytes": 138012,
+      "sha256": "106f88df806f89d8088f53416dbf31142f3cc30332b4992443f7205f64a50ac2"
+    },
+    "runtime-cancel/report.json": {
+      "bytes": 4857359,
+      "sha256": "ea96f1916988540426957fafa99805d7d405799ff3402bf5e2687c887014e61c"
+    },
+    "runtime-cancel/parameters.json": {
+      "bytes": 138002,
+      "sha256": "1e645c7a618b7c6e3548daf01a46f5d78a8271c1098fd4a76b5a77fc3b7505ad"
+    },
+    "runtime-braking-only/report.json": {
+      "bytes": 4209791,
+      "sha256": "ab50805b13943ddfc44e3c807a7d3ee90f0a3357d51c8c209b7fbdb184142d1e"
+    },
+    "runtime-braking-only/parameters.json": {
+      "bytes": 138006,
+      "sha256": "0cd8686ab1ad48b6d1764c43c4f5673997c163b4de5ea602f4784b3579a37e34"
+    },
+    "runtime-restored/report.json": {
+      "bytes": 4209432,
+      "sha256": "af33b9721dcbb634db27b53166106b29c2757b6c3c5482ead03a07b899c227c7"
+    },
+    "runtime-restored/parameters.json": {
+      "bytes": 138012,
+      "sha256": "106f88df806f89d8088f53416dbf31142f3cc30332b4992443f7205f64a50ac2"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/508/prepare_reader.py",
+      "bytes": 3718,
+      "sha256": "d3d2d68f604d3962816b4404ef6734c449d728d610dee5c0f1aefd0c0d919ae7"
+    },
+    {
+      "path": "docs/audit/bf144/509/observer.py",
+      "bytes": 1531,
+      "sha256": "527610f484ac25a866d8f3b01f36a311f7f9774c3c8e4f68d205ac31949b041c"
+    },
+    {
+      "path": "docs/audit/bf144/509/lean_observer.rs",
+      "bytes": 4911,
+      "sha256": "f3144b53b7bbdaa7e1887765e4204fb879bfcc817dd81129b8b4622eb7fbf562"
+    },
+    {
+      "path": "docs/audit/bf144/509/zero.request.json",
+      "bytes": 18671,
+      "sha256": "5a4900220e0b6732926be060e218b89c8175594ed757f2713e668cbeea75831a"
+    },
+    {
+      "path": "docs/audit/bf144/509/matrix.native.json.gz",
+      "bytes": 8500690,
+      "sha256": "a7c54cb037eb748b285deace8b3eab21b5ac4711ab2b34fec9e35819ebd41690"
+    },
+    {
+      "path": "docs/audit/bf144/509/runtime-baseline/parameters.json.gz",
+      "bytes": 14327,
+      "sha256": "d19ee44a00d7fb7250cc6fa55841b28516467238361bc71e04808dd7620b73dd"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}
