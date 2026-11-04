@@ -1,0 +1,580 @@
+{
+  "gate": "PASS_FALLING_VIRTUAL_DITCH_KICK",
+  "findings": [
+    "BF144-D315"
+  ],
+  "new_differences": 1,
+  "total_differences": 311,
+  "native": {
+    "ditch": {
+      "tight": {
+        "position_cm": {
+          "x": -1300,
+          "y": -1499.8999999985099,
+          "z": 200
+        },
+        "velocity_cm_s": {
+          "x": 44.59915542602539,
+          "y": 3.224640727043151,
+          "z": 105
+        },
+        "next_position_cm": {
+          "x": -1300,
+          "y": -1499.7925119686693,
+          "z": 202.41000006884337
+        },
+        "hits": 3
+      },
+      "wide": {
+        "position_cm": {
+          "x": -1299.0711229283947,
+          "y": -1499.8999999955297,
+          "z": 199.2205795562115
+        },
+        "velocity_cm_s": {
+          "x": 0,
+          "y": 2.0000000670149096,
+          "z": 0
+        },
+        "next_position_cm": {
+          "x": -1298.6767666311043,
+          "y": -1499.8333333231524,
+          "z": 198.85893422768174
+        },
+        "hits": 2
+      },
+      "without-wall": {
+        "position_cm": {
+          "x": -1295.335400758397,
+          "y": -1499.8999999985099,
+          "z": 196.08593631802924
+        },
+        "velocity_cm_s": {
+          "x": 93.29198344189828,
+          "y": 2,
+          "z": -78.28127247293311
+        },
+        "next_position_cm": {
+          "x": -1292.2256678148153,
+          "y": -1499.8333333283663,
+          "z": 192.931560375994
+        },
+        "hits": 1
+      }
+    },
+    "repeat": {
+      "tight": {
+        "position_cm": {
+          "x": -1301.8055988580822,
+          "y": -1497.9581811600654,
+          "z": 205.2500000782311
+        },
+        "velocity_cm_s": {
+          "x": -36.111976623535156,
+          "y": 38.83637619018555,
+          "z": 105
+        },
+        "next_position_cm": {
+          "x": -1303.0093314749797,
+          "y": -1496.6636352195433,
+          "z": 208.2050002039224
+        },
+        "hits": 2
+      },
+      "wide": {
+        "position_cm": {
+          "x": -1299.0711229283947,
+          "y": -1499.8999999955297,
+          "z": 199.2205795562115
+        },
+        "velocity_cm_s": {
+          "x": 0,
+          "y": 2.0000000670149096,
+          "z": 0
+        },
+        "next_position_cm": {
+          "x": -1298.6767666311043,
+          "y": -1499.8333333231524,
+          "z": 198.85893422768174
+        },
+        "hits": 2
+      },
+      "without-wall": {
+        "position_cm": {
+          "x": -1295.335400758397,
+          "y": -1499.8999999985099,
+          "z": 196.08593631802924
+        },
+        "velocity_cm_s": {
+          "x": 93.29198344189828,
+          "y": 2,
+          "z": -78.28127247293311
+        },
+        "next_position_cm": {
+          "x": -1292.2256678148153,
+          "y": -1499.8333333283663,
+          "z": 192.931560375994
+        },
+        "hits": 1
+      }
+    }
+  },
+  "target": {
+    "tight": {
+      "initial": {
+        "desired": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gravity": [
+          0.0,
+          -9.8100004196167,
+          0.0
+        ],
+        "hit_distance": 0.0011259812163189054,
+        "incoming": [
+          -0.5,
+          -2.490499973297119,
+          0.019999999552965164
+        ],
+        "initial_with_motor": [
+          -0.5,
+          -2.0,
+          0.019999999552965164
+        ],
+        "mode": "Air",
+        "normal": [
+          0.642810583114624,
+          0.7660253047943115,
+          0.0
+        ],
+        "position": [
+          -13.0,
+          4.0,
+          -15.0
+        ],
+        "request": [
+          -0.02500000037252903,
+          -0.11226250231266022,
+          0.0010000000474974513
+        ],
+        "second_hit": [
+          "AuditDitchWall",
+          0.0011601739097386599
+        ],
+        "single_hit_position": [
+          -12.953352928161621,
+          3.9608559608459473,
+          -14.99899959564209
+        ],
+        "single_hit_velocity": [
+          0.9329478144645691,
+          -0.7828829884529114,
+          0.020000001415610313
+        ],
+        "step": 0.05000000074505806,
+        "velocity": [
+          -0.5,
+          -2.0,
+          0.019999999552965164
+        ],
+        "wall": "AuditDitchLedge"
+      },
+      "before_publish": {
+        "consumed_contact": true,
+        "floor": null,
+        "generated_contact": true,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          -1.7016178617268451e-06,
+          0.0,
+          0.019863804802298546
+        ],
+        "position": [
+          -13.0,
+          4.0,
+          -14.999007225036621
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "result": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -13.0,
+          4.0,
+          -14.999007225036621
+        ],
+        "published": [
+          -1.7016178617268451e-06,
+          0.0,
+          0.019863804802298546
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          -1.7016178617268451e-06,
+          0.0,
+          0.019863804802298546
+        ]
+      },
+      "next": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 50,
+        "position": [
+          -12.999956130981445,
+          3.999685525894165,
+          -14.998344421386719
+        ],
+        "published": [
+          -1.0330491022614297e-06,
+          -4.6250050900198403e-07,
+          0.019871415570378304
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          -1.0330491022614297e-06,
+          -4.6250050900198403e-07,
+          0.019871415570378304
+        ]
+      }
+    },
+    "wide": {
+      "initial": {
+        "desired": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gravity": [
+          0.0,
+          -9.8100004196167,
+          0.0
+        ],
+        "hit_distance": 0.0011259812163189054,
+        "incoming": [
+          -0.5,
+          -2.490499973297119,
+          0.019999999552965164
+        ],
+        "initial_with_motor": [
+          -0.5,
+          -2.0,
+          0.019999999552965164
+        ],
+        "mode": "Air",
+        "normal": [
+          0.642810583114624,
+          0.7660253047943115,
+          0.0
+        ],
+        "position": [
+          -13.0,
+          4.0,
+          -15.0
+        ],
+        "request": [
+          -0.02500000037252903,
+          -0.11226250231266022,
+          0.0010000000474974513
+        ],
+        "second_hit": [
+          "AuditDitchWall",
+          0.01805332861840725
+        ],
+        "single_hit_position": [
+          -12.953352928161621,
+          3.9608559608459473,
+          -14.99899959564209
+        ],
+        "single_hit_velocity": [
+          0.9329478144645691,
+          -0.7828829884529114,
+          0.020000001415610313
+        ],
+        "step": 0.05000000074505806,
+        "velocity": [
+          -0.5,
+          -2.0,
+          0.019999999552965164
+        ],
+        "wall": "AuditDitchLedge"
+      },
+      "before_publish": {
+        "consumed_contact": true,
+        "floor": null,
+        "generated_contact": true,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          -5.441262374006328e-07,
+          0.0,
+          0.01995665393769741
+        ],
+        "position": [
+          -12.990883827209473,
+          3.9923503398895264,
+          -14.999001502990723
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "result": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -12.990883827209473,
+          3.9923503398895264,
+          -14.999001502990723
+        ],
+        "published": [
+          -5.441262374006328e-07,
+          0.0,
+          0.01995665393769741
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          -5.441262374006328e-07,
+          0.0,
+          0.01995665393769741
+        ]
+      },
+      "next": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 50,
+        "position": [
+          -12.986873626708984,
+          3.9886789321899414,
+          -14.998336791992188
+        ],
+        "published": [
+          -1.8998547375304042e-06,
+          0.0,
+          0.01993050053715706
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          -1.8998547375304042e-06,
+          0.0,
+          0.01993050053715706
+        ]
+      }
+    },
+    "without-wall": {
+      "initial": {
+        "desired": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gravity": [
+          0.0,
+          -9.8100004196167,
+          0.0
+        ],
+        "hit_distance": 0.0011259812163189054,
+        "incoming": [
+          -0.5,
+          -2.490499973297119,
+          0.019999999552965164
+        ],
+        "initial_with_motor": [
+          -0.5,
+          -2.0,
+          0.019999999552965164
+        ],
+        "mode": "Air",
+        "normal": [
+          0.642810583114624,
+          0.7660253047943115,
+          0.0
+        ],
+        "position": [
+          -13.0,
+          4.0,
+          -15.0
+        ],
+        "request": [
+          -0.02500000037252903,
+          -0.11226250231266022,
+          0.0010000000474974513
+        ],
+        "second_hit": null,
+        "single_hit_position": [
+          -12.953352928161621,
+          3.9608559608459473,
+          -14.99899959564209
+        ],
+        "single_hit_velocity": [
+          0.9329478144645691,
+          -0.7828829884529114,
+          0.020000001415610313
+        ],
+        "step": 0.05000000074505806,
+        "velocity": [
+          -0.5,
+          -2.0,
+          0.019999999552965164
+        ],
+        "wall": "AuditDitchLedge"
+      },
+      "before_publish": {
+        "consumed_contact": true,
+        "floor": null,
+        "generated_contact": true,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          0.9329478144645691,
+          -0.7828829884529114,
+          0.020000001415610313
+        ],
+        "position": [
+          -12.953352928161621,
+          3.9608559608459473,
+          -14.99899959564209
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "result": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -12.953352928161621,
+          3.9608559608459473,
+          -14.99899959564209
+        ],
+        "published": [
+          0.9329478144645691,
+          -0.7828829884529114,
+          0.020000001415610313
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          0.9329478144645691,
+          -0.7828829884529114,
+          0.020000001415610313
+        ]
+      },
+      "next": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 50,
+        "position": [
+          -12.92225456237793,
+          3.929309844970703,
+          -14.998332977294922
+        ],
+        "published": [
+          0.9329478144645691,
+          -1.1098830699920654,
+          0.020000001415610313
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          0.9329478144645691,
+          -1.1098830699920654,
+          0.020000001415610313
+        ]
+      }
+    }
+  },
+  "decompressed_files": {
+    "ditch.native.json.gz": {
+      "bytes": 55054466,
+      "sha256": "2dcb7ed01d0647001f6e5b7f6832fdc184983754f0c808dd87a6e0748ada9f2e"
+    },
+    "repeat.native.json.gz": {
+      "bytes": 55041763,
+      "sha256": "839a42bfa7628329a34d7ae649e6910d311bb9f2015d0aee9a49375571739ff5"
+    },
+    "runtime-tight/parameters.json.gz": {
+      "bytes": 179985,
+      "sha256": "7a5d3f543952ba908e3148fd4212c6c8238fbc191c45b109e182b677051f0e4f"
+    },
+    "runtime-tight/report.json.gz": {
+      "bytes": 5690255,
+      "sha256": "d07268e16b7e28b0516e67596cb853abcbd9cd8be5af47b47183e681587ab2ff"
+    },
+    "runtime-wide/parameters.json.gz": {
+      "bytes": 182328,
+      "sha256": "e1b8171cbbd22a63d8ced1b40c058de5de5136dedfea2569feb5156e5a1f38ed"
+    },
+    "runtime-wide/report.json.gz": {
+      "bytes": 5320070,
+      "sha256": "307203d085f1ba3551a24ebe00befd153b50f8baa379aa99a08a285c8ee656c8"
+    },
+    "runtime-without-wall/parameters.json.gz": {
+      "bytes": 180995,
+      "sha256": "438b0c8298139c81d5db3042c9c1394cbb7b4b21e6353d828f38524593ed39c9"
+    },
+    "runtime-without-wall/report.json.gz": {
+      "bytes": 4207925,
+      "sha256": "a643ea16a32faeb46dbd20623840c20458e3f6f60f4515806e2fefceea81ea86"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/562/side.request.json",
+      "bytes": 24177,
+      "sha256": "044df520d8218af7653f058628ae2131e8a1ca93b9370774f1bc80fe6dbc1b82"
+    },
+    {
+      "path": "docs/audit/bf144/553/prepare_reader.py",
+      "bytes": 1506,
+      "sha256": "8e5787b1519d56af568950670b482db01252078188976ca68692054f95949dd7"
+    },
+    {
+      "path": "docs/audit/bf144/523/native_initial.inc",
+      "bytes": 1021,
+      "sha256": "f76b1feec2d0103d77369dea676f6996ce1848fa1cd23210c00bee46a3e43154"
+    },
+    {
+      "path": "docs/audit/bf144/523/observer.py",
+      "bytes": 1678,
+      "sha256": "401322ce7c99a7d57d5536f2c260145b72c17e31bba726f8d4cbcc9d8b7ef8a5"
+    },
+    {
+      "path": "docs/audit/bf144/523/deck.rs",
+      "bytes": 7118,
+      "sha256": "6a44b0ddd6a496c7418dbf903ef1da7269d767ed271de130ed6593d0387df25d"
+    },
+    {
+      "path": "docs/audit/bf144/522/contact.rs",
+      "bytes": 5144,
+      "sha256": "e7a64e870b9132e321e1b0fedb54bb1a7aa930f5260bed45cfc5df16f17ee225"
+    }
+  ]
+}

@@ -127,7 +127,7 @@
   - 21:59 source/focused 闭环：fresh UE默认`p.UseTargetVelocityOnImpact=1`及PhysFalling→MovementBaseUtility证明simulated body接触必须保留其法向速度；target只从slide位移重算velocity，确认D20。完整/最小角色撞到±1m/s移动动态壁的4组FAIL，静态、静止动态、同速运动学壁6组PASS；实际查询命中和consumer前body velocity均已捕获。证据`target/bf144/06/moving_body/`；移动基座的携带/离地继承仍留后续批次，本项仅为空中直接impact。
   - 22:02 source/focused 闭环：fresh SafeMoveUpdatedComponent默认不忽略初始blocking overlap，先MTD恢复再重试原位移；target空中只有cast/slide，后置solver未完成同帧脱离，确认D21。0.2m侧壁初始穿透的完整/最小夹具各2FAIL，墙外向内/向外4PASS；源膨胀胶囊在MTD+pullback目标处无阻挡，CDO允许5m最大恢复，排除恢复路径受阻。`06/air_inputs.json`同时确认Walking默认、air设置和impact physics参数，D20移动body用普通AddForce路径不立即改变接触速度；截图/性能未启动。
   - 22:05 source/focused 闭环：普通平地从0.5–10cm间隙落下，10组接触/无接触资格对照全部PASS，排除“仅靠近floor便提前着地”的猜测。fresh PhysFalling尾部另有厘米单位的微小水平速度清零，target缺失，完整角色0/0.1/0.2/0.4/1mm/s的5组中2FAIL，登记低优先级D22/P3；这是极小残余漂移，不与重力政策混淆。剩余核对静态墙/顶面/连续墙对照，然后收口本批；root-motion override和跳跃apex仍按动作/跳跃责任留后续项。
-  - 22:11 本项归纳：已核对普通air输入/积分后的接触顺序、无输入及输入限制、static/simulated impact、初始穿透、slide/两墙/ditch、普通flat landing及源微小速度清零；墙、顶面、锐/钝角双墙8组对照PASS。最终8项测试2PASS/6预期语义FAIL，61组45PASS/16FAIL归并D17–D22；去掉输入、旋转父级、第二坡面、body运动或初始重叠时对应失败消失。116份原source、2份额外UE依赖、18个native运动属性与原始/Build资产、160份生产Rust及库hash核对PASS。证据`target/bf144/06/final/`、`06/summary.json`；只验收审计记录，无生产设计修改、无公共runtime Gate、截图0、性能暂停。罕见同面重撞nudge/virtual-ditch尚无独立触发证据，native继承CanSwim=True的适用边界留最终源缺口批次，均不计为已等价；落地剩余时间/回调、跳跃apex、root motion与基座沿既定责任批次继续。
+  - 22:11 本项归纳：已核对普通air输入/积分后的接触顺序、无输入及输入限制、static/simulated impact、初始穿透、slide/两墙/ditch、普通flat landing及源微小速度清零；墙、顶面、锐/钝角双墙8组对照PASS。最终8项测试2PASS/6预期语义FAIL，61组45PASS/16FAIL归并D17–D22；去掉输入、旋转父级、第二坡面、body运动或初始重叠时对应失败消失。116份原source、2份额外UE依赖、18个native运动属性与原始/Build资产、160份生产Rust及库hash核对PASS。证据`target/bf144/06/final/`、`06/summary.json`；只验收审计记录，无生产设计修改、无公共runtime Gate、截图0、性能暂停。罕见同面重撞nudge/virtual-ditch尚无独立触发证据（后续580已验证virtual-ditch），native继承CanSwim=True的适用边界留最终源缺口批次，均不计为已等价；落地剩余时间/回调、跳跃apex、root motion与基座沿既定责任批次继续。
 
 - [x] BF144.07 落地剩余时间、回调与状态提交顺序：沿fresh ProcessLanded/SetPostLandedPhysics/OnMovementModeChanged及ALS NotifyLocomotionModeChanged，核对普通/滚翻/布娃娃落地仲裁、剩余Walking预算、保留输入/速度、制动timer和旋转阻塞。蹲起物理、Jump/apex、基座继承与Roll/Ragdoll内部动作实现各留对应批次；这里只追落地直接调用边界。Gate：source阶段/值/时钟合同、完整角色反例与对照、漏检/排除记录。开始：2026-10-13 22:14 +08:00；预估结束：2026-10-13 22:59 +08:00；实际结束：2026-10-13 22:39:41 +08:00；偏差：−19分19秒；结果：审计记录Gate PASS，新增1项P2，保留1项未闭合查询边界U01。估时依据：fresh CMC落地与模式切换约180行、ALS回调约65行、target falling transaction/landing friction/动作入口约300行；BF140.01同类只读复审实耗12分25秒、本次BF144.06完整几何审计实耗28分55秒，增加回调与timer跨阶段组合后独立估时。
   - 22:14 活动摘要：BF144.06已提交，累计20项P2和1项P3未修复差异；重力D08仍为刻意差异。本批已定位fresh落地回调在剩余StartNewPhysics前执行的顺序，下一步核对target同帧快照、实际状态与计时消费者；生产代码未改，截图/性能继续暂停。
@@ -4133,6 +4133,12 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.580 Falling虚拟夹缝的向上脱困。依赖.06留下的可达性边界和562第三扫掠先例。默认胶囊近40°窄斜台外沿，首碰法线可走但无法窄perch，随后撞直墙并沿交线几乎不动。比对紧墙、宽墙、移除墙的原生实际事件/速度；原生触发后用同几何真实Playground核目标。开始2026-11-05 00:52:34 +0800，预估结束2026-11-05 01:37:34 +0800。参考562约6分钟但本项新窄台碰撞和可达性估45分钟。截图0，性能暂停。
+  - source/static：fresh PhysFalling第三次移动无Hit、旧面Up≥WalkableFloorZ、perch阈值>0且本步水平/竖直进展极小才写随机XY与Z=max(JumpZ×.25,1)。仍Falling，与D19/D308的ProcessLanded不同。先证明原生公开几何可触发。
+  - 00:55 runtime Gate 前：目标探针编译通过，原生同几何隔离包构建。三组仅改变侧墙间隙或移除侧墙；q49使用下落初速且无跳键、无移动输入。先比首碰、次碰、末速及模式，再判是否新增。
+  - runtime Gate 后：原生紧墙首碰可走40°面但15cm perch失败，首两次零时间；第三移动仅沿交线约1mm且无普通着地。两次原生均写vy=1.05m/s且仍Falling。首次向上扫掠撞墙，下一帧上升2.41cm；复跑随机XY不同，直接升5.25cm。目标同首两形体、末vy=0、次帧不抬，三组功能Gate通过。宽墙正时与移除墙均不踢起，独立于D19/D308。新增D315。
+  - 完成归因 Gate `PASS_FALLING_VIRTUAL_DITCH_KICK`。新增D315/P2，累计311（144 P2、167 P3）。watchdog、396身份/六库、8份原始报告解压哈希、86份暂存证据及原生重复包身份通过。实际结束2026-11-05 00:59:33 +0800，实耗419秒，偏差-2281秒；已有本机落地委托及公开几何夹具的同类条件验证可参考7–15分钟。证据 `docs/audit/bf144/580/`。截图0，性能暂停。
+
 - [x] BF144.579 D125 的 GJK 实际终止条件。依赖577/578真实20m平地与制动台的同输入原生/目标证据。独立从当前锁定Parry提取Minkowski cast控制流，在同rlib公共查询旁重放正负原案、方向/高度控制及制动长短胶囊，先逐值对齐既有实时记录，再定位成功退出分支和提前距离。开始2026-11-05 00:45:15 +0800，预估结束2026-11-05 01:10:15 +0800。参考577约7分钟/578约5分钟，含必要分支验证，估25分钟。截图0，性能暂停。
   - source/static：本地Cargo.lock确认Parry0.27.0，实际SpatialQuery→support-map→directional_distance。成功出口为距离容差、界限未收紧且已有正TOI、完整simplex；旧D125未区分本案具体出口。仅审计诊断，不改生产库或依赖。
   - 00:47 第一轮：7组公共查询和锁定副本逐值，均上界不收紧返回；短胶囊重建半径存在F32厘米转换遗漏，保留旧结果。使用当前params精确量及Avian端点顺序复验。
@@ -4857,6 +4863,10 @@
   - .465a时间：开始2026-11-02 06:52:00、预估结束07:32:00、实际结束07:26:24 +0800，实耗34:24、偏差−05:36；结果PASS。含4次package构建38/66/55/54秒、实际两319/1276 states、getter与类型guard两消融/字节恢复及完整旧域/Git；首mutation/build重叠已由全包消融源码一致性核验，最终恢复按完整顺序执行。相同opaque struct无反射成员且已具work memory的诊断能力按约35分钟参考。父465本轮source事实与读数前置尚开，下一按真实native state恢复数学等价审计，不填造动态数据。
 
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D315 / P2 — Falling 虚拟夹缝缺少向上脱困速度。
+  - Source：第三次移动无阻挡、首碰ImpactNormal达到可行走阈值、Perch开启且本子步进展极小时，UE给XY随机偏移并设Z=max(JumpZ×.25,1)，仍保持Falling。目标只有扫掠投影和普通落地。
+  - 反例：40°窄台首碰不能窄perch，紧邻竖墙的第二碰为零时间，沿交线只移动约1mm。原生两次均发布竖直1.05m/s，目标为0；放宽墙缝及去墙控制均未触发。D19/D308覆盖强制落地。证据 `docs/audit/bf144/580/`。
 
 - [ ] BF144-D314 / P2 — Walking 前向初穿透触发源速度保护时，目标仍以位移回写。
   - Source：MoveAlongFloor 扫掠和滑移仍穿透时，OnCharacterStuckInGeometry 设置 bJustTeleported，ALS 跳过位置差速度回写。Target：前向阻挡停在原点，多步事务用实际位移除以步时覆盖速度。
