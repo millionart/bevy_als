@@ -1,0 +1,36 @@
+{
+  "source_movement_asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+  "normal": "/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Normal.CV_Als_AccelerationAndDecelerationAndGroundFriction_Normal",
+  "responsive": "/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive",
+  "rotation": "/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive",
+  "starts": {
+    "normal": [
+      20.0,
+      15.0,
+      5.0
+    ],
+    "responsive": [
+      25.0,
+      20.0,
+      10.0
+    ]
+  },
+  "tangent_controls": [
+    {
+      "profile": "normal",
+      "channel": "acceleration",
+      "key": 2,
+      "current": -36.42372512817383,
+      "source": -36.42372131347656,
+      "fitted": -36.42372512817383
+    },
+    {
+      "profile": "responsive",
+      "channel": "braking_deceleration",
+      "key": 2,
+      "current": -27.15640640258789,
+      "source": -27.156404495239258,
+      "fitted": -27.15640640258789
+    }
+  ]
+}

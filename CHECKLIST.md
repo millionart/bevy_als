@@ -4133,6 +4133,12 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.513 D05 曲线选择对实际 Sprint 入场与动画的影响。依赖512原生/目标实跑计时及D05旧profile反例。fresh读取MS_Als_Normal及两CurveVector，复用同一Playground输入，仅对该角色在内存替换Responsive三曲线为Normal，分开比较加速单曲线对照、0.5秒边界和实际播放器混合。开始2026-11-04 17:13:12 +0800，预估结束2026-11-04 17:53:12 +0800。参考512约9分钟，另留原生两资产及四次功能时间，估40分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh MS_Als_Normal已确认站姿VelocityDirection的动力引用Normal、旋转单独绑定。目标control仅给同一角色复制运动设置并替换Responsive槽的三轴，第二对照仅换加速轴；检测其他字段和共享原资产保持。沿512相同Sprint输入，额外记录实际motor曲线采样和计划速度。截图0。
+  - 真实Gate后：基线/恢复实际Sprint入场24、0.5秒38；Normal三轴和加速单轴均25/39，与UE一致。序号25两控制使用相同加速动画时点，完整Normal与基线的Root有75骨数值变化。只三轴对照改变松开输入后的纵向速度。恢复早期入场逐值一致，从34起完整报告有过程间物理末位差。
+  - Gate通过。六原生轴及绑定通过，四次功能、公开采样重放和重编恢复逐字节一致、六库/396身份、82份Git证据通过。D05实际消费补强；D07在Normal下序号26保留，旧缓存标量复算目标计划4.5657768→4.6667199m/s，源4.6666669，尚待实际阶段控制。D267增加同源Responsive制动切线和3个实跑采样点，旧Normal加速切线在当前8个实跑采样点复现。无新编号，累计283。实际结束2026-11-04 17:19:36 +0800，实耗384秒，偏差-2015秒。证据 docs/audit/bf144/513/summary.json。截图0，性能暂停。
+
 - [x] BF144.512 实际 Sprint 入场的加速度消费及退出。依赖511两实际Lean见证、.69/.132原生计时与混合合同。重新核对源Standing回调及实际Sprint绑定，保持正常角色Sprint准入与输入，记录原生和目标的实际入场、0.5秒关闭、独立混合与退出。单独替换已活动消费者的前向加速度以验证输入到实际Pose。开始2026-11-04 17:03:39 +0800，预估结束2026-11-04 17:43:39 +0800。复用510/511实际入口与观察方式，预留40分钟核原生和受控姿态。截图0，性能暂停。
 
   - 真实Gate前：源Standing在实际Sprint中累加GetDeltaSeconds，0.5秒起不读前向加速度；已有原生Standing资产的两路Sprint播放及0–0.25混合接线重新核对。新UE角色实跑25入场，39到0.5，60退出。目标观察使用输入和实际步态判定，未直接写Gait或Sprint时间。截图0。
@@ -4508,6 +4514,7 @@
   - BF144.441c真实消费者/单位映射：原Playground240实际输入与计划全经公开核核验；同source算序只换厘米求值后投影，第63帧计划侧向由−2.3104361389414407e−5变−2.3104359570425004e−5，当前Root/最终物理恢复未声明。另固定同一native cm float速度，Source cm范围映射与先投影米制后同native映射有77份gait差：374.9999694824219cm/s直接映射1.999999761581421，投影3.749999761581421m/s再映射为当前1.9999998807907104；非D256长度算法/输入差。所有输入在范围内，unclamped与source clamp等价；1份长度因素与该因素相消，净共同gait差76，不能把77都称物理影响。证据`docs/audit/bf144/441c/kernel-check.json`、`mapping-check.json`与完整native报告；移除单位阶段丢63信号、其余独立控制保持，bytes恢复同target重编240全部byte同。仅扩同一单位求值时点根因，不新增编号。
 
 - [ ] BF144-D267 / P3 — 地面运动曲线由采样反解切线，未保留原生键数据。
+  - BF144.513 实际Sprint补充。fresh Responsive制动轴time2离开切线按原键为−27.156404495239258，原拟合/当前值为−27.15640640258789。固定实跑gait只恢复键，序号27/30/66三次采样变；原Normal加速同法8次。按既有拟合根因归并。证据 docs/audit/bf144/513/summary.json。
   - Source：fresh Normal CurveVector轴0在time2的LeaveTangent为−3642.3720703125cm/s²；换算后F32应−36.42372131347656。Target `params.rs:508–514`保存−36.423724，实际F32为−36.42372512817383，仅此一键字段与按source Linear段导出等价Hermite、Cubic段保留原切线的数据不同。
   - 根因/去重：现存`tools/export/fit_ground_dynamics_curves.py:34–44,60–82`由0.25/0.75采样反解切线；用fresh native全精度time2/2.25/2.75/3样值调用其原solve_tangents，得到−3642.3723958333335，SI F32精确等于当前错误值。此证据没有六位小数中间记录，故不重复归D121导出精度；相同target Hermite算序/米制阶段、只换原切线时61锚点中2个加速度值改变，源键数据差独立于D206求值算序。历史验收只拟合样值并检查近似max_error，未对照原键。
   - 消费/限制：`grounded_dynamics`实际使用此默认曲线；同Hermite数据控制在gait2.125的输出由15.977025985717773变15.97702693939209，gait2.25由12.924788475036621变12.924789428710938。仅恢复键数据不保证当前算序/单位阶段已匹配native，当前两点原误差存在相消；自然Running240的gait未超过2，因此本项在该域加速度/最终运动零信号，不据此宣称可见故障或实际冲刺恢复。证据`target/bf144/441/producer-check.json`的fit、`factors.json`；必要消融/恢复与identity随.441最终Gate封口，生产未修。
@@ -4762,6 +4769,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 漏检：旧瞄准测试覆盖reset/primary/secondary和普通帧长，暂停回归在稳定角度暂停；没有覆盖0 owner delta×半转×已收紧限位。仅登记，不改公式或放宽阈值。
 
 - [ ] BF144-D05 / P2 — Standing/VelocityDirection 错选 Responsive 加减速曲线。
+  - BF144.513 实际Sprint补充。单换Normal加速度使真实Sprint入场/截止由24/38到25/39，与UE一致。三轴对照保持同入场且改变后段制动。序号25的加速播放器时点和最终Root75骨数值改变。证据 docs/audit/bf144/513/summary.json。
   - BF144.512 实际Sprint补充。原生起步最大加速度20m/s²，目标VelocityDirection起步25m/s²。两端实际步态入场序号25/24，按各自输入复算计时和混合精确。单因素归因后继。证据 docs/audit/bf144/512/summary.json。
   - Source：fresh B_Als_Character→MS_Als_Normal，三种站姿rotation的 `AccelerationAndDecelerationAndGroundFrictionCurve` 均引用Normal，蹲姿才引用Responsive；VelocityDirection仅 `RotationInterpolationSpeedCurve` 引用Responsive。fresh两条CV资产确认起步Normal=20/15/5、Responsive=25/20/10（前两项已从cm换算m）。
   - Target：`src/als/settings/params.rs:78–99` 把VelocityDirection当作加减速Responsive条件；`character/movement/dynamics.rs:543–565` 的实际motor以及stop预测、落地剩余积分共享这个选择。
@@ -4775,6 +4783,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 漏检：旧完整帧和hitch验收测试主要使用0.1/0.12/0.2秒，启动器还按target现有max_delta限制注入值，未覆盖250毫秒上方和source WorldSettings的单独合同。只记录世界时钟对运动的影响，不开展性能验收或场景修复。
 
 - [ ] BF144-D07 / P2 — 输入Acceleration使用了本轮刚刷新的曲线，而非源调用顺序中的缓存值。
+  - BF144.513 实际Sprint补充。排除D05后的实际Normal Sprint，序号26源角色缓存20、本轮刷新16.972292m/s²。目标本轮16.971708，实际计划4.5657768m/s。只在数值复算换回旧缓存得到4.6667199，源4.6666669。实际阶段对照后继。证据 docs/audit/bf144/513/summary.json。
   - Source：fresh UE `CharacterMovementComponent.cpp:6442–6457,8134–8137` 在ControlledCharacterMove先用GetMaxAcceleration缩放输入并缓存Acceleration；ALS `GetMaxAcceleration:292–299` 读取之前的MaxAccelerationWalking；随后ALS `PhysWalking:333–335` 才RefreshGroundedMovementSettings。UE CalcVelocity直接使用缓存Acceleration，不用新的MaxAccel重算普通玩家输入。
   - Target：`src/als/character/movement/dynamics.rs:543–564` 先覆写dynamics，再把fresh dynamics交给积分；`grounded_velocity_step_with_braking_friction:175–176` 立即以fresh acceleration缩放输入，丢失源阶段边界。
   - 反例：第一人称、ViewDirection、默认Normal曲线持续冲刺，排除D05的错误profile。前12帧速度一致；第13帧起始4.000003m/s，缓存加速度20、本轮曲线16.972263m/s²。source应到4.333337m/s，target到4.282876m/s。`bf144_cmc_input_acceleration_is_scaled_before_curve_refresh` 前置和12帧对照通过后语义FAIL，证据 `target/bf144/03/acceleration_order/`。

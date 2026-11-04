@@ -1,0 +1,524 @@
+{
+  "effective": {
+    "normal": {
+      "acceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -36.42372512817383,
+            "time": 2.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 7.5
+          }
+        ]
+      },
+      "braking_deceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 15.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -2.5,
+            "time": 1.0,
+            "value": 15.0
+          },
+          {
+            "arrive_tangent": -2.5,
+            "leave_tangent": -7.5,
+            "time": 2.0,
+            "value": 12.5
+          },
+          {
+            "arrive_tangent": -7.5,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 5.0
+          }
+        ]
+      },
+      "ground_friction": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -1.0,
+            "time": 1.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": -1.0,
+            "leave_tangent": -3.5,
+            "time": 2.0,
+            "value": 4.0
+          },
+          {
+            "arrive_tangent": -3.5,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 0.5
+          }
+        ]
+      }
+    },
+    "responsive": {
+      "acceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -36.42372512817383,
+            "time": 2.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 7.5
+          }
+        ]
+      },
+      "braking_deceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -27.15640640258789,
+            "time": 2.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 8.0
+          }
+        ]
+      },
+      "ground_friction": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 2.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 5.0
+          }
+        ]
+      }
+    },
+    "sluggish": {
+      "acceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -8.434027671813965,
+            "time": 2.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 2.0
+          }
+        ]
+      },
+      "braking_deceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": -5.853719234466553,
+            "leave_tangent": -5.853719234466553,
+            "time": 2.0,
+            "value": 7.5
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 3.0
+          }
+        ]
+      },
+      "ground_friction": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 4.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 4.0
+          },
+          {
+            "arrive_tangent": -2.125014066696167,
+            "leave_tangent": -2.125014066696167,
+            "time": 2.0,
+            "value": 3.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 1.0
+          }
+        ]
+      }
+    }
+  },
+  "mode": "acceleration-profile",
+  "only_responsive_slot_changed": true,
+  "original": {
+    "normal": {
+      "acceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -36.42372512817383,
+            "time": 2.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 7.5
+          }
+        ]
+      },
+      "braking_deceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 15.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -2.5,
+            "time": 1.0,
+            "value": 15.0
+          },
+          {
+            "arrive_tangent": -2.5,
+            "leave_tangent": -7.5,
+            "time": 2.0,
+            "value": 12.5
+          },
+          {
+            "arrive_tangent": -7.5,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 5.0
+          }
+        ]
+      },
+      "ground_friction": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -1.0,
+            "time": 1.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": -1.0,
+            "leave_tangent": -3.5,
+            "time": 2.0,
+            "value": 4.0
+          },
+          {
+            "arrive_tangent": -3.5,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 0.5
+          }
+        ]
+      }
+    },
+    "responsive": {
+      "acceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 25.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 25.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -58.633941650390625,
+            "time": 2.0,
+            "value": 25.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 5.0
+          }
+        ]
+      },
+      "braking_deceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -27.15640640258789,
+            "time": 2.0,
+            "value": 20.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 8.0
+          }
+        ]
+      },
+      "ground_friction": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 2.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 5.0
+          }
+        ]
+      }
+    },
+    "sluggish": {
+      "acceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": -8.434027671813965,
+            "time": 2.0,
+            "value": 5.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 2.0
+          }
+        ]
+      },
+      "braking_deceleration": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 10.0
+          },
+          {
+            "arrive_tangent": -5.853719234466553,
+            "leave_tangent": -5.853719234466553,
+            "time": 2.0,
+            "value": 7.5
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 3.0
+          }
+        ]
+      },
+      "ground_friction": {
+        "keys": [
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 0.0,
+            "value": 4.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 1.0,
+            "value": 4.0
+          },
+          {
+            "arrive_tangent": -2.125014066696167,
+            "leave_tangent": -2.125014066696167,
+            "time": 2.0,
+            "value": 3.0
+          },
+          {
+            "arrive_tangent": 0.0,
+            "leave_tangent": 0.0,
+            "time": 3.0,
+            "value": 1.0
+          }
+        ]
+      }
+    }
+  }
+}

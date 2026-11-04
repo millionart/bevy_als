@@ -1,0 +1,77 @@
+[
+  {
+    "key": "source:Private/AlsCharacterMovementComponent.cpp",
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 292,
+        "end": 301,
+        "text": "float UAlsCharacterMovementComponent::GetMaxAcceleration() const\n{\n\tif (IsMovingOnGround())\n\t{\n\t\treturn MaxAccelerationWalking;\n\t}\n\n\treturn Super::GetMaxAcceleration();\n}\n\n"
+      },
+      {
+        "start": 330,
+        "end": 341,
+        "text": "\tSuper::MoveSmooth(InVelocity, DeltaTime, StepDownResult);\n}\n\nvoid UAlsCharacterMovementComponent::PhysWalking(const float DeltaTime, int32 IterationsCount)\n{\n\tRefreshGroundedMovementSettings();\n\n\tauto Iterations{IterationsCount};\n\n\t// TODO Copied with modifications from UCharacterMovementComponent::PhysWalking(). After the\n\t// TODO release of a new engine version, this code should be updated to match the source code.\n\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 6442,
+        "end": 6457,
+        "text": "{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}\n\n\tif (CharacterOwner->GetLocalRole() == ROLE_Authority)\n\t{\n\t\tPerformMovement(DeltaSeconds);\n"
+      },
+      {
+        "start": 8134,
+        "end": 8137,
+        "text": "FVector UCharacterMovementComponent::ScaleInputAcceleration(const FVector& InputAcceleration) const\n{\n\treturn GetMaxAcceleration() * InputAcceleration.GetClampedToMaxSize(1.0f);\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/settings/params.rs",
+    "sha256": "8697cc663116a29504e08d653b2e45618aa83a71c4fa800dae94683b78e39e38",
+    "excerpts": [
+      {
+        "start": 78,
+        "end": 99,
+        "text": "    pub fn grounded_dynamics_profile(\n        &self,\n        stance: Stance,\n        rotation_mode: RotationMode,\n    ) -> GroundedDynamicsProfile {\n        if stance == Stance::Crouching || rotation_mode == RotationMode::VelocityDirection {\n            GroundedDynamicsProfile::Responsive\n        } else {\n            GroundedDynamicsProfile::Normal\n        }\n    }\n\n    pub fn grounded_dynamics(\n        &self,\n        stance: Stance,\n        rotation_mode: RotationMode,\n        gait_amount: f32,\n    ) -> GroundedDynamics {\n        self.acceleration.grounded.sample(\n            self.grounded_dynamics_profile(stance, rotation_mode),\n            gait_amount,\n        )\n"
+      },
+      {
+        "start": 500,
+        "end": 547,
+        "text": "        braking_deceleration: source_curve(braking_deceleration),\n        ground_friction: source_curve(ground_friction),\n    }\n}\n\nimpl Default for GroundedDynamicsCurves {\n    fn default() -> Self {\n        Self {\n            normal: source_dynamics_curve(\n                &[\n                    (0.0, 20.0, 0.0, 0.0),\n                    (1.0, 20.0, 0.0, 0.0),\n                    (2.0, 20.0, 0.0, -36.423_724),\n                    (3.0, 7.5, 0.0, 0.0),\n                ],\n                &[\n                    (0.0, 15.0, 0.0, 0.0),\n                    (1.0, 15.0, 0.0, -2.5),\n                    (2.0, 12.5, -2.5, -7.5),\n                    (3.0, 5.0, -7.5, 0.0),\n                ],\n                &[\n                    (0.0, 5.0, 0.0, 0.0),\n                    (1.0, 5.0, 0.0, -1.0),\n                    (2.0, 4.0, -1.0, -3.5),\n                    (3.0, 0.5, -3.5, 0.0),\n                ],\n            ),\n            responsive: source_dynamics_curve(\n                &[\n                    (0.0, 25.0, 0.0, 0.0),\n                    (1.0, 25.0, 0.0, 0.0),\n                    (2.0, 25.0, 0.0, -58.633_94),\n                    (3.0, 5.0, 0.0, 0.0),\n                ],\n                &[\n                    (0.0, 20.0, 0.0, 0.0),\n                    (1.0, 20.0, 0.0, 0.0),\n                    (2.0, 20.0, 0.0, -27.156_406),\n                    (3.0, 8.0, 0.0, 0.0),\n                ],\n                &[\n                    (0.0, 10.0, 0.0, 0.0),\n                    (1.0, 10.0, 0.0, 0.0),\n                    (2.0, 10.0, 0.0, 0.0),\n                    (3.0, 5.0, 0.0, 0.0),\n                ],\n            ),\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/dynamics.rs",
+    "sha256": "c4012c45ae1cafc2ef5e7839907cb995ef0d2e7187ff3eb109aaa6e45159765b",
+    "excerpts": [
+      {
+        "start": 543,
+        "end": 566,
+        "text": "        let thresholds = params.gait_speed_thresholds(*stance, *rotation_mode, current, view_yaw.0);\n        gait_amount.0 = calculate_gait_amount_for_thresholds(current.length(), thresholds);\n        if AlsMovementParams::has_gait_settings(*stance, *rotation_mode) {\n            dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);\n        }\n        let max_speed = max_allowed_speed(\n            params,\n            *stance,\n            *rotation_mode,\n            max_allowed_gait.0,\n            current,\n            view_yaw.0,\n        );\n        let desired_motion = controller.basis.desired_motion;\n        let braking_friction_factor = landing_braking\n            .get(entity)\n            .map_or(BRAKING_FRICTION_FACTOR, |state| state.factor);\n        let (next, simulation_substeps, displacement) = simulate_grounded_motion_with_braking_friction(\n            current,\n            desired_motion,\n            max_speed,\n            dynamics.0,\n            &params.cmc,\n            braking_friction_factor,\n"
+      }
+    ]
+  },
+  {
+    "key": "tools/export/fit_ground_dynamics_curves.py",
+    "sha256": "cd8322e9543c08af04b6ae4ab5f2d7e768405ab38ff159464c470ebd3c54d952",
+    "excerpts": [
+      {
+        "start": 34,
+        "end": 44,
+        "text": "def solve_tangents(start_value, end_value, quarter_value, three_quarter_value):\n    h00a, h10a, h01a, h11a = basis(0.25)\n    h00b, h10b, h01b, h11b = basis(0.75)\n    rhs_a = quarter_value - h00a * start_value - h01a * end_value\n    rhs_b = three_quarter_value - h00b * start_value - h01b * end_value\n    determinant = h10a * h11b - h10b * h11a\n    if abs(determinant) <= 1e-12:\n        raise RuntimeError(\"singular Hermite basis\")\n    start_tangent = (rhs_a * h11b - rhs_b * h11a) / determinant\n    end_tangent = (h10a * rhs_b - h10b * rhs_a) / determinant\n    return start_tangent, end_tangent\n"
+      },
+      {
+        "start": 60,
+        "end": 82,
+        "text": "for name, curve in source.items():\n    samples = curve[\"samples\"]\n    axes_result = {}\n    for axis in axes:\n        segments = []\n        for start, end in zip(key_times, key_times[1:]):\n            start_value = sample_at(samples, start)[axis]\n            end_value = sample_at(samples, end)[axis]\n            quarter_value = sample_at(samples, start + 0.25)[axis]\n            three_quarter_value = sample_at(samples, start + 0.75)[axis]\n            start_tangent, end_tangent = solve_tangents(\n                start_value,\n                end_value,\n                quarter_value,\n                three_quarter_value,\n            )\n            segments.append(\n                {\n                    \"start\": start,\n                    \"end\": end,\n                    \"start_value\": start_value,\n                    \"end_value\": end_value,\n                    \"start_tangent\": start_tangent,\n"
+      }
+    ]
+  }
+]

@@ -1,0 +1,210 @@
+{
+  "gate": "PASS_SPRINT_D05_PROFILE_AND_D07_D267_RESIDUALS",
+  "findings": [
+    "BF144-D05",
+    "BF144-D07",
+    "BF144-D267"
+  ],
+  "new_differences": 0,
+  "total_differences": 283,
+  "runs": {
+    "baseline": {
+      "entry": 24,
+      "cutoff": 38,
+      "initial_dynamics": [
+        25.0,
+        20.0,
+        10.0
+      ],
+      "first_planned_speed": 0.8333333730697632,
+      "sprint_acceleration_clip_time_25": 0.3139379620552063,
+      "blend_43": 0.9912266135215759,
+      "after_release_speed_60": 6.233338832855225
+    },
+    "normal": {
+      "entry": 25,
+      "cutoff": 39,
+      "initial_dynamics": [
+        20.0,
+        15.0,
+        5.0
+      ],
+      "first_planned_speed": 0.6666666865348816,
+      "sprint_acceleration_clip_time_25": 0.27708837389945984,
+      "blend_43": 0.9003987312316895,
+      "after_release_speed_60": 6.33333158493042
+    },
+    "acceleration-profile": {
+      "entry": 25,
+      "cutoff": 39,
+      "initial_dynamics": [
+        20,
+        20,
+        10
+      ],
+      "first_planned_speed": 0.6666666865348816,
+      "sprint_acceleration_clip_time_25": 0.27708837389945984,
+      "blend_43": 0.9004012942314148,
+      "after_release_speed_60": 6.233338832855225
+    },
+    "restored": {
+      "entry": 24,
+      "cutoff": 38,
+      "initial_dynamics": [
+        25.0,
+        20.0,
+        10.0
+      ],
+      "first_planned_speed": 0.8333333730697632,
+      "sprint_acceleration_clip_time_25": 0.3139379620552063,
+      "blend_43": 0.9912309646606445,
+      "after_release_speed_60": 6.233338832855225
+    }
+  },
+  "root_changed_bones_at_25": 75,
+  "d267_changed_motor_samples": {
+    "baseline": [
+      27,
+      30,
+      66
+    ],
+    "normal": [
+      29,
+      30,
+      62,
+      64,
+      65,
+      66,
+      67,
+      69
+    ]
+  },
+  "d07": {
+    "ordinal": 26,
+    "native_cached_acceleration": 20.0,
+    "native_refreshed_acceleration": 16.97229248046875,
+    "target_refreshed_acceleration": 16.971708297729492,
+    "target_plan": 4.565776824951172,
+    "target_cached_scalar_counterfactual": 4.666719913482666,
+    "native_result": 4.666666929472355
+  },
+  "restored_first_difference": 34,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "runtime-baseline/report.json": {
+      "bytes": 4216307,
+      "sha256": "cfcc41e83d46288308db5d8630a98ef79f2c8d9146f65e1ba29889732288e4b3"
+    },
+    "runtime-baseline/parameters.json": {
+      "bytes": 4354352,
+      "sha256": "6bb4b967dd9e3a8faa7f65d0fbeb4717c186b3bebb4707c3a823d093fa1137b8"
+    },
+    "runtime-normal/report.json": {
+      "bytes": 4211326,
+      "sha256": "4a2d50900b027c24c35035e68c0e4d3a36057037dbade0510aef9c911d34be8a"
+    },
+    "runtime-normal/parameters.json": {
+      "bytes": 4200841,
+      "sha256": "646a8e1b2105cdfa4c8c99d0d53fc81f1aaa230670f14788f5949d8caf7560da"
+    },
+    "runtime-acceleration-profile/report.json": {
+      "bytes": 4218047,
+      "sha256": "ca37049f0dcfda82df018b0c8b0640b7c8326ade3b942ccdb271db1f1f5282a4"
+    },
+    "runtime-acceleration-profile/parameters.json": {
+      "bytes": 4242504,
+      "sha256": "d63b31d0b13e74a5ef385610fac1bb3adc53e8365ad4c32b15589edc16b16bfa"
+    },
+    "runtime-restored/report.json": {
+      "bytes": 4212363,
+      "sha256": "a89f4c942371bd944bc2faa692d8ab66202d72dad3855ac303f5c6c8e91ae7de"
+    },
+    "runtime-restored/parameters.json": {
+      "bytes": 4344455,
+      "sha256": "4353c44449b8de69fc7508dac687db0cda01c3a493f4444e6620d50fcbcb5f1f"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/509/observer.py",
+      "bytes": 1531,
+      "sha256": "527610f484ac25a866d8f3b01f36a311f7f9774c3c8e4f68d205ac31949b041c"
+    },
+    {
+      "path": "docs/audit/bf144/509/lean_observer.rs",
+      "bytes": 4911,
+      "sha256": "f3144b53b7bbdaa7e1887765e4204fb879bfcc817dd81129b8b4622eb7fbf562"
+    },
+    {
+      "path": "docs/audit/bf144/510/observer.py",
+      "bytes": 1468,
+      "sha256": "075da35b4b3901ab93954a19d413693642d6f0069bd8ad72408353ef0729a0fd"
+    },
+    {
+      "path": "docs/audit/bf144/510/acceleration_observer.rs",
+      "bytes": 2613,
+      "sha256": "3e39ba76053efc10be7d9140c532b97f2709986573480fdbdaca77e9eef1451c"
+    },
+    {
+      "path": "docs/audit/bf144/512/observer.py",
+      "bytes": 2349,
+      "sha256": "828e7543b236a7036f7b1872805962c989508cd55572fc12ba1450beddcd05c4"
+    },
+    {
+      "path": "docs/audit/bf144/512/sprint_observer.rs",
+      "bytes": 4925,
+      "sha256": "993c6dbc6932341a5576c83de40fcf4889c69255be31b66aa58d57ea1fab51b1"
+    },
+    {
+      "path": "docs/audit/bf144/512/native-sprint.json",
+      "bytes": 23221,
+      "sha256": "02e1d95176a20cdf05f3931937571c028c4b02fab62231f2256c84cafcc1fa09"
+    },
+    {
+      "path": "docs/audit/bf144/512/sprint.native.json.gz",
+      "bytes": 2505631,
+      "sha256": "05a8517ace6846bf37b13f7c15f1a41eff0d57f2a0e065a11d2145465a81797a"
+    },
+    {
+      "path": "docs/audit/bf144/512/verify.py",
+      "bytes": 11845,
+      "sha256": "ac498cb417c9128c344e4f4ae17890e48215c17237d7d37f3306ec15b2e9a9cb"
+    },
+    {
+      "path": "docs/audit/bf144/441a/vector.request.json",
+      "bytes": 5596,
+      "sha256": "b8247662eab1fb45a5fde6db20f14b9eee3b8f3863cbb5b119df09d1a83d94d7"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}
