@@ -1,0 +1,109 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 351,
+        "end": 375,
+        "text": "\n\tPoseState.GroundedAmount = GetCurveValue(Curves, UAlsConstants::PoseGroundedCurveName());\n\tPoseState.InAirAmount = GetCurveValue(Curves, UAlsConstants::PoseInAirCurveName());\n\n\tPoseState.StandingAmount = GetCurveValue(Curves, UAlsConstants::PoseStandingCurveName());\n\tPoseState.CrouchingAmount = GetCurveValue(Curves, UAlsConstants::PoseCrouchingCurveName());\n\n\tPoseState.MovingAmount = GetCurveValue(Curves, UAlsConstants::PoseMovingCurveName());\n\n\tPoseState.GaitAmount = FMath::Clamp(GetCurveValue(Curves, UAlsConstants::PoseGaitCurveName()), 0.0f, 3.0f);\n\tPoseState.GaitWalkingAmount = UAlsMath::Clamp01(PoseState.GaitAmount);\n\tPoseState.GaitRunningAmount = UAlsMath::Clamp01(PoseState.GaitAmount - 1.0f);\n\tPoseState.GaitSprintingAmount = UAlsMath::Clamp01(PoseState.GaitAmount - 2.0f);\n\n\t// Use the grounded pose curve value to \"unweight\" the gait pose curve. This is used to\n\t// instantly get the full gait value from the very beginning of transitions to grounded states.\n\n\tPoseState.UnweightedGaitAmount = PoseState.GroundedAmount > UE_SMALL_NUMBER\n\t\t                                 ? PoseState.GaitAmount / PoseState.GroundedAmount\n\t\t                                 : PoseState.GaitAmount;\n\n\tPoseState.UnweightedGaitWalkingAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount);\n\tPoseState.UnweightedGaitRunningAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount - 1.0f);\n\tPoseState.UnweightedGaitSprintingAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount - 2.0f);\n}"
+      },
+      {
+        "start": 864,
+        "end": 901,
+        "text": "\t\t                      (FMath::Abs(VelocityDirection.X) + FMath::Abs(VelocityDirection.Y) + FMath::Abs(VelocityDirection.Z));\n\t}\n\n\tif (VelocityBlend.bInitializationRequired || Settings->Grounded.VelocityBlendInterpolationHalfLife <= 0.0f)\n\t{\n\t\tVelocityBlend.bInitializationRequired = false;\n\n\t\tVelocityBlend.ForwardAmount = UAlsMath::Clamp01(TargetVelocityBlend.X);\n\t\tVelocityBlend.BackwardAmount = FMath::Abs(FMath::Clamp(TargetVelocityBlend.X, -1.0f, 0.0f));\n\t\tVelocityBlend.LeftAmount = FMath::Abs(FMath::Clamp(TargetVelocityBlend.Y, -1.0f, 0.0f));\n\t\tVelocityBlend.RightAmount = UAlsMath::Clamp01(TargetVelocityBlend.Y);\n\t}\n\telse\n\t{\n\t\t// We use UAlsMath::DamperExact() instead of FMath::FInterpTo(), because FMath::FInterpTo() is very sensitive to large\n\t\t// delta time, at low FPS interpolation becomes almost instant which causes issues with character pose during the stop.\n\n\t\tconst auto InterpolationAmount{\n\t\t\tUAlsMath::DamperExactAlpha(GetDeltaSeconds(), Settings->Grounded.VelocityBlendInterpolationHalfLife)\n\t\t};\n\n\t\tVelocityBlend.ForwardAmount = FMath::Lerp(VelocityBlend.ForwardAmount,\n\t\t                                          UAlsMath::Clamp01(TargetVelocityBlend.X),\n\t\t                                          InterpolationAmount);\n\n\t\tVelocityBlend.BackwardAmount = FMath::Lerp(VelocityBlend.BackwardAmount,\n\t\t                                           FMath::Abs(FMath::Clamp(TargetVelocityBlend.X, -1.0f, 0.0f)),\n\t\t                                           InterpolationAmount);\n\n\t\tVelocityBlend.LeftAmount = FMath::Lerp(VelocityBlend.LeftAmount,\n\t\t                                       FMath::Abs(FMath::Clamp(TargetVelocityBlend.Y, -1.0f, 0.0f)),\n\t\t                                       InterpolationAmount);\n\n\t\tVelocityBlend.RightAmount = FMath::Lerp(VelocityBlend.RightAmount,\n\t\t                                        UAlsMath::Clamp01(TargetVelocityBlend.Y),\n\t\t                                        InterpolationAmount);\n\t}\n}"
+      },
+      {
+        "start": 1010,
+        "end": 1017,
+        "text": "\tStandingState.StrideBlendAmount = FMath::Lerp(Settings->Standing.StrideBlendAmountWalkCurve->GetFloatValue(Speed),\n\t                                              Settings->Standing.StrideBlendAmountRunCurve->GetFloatValue(Speed),\n\t                                              PoseState.UnweightedGaitRunningAmount);\n\n\t// Calculate the walk run blend amount. This value is used within the blend spaces to blend between walking and running.\n\n\tStandingState.WalkRunBlendAmount = Gait == AlsGaitTags::Walking ? 0.0f : 1.0f;\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Private/AlsCharacterMovementComponent.cpp",
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 969,
+        "end": 986,
+        "text": "\n\t// Map the character's current speed to the to the speed ranges from the movement settings. This allows\n\t// us to vary movement speeds but still use the mapped range in calculations for consistent results.\n\n\tconst auto Speed{UE_REAL_TO_FLOAT(Velocity.Size2D())};\n\n\tif (Speed > RunSpeed)\n\t{\n\t\tGaitAmount = FMath::GetMappedRangeValueClamped(FVector2f{RunSpeed, GaitSettings.SprintSpeed}, {2.0f, 3.0f}, Speed);\n\t}\n\telse if (Speed > WalkSpeed)\n\t{\n\t\tGaitAmount = FMath::GetMappedRangeValueClamped(FVector2f{WalkSpeed, RunSpeed}, {1.0f, 2.0f}, Speed);\n\t}\n\telse\n\t{\n\t\tGaitAmount = FMath::GetMappedRangeValueClamped(FVector2f{0.0f, WalkSpeed}, {0.0f, 1.0f}, Speed);\n\t}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/AnimGraphRuntime/Private/AnimNodes/AnimNode_MultiWayBlend.cpp",
+    "sha256": "8a55ee30bd51c790cfb02af40912dbcf0067e5b46b7a2fd23f1fea470c0cfd99",
+    "excerpts": [
+      {
+        "start": 49,
+        "end": 91,
+        "text": "void FAnimNode_MultiWayBlend::UpdateCachedAlphas()\n{\n\tfloat TotalAlpha = GetTotalAlpha();\n\n\tif (DesiredAlphas.Num() > 0)\n\t{\n\t\tif (DesiredAlphas.Num() != CachedAlphas.Num())\n\t\t{\n\t\t\tCachedAlphas.Init(0.f, DesiredAlphas.Num());\n\t\t}\n\t\telse\n\t\t{\n\t\t\tFMemory::Memzero(CachedAlphas.GetData(), CachedAlphas.GetAllocatedSize());\n\t\t}\n\t}\n\telse\n\t{\n\t\tCachedAlphas.Reset();\n\t}\n\n\tconst float ActualTotalAlpha = AlphaScaleBias.ApplyTo(TotalAlpha);\n\tif (ActualTotalAlpha > ZERO_ANIMWEIGHT_THRESH)\n\t{\n\t\tif (bNormalizeAlpha)\n\t\t{\n\t\t\t// normalize by total alpha\n\t\t\tfor (int32 AlphaIndex = 0; AlphaIndex < DesiredAlphas.Num(); ++AlphaIndex)\n\t\t\t{\n\t\t\t\t// total alpha shouldn't be zero\n\t\t\t\tCachedAlphas[AlphaIndex] = AlphaScaleBias.ApplyTo(DesiredAlphas[AlphaIndex] / TotalAlpha);\n\t\t\t}\n\t\t}\n\t\telse\n\t\t{\n\t\t\tfor (int32 AlphaIndex = 0; AlphaIndex < DesiredAlphas.Num(); ++AlphaIndex)\n\t\t\t{\n\t\t\t\t// total alpha shouldn't be zero\n\t\t\t\tCachedAlphas[AlphaIndex] = AlphaScaleBias.ApplyTo(DesiredAlphas[AlphaIndex]);\n\t\t\t}\n\t\t}\n\t}\n\n\tensure(Poses.Num() == CachedAlphas.Num());"
+      },
+      {
+        "start": 128,
+        "end": 164,
+        "text": "\t{\n\t\tfor (int32 PoseIndex = 0; PoseIndex < Poses.Num(); ++PoseIndex)\n\t\t{\n\t\t\tconst float CurrentAlpha = CachedAlphas[PoseIndex];\n\t\t\tif (CurrentAlpha > ZERO_ANIMWEIGHT_THRESH)\n\t\t\t{\n\t\t\t\t// evaluate input pose, potentially reentering this function and pushing/popping more poses\n\t\t\t\tFPoseContext PoseContext(Output);\n\t\t\t\tPoses[PoseIndex].Evaluate(PoseContext);\n\n\t\t\t\t// push source pose data\n\t\t\t\tFCompactPose& SourcePose = SourcePoses.AddDefaulted_GetRef();\n\t\t\t\tSourcePose.MoveBonesFrom(PoseContext.Pose);\n\n\t\t\t\tFBlendedCurve& SourceCurve = SourceCurves.AddDefaulted_GetRef();\n\t\t\t\tSourceCurve.MoveFrom(PoseContext.Curve);\n\n\t\t\t\tUE::Anim::FStackAttributeContainer& SourceAttribute = SourceAttributes.AddDefaulted_GetRef();\n\t\t\t\tSourceAttribute.MoveFrom(PoseContext.CustomAttributes);\n\n\t\t\t\tSourceWeights.Add(CurrentAlpha);\n\n\t\t\t\t++SourcePosesAdded;\n\t\t\t}\n\t\t}\n\t}\n\n\tif (SourcePosesAdded > 0)\n\t{\n\t\t// obtain views onto the ends of our stacks\n\t\tTArrayView<FCompactPose> SourcePosesView = MakeArrayView(&SourcePoses[SourcePosesInitialNum], SourcePosesAdded);\n\t\tTArrayView<FBlendedCurve> SourceCurvesView = MakeArrayView(&SourceCurves[SourcePosesInitialNum], SourcePosesAdded);\n\t\tTArrayView<UE::Anim::FStackAttributeContainer> SourceAttributesView = MakeArrayView(&SourceAttributes[SourcePosesInitialNum], SourcePosesAdded);\n\t\tTArrayView<float> SourceWeightsView = MakeArrayView(&SourceWeights[SourcePosesInitialNum], SourcePosesAdded);\n\n\t\tFAnimationPoseData AnimationPoseData(Output);\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/nodes/source_movement_nodes.rs",
+    "sha256": "7ddf03b052be8540922f1a331a5c79145309cc11ee5bed9f6dd17f7797b647b7",
+    "excerpts": [
+      {
+        "start": 81,
+        "end": 104,
+        "text": "    pub(crate) fn active_weights(&self, ctx: &NodeContext) -> Result<Vec<(usize, f32)>, GraphError> {\n        if self.desired_alpha_keys.len() != self.pose_count\n            || self.desired_alpha_defaults.len() != self.pose_count\n        {\n            return Err(node_error(\n                ctx,\n                \"desired alpha configuration does not match pose count\".to_owned(),\n            ));\n        }\n        let desired = (0..self.pose_count).map(|index| self.alpha(ctx, index))\n            .collect::<Result<Vec<_>, _>>()?;\n        let total: f32 = desired.iter().sum();\n        let mut active = Vec::new();\n        if (total * self.alpha_scale).clamp(0.0, 1.0) > 1e-5 {\n            for (index, raw) in desired.into_iter().enumerate() {\n                let weight = ((if self.normalize_alpha { raw / total } else { raw }) * self.alpha_scale).clamp(0.0, 1.0);\n                if weight > 1e-5 { active.push((index, weight)); }\n            }\n        }\n        Ok(active)\n    }\n\n}\n"
+      },
+      {
+        "start": 111,
+        "end": 137,
+        "text": "            let pose = ctx.data_back(self.pose_input(index))?.into_pose()?;\n            if let Some(context) = pose_input_context_state(&ctx, &self.pose_input(index)) {\n                contexts.push((context, weight));\n            }\n            poses.push((pose, weight));\n        }\n        let output = if poses.is_empty() {\n            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&self.reference_skeleton)\n                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n            let timestamp = crate::extensions::context_time_update(&ctx)?.partial_update_basic(ctx.prev_time()).unwrap_or_else(|| ctx.prev_time());\n            let mut pose = Pose { skeleton: self.reference_skeleton.clone(), timestamp, ..default() };\n            crate::extensions::mesh_space_additive::materialize_missing_reference_bones(&mut pose, skeleton);\n            pose\n        } else {\n            blend_source_poses(&poses)\n        };\n        ctx.set_time(output.timestamp);\n        ctx.set_data_fwd(\"Pose\", output);\n        *ctx.state_mut_or_else(AnimationContextState::default)? = if poses.is_empty() {\n            AnimationContextState { curves_are_authoritative: true, ..default() }\n        } else { blend_animation_contexts(contexts) };\n        Ok(())\n    }\n\n    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {\n        for index in 0..self.pose_count {\n            ctx.add_input_data(self.pose_input(index), DataSpec::Pose);"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/normalized_blendspace.rs",
+    "sha256": "5fee6663ccc1d5897a392f6d2acfd3e12c5a71d6e91871d77dbf31259ab1819b",
+    "excerpts": [
+      {
+        "start": 455,
+        "end": 469,
+        "text": "                    edge = Some(index);\n                    distance = value;\n                }\n            }\n            let Some(edge) = edge else {\n                let first = points[1] - points[0];\n                let second = points[2] - points[0];\n                let offset = position - points[0];\n                let area = first.perp_dot(second);\n                let y = offset.perp_dot(second) / area;\n                let z = first.perp_dot(offset) / area;\n                weights = indices\n                    .into_iter()\n                    .zip([(1.0 - y - z) as f32, y as f32, z as f32])\n                    .collect();"
+      },
+      {
+        "start": 513,
+        "end": 527,
+        "text": "        weights.retain(|(_, weight)| *weight > 1e-5);\n        for last in (1..weights.len()).rev() {\n            let mut smallest = 0;\n            for index in 1..=last {\n                if weights[smallest].1 > weights[index].1 {\n                    smallest = index;\n                }\n            }\n            weights.swap(smallest, last);\n        }\n        let total = weights.iter().map(|(_, weight)| *weight).sum::<f32>();\n        for (_, weight) in &mut weights {\n            *weight /= total;\n        }\n        Ok(weights)"
+      },
+      {
+        "start": 831,
+        "end": 844,
+        "text": "                    &point_markers,\n                    point_hint,\n                    sample_looped,\n                )\n            };\n            let time = if self.teleport_to_normalized_time && point.asset_rate_scale < 0.0 { duration - time } else { time };\n            sample_times[index] = Some(time);\n            ctx.set_time_update_back(Self::time_pin(&point.id), TimeUpdate::Absolute(time));\n            poses.push((\n                ctx.data_back(Self::pose_pin(&point.id))?.into_pose()?,\n                weight,\n            ));\n            pose_indices.push(index);\n            for (name, value) in point.curves.sample_all(time) {"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "bf5b1061712f4f28a6120504790a2d8599666ee735942381d3f02ccb9de87671",
+    "excerpts": [
+      {
+        "start": 967,
+        "end": 985,
+        "text": "pub fn blend_animation_contexts(\n    contexts: impl IntoIterator<Item = (AnimationContextState, f32)>,\n) -> AnimationContextState {\n    let mut output = AnimationContextState::default();\n    let mut relevant_assets = Vec::new();\n    for (context, weight) in contexts {\n        let weight = weight.max(0.0);\n        if weight > 1e-5 {\n            merge_inertialization_request(&mut output.inertialization_request, context.inertialization_request.as_ref());\n            merge_inertialization_request(&mut output.skipped_cached_pose_request, context.skipped_cached_pose_request.as_ref());\n        }\n        merge_sync_players(&mut output.sync_players, &context.sync_players, weight);\n        merge_asset_samples(&mut output.asset_samples, &context.asset_samples, weight);\n        output.curves_are_authoritative |= context.curves_are_authoritative;\n        for (name, value) in context.curves {\n            *output.curves.entry(name).or_default() += value * weight;\n        }\n        relevant_assets.push((context.relevant_asset, weight));\n    }"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/standing_layer.rs",
+    "sha256": "13f575190cc9b7beec24440e86f48dd413e7bc91147f215d02b3cf1c5d32f46b",
+    "excerpts": [
+      {
+        "start": 2301,
+        "end": 2314,
+        "text": "            .unwrap_or(0.0)\n            .clamp(-1.0, 1.0);\n        let gait_amount = context\n            .and_then(|state| state.f32(\"PoseGait\"))\n            .unwrap_or(0.0)\n            .clamp(0.0, 3.0);\n        let gait_running_amount = (gait_amount - 1.0).clamp(0.0, 1.0);\n        let gait_sprinting_amount = (gait_amount - 2.0).clamp(0.0, 1.0);\n        let pose_grounded_amount = context\n            .and_then(|state| state.f32(\"PoseGrounded\"))\n            .unwrap_or(0.0);\n        let (unweighted_gait_running_amount, unweighted_gait_sprinting_amount) =\n            unweighted_gait_amounts(gait_amount, pose_grounded_amount);\n        let gait_is_sprinting = (*gait == Gait::Sprinting) as u8 as f32;"
+      }
+    ]
+  }
+]

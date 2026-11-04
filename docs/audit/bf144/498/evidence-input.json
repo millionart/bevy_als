@@ -1,0 +1,524 @@
+{
+  "rows": [
+    {
+      "query": 104,
+      "directions": [
+        {
+          "name": "forward",
+          "target": {
+            "max": [
+              1.0,
+              1.0
+            ],
+            "min": [
+              0.0,
+              0.0
+            ],
+            "points": [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                1.0
+              ]
+            ],
+            "position": [
+              0.9690915942192078,
+              0.6779059767723083
+            ],
+            "triangles": [
+              [
+                1,
+                0,
+                3
+              ],
+              [
+                0,
+                2,
+                3
+              ]
+            ]
+          },
+          "target_gait": 1.6779059171676636,
+          "native_samples": [
+            {
+              "index": 2,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+              "time": 0.37654924392700195,
+              "cached_time": 0.37654924392700195,
+              "weight": 0.6469966173171997,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 0,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+              "time": 0.5695558786392212,
+              "cached_time": 0.5695558786392212,
+              "weight": 0.32209402322769165,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 3,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+              "time": 0.3765488862991333,
+              "cached_time": 0.3765488862991333,
+              "weight": 0.030909359455108643,
+              "pose_mode_at_observation": "compressed"
+            }
+          ],
+          "native_direction_weight": 0.6538794636726379
+        },
+        {
+          "name": "right",
+          "target": {
+            "max": [
+              1.0,
+              1.0
+            ],
+            "min": [
+              0.0,
+              0.0
+            ],
+            "points": [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                1.0
+              ]
+            ],
+            "position": [
+              0.9690915942192078,
+              0.6779059767723083
+            ],
+            "triangles": [
+              [
+                1,
+                0,
+                3
+              ],
+              [
+                0,
+                2,
+                3
+              ]
+            ]
+          },
+          "target_gait": 1.6779059171676636,
+          "native_samples": [
+            {
+              "index": 2,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.A_Als_Run_Right_Forward",
+              "time": 0.3789152503013611,
+              "cached_time": 0.3789152503013611,
+              "weight": 0.6469966173171997,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 0,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.A_Als_Walk_Right_Forward",
+              "time": 0.5707389116287231,
+              "cached_time": 0.5707389116287231,
+              "weight": 0.32209402322769165,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 3,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.A_Als_Run_Right_Pose",
+              "time": 0.3789149224758148,
+              "cached_time": 0.3789149224758148,
+              "weight": 0.030909359455108643,
+              "pose_mode_at_observation": "compressed"
+            }
+          ],
+          "native_direction_weight": 0.34612056612968445
+        }
+      ],
+      "target_desired": [
+        0.49046874046325684,
+        0.0,
+        0.0,
+        0.2596219480037689
+      ],
+      "native_desired": [
+        0.4904688596725464,
+        0,
+        0,
+        0.259621798992157
+      ],
+      "target_root_gait": 1.677905797958374,
+      "native_root_gait": 1.6779059171676636,
+      "target_running_consumer": 0.677905797958374,
+      "native_running_consumer": 0.6779059171676636
+    },
+    {
+      "query": 105,
+      "directions": [
+        {
+          "name": "forward",
+          "target": {
+            "max": [
+              1.0,
+              1.0
+            ],
+            "min": [
+              0.0,
+              0.0
+            ],
+            "points": [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                1.0
+              ]
+            ],
+            "position": [
+              0.9992852807044983,
+              0.7327328324317932
+            ],
+            "triangles": [
+              [
+                1,
+                0,
+                3
+              ],
+              [
+                0,
+                2,
+                3
+              ]
+            ]
+          },
+          "target_gait": 1.732732892036438,
+          "native_samples": [
+            {
+              "index": 2,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+              "time": 0.42760133743286133,
+              "cached_time": 0.42760133743286133,
+              "weight": 0.732017993927002,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 0,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+              "time": 0.641879677772522,
+              "cached_time": 0.641879677772522,
+              "weight": 0.2672671675682068,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 3,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+              "time": 0.4276009798049927,
+              "cached_time": 0.4276009798049927,
+              "weight": 0.0007148385047912598,
+              "pose_mode_at_observation": "compressed"
+            }
+          ],
+          "native_direction_weight": 0.6808145642280579
+        },
+        {
+          "name": "right",
+          "target": {
+            "max": [
+              1.0,
+              1.0
+            ],
+            "min": [
+              0.0,
+              0.0
+            ],
+            "points": [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                1.0
+              ]
+            ],
+            "position": [
+              0.9992852807044983,
+              0.7327328324317932
+            ],
+            "triangles": [
+              [
+                1,
+                0,
+                3
+              ],
+              [
+                0,
+                2,
+                3
+              ]
+            ]
+          },
+          "target_gait": 1.732732892036438,
+          "native_samples": [
+            {
+              "index": 2,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.A_Als_Run_Right_Forward",
+              "time": 0.4278401732444763,
+              "cached_time": 0.4278401732444763,
+              "weight": 0.732017993927002,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 0,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.A_Als_Walk_Right_Forward",
+              "time": 0.6419991254806519,
+              "cached_time": 0.6419991254806519,
+              "weight": 0.2672671675682068,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 3,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.A_Als_Run_Right_Pose",
+              "time": 0.42783981561660767,
+              "cached_time": 0.42783981561660767,
+              "weight": 0.0007148385047912598,
+              "pose_mode_at_observation": "compressed"
+            }
+          ],
+          "native_direction_weight": 0.31918540596961975
+        }
+      ],
+      "target_desired": [
+        0.5457806587219238,
+        0.0,
+        0.0,
+        0.255878210067749
+      ],
+      "native_desired": [
+        0.5457810163497925,
+        0,
+        0,
+        0.255877822637558
+      ],
+      "target_root_gait": 1.7327327728271484,
+      "native_root_gait": 1.7327327728271484,
+      "target_running_consumer": 0.7327327728271484,
+      "native_running_consumer": 0.7327327728271484
+    },
+    {
+      "query": 106,
+      "directions": [
+        {
+          "name": "forward",
+          "target": {
+            "max": [
+              1.0,
+              1.0
+            ],
+            "min": [
+              0.0,
+              0.0
+            ],
+            "points": [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                1.0
+              ]
+            ],
+            "position": [
+              0.9999117255210876,
+              0.7778373956680298
+            ],
+            "triangles": [
+              [
+                1,
+                0,
+                3
+              ],
+              [
+                0,
+                2,
+                3
+              ]
+            ]
+          },
+          "target_gait": 1.7778373956680298,
+          "native_samples": [
+            {
+              "index": 2,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+              "time": 0.47604262828826904,
+              "cached_time": 0.47604262828826904,
+              "weight": 0.7777491211891174,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 0,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+              "time": 0.7105048298835754,
+              "cached_time": 0.7105048298835754,
+              "weight": 0.22216260433197021,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 3,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+              "time": 0.4760422706604004,
+              "cached_time": 0.4760422706604004,
+              "weight": 8.827447891235352e-05,
+              "pose_mode_at_observation": "compressed"
+            }
+          ],
+          "native_direction_weight": 0.7068461775779724
+        },
+        {
+          "name": "right",
+          "target": {
+            "max": [
+              1.0,
+              1.0
+            ],
+            "min": [
+              0.0,
+              0.0
+            ],
+            "points": [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                1.0
+              ]
+            ],
+            "position": [
+              0.9999117255210876,
+              0.7778373956680298
+            ],
+            "triangles": [
+              [
+                1,
+                0,
+                3
+              ],
+              [
+                0,
+                2,
+                3
+              ]
+            ]
+          },
+          "target_gait": 1.7778373956680298,
+          "native_samples": [
+            {
+              "index": 2,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.A_Als_Run_Right_Forward",
+              "time": 0.4778221845626831,
+              "cached_time": 0.4778221845626831,
+              "weight": 0.7777491211891174,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 0,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.A_Als_Walk_Right_Forward",
+              "time": 0.7113945484161377,
+              "cached_time": 0.7113945484161377,
+              "weight": 0.22216260433197021,
+              "pose_mode_at_observation": "compressed"
+            },
+            {
+              "index": 3,
+              "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.A_Als_Run_Right_Pose",
+              "time": 0.47782185673713684,
+              "cached_time": 0.47782185673713684,
+              "weight": 8.827447891235352e-05,
+              "pose_mode_at_observation": "compressed"
+            }
+          ],
+          "native_direction_weight": 0.2931537628173828
+        }
+      ],
+      "target_desired": [
+        0.5955787897109985,
+        0.0,
+        0.0,
+        0.24700728058815002
+      ],
+      "native_desired": [
+        0.5955787301063538,
+        0,
+        0,
+        0.24700728058815002
+      ],
+      "target_root_gait": 1.7778375148773193,
+      "native_root_gait": 1.7778372764587402,
+      "target_running_consumer": 0.7778375148773193,
+      "native_running_consumer": 0.7778372764587402
+    }
+  ],
+  "pose_gait": [
+    1,
+    1,
+    2,
+    2
+  ],
+  "graph": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron"
+}

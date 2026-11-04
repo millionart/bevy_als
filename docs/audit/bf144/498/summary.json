@@ -1,0 +1,173 @@
+{
+  "gate": "PASS_DIRECTION_WEIGHT_PROVENANCE_FOR_LEAN_GAIT_CURVE",
+  "new_differences": 0,
+  "known_total": 276,
+  "actual_producer_queries": [
+    104,
+    105,
+    106
+  ],
+  "directional_child_curves_exact": 6,
+  "source_direction_weights_restore_queries": [
+    104,
+    106
+  ],
+  "source_child_replacement_changes": 0,
+  "witness": {
+    "native_children_only": 1.677905797958374,
+    "native_weights": [
+      0.6538794636726379,
+      0.34612056612968445
+    ],
+    "native_weights_only": 1.6779059171676636,
+    "query": 104,
+    "samples": [
+      {
+        "name": "forward",
+        "native_gait": 1.6779059171676636,
+        "native_weights": [
+          [
+            2,
+            0.6469966173171997
+          ],
+          [
+            0,
+            0.32209402322769165
+          ],
+          [
+            3,
+            0.030909359455108643
+          ]
+        ],
+        "target_gait": 1.6779059171676636,
+        "target_weights": [
+          [
+            2,
+            0.6469975709915161
+          ],
+          [
+            0,
+            0.32209402322769165
+          ],
+          [
+            3,
+            0.030908405780792236
+          ]
+        ]
+      },
+      {
+        "name": "right",
+        "native_gait": 1.6779059171676636,
+        "native_weights": [
+          [
+            2,
+            0.6469966173171997
+          ],
+          [
+            0,
+            0.32209402322769165
+          ],
+          [
+            3,
+            0.030909359455108643
+          ]
+        ],
+        "target_gait": 1.6779059171676636,
+        "target_weights": [
+          [
+            2,
+            0.6469975709915161
+          ],
+          [
+            0,
+            0.32209402322769165
+          ],
+          [
+            3,
+            0.030908405780792236
+          ]
+        ]
+      }
+    ],
+    "source": 1.6779059171676636,
+    "target": 1.677905797958374,
+    "target_weights": [
+      0.6538792252540588,
+      0.3461207449436188
+    ]
+  },
+  "native_and_target_grounded_factor": 1,
+  "velocity_blend_upstream_root_cause_closed": false,
+  "cmc_gait_mapping_compared": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "runtime-observed/parameters.json": {
+      "bytes": 9037866,
+      "sha256": "572d44849640f313f47c3e5f843604296b69db89028cc95b458a89487c83d342"
+    },
+    "runtime-observed/report.json": {
+      "bytes": 3932561,
+      "sha256": "a26cc658761dcc4c4ac283abffd87851e30af1c2ee195fc915f09761d1de417b"
+    }
+  },
+  "generated_sources": [
+    {
+      "path": "tools/tmp/bf144/498/playground_observed.rs",
+      "bytes": 109202,
+      "sha256": "d3668ca27994e17fdd14aab7098a4c2d3595deb223c94fc6cbb5f242846a5585"
+    },
+    {
+      "path": "tools/tmp/bf144/498/weights.rs",
+      "bytes": 2044,
+      "sha256": "3bd0efa848a7163533cf98ba199420ea97f64725004ebd3ea643eafe4b4bed6c"
+    }
+  ],
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/495/observer.py",
+      "bytes": 1291,
+      "sha256": "65fc03d32921097c76eff9b1547e77a90596dc1d859daccbb1c7fdbc85f3a41f"
+    },
+    {
+      "path": "docs/audit/bf144/497/runtime-observed/parameters.json.gz",
+      "bytes": 1061425,
+      "sha256": "5ba15b71658fcaa1fcadfe51be7104ed19652c0f7c7268d86c8cfe99cbd756cc"
+    },
+    {
+      "path": "docs/audit/bf144/497/replay.rs",
+      "bytes": 8727,
+      "sha256": "62ae037e7370f935c680c341079c63d0b3dc17f6ae48259f0bb683c742679aa6"
+    },
+    {
+      "path": "docs/audit/bf144/493/virtual-motion.native.json.gz",
+      "bytes": 11054102,
+      "sha256": "de21a37ab7fdf8724d50144112da17adb12bf00fae5d8abd2304e5e2a6415ae0"
+    },
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+      "bytes": 114086,
+      "sha256": "0aa77a0144efad90d6bbd326ab7650a74e0eb341d83107b95cfd539ef27c48bc"
+    }
+  ]
+}
