@@ -3668,6 +3668,7 @@ fn grounded_movement_transaction(
     let clearance = ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
     let mut raised = center;
     let mut remaining_delta = delta;
+    let mut step_delta = delta;
     let mut initial_floor_y = None;
     let raw_config = ShapeCastConfig { ignore_origin_penetration: false, ..forward_config };
     let raw_hit = spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &raw_config, &filter, &accepts);
@@ -3681,6 +3682,7 @@ fn grounded_movement_transaction(
         let advance = *direction * movement_sweep_travel(distance, hit.distance);
         raised += advance;
         remaining_delta -= advance;
+        step_delta = remaining_delta;
         forward_config.max_distance = remaining_delta.length();
         result.0 = raised;
         let slide_normal = Vec3::new(hit.normal1.x, 0.0, hit.normal1.z).normalize_or_zero();
@@ -3742,12 +3744,17 @@ fn grounded_movement_transaction(
         }
     }
     let destination = raised + remaining_delta;
+    let down_distance = MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE * 2.0;
     let Some(floor) = floor_sweep_hit(&spatial_query, capsule, radius, destination,
-        MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE * 2.0, &filter, &accepts)
-        .filter(|hit| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) else {
+        down_distance, &filter, &accepts) else {
         return Some(result);
     };
     if floor.distance == 0.0 && (floor.point1 - floor.point2).dot(floor.normal1) > 0.0 { return Some(result); }
+    if floor.normal1.y < deg_to_rad(MAX_SLOPE_DEGREES).cos()
+        && (initial_floor_y.is_none() || step_delta.dot(floor.normal1) < 0.0
+            || destination.y - movement_sweep_travel(down_distance, floor.distance) > center.y) {
+        return Some(result);
+    }
     let next_y = destination.y - floor.distance + clearance;
     if initial_floor_y.is_some_and(|initial| floor.point1.y > initial) && !can_step_up(floor.entity) {
         return Some(result);
@@ -4477,6 +4484,33 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn unwalkable_step_down_rejects_only_opposed_or_high_hits() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (yaw, contact_y, accepted) in [(0.0_f32, 2.88, true), (15.0, 2.88, false), (0.0, 2.94, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
+            let rotation = Quat::from_rotation_y(-yaw.to_radians()) * Quat::from_rotation_x(std::f32::consts::FRAC_PI_3);
+            let center = Vec3::new(-13.6675, contact_y - 0.6, -15.0) - rotation * Vec3::Y * 0.315;
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.24, 0.03, 0.24),
+                Transform::from_translation(center).with_rotation(rotation)));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+            }).unwrap().unwrap();
+            assert_eq!(result.2.is_some(), accepted, "yaw={yaw} contact_y={contact_y} result={result:?}");
+        }
+    }
 
     #[test]
     fn step_down_keeps_a_blocking_hit_when_the_perch_is_not_walkable() {
