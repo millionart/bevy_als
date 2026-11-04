@@ -113,6 +113,8 @@ pub mod ragdoll_config_node;
 #[path = "avian_ext/query_collision.rs"]
 pub mod query_collision;
 pub use query_collision::ComplexCollider;
+#[path = "avian_ext/source_capsule_sweep.rs"]
+pub(crate) mod source_capsule_sweep;
 #[path = "avian_ext/ragdoll_physics_profile.rs"]
 pub mod ragdoll_physics_profile;
 #[path = "als/nodes/ragdolling_tag_blend.rs"]

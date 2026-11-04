@@ -1,0 +1,97 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/GeometryQueries.h",
+      "sha256": "202a272a9126f2eed7a91ed79c92a6db89778b183b1fe63307f3bd9d263eef64",
+      "excerpts": [
+        {
+          "first_line": 310,
+          "last_line": 325,
+          "text": "\t\t\t\treturn true;\n\t\t\t};\n\n\t\t\t// Validate that the convexes we are about to test are actually valid geometries\n\t\t\tif(!ensureMsgf(IsValidConvex(A), TEXT(\"GJKRaycast - Convex A has no particles\")) ||\n\t\t\t\t!ensureMsgf(IsValidConvex(B), TEXT(\"GJKRaycast - Convex B has no particles\")))\n\t\t\t{\n\t\t\t\treturn false;\n\t\t\t}\n\n\t\t\tconst FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();\n\t\t\tbResult = Utilities::CastHelperNoUnwrap(A, BToATM, \n\t\t\t\t[&](const auto& ADowncast, const auto& BToAFullTM)\n\t\t\t\t{\n\t\t\t\t\treturn GJKRaycast2(ADowncast, B, BToAFullTM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness);\n\t\t\t\t});"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/GJK.h",
+      "sha256": "7dc71f9fb122c9ddca4fac3139d0f970c1088dd2aaeb77c1abd390e41b09ab0c",
+      "excerpts": [
+        {
+          "first_line": 1590,
+          "last_line": 1625,
+          "text": "\tbool GJKRaycast2ImplSimd(const FGeomGJKHelperSIMD& RESTRICT A, const FGeomGJKHelperSIMD& RESTRICT B, const T& BToARotation, const T& StartPoint, const T& RayDir,\n\t\tFRealSingle RayLength, FRealSingle& OutTime, T& OutPosition, T& OutNormal, bool bComputeMTD, const T& InitialDir)\n\t{\n\t\tensure(RayLength >= 0);\n\n\t\t// Margin selection logic: we only need a small margin for sweeps since we only move the sweeping object\n\t\t// to the point where it just touches.\n\t\t// Spheres and Capsules: always use the core shape and full \"margin\" because it represents the radius\n\t\t// Sphere/Capsule versus OtherShape: no margin on other\n\t\t// OtherShape versus OtherShape: use margin of the smaller shape, zero margin on the other\n\t\tconst FRealSingle RadiusA = static_cast<FRealSingle>(A.GetRadius());\n\t\tconst FRealSingle RadiusB = static_cast<FRealSingle>(B.GetRadius());\n\t\tconst bool bHasRadiusA = RadiusA > 0;\n\t\tconst bool bHasRadiusB = RadiusB > 0;\n\n\t\t// The sweep margins if required. Only one can be non-zero (we keep the smaller one)\n\t\tconst FRealSingle SweepMarginScale = 0.05f;\n\t\tconst bool bAIsSmallest = A.GetMargin() < B.GetMargin();\n\t\tconst FRealSingle SweepMarginA = (bHasRadiusA || bHasRadiusB) ? 0.0f : (bAIsSmallest ? SweepMarginScale * static_cast<FRealSingle>(A.GetMargin()) : 0.0f);\n\t\tconst FRealSingle SweepMarginB = (bHasRadiusA || bHasRadiusB) ? 0.0f : (bAIsSmallest ? 0.0f : SweepMarginScale * static_cast<FRealSingle>(B.GetMargin()));\n\n\t\t// Net margin (note: both SweepMargins are zero if either Radius is non-zero, and only one SweepMargin can be non-zero)\n\t\tA.Margin = RadiusA + SweepMarginA;\n\t\tB.Margin = RadiusB + SweepMarginB;\n\n\t\tconst T MarginASimd = T(VectorLoadFloat1(&A.Margin));\n\t\tconst T MarginBSimd = T(VectorLoadFloat1(&B.Margin));\n\n\t\tT Simplex[4] = { TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>() };\n\t\tT As[4] = { TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>() };\n\t\tT Bs[4] = { TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>() };\n\n\t\tT Barycentric = TVectorZero<T>();\n\n\t\tT Inflation = VectorAdd(MarginASimd, MarginBSimd);\n\t\tconst T Eps2Simd = TMakeVectorRegister<T>(1e-6f, 1e-6f, 1e-6f, 1e-6f);"
+        },
+        {
+          "first_line": 1680,
+          "last_line": 1720,
+          "text": "\t\t\tconst T VDotW = VectorDot3(V, W);\n\n\t\t\tT VDotWGTInflationSimd = VectorCompareGT(VDotW, Inflation);\n\n\t\t\tif (::VectorMaskBits(VDotWGTInflationSimd))\n\t\t\t{\n\t\t\t\tconst T VDotRayDir = VectorDot3(V, RayDir);\n\t\t\t\tT VDotRayDirGEZero = VectorCompareGE(VDotRayDir, TVectorZero<T>());\n\n\t\t\t\tif (::VectorMaskBits(VDotRayDirGEZero))\n\t\t\t\t{\n\t\t\t\t\treturn false;\n\t\t\t\t}\n\n\t\t\t\tconst T PreLambda = Lambda;\t//use to check for no progress\n\t\t\t\t// @todo(ccaulfield): this can still overflow - the comparisons against zero above should be changed (though not sure to what yet)\n\t\t\t\tLambda = VectorSubtract(Lambda, VectorDivide(VectorSubtract(VDotW, Inflation), VDotRayDir));\n\t\t\t\tT LambdaGTPreLambda = VectorCompareGT(Lambda, PreLambda);\n\t\t\t\tif (::VectorMaskBits(LambdaGTPreLambda))\n\t\t\t\t{\n\t\t\t\t\tT LambdaGTRayLength = VectorCompareGT(Lambda, RayLengthSimd);\n\t\t\t\t\tif (::VectorMaskBits(LambdaGTRayLength))\n\t\t\t\t\t{\n\t\t\t\t\t\treturn false;\n\t\t\t\t\t}\n\n\t\t\t\t\tconst T OldX = X;\n\t\t\t\t\tX = VectorMultiplyAdd(Lambda, RayDir, StartPoint);\n\t\t\t\t\tNormal = V;\n\n\t\t\t\t\t//Update simplex with the new X\n\t\t\t\t\t// As and Bs should have been correcly updated by enabling the flag CalculatExtraInformation\n\t\t\t\t\t// inside VectorSimplexFindClosestToOrigin\n\t\t\t\t\tSimplex[0] = VectorSubtract(X, VectorSubtract(As[0], Bs[0]));\n\t\t\t\t\tSimplex[1] = VectorSubtract(X, VectorSubtract(As[1], Bs[1]));\n\t\t\t\t\tSimplex[2] = VectorSubtract(X, VectorSubtract(As[2], Bs[2]));\n\t\t\t\t\tSimplex[NumVerts++] = VectorSubtract(X, P);\n\n\t\t\t\t\tGJKPreDist2 = LimitMax; //translated origin so restart gjk search\n\t\t\t\t\tbInflatedCloseEnough = false;\n\t\t\t\t}"
+        },
+        {
+          "first_line": 1768,
+          "last_line": 1780,
+          "text": "\t\t\t}\n\t\t\tbTerminate = bCloseEnough || bDegenerate;\n\t\t}\n\t\tVectorStoreFloat1(Lambda, &OutTime);\n\n\t\tif (OutTime > 0)\n\t\t{\n\t\t\tOutNormal = Normal;\n\t\t\tT ClosestB = TVectorZero<T>();\n\n\t\t\tT Barycentrics[4];\n\t\t\tBarycentrics[0] = VectorSwizzle(Barycentric, 0, 0, 0, 0);\n\t\t\tBarycentrics[1] = VectorSwizzle(Barycentric, 1, 1, 1, 1);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Collision/CollisionConversions.cpp",
+      "sha256": "a512d8cf4f9ddadfcaad82a4ea5326b07da57c515d3370801d8c3b8b3264baca",
+      "excerpts": [
+        {
+          "first_line": 425,
+          "last_line": 438,
+          "text": "\n\t// Fill in Actor, Component, material, etc.\n\tif(GTActor && GTShape)\n\t{\n\t\tSetHitResultFromShapeAndFaceIndex(*GTShape, *GTActor, InternalFaceIndex, OutResult.ImpactPoint, OutResult, bReturnPhysMat);\n\t}\n\n#if ENABLE_CHECK_HIT_NORMAL\n\tCheckHitResultNormal(OutResult, TEXT(\"Invalid Normal from ConvertQueryImpactHit\"), StartLoc, EndLoc, Geom, OriginalNormal);\n#endif // ENABLE_CHECK_HIT_NORMAL\n\n\tif (bUseReturnedNormal && !Normal.IsNormalized())\n\t{\n\t\t// TraceStartToEnd should never be zero, because of the length restriction in the raycast and sweep tests."
+        },
+        {
+          "first_line": 450,
+          "last_line": 460,
+          "text": "\t{\n\t\tif (InternalFaceIndex != GetInvalidPhysicsFaceIndex())\n\t\t{\n\t\t\t// Lookup physical material for heightfields\n\t\t\tif (bReturnPhysMat && GTActor && GTShape)\n\t\t\t{\n\t\t\t\tif (const FPhysicsMaterial* Material = GetMaterialFromInternalFaceIndex(*GTShape, *GTActor, InternalFaceIndex))\n\t\t\t\t{\n\t\t\t\t\tOutResult.PhysMaterial = GetUserData(*Material);\n\t\t\t\t}\n\t\t\t}"
+        }
+      ]
+    },
+    {
+      "path": "src/query/gjk/gjk.rs",
+      "sha256": "893b9246ae77eb21d8a3f10afaeeb05e36bfdb774ce6e98579f614ac32e57a68",
+      "excerpts": [
+        {
+          "first_line": 634,
+          "last_line": 660,
+          "text": "pub fn directional_distance<G1, G2>(\n    pos12: &Pose,\n    g1: &G1,\n    g2: &G2,\n    dir: Vector,\n    simplex: &mut VoronoiSimplex,\n) -> Option<(Real, Vector, Vector, Vector)>\nwhere\n    G1: ?Sized + SupportMap,\n    G2: ?Sized + SupportMap,\n{\n    let ray = Ray::new(Vector::ZERO, dir);\n    minkowski_ray_cast(pos12, g1, g2, &ray, Real::max_value(), simplex).map(\n        |(time_of_impact, normal)| {\n            let witnesses = if !time_of_impact.is_zero() {\n                result(simplex, simplex.dimension() == DIM)\n            } else {\n                // If there is penetration, the witness points\n                // are undefined.\n                (Vector::ZERO, Vector::ZERO)\n            };\n\n            (time_of_impact, normal, witnesses.0, witnesses.1)\n        },\n    )\n}\n"
+        },
+        {
+          "first_line": 662,
+          "last_line": 700,
+          "text": "fn minkowski_ray_cast<G1, G2>(\n    pos12: &Pose,\n    g1: &G1,\n    g2: &G2,\n    ray: &Ray,\n    max_time_of_impact: Real,\n    simplex: &mut VoronoiSimplex,\n) -> Option<(Real, Vector)>\nwhere\n    G1: ?Sized + SupportMap,\n    G2: ?Sized + SupportMap,\n{\n    let _eps = crate::math::DEFAULT_EPSILON;\n    let _eps_tol: Real = eps_tol();\n    let _eps_rel: Real = <Real as ComplexField>::sqrt(_eps_tol);\n\n    let ray_length = ray.dir.length();\n\n    if relative_eq!(ray_length, 0.0) {\n        return None;\n    }\n\n    let mut ltoi = 0.0;\n    let mut curr_ray = Ray::new(ray.origin, ray.dir / ray_length);\n    let dir = -curr_ray.dir;\n    let mut ldir = dir;\n\n    // Initialize the simplex.\n    let support_point = CsoPoint::from_shapes(pos12, g1, g2, dir);\n    simplex.reset(support_point.translate(-curr_ray.origin));\n\n    // TODO: reset the simplex if it is empty?\n    let mut proj = simplex.project_origin_and_reduce();\n    let mut max_bound = Real::max_value();\n    let mut dir;\n    let mut niter = 0;\n    let mut last_chance = false;\n\n    loop {"
+        }
+      ]
+    }
+  ],
+  "specialized_path": [
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/GeometryQueries.h",
+      "sha256": "202a272a9126f2eed7a91ed79c92a6db89778b183b1fe63307f3bd9d263eef64",
+      "excerpts": [
+        {
+          "first_line": 216,
+          "last_line": 234,
+          "text": "\t\t\t}\n\t\t}\n\t\telse if (SweptType == ImplicitObjectType::Capsule)\n\t\t{\n\t\t\tif (TestType == ImplicitObjectType::Sphere)\n\t\t\t{\n\t\t\t\tconst FCapsule& SweptCapsule = SweptShape.GetObjectChecked<FCapsule>();\n\t\t\t\tconst FSphere& TestSphere = TestGeom.GetObjectChecked<FSphere>();\n\t\t\t\tbOutResult = SweepCapsuleVsSphere(SweptCapsule, SweptShapeTM, TestSphere, TestGeomTM, SweepDir, Length, Thickness, bComputeMTD, OutTime, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal);\n\t\t\t\treturn true;\n\t\t\t}\n\t\t\telse if (TestType == ImplicitObjectType::Box)\n\t\t\t{\n\t\t\t\tconst FCapsule& SweptCapsule = SweptShape.GetObjectChecked<FCapsule>();\n\t\t\t\tconst TBox<FReal, 3>& TestBox = TestGeom.GetObjectChecked<TBox<FReal, 3>>();\n\t\t\t\tbOutResult = SweepCapsuleVsBox(SweptCapsule, SweptShapeTM, TestBox, TestGeomTM, SweepDir, Length, Thickness, bComputeMTD, OutTime, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal);\n\t\t\t\treturn true;\n\t\t\t}\n\t\t\telse if (TestType == ImplicitObjectType::Capsule)"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/GeometryQueries.cpp",
+      "sha256": "0c730a97b6922b9d2b383713550cdebc0f7e804e0e45e9bb005dd3a77eaf3930",
+      "excerpts": [
+        {
+          "first_line": 44,
+          "last_line": 67,
+          "text": "\tFGJKCapsuleSingleSIMD ComputeLocalCapsule(const FCapsule& Capsule, const FRigidTransform3& CapsuleTM, const FRigidTransform3& OtherTM)\n\t{\n\t\tconst FRigidTransform3 CapsuleToBoxTM = CapsuleTM.GetRelativeTransformNoScale(OtherTM);\n\t\tconst FVec3 CapsuleLocalAxis = CapsuleToBoxTM.TransformVectorNoScale(FVec3(Capsule.GetAxisf()));\n\t\tconst FVec3 CapsuleLocalPointA = CapsuleToBoxTM.TransformPositionNoScale(FVec3(Capsule.GetX1f()));\n\t\tconst FVec3 CapsuleLocalPointB = CapsuleLocalPointA + CapsuleLocalAxis * Capsule.GetHeightf();\n\t\treturn FGJKCapsuleSingleSIMD(CapsuleLocalPointA, CapsuleLocalPointB, CapsuleLocalAxis, Capsule.GetRadiusf());\n\t}\n\n\ttemplate <typename SweptShapeType, typename TestShapeType, typename TestObjectType>\n\tbool LocalSweep(const SweptShapeType& SweptShape, const TestShapeType& TestShape, const TestObjectType& TestObject, const FRigidTransform3& LocalToWorldTM,\n\t\tconst FVec3& WorldSweepDir, const FReal Length, const FReal Thickness, const bool bComputeMTD,\n\t\tFReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal)\n\t{\n\t\tconst FVec3 LocalSweepDir = LocalToWorldTM.InverseTransformVectorNoScale(WorldSweepDir);\n\t\t// Note: The swept shape was fully transformed into the local space of the test object. \n\t\t// This means the \"start\" is zero as we've offset the shape. This is typically a little faster than computing the \"origin centered local object\".\n\t\tconst FVec3 Start = FVec3::ZeroVector;\n\t\t// Note: Technically any initial dir is valid. The unoptimized version uses A - B which is a little more expensive to calculate. The sweep dir should be a good initial guess as well.\n\t\tconst FVec3 InitialDir = LocalSweepDir;\n\n\t\tconst bool bResult = GJKRaycast2SameSpace<FReal>(TestShape, SweptShape, Start, LocalSweepDir, Length, OutTime, OutPosition, OutNormal, Thickness, bComputeMTD, InitialDir, Thickness);\n\t\tTransformSweepResultsToWorld(bResult, OutTime, bComputeMTD, TestObject, LocalToWorldTM, LocalSweepDir, OutPosition, OutNormal, OutFaceIndex, OutPosition, OutNormal, OutFaceNormal);\n\t\treturn bResult;"
+        },
+        {
+          "first_line": 163,
+          "last_line": 166,
+          "text": "\tbool SweepCapsuleVsBox(const FCapsule& SweptCapsule, const FRigidTransform3& SweptCapsuleTM, const TBox<FReal, 3>& TestBox, const FRigidTransform3& TestBoxTM, const FVec3& SweepDir, const FReal Length, const FReal Thickness, const bool bComputeMTD, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal)\n\t{\n\t\tconst FGJKCapsuleSingleSIMD LocalSweptCapsule = ComputeLocalCapsule(SweptCapsule, SweptCapsuleTM, TestBoxTM);\n\t\treturn LocalSweep(LocalSweptCapsule, TestBox, TestBox, TestBoxTM, SweepDir, Length, Thickness, bComputeMTD, OutTime, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal);"
+        }
+      ]
+    }
+  ]
+}

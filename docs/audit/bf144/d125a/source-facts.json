@@ -1,0 +1,169 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/GeometryQueries.h",
+      "sha256": "202a272a9126f2eed7a91ed79c92a6db89778b183b1fe63307f3bd9d263eef64",
+      "excerpts": [
+        {
+          "first_line": 216,
+          "last_line": 234,
+          "text": "\t\t\t}\n\t\t}\n\t\telse if (SweptType == ImplicitObjectType::Capsule)\n\t\t{\n\t\t\tif (TestType == ImplicitObjectType::Sphere)\n\t\t\t{\n\t\t\t\tconst FCapsule& SweptCapsule = SweptShape.GetObjectChecked<FCapsule>();\n\t\t\t\tconst FSphere& TestSphere = TestGeom.GetObjectChecked<FSphere>();\n\t\t\t\tbOutResult = SweepCapsuleVsSphere(SweptCapsule, SweptShapeTM, TestSphere, TestGeomTM, SweepDir, Length, Thickness, bComputeMTD, OutTime, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal);\n\t\t\t\treturn true;\n\t\t\t}\n\t\t\telse if (TestType == ImplicitObjectType::Box)\n\t\t\t{\n\t\t\t\tconst FCapsule& SweptCapsule = SweptShape.GetObjectChecked<FCapsule>();\n\t\t\t\tconst TBox<FReal, 3>& TestBox = TestGeom.GetObjectChecked<TBox<FReal, 3>>();\n\t\t\t\tbOutResult = SweepCapsuleVsBox(SweptCapsule, SweptShapeTM, TestBox, TestGeomTM, SweepDir, Length, Thickness, bComputeMTD, OutTime, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal);\n\t\t\t\treturn true;\n\t\t\t}\n\t\t\telse if (TestType == ImplicitObjectType::Capsule)"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/GeometryQueries.cpp",
+      "sha256": "0c730a97b6922b9d2b383713550cdebc0f7e804e0e45e9bb005dd3a77eaf3930",
+      "excerpts": [
+        {
+          "first_line": 44,
+          "last_line": 67,
+          "text": "\tFGJKCapsuleSingleSIMD ComputeLocalCapsule(const FCapsule& Capsule, const FRigidTransform3& CapsuleTM, const FRigidTransform3& OtherTM)\n\t{\n\t\tconst FRigidTransform3 CapsuleToBoxTM = CapsuleTM.GetRelativeTransformNoScale(OtherTM);\n\t\tconst FVec3 CapsuleLocalAxis = CapsuleToBoxTM.TransformVectorNoScale(FVec3(Capsule.GetAxisf()));\n\t\tconst FVec3 CapsuleLocalPointA = CapsuleToBoxTM.TransformPositionNoScale(FVec3(Capsule.GetX1f()));\n\t\tconst FVec3 CapsuleLocalPointB = CapsuleLocalPointA + CapsuleLocalAxis * Capsule.GetHeightf();\n\t\treturn FGJKCapsuleSingleSIMD(CapsuleLocalPointA, CapsuleLocalPointB, CapsuleLocalAxis, Capsule.GetRadiusf());\n\t}\n\n\ttemplate <typename SweptShapeType, typename TestShapeType, typename TestObjectType>\n\tbool LocalSweep(const SweptShapeType& SweptShape, const TestShapeType& TestShape, const TestObjectType& TestObject, const FRigidTransform3& LocalToWorldTM,\n\t\tconst FVec3& WorldSweepDir, const FReal Length, const FReal Thickness, const bool bComputeMTD,\n\t\tFReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal)\n\t{\n\t\tconst FVec3 LocalSweepDir = LocalToWorldTM.InverseTransformVectorNoScale(WorldSweepDir);\n\t\t// Note: The swept shape was fully transformed into the local space of the test object. \n\t\t// This means the \"start\" is zero as we've offset the shape. This is typically a little faster than computing the \"origin centered local object\".\n\t\tconst FVec3 Start = FVec3::ZeroVector;\n\t\t// Note: Technically any initial dir is valid. The unoptimized version uses A - B which is a little more expensive to calculate. The sweep dir should be a good initial guess as well.\n\t\tconst FVec3 InitialDir = LocalSweepDir;\n\n\t\tconst bool bResult = GJKRaycast2SameSpace<FReal>(TestShape, SweptShape, Start, LocalSweepDir, Length, OutTime, OutPosition, OutNormal, Thickness, bComputeMTD, InitialDir, Thickness);\n\t\tTransformSweepResultsToWorld(bResult, OutTime, bComputeMTD, TestObject, LocalToWorldTM, LocalSweepDir, OutPosition, OutNormal, OutFaceIndex, OutPosition, OutNormal, OutFaceNormal);\n\t\treturn bResult;"
+        },
+        {
+          "first_line": 163,
+          "last_line": 166,
+          "text": "\tbool SweepCapsuleVsBox(const FCapsule& SweptCapsule, const FRigidTransform3& SweptCapsuleTM, const TBox<FReal, 3>& TestBox, const FRigidTransform3& TestBoxTM, const FVec3& SweepDir, const FReal Length, const FReal Thickness, const bool bComputeMTD, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal)\n\t{\n\t\tconst FGJKCapsuleSingleSIMD LocalSweptCapsule = ComputeLocalCapsule(SweptCapsule, SweptCapsuleTM, TestBoxTM);\n\t\treturn LocalSweep(LocalSweptCapsule, TestBox, TestBox, TestBoxTM, SweepDir, Length, Thickness, bComputeMTD, OutTime, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/GJK.h",
+      "sha256": "7dc71f9fb122c9ddca4fac3139d0f970c1088dd2aaeb77c1abd390e41b09ab0c",
+      "excerpts": [
+        {
+          "first_line": 1590,
+          "last_line": 1626,
+          "text": "\tbool GJKRaycast2ImplSimd(const FGeomGJKHelperSIMD& RESTRICT A, const FGeomGJKHelperSIMD& RESTRICT B, const T& BToARotation, const T& StartPoint, const T& RayDir,\n\t\tFRealSingle RayLength, FRealSingle& OutTime, T& OutPosition, T& OutNormal, bool bComputeMTD, const T& InitialDir)\n\t{\n\t\tensure(RayLength >= 0);\n\n\t\t// Margin selection logic: we only need a small margin for sweeps since we only move the sweeping object\n\t\t// to the point where it just touches.\n\t\t// Spheres and Capsules: always use the core shape and full \"margin\" because it represents the radius\n\t\t// Sphere/Capsule versus OtherShape: no margin on other\n\t\t// OtherShape versus OtherShape: use margin of the smaller shape, zero margin on the other\n\t\tconst FRealSingle RadiusA = static_cast<FRealSingle>(A.GetRadius());\n\t\tconst FRealSingle RadiusB = static_cast<FRealSingle>(B.GetRadius());\n\t\tconst bool bHasRadiusA = RadiusA > 0;\n\t\tconst bool bHasRadiusB = RadiusB > 0;\n\n\t\t// The sweep margins if required. Only one can be non-zero (we keep the smaller one)\n\t\tconst FRealSingle SweepMarginScale = 0.05f;\n\t\tconst bool bAIsSmallest = A.GetMargin() < B.GetMargin();\n\t\tconst FRealSingle SweepMarginA = (bHasRadiusA || bHasRadiusB) ? 0.0f : (bAIsSmallest ? SweepMarginScale * static_cast<FRealSingle>(A.GetMargin()) : 0.0f);\n\t\tconst FRealSingle SweepMarginB = (bHasRadiusA || bHasRadiusB) ? 0.0f : (bAIsSmallest ? 0.0f : SweepMarginScale * static_cast<FRealSingle>(B.GetMargin()));\n\n\t\t// Net margin (note: both SweepMargins are zero if either Radius is non-zero, and only one SweepMargin can be non-zero)\n\t\tA.Margin = RadiusA + SweepMarginA;\n\t\tB.Margin = RadiusB + SweepMarginB;\n\n\t\tconst T MarginASimd = T(VectorLoadFloat1(&A.Margin));\n\t\tconst T MarginBSimd = T(VectorLoadFloat1(&B.Margin));\n\n\t\tT Simplex[4] = { TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>() };\n\t\tT As[4] = { TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>() };\n\t\tT Bs[4] = { TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>(), TVectorZero<T>() };\n\n\t\tT Barycentric = TVectorZero<T>();\n\n\t\tT Inflation = VectorAdd(MarginASimd, MarginBSimd);\n\t\tconst T Eps2Simd = TMakeVectorRegister<T>(1e-6f, 1e-6f, 1e-6f, 1e-6f);\n\t\tconst T Inflation2Simd = VectorMultiplyAdd(Inflation, Inflation, Eps2Simd);"
+        },
+        {
+          "first_line": 1634,
+          "last_line": 1675,
+          "text": "\t\tT SupportA, SupportB;\n\t\tTGJKSupportHelperSIMD<T, TestSpace>::Support(A, B, InitialDir, AToBRotation, BToARotation, SupportA, SupportB);\n\t\tAs[0] = SupportA;\n\t\tBs[0] = SupportB;\n\n\t\tT Lambda = TVectorZero<T>();\n\t\tT X = StartPoint;\n\t\tT V = VectorSubtract(X, VectorSubtract(SupportA, SupportB));\n\t\tT Normal = MakeVectorRegisterFloat(0.f, 0.f, 1.f, 0.f);\n\n\t\tconst T InitialPreDist2Simd = VectorDot3(V, V);\n\n\t\tFRealSingle InitialPreDist2;\n\t\tVectorStoreFloat1(InitialPreDist2Simd, &InitialPreDist2);\n\n\t\tFRealSingle Inflation2;\n\t\tVectorStoreFloat1(Inflation2Simd, &Inflation2); \n\n\t\tconstexpr FRealSingle Eps2 = 1e-6f;\n\n\t\t//mtd needs to find closest point even in inflation region, so can only skip if we found the closest points\n\t\tbool bCloseEnough = InitialPreDist2 < Inflation2 && (!bComputeMTD || InitialPreDist2 < Eps2);\n\t\tbool bDegenerate = false;\n\t\tbool bTerminate = bCloseEnough;\n\t\tbool bInflatedCloseEnough = bCloseEnough;\n\t\tint NumIterations = 0;\n\t\tconstexpr T LimitMax = TMakeVectorRegisterConstant<T>(TNumericLimits<FRealSingle>::Max(), TNumericLimits<FRealSingle>::Max(), TNumericLimits<FRealSingle>::Max(), TNumericLimits<FRealSingle>::Max());\n\t\tT GJKPreDist2 = LimitMax;\n\n\t\twhile (!bTerminate)\n\t\t{\n\t\t\tif (!(NumIterations++ < 32))\t//todo: take this out\n\t\t\t{\n\t\t\t\tbreak;\t//if taking too long just stop. This should never happen\n\t\t\t}\n\n\t\t\tV = VectorNormalizeAccurate(V);\n\n\t\t\tTGJKSupportHelperSIMD<T, TestSpace>::Support(A, B, V, AToBRotation, BToARotation, SupportA, SupportB);\n\t\t\tT P = VectorSubtract(SupportA, SupportB);\n\t\t\tT W = VectorSubtract(X, P);\n"
+        },
+        {
+          "first_line": 1684,
+          "last_line": 1718,
+          "text": "\t\t\tif (::VectorMaskBits(VDotWGTInflationSimd))\n\t\t\t{\n\t\t\t\tconst T VDotRayDir = VectorDot3(V, RayDir);\n\t\t\t\tT VDotRayDirGEZero = VectorCompareGE(VDotRayDir, TVectorZero<T>());\n\n\t\t\t\tif (::VectorMaskBits(VDotRayDirGEZero))\n\t\t\t\t{\n\t\t\t\t\treturn false;\n\t\t\t\t}\n\n\t\t\t\tconst T PreLambda = Lambda;\t//use to check for no progress\n\t\t\t\t// @todo(ccaulfield): this can still overflow - the comparisons against zero above should be changed (though not sure to what yet)\n\t\t\t\tLambda = VectorSubtract(Lambda, VectorDivide(VectorSubtract(VDotW, Inflation), VDotRayDir));\n\t\t\t\tT LambdaGTPreLambda = VectorCompareGT(Lambda, PreLambda);\n\t\t\t\tif (::VectorMaskBits(LambdaGTPreLambda))\n\t\t\t\t{\n\t\t\t\t\tT LambdaGTRayLength = VectorCompareGT(Lambda, RayLengthSimd);\n\t\t\t\t\tif (::VectorMaskBits(LambdaGTRayLength))\n\t\t\t\t\t{\n\t\t\t\t\t\treturn false;\n\t\t\t\t\t}\n\n\t\t\t\t\tconst T OldX = X;\n\t\t\t\t\tX = VectorMultiplyAdd(Lambda, RayDir, StartPoint);\n\t\t\t\t\tNormal = V;\n\n\t\t\t\t\t//Update simplex with the new X\n\t\t\t\t\t// As and Bs should have been correcly updated by enabling the flag CalculatExtraInformation\n\t\t\t\t\t// inside VectorSimplexFindClosestToOrigin\n\t\t\t\t\tSimplex[0] = VectorSubtract(X, VectorSubtract(As[0], Bs[0]));\n\t\t\t\t\tSimplex[1] = VectorSubtract(X, VectorSubtract(As[1], Bs[1]));\n\t\t\t\t\tSimplex[2] = VectorSubtract(X, VectorSubtract(As[2], Bs[2]));\n\t\t\t\t\tSimplex[NumVerts++] = VectorSubtract(X, P);\n\n\t\t\t\t\tGJKPreDist2 = LimitMax; //translated origin so restart gjk search"
+        },
+        {
+          "first_line": 1725,
+          "last_line": 1777,
+          "text": "\t\t\t}\n\n\t\t\tif (bInflatedCloseEnough && ::VectorMaskBits(VectorCompareGE(VDotW, TVectorZero<T>())))\n\t\t\t{\n\t\t\t\t//Inflated shapes are close enough, but we want MTD so we need to find closest point on core shape\n\t\t\t\tconst T VDotW2 = VectorDot3(VDotW, VDotW);\n\t\t\t\tbCloseEnough = static_cast<bool>(::VectorMaskBits(VectorCompareGE(VectorAdd(Eps2Simd, VDotW), GJKPreDist2)));\n\t\t\t}\n\n\t\t\tif (!bCloseEnough)\n\t\t\t{\n\n\t\t\t\tV = VectorSimplexFindClosestToOrigin<T>(Simplex, NumVerts, Barycentric, As, Bs);\n\n\t\t\t\tT NewDist2 = VectorDot3(V, V);\t//todo: relative error\n\t\t\t\tbCloseEnough = static_cast<bool>(::VectorMaskBits(VectorCompareGT(Inflation2Simd, NewDist2)));\n\t\t\t\tbDegenerate = static_cast<bool>(::VectorMaskBits(VectorCompareGE(NewDist2, GJKPreDist2)));\n\t\t\t\tGJKPreDist2 = NewDist2;\n\n\t\t\t\tif (bComputeMTD && bCloseEnough)\n\t\t\t\t{\n\t\t\t\t\tconst T LambdaEqZero = ::VectorCompareEQ(Lambda, TVectorZero<T>());\n\t\t\t\t\tconst T InGJKPreDist2GTEps2 = VectorCompareGT(GJKPreDist2, Eps2Simd);\n\t\t\t\t\tconst T Inflation22GTEps2 = VectorCompareGT(Inflation2Simd, Eps2Simd);\n\n\t\t\t\t\tconst bool Is4GTNumVerts = 4 > NumVerts;\n\n\t\t\t\t\tconst T IsInflatCloseEnough = VectorBitwiseAnd(LambdaEqZero, VectorBitwiseAnd(InGJKPreDist2GTEps2, Inflation22GTEps2));\n\n\t\t\t\t\t// Leaving the original code, to explain the logic there\n\t\t\t\t\t//if (bComputeMTD && bCloseEnough && Lambda == 0 && GJKPreDist2 > 1e-6 && Inflation2 > 1e-6 && NumVerts < 4)\n\t\t\t\t\t//{\n\t\t\t\t\t//\tbCloseEnough = false;\n\t\t\t\t\t//\tbInflatedCloseEnough = true;\n\t\t\t\t\t//}\n\t\t\t\t\tbInflatedCloseEnough = static_cast<bool>(::VectorMaskBits(IsInflatCloseEnough)) && Is4GTNumVerts;\n\t\t\t\t\tbCloseEnough = !bInflatedCloseEnough;\n\t\t\t\t}\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\t//It must be that we want MTD and we can terminate. However, we must make one final call to fixup the simplex\n\t\t\t\tV = VectorSimplexFindClosestToOrigin<T>(Simplex, NumVerts, Barycentric, As, Bs);\n\t\t\t}\n\t\t\tbTerminate = bCloseEnough || bDegenerate;\n\t\t}\n\t\tVectorStoreFloat1(Lambda, &OutTime);\n\n\t\tif (OutTime > 0)\n\t\t{\n\t\t\tOutNormal = Normal;\n\t\t\tT ClosestB = TVectorZero<T>();\n"
+        },
+        {
+          "first_line": 1961,
+          "last_line": 1987,
+          "text": "\n\tinline bool GJKRaycast2SameSpaceImpl(const FGeomGJKHelperSIMD& A, const FGeomGJKHelperSIMD& B, const TVector<FReal, 3>& Start, const TVector<FReal, 3>& RayDir, const FReal RayLength,\n\t\tFReal& OutTime, TVector<FReal, 3>& OutPosition, TVector<FReal, 3>& OutNormal, const FReal GivenThicknessA, bool bComputeMTD, const TVector<FReal, 3>& InitialDir, const FReal GivenThicknessB)\n\t{\n\t\tconst VectorRegister4Float UnusedRotation = GlobalVectorConstants::Float0001;\n\t\tconst VectorRegister4Float Translation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(Start.X, Start.Y, Start.Z, 0.0));\n\n\t\tconst VectorRegister4Float InitialDirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InitialDir[0], InitialDir[1], InitialDir[2], 0.0));\n\t\tconst VectorRegister4Float RayDirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RayDir[0], RayDir[1], RayDir[2], 0.0));\n\n\t\tFRealSingle OutTimeFloat = 0.0f;\n\t\tVectorRegister4Float OutPositionSimd, OutNormalSimd;\n\t\tconst bool Result = GJKRaycast2ImplSimd<VectorRegister4Float, EGJKTestSpace::SameSpace>(A, B, UnusedRotation, Translation, RayDirSimd, static_cast<FRealSingle>(RayLength), OutTimeFloat, OutPositionSimd, OutNormalSimd, bComputeMTD, InitialDirSimd);\n\n\t\tOutTime = static_cast<double>(OutTimeFloat);\n\n\t\talignas(16) FRealSingle OutFloat[4];\n\t\tVectorStoreAligned(OutNormalSimd, OutFloat);\n\t\tOutNormal.X = OutFloat[0];\n\t\tOutNormal.Y = OutFloat[1];\n\t\tOutNormal.Z = OutFloat[2];\n\n\t\tVectorStoreAligned(OutPositionSimd, OutFloat);\n\t\tOutPosition.X = OutFloat[0];\n\t\tOutPosition.Y = OutFloat[1];\n\t\tOutPosition.Z = OutFloat[2];\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/GJKShape.h",
+      "sha256": "d5e64a904692957ef8d3983e665f62c4c13e20b0a223384891c72f414e991d61",
+      "excerpts": [
+        {
+          "first_line": 335,
+          "last_line": 356,
+          "text": "\tclass FGJKCapsuleSingleSIMD\n\t{\n\tpublic:\n\t\tFGJKCapsuleSingleSIMD(const FVec3f& InPointA, const FVec3f& InPointB, const FVec3f& InAxis, const FRealSingle InRadius)\n\t\t\t: Radius(InRadius)\n\t\t{\n\t\t\tAxis = MakeVectorRegisterFloat(InAxis.X, InAxis.Y, InAxis.Z, 0.0f);\n\t\t\tPointA = MakeVectorRegisterFloat(InPointA.X, InPointA.Y, InPointA.Z, 0.0f);\n\t\t\tPointB = MakeVectorRegisterFloat(InPointB.X, InPointB.Y, InPointB.Z, 0.0f);\n\t\t}\n\n\t\tVectorRegister4Float SupportCoreSimd(const VectorRegister4Float V, FRealSingle InMargin) const\n\t\t{\n\t\t\tconst VectorRegister4Float Dot = VectorDot3(V, Axis);\n\t\t\t// const bool bIsSecond = Dot >= 0;\n\t\t\tconst VectorRegister4Float Mask = VectorCompareGE(Dot, GlobalVectorConstants::FloatZero);\n\t\t\treturn VectorSelect(Mask, PointB, PointA);\n\t\t}\n\n\t\tFRealSingle GetRadius() const\n\t\t{\n\t\t\treturn Radius;"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/ChaosCore/Public/Chaos/AABB.h",
+      "sha256": "f8fcf0fdcedea886b4b8088083738cdad20f9619d2b7471f95bb2ee77fc0116a",
+      "excerpts": [
+        {
+          "first_line": 322,
+          "last_line": 340,
+          "text": "\t\tFORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& OutVertexIndex) const\n\t\t{\n\t\t\tFVec3 ChosenPt;\n\t\t\tFIntVector ChosenAxis;\n\t\t\tfor (int Axis = 0; Axis < d; ++Axis)\n\t\t\t{\n\t\t\t\tif(Direction[Axis] < 0)\n\t\t\t\t{\n\t\t\t\t\tChosenPt[Axis] = MMin[Axis] + InMargin;\n\t\t\t\t\tChosenAxis[Axis] = 0;\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tChosenPt[Axis] = MMax[Axis] - InMargin;\n\t\t\t\t\tChosenAxis[Axis] = 1;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tOutVertexIndex = GetIndex(ChosenAxis);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/SimplexVectorized.h",
+      "sha256": "28808d26b245bf07da53947b409778981485ff07f32c8b380b2d0dba452c259d",
+      "excerpts": [
+        {
+          "first_line": 12,
+          "last_line": 60,
+          "text": "\tFORCEINLINE_DEBUGGABLE T VectorLineSimplexFindOrigin(T* RESTRICT Simplex, int32& RESTRICT NumVerts, T& RESTRICT OutBarycentric, T* RESTRICT A, T* RESTRICT B)\n\t{\n\t\tconst T& X0 = Simplex[0];\n\t\tconst T& X1 = Simplex[1];\n\t\tconst T X0ToX1 = VectorSubtract(X1, X0);\n\n\t\t//Closest Point = (-X0 dot X1-X0) / ||(X1-X0)||^2 * (X1-X0)\n\n\t\tconst T X0ToOrigin = VectorNegate(X0);\n\t\tconst T Dot = VectorDot3(X0ToOrigin, X0ToX1);\n\n\t\tconst T IsX0 = VectorCompareGE(TVectorZero<T>(), Dot);\n\n\t\tconstexpr T OutBarycentricIfX0OrX1 = TMakeVectorRegisterConstant<T>(1, 0, 0, 0);\n\t\tconst T X0ToX1Squared = VectorDot3(X0ToX1, X0ToX1);\n\t\tconst T DotBigger = VectorCompareGE(Dot, X0ToX1Squared);\n\n\t\tconst T MinLimt = TMakeVectorRegisterConstant<T>(std::numeric_limits<FRealSingle>::min() , std::numeric_limits<FRealSingle>::min(), std::numeric_limits<FRealSingle>::min(), std::numeric_limits<FRealSingle>::min());\n\t\tconst T X0ToX1SquaredSmall = VectorCompareGE(MinLimt, X0ToX1Squared);\n\t\tconst T IsX1 = VectorBitwiseOr(DotBigger, X0ToX1SquaredSmall);\n\n\t\tSimplex[0] = VectorSelect(IsX1, Simplex[1], Simplex[0]);\n\n\t\tif constexpr(CalculatExtraInformation)\n\t\t{\n\t\t\tA[0] = VectorSelect(IsX1, A[1], A[0]);\n\t\t\tB[0] = VectorSelect(IsX1, B[1], B[0]);\n\t\t}\n\n\t\tT Ratio = VectorDivide(Dot, X0ToX1Squared);\n\n\t\tRatio = VectorMax(Ratio, TVectorZero<T>());\n\t\tRatio = VectorMin(Ratio, TMakeVectorRegisterConstant<T>(1, 1, 1, 1));\n\n\t\tT Closest = VectorMultiplyAdd(Ratio, X0ToX1, X0);\n\n\t\tconst T OneMinusRatio = VectorSubtract(TMakeVectorRegisterConstant<T>(1, 1, 1, 1), Ratio);\n\t\tconst T OutBarycentricOtherwise = VectorUnpackLo(OneMinusRatio, Ratio);\n\n\t\tClosest = VectorSelect(IsX0, X0, VectorSelect(IsX1, X1, Closest));\n\n\t\tconst T IsX0OrX1 = VectorBitwiseOr(IsX0, IsX1);\n\t\tNumVerts =  ::VectorMaskBits(IsX0OrX1) ? 1 : NumVerts;\n\n\t\tif constexpr (CalculatExtraInformation)\n\t\t{\n\t\t\tOutBarycentric = VectorSelect(IsX0OrX1, OutBarycentricIfX0OrX1, OutBarycentricOtherwise);\n\t\t}\n"
+        },
+        {
+          "first_line": 70,
+          "last_line": 100,
+          "text": "\t\tconst T& B = Simplex[1];\n\t\tconst T& C = Simplex[2];\n\n\t\tconst T AB = VectorSubtract(B, A);\n\t\tconst T AC = VectorSubtract(C, A);\n\n\t\tconst T TriNormal = Private::VectorCrossNoFMA(AB, AC);\n\t\tconst T TriNormal2 = VectorDot3(TriNormal, TriNormal);\n\t\tconst T MinDouble = TMakeVectorRegisterConstant<T>(std::numeric_limits<float>::min(), std::numeric_limits<float>::min(), std::numeric_limits<float>::min(), std::numeric_limits<float>::min());\n\t\tconst T AMin = VectorMultiply(A, MinDouble);\n\t\tconst T Eps2 = VectorDot3(AMin, AMin);\n\t\tconst T Eps2GENormal2 = VectorCompareGE(Eps2, TriNormal2);\n\t\n\n\t\tif (::VectorMaskBits(Eps2GENormal2))\n\t\t{\n\t\t\tNumVerts = 2;\n\t\t\treturn VectorLineSimplexFindOrigin<T, CalculatExtraInformation>(Simplex, NumVerts, OutBarycentric, As, Bs);\n\t\t}\n\n\t\t// Vertex region A\n\t\tconst T AO = VectorNegate(A);\n\n\t\tconst T d1 = VectorDot3(AB, AO);\n\t\tconst T d2 = VectorDot3(AC, AO);\n\n\t\tconst T IsD1SEZero = VectorCompareGE(TVectorZero<T>(), d1);\n\t\tconst T IsD2SEZero = VectorCompareGE(TVectorZero<T>(), d2);\n\t\tconst T IsA = VectorBitwiseAnd(IsD1SEZero, IsD2SEZero);\n\n\t\tif (::VectorMaskBits(IsA))"
+        },
+        {
+          "first_line": 250,
+          "last_line": 277,
+          "text": "\t\t}\n\n\t\t// Inside triangle\n\t\tconst T denom = VectorDivide(VectorOne(), VectorAdd(va, VectorAdd(vb, vc)));\n\t\tT v = VectorMultiply(vb, denom);\n\t\tT w = VectorMultiply(vc, denom);\n\t\tNumVerts = 3;\n\n\t\tif constexpr (CalculatExtraInformation)\n\t\t{\n\t\t\tconst T OneMinusVMinusW = VectorSubtract(VectorSubtract(TMakeVectorRegisterConstant<T>(1, 1, 1, 1), v), w);\n\t\t\t// b0\ta1\ta2\ta3\n\t\t\tconst T OneMinusVMinusW_W = VectorUnpackLo(OneMinusVMinusW, w);\n\t\t\t// a0\tb0\ta1\tb1\n\t\t\tOutBarycentric = VectorUnpackLo(OneMinusVMinusW_W, v);\n\t\t}\n\n\t\t// We know that we are inside the triangle so we can use the projected point we calculated above. \n\t\t// The closest point can also be derived from the barycentric coordinates, but it will contain \n\t\t// numerical error from the determinant calculation  and can cause GJK to terminate with a poor solution.\n\t\t// (E.g., this caused jittering when walking on box with dimensions of 100000cm or more).\n\t\t// This fix the unit test TestSmallCapsuleLargeBoxGJKRaycast_Vertical\n\t\t// Previously was return VectorMultiplyAdd(AC, w, VectorMultiplyAdd(AB, v, A));\n\t\tconst T TriNormalOverSize2 = VectorDivide(TriNormal, TriNormal2);\n\t\tconst T SignedDistance = VectorDot3(T(A), TriNormalOverSize2);\n\t\treturn VectorMultiply(TriNormal, SignedDistance);\n\t}\n"
+        },
+        {
+          "first_line": 300,
+          "last_line": 320,
+          "text": "\t\t\tM = [X0x X1x X2x X3x;\n\t\t\t\t X0y X1y X2y X3y;\n\t\t\t\t X0z X1z X2z X3z;\n\t\t\t\t 1   1   1   1]\n\t\t*/\n\n\t\tT Cofactors[4];\n\t\tCofactors[0] = VectorNegate(VectorDot3(X1, Private::VectorCrossNoFMA(X2, X3)));\n\t\tCofactors[1] = VectorDot3(X0, Private::VectorCrossNoFMA(X2, X3));\n\t\tCofactors[2] = VectorNegate(VectorDot3(X0, Private::VectorCrossNoFMA(X1, X3)));\n\t\tCofactors[3] = VectorDot3(X0, Private::VectorCrossNoFMA(X1, X2));\n\t\tT DetM = VectorAdd(VectorAdd(Cofactors[0], Cofactors[1]), VectorAdd(Cofactors[2], Cofactors[3]));\n\n\t\tbool bSignMatch[4];\n\t\t// constexpr int32 SubIdxs[4][3] = { {1,2,3}, {0,2,3}, {0,1,3}, {0,1,2} };\n\t\tint32 SubNumVerts[4] = { 3, 3, 3, 3};\n\t\tT SubSimplices[4][3] = { {Simplex[1], Simplex[2], Simplex[3]}, {Simplex[0], Simplex[2], Simplex[3]}, {Simplex[0], Simplex[1], Simplex[3]}, {Simplex[0], Simplex[1], Simplex[2]} };\n\t\tT SubAs[4][3];\n\t\tT SubBs[4][3];\n\t\tif constexpr (CalculatExtraInformation)\n\t\t{"
+        },
+        {
+          "first_line": 348,
+          "last_line": 380,
+          "text": "\t\t\t{\n\t\t\t\tbInside = false;\n\t\t\t\tClosestPointSub[Idx] = TriangleSimplexFindOriginFast<T, CalculatExtraInformation>(SubSimplices[Idx], SubNumVerts[Idx], SubBarycentric[Idx], SubAs[Idx], SubBs[Idx]);\n\n\t\t\t\tconst T Dist2 = VectorDot3(ClosestPointSub[Idx], ClosestPointSub[Idx]);\n\n\t\t\t\tconst T MinGTDist = VectorCompareGT(MinTriangleDist2, Dist2);\n\n\t\t\t\tconst bool bFindClosest = static_cast<bool>(::VectorMaskBits(MinGTDist)) || (ClosestTriangleIdx == INDEX_NONE);\n\n\t\t\t\tMinTriangleDist2 = bFindClosest ? Dist2 :  MinTriangleDist2;\n\t\t\t\tClosestTriangleIdx = bFindClosest ? IdxSimd[Idx] :  ClosestTriangleIdx;\n\t\t\t}\n\t\t}\n\n\t\tif (bInside)\n\t\t{\n\t\t\tif constexpr (CalculatExtraInformation)\n\t\t\t{\n\t\t\t\tT OutBarycentricVectors[4];\n\t\t\t\tconst T  InvDetM = VectorDivide(TMakeVectorRegisterConstant<T>(1, 1, 1, 1), DetM);\n\t\t\t\tOutBarycentricVectors[0] = VectorMultiply(Cofactors[0], InvDetM);\n\t\t\t\tOutBarycentricVectors[1] = VectorMultiply(Cofactors[1], InvDetM);\n\t\t\t\tOutBarycentricVectors[2] = VectorMultiply(Cofactors[2], InvDetM);\n\t\t\t\tOutBarycentricVectors[3] = VectorMultiply(Cofactors[3], InvDetM);\n\t\t\t\t// a0\tb0\ta1\tb1\n\t\t\t\tconst T OutBarycentric0101 = VectorUnpackLo(OutBarycentricVectors[0], OutBarycentricVectors[1]);\n\t\t\t\tconst T OutBarycentric2323 = VectorUnpackLo(OutBarycentricVectors[2], OutBarycentricVectors[3]);\n\t\t\t\t// a0\ta1\tb0\tb1\n\t\t\t\tOutBarycentric = VectorCombineLow(OutBarycentric0101, OutBarycentric2323);\n\t\t\t}\n\n\t\t\treturn TVectorZero<T>();"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/PhysicsCore/Public/CollisionShape.h",
+      "sha256": "e412dbb0734ffeba6267959c93da048d3734ef7cb2543f0d94ae1fc1dafb0261",
+      "excerpts": [
+        {
+          "first_line": 26,
+          "last_line": 27,
+          "text": "\tstatic constexpr float MinCapsuleRadius() { return UE_KINDA_SMALL_NUMBER; }\n\tstatic constexpr float MinCapsuleAxisHalfHeight() { return UE_KINDA_SMALL_NUMBER; }"
+        },
+        {
+          "first_line": 180,
+          "last_line": 190,
+          "text": "\n\t\treturn FVector::ZeroVector;\n\t}\n\n\t/** Get distance from center of capsule to center of sphere ends */\n\tfloat GetCapsuleAxisHalfLength() const\n\t{\n\t\tensure(ShapeType == ECollisionShape::Capsule);\n\t\treturn FMath::Max<float>(Capsule.HalfHeight - Capsule.Radius, FCollisionShape::FCollisionShape::MinCapsuleAxisHalfHeight());\n\t}\n"
+        },
+        {
+          "first_line": 308,
+          "last_line": 312,
+          "text": "\tstatic FCollisionShape MakeCapsule(const float CapsuleRadius, const float CapsuleHalfHeight)\n\t{\n\t\tFCollisionShape CapsuleShape;\n\t\tCapsuleShape.SetCapsule(CapsuleRadius, CapsuleHalfHeight);\n\t\treturn CapsuleShape;"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/PhysicsCore/Private/ChaosEngineInterface.cpp",
+      "sha256": "f12076095b9e66bbf98241c9671f9263f3a0b3db2f5b1d33ebd4becabda5a674",
+      "excerpts": [
+        {
+          "first_line": 120,
+          "last_line": 137,
+          "text": "}\n\nFPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot,const FCollisionShape& CollisionShape)\n\t: GeometryRotation(Rot)\n{\n\tswitch(CollisionShape.ShapeType)\n\t{\n\tcase ECollisionShape::Capsule:\n\t{\n\t\tconst float CapsuleRadius = CollisionShape.GetCapsuleRadius();\n\t\tconst float CapsuleHalfHeight = CollisionShape.GetCapsuleHalfHeight();\n\t\tif(CapsuleRadius < CapsuleHalfHeight)\n\t\t{\n\t\t\tconst float UseHalfHeight = FMath::Max(CollisionShape.GetCapsuleAxisHalfLength(),FCollisionShape::MinCapsuleAxisHalfHeight());\n\t\t\tconst FVector Bot = FVector(0.f,0.f,-UseHalfHeight);\n\t\t\tconst FVector Top = FVector(0.f,0.f,UseHalfHeight);\n\t\t\tconst float UseRadius = FMath::Max(CapsuleRadius,FCollisionShape::MinCapsuleRadius());\n\t\t\tGeometry = TRefCountPtr<FPhysicsGeometry>(new Chaos::FCapsule(Bot,Top,UseRadius));"
+        }
+      ]
+    },
+    {
+      "path": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+      "sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+      "excerpts": [
+        {
+          "first_line": 1340,
+          "last_line": 1385,
+          "text": "            const TSharedPtr<FJsonObject>* Sweep = nullptr;\n            TArray<double> BoxTranslationValues, BoxHalfExtentsValues, StartValues, DirectionValues;\n            double Radius = 0;\n            double HalfHeight = 0;\n            double Length = 0;\n            if (!(*Input)->TryGetObjectField(SweepKey, Sweep)\n                || !ReadArray(*Sweep, TEXT(\"box_translation_cm\"), BoxTranslationValues, 3)\n                || !ReadArray(*Sweep, TEXT(\"box_half_extents_cm\"), BoxHalfExtentsValues, 3)\n                || !ReadArray(*Sweep, TEXT(\"start_cm\"), StartValues, 3)\n                || !ReadArray(*Sweep, TEXT(\"direction\"), DirectionValues, 3)\n                || (!bRay && (!(*Sweep)->TryGetNumberField(TEXT(\"radius_cm\"), Radius) || !FMath::IsFinite(Radius) || Radius <= 0))\n                || (bCapsule && (!(*Sweep)->TryGetNumberField(TEXT(\"half_height_cm\"), HalfHeight) || !FMath::IsFinite(HalfHeight) || HalfHeight <= 0))\n                || !(*Sweep)->TryGetNumberField(TEXT(\"length_cm\"), Length) || !FMath::IsFinite(Length) || Length <= 0)\n            {\n                UE_LOG(LogAlsGraphSourceReader, Error, TEXT(\"Geometry query probe has an invalid sweep.\"));\n                return nullptr;\n            }\n            const FVector BoxTranslation(BoxTranslationValues[0], BoxTranslationValues[1], BoxTranslationValues[2]);\n            const FVector BoxHalfExtents(BoxHalfExtentsValues[0], BoxHalfExtentsValues[1], BoxHalfExtentsValues[2]);\n            const FVector Start(StartValues[0], StartValues[1], StartValues[2]);\n            const FVector Direction(DirectionValues[0], DirectionValues[1], DirectionValues[2]);\n            if (BoxHalfExtents.GetMin() <= 0 || !Direction.IsNormalized()) { return nullptr; }\n            FPhysicsShapeAdapter BoxAdapter(FQuat::Identity, FCollisionShape::MakeBox(BoxHalfExtents));\n            Chaos::FReal Time = Length;\n            Chaos::FVec3 Position = Chaos::FVec3::ZeroVector;\n            Chaos::FVec3 Normal = Chaos::FVec3::ZeroVector;\n            Chaos::FVec3 FaceNormal = Chaos::FVec3::ZeroVector;\n            int32 FaceIndex = INDEX_NONE;\n            const FTransform BoxTransform(Rotation, BoxTranslation);\n            bool Hit = false;\n            if (bRay)\n            {\n                Hit = BoxAdapter.GetGeometry().Raycast(BoxTransform.InverseTransformPositionNoScale(Start),\n                    BoxTransform.InverseTransformVectorNoScale(Direction), Length, 0.0, Time, Position, Normal, FaceIndex);\n                if (Hit)\n                {\n                    Position = BoxTransform.TransformPositionNoScale(Position);\n                    Normal = BoxTransform.TransformVectorNoScale(Normal);\n                }\n            }\n            else\n            {\n                FPhysicsShapeAdapter QueryAdapter(FQuat::Identity, bCapsule\n                    ? FCollisionShape::MakeCapsule(Radius, HalfHeight) : FCollisionShape::MakeSphere(Radius));\n                Hit = Chaos::SweepQuery(BoxAdapter.GetGeometry(), BoxTransform,\n                    QueryAdapter.GetGeometry(), QueryAdapter.GetGeomPose(Start), Direction, Length, Time, Position, Normal,"
+        }
+      ]
+    },
+    {
+      "path": "docs/audit/bf144/521/prepare_geometry.py",
+      "sha256": "9047179a94735b79c5c78bcdf6c3a121defbe7dfe7fcf03300a2b60bf5102f55",
+      "excerpts": [
+        {
+          "first_line": 10,
+          "last_line": 25,
+          "text": "wall=read('barrier.json')\norigin=[fixture['origin'][0],fixture['floor_y'],fixture['origin'][2]]\nhalf_yaw=math.radians(wall['yaw_source_degrees'])*0.5\n\ndef axes(v):\n    return [v[0],v[2],v[1]]\n\ndef position(v):\n    return axes([(x-y)*100 for x,y in zip(v,origin,strict=True)])\n\ndef sample(name,start,movement):\n    length=math.sqrt(sum(value*value for value in movement))\n    return dict(name=name,rotation_xyzw=[0,0,math.sin(half_yaw),math.cos(half_yaw)],\n                capsule_sweep=dict(box_translation_cm=position(wall['center']),\n                    box_half_extents_cm=axes([value*50 for value in wall['size']]),start_cm=position(start),\n                    direction=axes([value/length for value in movement]),"
+        }
+      ]
+    }
+  ]
+}
