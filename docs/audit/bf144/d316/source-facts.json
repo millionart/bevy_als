@@ -1,0 +1,43 @@
+{
+  "engine_commit": "396c9f059903aed5fec78ecd3d437a40c6415368",
+  "files": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/MovementComponent.cpp",
+      "sha256": "86a3a43b4bfa0dede657294303f126893e8518d474db217c282a9b4bf6a6f3ba",
+      "excerpts": [
+        {
+          "line": 711,
+          "text": "FVector UMovementComponent::ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit) const\n{\n\tif (!bConstrainToPlane)\n\t{\n\t\treturn FVector::VectorPlaneProject(Delta, Normal) * Time;\n\t}\n\telse\n\t{\n\t\tconst FVector ProjectedNormal = ConstrainNormalToPlane(Normal);\n\t\treturn FVector::VectorPlaneProject(Delta, ProjectedNormal) * Time;\n\t}\n}"
+        },
+        {
+          "line": 778,
+          "text": "void UMovementComponent::TwoWallAdjust(FVector& OutDelta, const FHitResult& Hit, const FVector& OldHitNormal) const\n{\n\tFVector Delta = OutDelta;\n\tconst FVector HitNormal = Hit.Normal;\n\n\tif ((OldHitNormal | HitNormal) <= 0.f) //90 or less corner, so use cross product for direction\n\t{\n\t\tconst FVector DesiredDir = Delta;\n\t\tFVector NewDir = (HitNormal ^ OldHitNormal);\n\t\tNewDir = NewDir.GetSafeNormal();\n\t\tDelta = (Delta | NewDir) * (1.f - Hit.Time) * NewDir;\n\t\tif ((DesiredDir | Delta) < 0.f)\n\t\t{\n\t\t\tDelta = -1.f * Delta;\n\t\t}\n\t}\n\telse //adjust to new wall\n\t{\n\t\tconst FVector DesiredDir = Delta;\n\t\tDelta = ComputeSlideVector(Delta, 1.f - Hit.Time, HitNormal, Hit);\n\t\tif ((Delta | DesiredDir) <= 0.f)\n\t\t{\n\t\t\tDelta = FVector::ZeroVector;\n\t\t}\n\t\telse if ( FMath::Abs((HitNormal | OldHitNormal) - 1.f) < UE_KINDA_SMALL_NUMBER )\n\t\t{\n\t\t\t// we hit the same wall again even after adjusting to move along it the first time\n\t\t\t// nudge away from it (this can happen due to precision issues)\n\t\t\tDelta += HitNormal * 0.01f;\n\t\t}\n\t}\n\n\tOutDelta = Delta;\n}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "line": 3735,
+          "text": "FVector UCharacterMovementComponent::ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit) const\n{\n\tFVector Result = Super::ComputeSlideVector(Delta, Time, Normal, Hit);\n\n\t// prevent boosting up slopes\n\tif (IsFalling())\n\t{\n\t\tResult = HandleSlopeBoosting(Result, Delta, Time, Normal, Hit);\n\t}\n\n\treturn Result;\n}\n\n\nFVector UCharacterMovementComponent::HandleSlopeBoosting(const FVector& SlideResult, const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit) const\n{\n\tFVector Result = SlideResult;\n\tconst float ResultZ = GetGravitySpaceZ(Result);\n\tif (ResultZ > 0.f)\n\t{\n\t\t// Don't move any higher than we originally intended.\n\t\tconst float ZLimit = GetGravitySpaceZ(Delta) * Time;\n\t\tif (ResultZ - ZLimit > UE_KINDA_SMALL_NUMBER)\n\t\t{\n\t\t\tif (ZLimit > 0.f)\n\t\t\t{\n\t\t\t\t// Rescale the entire vector (not just the Z component) otherwise we change the direction and likely head right back into the impact.\n\t\t\t\tconst float UpPercent = ZLimit / ResultZ;\n\t\t\t\tResult *= UpPercent;\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\t// We were heading down but were going to deflect upwards. Just make the deflection horizontal.\n\t\t\t\tResult = FVector::ZeroVector;\n\t\t\t}\n\n\t\t\t// Make remaining portion of original result horizontal and parallel to impact normal.\n\t\t\tconst FVector RemainderXY = ProjectToGravityFloor(SlideResult - Result);\n\t\t\tconst FVector NormalXY = ProjectToGravityFloor(Normal).GetSafeNormal();\n\t\t\tconst FVector Adjust = Super::ComputeSlideVector(RemainderXY, 1.f, NormalXY, Hit);\n\t\t\tResult += Adjust;\n\t\t}\n\t}\n\n\treturn Result;\n}"
+        },
+        {
+          "line": 5172,
+          "text": "FVector PreTwoWallDelta = Delta;\n\t\t\t\t\t\tTwoWallAdjust(Delta, Hit, OldHitNormal);\n\n\t\t\t\t\t\t// Prevent extra upwards slope velocity that would occur when colliding inside a corner making an acute angle\n\t\t\t\t\t\t// For obtuse cases, HandleSlopeBoosting() is applied twice, but it stays within the first application's range, so this has no net effect.\n\t\t\t\t\t\tDelta = HandleSlopeBoosting(Delta, PreTwoWallDelta, 1.f - Hit.Time, Hit.Normal, Hit);\n\n\t\t\t\t\t\t// Limit air control, but allow a slide along the second wall.\n\t\t\t\t\t\tif (bHasLimitedAirControl)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tconst bool bCheckLandingSpot = false; // we already checked above.\n\t\t\t\t\t\t\tconst FVector AirControlDeltaV = LimitAirControl(subTimeTickRemaining, AirControlAccel, Hit, bCheckLandingSpot) * subTimeTickRemaining;\n\n\t\t\t\t\t\t\t// Only allow if not back in to first wall\n\t\t\t\t\t\t\tif (FVector::DotProduct(AirControlDeltaV, OldHitNormal) > 0.f)\n\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\tDelta += (AirControlDeltaV * subTimeTickRemaining);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Compute velocity after deflection (only gravity component for RootMotion)\n\t\t\t\t\t\tif (subTimeTickRemaining > UE_KINDA_SMALL_NUMBER && !bJustTeleported)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tconst FVector NewVelocity = (Delta / subTimeTickRemaining);\n\t\t\t\t\t\t\tVelocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? ProjectToGravityFloor(Velocity) + GetGravitySpaceComponentZ(NewVelocity) : NewVelocity;\n\t\t\t\t\t\t}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+      "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+      "excerpts": [
+        {
+          "line": 131,
+          "text": "#define UE_KINDA_SMALL_NUMBER\t(1.e-4f)"
+        }
+      ]
+    }
+  ]
+}

@@ -4869,11 +4869,15 @@
   - .465a Gate完成：`docs/audit/bf144/465a/summary.json` PASS_NATIVE_OPAQUE_FLOAT_SPRING_STATE_READONLY_CAPTURE_WITH_FULL_LEGACY_COMPATIBILITY；无UPROPERTY三原生成员在严格opt-in/实际work array struct类型匹配下只读，638帧/1276 state和636有效历史PrevTarget/Velocity/valid/0delta合同精确，反射fields仍[]；去仅新增字段后整个旧probe精确。Getter常量消融被首有效帧拒，删类型守卫坏请求0接受、最终严格包7拒；源码bytes恢复/全package终态/project-package SHA与638原生state表byte恢复通过。全旧Rig/default角色/三轴CurveVector原生及压缩后兼容、395+新reader迁移/六库、6大原生gzip/rawSHA、67本项+7 external Git长度/SHA/解压隐私封存全过。Source/生产/转换器/引擎/原始资产不改，父465数学尚未通过，0新D/272，截图0/性能暂停。
   - .465a时间：开始2026-11-02 06:52:00、预估结束07:32:00、实际结束07:26:24 +0800，实耗34:24、偏差−05:36；结果PASS。含4次package构建38/66/55/54秒、实际两319/1276 states、getter与类型guard两消融/字节恢复及完整旧域/Git；首mutation/build重叠已由全包消融源码一致性核验，最终恢复按完整顺序执行。相同opaque struct无反射成员且已具work memory的诊断能力按约35分钟参考。父465本轮source事实与读数前置尚开，下一按真实native state恢复数学等价审计，不填造动态数据。
 
-### 已确认差异（仅登记，未实施修复）
+### 已确认差异及修复
 
-- [ ] BF144-D316 / P3 — Falling 近同法线二次命中后缺少沿法线的离墙微移。
+> 本轮按用户要求先逐项实现、勾选并提交；本节勾选只表示修复实现已提交。所有条目实现后再统一执行测试、消融及真实入口 Gate，失败时复开对应条目。
+
+- [x] BF144-D316 / P3 — Falling 近同法线二次命中后缺少沿法线的离墙微移。
   - Source：`UMovementComponent::TwoWallAdjust` 的第二面投影仍沿原请求方向、且两法线满足 `1 − dot < 10⁻⁴` 时，加 `Hit.Normal × 0.01 cm`。`PhysFalling` 用该偏转量扫第三次并以第二碰余时回写速度。Target：`falling_slide` 对近同法线仅作投影，实际法线速度接近零。
   - 反例：50ms无输入，两竖墙夹角0.5°，第二命中正时，UE沿法线移0.1mm且发布约5.824mm/s，Bevy约0.000011mm/s。1.25°对照与单墙对照不触发，均保持Falling。与D307向上法线空控、D308第三次零时间侧移及D315虚拟夹缝脱困分开。证据 `docs/audit/bf144/581/`。
+  - 修复第1轮：开始2026-11-05 02:32 +08:00；预估结束02:57 +08:00。依据：.581已有真实双墙/单墙证据，目标共享函数和唯一生产调用链已定位；本轮只实现源微移及相应回归用例，按用户要求全部修复完成后统一运行测试、消融与真实入口验证。
+  - 02:33实现摘要：重新提取源 `TwoWallAdjust`、`ComputeSlideVector`、`HandleSlopeBoosting`、Falling调用次序与阈值，记录 `docs/audit/bf144/d316/source-facts.json`。共享滑移按正向与近法线门槛加入0.1mm微移，并再次限制向上斜坡；已添加0.5°/1.25°、单墙、零推进及斜坡用例，尚未执行。实现结束02:33、偏差−24分钟；最终测试、消融、真实双墙入口与正式 Gate 待整体实现完成，不视为已验证。
 
 - [ ] BF144-D315 / P2 — Falling 虚拟夹缝缺少向上脱困速度。
   - Source：第三次移动无阻挡、首碰ImpactNormal达到可行走阈值、Perch开启且本子步进展极小时，UE给XY随机偏移并设Z=max(JumpZ×.25,1)，仍保持Falling。目标只有扫掠投影和普通落地。

@@ -8,6 +8,17 @@ pub fn falling_slide(delta: Vec3, normal: Vec3, previous_normal: Option<Vec3>) -
         }
         _ => delta - normal * delta.dot(normal),
     };
+    let slide = limit_slope_boost(slide, delta, normal);
+    if let Some(previous) = previous_normal
+        && (previous.dot(normal) - 1.0).abs() < 1e-4
+        && slide.dot(delta) > 0.0
+    {
+        return limit_slope_boost(slide + normal * 0.0001, delta, normal);
+    }
+    slide
+}
+
+fn limit_slope_boost(slide: Vec3, delta: Vec3, normal: Vec3) -> Vec3 {
     if slide.y <= 0.0 || slide.y - delta.y <= 1e-6 {
         return slide;
     }
@@ -100,6 +111,21 @@ mod tests {
         let result = falling_slide(Vec3::Z * 0.04, other_slope, Some(slope));
         assert!(result.is_finite() && result.y.abs() < 1e-6,
             "slope crease created upward deflection: {result:?}");
+    }
+
+    #[test]
+    fn falling_two_wall_slide_nudges_only_near_parallel_forward_slides() {
+        let delta = Vec3::new(0.0, -0.01, 0.1);
+        for (degrees, expected_nudge) in [(0.5_f32, 0.0001), (1.25, 0.0)] {
+            let normal = Quat::from_rotation_y(degrees.to_radians()) * Vec3::NEG_X;
+            let slide = falling_slide(delta, normal, Some(Vec3::NEG_X));
+            assert!((slide.dot(normal) - expected_nudge).abs() < 1e-7, "{degrees}: {slide:?}");
+            assert!(falling_slide(delta, normal, None).dot(normal).abs() < 1e-7);
+        }
+        assert_eq!(falling_slide(Vec3::X, Vec3::NEG_X, Some(Vec3::NEG_X)), Vec3::ZERO);
+        let slope = Vec3::new(-3.0_f32.sqrt() * 0.5, 0.5, 0.0);
+        let slide = falling_slide(Vec3::Z * 0.1, slope, Some(slope));
+        assert!(slide.y.abs() < 1e-6);
     }
 
     #[test]
