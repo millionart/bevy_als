@@ -519,6 +519,11 @@ pub fn grounded_dynamics_motor_system(
         let Some(params) = params_assets.get(params_handle.id()) else {
             continue;
         };
+        cmc_runtime.controlled_input_max_acceleration = Some(if *locomotion == LocomotionState::Grounded {
+            dynamics.0.acceleration
+        } else {
+            params.acceleration.max_acceleration
+        });
         let world_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
         if *locomotion == LocomotionState::Air {
             if root_motion_active { continue; }

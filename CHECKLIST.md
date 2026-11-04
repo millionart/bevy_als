@@ -5070,10 +5070,14 @@
   - 修复第1轮：开始2026-11-05 04:49 +08:00；预估结束05:24 +08:00。依据：.518已提供只移除弹簧的源/目标消费与有支撑对照，.554补充负弹簧；需核单步目的地floor、Tnua加速度/boost及D289交接，测试统一后置。
   - 04:50实现摘要：fresh核源Walking水平速度、离地转移、Tnua弹簧与独立重力补偿，见 `docs/audit/bf144/d288/source-facts.json`。单步无调整高度时查询最终目的地floor，无有效支撑则移除旧弹簧并保留重力补偿；已写正/负弹簧和有支撑对照。实现结束04:50、偏差−34分钟；测试、消融及真实入口 Gate 尚未运行，D289继续处理剩余空中时间。
 
-- [ ] BF144-D287 / P2 — 同帧走离地面时，Falling 重算输入并丢失 Walking 帧内缓存。
+- [x] BF144-D287 / P2 — 同帧走离地面时，Falling 重算输入并丢失 Walking 帧内缓存。
   - BF144.520 实际消费。同墙多子步对齐步行后，仅恢复Air缓存使贴墙X速度3.147877→3.115255m/s，源3.115496；两端空中预算相近。证据 docs/audit/bf144/520/summary.json。
   - UE ControlledCharacterMove 在帧首缩放并写Acceleration。Walking的StartFalling交接余时，GetFallingLateralAcceleration继续读取该向量，经AirControl及空中最大值约束。目标falling_movement_transaction从当前速度和通用设置重建空中加速度，缺少本帧缓存值。
   - 半宽70cm静态台、60ms序号48在两端各留约30ms空中段。源用11.3631494m/s²缓存与0.15 AirControl，空中增速约0.0511342m/s；目标旧缓存12.0074587但实际Air按通用20，增速约0.0900002。仅将目标本次空中输入上限换成旧缓存，Walking末速、下落速度、原计划及步态不变，最终纵向从5.3505492到5.3145828m/s。与D07步行积分的缓存差独立。证据 docs/audit/bf144/516/summary.json。
+
+  - 修复第1轮：开始2026-11-05 05:00 +08:00；预估结束05:50 +08:00。依据：.516/.520已保存帧首Walking缓存与空中消费者反例；需核ALS设置刷新顺序、UE输入限幅/低速boost、单步与多步交接及次帧刷新，测试统一后置。
+  - 05:00 source/static闭环：fresh ALS重读确认 `ControlledCharacterMove` 先用旧 `MaxAccelerationWalking` 缩放当帧输入，ALS `PhysWalking` 随后才刷新曲线；UE Falling对缓存向量乘AirControl并以空中最大值限幅，boost按进入Falling时速度取值。目标当前每帧覆盖 `AlsGroundedDynamics` 后才进Falling，故需在覆盖前保存当前帧输入上限；源闭包见 `docs/audit/bf144/d287/source-facts.json`。部分摇杆输入须先按幅度缩放再限幅。
+  - 05:03实现摘要：每帧在Walking曲线刷新前缓存输入上限，Air帧改存空中上限；单/多步与同帧再离地的Falling共享该值，按输入幅度、boost及空中上限计算。已写.516缓存/普通Air速度、半输入与低速、逐帧刷新对照。实现结束05:03、偏差−47分钟；测试、消融及真实Playground Gate尚未运行。
 
 - [ ] BF144-D286 / P3 — Grounded Lean 先在世界空间限幅，再投影到局部。
   - BF144.511 实际消费者。仅换序号61一个前向Lean浮点步长，实际BlendSpace69骨、叠加43骨、Root71骨数值改变；62直接链合拢，Root仍6骨。证据 docs/audit/bf144/511/summary.json。

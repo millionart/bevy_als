@@ -1,0 +1,108 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 4827,
+          "last_line": 4847,
+          "text": "FVector UCharacterMovementComponent::GetFallingLateralAcceleration(float DeltaTime)\n{\n\t// No acceleration in Z\n\tFVector FallAcceleration = ProjectToGravityFloor(Acceleration);\n\n\t// bound acceleration, falling object has minimal ability to impact acceleration\n\tif (!HasAnimRootMotion() && FallAcceleration.SizeSquared() > 0.f)\n\t{\n\t\tFallAcceleration = GetAirControl(DeltaTime, AirControl, FallAcceleration);\n\t\tFallAcceleration = FallAcceleration.GetClampedToMaxSize(GetMaxAcceleration());\n\t}\n\n\treturn FallAcceleration;\n}\n\n\nbool UCharacterMovementComponent::ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const\n{\n\treturn (ProjectToGravityFloor(FallAcceleration).SizeSquared() > 0.f);\n}\n"
+        },
+        {
+          "first_line": 4875,
+          "last_line": 4883,
+          "text": "float UCharacterMovementComponent::BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration)\n{\n\t// Allow a burst of initial acceleration\n\tif (AirControlBoostMultiplier > 0.f && ProjectToGravityFloor(Velocity).SizeSquared() < FMath::Square(AirControlBoostVelocityThreshold))\n\t{\n\t\tTickAirControl = FMath::Min(1.f, AirControlBoostMultiplier * TickAirControl);\n\t}\n\n\treturn TickAirControl;"
+        },
+        {
+          "first_line": 6441,
+          "last_line": 6456,
+          "text": "void UCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds)\n{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}\n\n\tif (CharacterOwner->GetLocalRole() == ROLE_Authority)\n\t{"
+        },
+        {
+          "first_line": 8134,
+          "last_line": 8152,
+          "text": "FVector UCharacterMovementComponent::ScaleInputAcceleration(const FVector& InputAcceleration) const\n{\n\treturn GetMaxAcceleration() * InputAcceleration.GetClampedToMaxSize(1.0f);\n}\n\n\nFVector UCharacterMovementComponent::RoundAcceleration(FVector InAccel) const\n{\n\t// Match FVector_NetQuantize10\n\treturn UE::Net::QuantizeVector(10, InAccel);\n}\n\nfloat UCharacterMovementComponent::ComputeAnalogInputModifier() const\n{\n\tconst float MaxAccel = GetMaxAcceleration();\n\tif (Acceleration.SizeSquared() > 0.f && MaxAccel > UE_SMALL_NUMBER)\n\t{\n\t\treturn FMath::Clamp<FVector::FReal>(Acceleration.Size() / MaxAccel, 0.f, 1.f);\n\t}"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "first_line": 134,
+          "last_line": 147,
+          "text": "\t// Default values for standing walking movement.\n\n\tMinAnalogWalkSpeed = 25.0f;\n\tMaxWalkSpeed = 375.0f;\n\tMaxWalkSpeedCrouched = 150.0f;\n\tMaxAccelerationWalking = 2000.0f;\n\tBrakingDecelerationWalking = 1500.0f;\n\tGroundFriction = 4.0f;\n\n\tAirControl = 0.15f;\n\n\t// This value is only used when the actor is in the air, since when moving on the ground\n\t// the value from the AccelerationAndDecelerationAndGroundFriction curve is used instead.\n\tMaxAcceleration = 2000.0f;"
+        },
+        {
+          "first_line": 292,
+          "last_line": 305,
+          "text": "float UAlsCharacterMovementComponent::GetMaxAcceleration() const\n{\n\tif (IsMovingOnGround())\n\t{\n\t\treturn MaxAccelerationWalking;\n\t}\n\n\treturn Super::GetMaxAcceleration();\n}\n\nvoid UAlsCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, const float DeltaTime)\n{\n\tSuper::ControlledCharacterMove(InputVector, DeltaTime);\n"
+        },
+        {
+          "first_line": 333,
+          "last_line": 336,
+          "text": "void UAlsCharacterMovementComponent::PhysWalking(const float DeltaTime, int32 IterationsCount)\n{\n\tRefreshGroundedMovementSettings();\n"
+        },
+        {
+          "first_line": 397,
+          "last_line": 420,
+          "text": "\t\tMaintainHorizontalGroundVelocity();\n\t\tconst FVector OldVelocity = Velocity;\n\t\tAcceleration = FVector::VectorPlaneProject(Acceleration, -GetGravityDirection());\n\n\t\tstatic const auto* EnsureAlwaysEnabledConsoleVariable{\n\t\t\tIConsoleManager::Get().FindConsoleVariable(TEXT(\"p.LedgeMovement.ApplyDirectMove\"))\n\t\t};\n\t\tcheck(EnsureAlwaysEnabledConsoleVariable != nullptr)\n\n\t\t// Apply acceleration\n\t\tconst bool bSkipForLedgeMove = bTriedLedgeMove && EnsureAlwaysEnabledConsoleVariable->GetBool();\n\t\tif( !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && !bSkipForLedgeMove )\n\t\t{\n\t\t\tCalcVelocity(timeTick, GroundFriction, false, GetMaxBrakingDeceleration());\n\t\t\t// devCode(ensureMsgf(!Velocity.ContainsNaN(), TEXT(\"PhysWalking: Velocity contains NaN after CalcVelocity (%s)\\n%s\"), *GetPathNameSafe(this), *Velocity.ToString()));\n\t\t}\n\n\t\tApplyRootMotionToVelocity(timeTick);\n\t\t// devCode(ensureMsgf(!Velocity.ContainsNaN(), TEXT(\"PhysWalking: Velocity contains NaN after Root Motion application (%s)\\n%s\"), *GetPathNameSafe(this), *Velocity.ToString()));\n\n\t\tif (MovementMode != StartingMovementMode || CustomMovementMode != StartingCustomMovementMode)\n\t\t{\n\t\t\t// Root motion could have taken us out of our current mode\n\t\t\t// No movement has taken place this movement tick so we pass on full time/past iteration count"
+        },
+        {
+          "first_line": 438,
+          "last_line": 468,
+          "text": "\t\t\tMoveAlongFloor(MoveVelocity, timeTick, &StepDownResult);\n\n\t\t\tif (IsSwimming()) //just entered water\n\t\t\t{\n\t\t\t\tStartSwimming(OldLocation, OldVelocity, timeTick, remainingTime, Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\telse if (MovementMode != StartingMovementMode || CustomMovementMode != StartingCustomMovementMode)\n\t\t\t{\n\t\t\t\t// pawn ended up in a different mode, probably due to the step-up-and-over flow\n\t\t\t\t// let's refund the estimated unused time (if any) and keep moving in the new mode\n\t\t\t\tconst float DesiredDist = UE_REAL_TO_FLOAT(Delta.Size());\n\t\t\t\tif (DesiredDist > UE_KINDA_SMALL_NUMBER)\n\t\t\t\t{\n\t\t\t\t\tconst float ActualDist = UE_REAL_TO_FLOAT(ProjectToGravityFloor(UpdatedComponent->GetComponentLocation() - OldLocation).Size());\n\t\t\t\t\tremainingTime += timeTick * (1.f - FMath::Min(1.f,ActualDist/DesiredDist));\n\t\t\t\t}\n\t\t\t\tStartNewPhysics(remainingTime,Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t}\n\n\t\t// Update floor.\n\t\t// StepUp might have already done it for us.\n\t\tif (StepDownResult.bComputedFloor)\n\t\t{\n\t\t\tCurrentFloor = StepDownResult.FloorResult;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tFindFloor(UpdatedComponent->GetComponentLocation(), CurrentFloor, bZeroDelta, NULL);"
+        },
+        {
+          "first_line": 551,
+          "last_line": 557,
+          "text": "\t\t\tif (!CurrentFloor.IsWalkableFloor() && !CurrentFloor.HitResult.bStartPenetrating)\n\t\t\t{\n\t\t\t\tconst bool bOldMovementBaseValid = OldMovementBaseInterfaceData && OldMovementBaseInterfaceData->IsValid();\n\t\t\t\tconst bool bMustJump = bJustTeleported || bZeroDelta || (!bOldMovementBaseValid || (!CollisionEnabledHasQuery(OldMovementBaseInterfaceData->GetBodyInstanceOwner()->GetCollisionEnabled()) && MovementBaseUtility::IsDynamicBase(OldMovementBaseInterfaceData)));\n\t\t\t\tif ((bMustJump || !bCheckedFall) && CheckFall(OldFloor, CurrentFloor.HitResult, Delta, OldLocation, remainingTime, timeTick, Iterations, bMustJump) )\n\t\t\t\t{\n\t\t\t\t\treturn;"
+        },
+        {
+          "first_line": 1010,
+          "last_line": 1019,
+          "text": "\tif (ALS_ENSURE(IsValid(GaitSettings.AccelerationAndDecelerationAndGroundFrictionCurve)))\n\t{\n\t\tconst auto& AccelerationAndDecelerationAndGroundFrictionCurves{\n\t\t\tGaitSettings.AccelerationAndDecelerationAndGroundFrictionCurve->FloatCurves\n\t\t};\n\n\t\tMaxAccelerationWalking = AccelerationAndDecelerationAndGroundFrictionCurves[0].Eval(GaitAmount);\n\t\tBrakingDecelerationWalking = AccelerationAndDecelerationAndGroundFrictionCurves[1].Eval(GaitAmount);\n\t\tGroundFriction = AccelerationAndDecelerationAndGroundFrictionCurves[2].Eval(GaitAmount);\n\t}"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/dynamics.rs",
+      "sha256": "18ba10c75bdb295f08de26dfc5313606b9da6dd9e492875a158f56532c2ae0f4",
+      "excerpts": [
+        {
+          "first_line": 156,
+          "last_line": 174,
+          "text": "pub fn grounded_velocity_step_with_braking_friction(\n    velocity: Vec3,\n    desired_motion: Vec3,\n    max_speed: f32,\n    dynamics: GroundedDynamics,\n    min_analog_walk_speed: f32,\n    braking_friction_factor: f32,\n    braking_substep_time: f32,\n    delta_seconds: f32,\n) -> Vec3 {\n    let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);\n    let desired_horizontal = Vec3::new(desired_motion.x, 0.0, desired_motion.z);\n    let desired_amount = desired_horizontal.length().min(1.0);\n    let speed = horizontal_velocity.length();\n    let delta_seconds = delta_seconds.max(0.0);\n    if delta_seconds < MIN_MOVEMENT_DELTA_SECONDS { return horizontal_velocity; }\n    let acceleration = desired_horizontal.clamp_length_max(1.0) * dynamics.acceleration.max(0.0);\n    let has_acceleration = acceleration != Vec3::ZERO;\n    let analog_modifier = if has_acceleration && dynamics.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_amount } else { 0.0 };"
+        },
+        {
+          "first_line": 500,
+          "last_line": 558,
+          "text": "        velocity,\n        params_handle,\n        controller,\n        mut motor,\n        mut cmc_runtime,\n        current_base_state,\n    ) in &mut q\n    {\n        let delta_seconds = time.delta_secs() * custom_dilations.get(entity).map_or(1.0, |value| value.0);\n        cmc_runtime.grounded_movement_delta = None;\n        cmc_runtime.grounded_collision_velocity = None;\n        let Ok((roll, mantle)) = actions.get(entity) else {\n            continue;\n        };\n        if !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air) {\n            continue;\n        }\n        let root_motion_active = roll.is_some_and(AlsRollState::root_motion_active)\n            || mantle.is_some_and(|state| state.active);\n        let Some(params) = params_assets.get(params_handle.id()) else {\n            continue;\n        };\n        let world_velocity = Vec3::new(velocity.x, 0.0, velocity.z);\n        if *locomotion == LocomotionState::Air {\n            if root_motion_active { continue; }\n            let inherited = if let Some(mut base) = current_base_state {\n                if let Some(previous) = base.entity {\n                    let (_, support) = support_velocity_from_base(Some(previous),\n                        character_contact_point(params, *stance, position.0), &bases, &colliders);\n                    let inherited = support - base.support_velocity;\n                    *base = default();\n                    inherited.with_y(0.0)\n                } else { Vec3::ZERO }\n            } else { Vec3::ZERO };\n            motor.lin.acceleration.x = 0.0;\n            motor.lin.acceleration.z = 0.0;\n            motor.lin.boost.x = inherited.x;\n            motor.lin.boost.z = inherited.z;\n            continue;\n        }\n        let contact_point = character_contact_point(params, *stance, position.0);\n        let (base_entity, support_velocity) = support_velocity_from_base(\n            controller.basis_memory.standing_on_entity(),\n            contact_point,\n            &bases,\n            &colliders,\n        );\n        let current = locomotion_velocity(world_velocity, *locomotion,\n            current_base_state.as_deref().filter(|_| base_entity.is_some()));\n        let max_speed = max_allowed_speed(\n            params, *stance, *rotation_mode, max_allowed_gait.0, current, view_yaw.0,\n        );\n        cmc_runtime.grounded_max_speed = max_speed;\n        if root_motion_active { continue; }\n        let thresholds = params.gait_speed_thresholds(*stance, *rotation_mode, current, view_yaw.0);\n        gait_amount.0 = calculate_gait_amount_for_thresholds(current.length(), thresholds);\n        if AlsMovementParams::has_gait_settings(*stance, *rotation_mode) {\n            dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);\n        }"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/motion.rs",
+      "sha256": "17bf76d206d6963d34acb8e4c928d7401a91999f6d3b753b5c78674a6d2fcaad",
+      "excerpts": [
+        {
+          "first_line": 118,
+          "last_line": 127,
+          "text": "pub fn air_acceleration_for_horizontal_speed(\n    params: &AlsMovementParams,\n    horizontal_speed: f32,\n) -> f32 {\n    let multiplier = if horizontal_speed < AIR_CONTROL_BOOST_SPEED {\n        AIR_CONTROL_BOOST_MULTIPLIER\n    } else {\n        1.0\n    };\n    params.acceleration.max_acceleration * AIR_CONTROL * multiplier"
+        },
+        {
+          "first_line": 2977,
+          "last_line": 3005,
+          "text": "fn falling_movement_transaction(\n    spatial: &SpatialQuery, capsule: &Collider, mut transform: Transform, mut velocity: Vec3,\n    desired_motion: Vec3, mut max_speed: f32, params: &AlsMovementParams, gravity: Vec3,\n    grounded: (Stance, RotationMode, Gait, f32), landing: (f32, bool, bool),\n    terminal: f32, mut remaining: f32, mut iterations: u32, entity: Entity, random_seed: &mut u32,\n    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,\n    step_permissions: &Query<&AlsMantleTargetPermission>,\n    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,\n    owners: &Query<&ColliderOf>,\n    shapes: &Query<(&Collider, &Position, &Rotation)>,\n    transitions: &mut MessageWriter<StateTransitionEvent>,\n) -> (Transform, Vec3, u32, bool, LocomotionState, Option<Entity>, f32, Option<LocomotionState>) {\n    let mut acceleration = air_acceleration_for_horizontal_speed(params, velocity.with_y(0.0).length())\n        .min(params.acceleration.max_acceleration);\n    let mut contact = false;\n    let mut mode = LocomotionState::Air;\n    let mut current_base = None;\n    let mut collision_mode = None;\n    while remaining >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS\n        && iterations < params.cmc.max_simulation_iterations {\n        iterations += 1;\n        let step = crate::als::dynamics::source_movement_time_step(remaining, &params.cmc, iterations);\n        let old_velocity = velocity;\n        let horizontal = crate::als::dynamics::grounded_velocity_step_with_braking_friction(\n            velocity.with_y(0.0), desired_motion, max_speed,\n            crate::als::params::GroundedDynamics { acceleration, braking_deceleration: 0.0, ground_friction: 0.0 },\n            params.cmc.min_analog_walk_speed, 0.0, params.cmc.braking_substep_time, step);\n        velocity = crate::als::dynamics::clamp_falling_velocity(horizontal + Vec3::Y * velocity.y + gravity * step,\n            gravity, terminal);"
+        },
+        {
+          "first_line": 3052,
+          "last_line": 3067,
+          "text": "            velocity += crate::als::dynamics::support_velocity_from_base(last_base,\n                transform.translation - Vec3::Y * extent.y, bases, owners).1.with_y(0.0);\n            current_base = None;\n            mode = LocomotionState::Air;\n            transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,\n                from: StateValue::LocomotionState(LocomotionState::Grounded), to: StateValue::LocomotionState(mode) });\n            if landing.2 && params.rolling.interrupt_when_in_air {\n                mode = LocomotionState::None;\n                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,\n                    from: StateValue::LocomotionState(LocomotionState::Air), to: StateValue::LocomotionState(mode) });\n                break;\n            }\n            acceleration = air_acceleration_for_horizontal_speed(params, velocity.with_y(0.0).length())\n                .min(params.acceleration.max_acceleration);\n            continue;\n        }"
+        }
+      ]
+    }
+  ]
+}
