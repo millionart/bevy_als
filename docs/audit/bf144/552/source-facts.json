@@ -1,0 +1,104 @@
+[
+  {
+    "key": "source:Private/AlsCharacterMovementComponent.cpp",
+    "bytes": 40375,
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 565,
+        "end": 588,
+        "text": "\t\tif (IsMovingOnGround())\r\n\t\t{\r\n\t\t\t// Make velocity reflect actual move\r\n\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\r\n\t\t\t{\r\n\t\t\t\t// TODO Start of custom ALS code block.\r\n\r\n\t\t\t\tPrePenetrationAdjustmentVelocity = MoveVelocity;\r\n\t\t\t\tbPrePenetrationAdjustmentVelocityValid = true;\r\n\r\n\t\t\t\t// TODO End of custom ALS code block.\r\n\r\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\r\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\r\n\t\t\t\tMaintainHorizontalGroundVelocity();\r\n\t\t\t}\r\n\t\t}\r\n\r\n\t\t// If we didn't move at all this iteration then abort (since future iterations will also be stuck).\r\n\t\tif (UpdatedComponent->GetComponentLocation() == OldLocation)\r\n\t\t{\r\n\t\t\tremainingTime = 0.f;\r\n\t\t\tbreak;\r\n\t\t}\r\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Private/AlsCharacter.cpp",
+    "bytes": 63612,
+    "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+    "excerpts": [
+      {
+        "start": 1372,
+        "end": 1417,
+        "text": "void AAlsCharacter::RefreshLocomotion()\r\n{\r\n\tconst auto bHadVelocity{LocomotionState.bHasVelocity};\r\n\r\n\tLocomotionState.Velocity = GetVelocity();\r\n\r\n\t// Determine if the character is moving by getting its speed. The speed equals the length\r\n\t// of the horizontal velocity, so it does not take vertical movement into account. If the\r\n\t// character is moving, update the last velocity rotation. This value is saved because it might\r\n\t// be useful to know the last orientation of a movement even after the character has stopped.\r\n\r\n\tLocomotionState.Speed = UE_REAL_TO_FLOAT(LocomotionState.Velocity.Size2D());\r\n\r\n\tstatic constexpr auto HasSpeedThreshold{1.0f};\r\n\r\n\tLocomotionState.bHasVelocity = LocomotionState.Speed >= HasSpeedThreshold;\r\n\r\n\tif (LocomotionState.bHasVelocity)\r\n\t{\r\n\t\tLocomotionState.VelocityYawAngle = UE_REAL_TO_FLOAT(UAlsVector::DirectionToAngleXY(LocomotionState.Velocity));\r\n\t}\r\n\r\n\tif (GetLocalRole() >= ROLE_AutonomousProxy)\r\n\t{\r\n\t\tauto bSendInitialVelocityYawAngle{LocomotionState.bHasVelocity && !bHadVelocity};\r\n\t\tauto VelocityYawAngleToSend{LocomotionState.VelocityYawAngle};\r\n\r\n\t\tif (Settings->bRotateTowardsDesiredVelocityInVelocityDirectionRotationMode)\r\n\t\t{\r\n\t\t\tFVector DesiredVelocity;\r\n\t\t\tif (AlsCharacterMovement->TryConsumePrePenetrationAdjustmentVelocity(DesiredVelocity) &&\r\n\t\t\t    DesiredVelocity.Size2D() >= HasSpeedThreshold)\r\n\t\t\t{\r\n\t\t\t\tbSendInitialVelocityYawAngle = !bHasDesiredVelocity;\r\n\t\t\t\tbHasDesiredVelocity = true;\r\n\r\n\t\t\t\tSetDesiredVelocityYawAngle(UE_REAL_TO_FLOAT(UAlsVector::DirectionToAngleXY(DesiredVelocity)));\r\n\t\t\t}\r\n\t\t\telse\r\n\t\t\t{\r\n\t\t\t\tbSendInitialVelocityYawAngle = LocomotionState.bHasVelocity && !bHasDesiredVelocity;\r\n\t\t\t\tbHasDesiredVelocity = LocomotionState.bHasVelocity;\r\n\r\n\t\t\t\tSetDesiredVelocityYawAngle(LocomotionState.VelocityYawAngle);\r\n\t\t\t}\r\n\r\n"
+      },
+      {
+        "start": 1435,
+        "end": 1438,
+        "text": "\tLocomotionState.bMoving = (LocomotionState.bHasInput && LocomotionState.bHasVelocity) ||\r\n\t                          LocomotionState.Speed > Settings->MovingSpeedThreshold;\r\n}\r\n\r\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "bytes": 81843,
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 813,
+        "end": 827,
+        "text": "\tTRACE_CPUPROFILER_EVENT_SCOPE_STR(__FUNCTION__)\r\n\r\n\tif (!IsValid(Settings))\r\n\t{\r\n\t\treturn;\r\n\t}\r\n\r\n\tRefreshVelocityBlend();\r\n\tRefreshGroundedLean();\r\n}\r\n\r\nFVector3f UAlsAnimationInstance::GetVelocity() const\r\n{\r\n\treturn FVector3f{LocomotionState.RotationQuaternionWorldSpace.UnrotateVector(LocomotionState.VelocityWorldSpace)};\r\n}\r\n"
+      },
+      {
+        "start": 850,
+        "end": 880,
+        "text": "void UAlsAnimationInstance::RefreshVelocityBlend()\r\n{\r\n\t// Calculate and interpolate the velocity blend amounts. This value represents the velocity amount of\r\n\t// the character in each direction (normalized so that diagonals equal 0.5 for each direction) and is\r\n\t// used in a blend multi node to produce better directional blending than a standard blend space.\r\n\r\n\tauto& VelocityBlend{GroundedState.VelocityBlend};\r\n\r\n\tauto VelocityDirection{GetVelocity()};\r\n\tauto TargetVelocityBlend{FVector3f::ZeroVector};\r\n\r\n\tif (VelocityDirection.Normalize())\r\n\t{\r\n\t\tTargetVelocityBlend = VelocityDirection /\r\n\t\t                      (FMath::Abs(VelocityDirection.X) + FMath::Abs(VelocityDirection.Y) + FMath::Abs(VelocityDirection.Z));\r\n\t}\r\n\r\n\tif (VelocityBlend.bInitializationRequired || Settings->Grounded.VelocityBlendInterpolationHalfLife <= 0.0f)\r\n\t{\r\n\t\tVelocityBlend.bInitializationRequired = false;\r\n\r\n\t\tVelocityBlend.ForwardAmount = UAlsMath::Clamp01(TargetVelocityBlend.X);\r\n\t\tVelocityBlend.BackwardAmount = FMath::Abs(FMath::Clamp(TargetVelocityBlend.X, -1.0f, 0.0f));\r\n\t\tVelocityBlend.LeftAmount = FMath::Abs(FMath::Clamp(TargetVelocityBlend.Y, -1.0f, 0.0f));\r\n\t\tVelocityBlend.RightAmount = UAlsMath::Clamp01(TargetVelocityBlend.Y);\r\n\t}\r\n\telse\r\n\t{\r\n\t\t// We use UAlsMath::DamperExact() instead of FMath::FInterpTo(), because FMath::FInterpTo() is very sensitive to large\r\n\t\t// delta time, at low FPS interpolation becomes almost instant which causes issues with character pose during the stop.\r\n\r\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "bytes": 378291,
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 279,
+        "end": 287,
+        "text": "pub fn locomotion_movement_flags(has_input: bool, horizontal_speed: f32) -> (bool, bool) {\n    let (has_speed_threshold, moving_speed_threshold): (f32, f32) =\n        include!(\"../../settings/locomotion_thresholds.rs\");\n    let has_velocity = horizontal_speed >= has_speed_threshold;\n    (\n        has_velocity,\n        (has_input && has_velocity) || horizontal_speed > moving_speed_threshold,\n    )\n}\n"
+      },
+      {
+        "start": 2675,
+        "end": 2694,
+        "text": "fn snapshot_actual_velocity_system(\n    time: Res<Time<avian3d::prelude::Physics>>,\n    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &mut AlsCmcAdapterRuntime,\n        &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,\n) {\n    for (mut velocity, mut actual, position, mut runtime, locomotion, mut base) in &mut characters {\n        if let Some(collision_velocity) = runtime.grounded_collision_velocity.take() {\n            velocity.0 = collision_velocity;\n        } else if let Some(start) = runtime.grounded_move_start\n            && let Some(position) = position\n            && runtime.simulation_delta_seconds > 0.0 {\n            let support = base.as_deref().filter(|base| base.entity.is_some())\n                .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));\n            let relative = (position.0 - start - support * time.delta_secs()) / runtime.simulation_delta_seconds;\n            velocity.x = relative.x + support.x;\n            velocity.z = relative.z + support.z;\n        }\n        if *locomotion != LocomotionState::Grounded\n            && let Some(base) = base.as_deref_mut() {\n            *base = default();\n"
+      },
+      {
+        "start": 3796,
+        "end": 3808,
+        "text": "            runtime.grounded_movement_delta = None;\n            runtime.grounded_collision_velocity = Some(if *loco == LocomotionState::None { Vec3::ZERO }\n                else if lost_floor { final_velocity } else { final_velocity + support });\n            runtime.grounded_move_start = None;\n            base.pre_collision_velocity = Some(last_input);\n            let world_position = current_transform.translation;\n            *transform = current_transform;\n            transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n            commands.entity(entity).insert(Position(world_position));\n            motor.lin.boost.x = support.x - velocity.x;\n            motor.lin.boost.z = support.z - velocity.z;\n            motor.lin.acceleration.x = 0.0;\n            motor.lin.acceleration.z = 0.0;\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/actual_motion.rs",
+    "bytes": 18615,
+    "sha256": "6eabf0f3fa5ff0b9a9156a6078fc186e8e4ca93a095865270415373fac77397f",
+    "excerpts": [
+      {
+        "start": 80,
+        "end": 95,
+        "text": "        ),\n        With<AlsCharacter>,\n    >,\n    owners: Query<&ColliderOf>,\n    bodies: Query<&RigidBody>,\n) {\n    if virtual_time.is_paused() { return; }\n    for (entity, velocity, locomotion, base, movement_base, controller, current) in &mut characters {\n        let Ok(transform) = transforms.compute_global_transform(entity) else { continue; };\n        let mut next =\n            AlsActualMotion::from_physics_velocity(\n                locomotion_velocity(velocity.0, *locomotion, base), transform.rotation());\n        next.movement_base_snapshot = movement_base\n            .filter(|base| *locomotion == LocomotionState::Grounded && base.has_relative_rotation)\n            .and_then(|base| base.entity.map(|entity| (entity, base.rotation)))\n            .filter(|(entity, _)| {\n"
+      },
+      {
+        "start": 112,
+        "end": 135,
+        "text": "        let initial_yaw = world_forward_to_yaw(*transform.forward()).to_degrees();\n        let input = controller.map_or(Vec3::ZERO, |controller| controller.basis.desired_motion);\n        let input = if input.length_squared() < INPUT_DIRECTION_MIN_LENGTH_SQUARED {\n            Vec3::ZERO\n        } else {\n            input.normalize_or_zero()\n        };\n        next.has_input = input != Vec3::ZERO;\n        next.input_yaw_degrees = if next.has_input {\n            world_forward_to_yaw(input).to_degrees()\n        } else {\n            current.as_deref().map_or(initial_yaw, |previous| previous.input_yaw_degrees)\n        };\n        if !crate::als::motion::locomotion_movement_flags(next.has_input, next.horizontal_speed).0 {\n            next.velocity_yaw_degrees = current\n                .as_deref()\n                .map_or(initial_yaw, |previous| previous.velocity_yaw_degrees);\n        }\n        if let Some(mut current) = current {\n            *current = next;\n        } else {\n            commands.entity(entity).insert(next);\n        }\n    }\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/ab_als_provider.rs",
+    "bytes": 57065,
+    "sha256": "d18d819f16dd42f94873f08f8f1c7ad1d48dbb37f9e34f45883cb117fb3f8030",
+    "excerpts": [
+      {
+        "start": 126,
+        "end": 137,
+        "text": "fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool); 2] {\n    [\n        (\n            \"locomotion_state.b_moving\",\n            crate::als::motion::locomotion_movement_flags(has_input, speed).1,\n        ),\n        (\n            \"locomotion_state.b_moving_smooth\",\n            source_moving_smooth(has_input, speed),\n        ),\n    ]\n}\n"
+      },
+      {
+        "start": 430,
+        "end": 447,
+        "text": "                player.set_global_input_data(key, value);\n            }\n            for (key, value) in [\n                (\"grounded_state.movement_direction.b_forward\", forward),\n                (\"grounded_state.movement_direction.b_backward\", backward),\n                (\"grounded_state.movement_direction.b_left\", left),\n                (\"grounded_state.movement_direction.b_right\", right),\n                (\"locomotion_state.b_has_input\", has_input),\n                (\n                    \"movement_base.b_has_relative_location\",\n                    has_relative_location,\n                ),\n            ]\n            .into_iter()\n            .chain(source_locomotion_flags(has_input, motion.horizontal_speed))\n            {\n                player.set_global_input_data(key, value);\n            }\n"
+      }
+    ]
+  }
+]
