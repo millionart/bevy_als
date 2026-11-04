@@ -1,0 +1,966 @@
+{
+  "input_released": 139,
+  "stationary": 146,
+  "first_persistent_root_equality": 149,
+  "first_persistent_pole_equality": 150,
+  "last_observed": 198,
+  "differing": {
+    "rig_input": [
+      102
+    ],
+    "rig_source": [
+      101,
+      102
+    ],
+    "root": [
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148
+    ],
+    "root_gait": [
+      102
+    ],
+    "pole_states": [
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148,
+      149
+    ],
+    "pole_calls": [
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148,
+      149
+    ]
+  },
+  "changed_bones": [
+    {
+      "query": 95,
+      "bones": []
+    },
+    {
+      "query": 96,
+      "bones": []
+    },
+    {
+      "query": 97,
+      "bones": []
+    },
+    {
+      "query": 98,
+      "bones": []
+    },
+    {
+      "query": 99,
+      "bones": []
+    },
+    {
+      "query": 100,
+      "bones": []
+    },
+    {
+      "query": 101,
+      "bones": [
+        "VB foot_l",
+        "VB foot_r",
+        "VB hand_l",
+        "VB hand_l_to_hand_r",
+        "VB hand_l_to_ik_hand_gun",
+        "VB hand_r_to_ik_hand_gun",
+        "VB ik_hand_l",
+        "VB ik_hand_r",
+        "ball_l",
+        "ball_r",
+        "calf_l",
+        "calf_r",
+        "calf_twist_01_l",
+        "calf_twist_01_r",
+        "clavicle_l",
+        "clavicle_r",
+        "foot_l",
+        "foot_r",
+        "hand_l",
+        "hand_r",
+        "head",
+        "ik_foot_l",
+        "ik_foot_r",
+        "ik_hand_gun",
+        "ik_hand_l",
+        "ik_hand_r",
+        "index_01_l",
+        "index_01_r",
+        "index_02_l",
+        "index_02_r",
+        "index_03_l",
+        "index_03_r",
+        "lowerarm_l",
+        "lowerarm_r",
+        "lowerarm_twist_01_l",
+        "lowerarm_twist_01_r",
+        "middle_01_l",
+        "middle_01_r",
+        "middle_02_l",
+        "middle_02_r",
+        "middle_03_l",
+        "middle_03_r",
+        "neck_01",
+        "pelvis",
+        "pinky_01_l",
+        "pinky_01_r",
+        "pinky_02_l",
+        "pinky_02_r",
+        "pinky_03_l",
+        "pinky_03_r",
+        "ring_01_l",
+        "ring_01_r",
+        "ring_02_l",
+        "ring_02_r",
+        "ring_03_l",
+        "ring_03_r",
+        "spine_01",
+        "spine_02",
+        "spine_03",
+        "thigh_l",
+        "thigh_r",
+        "thigh_twist_01_l",
+        "thigh_twist_01_r",
+        "thumb_01_l",
+        "thumb_01_r",
+        "thumb_02_l",
+        "thumb_02_r",
+        "thumb_03_l",
+        "thumb_03_r",
+        "upperarm_l",
+        "upperarm_r",
+        "upperarm_twist_01_l",
+        "upperarm_twist_01_r"
+      ]
+    },
+    {
+      "query": 102,
+      "bones": [
+        "VB foot_r",
+        "VB hand_l",
+        "VB hand_l_to_hand_r",
+        "VB hand_l_to_ik_hand_gun",
+        "VB hand_r_to_ik_hand_gun",
+        "VB ik_hand_l",
+        "VB ik_hand_r",
+        "ball_l",
+        "ball_r",
+        "calf_l",
+        "calf_r",
+        "calf_twist_01_l",
+        "clavicle_r",
+        "foot_l",
+        "foot_r",
+        "hand_r",
+        "ik_foot_l",
+        "ik_foot_r",
+        "ik_hand_gun",
+        "ik_hand_l",
+        "index_01_r",
+        "index_02_r",
+        "index_03_r",
+        "lowerarm_r",
+        "lowerarm_twist_01_r",
+        "middle_01_r",
+        "middle_02_l",
+        "middle_02_r",
+        "middle_03_l",
+        "middle_03_r",
+        "pelvis",
+        "pinky_01_l",
+        "pinky_01_r",
+        "pinky_02_l",
+        "pinky_02_r",
+        "pinky_03_l",
+        "pinky_03_r",
+        "ring_01_r",
+        "ring_02_r",
+        "ring_03_l",
+        "ring_03_r",
+        "spine_03",
+        "thigh_l",
+        "thigh_r",
+        "thigh_twist_01_l",
+        "thumb_01_l",
+        "thumb_01_r",
+        "thumb_02_l",
+        "thumb_02_r",
+        "thumb_03_l",
+        "thumb_03_r",
+        "upperarm_l",
+        "upperarm_r",
+        "upperarm_twist_01_r"
+      ]
+    },
+    {
+      "query": 103,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 104,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 105,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 106,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 107,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 108,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 109,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 110,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 111,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 112,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 113,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 114,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 115,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 116,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_r"
+      ]
+    },
+    {
+      "query": 117,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 118,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 119,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 120,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 121,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 122,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 123,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 124,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 125,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 126,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 127,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 128,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 129,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 130,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 131,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 132,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 133,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 134,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 135,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 136,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 137,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 138,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 139,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 140,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 141,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 142,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 143,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 144,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 145,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 146,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 147,
+      "bones": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r"
+      ]
+    },
+    {
+      "query": 148,
+      "bones": [
+        "calf_l",
+        "foot_l"
+      ]
+    },
+    {
+      "query": 149,
+      "bones": []
+    },
+    {
+      "query": 150,
+      "bones": []
+    },
+    {
+      "query": 151,
+      "bones": []
+    },
+    {
+      "query": 152,
+      "bones": []
+    },
+    {
+      "query": 153,
+      "bones": []
+    },
+    {
+      "query": 154,
+      "bones": []
+    },
+    {
+      "query": 155,
+      "bones": []
+    },
+    {
+      "query": 156,
+      "bones": []
+    },
+    {
+      "query": 157,
+      "bones": []
+    },
+    {
+      "query": 158,
+      "bones": []
+    },
+    {
+      "query": 159,
+      "bones": []
+    },
+    {
+      "query": 160,
+      "bones": []
+    },
+    {
+      "query": 161,
+      "bones": []
+    },
+    {
+      "query": 162,
+      "bones": []
+    },
+    {
+      "query": 163,
+      "bones": []
+    },
+    {
+      "query": 164,
+      "bones": []
+    },
+    {
+      "query": 165,
+      "bones": []
+    },
+    {
+      "query": 166,
+      "bones": []
+    },
+    {
+      "query": 167,
+      "bones": []
+    },
+    {
+      "query": 168,
+      "bones": []
+    },
+    {
+      "query": 169,
+      "bones": []
+    },
+    {
+      "query": 170,
+      "bones": []
+    },
+    {
+      "query": 171,
+      "bones": []
+    },
+    {
+      "query": 172,
+      "bones": []
+    },
+    {
+      "query": 173,
+      "bones": []
+    },
+    {
+      "query": 174,
+      "bones": []
+    },
+    {
+      "query": 175,
+      "bones": []
+    },
+    {
+      "query": 176,
+      "bones": []
+    },
+    {
+      "query": 177,
+      "bones": []
+    },
+    {
+      "query": 178,
+      "bones": []
+    },
+    {
+      "query": 179,
+      "bones": []
+    },
+    {
+      "query": 180,
+      "bones": []
+    },
+    {
+      "query": 181,
+      "bones": []
+    },
+    {
+      "query": 182,
+      "bones": []
+    },
+    {
+      "query": 183,
+      "bones": []
+    },
+    {
+      "query": 184,
+      "bones": []
+    },
+    {
+      "query": 185,
+      "bones": []
+    },
+    {
+      "query": 186,
+      "bones": []
+    },
+    {
+      "query": 187,
+      "bones": []
+    },
+    {
+      "query": 188,
+      "bones": []
+    },
+    {
+      "query": 189,
+      "bones": []
+    },
+    {
+      "query": 190,
+      "bones": []
+    },
+    {
+      "query": 191,
+      "bones": []
+    },
+    {
+      "query": 192,
+      "bones": []
+    },
+    {
+      "query": 193,
+      "bones": []
+    },
+    {
+      "query": 194,
+      "bones": []
+    },
+    {
+      "query": 195,
+      "bones": []
+    },
+    {
+      "query": 196,
+      "bones": []
+    },
+    {
+      "query": 197,
+      "bones": []
+    },
+    {
+      "query": 198,
+      "bones": []
+    }
+  ]
+}
