@@ -1,0 +1,18 @@
+{
+  "after_gap_m": 0.023785114288330078,
+  "before_gap_m": 0.023785114288330078,
+  "floor": "AuditWalkOffPlatform",
+  "floor_center": 2.900230646133423,
+  "impact": 2.0,
+  "initial_position": [
+    -13.667499542236328,
+    2.924015760421753,
+    -15.0
+  ],
+  "position": [
+    -13.667499542236328,
+    2.924015760421753,
+    -15.0
+  ],
+  "source_gap_m": null
+}
