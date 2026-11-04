@@ -1,0 +1,88 @@
+[
+  {
+    "key": "source:Private/AlsCharacterMovementComponent.cpp",
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 521,
+        "end": 557,
+        "text": "\t\t\t\t\t}\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tAdjustFloorHeight();\n\t\t\t\tSetBaseFromFloor(CurrentFloor);\n\t\t\t}\n\n\t\t\t// Always resolve penetration, even if the floor is walkable.\n\n\t\t\tif ((bAllowImprovedPenetrationAdjustment || !CurrentFloor.IsWalkableFloor()) &&\n\t\t\t    CurrentFloor.HitResult.bStartPenetrating && remainingTime <= 0.f)\n\t\t\t{\n\t\t\t\t// The floor check failed because it started in penetration\n\t\t\t\t// We do not want to try to move downward because the downward sweep failed, rather we'd like to try to pop out of the floor.\n\t\t\t\tFHitResult Hit(CurrentFloor.HitResult);\n\t\t\t\tHit.TraceEnd = Hit.TraceStart + MAX_FLOOR_DIST * -GetGravityDirection();\n\t\t\t\tconst FVector RequestedAdjustment = GetPenetrationAdjustment(Hit);\n\t\t\t\tResolvePenetration(RequestedAdjustment, Hit, UpdatedComponent->GetComponentQuat());\n\t\t\t\tbForceNextFloorCheck = true;\n\t\t\t}\n\n\t\t\t// check if just entered water\n\t\t\tif ( IsSwimming() )\n\t\t\t{\n\t\t\t\tStartSwimming(OldLocation, Velocity, timeTick, remainingTime, Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\t// See if we need to start falling.\n\t\t\tif (!CurrentFloor.IsWalkableFloor() && !CurrentFloor.HitResult.bStartPenetrating)\n\t\t\t{\n\t\t\t\tconst bool bOldMovementBaseValid = OldMovementBaseInterfaceData && OldMovementBaseInterfaceData->IsValid();\n\t\t\t\tconst bool bMustJump = bJustTeleported || bZeroDelta || (!bOldMovementBaseValid || (!CollisionEnabledHasQuery(OldMovementBaseInterfaceData->GetBodyInstanceOwner()->GetCollisionEnabled()) && MovementBaseUtility::IsDynamicBase(OldMovementBaseInterfaceData)));\n\t\t\t\tif ((bMustJump || !bCheckedFall) && CheckFall(OldFloor, CurrentFloor.HitResult, Delta, OldLocation, remainingTime, timeTick, Iterations, bMustJump) )\n\t\t\t\t{\n\t\t\t\t\treturn;\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 5427,
+        "end": 5457,
+        "text": "void UCharacterMovementComponent::StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc)\n{\n\t// start falling \n\tconst float DesiredDist = Delta.Size();\n\tconst float ActualDist = ProjectToGravityFloor(UpdatedComponent->GetComponentLocation() - subLoc).Size();\n\tremainingTime = (DesiredDist < UE_KINDA_SMALL_NUMBER)\n\t\t\t\t\t? 0.f\n\t\t\t\t\t: remainingTime + timeTick * (1.f - FMath::Min(1.f,ActualDist/DesiredDist));\n\n\tif ( IsMovingOnGround() )\n\t{\n\t\t// This is to catch cases where the first frame of PIE is executed, and the\n\t\t// level is not yet visible. In those cases, the player will fall out of the\n\t\t// world... So, don't set MOVE_Falling straight away.\n\t\tif ( !GIsEditor || (GetWorld()->HasBegunPlay() && (GetWorld()->GetTimeSeconds() >= 1.f)) )\n\t\t{\n\t\t\tSetMovementMode(MOVE_Falling); //default behavior if script didn't change physics\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Make sure that the floor check code continues processing during this delay.\n\t\t\tbForceNextFloorCheck = true;\n\t\t}\n\t}\n\tStartNewPhysics(remainingTime,Iterations);\n}\n\n\nvoid UCharacterMovementComponent::RevertMove(const FVector& OldLocation, FMovementBaseInterfaceData* OldMovementBaseInterfaceData, const FVector& PreviousBaseLocation, const FFindFloorResult& OldFloor, bool bFailMove)\n{\n\t//UE_LOGF(LogCharacterMovement, Log, \"RevertMove from %f %f %f to %f %f %f\", CharacterOwner->Location.X, CharacterOwner->Location.Y, CharacterOwner->Location.Z, OldLocation.X, OldLocation.Y, OldLocation.Z);\n"
+      }
+    ]
+  },
+  {
+    "key": "Tnua/src/builtins/walk.rs",
+    "sha256": "4fca71b82733286bab728d0ff3de5810ee9e393aab7736544dce97d1b85b4e7d",
+    "excerpts": [
+      {
+        "start": 407,
+        "end": 424,
+        "text": "                            (should_disable_due_to_slipping, &sensors.ground.output)\n                        {\n                            // not doing the jump calculation here\n                            let spring_offset =\n                                config.float_height - sensor_output.proximity.adjust_precision();\n                            memory.standing_offset =\n                                -spring_offset * ctx.up_direction.adjust_precision();\n                            break 'upward_impulse Self::spring_force(\n                                &TnuaBasisAccess {\n                                    input: self,\n                                    config,\n                                    memory,\n                                },\n                                &ctx,\n                                spring_offset,\n                            );\n                        } else {\n                            memory.airborne_timer = Some(Timer::from_seconds(\n"
+      },
+      {
+        "start": 623,
+        "end": 646,
+        "text": "impl TnuaBasisWithSpring for TnuaBuiltinWalk {\n    fn spring_force(\n        access: &TnuaBasisAccess<Self>,\n        ctx: &TnuaBasisContext,\n        spring_offset: Float,\n    ) -> TnuaVelChange {\n        let spring_force: Float = spring_offset * access.config.spring_strength;\n\n        let relative_velocity = access\n            .memory\n            .effective_velocity\n            .dot(ctx.up_direction.adjust_precision())\n            - access.memory.vertical_velocity;\n\n        let gravity_compensation = -ctx.tracker.gravity;\n\n        let dampening_boost = relative_velocity * access.config.spring_dampening;\n\n        TnuaVelChange {\n            acceleration: ctx.up_direction.adjust_precision() * spring_force + gravity_compensation,\n            boost: ctx.up_direction.adjust_precision() * -dampening_boost,\n        }\n    }\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Tnua/avian3d/src/lib.rs",
+    "sha256": "08859d437f9406e975c1acd88da839e77121bbe0422bc7aec4075b299d5fdbe9",
+    "excerpts": [
+      {
+        "start": 419,
+        "end": 452,
+        "text": "fn apply_motors_system(\n    mut query: Query<(\n        &TnuaMotor,\n        Forces,\n        Option<&TnuaToggle>,\n        Option<&TnuaGravity>,\n    )>,\n) {\n    for (motor, mut forces, tnua_toggle, tnua_gravity) in query.iter_mut() {\n        match tnua_toggle.copied().unwrap_or_default() {\n            TnuaToggle::Disabled | TnuaToggle::SenseOnly => {\n                continue;\n            }\n            TnuaToggle::Enabled => {}\n        }\n\n        if motor.lin.boost.is_finite() {\n            *forces.linear_velocity_mut() += motor.lin.boost;\n        }\n        if motor.lin.acceleration.is_finite() {\n            forces.apply_linear_acceleration(motor.lin.acceleration);\n        }\n        if motor.ang.boost.is_finite() {\n            *forces.angular_velocity_mut() += motor.ang.boost;\n        }\n        if motor.ang.acceleration.is_finite() {\n            forces.apply_torque(motor.ang.acceleration);\n        }\n        if let Some(gravity) = tnua_gravity {\n            forces.apply_linear_acceleration(gravity.0);\n        }\n    }\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 3817,
+        "end": 3834,
+        "text": "            center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };\n        runtime.grounded_move_start = Some(center);\n        let world_position = next_y.filter(|height| *height > center.y).map_or(advanced, |height| advanced.with_y(height));\n        transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n        commands.entity(entity).insert(Position(world_position));\n        let remaining_velocity = remaining.unwrap_or(delta) / time.delta_secs();\n        motor.lin.boost.x = remaining_velocity.x - velocity.x;\n        motor.lin.boost.z = remaining_velocity.z - velocity.z;\n        motor.lin.acceleration.x = 0.0;\n        motor.lin.acceleration.z = 0.0;\n        if next_y.is_none() { continue; }\n        motor.lin.boost.y = -velocity.y;\n        motor.lin.acceleration.y = -gravity.value.y;\n        *margin = SpeculativeMargin::ZERO;\n    }\n}\n\npub fn character_blocks_collider(character: Entity, candidate: Entity,\n"
+      },
+      {
+        "start": 3981,
+        "end": 3987,
+        "text": "        let has_animation_root_velocity = std::mem::take(&mut runtime.has_animation_root_velocity);\n        if let Some(mut source_velocity) = runtime.grounded_collision_velocity.take() {\n            if *current == LocomotionState::Air && has_animation_root_velocity {\n                source_velocity.y = velocity.y;\n            }\n            velocity.0 = source_velocity;\n        }\n"
+      },
+      {
+        "start": 4066,
+        "end": 4105,
+        "text": "                    commands.entity(entity).insert((Position(world_position), next_transform));\n                    velocity.0.y = 0.0;\n                    floor_supported = true;\n                    floor_entity = Some(floor);\n                }\n            }\n        }\n        let airborne = TnuaBuiltinWalk::displacement(&basis).is_none()\n            || jumping || validated_floor.is_none();\n        let landed_on_contact = airborne && validated_floor.is_some() && collisions.collisions_with(entity)\n            .any(|contact| resolved_walkable_contact(contact, entity));\n        let capsule_contact = airborne && !landed_on_contact && !floor_supported\n            && collisions.collisions_with(entity).any(|contact| {\n                contact.flags.contains(ContactPairFlags::GENERATE_CONSTRAINTS)\n                    && contact.manifolds.iter().any(|manifold| {\n                        let normal = if contact.collider1 == entity { -manifold.normal } else { manifold.normal };\n                        normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)\n                    })\n            });\n        let landed_on_capsule = airborne && !landed_on_contact && !floor_supported\n            && (capsule_contact || sweep_contact)\n            && params_assets.get(handle.id()).is_some_and(|params| {\n                let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * scale.y;\n                let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);\n                validated_floor.is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE\n                        && impact < position.y - half + radius)\n            });\n        let target = if airborne && !landed_on_contact && !floor_supported && !landed_on_capsule {\n            LocomotionState::Air\n        } else {\n            LocomotionState::Grounded\n        };\n        if *current != target && request.locomotion_state.is_none() {\n            info!(\n                \"[MOTION] entity={entity:?} locomotion sync {:?} -> {:?}\",\n                current, target\n            );\n            transitions.write(StateTransitionEvent {\n                entity,\n                dimension: Dimension::LocomotionState,\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/source_physics_timing.rs",
+    "sha256": "dd64728fead8ca2425fb62581b547afc45a9f5aa41e78b14c34d1465d7c97f9a",
+    "excerpts": [
+      {
+        "start": 12,
+        "end": 13,
+        "text": "use bevy_animation_graph::core::plugin::AnimationGraphSet;\n\n"
+      },
+      {
+        "start": 81,
+        "end": 97,
+        "text": "fn integrate_character_velocity(\n    frame_time: Res<Time<Virtual>>,\n    physics_time: Res<Time<Physics>>,\n    mut characters: Query<(&mut VelocityIntegrationData, &LocomotionState, Ref<Collider>), With<SourceCharacterFullFrame>>,\n) {\n    if physics_time.delta().is_zero() || frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {\n        return;\n    }\n    let ratio = frame_time.delta_secs() / physics_time.delta_secs();\n    for (mut integration, locomotion, collider) in &mut characters {\n        if *locomotion == LocomotionState::Grounded && collider.is_changed() {\n            integration.linear_increment.x *= ratio;\n            integration.linear_increment.z *= ratio;\n        } else {\n            integration.linear_increment *= ratio;\n        }\n        integration.angular_increment *= ratio;\n"
+      }
+    ]
+  }
+]
