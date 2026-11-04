@@ -4133,6 +4133,12 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.568 Walking 前向初穿透无法脱困时的速度反馈。依赖.13初穿透与.552无进展边界。站稳后把角色放在两块上部挡墙之间，底部仍有宽平地，核实际原生初穿透/速度保留与目标位置及末速度。用稍宽正时间命中及无墙对照。开始2026-11-04 23:27:32 +0800，预估结束2026-11-04 23:57:32 +0800。参考567约7分钟，几何需先证前向卡死与地面有效，估30分钟。截图0，性能暂停。
+  - source/static：默认站立/蹲姿均可走下边缘已有.13原生和运行证据。fresh MoveAlongFloor初穿透经SafeMove恢复及Slide仍穿透时OnCharacterStuckInGeometry置bJustTeleported；ALS跳过实际位移速度回写。目标forward忽略初穿透且多步总由位移反馈，候选先查与D41地面不走、D305无进展迭代差异。
+  - 23:30 runtime Gate 前：已查当前、归档和Git历史。旧BF132 R5E实现过可恢复前向穿透，D41是FindFloor不可走，D305是普通阻挡末循环。三组目标探针已编译，实测前置平地、两侧重叠、正时间命中及无墙，确认源guard与实际速度是否独立。
+  - runtime Gate 后：55cm缝两侧均初穿透，原生记录两零时Hit及脱困失败，bJustTeleported=true、位置未变、保留首步6.25m/s。目标同首步输入、同位置及有效地面，发布0。64cm控制原生不触发保护、两端末速均低于0.25m/s；无墙两端水平位置和末速一致。三组功能Gate通过。
+  - 完成 Gate `PASS_WALKING_STUCK_RETAINS_PLANNED_VELOCITY`。新增D314/P2，累计310（143 P2、167 P3）。watchdog、396身份/六库、13份原报告解压哈希、90份暂存证据及历史引用通过。实际结束2026-11-04 23:33:06 +0800，实耗334秒，偏差-1466秒；已具Walking双步夹具和可证初穿透时，同类三组可按6–10分钟估计。证据 `docs/audit/bf144/568/`。截图0，性能暂停。
+
 - [x] BF144.567 Walking 换台后旧台晚到位移的消费者。依赖566首子步换台。延长新台使100ms双步后仍Walking，在已完成移动后横移旧台20cm；同夹具控制旧台不动。核源MovementUpdated绑定与目标post-physics跟随前后、最终绑定和位移。历史.10确认一般切换/失效，D36是起跳前旧台跟随，D313是走离速度。开始2026-11-04 23:20:21 +0800，预估结束2026-11-04 23:50:21 +0800。依据566约6分钟，增加late回调和阶段控制估30分钟。截图0，性能暂停。
   - source/static：fresh ALS每步SetBaseFromFloor；UE Character换基座立即SaveBaseLocation，MovementUpdated在CMC移动完成后。目标post-physics follow在locomotion_state_sync前，前者按旧base.entity，后者重查floor改绑。
   - 23:23 runtime Gate 前：按历史和Git复核未找到已跨台仍Grounded且旧台晚到位移的记录。两组仅在已完成Walking事务后改变旧台Z 20cm，目标确认编译通过，原生隔离包构建中。
@@ -4777,6 +4783,10 @@
   - .465a时间：开始2026-11-02 06:52:00、预估结束07:32:00、实际结束07:26:24 +0800，实耗34:24、偏差−05:36；结果PASS。含4次package构建38/66/55/54秒、实际两319/1276 states、getter与类型guard两消融/字节恢复及完整旧域/Git；首mutation/build重叠已由全包消融源码一致性核验，最终恢复按完整顺序执行。相同opaque struct无反射成员且已具work memory的诊断能力按约35分钟参考。父465本轮source事实与读数前置尚开，下一按真实native state恢复数学等价审计，不填造动态数据。
 
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D314 / P2 — Walking 前向穿透脱困失败时，把本步计算速度改写为零。
+  - Source：MoveAlongFloor 扫掠和滑移仍穿透时，OnCharacterStuckInGeometry 设置 bJustTeleported，ALS 跳过位置差速度回写。Target：前向阻挡停在原点，多步事务用实际位移除以步时覆盖速度。
+  - 反例：100ms 帧在55cm缝两侧初穿透各2.5cm，地面有效，两端位置不变且保持 Walking。源保留首步6.25m/s，目标发布0。64cm正时命中不触发源保护，无墙两端水平一致。D41覆盖地面不可走的穿透，D305覆盖无进展后的额外迭代。证据 `docs/audit/bf144/568/`。
 
 - [ ] BF144-D313 / P2 — Walking 子步选中新基座后，离地速度与物理后跟随仍使用旧台。
   - Source：每个 Walking 子步在可走 floor 上调用 SetBaseFromFloor，进入 Falling 时继承最后绑定基座的速度。Target：子步仅返回 floor 是否有效，外层离地时加上整帧开始的 support_velocity。

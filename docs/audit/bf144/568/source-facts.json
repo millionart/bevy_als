@@ -1,0 +1,58 @@
+[
+  {
+    "key": "source:Private/AlsCharacterMovementComponent.cpp",
+    "bytes": 40375,
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 365,
+        "end": 382,
+        "text": "\r\n\tbJustTeleported = false;\r\n\tbool bCheckedFall = false;\r\n\tbool bTriedLedgeMove = false;\r\n\tfloat remainingTime = DeltaTime;\r\n\r\n\tconst EMovementMode StartingMovementMode = MovementMode;\r\n\tconst uint8 StartingCustomMovementMode = CustomMovementMode;\r\n\r\n\t// Perform the move\r\n\twhile ( (remainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) && CharacterOwner && (CharacterOwner->GetController() || bRunPhysicsWithNoController || HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocity() || (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)) )\r\n\t{\r\n\t\tIterations++;\r\n\t\tbJustTeleported = false;\r\n\t\tconst float timeTick = GetSimulationTimeStep(remainingTime, Iterations);\r\n\t\tremainingTime -= timeTick;\r\n\r\n#if UE_WITH_REMOTE_OBJECT_HANDLE\r\n"
+      },
+      {
+        "start": 564,
+        "end": 587,
+        "text": "\t\t// Allow overlap events and such to change physics state and velocity\r\n\t\tif (IsMovingOnGround())\r\n\t\t{\r\n\t\t\t// Make velocity reflect actual move\r\n\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\r\n\t\t\t{\r\n\t\t\t\t// TODO Start of custom ALS code block.\r\n\r\n\t\t\t\tPrePenetrationAdjustmentVelocity = MoveVelocity;\r\n\t\t\t\tbPrePenetrationAdjustmentVelocityValid = true;\r\n\r\n\t\t\t\t// TODO End of custom ALS code block.\r\n\r\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\r\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\r\n\t\t\t\tMaintainHorizontalGroundVelocity();\r\n\t\t\t}\r\n\t\t}\r\n\r\n\t\t// If we didn't move at all this iteration then abort (since future iterations will also be stuck).\r\n\t\tif (UpdatedComponent->GetComponentLocation() == OldLocation)\r\n\t\t{\r\n\t\t\tremainingTime = 0.f;\r\n\t\t\tbreak;\r\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "bytes": 545515,
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 3641,
+        "end": 3647,
+        "text": "bool UCharacterMovementComponent::ResolvePenetrationImpl(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotation)\n{\n\t// If movement occurs, mark that we teleported, so we don't incorrectly adjust velocity based on a potentially very different movement than our movement direction.\n\tbJustTeleported |= Super::ResolvePenetrationImpl(Adjustment, Hit, NewRotation);\n\treturn bJustTeleported;\n}\n\n"
+      },
+      {
+        "start": 5513,
+        "end": 5577,
+        "text": "void UCharacterMovementComponent::OnCharacterStuckInGeometry(const FHitResult* Hit)\n{\n\tif (CharacterMovementCVars::StuckWarningPeriod >= 0)\n\t{\n\t\tconst UWorld* MyWorld = GetWorld();\n\t\tconst float RealTimeSeconds = MyWorld->GetRealTimeSeconds();\n\t\tif ((RealTimeSeconds - LastStuckWarningTime) >= CharacterMovementCVars::StuckWarningPeriod)\n\t\t{\n\t\t\tLastStuckWarningTime = RealTimeSeconds;\n\t\t\tif (Hit == nullptr)\n\t\t\t{\n\t\t\t\tUE_LOGF(LogCharacterMovement, Log, \"%ls is stuck and failed to move! (%d other events since notify)\", *CharacterOwner->GetName(), StuckWarningCountSinceNotify);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tUE_LOGF(LogCharacterMovement, Log, \"%ls is stuck and failed to move! Velocity: X=%3.2f Y=%3.2f Z=%3.2f Location: X=%3.2f Y=%3.2f Z=%3.2f Normal: X=%3.2f Y=%3.2f Z=%3.2f PenetrationDepth:%.3f Actor:%ls Component:%ls BoneName:%ls (%d other events since notify)\",\n\t\t\t\t\t   *GetNameSafe(CharacterOwner),\n\t\t\t\t\t   Velocity.X, Velocity.Y, Velocity.Z,\n\t\t\t\t\t   Hit->Location.X, Hit->Location.Y, Hit->Location.Z,\n\t\t\t\t\t   Hit->Normal.X, Hit->Normal.Y, Hit->Normal.Z,\n\t\t\t\t\t   Hit->PenetrationDepth,\n\t\t\t\t\t   *Hit->HitObjectHandle.GetName(),\n\t\t\t\t\t   *GetNameSafe(Hit->GetComponent()),\n\t\t\t\t\t   Hit->BoneName.IsValid() ? *Hit->BoneName.ToString() : TEXT(\"None\"),\n\t\t\t\t\t   StuckWarningCountSinceNotify\n\t\t\t\t\t   );\n\t\t\t}\n\t\t\tStuckWarningCountSinceNotify = 0;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tStuckWarningCountSinceNotify += 1;\n\t\t}\n\t}\n\n\t// Don't update velocity based on our (failed) change in position this update since we're stuck.\n\tbJustTeleported = true;\n}\n\nvoid UCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult)\n{\n\tif (!CurrentFloor.IsWalkableFloor())\n\t{\n\t\treturn;\n\t}\n\n\t// Move along the current floor\n\tconst FVector Delta = ProjectToGravityFloor(InVelocity) * DeltaSeconds;\n\tFHitResult Hit(1.f);\n\tFVector RampVector = ComputeGroundMovementDelta(Delta, CurrentFloor.HitResult, CurrentFloor.bLineTrace);\n\tSafeMoveUpdatedComponent(RampVector, UpdatedComponent->GetComponentQuat(), true, Hit);\n\tfloat LastMoveTimeSlice = DeltaSeconds;\n\t\n\tif (Hit.bStartPenetrating)\n\t{\n\t\t// Allow this hit to be used as an impact we can deflect off, otherwise we do nothing the rest of the update and appear to hitch.\n\t\tHandleImpact(Hit);\n\t\tSlideAlongSurface(Delta, 1.f, Hit.Normal, Hit, true);\n\n\t\tif (Hit.bStartPenetrating)\n\t\t{\n\t\t\tOnCharacterStuckInGeometry(&Hit);\n\t\t}\n\t}\n\telse if (Hit.IsValidBlockingHit())\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "bytes": 378291,
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 3513,
+        "end": 3540,
+        "text": "    let (direction, distance) = Dir3::new_and_length(delta).ok()?;\n    let filter = SpatialQueryFilter::from_excluded_entities([entity]);\n    let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);\n    let can_step_up = |candidate| {\n        let body = candidates.get(candidate).ok().and_then(|parts| parts.2).map_or(candidate, |collider| collider.body);\n        step_permissions.get(candidate).or_else(|_| step_permissions.get(body)).map_or(true, |permission| permission.allows_step_up)\n    };\n    let mut forward_config = ShapeCastConfig {\n        ignore_origin_penetration: true,\n        ..ShapeCastConfig::from_max_distance(distance)\n    };\n    let clearance = ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;\n    let mut raised = center;\n    let mut remaining_delta = delta;\n    let mut initial_floor_y = None;\n    let mut result = (center, None, None);\n    if let Some(hit) = spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts) {\n        let advance = *direction * movement_sweep_travel(distance, hit.distance);\n        raised += advance;\n        remaining_delta -= advance;\n        forward_config.max_distance = remaining_delta.length();\n        result.0 = raised;\n        let slide_normal = Vec3::new(hit.normal1.x, 0.0, hit.normal1.z).normalize_or_zero();\n        let slide = remaining_delta - slide_normal * remaining_delta.dot(slide_normal);\n        result.1 = Some(slide);\n        if !can_step_up(hit.entity) {\n            return Some(result);\n        }\n"
+      },
+      {
+        "start": 3627,
+        "end": 3643,
+        "text": "    let mut last_input = velocity;\n    let mut lost_floor = false;\n    let (velocity, steps, _, remaining_time) = crate::als::dynamics::simulate_grounded_motion_until_mode_change(\n        velocity, desired_motion, max_speed, dynamics, cmc, friction, delta, |step_velocity, step_seconds| {\n            last_input = step_velocity;\n            let center = transform.translation;\n            let requested = step_velocity * step_seconds;\n            let Some((advanced, remaining, next_y)) = grounded_movement_transaction(spatial, capsule, center,\n                transform.rotation, half, radius, requested, cmc, LocomotionState::Grounded, entity, candidates, step_permissions)\n                else { return (step_velocity, Vec3::ZERO, true) };\n            transform.translation = advanced + remaining.unwrap_or(requested);\n            if let Some(next_y) = next_y && next_y > center.y { transform.translation.y = next_y; }\n            lost_floor = !adjust_walking_floor_height(spatial, capsule, &mut transform, half, radius, cmc, entity, candidates);\n            let applied = transform.translation - center;\n            (applied.with_y(0.0) / step_seconds, applied, !lost_floor)\n        });\n    (transform, velocity, steps, remaining_time, lost_floor, last_input)\n"
+      },
+      {
+        "start": 3796,
+        "end": 3801,
+        "text": "            runtime.grounded_movement_delta = None;\n            runtime.grounded_collision_velocity = Some(if *loco == LocomotionState::None { Vec3::ZERO }\n                else if lost_floor { final_velocity } else { final_velocity + support });\n            runtime.grounded_move_start = None;\n            base.pre_collision_velocity = Some(last_input);\n            let world_position = current_transform.translation;\n"
+      }
+    ]
+  }
+]

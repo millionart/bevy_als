@@ -1,0 +1,31 @@
+{
+  "actor": [
+    -13.479999542236328,
+    2.9214999675750732,
+    -15.0
+  ],
+  "base": "AuditWalkOffPlatform",
+  "mode": "Grounded",
+  "overlaps": [
+    "AuditStuckLeft",
+    "AuditStuckRight"
+  ],
+  "raw": {
+    "distance": 0.0,
+    "entity": "AuditStuckLeft",
+    "normal": [
+      1.0,
+      0.0,
+      0.0
+    ]
+  },
+  "used": {
+    "distance": 0.0,
+    "entity": "AuditStuckRight",
+    "normal": [
+      -1.0,
+      0.0,
+      0.0
+    ]
+  }
+}
