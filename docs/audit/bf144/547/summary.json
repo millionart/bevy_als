@@ -1,0 +1,5293 @@
+{
+  "gate": "PASS_STEPUP_GEOMETRIC_EDGE_FACE_QUALIFIES_POSITIVE_SLIDE",
+  "supplements": [
+    "BF144-D10"
+  ],
+  "new_differences": 0,
+  "total_differences": 299,
+  "ordinal": 40,
+  "native": {
+    "upper": {
+      "hits": [
+        {
+          "component": "AuditStepFin",
+          "penetrating": false,
+          "time": 0.17896077036857605,
+          "location_cm": {
+            "x": -1391.3762256000373,
+            "y": -1500,
+            "z": 92.15
+          },
+          "impact_point_cm": {
+            "x": -1386.4952068328857,
+            "y": -1474.000695347786,
+            "z": 18.000378608703613
+          },
+          "trace_start_cm": {
+            "x": -1398,
+            "y": -1500,
+            "z": 92.15
+          },
+          "trace_end_cm": {
+            "x": -1366.7499995343387,
+            "y": -1500,
+            "z": 92.15
+          },
+          "normal": {
+            "x": -0.16270062728781887,
+            "y": -0.8666435097880023,
+            "z": 0.4716540393365495
+          },
+          "impact_normal": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "normals_equal": false,
+          "edge_within_at_hit": true,
+          "move_stop_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 92.15
+          },
+          "edge_within_at_move_stop": true,
+          "floor_at_move_stop": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 0.3985753059387207,
+            "component": "AuditStepFin",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepFin",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.11982330679893494,
+              "location_cm": {
+                "x": -1392.4074758426468,
+                "y": -1500,
+                "z": 85.75142334977036
+              },
+              "impact_point_cm": {
+                "x": -1386.5000004768372,
+                "y": -1474.0000015497208,
+                "z": 17.999988555908203
+              },
+              "normal": {
+                "x": -0.1969158353972132,
+                "y": -0.8666665505489218,
+                "z": 0.4583811120993652
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 25.751423349770363,
+              "impact_height_cm": 17.999988555908203,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 0.3985753059387207,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11982330679893494,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142334977036
+                },
+                "impact_point_cm": {
+                  "x": -1386.5000004768372,
+                  "y": -1474.0000015497208,
+                  "z": 17.999988555908203
+                },
+                "normal": {
+                  "x": -0.1969158353972132,
+                  "y": -0.8666665505489218,
+                  "z": 0.4583811120993652
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.751423349770363,
+                "impact_height_cm": 17.999988555908203,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 0.3985753059387207,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11982330679893494,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142334977036
+                },
+                "impact_point_cm": {
+                  "x": -1386.5000004768372,
+                  "y": -1474.0000015497208,
+                  "z": 17.999988555908203
+                },
+                "normal": {
+                  "x": -0.1969158353972132,
+                  "y": -0.8666665505489218,
+                  "z": 0.4583811120993652
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.751423349770363,
+                "impact_height_cm": 17.999988555908203,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 22.248565673828125,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 17.999990463256836,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999671403731
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999671403731,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999671403731
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999671403731,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          },
+          "walkable_hit": false,
+          "floor_at_hit": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 4.291534423828125e-06,
+            "component": "AuditStepFin",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepFin",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.11235944926738739,
+              "location_cm": {
+                "x": -1391.3762256000373,
+                "y": -1500,
+                "z": 86.14999409362522
+              },
+              "impact_point_cm": {
+                "x": -1386.5007942914963,
+                "y": -1474.0042358636856,
+                "z": 17.99194049835205
+              },
+              "normal": {
+                "x": -0.16251436761314197,
+                "y": -0.8665254389682093,
+                "z": 0.47193510564510116
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 26.149994093625224,
+              "impact_height_cm": 17.99194049835205,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 4.291534423828125e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235944926738739,
+                "location_cm": {
+                  "x": -1391.3762256000373,
+                  "y": -1500,
+                  "z": 86.14999409362522
+                },
+                "impact_point_cm": {
+                  "x": -1386.5007942914963,
+                  "y": -1474.0042358636856,
+                  "z": 17.99194049835205
+                },
+                "normal": {
+                  "x": -0.16251436761314197,
+                  "y": -0.8665254389682093,
+                  "z": 0.47193510564510116
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 26.149994093625224,
+                "impact_height_cm": 17.99194049835205,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 4.291534423828125e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235944926738739,
+                "location_cm": {
+                  "x": -1391.3762256000373,
+                  "y": -1500,
+                  "z": 86.14999409362522
+                },
+                "impact_point_cm": {
+                  "x": -1386.5007942914963,
+                  "y": -1474.0042358636856,
+                  "z": 17.99194049835205
+                },
+                "normal": {
+                  "x": -0.16251436761314197,
+                  "y": -0.8665254389682093,
+                  "z": 0.47193510564510116
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 26.149994093625224,
+                "impact_height_cm": 17.99194049835205,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 21.84194564819336,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 17.9919376373291,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -3.8500075340270996,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.025779271498322487,
+                "location_cm": {
+                  "x": -1391.3762256000373,
+                  "y": -1500,
+                  "z": 84.00000025448605
+                },
+                "impact_point_cm": {
+                  "x": -1391.376235961914,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 24.000000254486054,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -3.8500075340270996,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.025779271498322487,
+                "location_cm": {
+                  "x": -1391.3762256000373,
+                  "y": -1500,
+                  "z": 84.00000025448605
+                },
+                "impact_point_cm": {
+                  "x": -1391.376235961914,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 24.000000254486054,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          }
+        },
+        {
+          "component": "AuditStepCeiling",
+          "penetrating": false,
+          "time": 0.7950856685638428,
+          "location_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 127.26227004365765
+          },
+          "impact_point_cm": {
+            "x": -1414.9999771118164,
+            "y": -1500,
+            "z": 207.00002670288086
+          },
+          "trace_start_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 92.15
+          },
+          "trace_end_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 134.9999984741211
+          },
+          "normal": {
+            "x": 0.753083316959077,
+            "y": 0,
+            "z": -0.6579251611831809
+          },
+          "impact_normal": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "normals_equal": false,
+          "edge_within_at_hit": true,
+          "move_stop_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 126.21941968475622
+          },
+          "edge_within_at_move_stop": true,
+          "floor_at_move_stop": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 34.467994689941406,
+            "component": "AuditStepFin",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepFin",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.7578262090682983,
+              "location_cm": {
+                "x": -1392.4074758426468,
+                "y": -1500,
+                "z": 85.7514238013413
+              },
+              "impact_point_cm": {
+                "x": -1386.50002014637,
+                "y": -1474.0000891685486,
+                "z": 17.999820709228516
+              },
+              "normal": {
+                "x": -0.19691518980473535,
+                "y": -0.866663674191333,
+                "z": 0.4583868277572384
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 25.751423801341303,
+              "impact_height_cm": 17.999820709228516,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 34.467994689941406,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.7578262090682983,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.7514238013413
+                },
+                "impact_point_cm": {
+                  "x": -1386.50002014637,
+                  "y": -1474.0000891685486,
+                  "z": 17.999820709228516
+                },
+                "normal": {
+                  "x": -0.19691518980473535,
+                  "y": -0.866663674191333,
+                  "z": 0.4583868277572384
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.751423801341303,
+                "impact_height_cm": 17.999820709228516,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 34.467994689941406,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.7578262090682983,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.7514238013413
+                },
+                "impact_point_cm": {
+                  "x": -1386.50002014637,
+                  "y": -1474.0000891685486,
+                  "z": 17.999820709228516
+                },
+                "normal": {
+                  "x": -0.19691518980473535,
+                  "y": -0.866663674191333,
+                  "z": 0.4583868277572384
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.751423801341303,
+                "impact_height_cm": 17.999820709228516,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 22.248397827148438,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 17.99982261657715,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999716560825
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999716560825,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999716560825
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999716560825,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          },
+          "walkable_hit": false,
+          "floor_at_hit": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 35.510841369628906,
+            "component": "AuditStepFin",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepFin",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.7773551344871521,
+              "location_cm": {
+                "x": -1392.4074758426468,
+                "y": -1500,
+                "z": 85.75142757615677
+              },
+              "impact_point_cm": {
+                "x": -1386.50002014637,
+                "y": -1474.0000891685486,
+                "z": 17.999820709228516
+              },
+              "normal": {
+                "x": -0.19691518980473535,
+                "y": -0.866663674191333,
+                "z": 0.4583868277572384
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 25.75142757615677,
+              "impact_height_cm": 17.999820709228516,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 35.510841369628906,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.7773551344871521,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142757615677
+                },
+                "impact_point_cm": {
+                  "x": -1386.50002014637,
+                  "y": -1474.0000891685486,
+                  "z": 17.999820709228516
+                },
+                "normal": {
+                  "x": -0.19691518980473535,
+                  "y": -0.866663674191333,
+                  "z": 0.4583868277572384
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.75142757615677,
+                "impact_height_cm": 17.999820709228516,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 35.510841369628906,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.7773551344871521,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142757615677
+                },
+                "impact_point_cm": {
+                  "x": -1386.50002014637,
+                  "y": -1474.0000891685486,
+                  "z": 17.999820709228516
+                },
+                "normal": {
+                  "x": -0.19691518980473535,
+                  "y": -0.866663674191333,
+                  "z": 0.4583868277572384
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.75142757615677,
+                "impact_height_cm": 17.999820709228516,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 22.248394012451172,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 17.999818801879883,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 84.00000094042372
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 24.000000940423718,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 84.00000094042372
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 24.000000940423718,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          }
+        },
+        {
+          "component": "AuditStepEdge",
+          "penetrating": false,
+          "time": 0.5217017531394958,
+          "location_cm": {
+            "x": -1377.9962686996873,
+            "y": -1500,
+            "z": 126.21941968475622
+          },
+          "impact_point_cm": {
+            "x": -1358.999979019165,
+            "y": -1500,
+            "z": 43.0000057220459
+          },
+          "trace_start_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 126.21941968475622
+          },
+          "trace_end_cm": {
+            "x": -1366.7500004656613,
+            "y": -1500,
+            "z": 126.21941968475622
+          },
+          "normal": {
+            "x": -0.6332095254331868,
+            "y": 0,
+            "z": 0.7739804241068883
+          },
+          "impact_normal": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "normals_equal": false,
+          "edge_within_at_hit": true,
+          "move_stop_cm": {
+            "x": -1379.02192595734,
+            "y": -1500,
+            "z": 126.21941968475622
+          },
+          "edge_within_at_move_stop": true,
+          "floor_at_move_stop": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 0.8783712387084961,
+            "component": "AuditStepEdge",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.12880823016166687,
+              "location_cm": {
+                "x": -1379.02192595734,
+                "y": -1500,
+                "z": 119.34104722210296
+              },
+              "impact_point_cm": {
+                "x": -1359.0004577636719,
+                "y": -1500,
+                "z": 42.99959182739258
+              },
+              "normal": {
+                "x": -0.6673823090345997,
+                "y": 0,
+                "z": 0.7447152835732903
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 59.34104722210296,
+              "impact_height_cm": 42.99959182739258,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 0.8783712387084961,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.12880823016166687,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 119.34104722210296
+                },
+                "impact_point_cm": {
+                  "x": -1359.0004577636719,
+                  "y": -1500,
+                  "z": 42.99959182739258
+                },
+                "normal": {
+                  "x": -0.6673823090345997,
+                  "y": 0,
+                  "z": 0.7447152835732903
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 59.34104722210296,
+                "impact_height_cm": 42.99959182739258,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 0.8783712387084961,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.12880823016166687,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 119.34104722210296
+                },
+                "impact_point_cm": {
+                  "x": -1359.0004577636719,
+                  "y": -1500,
+                  "z": 42.99959182739258
+                },
+                "normal": {
+                  "x": -0.6673823090345997,
+                  "y": 0,
+                  "z": 0.7447152835732903
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 59.34104722210296,
+                "impact_height_cm": 42.99959182739258,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 13.658544540405273,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 42.99959182739258,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 29.341047286987305,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.4237530827522278,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 83.99999744523839
+                },
+                "impact_point_cm": {
+                  "x": -1379.0219268798828,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999997445238392,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 29.341047286987305,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.4237530827522278,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 83.99999744523839
+                },
+                "impact_point_cm": {
+                  "x": -1379.0219268798828,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999997445238392,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          },
+          "walkable_hit": false,
+          "floor_at_hit": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": -7.62939453125e-06,
+            "component": "AuditStepEdge",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.11235922574996948,
+              "location_cm": {
+                "x": -1377.9962686996873,
+                "y": -1500,
+                "z": 120.21942571423406
+              },
+              "impact_point_cm": {
+                "x": -1359.0001907348633,
+                "y": -1500,
+                "z": 42.999847412109375
+              },
+              "normal": {
+                "x": -0.6332026603361026,
+                "y": 0,
+                "z": 0.7739860405351522
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 60.21942571423406,
+              "impact_height_cm": 42.999847412109375,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -7.62939453125e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235922574996948,
+                "location_cm": {
+                  "x": -1377.9962686996873,
+                  "y": -1500,
+                  "z": 120.21942571423406
+                },
+                "impact_point_cm": {
+                  "x": -1359.0001907348633,
+                  "y": -1500,
+                  "z": 42.999847412109375
+                },
+                "normal": {
+                  "x": -0.6332026603361026,
+                  "y": 0,
+                  "z": 0.7739860405351522
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 60.21942571423406,
+                "impact_height_cm": 42.999847412109375,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -7.62939453125e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235922574996948,
+                "location_cm": {
+                  "x": -1377.9962686996873,
+                  "y": -1500,
+                  "z": 120.21942571423406
+                },
+                "impact_point_cm": {
+                  "x": -1359.0001907348633,
+                  "y": -1500,
+                  "z": 42.999847412109375
+                },
+                "normal": {
+                  "x": -0.6332026603361026,
+                  "y": 0,
+                  "z": 0.7739860405351522
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 60.21942571423406,
+                "impact_height_cm": 42.999847412109375,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 12.780421257019043,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 42.999847412109375,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 30.21942710876465,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.4342851936817169,
+                "location_cm": {
+                  "x": -1377.9962686996873,
+                  "y": -1500,
+                  "z": 83.9999968251822
+                },
+                "impact_point_cm": {
+                  "x": -1377.9962768554688,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999996825182194,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 30.21942710876465,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.4342851936817169,
+                "location_cm": {
+                  "x": -1377.9962686996873,
+                  "y": -1500,
+                  "z": 83.9999968251822
+                },
+                "impact_point_cm": {
+                  "x": -1377.9962768554688,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999996825182194,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          }
+        },
+        {
+          "component": "AuditStepEdge",
+          "penetrating": false,
+          "time": 0,
+          "location_cm": {
+            "x": -1379.02192595734,
+            "y": -1500,
+            "z": 125.34104842485922
+          },
+          "impact_point_cm": {
+            "x": -1359.0000038146973,
+            "y": -1500,
+            "z": 43
+          },
+          "trace_start_cm": {
+            "x": -1379.02192595734,
+            "y": -1500,
+            "z": 126.21941968475622
+          },
+          "trace_end_cm": {
+            "x": -1379.02192595734,
+            "y": -1500,
+            "z": 76.41942044769567
+          },
+          "normal": {
+            "x": -0.6673974596139931,
+            "y": 0,
+            "z": 0.7447017059875642
+          },
+          "impact_normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "normals_equal": false,
+          "edge_within_at_hit": true,
+          "move_stop_cm": {
+            "x": -1379.02192595734,
+            "y": -1500,
+            "z": 126.21941968475622
+          },
+          "edge_within_at_move_stop": true,
+          "floor_at_move_stop": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 0.8783712387084961,
+            "component": "AuditStepEdge",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.12880823016166687,
+              "location_cm": {
+                "x": -1379.02192595734,
+                "y": -1500,
+                "z": 119.34104722210296
+              },
+              "impact_point_cm": {
+                "x": -1359.0004577636719,
+                "y": -1500,
+                "z": 42.99959182739258
+              },
+              "normal": {
+                "x": -0.6673823090345997,
+                "y": 0,
+                "z": 0.7447152835732903
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 59.34104722210296,
+              "impact_height_cm": 42.99959182739258,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 0.8783712387084961,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.12880823016166687,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 119.34104722210296
+                },
+                "impact_point_cm": {
+                  "x": -1359.0004577636719,
+                  "y": -1500,
+                  "z": 42.99959182739258
+                },
+                "normal": {
+                  "x": -0.6673823090345997,
+                  "y": 0,
+                  "z": 0.7447152835732903
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 59.34104722210296,
+                "impact_height_cm": 42.99959182739258,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 0.8783712387084961,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.12880823016166687,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 119.34104722210296
+                },
+                "impact_point_cm": {
+                  "x": -1359.0004577636719,
+                  "y": -1500,
+                  "z": 42.99959182739258
+                },
+                "normal": {
+                  "x": -0.6673823090345997,
+                  "y": 0,
+                  "z": 0.7447152835732903
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 59.34104722210296,
+                "impact_height_cm": 42.99959182739258,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 13.658544540405273,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 42.99959182739258,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 29.341047286987305,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.4237530827522278,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 83.99999744523839
+                },
+                "impact_point_cm": {
+                  "x": -1379.0219268798828,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999997445238392,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 29.341047286987305,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.4237530827522278,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 83.99999744523839
+                },
+                "impact_point_cm": {
+                  "x": -1379.0219268798828,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999997445238392,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          },
+          "reused_down_hit_floor": {
+            "blocking": true,
+            "walkable": true,
+            "line_trace": false,
+            "distance_cm": 0.8783712387084961,
+            "trace_start_cm": {
+              "x": -1379.02192595734,
+              "y": -1500,
+              "z": 126.21941968475622
+            },
+            "trace_end_cm": {
+              "x": -1379.02192595734,
+              "y": -1500,
+              "z": 76.41942044769567
+            },
+            "hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0,
+              "location_cm": {
+                "x": -1379.02192595734,
+                "y": -1500,
+                "z": 125.34104842485922
+              },
+              "impact_point_cm": {
+                "x": -1359.0000038146973,
+                "y": -1500,
+                "z": 43
+              },
+              "normal": {
+                "x": -0.6673974596139931,
+                "y": 0,
+                "z": 0.7447017059875642
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 65.34104842485922,
+              "impact_height_cm": 43,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            }
+          },
+          "walkable_hit": true,
+          "floor_at_hit": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 4.76837158203125e-07,
+            "component": "AuditStepEdge",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.11235937476158142,
+              "location_cm": {
+                "x": -1379.02192595734,
+                "y": -1500,
+                "z": 119.34104649710198
+              },
+              "impact_point_cm": {
+                "x": -1359.0002918243408,
+                "y": -1500,
+                "z": 42.99973487854004
+              },
+              "normal": {
+                "x": -0.6673878124729206,
+                "y": 0,
+                "z": 0.7447103515881929
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 59.341046497101985,
+              "impact_height_cm": 42.99973487854004,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 4.76837158203125e-07,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235937476158142,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 119.34104649710198
+                },
+                "impact_point_cm": {
+                  "x": -1359.0002918243408,
+                  "y": -1500,
+                  "z": 42.99973487854004
+                },
+                "normal": {
+                  "x": -0.6673878124729206,
+                  "y": 0,
+                  "z": 0.7447103515881929
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 59.341046497101985,
+                "impact_height_cm": 42.99973487854004,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 4.76837158203125e-07,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235937476158142,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 119.34104649710198
+                },
+                "impact_point_cm": {
+                  "x": -1359.0002918243408,
+                  "y": -1500,
+                  "z": 42.99973487854004
+                },
+                "normal": {
+                  "x": -0.6673878124729206,
+                  "y": 0,
+                  "z": 0.7447103515881929
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 59.341046497101985,
+                "impact_height_cm": 42.99973487854004,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 13.65868854522705,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 42.99973678588867,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 29.341047286987305,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.4237530827522278,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 83.99999672023742
+                },
+                "impact_point_cm": {
+                  "x": -1379.0219268798828,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999672023742,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 29.341047286987305,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.4237530827522278,
+                "location_cm": {
+                  "x": -1379.02192595734,
+                  "y": -1500,
+                  "z": 83.99999672023742
+                },
+                "impact_point_cm": {
+                  "x": -1379.0219268798828,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999672023742,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          }
+        }
+      ],
+      "down_start": [
+        -13.7902192595734,
+        3.2621941968475623,
+        -15.0
+      ],
+      "position": [
+        -13.7902192595734,
+        3.2749104854141518,
+        -15.0
+      ]
+    },
+    "lower": {
+      "hits": [
+        {
+          "component": "AuditStepFin",
+          "penetrating": false,
+          "time": 0.17896077036857605,
+          "location_cm": {
+            "x": -1391.3762256000373,
+            "y": -1500,
+            "z": 92.15
+          },
+          "impact_point_cm": {
+            "x": -1386.4952068328857,
+            "y": -1474.000695347786,
+            "z": 18.000378608703613
+          },
+          "trace_start_cm": {
+            "x": -1398,
+            "y": -1500,
+            "z": 92.15
+          },
+          "trace_end_cm": {
+            "x": -1366.7499995343387,
+            "y": -1500,
+            "z": 92.15
+          },
+          "normal": {
+            "x": -0.16270062728781887,
+            "y": -0.8666435097880023,
+            "z": 0.4716540393365495
+          },
+          "impact_normal": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "normals_equal": false,
+          "edge_within_at_hit": true,
+          "move_stop_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 92.15
+          },
+          "edge_within_at_move_stop": true,
+          "floor_at_move_stop": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 0.3985753059387207,
+            "component": "AuditStepFin",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepFin",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.11982330679893494,
+              "location_cm": {
+                "x": -1392.4074758426468,
+                "y": -1500,
+                "z": 85.75142334977036
+              },
+              "impact_point_cm": {
+                "x": -1386.5000004768372,
+                "y": -1474.0000015497208,
+                "z": 17.999988555908203
+              },
+              "normal": {
+                "x": -0.1969158353972132,
+                "y": -0.8666665505489218,
+                "z": 0.4583811120993652
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 25.751423349770363,
+              "impact_height_cm": 17.999988555908203,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 0.3985753059387207,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11982330679893494,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142334977036
+                },
+                "impact_point_cm": {
+                  "x": -1386.5000004768372,
+                  "y": -1474.0000015497208,
+                  "z": 17.999988555908203
+                },
+                "normal": {
+                  "x": -0.1969158353972132,
+                  "y": -0.8666665505489218,
+                  "z": 0.4583811120993652
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.751423349770363,
+                "impact_height_cm": 17.999988555908203,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 0.3985753059387207,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11982330679893494,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142334977036
+                },
+                "impact_point_cm": {
+                  "x": -1386.5000004768372,
+                  "y": -1474.0000015497208,
+                  "z": 17.999988555908203
+                },
+                "normal": {
+                  "x": -0.1969158353972132,
+                  "y": -0.8666665505489218,
+                  "z": 0.4583811120993652
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.751423349770363,
+                "impact_height_cm": 17.999988555908203,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 22.248565673828125,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 17.999990463256836,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999671403731
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999671403731,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999671403731
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999671403731,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          },
+          "walkable_hit": false,
+          "floor_at_hit": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 4.291534423828125e-06,
+            "component": "AuditStepFin",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepFin",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.11235944926738739,
+              "location_cm": {
+                "x": -1391.3762256000373,
+                "y": -1500,
+                "z": 86.14999409362522
+              },
+              "impact_point_cm": {
+                "x": -1386.5007942914963,
+                "y": -1474.0042358636856,
+                "z": 17.99194049835205
+              },
+              "normal": {
+                "x": -0.16251436761314197,
+                "y": -0.8665254389682093,
+                "z": 0.47193510564510116
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 26.149994093625224,
+              "impact_height_cm": 17.99194049835205,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 4.291534423828125e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235944926738739,
+                "location_cm": {
+                  "x": -1391.3762256000373,
+                  "y": -1500,
+                  "z": 86.14999409362522
+                },
+                "impact_point_cm": {
+                  "x": -1386.5007942914963,
+                  "y": -1474.0042358636856,
+                  "z": 17.99194049835205
+                },
+                "normal": {
+                  "x": -0.16251436761314197,
+                  "y": -0.8665254389682093,
+                  "z": 0.47193510564510116
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 26.149994093625224,
+                "impact_height_cm": 17.99194049835205,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 4.291534423828125e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235944926738739,
+                "location_cm": {
+                  "x": -1391.3762256000373,
+                  "y": -1500,
+                  "z": 86.14999409362522
+                },
+                "impact_point_cm": {
+                  "x": -1386.5007942914963,
+                  "y": -1474.0042358636856,
+                  "z": 17.99194049835205
+                },
+                "normal": {
+                  "x": -0.16251436761314197,
+                  "y": -0.8665254389682093,
+                  "z": 0.47193510564510116
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 26.149994093625224,
+                "impact_height_cm": 17.99194049835205,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 21.84194564819336,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 17.9919376373291,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -3.8500075340270996,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.025779271498322487,
+                "location_cm": {
+                  "x": -1391.3762256000373,
+                  "y": -1500,
+                  "z": 84.00000025448605
+                },
+                "impact_point_cm": {
+                  "x": -1391.376235961914,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 24.000000254486054,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -3.8500075340270996,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.025779271498322487,
+                "location_cm": {
+                  "x": -1391.3762256000373,
+                  "y": -1500,
+                  "z": 84.00000025448605
+                },
+                "impact_point_cm": {
+                  "x": -1391.376235961914,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 24.000000254486054,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          }
+        },
+        {
+          "component": "AuditStepCeiling",
+          "penetrating": false,
+          "time": 0.7250739336013794,
+          "location_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 124.26226730734552
+          },
+          "impact_point_cm": {
+            "x": -1414.9999732971191,
+            "y": -1500,
+            "z": 204.00002670288086
+          },
+          "trace_start_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 92.15
+          },
+          "trace_end_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 134.9999984741211
+          },
+          "normal": {
+            "x": 0.7530832100242149,
+            "y": 0,
+            "z": -0.6579252835844085
+          },
+          "impact_normal": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "normals_equal": false,
+          "edge_within_at_hit": true,
+          "move_stop_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 123.21941694844409
+          },
+          "edge_within_at_move_stop": true,
+          "floor_at_move_stop": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 31.467988967895508,
+            "component": "AuditStepFin",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepFin",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.7016464471817017,
+              "location_cm": {
+                "x": -1392.4074758426468,
+                "y": -1500,
+                "z": 85.75142600752534
+              },
+              "impact_point_cm": {
+                "x": -1386.5000196695328,
+                "y": -1474.00008559227,
+                "z": 17.999828338623047
+              },
+              "normal": {
+                "x": -0.19691520261431994,
+                "y": -0.8666637841951681,
+                "z": 0.4583866142721366
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 25.75142600752534,
+              "impact_height_cm": 17.999828338623047,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 31.467988967895508,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.7016464471817017,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142600752534
+                },
+                "impact_point_cm": {
+                  "x": -1386.5000196695328,
+                  "y": -1474.00008559227,
+                  "z": 17.999828338623047
+                },
+                "normal": {
+                  "x": -0.19691520261431994,
+                  "y": -0.8666637841951681,
+                  "z": 0.4583866142721366
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.75142600752534,
+                "impact_height_cm": 17.999828338623047,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 31.467988967895508,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.7016464471817017,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142600752534
+                },
+                "impact_point_cm": {
+                  "x": -1386.5000196695328,
+                  "y": -1474.00008559227,
+                  "z": 17.999828338623047
+                },
+                "normal": {
+                  "x": -0.19691520261431994,
+                  "y": -0.8666637841951681,
+                  "z": 0.4583866142721366
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.75142600752534,
+                "impact_height_cm": 17.999828338623047,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 22.248401641845703,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 17.999826431274414,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999937179228
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999999371792285,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999937179228
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999999371792285,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          },
+          "walkable_hit": false,
+          "floor_at_hit": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 32.510841369628906,
+            "component": "AuditStepFin",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepFin",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.7211754322052002,
+              "location_cm": {
+                "x": -1392.4074758426468,
+                "y": -1500,
+                "z": 85.75142659944677
+              },
+              "impact_point_cm": {
+                "x": -1386.5000196695328,
+                "y": -1474.00008559227,
+                "z": 17.999828338623047
+              },
+              "normal": {
+                "x": -0.19691520261431994,
+                "y": -0.8666637841951681,
+                "z": 0.4583866142721366
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 25.751426599446773,
+              "impact_height_cm": 17.999828338623047,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 32.510841369628906,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.7211754322052002,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142659944677
+                },
+                "impact_point_cm": {
+                  "x": -1386.5000196695328,
+                  "y": -1474.00008559227,
+                  "z": 17.999828338623047
+                },
+                "normal": {
+                  "x": -0.19691520261431994,
+                  "y": -0.8666637841951681,
+                  "z": 0.4583866142721366
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.751426599446773,
+                "impact_height_cm": 17.999828338623047,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 32.510841369628906,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepFin",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.7211754322052002,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 85.75142659944677
+                },
+                "impact_point_cm": {
+                  "x": -1386.5000196695328,
+                  "y": -1474.00008559227,
+                  "z": 17.999828338623047
+                },
+                "normal": {
+                  "x": -0.19691520261431994,
+                  "y": -0.8666637841951681,
+                  "z": 0.4583866142721366
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 25.751426599446773,
+                "impact_height_cm": 17.999828338623047,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 22.248401641845703,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 17.999826431274414,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999996371372
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999996371372,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.248574733734131,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.021000294014811516,
+                "location_cm": {
+                  "x": -1392.4074758426468,
+                  "y": -1500,
+                  "z": 83.99999996371372
+                },
+                "impact_point_cm": {
+                  "x": -1392.407485961914,
+                  "y": -1500,
+                  "z": -7.62939453125e-06
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999996371372,
+                "impact_height_cm": -7.62939453125e-06,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          }
+        },
+        {
+          "component": "AuditStepEdge",
+          "penetrating": false,
+          "time": 0.3982990086078644,
+          "location_cm": {
+            "x": -1381.16247157896,
+            "y": -1500,
+            "z": 123.21941694844409
+          },
+          "impact_point_cm": {
+            "x": -1358.9999961853027,
+            "y": -1500,
+            "z": 43.00000190734863
+          },
+          "trace_start_cm": {
+            "x": -1392.4074758426468,
+            "y": -1500,
+            "z": 123.21941694844409
+          },
+          "trace_end_cm": {
+            "x": -1366.7500004656613,
+            "y": -1500,
+            "z": 123.21941694844409
+          },
+          "normal": {
+            "x": -0.7387491236666899,
+            "y": 0,
+            "z": 0.6739805132803899
+          },
+          "impact_normal": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "normals_equal": false,
+          "edge_within_at_hit": true,
+          "move_stop_cm": {
+            "x": -1382.1881288366128,
+            "y": -1500,
+            "z": 123.21941694844409
+          },
+          "edge_within_at_move_stop": true,
+          "floor_at_move_stop": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 1.1849570274353027,
+            "component": "AuditStepEdge",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.13454952836036682,
+              "location_cm": {
+                "x": -1382.1881288366128,
+                "y": -1500,
+                "z": 116.03445858378555
+              },
+              "impact_point_cm": {
+                "x": -1359.0000014305115,
+                "y": -1500,
+                "z": 43
+              },
+              "normal": {
+                "x": -0.7729376080127491,
+                "y": 0,
+                "z": 0.6344820360889109
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 56.03445858378555,
+              "impact_height_cm": 43,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 1.1849570274353027,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.13454952836036682,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 116.03445858378555
+                },
+                "impact_point_cm": {
+                  "x": -1359.0000014305115,
+                  "y": -1500,
+                  "z": 43
+                },
+                "normal": {
+                  "x": -0.7729376080127491,
+                  "y": 0,
+                  "z": 0.6344820360889109
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 56.03445858378555,
+                "impact_height_cm": 43,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 1.1849570274353027,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.13454952836036682,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 116.03445858378555
+                },
+                "impact_point_cm": {
+                  "x": -1359.0000014305115,
+                  "y": -1500,
+                  "z": 43
+                },
+                "normal": {
+                  "x": -0.7729376080127491,
+                  "y": 0,
+                  "z": 0.6344820360889109
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 56.03445858378555,
+                "impact_height_cm": 43,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 16.96554183959961,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 43,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 26.034460067749023,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.3841058015823364,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 83.99999604928863
+                },
+                "impact_point_cm": {
+                  "x": -1382.1881256103516,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999996049288626,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 26.034460067749023,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.3841058015823364,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 83.99999604928863
+                },
+                "impact_point_cm": {
+                  "x": -1382.1881256103516,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999996049288626,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          },
+          "walkable_hit": false,
+          "floor_at_hit": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 1.430511474609375e-06,
+            "component": "AuditStepEdge",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.11235938966274261,
+              "location_cm": {
+                "x": -1381.16247157896,
+                "y": -1500,
+                "z": 117.21941422496334
+              },
+              "impact_point_cm": {
+                "x": -1359.0007090568542,
+                "y": -1500,
+                "z": 42.99921798706055
+              },
+              "normal": {
+                "x": -0.7387253782217228,
+                "y": 0,
+                "z": 0.6740065397094992
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 57.219414224963344,
+              "impact_height_cm": 42.99921798706055,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 1.430511474609375e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235938966274261,
+                "location_cm": {
+                  "x": -1381.16247157896,
+                  "y": -1500,
+                  "z": 117.21941422496334
+                },
+                "impact_point_cm": {
+                  "x": -1359.0007090568542,
+                  "y": -1500,
+                  "z": 42.99921798706055
+                },
+                "normal": {
+                  "x": -0.7387253782217228,
+                  "y": 0,
+                  "z": 0.6740065397094992
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 57.219414224963344,
+                "impact_height_cm": 42.99921798706055,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 1.430511474609375e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235938966274261,
+                "location_cm": {
+                  "x": -1381.16247157896,
+                  "y": -1500,
+                  "z": 117.21941422496334
+                },
+                "impact_point_cm": {
+                  "x": -1359.0007090568542,
+                  "y": -1500,
+                  "z": 42.99921798706055
+                },
+                "normal": {
+                  "x": -0.7387253782217228,
+                  "y": 0,
+                  "z": 0.6740065397094992
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 57.219414224963344,
+                "impact_height_cm": 42.99921798706055,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 15.779804229736328,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 42.99922180175781,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 27.21941566467285,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.39831387996673584,
+                "location_cm": {
+                  "x": -1381.16247157896,
+                  "y": -1500,
+                  "z": 83.99999652234024
+                },
+                "impact_point_cm": {
+                  "x": -1381.1624755859375,
+                  "y": -1500,
+                  "z": -1.1444091796875e-05
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999652234024,
+                "impact_height_cm": -1.1444091796875e-05,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 27.21941566467285,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.39831387996673584,
+                "location_cm": {
+                  "x": -1381.16247157896,
+                  "y": -1500,
+                  "z": 83.99999652234024
+                },
+                "impact_point_cm": {
+                  "x": -1381.1624755859375,
+                  "y": -1500,
+                  "z": -1.1444091796875e-05
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999652234024,
+                "impact_height_cm": -1.1444091796875e-05,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          }
+        },
+        {
+          "component": "AuditStepEdge",
+          "penetrating": false,
+          "time": 0.0027140844613313675,
+          "location_cm": {
+            "x": -1382.1881288366128,
+            "y": -1500,
+            "z": 122.0344554967538
+          },
+          "impact_point_cm": {
+            "x": -1359.0000014305115,
+            "y": -1500,
+            "z": 42.99999237060547
+          },
+          "trace_start_cm": {
+            "x": -1382.1881288366128,
+            "y": -1500,
+            "z": 123.21941694844409
+          },
+          "trace_end_cm": {
+            "x": -1382.1881288366128,
+            "y": -1500,
+            "z": 73.41941771138355
+          },
+          "normal": {
+            "x": -0.7729375495507225,
+            "y": 0,
+            "z": 0.6344821073084133
+          },
+          "impact_normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "normals_equal": false,
+          "edge_within_at_hit": true,
+          "move_stop_cm": {
+            "x": -1382.1881288366128,
+            "y": -1500,
+            "z": 123.08425554434046
+          },
+          "edge_within_at_move_stop": true,
+          "floor_at_move_stop": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": 1.0497946739196777,
+            "component": "AuditStepEdge",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.13201840221881866,
+              "location_cm": {
+                "x": -1382.1881288366128,
+                "y": -1500,
+                "z": 116.03445957054527
+              },
+              "impact_point_cm": {
+                "x": -1359.0000014305115,
+                "y": -1500,
+                "z": 43
+              },
+              "normal": {
+                "x": -0.7729376080127491,
+                "y": 0,
+                "z": 0.6344820360889109
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 56.034459570545266,
+              "impact_height_cm": 43,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 1.0497946739196777,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.13201840221881866,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 116.03445957054527
+                },
+                "impact_point_cm": {
+                  "x": -1359.0000014305115,
+                  "y": -1500,
+                  "z": 43
+                },
+                "normal": {
+                  "x": -0.7729376080127491,
+                  "y": 0,
+                  "z": 0.6344820360889109
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 56.034459570545266,
+                "impact_height_cm": 43,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 1.0497946739196777,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.13201840221881866,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 116.03445957054527
+                },
+                "impact_point_cm": {
+                  "x": -1359.0000014305115,
+                  "y": -1500,
+                  "z": 43
+                },
+                "normal": {
+                  "x": -0.7729376080127491,
+                  "y": 0,
+                  "z": 0.6344820360889109
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 56.034459570545266,
+                "impact_height_cm": 43,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 16.965539932250977,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 43,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 26.034460067749023,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.3841058015823364,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 83.99999703604834
+                },
+                "impact_point_cm": {
+                  "x": -1382.1881256103516,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999703604834,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 26.034460067749023,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.3841058015823364,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 83.99999703604834
+                },
+                "impact_point_cm": {
+                  "x": -1382.1881256103516,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.99999703604834,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          },
+          "reused_down_hit_floor": {
+            "blocking": true,
+            "walkable": true,
+            "line_trace": false,
+            "distance_cm": 1.0498000383377075,
+            "trace_start_cm": {
+              "x": -1382.1881288366128,
+              "y": -1500,
+              "z": 123.21941694844409
+            },
+            "trace_end_cm": {
+              "x": -1382.1881288366128,
+              "y": -1500,
+              "z": 73.41941771138355
+            },
+            "hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.0027140844613313675,
+              "location_cm": {
+                "x": -1382.1881288366128,
+                "y": -1500,
+                "z": 122.0344554967538
+              },
+              "impact_point_cm": {
+                "x": -1359.0000014305115,
+                "y": -1500,
+                "z": 42.99999237060547
+              },
+              "normal": {
+                "x": -0.7729375495507225,
+                "y": 0,
+                "z": 0.6344821073084133
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 62.03445549675379,
+              "impact_height_cm": 42.99999237060547,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            }
+          },
+          "walkable_hit": true,
+          "floor_at_hit": {
+            "walkable": true,
+            "line_trace": false,
+            "floor_dist_cm": -4.76837158203125e-06,
+            "component": "AuditStepEdge",
+            "query_movement_mode": "MOVE_Walking",
+            "floor_hit": {
+              "component": "AuditStepEdge",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.11235927790403366,
+              "location_cm": {
+                "x": -1382.1881288366128,
+                "y": -1500,
+                "z": 116.03445874119936
+              },
+              "impact_point_cm": {
+                "x": -1359.0010743141174,
+                "y": -1500,
+                "z": 42.998687744140625
+              },
+              "normal": {
+                "x": -0.7729018127477736,
+                "y": 0,
+                "z": 0.6345256400266309
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 56.03445874119936,
+              "impact_height_cm": 42.998687744140625,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            },
+            "walking_range": true,
+            "broad": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.76837158203125e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235927790403366,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 116.03445874119936
+                },
+                "impact_point_cm": {
+                  "x": -1359.0010743141174,
+                  "y": -1500,
+                  "z": 42.998687744140625
+                },
+                "normal": {
+                  "x": -0.7729018127477736,
+                  "y": 0,
+                  "z": 0.6345256400266309
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 56.03445874119936,
+                "impact_height_cm": 42.998687744140625,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "merged": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": -4.76837158203125e-06,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "AuditStepEdge",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.11235927790403366,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 116.03445874119936
+                },
+                "impact_point_cm": {
+                  "x": -1359.0010743141174,
+                  "y": -1500,
+                  "z": 42.998687744140625
+                },
+                "normal": {
+                  "x": -0.7729018127477736,
+                  "y": 0,
+                  "z": 0.6345256400266309
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 56.03445874119936,
+                "impact_height_cm": 42.998687744140625,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_requested": true,
+            "above_base_cm": 16.964229583740234,
+            "max_perch_cm": 47.40010070800781,
+            "narrow_total_cm": 42.998687744140625,
+            "narrow_before_limit": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 26.034460067749023,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.3841058015823364,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 83.99999620670243
+                },
+                "impact_point_cm": {
+                  "x": -1382.1881256103516,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999996206702434,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "perch_valid": true,
+            "perch_radius_cm": 15,
+            "perch": {
+              "blocking": true,
+              "walkable": true,
+              "line_trace": false,
+              "sweep_dist_cm": 26.034460067749023,
+              "line_dist_cm": 0,
+              "hit": {
+                "component": "BoxComponent_0",
+                "blocking": true,
+                "penetrating": false,
+                "time": 0.3841058015823364,
+                "location_cm": {
+                  "x": -1382.1881288366128,
+                  "y": -1500,
+                  "z": 83.99999620670243
+                },
+                "impact_point_cm": {
+                  "x": -1382.1881256103516,
+                  "y": -1500,
+                  "z": 0
+                },
+                "normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "impact_normal": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 1
+                },
+                "lower_hemisphere_cm": 23.999996206702434,
+                "impact_height_cm": 0,
+                "below_lower_hemisphere": true,
+                "edge_within": true,
+                "walkable": true
+              }
+            },
+            "valid_landing_spot": true
+          }
+        }
+      ],
+      "down_start": [
+        -13.821881288366129,
+        3.232194169484441,
+        -15.0
+      ],
+      "position": [
+        -13.821881288366129,
+        3.241844556013702,
+        -15.0
+      ]
+    }
+  },
+  "target": {
+    "upper": {
+      "variants": {
+        "actual": {
+          "events": [
+            {
+              "hit": {
+                "distance_m": 0.06624013185501099,
+                "entity": "AuditStepFin",
+                "normal": [
+                  -0.162337988615036,
+                  0.4719860553741455,
+                  -0.8665306568145752
+                ],
+                "point": [
+                  -13.864999771118164,
+                  2.179999828338623,
+                  -14.739999771118164
+                ],
+                "point2": [
+                  -13.864999771118164,
+                  2.1800003051757812,
+                  -14.74000072479248
+                ]
+              },
+              "kind": "forward"
+            },
+            {
+              "advance_m": 0.34069135785102844,
+              "hit": {
+                "distance_m": 0.35112011432647705,
+                "entity": "AuditStepCeiling",
+                "normal": [
+                  0.7498723268508911,
+                  -0.6615825295448303,
+                  0.0
+                ],
+                "point": [
+                  -14.149999618530273,
+                  4.070000171661377,
+                  -14.999831199645996
+                ],
+                "point2": [
+                  -14.149993896484375,
+                  4.069994926452637,
+                  -14.999831199645996
+                ]
+              },
+              "kind": "lift",
+              "start": [
+                -13.924072265625,
+                2.9214999675750732,
+                -15.0
+              ]
+            },
+            {
+              "advance": [
+                0.13384310901165009,
+                0.0,
+                -1.4751065924301088e-09
+              ],
+              "floor_gap_m": 0.02125382423400879,
+              "hit": {
+                "distance_m": 0.14409968256950378,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.6292797327041626,
+                  0.777178943157196,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000096321105957
+                ],
+                "point2": [
+                  -13.590004920959473,
+                  2.4300055503845215,
+                  -15.000096321105957
+                ]
+              },
+              "kind": "step_forward",
+              "requested": [
+                0.2565723657608032,
+                0.0,
+                -2.827725609222398e-09
+              ],
+              "start": [
+                -13.924072265625,
+                3.2621912956237793,
+                -15.0
+              ]
+            },
+            {
+              "advance": [
+                0.07412932813167572,
+                0.06002233549952507,
+                -1.3526190167922891e-09
+              ],
+              "hit": null,
+              "kind": "step_slide",
+              "normal_used": [
+                -0.6292797327041626,
+                0.777178943157196,
+                0.0
+              ],
+              "requested": [
+                0.07412932813167572,
+                0.06002233549952507,
+                -1.3526190167922891e-09
+              ],
+              "start": [
+                -13.790228843688965,
+                3.2621912956237793,
+                -15.0
+              ]
+            },
+            {
+              "end": [
+                -13.716099739074707,
+                2.824213743209839,
+                -15.0
+              ],
+              "kind": "down_request",
+              "start": [
+                -13.716099739074707,
+                3.322213649749756,
+                -15.0
+              ]
+            },
+            {
+              "cast_distance_m": 0.49799999594688416,
+              "hit": {
+                "distance_m": 0.020002437755465508,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.42105135321617126,
+                  0.9070367813110352,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000166893005371
+                ],
+                "point2": [
+                  -13.59000015258789,
+                  2.4300007820129395,
+                  -15.000166893005371
+                ]
+              },
+              "kind": "capsule",
+              "origin": [
+                -13.716099739074707,
+                3.322213649749756,
+                -15.0
+              ],
+              "radius_m": 0.29999998211860657
+            },
+            {
+              "kind": "edge",
+              "limit_sq": 0.08910223096609116,
+              "radial_sq": 0.01590113341808319,
+              "rejected": false
+            },
+            {
+              "down_hit": {
+                "distance_m": 0.020002437755465508,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.42105135321617126,
+                  0.9070367813110352,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000166893005371
+                ],
+                "point2": [
+                  -13.59000015258789,
+                  2.4300007820129395,
+                  -15.000166893005371
+                ]
+              },
+              "floor_events": [
+                {
+                  "cast_distance_m": 0.5340009927749634,
+                  "hit": {
+                    "distance_m": 0.08400022983551025,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      -0.420301616191864,
+                      0.90738445520401,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000224113464355
+                    ],
+                    "point2": [
+                      -13.590002059936523,
+                      2.4300031661987305,
+                      -15.000224113464355
+                    ]
+                  },
+                  "kind": "capsule",
+                  "origin": [
+                    -13.716099739074707,
+                    3.3262112140655518,
+                    -15.0
+                  ],
+                  "radius_m": 0.29999998211860657
+                },
+                {
+                  "kind": "edge",
+                  "limit_sq": 0.08910223096609116,
+                  "radial_sq": 0.01590115576982498,
+                  "rejected": false
+                },
+                {
+                  "floor_distance_m": 0.02400021255016327,
+                  "hit": {
+                    "distance_m": 0.08400022983551025,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      -0.420301616191864,
+                      0.90738445520401,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000224113464355
+                    ],
+                    "point2": [
+                      -13.590002059936523,
+                      2.4300031661987305,
+                      -15.000224113464355
+                    ]
+                  },
+                  "kind": "capsule_qualification",
+                  "shrink_m": 0.060000017285346985,
+                  "valid": true
+                },
+                {
+                  "floor_distance_m": 0.02400021255016327,
+                  "hit": {
+                    "distance_m": 0.08400022983551025,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      -0.420301616191864,
+                      0.90738445520401,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000224113464355
+                    ],
+                    "point2": [
+                      -13.590002059936523,
+                      2.4300031661987305,
+                      -15.000224113464355
+                    ]
+                  },
+                  "kind": "selected",
+                  "line": false
+                }
+              ],
+              "kind": "landing_check",
+              "position": [
+                -13.716099739074707,
+                3.3262112140655518,
+                -15.0
+              ],
+              "valid": true
+            }
+          ],
+          "result": {
+            "advanced": [
+              -13.924072265625,
+              2.9214999675750732,
+              -15.0
+            ],
+            "next_y": 3.3262112140655518,
+            "remaining": [
+              0.2079724371433258,
+              0.06002233549952507,
+              -2.827725609222398e-09
+            ]
+          }
+        },
+        "with-edge-face": {
+          "events": [
+            {
+              "hit": {
+                "distance_m": 0.06624013185501099,
+                "entity": "AuditStepFin",
+                "normal": [
+                  -0.162337988615036,
+                  0.4719860553741455,
+                  -0.8665306568145752
+                ],
+                "point": [
+                  -13.864999771118164,
+                  2.179999828338623,
+                  -14.739999771118164
+                ],
+                "point2": [
+                  -13.864999771118164,
+                  2.1800003051757812,
+                  -14.74000072479248
+                ]
+              },
+              "kind": "forward"
+            },
+            {
+              "advance_m": 0.34069135785102844,
+              "hit": {
+                "distance_m": 0.35112011432647705,
+                "entity": "AuditStepCeiling",
+                "normal": [
+                  0.7498723268508911,
+                  -0.6615825295448303,
+                  0.0
+                ],
+                "point": [
+                  -14.149999618530273,
+                  4.070000171661377,
+                  -14.999831199645996
+                ],
+                "point2": [
+                  -14.149993896484375,
+                  4.069994926452637,
+                  -14.999831199645996
+                ]
+              },
+              "kind": "lift",
+              "start": [
+                -13.924072265625,
+                2.9214999675750732,
+                -15.0
+              ]
+            },
+            {
+              "advance": [
+                0.13384310901165009,
+                0.0,
+                -1.4751065924301088e-09
+              ],
+              "floor_gap_m": 0.02125382423400879,
+              "hit": {
+                "distance_m": 0.14409968256950378,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.6292797327041626,
+                  0.777178943157196,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000096321105957
+                ],
+                "point2": [
+                  -13.590004920959473,
+                  2.4300055503845215,
+                  -15.000096321105957
+                ]
+              },
+              "kind": "step_forward",
+              "requested": [
+                0.2565723657608032,
+                0.0,
+                -2.827725609222398e-09
+              ],
+              "start": [
+                -13.924072265625,
+                3.2621912956237793,
+                -15.0
+              ]
+            },
+            {
+              "advance": [
+                0.0,
+                0.0,
+                -1.3526190167922891e-09
+              ],
+              "hit": null,
+              "kind": "step_slide",
+              "normal_used": [
+                -1.0,
+                0.0,
+                0.0
+              ],
+              "requested": [
+                0.0,
+                0.0,
+                -1.3526190167922891e-09
+              ],
+              "start": [
+                -13.790228843688965,
+                3.2621912956237793,
+                -15.0
+              ]
+            },
+            {
+              "end": [
+                -13.790228843688965,
+                2.7641913890838623,
+                -15.0
+              ],
+              "kind": "down_request",
+              "start": [
+                -13.790228843688965,
+                3.2621912956237793,
+                -15.0
+              ]
+            },
+            {
+              "cast_distance_m": 0.49799999594688416,
+              "hit": {
+                "distance_m": 0.008789075538516045,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.6666159629821777,
+                  0.7454013824462891,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000035285949707
+                ],
+                "point2": [
+                  -13.590001106262207,
+                  2.4300012588500977,
+                  -15.000035285949707
+                ]
+              },
+              "kind": "capsule",
+              "origin": [
+                -13.790228843688965,
+                3.2621912956237793,
+                -15.0
+              ],
+              "radius_m": 0.29999998211860657
+            },
+            {
+              "kind": "edge",
+              "limit_sq": 0.08910223096609116,
+              "radial_sq": 0.04009152948856354,
+              "rejected": false
+            },
+            {
+              "down_hit": {
+                "distance_m": 0.008789075538516045,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.6666159629821777,
+                  0.7454013824462891,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000035285949707
+                ],
+                "point2": [
+                  -13.590001106262207,
+                  2.4300012588500977,
+                  -15.000035285949707
+                ]
+              },
+              "floor_events": [
+                {
+                  "cast_distance_m": 0.5340009927749634,
+                  "hit": {
+                    "distance_m": 0.08399352431297302,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      -0.6631209254264832,
+                      0.7485122680664062,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000138282775879
+                    ],
+                    "point2": [
+                      -13.590003967285156,
+                      2.430004119873047,
+                      -15.000138282775879
+                    ]
+                  },
+                  "kind": "capsule",
+                  "origin": [
+                    -13.790228843688965,
+                    3.27740216255188,
+                    -15.0
+                  ],
+                  "radius_m": 0.29999998211860657
+                },
+                {
+                  "kind": "edge",
+                  "limit_sq": 0.08910223096609116,
+                  "radial_sq": 0.04009154811501503,
+                  "rejected": false
+                },
+                {
+                  "floor_distance_m": 0.023993507027626038,
+                  "hit": {
+                    "distance_m": 0.08399352431297302,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      -0.6631209254264832,
+                      0.7485122680664062,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000138282775879
+                    ],
+                    "point2": [
+                      -13.590003967285156,
+                      2.430004119873047,
+                      -15.000138282775879
+                    ]
+                  },
+                  "kind": "capsule_qualification",
+                  "shrink_m": 0.060000017285346985,
+                  "valid": true
+                },
+                {
+                  "kind": "perch",
+                  "origin": [
+                    -13.790228843688965,
+                    3.193408727645874,
+                    -15.0
+                  ],
+                  "radius_m": 0.14999999105930328
+                },
+                {
+                  "cast_distance_m": 0.8340010046958923,
+                  "hit": {
+                    "distance_m": 0.3533948063850403,
+                    "entity": "AuditWalkOffPlatform",
+                    "normal": [
+                      1.6434980352642015e-05,
+                      1.0,
+                      6.708155524393078e-07
+                    ],
+                    "point": [
+                      -13.790983200073242,
+                      2.0,
+                      -14.99899673461914
+                    ],
+                    "point2": [
+                      -13.790983200073242,
+                      2.0000312328338623,
+                      -14.99899673461914
+                    ]
+                  },
+                  "kind": "capsule",
+                  "origin": [
+                    -13.790228843688965,
+                    3.193408727645874,
+                    -15.0
+                  ],
+                  "radius_m": 0.14999999105930328
+                },
+                {
+                  "kind": "edge",
+                  "limit_sq": 0.022052248939871788,
+                  "radial_sq": 1.5755949789308943e-06,
+                  "rejected": false
+                },
+                {
+                  "floor_distance_m": 0.2933948040008545,
+                  "hit": {
+                    "distance_m": 0.3533948063850403,
+                    "entity": "AuditWalkOffPlatform",
+                    "normal": [
+                      1.6434980352642015e-05,
+                      1.0,
+                      6.708155524393078e-07
+                    ],
+                    "point": [
+                      -13.790983200073242,
+                      2.0,
+                      -14.99899673461914
+                    ],
+                    "point2": [
+                      -13.790983200073242,
+                      2.0000312328338623,
+                      -14.99899673461914
+                    ]
+                  },
+                  "kind": "capsule_qualification",
+                  "shrink_m": 0.060000017285346985,
+                  "valid": true
+                },
+                {
+                  "above_base_m": 0.1365910768508911,
+                  "hit": {
+                    "distance_m": 0.2933948040008545,
+                    "entity": "AuditWalkOffPlatform",
+                    "line": false,
+                    "valid": true,
+                    "within_distance": true
+                  },
+                  "kind": "perch_outcome",
+                  "max_distance_m": 0.4740009903907776
+                },
+                {
+                  "floor_distance_m": 0.023993507027626038,
+                  "hit": {
+                    "distance_m": 0.08399352431297302,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      -0.6631209254264832,
+                      0.7485122680664062,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000138282775879
+                    ],
+                    "point2": [
+                      -13.590003967285156,
+                      2.430004119873047,
+                      -15.000138282775879
+                    ]
+                  },
+                  "kind": "selected",
+                  "line": false
+                }
+              ],
+              "kind": "landing_check",
+              "position": [
+                -13.790228843688965,
+                3.27740216255188,
+                -15.0
+              ],
+              "valid": true
+            }
+          ],
+          "result": {
+            "advanced": [
+              -13.924072265625,
+              2.9214999675750732,
+              -15.0
+            ],
+            "next_y": 3.27740216255188,
+            "remaining": [
+              0.13384310901165009,
+              0.0,
+              -2.827725609222398e-09
+            ]
+          }
+        }
+      },
+      "pre_physics": [
+        -13.924072265625,
+        3.3262112140655518,
+        -15.0
+      ],
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 40,
+        "position": [
+          -13.716099739074707,
+          3.3237111568450928,
+          -15.0
+        ],
+        "published": [
+          5.277996063232422,
+          0.0,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          5.277996063232422,
+          0.0,
+          0.0
+        ]
+      },
+      "actual_origin_error_m": 0.09537315159747396,
+      "controlled_origin_error_m": 1.0013609269670728e-05
+    },
+    "lower": {
+      "variants": {
+        "actual": {
+          "events": [
+            {
+              "hit": {
+                "distance_m": 0.06624013185501099,
+                "entity": "AuditStepFin",
+                "normal": [
+                  -0.162337988615036,
+                  0.4719860553741455,
+                  -0.8665306568145752
+                ],
+                "point": [
+                  -13.864999771118164,
+                  2.179999828338623,
+                  -14.739999771118164
+                ],
+                "point2": [
+                  -13.864999771118164,
+                  2.1800003051757812,
+                  -14.74000072479248
+                ]
+              },
+              "kind": "forward"
+            },
+            {
+              "advance_m": 0.31069216132164,
+              "hit": {
+                "distance_m": 0.3211209177970886,
+                "entity": "AuditStepCeiling",
+                "normal": [
+                  0.7559792995452881,
+                  -0.6545954942703247,
+                  0.0
+                ],
+                "point": [
+                  -14.149999618530273,
+                  4.039999961853027,
+                  -15.00002384185791
+                ],
+                "point2": [
+                  -14.149995803833008,
+                  4.039997100830078,
+                  -15.00002384185791
+                ]
+              },
+              "kind": "lift",
+              "start": [
+                -13.924072265625,
+                2.9214999675750732,
+                -15.0
+              ]
+            },
+            {
+              "advance": [
+                0.10218841582536697,
+                0.0,
+                -1.1262351051755104e-09
+              ],
+              "floor_gap_m": 0.02125382423400879,
+              "hit": {
+                "distance_m": 0.11244498938322067,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.7377556562423706,
+                  0.6750679612159729,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000602722167969
+                ],
+                "point2": [
+                  -13.590002059936523,
+                  2.430001735687256,
+                  -15.000602722167969
+                ]
+              },
+              "kind": "step_forward",
+              "requested": [
+                0.2565723657608032,
+                0.0,
+                -2.827725609222398e-09
+              ],
+              "start": [
+                -13.924072265625,
+                3.232192039489746,
+                -15.0
+              ]
+            },
+            {
+              "advance": [
+                0.0,
+                0.0,
+                -1.7014905040468875e-09
+              ],
+              "hit": null,
+              "kind": "step_slide",
+              "normal_used": [
+                -1.0,
+                0.0,
+                0.0
+              ],
+              "requested": [
+                0.0,
+                0.0,
+                -1.7014905040468875e-09
+              ],
+              "start": [
+                -13.821884155273438,
+                3.232192039489746,
+                -15.0
+              ]
+            },
+            {
+              "end": [
+                -13.821884155273438,
+                2.734192132949829,
+                -15.0
+              ],
+              "kind": "down_request",
+              "start": [
+                -13.821884155273438,
+                3.232192039489746,
+                -15.0
+              ]
+            },
+            {
+              "cast_distance_m": 0.49799999594688416,
+              "hit": {
+                "distance_m": 0.011850757524371147,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.7728296518325806,
+                  0.634613573551178,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000008583068848
+                ],
+                "point2": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000008583068848
+                ]
+              },
+              "kind": "capsule",
+              "origin": [
+                -13.821884155273438,
+                3.232192039489746,
+                -15.0
+              ],
+              "radius_m": 0.29999998211860657
+            },
+            {
+              "kind": "edge",
+              "limit_sq": 0.08910223096609116,
+              "radial_sq": 0.053770191967487335,
+              "rejected": false
+            },
+            {
+              "hit": {
+                "distance_m": 0.0014998018741607666,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "same_entity": true
+              },
+              "kind": "short_ray",
+              "origin": [
+                -13.58884048461914,
+                2.431499719619751,
+                -15.000008583068848
+              ]
+            },
+            {
+              "down_hit": {
+                "distance_m": 0.011850757524371147,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000008583068848
+                ],
+                "point2": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000008583068848
+                ]
+              },
+              "floor_events": [
+                {
+                  "cast_distance_m": 0.5340009927749634,
+                  "hit": {
+                    "distance_m": 0.0839930921792984,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      -0.776336133480072,
+                      0.6303191184997559,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000083923339844
+                    ],
+                    "point2": [
+                      -13.590006828308105,
+                      2.430004835128784,
+                      -15.000083923339844
+                    ]
+                  },
+                  "kind": "capsule",
+                  "origin": [
+                    -13.821884155273438,
+                    3.2443411350250244,
+                    -15.0
+                  ],
+                  "radius_m": 0.29999998211860657
+                },
+                {
+                  "kind": "edge",
+                  "limit_sq": 0.08910223096609116,
+                  "radial_sq": 0.05377019941806793,
+                  "rejected": false
+                },
+                {
+                  "hit": {
+                    "distance_m": 0.0014998018741607666,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      0.0,
+                      1.0,
+                      0.0
+                    ],
+                    "same_entity": true
+                  },
+                  "kind": "short_ray",
+                  "origin": [
+                    -13.588835716247559,
+                    2.431499719619751,
+                    -15.000083923339844
+                  ]
+                },
+                {
+                  "floor_distance_m": 0.023993074893951416,
+                  "hit": {
+                    "distance_m": 0.0839930921792984,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      0.0,
+                      1.0,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000083923339844
+                    ],
+                    "point2": [
+                      -13.590006828308105,
+                      2.430004835128784,
+                      -15.000083923339844
+                    ]
+                  },
+                  "kind": "capsule_qualification",
+                  "shrink_m": 0.060000017285346985,
+                  "valid": true
+                },
+                {
+                  "kind": "perch",
+                  "origin": [
+                    -13.821884155273438,
+                    3.1603479385375977,
+                    -15.0
+                  ],
+                  "radius_m": 0.14999999105930328
+                },
+                {
+                  "cast_distance_m": 0.8340010046958923,
+                  "hit": {
+                    "distance_m": 0.32033032178878784,
+                    "entity": "AuditWalkOffPlatform",
+                    "normal": [
+                      1.664056435402017e-05,
+                      1.0,
+                      -2.6624902602634393e-06
+                    ],
+                    "point": [
+                      -13.821934700012207,
+                      2.0,
+                      -15.000099182128906
+                    ],
+                    "point2": [
+                      -13.821934700012207,
+                      2.0000176429748535,
+                      -15.000099182128906
+                    ]
+                  },
+                  "kind": "capsule",
+                  "origin": [
+                    -13.821884155273438,
+                    3.1603479385375977,
+                    -15.0
+                  ],
+                  "radius_m": 0.14999999105930328
+                },
+                {
+                  "kind": "edge",
+                  "limit_sq": 0.022052248939871788,
+                  "radial_sq": 1.2391865311656147e-08,
+                  "rejected": false
+                },
+                {
+                  "floor_distance_m": 0.26033031940460205,
+                  "hit": {
+                    "distance_m": 0.32033032178878784,
+                    "entity": "AuditWalkOffPlatform",
+                    "normal": [
+                      1.664056435402017e-05,
+                      1.0,
+                      -2.6624902602634393e-06
+                    ],
+                    "point": [
+                      -13.821934700012207,
+                      2.0,
+                      -15.000099182128906
+                    ],
+                    "point2": [
+                      -13.821934700012207,
+                      2.0000176429748535,
+                      -15.000099182128906
+                    ]
+                  },
+                  "kind": "capsule_qualification",
+                  "shrink_m": 0.060000017285346985,
+                  "valid": true
+                },
+                {
+                  "above_base_m": 0.16965186595916748,
+                  "hit": {
+                    "distance_m": 0.26033031940460205,
+                    "entity": "AuditWalkOffPlatform",
+                    "line": false,
+                    "valid": true,
+                    "within_distance": true
+                  },
+                  "kind": "perch_outcome",
+                  "max_distance_m": 0.4740009903907776
+                },
+                {
+                  "floor_distance_m": 0.023993074893951416,
+                  "hit": {
+                    "distance_m": 0.0839930921792984,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      0.0,
+                      1.0,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000083923339844
+                    ],
+                    "point2": [
+                      -13.590006828308105,
+                      2.430004835128784,
+                      -15.000083923339844
+                    ]
+                  },
+                  "kind": "selected",
+                  "line": false
+                }
+              ],
+              "kind": "landing_check",
+              "position": [
+                -13.821884155273438,
+                3.2443411350250244,
+                -15.0
+              ],
+              "valid": true
+            }
+          ],
+          "result": {
+            "advanced": [
+              -13.924072265625,
+              2.9214999675750732,
+              -15.0
+            ],
+            "next_y": 3.2443411350250244,
+            "remaining": [
+              0.10218841582536697,
+              0.0,
+              -2.827725609222398e-09
+            ]
+          }
+        },
+        "with-edge-face": {
+          "events": [
+            {
+              "hit": {
+                "distance_m": 0.06624013185501099,
+                "entity": "AuditStepFin",
+                "normal": [
+                  -0.162337988615036,
+                  0.4719860553741455,
+                  -0.8665306568145752
+                ],
+                "point": [
+                  -13.864999771118164,
+                  2.179999828338623,
+                  -14.739999771118164
+                ],
+                "point2": [
+                  -13.864999771118164,
+                  2.1800003051757812,
+                  -14.74000072479248
+                ]
+              },
+              "kind": "forward"
+            },
+            {
+              "advance_m": 0.31069216132164,
+              "hit": {
+                "distance_m": 0.3211209177970886,
+                "entity": "AuditStepCeiling",
+                "normal": [
+                  0.7559792995452881,
+                  -0.6545954942703247,
+                  0.0
+                ],
+                "point": [
+                  -14.149999618530273,
+                  4.039999961853027,
+                  -15.00002384185791
+                ],
+                "point2": [
+                  -14.149995803833008,
+                  4.039997100830078,
+                  -15.00002384185791
+                ]
+              },
+              "kind": "lift",
+              "start": [
+                -13.924072265625,
+                2.9214999675750732,
+                -15.0
+              ]
+            },
+            {
+              "advance": [
+                0.10218841582536697,
+                0.0,
+                -1.1262351051755104e-09
+              ],
+              "floor_gap_m": 0.02125382423400879,
+              "hit": {
+                "distance_m": 0.11244498938322067,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.7377556562423706,
+                  0.6750679612159729,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000602722167969
+                ],
+                "point2": [
+                  -13.590002059936523,
+                  2.430001735687256,
+                  -15.000602722167969
+                ]
+              },
+              "kind": "step_forward",
+              "requested": [
+                0.2565723657608032,
+                0.0,
+                -2.827725609222398e-09
+              ],
+              "start": [
+                -13.924072265625,
+                3.232192039489746,
+                -15.0
+              ]
+            },
+            {
+              "advance": [
+                0.0,
+                0.0,
+                -1.7014905040468875e-09
+              ],
+              "hit": null,
+              "kind": "step_slide",
+              "normal_used": [
+                -1.0,
+                0.0,
+                0.0
+              ],
+              "requested": [
+                0.0,
+                0.0,
+                -1.7014905040468875e-09
+              ],
+              "start": [
+                -13.821884155273438,
+                3.232192039489746,
+                -15.0
+              ]
+            },
+            {
+              "end": [
+                -13.821884155273438,
+                2.734192132949829,
+                -15.0
+              ],
+              "kind": "down_request",
+              "start": [
+                -13.821884155273438,
+                3.232192039489746,
+                -15.0
+              ]
+            },
+            {
+              "cast_distance_m": 0.49799999594688416,
+              "hit": {
+                "distance_m": 0.011850757524371147,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  -0.7728296518325806,
+                  0.634613573551178,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000008583068848
+                ],
+                "point2": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000008583068848
+                ]
+              },
+              "kind": "capsule",
+              "origin": [
+                -13.821884155273438,
+                3.232192039489746,
+                -15.0
+              ],
+              "radius_m": 0.29999998211860657
+            },
+            {
+              "kind": "edge",
+              "limit_sq": 0.08910223096609116,
+              "radial_sq": 0.053770191967487335,
+              "rejected": false
+            },
+            {
+              "hit": {
+                "distance_m": 0.0014998018741607666,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "same_entity": true
+              },
+              "kind": "short_ray",
+              "origin": [
+                -13.58884048461914,
+                2.431499719619751,
+                -15.000008583068848
+              ]
+            },
+            {
+              "down_hit": {
+                "distance_m": 0.011850757524371147,
+                "entity": "AuditStepEdge",
+                "normal": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "point": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000008583068848
+                ],
+                "point2": [
+                  -13.59000015258789,
+                  2.429999828338623,
+                  -15.000008583068848
+                ]
+              },
+              "floor_events": [
+                {
+                  "cast_distance_m": 0.5340009927749634,
+                  "hit": {
+                    "distance_m": 0.0839930921792984,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      -0.776336133480072,
+                      0.6303191184997559,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000083923339844
+                    ],
+                    "point2": [
+                      -13.590006828308105,
+                      2.430004835128784,
+                      -15.000083923339844
+                    ]
+                  },
+                  "kind": "capsule",
+                  "origin": [
+                    -13.821884155273438,
+                    3.2443411350250244,
+                    -15.0
+                  ],
+                  "radius_m": 0.29999998211860657
+                },
+                {
+                  "kind": "edge",
+                  "limit_sq": 0.08910223096609116,
+                  "radial_sq": 0.05377019941806793,
+                  "rejected": false
+                },
+                {
+                  "hit": {
+                    "distance_m": 0.0014998018741607666,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      0.0,
+                      1.0,
+                      0.0
+                    ],
+                    "same_entity": true
+                  },
+                  "kind": "short_ray",
+                  "origin": [
+                    -13.588835716247559,
+                    2.431499719619751,
+                    -15.000083923339844
+                  ]
+                },
+                {
+                  "floor_distance_m": 0.023993074893951416,
+                  "hit": {
+                    "distance_m": 0.0839930921792984,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      0.0,
+                      1.0,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000083923339844
+                    ],
+                    "point2": [
+                      -13.590006828308105,
+                      2.430004835128784,
+                      -15.000083923339844
+                    ]
+                  },
+                  "kind": "capsule_qualification",
+                  "shrink_m": 0.060000017285346985,
+                  "valid": true
+                },
+                {
+                  "kind": "perch",
+                  "origin": [
+                    -13.821884155273438,
+                    3.1603479385375977,
+                    -15.0
+                  ],
+                  "radius_m": 0.14999999105930328
+                },
+                {
+                  "cast_distance_m": 0.8340010046958923,
+                  "hit": {
+                    "distance_m": 0.32033032178878784,
+                    "entity": "AuditWalkOffPlatform",
+                    "normal": [
+                      1.664056435402017e-05,
+                      1.0,
+                      -2.6624902602634393e-06
+                    ],
+                    "point": [
+                      -13.821934700012207,
+                      2.0,
+                      -15.000099182128906
+                    ],
+                    "point2": [
+                      -13.821934700012207,
+                      2.0000176429748535,
+                      -15.000099182128906
+                    ]
+                  },
+                  "kind": "capsule",
+                  "origin": [
+                    -13.821884155273438,
+                    3.1603479385375977,
+                    -15.0
+                  ],
+                  "radius_m": 0.14999999105930328
+                },
+                {
+                  "kind": "edge",
+                  "limit_sq": 0.022052248939871788,
+                  "radial_sq": 1.2391865311656147e-08,
+                  "rejected": false
+                },
+                {
+                  "floor_distance_m": 0.26033031940460205,
+                  "hit": {
+                    "distance_m": 0.32033032178878784,
+                    "entity": "AuditWalkOffPlatform",
+                    "normal": [
+                      1.664056435402017e-05,
+                      1.0,
+                      -2.6624902602634393e-06
+                    ],
+                    "point": [
+                      -13.821934700012207,
+                      2.0,
+                      -15.000099182128906
+                    ],
+                    "point2": [
+                      -13.821934700012207,
+                      2.0000176429748535,
+                      -15.000099182128906
+                    ]
+                  },
+                  "kind": "capsule_qualification",
+                  "shrink_m": 0.060000017285346985,
+                  "valid": true
+                },
+                {
+                  "above_base_m": 0.16965186595916748,
+                  "hit": {
+                    "distance_m": 0.26033031940460205,
+                    "entity": "AuditWalkOffPlatform",
+                    "line": false,
+                    "valid": true,
+                    "within_distance": true
+                  },
+                  "kind": "perch_outcome",
+                  "max_distance_m": 0.4740009903907776
+                },
+                {
+                  "floor_distance_m": 0.023993074893951416,
+                  "hit": {
+                    "distance_m": 0.0839930921792984,
+                    "entity": "AuditStepEdge",
+                    "normal": [
+                      0.0,
+                      1.0,
+                      0.0
+                    ],
+                    "point": [
+                      -13.59000015258789,
+                      2.429999828338623,
+                      -15.000083923339844
+                    ],
+                    "point2": [
+                      -13.590006828308105,
+                      2.430004835128784,
+                      -15.000083923339844
+                    ]
+                  },
+                  "kind": "selected",
+                  "line": false
+                }
+              ],
+              "kind": "landing_check",
+              "position": [
+                -13.821884155273438,
+                3.2443411350250244,
+                -15.0
+              ],
+              "valid": true
+            }
+          ],
+          "result": {
+            "advanced": [
+              -13.924072265625,
+              2.9214999675750732,
+              -15.0
+            ],
+            "next_y": 3.2443411350250244,
+            "remaining": [
+              0.10218841582536697,
+              0.0,
+              -2.827725609222398e-09
+            ]
+          }
+        }
+      },
+      "pre_physics": [
+        -13.924072265625,
+        3.2443411350250244,
+        -15.0
+      ],
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 40,
+        "position": [
+          -13.821884155273438,
+          3.2443411350250244,
+          -15.0
+        ],
+        "published": [
+          3.1623077392578125,
+          0.0,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          3.1623077392578125,
+          0.0,
+          0.0
+        ]
+      },
+      "actual_origin_error_m": 3.5715591718185176e-06,
+      "controlled_origin_error_m": 3.5715591718185176e-06
+    }
+  },
+  "decompressed_files": {
+    "edge.native.json.gz": {
+      "bytes": 35539233,
+      "sha256": "4c7bd9bbf136f864428bebb6b572ac6e75b7dbf3d1624d743c6e41257ca83fa1"
+    },
+    "runtime-upper/parameters.json.gz": {
+      "bytes": 870622,
+      "sha256": "e779b8127b2f4454db2ac7480bd1fa053fbb64bbb19fdb24fea6d65018936414"
+    },
+    "runtime-upper/report.json.gz": {
+      "bytes": 4485360,
+      "sha256": "78de219abc05bead7691c6553114aa7fe78ac5e61f611be0cca6b8100b415cec"
+    },
+    "runtime-upper/walking-step.json.gz": {
+      "bytes": 15357,
+      "sha256": "2b031fd61a6a369e46b0431a48a28d0ba052cc7cb81f591267f596787ada582c"
+    },
+    "runtime-upper/walking-transaction.json.gz": {
+      "bytes": 8836,
+      "sha256": "309184d44463228f5da5353bc269a68d1b8e1f54cd73d6f690a06446dbba31ca"
+    },
+    "runtime-upper/step-down-replay.json.gz": {
+      "bytes": 18335,
+      "sha256": "cc14b9b403f6851561cf4bc5f5c625eeb5df75657592451ead8aa8474910420c"
+    },
+    "runtime-lower/parameters.json.gz": {
+      "bytes": 745268,
+      "sha256": "5931335ca28951760468be5324adaf4f12d2865047c3901dec87b4a8602ab9de"
+    },
+    "runtime-lower/report.json.gz": {
+      "bytes": 5324421,
+      "sha256": "447f73d2cedd544c59fe1f09b6f6e5086a06d72d241a6acc15271b473e8646d8"
+    },
+    "runtime-lower/walking-step.json.gz": {
+      "bytes": 15357,
+      "sha256": "2b031fd61a6a369e46b0431a48a28d0ba052cc7cb81f591267f596787ada582c"
+    },
+    "runtime-lower/walking-transaction.json.gz": {
+      "bytes": 8826,
+      "sha256": "dffee039eee3f06f24a584e7fdd2e2d4706871736c77505fa2ac271a7836f883"
+    },
+    "runtime-lower/step-down-replay.json.gz": {
+      "bytes": 22445,
+      "sha256": "9b0225f63edc20ae5648246e915dd8dbfe5fdfd69a3f21fd2cd24e674d52b9db"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/545/overhang.request.json",
+      "bytes": 20405,
+      "sha256": "e8abb6d0dfed5c75c2c3e77871d7ccd8ee2c13242c59ac42ee8a98ad74b17047"
+    },
+    {
+      "path": "docs/audit/bf144/545/observer.py",
+      "bytes": 3579,
+      "sha256": "83f211639248fb96d4faf3c1a5fed5bd8f95201bbf23483e4446b301f8d23412"
+    },
+    {
+      "path": "docs/audit/bf144/537/native_fin.inc",
+      "bytes": 949,
+      "sha256": "a5f0f579ff972b9e28a06bac70687a0103153bb6a1462561ef5012ca2b6c5a65"
+    },
+    {
+      "path": "docs/audit/bf144/537/target_fin.inc",
+      "bytes": 611,
+      "sha256": "626a1e00d7224038fcf37ba2671eba2b5fbf72c41b132602ed37209c97340ed0"
+    },
+    {
+      "path": "docs/audit/bf144/537/observer.py",
+      "bytes": 1463,
+      "sha256": "5ce7053193d08da19fe4272d703135bf7928f435a0f4d56b7df0b364e274cebc"
+    },
+    {
+      "path": "docs/audit/bf144/536/prepare_reader.py",
+      "bytes": 2370,
+      "sha256": "06d2931d64a3bf9f63f2a91089db8aa8a568c02c0d61b8e474ab5124d2f79e3a"
+    },
+    {
+      "path": "docs/audit/bf144/536/step_down_floor.inc",
+      "bytes": 994,
+      "sha256": "1cee5112107c7d0dcc8a2bdf348dd2fcbc74b3e5f4a65477b37ad54b740b38a8"
+    },
+    {
+      "path": "docs/audit/bf144/536/observer.py",
+      "bytes": 4167,
+      "sha256": "1846af5ef85477f3c81ac5410fbb0db949736affb4e3c8d42ff6329f868d21b1"
+    },
+    {
+      "path": "docs/audit/bf144/536/step_probe.rs",
+      "bytes": 1761,
+      "sha256": "53c055d227d8cb50eea10fcf56c92095cb4f108afe44a77974ac9d13d486dfe9"
+    }
+  ]
+}

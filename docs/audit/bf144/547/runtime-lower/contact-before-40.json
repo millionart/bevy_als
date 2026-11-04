@@ -1,0 +1,43 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 3.2203481197357178,
+    "gap": 0.02399301528930664,
+    "impact": 2.429999828338623,
+    "lower_hemisphere": 2.644341230392456,
+    "name": "AuditStepEdge"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": true,
+  "manifolds": [
+    {
+      "constraints": true,
+      "normal": [
+        0.755928635597229,
+        -0.6546540260314941,
+        -8.940696716308594e-8
+      ],
+      "other": "AuditStepCeiling",
+      "points": [
+        [
+          0.0,
+          0.0
+        ]
+      ]
+    }
+  ],
+  "mode": "Grounded",
+  "ordinal": 40,
+  "planned_velocity": null,
+  "position": [
+    -13.821884155273438,
+    3.2443411350250244,
+    -15.0
+  ],
+  "raw_velocity": [
+    2.0437679290771484,
+    0.0,
+    -5.655451218444796e-8
+  ],
+  "requested_mode": null
+}

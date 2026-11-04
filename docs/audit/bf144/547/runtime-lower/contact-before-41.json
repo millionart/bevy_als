@@ -1,0 +1,27 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 3.3113033771514893,
+    "gap": 0.02401137351989746,
+    "impact": 2.429999828338623,
+    "lower_hemisphere": 2.7353146076202393,
+    "name": "AuditStepEdge"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": true,
+  "manifolds": [],
+  "mode": "Grounded",
+  "ordinal": 41,
+  "planned_velocity": null,
+  "position": [
+    -13.694252014160156,
+    3.3353147506713867,
+    -15.0
+  ],
+  "raw_velocity": [
+    3.4732799530029297,
+    0.0,
+    -1.9768735626257694e-7
+  ],
+  "requested_mode": null
+}
