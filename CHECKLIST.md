@@ -4133,6 +4133,15 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.534 窄胶囊命中后的最大支撑距离。依赖533。保100cm主台与Walking初态，在窄胶囊可达处加低台，只改下落47.3/47.5cm夹约47.4cm。源用真实切换及相同首步位置的Walking范围重查，记录原始窄Hit与AboveBase+距离、最终valid；目标取生产重放与实际事务。单独核首步及后续贴地，独立差异才登记。开始2026-11-04 19:49:18 +0800，预估结束2026-11-04 20:29:18 +0800。参考533约6分钟，加原生pre/post距离资格读数，估40分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh UE/目标均以AboveBase+perch floor distance和MaxPerch比较；ALS额外高度0。本见证沿533主台与首步位置，窄半径15cm可达低台，低台深度47.3/47.5cm夹限。原生读取包独立保留距离判断前的窄Hit及最终结果，目标同生产floor重放。截图0。
+  - 两端粗区间实际通过：47.3均首步支持，47.5窄胶囊仍可走却超限并首步失去支撑。目标总距离比源低约46–65µm。根据两个实际误差在同几何加47.403cm深度，源观察开关与目标同二进制重复，验证数值差是否跨真实门槛。截图0。
+  - 真实边界后：47.403cm源总距离47.40260cm超过47.40010cm，40首步Falling；目标两次总约47.39612cm均在限内、40保持Grounded并贴到低台。两端窄Hit都是可走平面。追加同目标实际窄胶囊/盒/方向/起点的原生Chaos查询，分离阈值与原始距离，再归属D125。截图0。
+  - 同输入原生原始距离：Chaos 42.50580597cm，目标42.49892831cm，差约68.78µm，目标见证点仍隔约68.90µm。只把该距离放入目标同AboveBase及步长条件，总距离从阈值内变为超限。源实跑仍高约0.470m，目标已贴低台。补D125短窄胶囊消费者，无独立阈值公式差。截图0。
+  - Gate通过。两端47.3/47.5粗对照、47.403真实分歧、原生两组各43帧观察开关、目标四次功能与边界同二进制重复、同输入Chaos及单距离复算。隔离包、六库/396身份及113份Git证据通过。补D125、无新增，累计291（124P2/167P3）。实际结束2026-11-04 19:55:54 +0800，实耗396秒，偏差-2004秒。证据 docs/audit/bf144/534/summary.json。截图0，性能暂停。
+  - 后继边界：本项已核perch最终总距离上限与其数值消费者。合格perch触发AvgFloorDist高度钳制的分支另需找自然见证，避免把已证的超限拒绝外推。
+
 - [x] BF144.533 Walking边缘窄胶囊失败的消费。依赖532。使用已站稳静态台和相同位置/速度起点，60ms第40帧分别在首步、第二步及整帧支持三案。源取真实模式切换位置、宽/窄query、步行与空中余时，目标取事务前后及PostUpdate并以生产floor重放。仅有独立机制才新增差异。开始2026-11-04 19:41:44 +0800，预估结束2026-11-04 20:26:44 +0800。参考532约5分钟，加Walking初始化与原生模式委托，估45分钟。截图0，性能暂停。
 
   - 真实Gate前：fresh PhysWalking宽/窄检查失败、非穿透时走CheckFall/StartFalling；目标多步事务adjust_walking_floor_height返回None后用余时调用Falling。用第40帧已有Walking真实基座，位置−14.01m、支撑间隙2.15cm、初速6m/s，宽100/108/125cm台；不放墙。原生记录模式切换委托位置并以Walking范围重查宽/窄。截图0。
@@ -5704,6 +5713,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.174 Movement补充：明确raw_model的SprintAcceleration实际第52帧，79骨骼native与目标VB ik_hand_l最大位置分量差0.034578234m；相同目标普通骨骼按fresh11个source/target绑定重算虚拟骨骼后，与native raw最大残差约8.42e−6m，native自身重算闭合到约1e−10m。根因仍为raw Sequencer逐次生成与目标30Hz独立VB键插值不交换。准备platform数据后同点compressed差降至1.76e−5m，故原幅度只归此raw模型边界，不作为压缩路径的新缺陷。证据`174/virtual-bone-check.json`、`peak-actual-mode.native.json`及`peak-compressed.native.json`。
 
 - [ ] BF144-D125 / P2 — 大型平地箱体的胶囊sweep数值偏差，改变落地与地面预测。
+  - BF144.534 窄胶囊支撑上限消费者。47.403cm低台同几何下，Chaos原始距离比目标长68.78µm；源40首步超限转Falling，目标同二进制两次均判在限内并贴到低台，帧末高度差约0.470m。只换原生原始距离的复算越限，47.3/47.5两侧对照一致。证据 docs/audit/bf144/534/summary.json。
   - Source：fresh `CapsuleComponent.cpp:240–244`与`ChaosEngineInterface.cpp:122–147`确认半高包含端球、segment沿Z且半长H−R；`WorldCollision.cpp:545–563`、`SceneQuery.cpp:365–382`、`SQVisitor.h:336`及`GeometryQueries.h:320–325`进入MTD开启、Thickness=0的原生SweepQuery/GJKRaycast2。本机同输入4m/100m箱体均返回20ms方向distance=0.055680113m、50ms方向=0.054472971m；源不是先前的解析平面假设。
   - Target：Avian/Parry的support-map shape cast进入directional_distance→minkowski_ray_cast，后者在距离阈值或不再收紧上界等条件下返回当前TOI；`motion.rs:2701–2733`直接把该距离经源式pullback转为applied及remaining_time，再进入落地walking积分。当前证据定位到实际查询核差异，未把某个提前退出分支冒称为已动态插桩确认。
   - 反例：完整角色相同H=0.9/R=0.3m、start.y=0.94m、初速(3,−3,0)m/s；100m箱体返回0.047215056/0.041710450m，分别提前8.465/12.763mm，命中witness仍分离6.082/9.372mm。4m的50ms方向接近原生，20ms方向另有0.069mm低量级差异。替换旧解析oracle为原生距离后，3帧长×有无保留输入×两箱体的12组实际落地消费者仍为6PASS/6FAIL，失败仅100m；20ms无输入时速度低0.105535m/s，100ms无输入位移少约10.03mm。证据`43/queries.native.json`、`bf144_capsule_phase43_native_queries`与`bf144_capsule_phase43_landing_remaining_with_native_time`。
