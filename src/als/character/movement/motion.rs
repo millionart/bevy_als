@@ -2706,7 +2706,8 @@ pub fn movement_sweep_travel(distance: f32, hit_distance: f32) -> f32 {
 
 pub(crate) fn falling_movement_sweep(
     spatial: &SpatialQuery, capsule: &Collider, start: Vec3, rotation: Quat,
-    movement: Vec3, mut velocity: Vec3, step: f32, landing_cmc: Option<&crate::als::params::CmcAdapterParams>, entity: Entity,
+    movement: Vec3, mut velocity: Vec3, step: f32,
+    mut landing: Option<(&crate::als::params::CmcAdapterParams, f32, f32, &mut u32)>, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
 ) -> (Vec3, Vec3, bool, Option<f32>) {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
@@ -2714,22 +2715,57 @@ pub(crate) fn falling_movement_sweep(
     let mut remaining = movement;
     let mut remaining_time = step;
     let mut previous_normal = None;
+    let mut first_impact_normal: Option<Vec3> = None;
     let mut applied = Vec3::ZERO;
     let mut contact = false;
-    for _ in 0..3 {
-        let Ok((direction, distance)) = Dir3::new_and_length(remaining) else { break };
-        let config = ShapeCastConfig { ignore_origin_penetration: true,
-            ..ShapeCastConfig::from_max_distance(distance) };
-        let Some(hit) = spatial.cast_shape_predicate(capsule, start + applied, rotation,
-            direction, &config, &filter, &accepts) else { applied += remaining; break };
+    for sweep in 0..3 {
+        let motion = Dir3::new_and_length(remaining).ok();
+        let hit = motion.as_ref().and_then(|(direction, distance)| {
+            let config = ShapeCastConfig { ignore_origin_penetration: true,
+                ..ShapeCastConfig::from_max_distance(*distance) };
+            spatial.cast_shape_predicate(capsule, start + applied, rotation,
+                *direction, &config, &filter, &accepts)
+        });
+        let Some(hit) = hit else {
+            applied += remaining;
+            if sweep == 2
+                && let Some((cmc, jump_z, max_speed, seed)) = landing.as_mut()
+                && cmc.perch_radius_threshold > 0.0
+                && first_impact_normal.is_some_and(|normal| normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos())
+                && !first_impact_normal.zip(previous_normal).is_some_and(|(first, second)| {
+                    first.y > 0.0 && second.y > 0.0 && remaining.y.abs() <= 1e-6 && first.dot(second) < 0.0
+                })
+                && applied.y.abs() <= 0.002 * step
+                && Vec2::new(applied.x, applied.z).length() <= 0.04 * step
+            {
+                let next_random = |seed: &mut u32| {
+                    *seed = seed.wrapping_mul(196314165).wrapping_add(907633515);
+                    f32::from_bits(0x3f800000 | (*seed >> 9)) - 1.0
+                };
+                velocity.x += 0.25 * *max_speed * (next_random(seed) - 0.5);
+                velocity.z += 0.25 * *max_speed * (next_random(seed) - 0.5);
+                velocity.y = (*jump_z * 0.25).max(0.01);
+                let kick = velocity * step;
+                if let Ok((direction, distance)) = Dir3::new_and_length(kick) {
+                    let config = ShapeCastConfig { ignore_origin_penetration: true,
+                        ..ShapeCastConfig::from_max_distance(distance) };
+                    let hit = spatial.cast_shape_predicate(capsule, start + applied, rotation,
+                        direction, &config, &filter, &accepts);
+                    applied += *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
+                }
+            }
+            break;
+        };
+        let (direction, distance) = motion.unwrap();
         let travel = movement_sweep_travel(distance, hit.distance);
         applied += *direction * travel;
         let Some(normal) = hit.normal1.try_normalize() else { break };
+        if sweep == 0 { first_impact_normal = Some(normal); }
         contact |= normal.y > 0.0 && remaining.dot(normal) < 0.0;
         remaining_time *= 1.0 - travel / distance;
         if normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
             && remaining.dot(normal) < 0.0
-            && let Some(cmc) = landing_cmc {
+            && let Some((cmc, ..)) = landing.as_ref() {
             let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
             let position = start + applied;
             if find_ground_floor(spatial, position, extent.y, extent.x.min(extent.z), cmc,
@@ -2743,7 +2779,10 @@ pub(crate) fn falling_movement_sweep(
         let slide = crate::extensions::motion::falling_slide(budget, normal, previous_normal);
         previous_normal = Some(normal);
         if remaining_time > f32::EPSILON { velocity = slide / remaining_time; }
-        if slide.dot(budget) <= 0.0 { break; }
+        if slide.dot(budget) <= 0.0 {
+            if sweep == 1 { remaining = Vec3::ZERO; continue; }
+            break;
+        }
         remaining = slide;
     }
     (applied, velocity, contact, None)
@@ -2753,7 +2792,7 @@ fn falling_movement_transaction(
     spatial: &SpatialQuery, capsule: &Collider, mut transform: Transform, mut velocity: Vec3,
     desired_motion: Vec3, mut max_speed: f32, params: &AlsMovementParams, gravity: Vec3,
     grounded: (Stance, RotationMode, Gait, f32), landing: (f32, bool, bool),
-    terminal: f32, mut remaining: f32, mut iterations: u32, entity: Entity,
+    terminal: f32, mut remaining: f32, mut iterations: u32, entity: Entity, random_seed: &mut u32,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     step_permissions: &Query<&AlsMantleTargetPermission>,
     transitions: &mut MessageWriter<StateTransitionEvent>,
@@ -2775,7 +2814,8 @@ fn falling_movement_transaction(
             gravity, terminal);
         let requested = (old_velocity + velocity) * (0.5 * step);
         let (applied, deflected, hit, landing_remaining) = falling_movement_sweep(spatial, capsule, transform.translation,
-            transform.rotation, requested, velocity, step, Some(&params.cmc), entity, candidates);
+            transform.rotation, requested, velocity, step,
+            Some((&params.cmc, params.jump.jump_z_velocity, max_speed, &mut *random_seed)), entity, candidates);
         transform.translation += applied;
         contact |= hit;
         let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
@@ -3718,7 +3758,7 @@ pub(crate) fn cmc_movement_transaction_system(
             let (moved, final_velocity, steps, contact, mode) = falling_movement_transaction(&spatial_query, capsule,
                 initial_transform, initial, controller.basis.desired_motion, max_speed, params,
                 gravity.value + motor.lin.acceleration, grounded, landing, volume.unwrap_or(&default_volume.0).terminal_velocity,
-                delta_seconds, 0, entity, &candidates, &step_permissions, &mut transitions);
+                delta_seconds, 0, entity, &mut runtime.random_seed, &candidates, &step_permissions, &mut transitions);
             if *loco != mode { *loco = mode; }
             if mode == LocomotionState::None {
                 commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
@@ -3782,7 +3822,8 @@ pub(crate) fn cmc_movement_transaction_system(
                     .unwrap_or(&default_volume.0).terminal_velocity;
                 let (moved, falling_velocity, _, contact, mode) = falling_movement_transaction(&spatial_query,
                     capsule, current_transform, final_velocity, controller.basis.desired_motion, max_speed,
-                    params, gravity.value, grounded, landing, terminal, remaining_time, iterations, entity, &candidates, &step_permissions, &mut transitions);
+                    params, gravity.value, grounded, landing, terminal, remaining_time, iterations, entity,
+                    &mut runtime.random_seed, &candidates, &step_permissions, &mut transitions);
                 if *loco != mode { *loco = mode; }
                 if mode == LocomotionState::None {
                     commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
@@ -4270,6 +4311,51 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn falling_virtual_ditch_kicks_only_after_a_stalled_two_wall_sweep() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (gap, perch, jump_z, expected_y) in [
+            (Some(0.001), 0.15, 4.2, Some(1.05)),
+            (Some(0.001), 0.15, 0.0, Some(0.01)),
+            (Some(0.014), 0.15, 4.2, None),
+            (None, 0.15, 4.2, None),
+            (Some(0.001), 0.0, 4.2, None),
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            let rotation = Quat::from_rotation_z(-40.0_f32.to_radians());
+            let ledge = Vec3::new(0.0, 3.4, 0.0) - rotation * Vec3::Y * 0.311;
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.06, 0.02, 0.6),
+                Transform::from_translation(ledge).with_rotation(rotation)));
+            if let Some(gap) = gap {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 3.0, 2.0),
+                    Transform::from_xyz(0.35 + gap, 4.0, 0.0)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let (result, seed) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                let cmc = crate::als::params::CmcAdapterParams { perch_radius_threshold: perch, ..default() };
+                let mut seed = 123_u32;
+                let result = falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(0.0, 4.0, 0.0), Quat::IDENTITY, Vec3::new(-0.025, -0.1122625, 0.001),
+                    Vec3::new(-0.5, -2.4905, 0.02), 0.05, Some((&cmc, jump_z, 3.75, &mut seed)),
+                    actor, &candidates);
+                (result, seed)
+            }).unwrap();
+            assert_eq!(seed, if expected_y.is_some() { 1238442549 } else { 123 }, "gap={gap:?} perch={perch}");
+            if let Some(expected_y) = expected_y {
+                assert!((result.1.y - expected_y).abs() < 1e-5,
+                    "gap={gap:?} perch={perch} velocity={:?}", result.1);
+                assert!(result.3.is_none(), "the virtual ditch must stay airborne");
+            } else {
+                assert!((result.1.y - 1.05).abs() > 1e-5, "gap={gap:?} perch={perch}");
+            }
+        }
+    }
 
     #[test]
     fn custom_tags_follow_source_movement_fallbacks() {

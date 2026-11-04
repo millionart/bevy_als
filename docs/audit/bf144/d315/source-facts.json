@@ -1,0 +1,49 @@
+{
+  "engine_commit": "396c9f059903aed5fec78ecd3d437a40c6415368",
+  "files": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "line": 653,
+          "text": "UCharacterMovementComponent::UCharacterMovementComponent(const FObjectInitializer& ObjectInitializer)\n\t: Super(ObjectInitializer)\n{\n\tRandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);"
+        },
+        {
+          "line": 4903,
+          "text": "float timeTick = GetSimulationTimeStep(remainingTime, Iterations);\n\t\tremainingTime -= timeTick;\n\t\t\n\t\tconst FVector OldLocation = UpdatedComponent->GetComponentLocation();"
+        },
+        {
+          "line": 5120,
+          "text": "const FVector OldHitNormal = Hit.Normal;\n\t\t\t\tconst FVector OldHitImpactNormal = Hit.ImpactNormal;\t\t\t\t\n\t\t\t\tFVector Delta = ComputeSlideVector(Adjusted, 1.f - Hit.Time, OldHitNormal, Hit);"
+        },
+        {
+          "line": 5200,
+          "text": "bool bDitch = ( (GetGravitySpaceZ(OldHitImpactNormal) > 0.f) && (GetGravitySpaceZ(Hit.ImpactNormal) > 0.f) && (FMath::Abs(GetGravitySpaceZ(Delta)) <= UE_KINDA_SMALL_NUMBER) && ((Hit.ImpactNormal | OldHitImpactNormal) < 0.f) );\n\t\t\t\t\t\tSafeMoveUpdatedComponent( Delta, PawnRotation, true, Hit);\n\t\t\t\t\t\tif ( Hit.Time == 0.f )\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\t// if we are stuck then try to side step\n\t\t\t\t\t\t\tFVector SideDelta = ProjectToGravityFloor(OldHitNormal + Hit.ImpactNormal).GetSafeNormal();\n\t\t\t\t\t\t\tif ( SideDelta.IsNearlyZero() )\n\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\tif (HasCustomGravity())\n\t\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\t\tconst FVector GravityRelativeHitNormal = RotateWorldToGravity(OldHitNormal);\n\t\t\t\t\t\t\t\t\tSideDelta = RotateGravityToWorld(FVector(GravityRelativeHitNormal.Y, -GravityRelativeHitNormal.X, 0.f)).GetSafeNormal();\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\t\tSideDelta = FVector(OldHitNormal.Y, -OldHitNormal.X, 0).GetSafeNormal();\t\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tSafeMoveUpdatedComponent( SideDelta, PawnRotation, true, Hit);\n\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\n\t\t\t\t\t\tif ( bDitch || IsValidLandingSpot(UpdatedComponent->GetComponentLocation(), Hit) || Hit.Time == 0.f  )\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tremainingTime = 0.f;\n\t\t\t\t\t\t\tProcessLanded(Hit, remainingTime, Iterations);\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse if (GetPerchRadiusThreshold() > 0.f && Hit.Time == 1.f && GetGravitySpaceZ(OldHitImpactNormal) >= WalkableFloorZ)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\t// We might be in a virtual 'ditch' within our perch radius. This is rare.\n\t\t\t\t\t\t\tconst FVector PawnLocation = UpdatedComponent->GetComponentLocation();\n\t\t\t\t\t\t\tconst float ZMovedDist = FMath::Abs(GetGravitySpaceZ(PawnLocation - OldLocation));\n\t\t\t\t\t\t\tconst float MovedDist2D = ProjectToGravityFloor(PawnLocation - OldLocation).Size();\n\t\t\t\t\t\t\tif (ZMovedDist <= 0.2f * timeTick && MovedDist2D <= 4.f * timeTick)\n\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\tFVector GravityRelativeVelocity = RotateWorldToGravity(Velocity);\n\t\t\t\t\t\t\t\tGravityRelativeVelocity.X += 0.25f * GetMaxSpeed() * (RandomStream.FRand() - 0.5f);\n\t\t\t\t\t\t\t\tGravityRelativeVelocity.Y += 0.25f * GetMaxSpeed() * (RandomStream.FRand() - 0.5f);\n\t\t\t\t\t\t\t\tGravityRelativeVelocity.Z = FMath::Max<float>(JumpZVelocity * 0.25f, 1.f);\n\t\t\t\t\t\t\t\tVelocity = RotateGravityToWorld(GravityRelativeVelocity);\n\t\t\t\t\t\t\t\tDelta = Velocity * timeTick;\n\t\t\t\t\t\t\t\tSafeMoveUpdatedComponent(Delta, PawnRotation, true, Hit);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}"
+        },
+        {
+          "line": 7445,
+          "text": "float UCharacterMovementComponent::GetPerchRadiusThreshold() const\n{\n\t// Don't allow negative values.\n\treturn FMath::Max(0.f, PerchRadiusThreshold);\n}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/RandomStream.h",
+      "sha256": "7f6a6608c9a20405f64f9a374d870d2d71c46d2e05412ae6dde7d6b02c4da113",
+      "excerpts": [
+        {
+          "line": 75,
+          "text": "void Initialize( FName InName )\n\t{\n\t\tif (InName != NAME_None)\n\t\t{\n\t\t\tInitialSeed = GetTypeHash(InName.ToString());\n\t\t}\n\t\telse\n\t\t{\n\t\t\tInitialSeed = FPlatformTime::Cycles();\n\t\t}\n\n\t\tSeed = uint32(InitialSeed);\n\t}\n\n\t/**\n\t * Resets this random stream to the initial seed value.\n\t */"
+        },
+        {
+          "line": 115,
+          "text": "float GetFraction() const\n\t{\n\t\tMutateSeed();\n\n\t\tfloat Result;\n\n\t\t*(uint32*)&Result = 0x3F800000U | (Seed >> 9);\n\n\t\treturn Result - 1.0f; \n\t}\n\n\t/**\n\t * Returns a random number between 0 and MAXUINT.\n\t *\n\t * @return Random number.\n\t */"
+        },
+        {
+          "line": 362,
+          "text": "void MutateSeed() const\n\t{\n\t\tSeed = (Seed * 196314165U) + 907633515U; \n\t}\n\nprivate:\n\n\t// Holds the initial seed.\n\tint32 InitialSeed;\n\n\t// Holds the current seed. This should be an uint32 so that any shift to obtain top bits\n\t// is a logical shift, rather than an arithmetic shift (which smears down the negative bit).\n\tmutable"
+        }
+      ]
+    }
+  ]
+}
