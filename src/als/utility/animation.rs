@@ -17,7 +17,9 @@ pub fn acceleration_amount(
     maximum_acceleration: f32,
     maximum_braking_deceleration: f32,
 ) -> Vec2 {
-    let maximum = if acceleration.dot(velocity) >= 0.0 {
+    let world = DVec3::new(acceleration.x as f64, acceleration.z as f64, acceleration.y as f64) * 100.0;
+    let world_velocity = DVec3::new(velocity.x as f64, velocity.z as f64, velocity.y as f64) * 100.0;
+    let maximum = if world.dot(world_velocity) >= 0.0 {
         maximum_acceleration
     } else {
         maximum_braking_deceleration
@@ -28,7 +30,6 @@ pub fn acceleration_amount(
     let half = std::f64::consts::FRAC_1_SQRT_2;
     let source_rotation = rotation.as_dquat() * DQuat::from_xyzw(0.0, half, 0.0, half);
     let inverse = DVec3::new(source_rotation.x, source_rotation.z, source_rotation.y);
-    let world = DVec3::new(acceleration.x as f64, acceleration.z as f64, acceleration.y as f64) * 100.0;
     let twice_cross = 2.0 * inverse.cross(world);
     let local = (world + source_rotation.w * twice_cross + inverse.cross(twice_cross)).as_vec3();
     let amount = local / (maximum * 100.0);
@@ -60,5 +61,20 @@ mod tests {
         assert!(acceleration_amount(vertical, vertical, Quat::IDENTITY, 1.0, 1.0)
             .abs_diff_eq(Vec2::new(0.8, 0.0), 1e-6));
         assert_eq!(acceleration_amount(Vec3::X, Vec3::X, Quat::IDENTITY, 0.0, 0.0), Vec2::ZERO);
+    }
+
+    #[test]
+    fn source_lean_uses_double_precision_acceleration_velocity_dot() {
+        let acceleration = Vec3::new(0.00051497726, 0.0, 6.0);
+        let velocity = Vec3::new(0.6666755, 0.0, -0.000057220455);
+        let rotation = Quat::from_xyzw(0.0, -0.40180978, 0.0, 0.9157232);
+        assert_eq!(acceleration.dot(velocity), 0.0);
+        let amount = acceleration_amount(acceleration, velocity, rotation, 20.0, 15.0);
+        let native = Vec2::new(-0.27081388, 0.29438046);
+        assert!(amount.abs_diff_eq(native, 1e-7), "Native braking lean differs: {amount:?} != {native:?}");
+        let positive = acceleration_amount(Vec3::X, Vec3::X, Quat::IDENTITY, 20.0, 15.0);
+        let braking = acceleration_amount(-Vec3::X, Vec3::X, Quat::IDENTITY, 20.0, 15.0);
+        assert!((positive.y - 0.05).abs() < 1e-6);
+        assert!((braking.y + 1.0 / 15.0).abs() < 1e-6);
     }
 }

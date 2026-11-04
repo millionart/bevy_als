@@ -5091,10 +5091,14 @@
   - 05:17 source/static闭环：13项原生资产读取及watchdog完成；533图包含本次源可达的四个动画实例，Lean BlendSpace、五样本、参考姿态、骨架和网格身份已封存。fresh C++确认双精度逆旋转后才转F32、按阈值缩放并在三维局部限幅；静态图审计/视觉Gate尚未执行，D285点积与D281共享倒数保持独立。
   - 05:18实现摘要：共享加速度函数按源坐标基逆旋转、转F32，再在局部三维向量限幅；Standing/Crouching Lean和Sprint起步仍使用同一源函数。已添加.510自然帧原生值及竖直分量控制，范围清单和13份可重验原生证据已登记。实现结束05:18、偏差−36分钟；静态审计、测试、消融与公共视觉Gate尚未运行。
 
-- [ ] BF144-D285 / P3 — Grounded Lean 用F32点积判定加速或制动。
+- [x] BF144-D285 / P3 — Grounded Lean 用F32点积判定加速或制动。
   - BF144.511 实际消费者。序号20的同输入制动选择控制沿实际Lean进入BlendSpace68骨、叠加59骨、Root72骨。Sprint混合未更新。证据 docs/audit/bf144/511/summary.json。
   - 源以F64世界加速度和速度点积选择阈值，目标在F32相乘和求和。固定Playground序号20的实测速度/朝向，仅替换近垂直加速度，目标点积为0，使用20m/s²，原生点积仍负，使用15m/s²。
   - 原生实际RefreshGrounded前向−0.2708138824。目标同输入前向−0.2031104118，仅将目标加速阈值设为制动阈值，前向逐值恢复，Lean也改变。自然48源/38目标的点积没有在本采样出现分支翻转。证据 docs/audit/bf144/510/summary.json。
+
+  - 修复第1轮：开始2026-11-05 05:19 +08:00；预估结束05:59 +08:00。依据：.510已有近垂直输入和原生制动判支，.511已证明Lean至Root消费；刚完成D286同源的13项动画资产闭包，本项重核Standing与当前C++，只改源F64点积选择，测试及公共视觉Gate统一后置。
+  - 05:20 source/static闭环：fresh `FVector` 加速度/速度为F64，源点积按世界X/Y/Z相乘求和后选择阈值；Standing已再次原生读取，同次D286的父图、Crouching、BlendSpace、样本及RequiredBones身份继续适用。源及本项范围见 `docs/audit/bf144/d285/source-facts.json`、`tools/animgraph_authoring/bf144_d285.scope.json`；图审计与视觉Gate待执行。
+  - 05:21实现摘要：按源世界坐标和厘米单位以F64做加速度/速度点积，再选择加速或制动阈值；已写.510近垂直反例与正负方向控制。重新读取的Standing原生输出gzip及原始SHA已封存，其他递归证据引用D286。实现结束05:21、偏差−38分钟；测试、消融、图静态审计和公共视觉Gate尚未运行。
 
 - [ ] BF144-D284 / P3 — Grounded Lean 不消费源 General 半衰期，InAir 已接线。
   - 原生 Grounded 和 InAir 均读取 General.LeanInterpolationHalfLife 并支持非正值立即取目标。默认设置0.2。Bevy InAir 通过生成配置和 provider 消费该值；Grounded 仅以0.2常量阻尼，立即取值只由 pending 控制。

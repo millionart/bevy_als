@@ -1,0 +1,19 @@
+{
+  "asset": "Content/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.uasset",
+  "asset_identity": {
+    "bytes": 2145227,
+    "sha256": "52470475c15cd33106b1e964bd0ed9bb239e4331cd28b3b9388334c80e0b11df"
+  },
+  "request_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+  "native_output": "docs/audit/bf144/d285/standing.native.json.gz",
+  "raw": {
+    "bytes": 94113450,
+    "sha256": "92847fb6c6805e2335a54459a1a3cc30718dabe1e5e7cae377269c3e77342504"
+  },
+  "compressed": {
+    "bytes": 3871075,
+    "sha256": "ef0066d7cd1256c7b91f95bb8362401ee27f34dc299e9e2e31da6b9cb650b77a"
+  },
+  "reader_report": "docs/audit/bf144/d285/standing.native.json.reader.report.json",
+  "shared_recursive_identity": "docs/audit/bf144/d286/native-identities.json"
+}
