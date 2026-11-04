@@ -3612,6 +3612,15 @@ fn apply_actual_stance(
     });
 }
 
+fn walking_step_slide_normal(delta: Vec3, normal: Vec3, floor_normal: Vec3, floor_distance: f32) -> Vec3 {
+    if normal.y > 0.0 && normal.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
+        normal.with_y(0.0).normalize_or_zero()
+    } else if normal.y < -1e-4 && floor_distance < MIN_FLOOR_DISTANCE {
+        let selected = if delta.dot(floor_normal) < 0.0 && floor_normal.y < 1.0 - 1e-5 { floor_normal } else { normal };
+        selected.with_y(0.0).normalize_or_zero()
+    } else { normal }
+}
+
 fn grounded_movement_transaction(
     spatial_query: &SpatialQuery, capsule: &Collider, center: Vec3, rotation: Quat,
     half: f32, radius: f32, delta: Vec3, cmc: &crate::als::params::CmcAdapterParams,
@@ -3657,7 +3666,9 @@ fn grounded_movement_transaction(
         if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
             return Some(result);
         }
-        let Some((floor_center, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, cmc, mode, &filter, entity, &candidates) else { return Some(result) };
+        let Some(((floor_center, impact_y, _), _, floor_normal, floor_distance)) =
+            find_ground_floor_with_penetration(spatial_query, center, half, radius, cmc, mode, &filter, entity, candidates)
+            else { return Some(result) };
         initial_floor_y = Some(impact_y);
         let up_config = ShapeCastConfig {
             ignore_origin_penetration: true,
@@ -3671,9 +3682,7 @@ fn grounded_movement_transaction(
             if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 { return Some(result); }
             let forward_travel = movement_sweep_travel(forward_config.max_distance, hit.distance);
             let advance = *direction * forward_travel;
-            let normal = if hit.normal1.y > 0.0 && hit.normal1.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
-                hit.normal1.with_y(0.0).normalize_or_zero()
-            } else { hit.normal1 };
+            let normal = walking_step_slide_normal(remaining_delta, hit.normal1, floor_normal, floor_distance);
             let tail = remaining_delta - advance;
             let slide = tail - normal * tail.dot(normal);
             let mut progressed = advance;
@@ -4025,14 +4034,14 @@ pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius
     filter: &SpatialQueryFilter, character: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>) -> Option<(f32, f32, Entity)> {
     find_ground_floor_with_penetration(spatial, origin, half, radius, cmc, mode, filter, character, candidates)
-        .map(|(floor, _)| floor)
+        .map(|(floor, _, _, _)| floor)
 }
 
 fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
     cmc: &crate::als::params::CmcAdapterParams, mode: LocomotionState,
     filter: &SpatialQueryFilter, character: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>)
-    -> Option<((f32, f32, Entity), Option<ShapeHitData>)> {
+    -> Option<((f32, f32, Entity), Option<ShapeHitData>, Vec3, f32)> {
     let accepts = |candidate| character_blocks_collider(character, candidate, candidates);
     let walkable = |hit: &ShapeHitData| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
         && !(hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0);
@@ -4047,7 +4056,7 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
                 sweep_distance + shrink_height, filter, &accepts) {
                 let floor_distance = (hit.distance - shrink_height).max(-MAX_FLOOR_DISTANCE.max(radius));
                 let valid = walkable(&hit) && floor_distance <= sweep_distance;
-                result = Some((hit, floor_distance, valid, false, None));
+                result = Some((hit, floor_distance, valid, false, None, floor_distance));
                 if valid { return result; }
                 if hit.distance != 0.0 { break; }
             }
@@ -4059,10 +4068,12 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
             let floor_distance = (ray.distance - half).max(-MAX_FLOOR_DISTANCE.max(radius));
             if floor_distance <= line_distance {
                 let point = at - Vec3::Y * ray.distance;
+                let sweep_floor_distance = result.map(|(_, distance, _, _, _, _)| distance).unwrap();
                 return Some((ShapeHitData { entity: ray.entity, distance: ray.distance,
                     point1: point, point2: point, normal1: ray.normal, normal2: -ray.normal },
-                    floor_distance, true, true, result.and_then(|(hit, _, _, _, _)|
-                        (hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0).then_some(hit))));
+                    floor_distance, true, true, result.and_then(|(hit, _, _, _, _, _)|
+                        (hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0).then_some(hit)),
+                    sweep_floor_distance));
             }
         }
         result
@@ -4071,7 +4082,7 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
         MAX_FLOOR_DISTANCE + crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE
     } else { -MAX_FLOOR_DISTANCE };
     let max_floor = MAX_FLOOR_DISTANCE.max(MAX_STEP_HEIGHT + height_adjust);
-    let (mut hit, mut floor_distance, valid, line, retained_penetration) = compute(origin, radius, max_floor, max_floor)?;
+    let (mut hit, mut floor_distance, valid, line, retained_penetration, sweep_floor_distance) = compute(origin, radius, max_floor, max_floor)?;
     let threshold = cmc.perch_radius_threshold.max(0.0);
     let perch_radius = (radius - threshold).max(crate::als::movement_constants::MIN_PERCH_RADIUS).min(radius);
     let edge_distance = Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared();
@@ -4080,14 +4091,15 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
         let at = origin - Vec3::Y * hit.distance;
         let above_base = (hit.point1.y - at.y + half).max(0.0);
         let max_perch = max_floor + if mode == LocomotionState::Grounded { cmc.perch_additional_height.max(0.0) } else { 0.0 };
-        let (perch, perch_distance, perch_valid, _, _) = compute(at, perch_radius,
+        let (perch, perch_distance, perch_valid, _, _, _) = compute(at, perch_radius,
             (max_perch - above_base).max(0.0), max_perch + radius)?;
         if !perch_valid || above_base + perch_distance > max_perch { return None; }
         let average = (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5;
         if average - floor_distance + perch_distance >= max_perch { floor_distance = average; }
         if !valid { hit = perch; }
     } else if !valid { return None; }
-    Some(((origin.y - floor_distance, hit.point1.y, hit.entity), retained_penetration))
+    let source_floor_distance = if line { sweep_floor_distance } else { floor_distance };
+    Some(((origin.y - floor_distance, hit.point1.y, hit.entity), retained_penetration, hit.normal1, source_floor_distance))
 }
 
 fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
@@ -4162,8 +4174,8 @@ pub(crate) fn locomotion_state_sync_system(
             find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc, *current,
                 &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates)
         });
-        let validated_floor = floor_result.map(|(floor, _)| floor);
-        let floor_penetration = floor_result.and_then(|(_, penetration)| penetration);
+        let validated_floor = floor_result.map(|(floor, _, _, _)| floor);
+        let floor_penetration = floor_result.and_then(|(_, penetration, _, _)| penetration);
         let mut floor_supported = false;
         let mut floor_entity = None;
         if *current == LocomotionState::Grounded && !blocked.contains(entity) && !jumping
@@ -4427,6 +4439,70 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn walking_step_slide_uses_the_near_floor_normal_only_when_opposed() {
+        let wall = Vec3::new(-0.61237246, -0.5, -0.61237246);
+        let opposed_floor = Vec3::new(-4.0_f32.to_radians().sin(), 4.0_f32.to_radians().cos(), 0.0);
+        let following_floor = Vec3::new(-opposed_floor.x, opposed_floor.y, 0.0);
+        let wall_flat = wall.with_y(0.0).normalize();
+        assert!(walking_step_slide_normal(Vec3::X, wall, Vec3::Y, 0.018).distance(wall_flat) < 1e-6);
+        assert_eq!(walking_step_slide_normal(Vec3::X, wall, Vec3::Y, 0.0215), wall);
+        assert!(walking_step_slide_normal(Vec3::X, wall, opposed_floor, 0.018).distance(Vec3::NEG_X) < 1e-6);
+        assert!(walking_step_slide_normal(Vec3::X, wall, following_floor, 0.018).distance(wall_flat) < 1e-6);
+        let nearly_vertical = Vec3::new(-0.001, 0.9999995, 0.0);
+        assert!(walking_step_slide_normal(Vec3::X, wall, nearly_vertical, 0.018).distance(wall_flat) < 1e-6);
+    }
+
+    #[test]
+    fn line_floor_retains_the_sweep_gap_used_by_the_slide_rule() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(8.0, 0.2, 8.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 0.5, 4.0), Transform::from_xyz(0.15, 0.9215, 0.0)));
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            find_ground_floor_with_penetration(&spatial, Vec3::Y * 0.9215, 0.9, 0.3,
+                &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates)
+        }).unwrap().unwrap();
+        assert!(floor.1.is_some() && floor.2.y > 0.99);
+        assert!(floor.3 < MIN_FLOOR_DISTANCE && 0.9215 - floor.0.0 > MIN_FLOOR_DISTANCE);
+    }
+
+    #[test]
+    fn step_up_flattens_a_downward_wall_only_near_the_old_floor() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (gap, flattened) in [(0.018, true), (0.0215, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
+            let rotation = Quat::from_rotation_y(45.0_f32.to_radians()) * Quat::from_rotation_z(30.0_f32.to_radians());
+            let center = Vec3::new(-13.87, 3.95, -15.0) + rotation * Vec3::X * 0.32;
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 1.0, 1.5),
+                Transform::from_translation(center).with_rotation(rotation)));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.98, 2.9 + gap, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+            }).unwrap().unwrap();
+            assert!(result.2.is_some(), "the source fixture must complete StepUp: gap={gap} result={result:?}");
+            let slide = result.1.expect("the step must produce a slide");
+            assert_eq!(slide.y.abs() < 1e-5, flattened, "gap={gap} slide={slide:?}");
+        }
+    }
 
     #[test]
     fn step_up_retains_nonzero_submillimeter_progress() {
