@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.537 StepDown完全无Hit的真实提交。依赖536。保已Walking初态、偏侧低凸台和50ms单步，使前进真碰、抬后越过，窄主台下扫错开全部支撑，宽主台同凸台对照。原生核实际首Hit、完整终点/模式及同ComponentSweepMulti的空下扫；目标同生产重放与真实退回，确认是否独立于D295。开始2026-11-04 20:16:40 +0800，预估结束2026-11-04 21:01:40 +0800。参考536约6分钟，加入侧凸台/零命中重查，估45分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh源StepDown无阻挡且未穿透时跳过所有Hit资格，仍return true；Walking才新查floor。目标floor_sweep_hit无Hit直接旧结果，先于D295检查。50ms、6.5m/s、初态x102cm，凸台X114.5/横向27cm，预测下扫原台与侧凸台同时miss；主台145cm作下扫命中对照。截图0。
+  - 真实Gate后：源100cm案实际仅首凸台Hit，向前走31.25cm并按抬升减完整下扫落至2.85133m，零阻挡重放和实际40 Air。目标同候选位置下扫None，先于D295守卫退到slide，40也Air但高约7.45cm且横偏约5.17cm。145cm正对照下扫实际Hit、两端保持Walking；目标仍有横向偏移，待单独隔离落低后物理解算再撞。新增D296。截图0。
+  - Gate通过。原生43帧观察开关、真实首Hit/空下扫端点及宽台下扫命中；目标两次功能、生产重放及D295守卫消融隔离。隔离包、六库/396身份及71份Git证据通过。新增D296/P2，累计293（126P2/167P3）。实际结束2026-11-04 20:21:09 +0800，实耗269秒，偏差-2431秒。证据 docs/audit/bf144/537/summary.json。截图0，性能暂停。
+  - 后继边界：145cm对照成功下扫且两端Walking，目标仍横偏约2.88cm。下一轮只在已完成目标StepUp事务后隔离凸台对物理解算的作用，区分重复碰撞与CMC本身。
+
 - [x] BF144.536 真实StepDown命中复用与重新查地面。依赖535。沿已Walking的100cm主台与第40帧实际起点，加入18cm高台并改变前缘位置，让落下宽胶囊在窄支撑内/外，30ms单步避免后续覆盖。原生记录真实StepDown、CurrentFloor、同点带/不带Hit重查及模式；目标重放生产跨步和floor拒绝、对照实际位置。只确证独立差才登记。开始2026-11-04 20:08:11 +0800，预估结束2026-11-04 20:53:11 +0800。参考533/535约6分钟，加入单步StepDown几何和重放，估45分钟。截图0，性能暂停。
 
   - 真实Gate前：fresh UE StepDown若真实阻挡Hit有效则带Hit进FindFloor；窄失败后只在!bBlockingHit等条件才回退StepUp，ALS Walking可直接取该结果。目标新FindFloor返回None即撤销StepUp。实际普通Walking、主台宽100、高台18cm、前缘130/137cm，按真实终点分别在15cm窄半径内外。截图0。
@@ -4579,6 +4586,10 @@
   - .465a时间：开始2026-11-02 06:52:00、预估结束07:32:00、实际结束07:26:24 +0800，实耗34:24、偏差−05:36；结果PASS。含4次package构建38/66/55/54秒、实际两319/1276 states、getter与类型guard两消融/字节恢复及完整旧域/Git；首mutation/build重叠已由全包消融源码一致性核验，最终恢复按完整顺序执行。相同opaque struct无反射成员且已具work memory的诊断能力按约35分钟参考。父465本轮source事实与读数前置尚开，下一按真实native state恢复数学等价审计，不填造动态数据。
 
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D296 / P2 — StepDown扫空时回退跨步，丢失已执行的前进与完整下扫。
+  - UE StepUp只在阻挡Hit分支做额外floor资格；没有阻挡且未穿透时提交已走的上抬、前进与完整下扫，再由Walking重查及走离。目标floor_sweep_hit返回None即返回旧位置/slide，早于D295的落地重查。
+  - 20mm偏侧凸台、50ms第40帧，源完成31.25cm前进并在2.85133m转Air，同Scene ComponentSweepMulti证实下扫零Hit。目标候选下扫同样None，实际退回slide后在2.92582m转Air并横偏约5.17cm。跳过D295守卫不改变重放；宽台真实下扫命中仍通过。证据 docs/audit/bf144/537/summary.json。
 
 - [ ] BF144-D295 / P2 — StepUp把有阻挡但不可走的落下结果提前当作跨步失败。
   - UE StepDown有效Hit进入FindFloor，perch失败保bBlockingHit并清walkable；StepUp不会因这个结果自动回退，ALS Walking随后从已抬高的位置消费不可走floor。目标跨步末新查floor只返回None，立即退回先前移动。
