@@ -1,0 +1,27 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 3.0441813468933105,
+    "gap": 0.023999691009521484,
+    "impact": 2.179999828338623,
+    "lower_hemisphere": 2.4681808948516846,
+    "name": "AuditStepFin"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": true,
+  "manifolds": [],
+  "mode": "Grounded",
+  "ordinal": 41,
+  "planned_velocity": null,
+  "position": [
+    -13.798870086669922,
+    3.068181037902832,
+    -14.874463081359863
+  ],
+  "raw_velocity": [
+    0.7567944526672363,
+    0.0,
+    2.0789482593536377
+  ],
+  "requested_mode": null
+}
