@@ -1,0 +1,152 @@
+{
+  "gate": "PASS_CROSSED_VELOCITY_BLEND_VELOCITY_ROTATION_HISTORY",
+  "new_differences": 0,
+  "known_total": 277,
+  "actual_frames_per_side": 11,
+  "exact_source_models": 96,
+  "exact_fixed_witness_queries": [
+    104,
+    106
+  ],
+  "fixed_witnesses": [
+    {
+      "query": 104,
+      "source": [
+        0.4904688596725464,
+        0.0,
+        0.0,
+        0.259621798992157
+      ],
+      "target": [
+        0.49046874046325684,
+        0.0,
+        0.0,
+        0.2596219480037689
+      ],
+      "source_arithmetic_single": {
+        "velocity": [
+          0.4904688894748688,
+          0.0,
+          0.0,
+          0.259621798992157
+        ],
+        "rotation": [
+          0.49046894907951355,
+          0.0,
+          0.0,
+          0.2596217095851898
+        ],
+        "history": [
+          0.4904686212539673,
+          0.0,
+          0.0,
+          0.25962206721305847
+        ]
+      }
+    },
+    {
+      "query": 106,
+      "source": [
+        0.5955787301063538,
+        0.0,
+        0.0,
+        0.24700728058815002
+      ],
+      "target": [
+        0.5955787897109985,
+        0.0,
+        0.0,
+        0.24700728058815002
+      ],
+      "source_arithmetic_single": {
+        "velocity": [
+          0.5955789089202881,
+          0.0,
+          0.0,
+          0.2470071166753769
+        ],
+        "rotation": [
+          0.5955789089202881,
+          0.0,
+          0.0,
+          0.24700713157653809
+        ],
+        "history": [
+          0.5955784916877747,
+          0.0,
+          0.0,
+          0.2470075935125351
+        ]
+      }
+    }
+  ],
+  "seed_query": 99,
+  "native_seed": [
+    0.10747472196817398,
+    0,
+    0,
+    0.09887274354696274
+  ],
+  "target_seed": [
+    0.10747570544481277,
+    0.0,
+    0.0,
+    0.09887175261974335
+  ],
+  "target_ablation_endpoint_mismatches": 22,
+  "seed_origin_closed": false,
+  "native_rounding_limits_recorded": true,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "replay-baseline.json": {
+      "bytes": 57972,
+      "sha256": "39e0cb0163d4f1876f1358c31ced596f7ea921286388e083410b5a09900203f9"
+    },
+    "replay-restored.json": {
+      "bytes": 57972,
+      "sha256": "39e0cb0163d4f1876f1358c31ced596f7ea921286388e083410b5a09900203f9"
+    },
+    "replay-no-history-input.json": {
+      "bytes": 57947,
+      "sha256": "6206cd352001d2261c342be871dfb04365a9d7a28a41566ef506c11a1771e25b"
+    }
+  },
+  "generated_math": {
+    "path": "tools/tmp/bf144/500/math.rs",
+    "bytes": 2314,
+    "sha256": "5b4b8d7286bda1f63016eb8a24013401b5b137397f6bbef3d7672999a5d9c8eb"
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/499/evidence-input.json",
+      "bytes": 12254,
+      "sha256": "6df2c22fbba29e0f96e87d6ab824879d6a66c1060339c83ade2a8efda3ba3388"
+    },
+    {
+      "path": "docs/audit/bf144/499/replay-restored.json.gz",
+      "bytes": 11297,
+      "sha256": "0503d785d63b4b6ccb479827636da66ca54cb36528afb2703e12f64a3c0c260f"
+    },
+    {
+      "path": "docs/audit/bf144/499/replay.rs",
+      "bytes": 7099,
+      "sha256": "190ea8a8889d8b2cb4898355ace43e05cc06a5cd3c0a55f292293849221cb020"
+    },
+    {
+      "path": "docs/audit/bf144/498/summary.json",
+      "bytes": 4556,
+      "sha256": "c749487f15294a539887763a578f3154f9d52346a05b235fb7f5a6182c1b7399"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}
