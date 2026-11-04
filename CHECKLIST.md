@@ -4133,6 +4133,12 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.565 起跳同帧支撑改选时的速度所有者。依赖.11/D33/D36的源基座与顺序。真实站稳旧平台，跳键帧分别保持/抬高新平台，旧新水平速度方向相反。核源实际跳入Air前的基座及继承、目标上一帧基座与跳键帧传感器/马达，证明是否读错实体。开始2026-11-04 23:06:50 +0800，预估结束2026-11-04 23:51:50 +0800。参考564约5分钟，估45分钟含双平台与输入顺序。截图0，性能暂停。
+  - 23:09 source/static：fresh UE CheckJumpInput先于PerformMovement，ApplyImpartedMovementBaseVelocity读MovementBase；目标Air动力可从Tnua当帧standing_on_entity覆盖旧entity。查现行、归档和Git历史无同一基座改选跳跃条目；D33是同组件速度来源，D36是跟随位置时序。待实际是否发生改选。
+  - 23:10 runtime Gate 前：目标构建通过，两个平台在实际Playground站稳；q49施加同速度并只改变新台高度。原生提取的插入锚点首轮重复，已收窄锚点重新构建；两端将记录跳键帧和基座。
+  - runtime Gate 后：两端旧基座和自身初速相同。原生两组实测继承旧台+1m/s，目标抬高新台时传感器与基座记忆选新台，马达和发布−1m/s；未抬高控制继承+1。水平终点差10cm，竖直一致。独立于D33速度字段优先级及D36跟随位置。
+  - 完成 Gate `PASS_JUMP_INHERITS_OLD_BASE_NOT_CURRENT_SENSOR`。两组功能、watchdog、396身份/六库、隔离包及5份报告解压哈希通过。历史查重后新增D312/P2，累计308（141 P2、167 P3）。实际结束2026-11-04 23:13:06 +0800，实耗376秒，偏差-2324秒。证据 `docs/audit/bf144/565/`。截图0，性能暂停。
+
 - [x] BF144.564 蹲伏离地后 Falling 的水平限速来源。用真Walking蹲伏/站姿预热后进入无障碍Air，保持Running和相同输入，记录源GetMaxSpeed与MaxWalkSpeed缓存、两端实际胶囊、空中速度及目标同输入只换限速的重放。查重D287及旧姿态/限速历史，证实独立差异才编号。开始2026-11-04 23:00:10 +0800，预估结束2026-11-04 23:40:10 +0800。参考555与561，估40分钟含原生读数及姿态时点。截图0，性能暂停。
   - 23:02 source/static：UE Falling GetMaxSpeed读已由Walking写入的MaxWalkSpeed；源Character只在Grounded更新Gait，空中可站起。目标Gait也只在地面更新，但Falling从当前stance/rotation重查速度表。搜索现行、归档和历史未找到同一Falling限速条件；D287是加速度缓存。待真姿态与同输入验证。
   - 23:03 runtime Gate 前：目标已构建，运行实际蹲伏/站姿预热两组，同50ms Air及前向输入，只读重放单独替换上限。原生隔离包构建后自动采集。
@@ -4757,6 +4763,10 @@
   - .465a时间：开始2026-11-02 06:52:00、预估结束07:32:00、实际结束07:26:24 +0800，实耗34:24、偏差−05:36；结果PASS。含4次package构建38/66/55/54秒、实际两319/1276 states、getter与类型guard两消融/字节恢复及完整旧域/Git；首mutation/build重叠已由全包消融源码一致性核验，最终恢复按完整顺序执行。相同opaque struct无反射成员且已具work memory的诊断能力按约35分钟参考。父465本轮source事实与读数前置尚开，下一按真实native state恢复数学等价审计，不填造动态数据。
 
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D312 / P2 — 起跳帧基座改选时，速度继承从新传感器实体读取。
+  - Source：CheckJumpInput先于当帧运动和地面更新，ApplyImpartedMovementBaseVelocity读取已绑定旧基座。Target Air动力用Tnua当帧standing_on_entity覆盖上一帧的基座实体。
+  - 反例：旧平台+1m/s、新平台−1m/s，跳键帧仅抬高新平台。原生仍继承旧台+1，目标实际传感器/马达改为−1，同帧水平相差约10cm。未抬高组两端均+1，竖直一致。证据 `docs/audit/bf144/565/`。
 
 - [ ] BF144-D311 / P2 — Falling 在空中站起后重新按站姿选限速，丢失离地前的 Walking 上限。
   - Source：UE Falling GetMaxSpeed 读地面已写入的 MaxWalkSpeed，空中站起不刷新。Target 在空中事务按当前stance重选速度表。

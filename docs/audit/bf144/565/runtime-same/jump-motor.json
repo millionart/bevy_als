@@ -1,0 +1,33 @@
+{
+  "acceleration": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "boost": [
+    1.0,
+    4.199999809265137,
+    0.0
+  ],
+  "memory": "AuditWalkOffPlatform",
+  "mode": "Air",
+  "position": [
+    -15.0,
+    2.9240002632141113,
+    -15.0
+  ],
+  "sensor": {
+    "entity": "AuditWalkOffPlatform",
+    "proximity": 0.9240002632141113,
+    "velocity": [
+      1.0,
+      0.0,
+      0.0
+    ]
+  },
+  "velocity": [
+    0.0,
+    0.0,
+    0.0
+  ]
+}

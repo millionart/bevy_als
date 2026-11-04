@@ -1,0 +1,884 @@
+{
+  "gate": "PASS_JUMP_INHERITS_OLD_BASE_NOT_CURRENT_SENSOR",
+  "findings": [
+    "BF144-D312"
+  ],
+  "new_differences": 1,
+  "total_differences": 308,
+  "ordinal": 49,
+  "native": {
+    "switch": {
+      "old": {
+        "movement_mode": 1,
+        "movement_mode_name": "MOVE_Walking",
+        "custom_movement_mode": 0,
+        "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.Grounded\")",
+        "registered": true,
+        "begun_play": true,
+        "tick_registered": true,
+        "tick_enabled": true,
+        "velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "pending_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "acceleration_cm_s2": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max_acceleration_cm_s2": 2000,
+        "last_update_location_cm": {
+          "x": -1500,
+          "y": -1500,
+          "z": 91.99999570846558
+        },
+        "last_update_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "walkable_floor": true,
+        "floor_distance_cm": 1.9999909400939941,
+        "base_component": "BoxComponent_0",
+        "old_box_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "new_box_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "floor_blocking": true,
+        "floor_component": "BoxComponent_0",
+        "floor_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "before": {
+        "movement_mode": 1,
+        "movement_mode_name": "MOVE_Walking",
+        "custom_movement_mode": 0,
+        "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.Grounded\")",
+        "registered": true,
+        "begun_play": true,
+        "tick_registered": true,
+        "tick_enabled": true,
+        "velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "pending_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "acceleration_cm_s2": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max_acceleration_cm_s2": 2000,
+        "last_update_location_cm": {
+          "x": -1500,
+          "y": -1500,
+          "z": 91.99999570846558
+        },
+        "last_update_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "walkable_floor": true,
+        "floor_distance_cm": 1.9999909400939941,
+        "base_component": "BoxComponent_0",
+        "old_box_velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 0
+        },
+        "new_box_velocity_cm_s": {
+          "x": -100,
+          "y": 0,
+          "z": 0
+        },
+        "floor_blocking": true,
+        "floor_component": "BoxComponent_0",
+        "floor_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "event": {
+        "previous": "MOVE_Walking",
+        "current": "MOVE_Falling",
+        "location_cm": {
+          "x": -1500,
+          "y": -1500,
+          "z": 91.99999570846558
+        },
+        "velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 420
+        },
+        "walking_floor": {
+          "walkable": true,
+          "line_trace": false,
+          "floor_dist_cm": 1.499997615814209,
+          "component": "AuditJumpBaseNew",
+          "query_movement_mode": "MOVE_Falling",
+          "floor_hit": {
+            "component": "AuditJumpBaseNew",
+            "blocking": true,
+            "penetrating": false,
+            "time": 0.15432097017765045,
+            "location_cm": {
+              "x": -1500,
+              "y": -1500,
+              "z": 84.49999679330688
+            },
+            "impact_point_cm": {
+              "x": -1500,
+              "y": -1500,
+              "z": 0.49999332427978516
+            },
+            "normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "impact_normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "lower_hemisphere_cm": 24.499996793306877,
+            "impact_height_cm": 0.49999332427978516,
+            "below_lower_hemisphere": true,
+            "edge_within": true,
+            "walkable": true
+          },
+          "walking_range": true,
+          "broad": {
+            "blocking": true,
+            "walkable": true,
+            "line_trace": false,
+            "sweep_dist_cm": 1.499997615814209,
+            "line_dist_cm": 0,
+            "hit": {
+              "component": "AuditJumpBaseNew",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.1404491513967514,
+              "location_cm": {
+                "x": -1500,
+                "y": -1500,
+                "z": 84.49999687952482
+              },
+              "impact_point_cm": {
+                "x": -1500,
+                "y": -1500,
+                "z": 0.49999332427978516
+              },
+              "normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 24.499996879524815,
+              "impact_height_cm": 0.49999332427978516,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            }
+          },
+          "merged": {
+            "blocking": true,
+            "walkable": true,
+            "line_trace": false,
+            "sweep_dist_cm": 1.499997615814209,
+            "line_dist_cm": 0,
+            "hit": {
+              "component": "AuditJumpBaseNew",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.15432097017765045,
+              "location_cm": {
+                "x": -1500,
+                "y": -1500,
+                "z": 84.49999679330688
+              },
+              "impact_point_cm": {
+                "x": -1500,
+                "y": -1500,
+                "z": 0.49999332427978516
+              },
+              "normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 24.499996793306877,
+              "impact_height_cm": 0.49999332427978516,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            }
+          },
+          "perch_requested": false,
+          "valid_landing_spot": true
+        }
+      },
+      "after": {
+        "movement_mode": 3,
+        "movement_mode_name": "MOVE_Falling",
+        "custom_movement_mode": 0,
+        "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.InAir\")",
+        "registered": true,
+        "begun_play": true,
+        "tick_registered": true,
+        "tick_enabled": true,
+        "velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 370.94999926909804
+        },
+        "pending_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "acceleration_cm_s2": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max_acceleration_cm_s2": 2000,
+        "last_update_location_cm": {
+          "x": -1494.9999999254942,
+          "y": -1500,
+          "z": 111.77374598484487
+        },
+        "last_update_velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 370.94999926909804
+        },
+        "walkable_floor": false,
+        "floor_distance_cm": 0,
+        "base_component": "None",
+        "old_box_velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 0
+        },
+        "new_box_velocity_cm_s": {
+          "x": -100,
+          "y": 0,
+          "z": 0
+        },
+        "floor_blocking": false,
+        "floor_component": "None",
+        "floor_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "end_x_cm": -1494.9999999254942
+    },
+    "same": {
+      "old": {
+        "movement_mode": 1,
+        "movement_mode_name": "MOVE_Walking",
+        "custom_movement_mode": 0,
+        "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.Grounded\")",
+        "registered": true,
+        "begun_play": true,
+        "tick_registered": true,
+        "tick_enabled": true,
+        "velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "pending_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "acceleration_cm_s2": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max_acceleration_cm_s2": 2000,
+        "last_update_location_cm": {
+          "x": -1500,
+          "y": -1500,
+          "z": 91.99999570846558
+        },
+        "last_update_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "walkable_floor": true,
+        "floor_distance_cm": 1.9999909400939941,
+        "base_component": "BoxComponent_0",
+        "old_box_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "new_box_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "floor_blocking": true,
+        "floor_component": "BoxComponent_0",
+        "floor_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "before": {
+        "movement_mode": 1,
+        "movement_mode_name": "MOVE_Walking",
+        "custom_movement_mode": 0,
+        "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.Grounded\")",
+        "registered": true,
+        "begun_play": true,
+        "tick_registered": true,
+        "tick_enabled": true,
+        "velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "pending_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "acceleration_cm_s2": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max_acceleration_cm_s2": 2000,
+        "last_update_location_cm": {
+          "x": -1500,
+          "y": -1500,
+          "z": 91.99999570846558
+        },
+        "last_update_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "walkable_floor": true,
+        "floor_distance_cm": 1.9999909400939941,
+        "base_component": "BoxComponent_0",
+        "old_box_velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 0
+        },
+        "new_box_velocity_cm_s": {
+          "x": -100,
+          "y": 0,
+          "z": 0
+        },
+        "floor_blocking": true,
+        "floor_component": "BoxComponent_0",
+        "floor_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "event": {
+        "previous": "MOVE_Walking",
+        "current": "MOVE_Falling",
+        "location_cm": {
+          "x": -1500,
+          "y": -1500,
+          "z": 91.99999570846558
+        },
+        "velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 420
+        },
+        "walking_floor": {
+          "walkable": true,
+          "line_trace": false,
+          "floor_dist_cm": 1.999990463256836,
+          "component": "BoxComponent_0",
+          "query_movement_mode": "MOVE_Falling",
+          "floor_hit": {
+            "component": "BoxComponent_0",
+            "blocking": true,
+            "penetrating": false,
+            "time": 0.164608895778656,
+            "location_cm": {
+              "x": -1500,
+              "y": -1500,
+              "z": 84.00000362479614
+            },
+            "impact_point_cm": {
+              "x": -1500,
+              "y": -1500,
+              "z": 0
+            },
+            "normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "impact_normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "lower_hemisphere_cm": 24.000003624796136,
+            "impact_height_cm": 0,
+            "below_lower_hemisphere": true,
+            "edge_within": true,
+            "walkable": true
+          },
+          "walking_range": true,
+          "broad": {
+            "blocking": true,
+            "walkable": true,
+            "line_trace": false,
+            "sweep_dist_cm": 1.9999909400939941,
+            "line_dist_cm": 0,
+            "hit": {
+              "component": "BoxComponent_0",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.14981231093406677,
+              "location_cm": {
+                "x": -1500,
+                "y": -1500,
+                "z": 84.00000321728703
+              },
+              "impact_point_cm": {
+                "x": -1500,
+                "y": -1500,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 24.00000321728703,
+              "impact_height_cm": 0,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            }
+          },
+          "merged": {
+            "blocking": true,
+            "walkable": true,
+            "line_trace": false,
+            "sweep_dist_cm": 1.999990463256836,
+            "line_dist_cm": 0,
+            "hit": {
+              "component": "BoxComponent_0",
+              "blocking": true,
+              "penetrating": false,
+              "time": 0.164608895778656,
+              "location_cm": {
+                "x": -1500,
+                "y": -1500,
+                "z": 84.00000362479614
+              },
+              "impact_point_cm": {
+                "x": -1500,
+                "y": -1500,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "impact_normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "lower_hemisphere_cm": 24.000003624796136,
+              "impact_height_cm": 0,
+              "below_lower_hemisphere": true,
+              "edge_within": true,
+              "walkable": true
+            }
+          },
+          "perch_requested": false,
+          "valid_landing_spot": true
+        }
+      },
+      "after": {
+        "movement_mode": 3,
+        "movement_mode_name": "MOVE_Falling",
+        "custom_movement_mode": 0,
+        "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.InAir\")",
+        "registered": true,
+        "begun_play": true,
+        "tick_registered": true,
+        "tick_enabled": true,
+        "velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 370.94999926909804
+        },
+        "pending_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "acceleration_cm_s2": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max_acceleration_cm_s2": 2000,
+        "last_update_location_cm": {
+          "x": -1494.9999999254942,
+          "y": -1500,
+          "z": 111.77374598484487
+        },
+        "last_update_velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 370.94999926909804
+        },
+        "walkable_floor": false,
+        "floor_distance_cm": 0,
+        "base_component": "None",
+        "old_box_velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 0
+        },
+        "new_box_velocity_cm_s": {
+          "x": -100,
+          "y": 0,
+          "z": 0
+        },
+        "floor_blocking": false,
+        "floor_component": "None",
+        "floor_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "end_x_cm": -1494.9999999254942
+    }
+  },
+  "target": {
+    "switch": {
+      "before": {
+        "base": "AuditWalkOffPlatform",
+        "dynamics_base": "AuditWalkOffPlatform",
+        "mode": "Grounded",
+        "platforms": {
+          "AuditJumpBaseNew": {
+            "position": [
+              -15.0,
+              1.9049999713897705,
+              -15.0
+            ],
+            "velocity": [
+              -1.0,
+              0.0,
+              0.0
+            ]
+          },
+          "AuditWalkOffPlatform": {
+            "position": [
+              -15.0,
+              1.899999976158142,
+              -15.0
+            ],
+            "velocity": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "previous_support": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "switched": true
+      },
+      "motor": {
+        "acceleration": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "boost": [
+          -1.0,
+          4.199999809265137,
+          0.0
+        ],
+        "memory": "AuditJumpBaseNew",
+        "mode": "Air",
+        "position": [
+          -15.0,
+          2.9240002632141113,
+          -15.0
+        ],
+        "sensor": {
+          "entity": "AuditJumpBaseNew",
+          "proximity": 0.9190001487731934,
+          "velocity": [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        },
+        "velocity": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "actual": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -15.050000190734863,
+          3.1217377185821533,
+          -15.0
+        ],
+        "published": [
+          -1.0,
+          3.7094998359680176,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Grounded)",
+            "LocomotionState(Air)"
+          ]
+        ],
+        "velocity": [
+          -1.0,
+          3.7094998359680176,
+          0.0
+        ]
+      }
+    },
+    "same": {
+      "before": {
+        "base": "AuditWalkOffPlatform",
+        "dynamics_base": "AuditWalkOffPlatform",
+        "mode": "Grounded",
+        "platforms": {
+          "AuditJumpBaseNew": {
+            "position": [
+              -15.0,
+              1.850000023841858,
+              -15.0
+            ],
+            "velocity": [
+              -1.0,
+              0.0,
+              0.0
+            ]
+          },
+          "AuditWalkOffPlatform": {
+            "position": [
+              -15.0,
+              1.899999976158142,
+              -15.0
+            ],
+            "velocity": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "previous_support": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "switched": false
+      },
+      "motor": {
+        "acceleration": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "boost": [
+          1.0,
+          4.199999809265137,
+          0.0
+        ],
+        "memory": "AuditWalkOffPlatform",
+        "mode": "Air",
+        "position": [
+          -15.0,
+          2.9240002632141113,
+          -15.0
+        ],
+        "sensor": {
+          "entity": "AuditWalkOffPlatform",
+          "proximity": 0.9240002632141113,
+          "velocity": [
+            1.0,
+            0.0,
+            0.0
+          ]
+        },
+        "velocity": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "actual": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -14.949999809265137,
+          3.1217377185821533,
+          -15.0
+        ],
+        "published": [
+          1.0,
+          3.7094998359680176,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Grounded)",
+            "LocomotionState(Air)"
+          ]
+        ],
+        "velocity": [
+          1.0,
+          3.7094998359680176,
+          0.0
+        ]
+      }
+    }
+  },
+  "decompressed_files": {
+    "jump.native.json.gz": {
+      "bytes": 40619976,
+      "sha256": "3c5376bdf1e0e13af16cffa4a6fc08b354a11af379b050a12707467d7a9f7708"
+    },
+    "runtime-switch/parameters.json.gz": {
+      "bytes": 175377,
+      "sha256": "240653cbd6e735f6db099990b136e99f4a0be61191fdc708fc4e27ac3b0718fc"
+    },
+    "runtime-switch/report.json.gz": {
+      "bytes": 4485413,
+      "sha256": "9e07e5e85ab3919f937f56bc4693fda6f6bc5d8660fe81fb6ce39207f424bb6b"
+    },
+    "runtime-same/parameters.json.gz": {
+      "bytes": 174795,
+      "sha256": "73cf552e649794a34ea29b858c5b7ac69eae8b158d44194d64e67b7a279c6fd5"
+    },
+    "runtime-same/report.json.gz": {
+      "bytes": 4485169,
+      "sha256": "94ae841e68c47bb2b2998a35b135c3192e4ec5fed3c5e753658eb38a373f5e29"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/564/speed.request.json",
+      "bytes": 24125,
+      "sha256": "53fa521cbf2ac5385195ba307e722681900523c6bee496212c007d78f62baf44"
+    },
+    {
+      "path": "docs/audit/bf144/553/prepare_reader.py",
+      "bytes": 1506,
+      "sha256": "8e5787b1519d56af568950670b482db01252078188976ca68692054f95949dd7"
+    },
+    {
+      "path": "docs/audit/bf144/523/observer.py",
+      "bytes": 1678,
+      "sha256": "401322ce7c99a7d57d5536f2c260145b72c17e31bba726f8d4cbcc9d8b7ef8a5"
+    }
+  ]
+}

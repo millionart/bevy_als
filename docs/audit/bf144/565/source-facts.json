@@ -1,0 +1,58 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "bytes": 545515,
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 1193,
+        "end": 1232,
+        "text": "FVector UCharacterMovementComponent::GetImpartedMovementBaseVelocity() const\n{\n\tFVector Result = FVector::ZeroVector;\n\tif (CharacterOwner)\n\t{\n\t\tconst FMovementBaseInterfaceData* MovementBaseInterfaceData = GetMovementBaseInterfaceData();\n\t\t\n\t\tif (MovementBaseUtility::IsDynamicBase(MovementBaseInterfaceData))\n\t\t{\n\t\t\tFVector BaseVelocity = MovementBaseUtility::GetMovementBaseVelocity(MovementBaseInterfaceData, CharacterOwner->GetBasedMovement().BoneName);\n\t\t\t\n\t\t\tif (bImpartBaseAngularVelocity)\n\t\t\t{\n\t\t\t\tconst FVector CharacterBasePosition = (UpdatedComponent->GetComponentLocation() + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * GetGravityDirection());\n\t\t\t\tconst FVector BaseTangentialVel = MovementBaseUtility::GetMovementBaseTangentialVelocity(MovementBaseInterfaceData, CharacterOwner->GetBasedMovement().BoneName, CharacterBasePosition);\n\t\t\t\tBaseVelocity += BaseTangentialVel;\n\t\t\t}\n\n\t\t\tif (bImpartBaseVelocityX)\n\t\t\t{\n\t\t\t\tResult.X = BaseVelocity.X;\n\t\t\t}\n\t\t\tif (bImpartBaseVelocityY)\n\t\t\t{\n\t\t\t\tResult.Y = BaseVelocity.Y;\n\t\t\t}\n\t\t\tif (bImpartBaseVelocityZ)\n\t\t\t{\n\t\t\t\tResult.Z = BaseVelocity.Z;\n\t\t\t}\n\t\t}\n\t}\n\t\n\treturn Result;\n}\n\nvoid UCharacterMovementComponent::Launch(FVector const& LaunchVel)\n{\n\tif ((MovementMode != MOVE_None) && IsActive() && HasValidData())\n\t{\n"
+      },
+      {
+        "start": 1457,
+        "end": 1473,
+        "text": "\t\tbCrouchMaintainsBaseLocation = false;\n\n\t\tif (MovementMode == MOVE_Falling)\n\t\t{\n\t\t\tif (bStayBasedInAir == false)\n\t\t\t{\n\t\t\t\tApplyImpartedMovementBaseVelocity();\n\t\t\t}\n\t\t\tCharacterOwner->Falling();\n\t\t}\n\n\t\tif (!IsFalling() || bStayBasedInAir == false)\n\t\t{\n\t\t\tFMovementBaseInterfaceData EmptyMovementBaseData;\n\t\t\tSetBase(&EmptyMovementBaseData);\n\t\t}\n\n"
+      },
+      {
+        "start": 2744,
+        "end": 2758,
+        "text": "void UCharacterMovementComponent::ApplyImpartedMovementBaseVelocity()\n{\n\tDecayingFormerBaseVelocity = GetImpartedMovementBaseVelocity();\n\tVelocity += DecayingFormerBaseVelocity;\n\tif (bMovementInProgress && CurrentRootMotion.HasAdditiveVelocity())\n\t{\n\t\t// If we leave a base during movement and we have additive root motion, we need to add the imparted velocity so that it retains it next tick\n\t\tCurrentRootMotion.LastPreAdditiveVelocity += DecayingFormerBaseVelocity;\n\t}\n\tif (!CharacterMovementCVars::bAddFormerBaseVelocityToRootMotionOverrideWhenFalling || FormerBaseVelocityDecayHalfLife == 0.f)\n\t{\n\t\tDecayingFormerBaseVelocity = FVector::ZeroVector;\n\t}\n}\n\n"
+      },
+      {
+        "start": 6441,
+        "end": 6463,
+        "text": "void UCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds)\n{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}\n\n\tif (CharacterOwner->GetLocalRole() == ROLE_Authority)\n\t{\n\t\tPerformMovement(DeltaSeconds);\n\t}\n\telse if (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy && IsNetMode(NM_Client))\n\t{\n\t\tReplicateMoveToServer(DeltaSeconds, Acceleration);\n\t}\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/dynamics.rs",
+    "bytes": 137040,
+    "sha256": "c4012c45ae1cafc2ef5e7839907cb995ef0d2e7187ff3eb109aaa6e45159765b",
+    "excerpts": [
+      {
+        "start": 516,
+        "end": 532,
+        "text": "        let world_velocity = Vec3::new(velocity.x, 0.0, velocity.z);\n        if *locomotion == LocomotionState::Air {\n            let inherited = if let Some(mut base) = current_base_state {\n                if let Some(previous) = base.entity {\n                    let current = controller.basis_memory.standing_on_entity().unwrap_or(previous);\n                    let (_, support) = support_velocity_from_base(Some(current),\n                        character_contact_point(params, *stance, position.0), &bases, &colliders);\n                    let inherited = support - base.support_velocity;\n                    *base = default();\n                    inherited.with_y(0.0)\n                } else { Vec3::ZERO }\n            } else { Vec3::ZERO };\n            motor.lin.acceleration.x = 0.0;\n            motor.lin.acceleration.z = 0.0;\n            motor.lin.boost.x = inherited.x;\n            motor.lin.boost.z = inherited.z;\n            continue;\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "bytes": 378291,
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 2652,
+        "end": 2669,
+        "text": "fn accepted_jump_state_system(\n    mut transitions: MessageWriter<StateTransitionEvent>,\n    params_assets: Res<Assets<AlsMovementParams>>,\n    mut characters: Query<(Entity, &TnuaController<AlsControlScheme>, &mut LocomotionState,\n        &mut crate::als::dynamics::AlsMovementBase, &AlsMovementParamsHandle, &mut bevy_tnua::TnuaMotor), With<AlsCharacter>>,\n) {\n    for (entity, controller, mut mode, mut base, handle, mut motor) in &mut characters {\n        if *mode != LocomotionState::Grounded || controller.action_flow_status().just_starting()\n            != Some(AlsControlSchemeActionDiscriminant::Jump) { continue; }\n        if let Some(params) = params_assets.get(handle.id())\n            && let Ok(basis) = controller.basis_access() {\n            use bevy_tnua::basis_capabilities::TnuaBasisWithFrameOfReferenceSurface;\n            let relative = TnuaBuiltinWalk::effective_velocity(&basis).y\n                - TnuaBuiltinWalk::vertical_velocity(&basis).max(0.0);\n            motor.lin.boost.y = params.jump.jump_z_velocity.max(relative) - relative;\n        }\n        transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,\n            from: StateValue::LocomotionState(*mode), to: StateValue::LocomotionState(LocomotionState::Air) });\n"
+      },
+      {
+        "start": 3710,
+        "end": 3727,
+        "text": "            && let Ok((RigidBody::Dynamic, volume, false)) = physics_modes.get(entity)\n            && !root_motion_active {\n            let mut initial_transform = *transform;\n            initial_transform.translation = position.0;\n            let initial = velocity.0 + motor.lin.boost;\n            let initial_horizontal = initial.with_y(0.0);\n            let max_speed = crate::als::dynamics::max_allowed_speed(params, *stance, *rotation_mode,\n                max_allowed_gait.0, initial_horizontal, view_yaw.0);\n            let (moved, final_velocity, steps, contact, mode) = falling_movement_transaction(&spatial_query, capsule,\n                initial_transform, initial, controller.basis.desired_motion, max_speed, params,\n                gravity.value + motor.lin.acceleration, grounded, landing, volume.unwrap_or(&default_volume.0).terminal_velocity,\n                delta_seconds, 0, entity, &candidates, &step_permissions, &mut transitions);\n            if *loco != mode { *loco = mode; }\n            if mode == LocomotionState::None {\n                commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,\n                    crate::als::dynamics::AlsMovementBase::default(), LinearVelocity::ZERO));\n                if let Some(base) = base.as_deref_mut() { *base = default(); }\n            }\n"
+      }
+    ]
+  }
+]

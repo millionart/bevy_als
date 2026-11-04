@@ -1,0 +1,37 @@
+{
+  "base": "AuditWalkOffPlatform",
+  "dynamics_base": "AuditWalkOffPlatform",
+  "mode": "Grounded",
+  "platforms": {
+    "AuditJumpBaseNew": {
+      "position": [
+        -15.0,
+        1.9049999713897705,
+        -15.0
+      ],
+      "velocity": [
+        -1.0,
+        0.0,
+        0.0
+      ]
+    },
+    "AuditWalkOffPlatform": {
+      "position": [
+        -15.0,
+        1.899999976158142,
+        -15.0
+      ],
+      "velocity": [
+        1.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "previous_support": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "switched": true
+}
