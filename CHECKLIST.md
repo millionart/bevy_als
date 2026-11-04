@@ -5012,9 +5012,11 @@
   - 修复第1轮：开始2026-11-05 03:32 +08:00；预估结束04:27 +08:00。依据：536和541已证明有效阻挡却不可走的两类消费者；需区分floor缺失与不可走阻挡、保留源高处/墙侧拒绝条件，并作为D299前置，测试统一后置。
   - 03:34实现摘要：fresh核StepDown非穿透、边缘合格的阻挡命中被源FindFloor复用，窄perch失败只清walkable、不清blocking；证据 `docs/audit/bf144/d295/source-facts.json`。在这些已验证阻挡条件之后移除目标把“不可走”当“无阻挡”的二次拒绝，保留命中、边缘和高度检查；已写近台与perch失败对照，尚未执行。实现结束03:34、偏差−53分钟；测试、消融与真实入口 Gate 待整体实现完成，不视为已验证。D299恢复。
 
-- [ ] BF144-D294 / P2 — perch 替代缺少源合成line标志及宽胶囊命中字段，导致提前落地。
+- [x] BF144-D294 / P2 — perch 替代缺少源合成line标志及宽胶囊命中字段，导致提前落地。
   - UE FindFloor在宽胶囊不走、窄胶囊perch有效时调用SetFromLineTrace，保宽命中的ImpactPoint、Location、Time和SweepDist，换对象与法线并置bLineTrace。目标只换hit，保宽距离但不合并原命中字段或提升line分类。
   - 中心射线实际miss的20.5cm墙案，源15cm窄胶囊命中低台，合并二次资格仍true但49/50保持Falling、51才落地。目标49由perch替代发布Grounded，仅拒真实中心射线的控制不影响；只加perch替代拒绝则同一事务49保持Air。D293的真实中心射线控制无法覆盖此路径。证据 docs/audit/bf144/531/summary.json。
+  - 修复第1轮：开始2026-11-05 03:43 +08:00；预估结束04:38 +08:00。依据：531已有宽/窄命中字段与真实消费者证据；需保留公开查询兼容、源合并身份/距离和实际落地阶段区分，真实射线另属D293，测试统一后置。
+  - 03:48实现摘要：fresh核源 `SetFromLineTrace`、perch合并及边缘回查非line条件，证据 `docs/audit/bf144/d294/source-facts.json`。内部floor结果保留宽命中点/时间、窄命中对象/法线、两种距离及来源；合成line不再由墙扫掠contact提前发布落地，普通胶囊路径保留。已写531挡板/无挡板数据和实际状态同步用例，尚未执行。实现结束03:48、偏差−50分钟；测试、消融和真实入口 Gate 待整体实现完成，不视为已验证。真实射线line仍由D293处理。
 
 - [ ] BF144-D293 / P2 — Falling 边缘回查把中心射线地面用于胶囊落地资格。
   - UE要求边缘回查的FloorResult非line后才可落地，独立IsValidLandingSpot通过也不能越过该条件。目标公开floor丢弃line来源，后置墙contact可消费射线地面直接发布Grounded。
