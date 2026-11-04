@@ -1,0 +1,105 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 694,
+        "end": 705,
+        "text": "\t\tMovementBase.bHasRelativeRotation\n\t\t\t? MovementBase.DeltaRotation.RotateVector(LocomotionState.VelocityWorldSpace)\n\t\t\t: LocomotionState.VelocityWorldSpace\n\t};\n\n\tLocomotionState.Speed = Locomotion.Speed;\n\tLocomotionState.VelocityWorldSpace = Locomotion.Velocity;\n\tLocomotionState.VelocityYawAngleWorldSpace = Locomotion.VelocityYawAngle;\n\n\tLocomotionState.AccelerationWorldSpace = bCanCalculateRateOfChange\n\t\t                                         ? (LocomotionState.VelocityWorldSpace - PreviousVelocity) / DeltaTime\n\t\t                                         : FVector::ZeroVector;"
+      },
+      {
+        "start": 824,
+        "end": 827,
+        "text": "FVector3f UAlsAnimationInstance::GetVelocity() const\n{\n\treturn FVector3f{LocomotionState.RotationQuaternionWorldSpace.UnrotateVector(LocomotionState.VelocityWorldSpace)};\n}"
+      },
+      {
+        "start": 850,
+        "end": 901,
+        "text": "void UAlsAnimationInstance::RefreshVelocityBlend()\n{\n\t// Calculate and interpolate the velocity blend amounts. This value represents the velocity amount of\n\t// the character in each direction (normalized so that diagonals equal 0.5 for each direction) and is\n\t// used in a blend multi node to produce better directional blending than a standard blend space.\n\n\tauto& VelocityBlend{GroundedState.VelocityBlend};\n\n\tauto VelocityDirection{GetVelocity()};\n\tauto TargetVelocityBlend{FVector3f::ZeroVector};\n\n\tif (VelocityDirection.Normalize())\n\t{\n\t\tTargetVelocityBlend = VelocityDirection /\n\t\t                      (FMath::Abs(VelocityDirection.X) + FMath::Abs(VelocityDirection.Y) + FMath::Abs(VelocityDirection.Z));\n\t}\n\n\tif (VelocityBlend.bInitializationRequired || Settings->Grounded.VelocityBlendInterpolationHalfLife <= 0.0f)\n\t{\n\t\tVelocityBlend.bInitializationRequired = false;\n\n\t\tVelocityBlend.ForwardAmount = UAlsMath::Clamp01(TargetVelocityBlend.X);\n\t\tVelocityBlend.BackwardAmount = FMath::Abs(FMath::Clamp(TargetVelocityBlend.X, -1.0f, 0.0f));\n\t\tVelocityBlend.LeftAmount = FMath::Abs(FMath::Clamp(TargetVelocityBlend.Y, -1.0f, 0.0f));\n\t\tVelocityBlend.RightAmount = UAlsMath::Clamp01(TargetVelocityBlend.Y);\n\t}\n\telse\n\t{\n\t\t// We use UAlsMath::DamperExact() instead of FMath::FInterpTo(), because FMath::FInterpTo() is very sensitive to large\n\t\t// delta time, at low FPS interpolation becomes almost instant which causes issues with character pose during the stop.\n\n\t\tconst auto InterpolationAmount{\n\t\t\tUAlsMath::DamperExactAlpha(GetDeltaSeconds(), Settings->Grounded.VelocityBlendInterpolationHalfLife)\n\t\t};\n\n\t\tVelocityBlend.ForwardAmount = FMath::Lerp(VelocityBlend.ForwardAmount,\n\t\t                                          UAlsMath::Clamp01(TargetVelocityBlend.X),\n\t\t                                          InterpolationAmount);\n\n\t\tVelocityBlend.BackwardAmount = FMath::Lerp(VelocityBlend.BackwardAmount,\n\t\t                                           FMath::Abs(FMath::Clamp(TargetVelocityBlend.X, -1.0f, 0.0f)),\n\t\t                                           InterpolationAmount);\n\n\t\tVelocityBlend.LeftAmount = FMath::Lerp(VelocityBlend.LeftAmount,\n\t\t                                       FMath::Abs(FMath::Clamp(TargetVelocityBlend.Y, -1.0f, 0.0f)),\n\t\t                                       InterpolationAmount);\n\n\t\tVelocityBlend.RightAmount = FMath::Lerp(VelocityBlend.RightAmount,\n\t\t                                        UAlsMath::Clamp01(TargetVelocityBlend.Y),\n\t\t                                        InterpolationAmount);\n\t}\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "excerpts": [
+      {
+        "start": 320,
+        "end": 330,
+        "text": "     * @param Scale What to divide each component by.\n     * @return The result of division.\n     */\n\ttemplate<typename FArg UE_REQUIRES(std::is_arithmetic_v<FArg>)>\n\t[[nodiscard]] TVector<T> operator/(FArg Scale) const\n\t{\n\t\tconst T RScale = T(1) / Scale;\n\t\treturn TVector<T>(X * RScale, Y * RScale, Z * RScale);\n\t}\n\n    /**"
+      }
+    ]
+  },
+  {
+    "key": "dependency:glam-0.32.1/src/f32/vec3.rs",
+    "sha256": "28708ec95e5481d1673cbff86f8cafc8d19a50b5ea32fdd030cdbdb9d0601b4c",
+    "excerpts": [
+      {
+        "start": 1419,
+        "end": 1428,
+        "text": "impl Div<f32> for Vec3 {\n    type Output = Self;\n    #[inline]\n    fn div(self, rhs: f32) -> Self {\n        Self {\n            x: self.x.div(rhs),\n            y: self.y.div(rhs),\n            z: self.z.div(rhs),\n        }\n    }"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 5863,
+        "end": 5876,
+        "text": "\t\t}\n\n\n\t\t// Allow overlap events and such to change physics state and velocity\n\t\tif (IsMovingOnGround())\n\t\t{\n\t\t\t// Make velocity reflect actual move\n\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\n\t\t\t{\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\n\t\t\t\tMaintainHorizontalGroundVelocity();\n\t\t\t}\n\t\t}"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 2675,
+        "end": 2698,
+        "text": "fn snapshot_actual_velocity_system(\n    time: Res<Time<avian3d::prelude::Physics>>,\n    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &mut AlsCmcAdapterRuntime,\n        &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,\n) {\n    for (mut velocity, mut actual, position, mut runtime, locomotion, mut base) in &mut characters {\n        if let Some(collision_velocity) = runtime.grounded_collision_velocity.take() {\n            velocity.0 = collision_velocity;\n        } else if let Some(start) = runtime.grounded_move_start\n            && let Some(position) = position\n            && runtime.simulation_delta_seconds > 0.0 {\n            let support = base.as_deref().filter(|base| base.entity.is_some())\n                .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));\n            let relative = (position.0 - start - support * time.delta_secs()) / runtime.simulation_delta_seconds;\n            velocity.x = relative.x + support.x;\n            velocity.z = relative.z + support.z;\n        }\n        if *locomotion != LocomotionState::Grounded\n            && let Some(base) = base.as_deref_mut() {\n            *base = default();\n        }\n        *actual = AlsActualVelocity::from_physics_velocity(\n            crate::als::dynamics::locomotion_velocity(velocity.0, *locomotion, base.as_deref()));\n    }"
+      },
+      {
+        "start": 3814,
+        "end": 3822,
+        "text": "        }\n        let center = position.0;\n        let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query, capsule,\n            center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };\n        runtime.grounded_move_start = Some(center);\n        let world_position = next_y.filter(|height| *height > center.y).map_or(advanced, |height| advanced.with_y(height));\n        transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n        commands.entity(entity).insert(Position(world_position));\n        let remaining_velocity = remaining.unwrap_or(delta) / time.delta_secs();"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/dynamics.rs",
+    "sha256": "c4012c45ae1cafc2ef5e7839907cb995ef0d2e7187ff3eb109aaa6e45159765b",
+    "excerpts": [
+      {
+        "start": 78,
+        "end": 85,
+        "text": "pub fn locomotion_velocity(\n    world_velocity: Vec3,\n    locomotion: LocomotionState,\n    base: Option<&AlsMovementBaseDynamicsState>,\n) -> Vec3 {\n    world_velocity - base.filter(|base| locomotion == LocomotionState::Grounded && base.entity.is_some())\n        .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0))\n}"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/ab_als_provider.rs",
+    "sha256": "d18d819f16dd42f94873f08f8f1c7ad1d48dbb37f9e34f45883cb117fb3f8030",
+    "excerpts": [
+      {
+        "start": 313,
+        "end": 322,
+        "text": "            player.set_global_input_data(\"animation.pending_update\", pending_update);\n            player.set_global_input_data(\n                \"locomotion_state.velocity_world_space\",\n                motion.world_velocity,\n            );\n            player.set_global_input_data(\n                \"locomotion_state.rotation_quaternion_world_space\",\n                transform.rotation(),\n            );\n            player.set_global_input_data("
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/source_native_refresh.rs",
+    "sha256": "3ebcbf46289cd41384afbd6e1cc750b1ab7e5237769f311f94f184c090ce281a",
+    "excerpts": [
+      {
+        "start": 135,
+        "end": 184,
+        "text": "    fn refresh_grounded(&self, ctx: &NodeContext) -> Result<(), GraphError> {\n        let scalar =\n            |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());\n        let boolean =\n            |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_bool());\n        let vector =\n            |key| source_input_data(ctx, key).map_or(Ok(Vec3::ZERO), |value| value.as_vec3());\n        let rotation = source_input_data(ctx, \"locomotion_state.rotation_quaternion_world_space\")\n            .map_or(Ok(Quat::IDENTITY), |value| value.as_quat())?;\n        let velocity = vector(\"locomotion_state.velocity_world_space\")?;\n        let direction = crate::als::animation::velocity_blend_direction(velocity, rotation);\n        let dt = scalar(\"animation.delta_seconds\", 0.0)?;\n        let alpha = |half_life: f32| {\n            1.0 - crate::als::animation::inv_exp_approx(\n                std::f32::consts::LN_2 / (half_life + 1e-8) * dt,\n            )\n        };\n        let velocity_alpha = if boolean(\n            \"grounded_state.velocity_blend.b_initialization_required\",\n            true,\n        )? {\n            1.0\n        } else {\n            alpha(0.1)\n        };\n        set_source_property(\n            ctx,\n            \"grounded_state.velocity_blend.b_initialization_required\",\n            false,\n        )?;\n        for (key, target) in [\n            (\n                \"grounded_state.velocity_blend.forward_amount\",\n                (-direction.z).max(0.0),\n            ),\n            (\n                \"grounded_state.velocity_blend.backward_amount\",\n                direction.z.max(0.0),\n            ),\n            (\n                \"grounded_state.velocity_blend.left_amount\",\n                (-direction.x).max(0.0),\n            ),\n            (\n                \"grounded_state.velocity_blend.right_amount\",\n                direction.x.max(0.0),\n            ),\n        ] {\n            set_source_property(ctx, key, scalar(key, 0.0)?.lerp(target, velocity_alpha))?;\n        }"
+      }
+    ]
+  }
+]
