@@ -1,0 +1,22 @@
+{
+  "has_base": true,
+  "mode": "Grounded",
+  "ordinal": 42,
+  "position": [
+    -13.234167098999023,
+    2.47101092338562,
+    -15.0
+  ],
+  "published": [
+    6.499986171722412,
+    0.0,
+    0.0
+  ],
+  "stored_contact": false,
+  "transitions": [],
+  "velocity": [
+    6.499986171722412,
+    0.0,
+    0.0
+  ]
+}
