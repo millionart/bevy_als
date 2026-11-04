@@ -1,0 +1,66 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 365,
+        "end": 374,
+        "text": "\t// Use the grounded pose curve value to \"unweight\" the gait pose curve. This is used to\n\t// instantly get the full gait value from the very beginning of transitions to grounded states.\n\n\tPoseState.UnweightedGaitAmount = PoseState.GroundedAmount > UE_SMALL_NUMBER\n\t\t                                 ? PoseState.GaitAmount / PoseState.GroundedAmount\n\t\t                                 : PoseState.GaitAmount;\n\n\tPoseState.UnweightedGaitWalkingAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount);\n\tPoseState.UnweightedGaitRunningAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount - 1.0f);\n\tPoseState.UnweightedGaitSprintingAmount = UAlsMath::Clamp01(PoseState.UnweightedGaitAmount - 2.0f);"
+      },
+      {
+        "start": 850,
+        "end": 901,
+        "text": "void UAlsAnimationInstance::RefreshVelocityBlend()\n{\n\t// Calculate and interpolate the velocity blend amounts. This value represents the velocity amount of\n\t// the character in each direction (normalized so that diagonals equal 0.5 for each direction) and is\n\t// used in a blend multi node to produce better directional blending than a standard blend space.\n\n\tauto& VelocityBlend{GroundedState.VelocityBlend};\n\n\tauto VelocityDirection{GetVelocity()};\n\tauto TargetVelocityBlend{FVector3f::ZeroVector};\n\n\tif (VelocityDirection.Normalize())\n\t{\n\t\tTargetVelocityBlend = VelocityDirection /\n\t\t                      (FMath::Abs(VelocityDirection.X) + FMath::Abs(VelocityDirection.Y) + FMath::Abs(VelocityDirection.Z));\n\t}\n\n\tif (VelocityBlend.bInitializationRequired || Settings->Grounded.VelocityBlendInterpolationHalfLife <= 0.0f)\n\t{\n\t\tVelocityBlend.bInitializationRequired = false;\n\n\t\tVelocityBlend.ForwardAmount = UAlsMath::Clamp01(TargetVelocityBlend.X);\n\t\tVelocityBlend.BackwardAmount = FMath::Abs(FMath::Clamp(TargetVelocityBlend.X, -1.0f, 0.0f));\n\t\tVelocityBlend.LeftAmount = FMath::Abs(FMath::Clamp(TargetVelocityBlend.Y, -1.0f, 0.0f));\n\t\tVelocityBlend.RightAmount = UAlsMath::Clamp01(TargetVelocityBlend.Y);\n\t}\n\telse\n\t{\n\t\t// We use UAlsMath::DamperExact() instead of FMath::FInterpTo(), because FMath::FInterpTo() is very sensitive to large\n\t\t// delta time, at low FPS interpolation becomes almost instant which causes issues with character pose during the stop.\n\n\t\tconst auto InterpolationAmount{\n\t\t\tUAlsMath::DamperExactAlpha(GetDeltaSeconds(), Settings->Grounded.VelocityBlendInterpolationHalfLife)\n\t\t};\n\n\t\tVelocityBlend.ForwardAmount = FMath::Lerp(VelocityBlend.ForwardAmount,\n\t\t                                          UAlsMath::Clamp01(TargetVelocityBlend.X),\n\t\t                                          InterpolationAmount);\n\n\t\tVelocityBlend.BackwardAmount = FMath::Lerp(VelocityBlend.BackwardAmount,\n\t\t                                           FMath::Abs(FMath::Clamp(TargetVelocityBlend.X, -1.0f, 0.0f)),\n\t\t                                           InterpolationAmount);\n\n\t\tVelocityBlend.LeftAmount = FMath::Lerp(VelocityBlend.LeftAmount,\n\t\t                                       FMath::Abs(FMath::Clamp(TargetVelocityBlend.Y, -1.0f, 0.0f)),\n\t\t                                       InterpolationAmount);\n\n\t\tVelocityBlend.RightAmount = FMath::Lerp(VelocityBlend.RightAmount,\n\t\t                                        UAlsMath::Clamp01(TargetVelocityBlend.Y),\n\t\t                                        InterpolationAmount);\n\t}\n}"
+      }
+    ]
+  },
+  {
+    "key": "src/als/nodes/source_movement_nodes.rs",
+    "sha256": "7ddf03b052be8540922f1a331a5c79145309cc11ee5bed9f6dd17f7797b647b7",
+    "excerpts": [
+      {
+        "start": 63,
+        "end": 102,
+        "text": "            .desired_alpha_keys\n            .get(index)\n            .ok_or_else(|| node_error(ctx, \"desired alpha key is missing\".to_owned()))?;\n        let default = self\n            .desired_alpha_defaults\n            .get(index)\n            .ok_or_else(|| node_error(ctx, \"desired alpha default is missing\".to_owned()))?;\n        let fallback = if key.is_empty() {\n            *default\n        } else {\n            global_f32_or_root_default(ctx, key)?\n        };\n        let input = ctx\n            .data_back(self.alpha_input(index))\n            .ok()\n            .and_then(|value| value.as_f32().ok());\n        Ok(input.unwrap_or(fallback))\n    }\n    pub(crate) fn active_weights(&self, ctx: &NodeContext) -> Result<Vec<(usize, f32)>, GraphError> {\n        if self.desired_alpha_keys.len() != self.pose_count\n            || self.desired_alpha_defaults.len() != self.pose_count\n        {\n            return Err(node_error(\n                ctx,\n                \"desired alpha configuration does not match pose count\".to_owned(),\n            ));\n        }\n        let desired = (0..self.pose_count).map(|index| self.alpha(ctx, index))\n            .collect::<Result<Vec<_>, _>>()?;\n        let total: f32 = desired.iter().sum();\n        let mut active = Vec::new();\n        if (total * self.alpha_scale).clamp(0.0, 1.0) > 1e-5 {\n            for (index, raw) in desired.into_iter().enumerate() {\n                let weight = ((if self.normalize_alpha { raw / total } else { raw }) * self.alpha_scale).clamp(0.0, 1.0);\n                if weight > 1e-5 { active.push((index, weight)); }\n            }\n        }\n        Ok(active)\n    }\n"
+      },
+      {
+        "start": 112,
+        "end": 136,
+        "text": "            if let Some(context) = pose_input_context_state(&ctx, &self.pose_input(index)) {\n                contexts.push((context, weight));\n            }\n            poses.push((pose, weight));\n        }\n        let output = if poses.is_empty() {\n            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&self.reference_skeleton)\n                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;\n            let timestamp = crate::extensions::context_time_update(&ctx)?.partial_update_basic(ctx.prev_time()).unwrap_or_else(|| ctx.prev_time());\n            let mut pose = Pose { skeleton: self.reference_skeleton.clone(), timestamp, ..default() };\n            crate::extensions::mesh_space_additive::materialize_missing_reference_bones(&mut pose, skeleton);\n            pose\n        } else {\n            blend_source_poses(&poses)\n        };\n        ctx.set_time(output.timestamp);\n        ctx.set_data_fwd(\"Pose\", output);\n        *ctx.state_mut_or_else(AnimationContextState::default)? = if poses.is_empty() {\n            AnimationContextState { curves_are_authoritative: true, ..default() }\n        } else { blend_animation_contexts(contexts) };\n        Ok(())\n    }\n\n    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {\n        for index in 0..self.pose_count {"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "bf5b1061712f4f28a6120504790a2d8599666ee735942381d3f02ccb9de87671",
+    "excerpts": [
+      {
+        "start": 154,
+        "end": 193,
+        "text": "fn delta_seconds(ctx: &NodeContext) -> Result<f32, GraphError> {\n    Ok(match context_time_update(ctx)? {\n        TimeUpdate::Delta(value) => value.max(0.0),\n        TimeUpdate::Absolute(_) | TimeUpdate::PercentOfEvent { .. } => 0.0,\n    })\n}\n\npub fn apply_source_input_scale_bias_clamp(\n    state: &mut SourceInputScaleBiasClampState,\n    raw: f32,\n    mapping: &SourceAlphaMapping,\n    delta: f32,\n) -> f32 {\n    if !mapping.source_semantics {\n        return raw;\n    }\n    let mut target = raw;\n    if mapping.map_range {\n        let divisor = mapping.input_max - mapping.input_min;\n        let percent = if divisor.abs() <= 1.0e-8 {\n            if raw >= mapping.input_max { 1.0 } else { 0.0 }\n        } else {\n            (raw - mapping.input_min) / divisor\n        };\n        target = mapping.output_min + (mapping.output_max - mapping.output_min) * percent;\n    }\n    target = target * mapping.scale + mapping.bias;\n    if mapping.clamp_result {\n        target = target.clamp(mapping.clamp_min, mapping.clamp_max);\n    }\n    if mapping.interpolate_result {\n        if state.initialized {\n            let speed = if target >= state.value {\n                mapping.interpolate_speed_increasing\n            } else {\n                mapping.interpolate_speed_decreasing\n            };\n            target = f_interp_to(state.value, target, delta, speed);\n        }\n        state.value = target;"
+      },
+      {
+        "start": 956,
+        "end": 965,
+        "text": "pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {\n    let mut output = poses.iter()\n        .map(|(pose, weight)| pose.scalar_mult(*weight))\n        .reduce(|accumulator, pose| accumulator.linear_add(&pose))\n        .unwrap_or_default().normalize_quat();\n    output.root_motion = crate::extensions::normalized_blendspace::blend_normalized_root_motion(\n        &poses.iter().map(|(pose, weight)| (pose.root_motion.clone(), *weight)).collect::<Vec<_>>(),\n    );\n    output\n}"
+      },
+      {
+        "start": 967,
+        "end": 985,
+        "text": "pub fn blend_animation_contexts(\n    contexts: impl IntoIterator<Item = (AnimationContextState, f32)>,\n) -> AnimationContextState {\n    let mut output = AnimationContextState::default();\n    let mut relevant_assets = Vec::new();\n    for (context, weight) in contexts {\n        let weight = weight.max(0.0);\n        if weight > 1e-5 {\n            merge_inertialization_request(&mut output.inertialization_request, context.inertialization_request.as_ref());\n            merge_inertialization_request(&mut output.skipped_cached_pose_request, context.skipped_cached_pose_request.as_ref());\n        }\n        merge_sync_players(&mut output.sync_players, &context.sync_players, weight);\n        merge_asset_samples(&mut output.asset_samples, &context.asset_samples, weight);\n        output.curves_are_authoritative |= context.curves_are_authoritative;\n        for (name, value) in context.curves {\n            *output.curves.entry(name).or_default() += value * weight;\n        }\n        relevant_assets.push((context.relevant_asset, weight));\n    }"
+      }
+    ]
+  },
+  {
+    "key": "src/control_rig/control_rig_units.rs",
+    "sha256": "aa05e0c81d08ea31fbb9c176f3235610da79893db8010e09fbd5638985547c48",
+    "excerpts": [
+      {
+        "start": 435,
+        "end": 460,
+        "text": "                            *propagate,\n                        )?;\n                    }\n                }\n            }\n            (\n                \"FAlsRigVMFunction_DamperExactVector::Execute\",\n                [\n                    Vector(target),\n                    F32(half_life),\n                    Vector(current),\n                    Bool(initialized),\n                ],\n            ) => {\n                if !*initialized {\n                    *initialized = true;\n                    *current = *target;\n                }\n                let alpha = rig_damper_alpha(self.delta_seconds as f32, *half_life);\n                *current += (*target - *current) * alpha as f64;\n            }\n            (\n                \"FRigUnit_SpringInterpV2::Execute\",\n                [\n                    F32(target),\n                    F32(strength),"
+      }
+    ]
+  }
+]

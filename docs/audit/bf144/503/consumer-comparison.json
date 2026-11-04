@@ -1,0 +1,1265 @@
+[
+  {
+    "query": 95,
+    "direct": {},
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [],
+      "root_result": []
+    },
+    "changed_curves": {},
+    "root_gait": [
+      null,
+      null
+    ],
+    "lean": [
+      null,
+      null
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 96,
+    "direct": {},
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [],
+      "root_result": []
+    },
+    "changed_curves": {},
+    "root_gait": [
+      null,
+      null
+    ],
+    "lean": [
+      null,
+      null
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 97,
+    "direct": {},
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [],
+      "root_result": []
+    },
+    "changed_curves": {},
+    "root_gait": [
+      null,
+      null
+    ],
+    "lean": [
+      null,
+      null
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 98,
+    "direct": {},
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [],
+      "root_result": []
+    },
+    "changed_curves": {},
+    "root_gait": [
+      null,
+      null
+    ],
+    "lean": [
+      null,
+      null
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 99,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.09887175261974335,
+        "widened_right": 0.09887175261974335,
+        "gait": [
+          1.0,
+          1.0
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [],
+      "root_result": []
+    },
+    "changed_curves": {},
+    "root_gait": [
+      0.07407408207654953,
+      0.07407408207654953
+    ],
+    "lean": [
+      {
+        "raw": 0.0,
+        "effective": 0.5
+      },
+      {
+        "raw": 0.0,
+        "effective": 0.5
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 100,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.16932031512260437,
+        "widened_right": 0.16932031512260437,
+        "gait": [
+          1.0,
+          1.0
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [],
+      "root_result": []
+    },
+    "changed_curves": {},
+    "root_gait": [
+      0.25925928354263306,
+      0.25925928354263306
+    ],
+    "lean": [
+      {
+        "raw": 0.0,
+        "effective": 0.5
+      },
+      {
+        "raw": 0.0,
+        "effective": 0.5
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 101,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.21511630713939667,
+        "widened_right": 0.21511632204055786,
+        "gait": [
+          1.3339130878448486,
+          1.333912968635559
+        ],
+        "changed_bones": [
+          "VB foot_l",
+          "VB foot_r",
+          "VB foot_root",
+          "VB hand_l",
+          "VB hand_l_to_hand_r",
+          "VB hand_l_to_ik_hand_gun",
+          "VB hand_r",
+          "VB hand_r_to_hand_r",
+          "VB hand_r_to_ik_hand_gun",
+          "VB ik_hand_l",
+          "VB ik_hand_r",
+          "ball_l",
+          "ball_r",
+          "calf_l",
+          "calf_r",
+          "calf_twist_01_l",
+          "calf_twist_01_r",
+          "clavicle_l",
+          "clavicle_r",
+          "foot_l",
+          "foot_r",
+          "hand_l",
+          "hand_r",
+          "head",
+          "ik_foot_l",
+          "ik_foot_r",
+          "ik_foot_root",
+          "ik_hand_gun",
+          "ik_hand_l",
+          "ik_hand_r",
+          "ik_hand_root",
+          "index_01_l",
+          "index_01_r",
+          "index_02_l",
+          "index_02_r",
+          "index_03_l",
+          "index_03_r",
+          "lowerarm_l",
+          "lowerarm_r",
+          "lowerarm_twist_01_l",
+          "lowerarm_twist_01_r",
+          "middle_01_l",
+          "middle_01_r",
+          "middle_02_l",
+          "middle_02_r",
+          "middle_03_l",
+          "middle_03_r",
+          "neck_01",
+          "pelvis",
+          "pinky_01_l",
+          "pinky_01_r",
+          "pinky_02_l",
+          "pinky_02_r",
+          "pinky_03_l",
+          "pinky_03_r",
+          "ring_01_l",
+          "ring_01_r",
+          "ring_02_l",
+          "ring_02_r",
+          "ring_03_l",
+          "ring_03_r",
+          "root",
+          "spine_01",
+          "spine_02",
+          "spine_03",
+          "thigh_l",
+          "thigh_r",
+          "thigh_twist_01_l",
+          "thigh_twist_01_r",
+          "thumb_01_l",
+          "thumb_01_r",
+          "thumb_02_l",
+          "thumb_02_r",
+          "thumb_03_l",
+          "thumb_03_r",
+          "upperarm_l",
+          "upperarm_r",
+          "upperarm_twist_01_l",
+          "upperarm_twist_01_r"
+        ]
+      },
+      "69a33590": {
+        "baseline_right": 0.21511630713939667,
+        "widened_right": 0.21511632204055786,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": [
+          "VB foot_l",
+          "VB foot_r",
+          "VB hand_l",
+          "VB hand_l_to_hand_r",
+          "VB hand_l_to_ik_hand_gun",
+          "VB hand_r_to_ik_hand_gun",
+          "VB ik_hand_l",
+          "VB ik_hand_r",
+          "ball_l",
+          "ball_r",
+          "calf_l",
+          "calf_r",
+          "calf_twist_01_l",
+          "clavicle_l",
+          "foot_l",
+          "foot_r",
+          "hand_l",
+          "hand_r",
+          "head",
+          "ik_foot_l",
+          "ik_foot_r",
+          "ik_hand_gun",
+          "ik_hand_l",
+          "index_01_l",
+          "index_01_r",
+          "index_02_l",
+          "index_02_r",
+          "index_03_l",
+          "index_03_r",
+          "lowerarm_l",
+          "lowerarm_r",
+          "lowerarm_twist_01_l",
+          "lowerarm_twist_01_r",
+          "middle_01_l",
+          "middle_01_r",
+          "middle_02_l",
+          "middle_02_r",
+          "middle_03_l",
+          "middle_03_r",
+          "neck_01",
+          "pelvis",
+          "pinky_01_l",
+          "pinky_01_r",
+          "pinky_02_l",
+          "pinky_02_r",
+          "pinky_03_l",
+          "pinky_03_r",
+          "ring_01_l",
+          "ring_01_r",
+          "ring_02_l",
+          "ring_02_r",
+          "ring_03_l",
+          "ring_03_r",
+          "spine_01",
+          "spine_02",
+          "spine_03",
+          "thigh_l",
+          "thigh_r",
+          "thigh_twist_01_l",
+          "thigh_twist_01_r",
+          "thumb_01_l",
+          "thumb_01_r",
+          "thumb_02_l",
+          "thumb_02_r",
+          "thumb_03_l",
+          "thumb_03_r",
+          "upperarm_l",
+          "upperarm_r",
+          "upperarm_twist_01_l",
+          "upperarm_twist_01_r"
+        ]
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [
+        "VB foot_l",
+        "VB foot_r",
+        "VB hand_l",
+        "VB hand_l_to_hand_r",
+        "VB hand_l_to_ik_hand_gun",
+        "VB hand_r_to_ik_hand_gun",
+        "VB ik_hand_l",
+        "VB ik_hand_r",
+        "ball_l",
+        "ball_r",
+        "calf_l",
+        "calf_r",
+        "calf_twist_01_l",
+        "calf_twist_01_r",
+        "clavicle_l",
+        "clavicle_r",
+        "foot_l",
+        "foot_r",
+        "hand_l",
+        "hand_r",
+        "head",
+        "ik_foot_l",
+        "ik_foot_r",
+        "ik_hand_gun",
+        "ik_hand_l",
+        "ik_hand_r",
+        "index_01_l",
+        "index_01_r",
+        "index_02_l",
+        "index_02_r",
+        "index_03_l",
+        "index_03_r",
+        "lowerarm_l",
+        "lowerarm_r",
+        "lowerarm_twist_01_l",
+        "lowerarm_twist_01_r",
+        "middle_01_l",
+        "middle_01_r",
+        "middle_02_l",
+        "middle_02_r",
+        "middle_03_l",
+        "middle_03_r",
+        "neck_01",
+        "pelvis",
+        "pinky_01_l",
+        "pinky_01_r",
+        "pinky_02_l",
+        "pinky_02_r",
+        "pinky_03_l",
+        "pinky_03_r",
+        "ring_01_l",
+        "ring_01_r",
+        "ring_02_l",
+        "ring_02_r",
+        "ring_03_l",
+        "ring_03_r",
+        "spine_01",
+        "spine_02",
+        "spine_03",
+        "thigh_l",
+        "thigh_r",
+        "thigh_twist_01_l",
+        "thigh_twist_01_r",
+        "thumb_01_l",
+        "thumb_01_r",
+        "thumb_02_l",
+        "thumb_02_r",
+        "thumb_03_l",
+        "thumb_03_r",
+        "upperarm_l",
+        "upperarm_r",
+        "upperarm_twist_01_l",
+        "upperarm_twist_01_r"
+      ],
+      "rig_output": [
+        "VB foot_l",
+        "VB foot_r",
+        "VB hand_l",
+        "VB hand_l_to_hand_r",
+        "VB hand_l_to_ik_hand_gun",
+        "VB hand_r_to_ik_hand_gun",
+        "VB ik_hand_l",
+        "VB ik_hand_r",
+        "ball_l",
+        "ball_r",
+        "calf_l",
+        "calf_r",
+        "calf_twist_01_l",
+        "calf_twist_01_r",
+        "clavicle_l",
+        "clavicle_r",
+        "foot_l",
+        "foot_r",
+        "hand_l",
+        "hand_r",
+        "head",
+        "ik_foot_l",
+        "ik_foot_r",
+        "ik_hand_gun",
+        "ik_hand_l",
+        "ik_hand_r",
+        "index_01_l",
+        "index_01_r",
+        "index_02_l",
+        "index_02_r",
+        "index_03_l",
+        "index_03_r",
+        "lowerarm_l",
+        "lowerarm_r",
+        "lowerarm_twist_01_l",
+        "lowerarm_twist_01_r",
+        "middle_01_l",
+        "middle_01_r",
+        "middle_02_l",
+        "middle_02_r",
+        "middle_03_l",
+        "middle_03_r",
+        "neck_01",
+        "pelvis",
+        "pinky_01_l",
+        "pinky_01_r",
+        "pinky_02_l",
+        "pinky_02_r",
+        "pinky_03_l",
+        "pinky_03_r",
+        "ring_01_l",
+        "ring_01_r",
+        "ring_02_l",
+        "ring_02_r",
+        "ring_03_l",
+        "ring_03_r",
+        "spine_01",
+        "spine_02",
+        "spine_03",
+        "thigh_l",
+        "thigh_r",
+        "thigh_twist_01_l",
+        "thigh_twist_01_r",
+        "thumb_01_l",
+        "thumb_01_r",
+        "thumb_02_l",
+        "thumb_02_r",
+        "thumb_03_l",
+        "thumb_03_r",
+        "upperarm_l",
+        "upperarm_r",
+        "upperarm_twist_01_l",
+        "upperarm_twist_01_r"
+      ],
+      "root_result": [
+        "VB foot_l",
+        "VB foot_r",
+        "VB hand_l",
+        "VB hand_l_to_hand_r",
+        "VB hand_l_to_ik_hand_gun",
+        "VB hand_r_to_ik_hand_gun",
+        "VB ik_hand_l",
+        "VB ik_hand_r",
+        "ball_l",
+        "ball_r",
+        "calf_l",
+        "calf_r",
+        "calf_twist_01_l",
+        "calf_twist_01_r",
+        "clavicle_l",
+        "clavicle_r",
+        "foot_l",
+        "foot_r",
+        "hand_l",
+        "hand_r",
+        "head",
+        "ik_foot_l",
+        "ik_foot_r",
+        "ik_hand_gun",
+        "ik_hand_l",
+        "ik_hand_r",
+        "index_01_l",
+        "index_01_r",
+        "index_02_l",
+        "index_02_r",
+        "index_03_l",
+        "index_03_r",
+        "lowerarm_l",
+        "lowerarm_r",
+        "lowerarm_twist_01_l",
+        "lowerarm_twist_01_r",
+        "middle_01_l",
+        "middle_01_r",
+        "middle_02_l",
+        "middle_02_r",
+        "middle_03_l",
+        "middle_03_r",
+        "neck_01",
+        "pelvis",
+        "pinky_01_l",
+        "pinky_01_r",
+        "pinky_02_l",
+        "pinky_02_r",
+        "pinky_03_l",
+        "pinky_03_r",
+        "ring_01_l",
+        "ring_01_r",
+        "ring_02_l",
+        "ring_02_r",
+        "ring_03_l",
+        "ring_03_r",
+        "spine_01",
+        "spine_02",
+        "spine_03",
+        "thigh_l",
+        "thigh_r",
+        "thigh_twist_01_l",
+        "thigh_twist_01_r",
+        "thumb_01_l",
+        "thumb_01_r",
+        "thumb_02_l",
+        "thumb_02_r",
+        "thumb_03_l",
+        "thumb_03_r",
+        "upperarm_l",
+        "upperarm_r",
+        "upperarm_twist_01_l",
+        "upperarm_twist_01_r"
+      ]
+    },
+    "changed_curves": {
+      "FootPlanted": [
+        -0.3643149435520172,
+        -0.36431488394737244
+      ]
+    },
+    "root_gait": [
+      0.5350403189659119,
+      0.5350403189659119
+    ],
+    "lean": [
+      {
+        "raw": 0.0,
+        "effective": 0.5
+      },
+      {
+        "raw": 0.0,
+        "effective": 0.5
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 102,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.24245885014533997,
+        "widened_right": 0.24245885014533997,
+        "gait": [
+          1.5024724006652832,
+          1.5024724006652832
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.24245885014533997,
+        "widened_right": 0.24245885014533997,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [
+        "VB foot_r",
+        "VB hand_l",
+        "VB hand_l_to_hand_r",
+        "VB hand_l_to_ik_hand_gun",
+        "VB hand_r_to_ik_hand_gun",
+        "VB ik_hand_l",
+        "VB ik_hand_r",
+        "ball_l",
+        "ball_r",
+        "calf_l",
+        "calf_r",
+        "calf_twist_01_l",
+        "clavicle_r",
+        "foot_l",
+        "foot_r",
+        "hand_r",
+        "ik_foot_l",
+        "ik_foot_r",
+        "ik_hand_gun",
+        "ik_hand_l",
+        "index_01_r",
+        "index_02_r",
+        "index_03_r",
+        "lowerarm_r",
+        "lowerarm_twist_01_r",
+        "middle_01_r",
+        "middle_02_l",
+        "middle_02_r",
+        "middle_03_l",
+        "middle_03_r",
+        "pelvis",
+        "pinky_01_l",
+        "pinky_01_r",
+        "pinky_02_l",
+        "pinky_02_r",
+        "pinky_03_l",
+        "pinky_03_r",
+        "ring_01_r",
+        "ring_02_r",
+        "ring_03_l",
+        "ring_03_r",
+        "spine_03",
+        "thigh_l",
+        "thigh_twist_01_l",
+        "thumb_01_l",
+        "thumb_01_r",
+        "thumb_02_l",
+        "thumb_02_r",
+        "thumb_03_l",
+        "thumb_03_r",
+        "upperarm_l",
+        "upperarm_r",
+        "upperarm_twist_01_r"
+      ],
+      "rig_output": [
+        "VB foot_r",
+        "VB hand_l",
+        "VB hand_l_to_hand_r",
+        "VB hand_l_to_ik_hand_gun",
+        "VB hand_r_to_ik_hand_gun",
+        "VB ik_hand_l",
+        "VB ik_hand_r",
+        "ball_l",
+        "ball_r",
+        "calf_l",
+        "calf_r",
+        "calf_twist_01_l",
+        "clavicle_r",
+        "foot_l",
+        "foot_r",
+        "hand_r",
+        "ik_foot_l",
+        "ik_foot_r",
+        "ik_hand_gun",
+        "ik_hand_l",
+        "index_01_r",
+        "index_02_r",
+        "index_03_r",
+        "lowerarm_r",
+        "lowerarm_twist_01_r",
+        "middle_01_r",
+        "middle_02_l",
+        "middle_02_r",
+        "middle_03_l",
+        "middle_03_r",
+        "pelvis",
+        "pinky_01_l",
+        "pinky_01_r",
+        "pinky_02_l",
+        "pinky_02_r",
+        "pinky_03_l",
+        "pinky_03_r",
+        "ring_01_r",
+        "ring_02_r",
+        "ring_03_l",
+        "ring_03_r",
+        "spine_03",
+        "thigh_l",
+        "thigh_r",
+        "thigh_twist_01_l",
+        "thumb_01_l",
+        "thumb_01_r",
+        "thumb_02_l",
+        "thumb_02_r",
+        "thumb_03_l",
+        "thumb_03_r",
+        "upperarm_l",
+        "upperarm_r",
+        "upperarm_twist_01_r"
+      ],
+      "root_result": [
+        "VB foot_r",
+        "VB hand_l",
+        "VB hand_l_to_hand_r",
+        "VB hand_l_to_ik_hand_gun",
+        "VB hand_r_to_ik_hand_gun",
+        "VB ik_hand_l",
+        "VB ik_hand_r",
+        "ball_l",
+        "ball_r",
+        "calf_l",
+        "calf_r",
+        "calf_twist_01_l",
+        "clavicle_r",
+        "foot_l",
+        "foot_r",
+        "hand_r",
+        "ik_foot_l",
+        "ik_foot_r",
+        "ik_hand_gun",
+        "ik_hand_l",
+        "index_01_r",
+        "index_02_r",
+        "index_03_r",
+        "lowerarm_r",
+        "lowerarm_twist_01_r",
+        "middle_01_r",
+        "middle_02_l",
+        "middle_02_r",
+        "middle_03_l",
+        "middle_03_r",
+        "pelvis",
+        "pinky_01_l",
+        "pinky_01_r",
+        "pinky_02_l",
+        "pinky_02_r",
+        "pinky_03_l",
+        "pinky_03_r",
+        "ring_01_r",
+        "ring_02_r",
+        "ring_03_l",
+        "ring_03_r",
+        "spine_03",
+        "thigh_l",
+        "thigh_r",
+        "thigh_twist_01_l",
+        "thumb_01_l",
+        "thumb_01_r",
+        "thumb_02_l",
+        "thumb_02_r",
+        "thumb_03_l",
+        "thumb_03_r",
+        "upperarm_l",
+        "upperarm_r",
+        "upperarm_twist_01_r"
+      ]
+    },
+    "changed_curves": {
+      "PoseGait": [
+        1.0610309839248657,
+        1.0610311031341553
+      ]
+    },
+    "root_gait": [
+      1.0610309839248657,
+      1.0610311031341553
+    ],
+    "lean": [
+      {
+        "raw": 0.0,
+        "effective": 0.5
+      },
+      {
+        "raw": 0.0,
+        "effective": 0.5
+      }
+    ],
+    "changed_rig_input": [
+      {
+        "index": 10,
+        "baseline": {
+          "Quaternion": [
+            -0.7251770496368408,
+            0.6675450205802917,
+            -0.026590794324874878,
+            0.16671806573867798
+          ]
+        },
+        "widened": {
+          "Quaternion": [
+            -0.7251771092414856,
+            0.6675450205802917,
+            -0.026590824127197266,
+            0.16671806573867798
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "query": 103,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.25608232617378235,
+        "widened_right": 0.25608232617378235,
+        "gait": [
+          1.6059716939926147,
+          1.6059716939926147
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.25608232617378235,
+        "widened_right": 0.25608232617378235,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ],
+      "root_result": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    "changed_curves": {},
+    "root_gait": [
+      1.4870109558105469,
+      1.4870109558105469
+    ],
+    "lean": [
+      {
+        "raw": 0.06103098392486572,
+        "effective": 0.5
+      },
+      {
+        "raw": 0.06103110313415527,
+        "effective": 0.5
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 104,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.2596219480037689,
+        "widened_right": 0.2596219480037689,
+        "gait": [
+          1.677905797958374,
+          1.677905797958374
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.2596219480037689,
+        "widened_right": 0.2596219480037689,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ],
+      "root_result": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    "changed_curves": {},
+    "root_gait": [
+      1.677905797958374,
+      1.677905797958374
+    ],
+    "lean": [
+      {
+        "raw": 0.4870109558105469,
+        "effective": 0.5
+      },
+      {
+        "raw": 0.4870109558105469,
+        "effective": 0.5
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 105,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.255878210067749,
+        "widened_right": 0.255878210067749,
+        "gait": [
+          1.7327327728271484,
+          1.7327327728271484
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.255878210067749,
+        "widened_right": 0.255878210067749,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ],
+      "root_result": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    "changed_curves": {},
+    "root_gait": [
+      1.7327327728271484,
+      1.7327327728271484
+    ],
+    "lean": [
+      {
+        "raw": 0.677905797958374,
+        "effective": 0.6186038851737976
+      },
+      {
+        "raw": 0.677905797958374,
+        "effective": 0.6186038851737976
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 106,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.24700728058815002,
+        "widened_right": 0.24700728058815002,
+        "gait": [
+          1.7778375148773193,
+          1.7778375148773193
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.24700728058815002,
+        "widened_right": 0.24700728058815002,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ],
+      "root_result": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    "changed_curves": {},
+    "root_gait": [
+      1.7778375148773193,
+      1.7778375148773193
+    ],
+    "lean": [
+      {
+        "raw": 0.7327327728271484,
+        "effective": 0.6946898102760315
+      },
+      {
+        "raw": 0.7327327728271484,
+        "effective": 0.6946898102760315
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 107,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.23466849327087402,
+        "widened_right": 0.23466849327087402,
+        "gait": [
+          1.8175504207611084,
+          1.8175504207611084
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.23466849327087402,
+        "widened_right": 0.23466849327087402,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ],
+      "root_result": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    "changed_curves": {},
+    "root_gait": [
+      1.8175504207611084,
+      1.8175504207611084
+    ],
+    "lean": [
+      {
+        "raw": 0.7778375148773193,
+        "effective": 0.7501215934753418
+      },
+      {
+        "raw": 0.7778375148773193,
+        "effective": 0.7501215934753418
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 108,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.22013217210769653,
+        "widened_right": 0.22013217210769653,
+        "gait": [
+          1.8548016548156738,
+          1.8548016548156738
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.22013217210769653,
+        "widened_right": 0.22013217210769653,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ],
+      "root_result": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    "changed_curves": {},
+    "root_gait": [
+      1.8548016548156738,
+      1.8548016548156738
+    ],
+    "lean": [
+      {
+        "raw": 0.8175504207611084,
+        "effective": 0.7950741648674011
+      },
+      {
+        "raw": 0.8175504207611084,
+        "effective": 0.7950741648674011
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 109,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.20436421036720276,
+        "widened_right": 0.20436421036720276,
+        "gait": [
+          1.8919477462768555,
+          1.8919477462768555
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.20436421036720276,
+        "widened_right": 0.20436421036720276,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ],
+      "root_result": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_l",
+        "thigh_r"
+      ]
+    },
+    "changed_curves": {},
+    "root_gait": [
+      1.8919477462768555,
+      1.8919477462768555
+    ],
+    "lean": [
+      {
+        "raw": 0.8548016548156738,
+        "effective": 0.8348925113677979
+      },
+      {
+        "raw": 0.8548016548156738,
+        "effective": 0.8348925113677979
+      }
+    ],
+    "changed_rig_input": []
+  },
+  {
+    "query": 110,
+    "direct": {
+      "41fd7093": {
+        "baseline_right": 0.18808726966381073,
+        "widened_right": 0.18808726966381073,
+        "gait": [
+          1.931318759918213,
+          1.931318759918213
+        ],
+        "changed_bones": []
+      },
+      "69a33590": {
+        "baseline_right": 0.18808726966381073,
+        "widened_right": 0.18808726966381073,
+        "gait": [
+          null,
+          null
+        ],
+        "changed_bones": []
+      }
+    },
+    "changed_pose_bones": {
+      "rig_source": [],
+      "rig_output": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_r"
+      ],
+      "root_result": [
+        "calf_l",
+        "calf_r",
+        "foot_l",
+        "foot_r",
+        "thigh_r"
+      ]
+    },
+    "changed_curves": {},
+    "root_gait": [
+      1.931318759918213,
+      1.931318759918213
+    ],
+    "lean": [
+      {
+        "raw": 0.8919477462768555,
+        "effective": 0.8729293346405029
+      },
+      {
+        "raw": 0.8919477462768555,
+        "effective": 0.8729293346405029
+      }
+    ],
+    "changed_rig_input": []
+  }
+]
