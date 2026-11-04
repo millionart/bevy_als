@@ -5100,9 +5100,13 @@
   - 05:20 source/static闭环：fresh `FVector` 加速度/速度为F64，源点积按世界X/Y/Z相乘求和后选择阈值；Standing已再次原生读取，同次D286的父图、Crouching、BlendSpace、样本及RequiredBones身份继续适用。源及本项范围见 `docs/audit/bf144/d285/source-facts.json`、`tools/animgraph_authoring/bf144_d285.scope.json`；图审计与视觉Gate待执行。
   - 05:21实现摘要：按源世界坐标和厘米单位以F64做加速度/速度点积，再选择加速或制动阈值；已写.510近垂直反例与正负方向控制。重新读取的Standing原生输出gzip及原始SHA已封存，其他递归证据引用D286。实现结束05:21、偏差−38分钟；测试、消融、图静态审计和公共视觉Gate尚未运行。
 
-- [ ] BF144-D284 / P3 — Grounded Lean 不消费源 General 半衰期，InAir 已接线。
+- [x] BF144-D284 / P3 — Grounded Lean 不消费源 General 半衰期，InAir 已接线。
   - 原生 Grounded 和 InAir 均读取 General.LeanInterpolationHalfLife 并支持非正值立即取目标。默认设置0.2。Bevy InAir 通过生成配置和 provider 消费该值；Grounded 仅以0.2常量阻尼，立即取值只由 pending 控制。
   - 实际可见Playground同一配置输入改为0或0.6后，Grounded第32序号前向仍为0.1749955267，同输入立即取值控制为0。InAir第44序号前向在0、0.2、0.6分别为1.0655634403、0.8111192584、0.7907246947。原生零/慢值分别影响地面36帧、空中24帧姿态，物理一致。证据 docs/audit/bf144/509/summary.json。
+
+  - 修复第1轮：开始2026-11-05 05:22 +08:00；预估结束06:07 +08:00。依据：.509已证明0/0.2/0.6及负值、Grounded与InAir共用源设置；复用D286同轮动画闭包，重读默认设置与实际输入链，并覆盖两条Grounded消费者。测试及公共视觉Gate统一后置。
+  - 05:25 source/static闭环：fresh设置资产确认General半衰期0.2，Grounded与InAir均读取同字段并在非正值直接取目标；现有生成JSON与InAir图输入已包含它。Grounded的source refresh和Standing兼容输入各有常量；后者执行先于InAir输入写入，不能通过反向排序读取同帧输入。证据与范围在 `docs/audit/bf144/d284/`、`tools/animgraph_authoring/bf144_d284.scope.json`，静态/视觉Gate待执行。
+  - 05:26实现摘要：Grounded图刷新消费现有同帧General半衰期输入，非正值及pending立即取目标；Standing兼容路径读取同一离线生成配置，避免引入系统排序环。已写0/负值/0.2/0.6及pending图刷新控制。实现结束05:26、偏差−41分钟；测试、消融、图静态审计及公共视觉Gate尚未运行。
 
 - [ ] BF144-D283 / P3 — VelocityBlend 半衰期未接入源动画设置。
   - 原生 AB_Als 绑定 AIS_Als_Default，Grounded.VelocityBlendInterpolationHalfLife 为可编辑 Float，默认0.1秒。源刷新读取该值，非正值直接采用当帧目标。目标Grounded刷新固定用0.1，Grounded导入只生成Yaw曲线，配置变化无直接输入。

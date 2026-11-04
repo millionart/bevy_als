@@ -1,0 +1,122 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 903,
+          "last_line": 919,
+          "text": "void UAlsAnimationInstance::RefreshGroundedLean()\n{\n\tconst auto TargetLeanAmount{GetAccelerationAmount()};\n\n\tif (bPendingUpdate || Settings->General.LeanInterpolationHalfLife <= 0.0f)\n\t{\n\t\tLeanState.RightAmount = TargetLeanAmount.Y;\n\t\tLeanState.ForwardAmount = TargetLeanAmount.X;\n\t}\n\telse\n\t{\n\t\tconst auto InterpolationAmount{UAlsMath::DamperExactAlpha(GetDeltaSeconds(), Settings->General.LeanInterpolationHalfLife)};\n\n\t\tLeanState.RightAmount = FMath::Lerp(LeanState.RightAmount, TargetLeanAmount.Y, InterpolationAmount);\n\t\tLeanState.ForwardAmount = FMath::Lerp(LeanState.ForwardAmount, TargetLeanAmount.X, InterpolationAmount);\n\t}\n}"
+        },
+        {
+          "first_line": 1219,
+          "last_line": 1242,
+          "text": "void UAlsAnimationInstance::RefreshInAirLean()\n{\n\t// Use the velocity direction and amount to determine how much the character should lean\n\t// while in the air. The lean amount curve uses the vertical velocity as a multiplier to\n\t// smoothly reverse the leaning direction when transitioning from moving upward to downward.\n\n\tstatic constexpr auto ReferenceSpeed{350.0f};\n\n\tconst auto TargetLeanAmount{\n\t\tGetVelocity() / ReferenceSpeed * Settings->InAir.LeanAmountCurve->GetFloatValue(InAirState.VerticalVelocityWorldSpace)\n\t};\n\n\tif (bPendingUpdate || Settings->General.LeanInterpolationHalfLife <= 0.0f)\n\t{\n\t\tLeanState.RightAmount = TargetLeanAmount.Y;\n\t\tLeanState.ForwardAmount = TargetLeanAmount.X;\n\t}\n\telse\n\t{\n\t\tconst auto InterpolationAmount{UAlsMath::DamperExactAlpha(GetDeltaSeconds(), Settings->General.LeanInterpolationHalfLife)};\n\n\t\tLeanState.RightAmount = FMath::Lerp(LeanState.RightAmount, TargetLeanAmount.Y, InterpolationAmount);\n\t\tLeanState.ForwardAmount = FMath::Lerp(LeanState.ForwardAmount, TargetLeanAmount.X, InterpolationAmount);\n\t}"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Public/Settings/AlsGeneralAnimationSettings.h",
+      "sha256": "aad2bd4715d854947a8ab516c703ce3624e9bbe5215632a49a9df0b438afa4f9",
+      "excerpts": [
+        {
+          "first_line": 17,
+          "last_line": 21,
+          "text": "\tfloat MovingSmoothSpeedThreshold{150.0f};\n\n\t/// The lower the value, the faster the interpolation. A zero value means instant interpolation.\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = 0, ForceUnits = \"s\"))\n\tfloat LeanInterpolationHalfLife{0.2f};"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/animation_instances/source_native_refresh.rs",
+      "sha256": "3ebcbf46289cd41384afbd6e1cc750b1ab7e5237769f311f94f184c090ce281a",
+      "excerpts": [
+        {
+          "first_line": 112,
+          "last_line": 127,
+          "text": "        let velocity = source_input_data(ctx, \"locomotion_state.velocity_world_space\")\n            .map_or(Ok(Vec3::ZERO), |value| value.as_vec3())?;\n        set_source_property(ctx, \"in_air_state.vertical_velocity_world_space\", velocity.y)?;\n        set_source_property(ctx, \"in_air_state.ground_prediction_amount\", scalar(\"in_air_source.ground_prediction_amount\", 0.0)?)?;\n        let target = source_input_data(ctx, \"in_air_source.lean_target\")\n            .map_or(Ok(Vec2::ZERO), |value| value.as_vec2())?;\n        let half_life = scalar(\"in_air_source.lean_interpolation_half_life\", 0.0)?;\n        let alpha = if boolean(\"animation.pending_update\", true)? || half_life <= 0.0 {\n            1.0\n        } else {\n            1.0 - crate::als::animation::inv_exp_approx(\n                std::f32::consts::LN_2 / (half_life + 1e-8) * scalar(\"animation.delta_seconds\", 0.0)?,\n            )\n        };\n        for (key, target) in [\n            (\"lean_state.forward_amount\", target.x),"
+        },
+        {
+          "first_line": 185,
+          "last_line": 201,
+          "text": "        let target_lean = crate::als::animation::acceleration_amount(\n            vector(\"locomotion_state.acceleration_world_space\")?,\n            velocity,\n            rotation,\n            scalar(\"locomotion_state.max_acceleration\", 0.0)?,\n            scalar(\"locomotion_state.max_braking_deceleration\", 0.0)?,\n        );\n        let lean_alpha = if boolean(\"animation.pending_update\", true)? {\n            1.0\n        } else {\n            alpha(0.2)\n        };\n        for (key, target) in [\n            (\"lean_state.forward_amount\", target_lean.x),\n            (\"lean_state.right_amount\", target_lean.y),\n        ] {\n            set_source_property(ctx, key, scalar(key, 0.0)?.lerp(target, lean_alpha))?;"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/animation_instances/locomotion_layer.rs",
+      "sha256": "7068d3be3612fde43d106c4bc1e637e1f8e612cb354fe4553c25f1b52be03d2d",
+      "excerpts": [
+        {
+          "first_line": 29,
+          "last_line": 48,
+          "text": "#[derive(serde::Deserialize)]\nstruct InAirSettings {\n    lean_interpolation_half_life: f32,\n    jump_reference_speed: f32,\n    jump_min_play_rate: f32,\n    jump_max_play_rate: f32,\n    lean_reference_speed: f32,\n    prediction_velocity_threshold: f32,\n    prediction_min_velocity: f32,\n    prediction_max_velocity: f32,\n    prediction_min_distance: f32,\n    prediction_max_distance: f32,\n    prediction_trace_layer: crate::als::character::AlsCollisionLayer,\n    lean: crate::extensions::als_curves::AlsFloatCurve,\n    ground_prediction: crate::extensions::als_curves::AlsFloatCurve,\n}\n\nstatic IN_AIR_SETTINGS: LazyLock<InAirSettings> = LazyLock::new(|| {\n    serde_json::from_str(include_str!(\"../../../../assets/ALS/Data/AnimationInstance/Air/als_in_air_settings.json\"))\n        .expect(\"generated in-air settings are valid\")"
+        },
+        {
+          "first_line": 67,
+          "last_line": 79,
+          "text": "pub struct LocomotionLayerPlugin;\n\nimpl Plugin for LocomotionLayerPlugin {\n    fn build(&self, app: &mut App) {\n        app.configure_sets(\n            PostUpdate,\n            AlsLocomotionLayerSet\n                .after(AbAlsProviderSet)\n                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),\n        )\n        .add_systems(\n            PostUpdate,\n            locomotion_input_writer.in_set(AlsLocomotionLayerSet),"
+        },
+        {
+          "first_line": 207,
+          "last_line": 216,
+          "text": "        else { commands.entity(avatar).remove::<AlsGroundPredictionTrace>(); }\n        player.set_global_input_data(\"in_air_source.ground_prediction_amount\", prediction);\n        player.set_global_input_data(\n            \"in_air_source.lean_target\",\n            in_air_lean_target(motion.world_velocity, transform.rotation()),\n        );\n        player.set_global_input_data(\n            \"in_air_source.lean_interpolation_half_life\",\n            IN_AIR_SETTINGS.lean_interpolation_half_life,\n        );"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/animation_instances/standing_layer.rs",
+      "sha256": "13f575190cc9b7beec24440e86f48dd413e7bc91147f215d02b3cf1c5d32f46b",
+      "excerpts": [
+        {
+          "first_line": 41,
+          "last_line": 45,
+          "text": "const VELOCITY_EPSILON: f32 = 0.01;\nconst MOVING_SMOOTH_SPEED_THRESHOLD: f32 = 1.5;\nconst VELOCITY_BLEND_HALF_LIFE: f32 = 0.1;\nconst LEAN_HALF_LIFE: f32 = 0.2;\nconst MIN_PLAY_RATE: f32 = 1e-4;"
+        },
+        {
+          "first_line": 805,
+          "last_line": 821,
+          "text": "\nimpl Plugin for StandingLayerPlugin {\n    fn build(&self, app: &mut App) {\n        app.add_systems(Startup, crate::standing_source::load_source_montage_assets);\n        app.configure_sets(\n            PostUpdate,\n            AlsStandingLayerSet\n                .after(crate::gait_layer::AlsGaitLayerSet)\n                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),\n        )\n        .add_message::<AlsPivotNotify>()\n        .add_systems(Startup, load_standing_curve_assets)\n        .add_systems(\n            PostUpdate,\n            (pivot_notify_system, standing_layer_writer)\n                .chain()\n                .in_set(AlsStandingLayerSet),"
+        },
+        {
+          "first_line": 1510,
+          "last_line": 1530,
+          "text": "    let target_lean = acceleration_amount(\n        acceleration,\n        velocity,\n        transform.rotation,\n        maximum_acceleration,\n        maximum_braking_deceleration,\n    );\n    if runtime.initialized {\n        runtime.velocity_blend = damp_velocity_blend(\n            runtime.velocity_blend,\n            target_velocity_blend,\n            damper_exact_alpha(delta_seconds, VELOCITY_BLEND_HALF_LIFE),\n        );\n        runtime.lean = runtime.lean.lerp(\n            target_lean,\n            damper_exact_alpha(delta_seconds, LEAN_HALF_LIFE),\n        );\n    } else {\n        runtime.velocity_blend = target_velocity_blend;\n        runtime.lean = target_lean;\n    }"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/animation_instances/ab_als_provider.rs",
+      "sha256": "d18d819f16dd42f94873f08f8f1c7ad1d48dbb37f9e34f45883cb117fb3f8030",
+      "excerpts": [
+        {
+          "first_line": 71,
+          "last_line": 79,
+          "text": "impl Plugin for AbAlsProviderPlugin {\n    fn build(&self, app: &mut App) {\n        app.configure_sets(\n            PostUpdate,\n            AbAlsProviderSet\n                .after(AlsRootGraphSet)\n                .after(AlsRagdollingLayerSet)\n                .after(AlsStandingLayerSet)\n                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),"
+        }
+      ]
+    },
+    {
+      "path": "tools/import/gen_in_air_settings.py",
+      "sha256": "c9d56a7c9e12c1723d2ce5069cc85ee382e5fd573c6406cd9128b618df317df5",
+      "excerpts": [
+        {
+          "first_line": 14,
+          "last_line": 20,
+          "text": "def generate(settings, source_reader, animation_source):\n    if settings.get('asset_class') != '/Script/ALS.AlsAnimationInstanceSettings':\n        raise ValueError('source is not ALS animation instance settings')\n    general = parse_struct(asset_property(settings, 'General'))\n    air = parse_struct(asset_property(settings, 'InAir'))\n    output = {'lean_interpolation_half_life': parse_number(field(general, 'LeanInterpolationHalfLife'))}\n    responses = parse_struct(field(air, 'GroundPredictionSweepResponses'))"
+        }
+      ]
+    },
+    {
+      "path": "assets/ALS/Data/AnimationInstance/Air/als_in_air_settings.json",
+      "sha256": "ef4e7417b7e10996929d348b4d89abd64a606f14816a30e84e30d73437c0507d",
+      "excerpts": [
+        {
+          "first_line": 1,
+          "last_line": 4,
+          "text": "{\n  \"lean_interpolation_half_life\": 0.2,\n  \"prediction_trace_layer\": \"Visibility\",\n  \"jump_reference_speed\": 6.0,"
+        }
+      ]
+    }
+  ]
+}

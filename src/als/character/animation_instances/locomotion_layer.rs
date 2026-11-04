@@ -48,6 +48,10 @@ static IN_AIR_SETTINGS: LazyLock<InAirSettings> = LazyLock::new(|| {
         .expect("generated in-air settings are valid")
 });
 
+pub(crate) fn lean_interpolation_half_life() -> f32 {
+    IN_AIR_SETTINGS.lean_interpolation_half_life
+}
+
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
 pub struct AlsGroundPredictionState {
     pub amount: f32,

@@ -189,10 +189,12 @@ impl AlsSourceRefreshNode {
             scalar("locomotion_state.max_acceleration", 0.0)?,
             scalar("locomotion_state.max_braking_deceleration", 0.0)?,
         );
-        let lean_alpha = if boolean("animation.pending_update", true)? {
+        let lean_half_life = scalar("in_air_source.lean_interpolation_half_life",
+            crate::locomotion_layer::lean_interpolation_half_life())?;
+        let lean_alpha = if boolean("animation.pending_update", true)? || lean_half_life <= 0.0 {
             1.0
         } else {
-            alpha(0.2)
+            alpha(lean_half_life)
         };
         for (key, target) in [
             ("lean_state.forward_amount", target_lean.x),
@@ -1083,6 +1085,60 @@ mod tests {
             assert!(actual.0 && (actual.1 - source_rate).abs() < 1e-6,
                 "Actual Rotate source instance uses a different damper: delta={delta}, actual={}, source={source_rate}", actual.1);
         }
+    }
+
+    #[test]
+    fn grounded_source_refresh_uses_configured_lean_half_life() {
+        fn sample(In((root, half_life, pending)): In<(Handle<AnimationGraph>, f32, bool)>,
+            resources: SystemResources) -> f32 {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([
+                ("fixture".to_owned(), DataValue::Pose(default())),
+                ("animation.delta_seconds".to_owned(), DataValue::F32(0.1)),
+                ("animation.pending_update".to_owned(), DataValue::Bool(pending)),
+                ("in_air_source.lean_interpolation_half_life".to_owned(), DataValue::F32(half_life)),
+                ("locomotion_state.velocity_world_space".to_owned(), DataValue::Vec3(Vec3::NEG_Z)),
+                ("locomotion_state.acceleration_world_space".to_owned(), DataValue::Vec3(Vec3::NEG_Z * 10.0)),
+                ("locomotion_state.max_acceleration".to_owned(), DataValue::F32(20.0)),
+                ("locomotion_state.max_braking_deceleration".to_owned(), DataValue::F32(15.0)),
+                ("lean_state.forward_amount".to_owned(), DataValue::F32(0.0)),
+            ]);
+            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                    Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+            let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(
+                NodeId::default(), StateKey::Default).unwrap();
+            state.values["lean_state.forward_amount"].as_f32().unwrap()
+        }
+        let mut graph = AnimationGraph::new();
+        let pose = AnimationNode::new("pose", GlobalPoseInputNode { key: "fixture".to_owned(), output: "Pose".to_owned() });
+        let refresh = AnimationNode::new("refresh", AlsSourceRefreshNode { function: AlsSourceRefreshFunction::RefreshGrounded });
+        graph.add_node(pose.clone());
+        graph.add_node(refresh.clone());
+        graph.add_node_parameter_edge(pose.id, "Pose", refresh.id, "Source");
+        graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+        graph.add_output_data_edge(refresh.id, "Pose", "Pose");
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let root = graphs.add(graph);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let zero = world.run_system_cached_with(sample, (root.clone(), 0.0, false)).unwrap();
+        let negative = world.run_system_cached_with(sample, (root.clone(), -0.1, false)).unwrap();
+        let normal = world.run_system_cached_with(sample, (root.clone(), 0.2, false)).unwrap();
+        let slow = world.run_system_cached_with(sample, (root.clone(), 0.6, false)).unwrap();
+        let pending = world.run_system_cached_with(sample, (root, 0.6, true)).unwrap();
+        assert!((zero - 0.5).abs() < 1e-6 && (negative - 0.5).abs() < 1e-6);
+        assert!((pending - 0.5).abs() < 1e-6);
+        assert!(slow > 0.0 && slow < normal && normal < zero);
+        let source_alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * 0.1);
+        assert!((normal - 0.5 * source_alpha).abs() < 1e-6);
     }
 
     #[test]
