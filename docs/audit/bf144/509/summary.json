@@ -1,0 +1,148 @@
+{
+  "gate": "PASS_GROUNDED_AND_IN_AIR_LEAN_SETTINGS_D284",
+  "known_difference": "BF144-D284",
+  "new_differences": 1,
+  "total_differences": 281,
+  "native_cases": 8,
+  "native_exact_positive_fields": 292,
+  "native_pose_changes": {
+    "ground": {
+      "zero": 36,
+      "slow": 36
+    },
+    "air": {
+      "zero": 24,
+      "slow": 24
+    }
+  },
+  "target_witness_ordinals": {
+    "grounded": 32,
+    "air": 44
+  },
+  "default_generated_asset_exact": true,
+  "diagnostic_source_restored": true,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "preflight.native.json": {
+      "bytes": 98339072,
+      "sha256": "8c81fc1e4d703743fb1ad92007f492136cc8256ae6b66da4df5740ec0d51d13e"
+    },
+    "preflight-omit-write.native.json": {
+      "bytes": 32034980,
+      "sha256": "63907d65a8dc21ecf97e25cdedf8355970e346ec5844fdaf242599f5085d4d17"
+    },
+    "first-lean-zero.native.json": {
+      "bytes": 32069878,
+      "sha256": "318bdafaf97f9f9b61dd31e09c96249f64c6f3d21bbe2db8669404fa8d9706df"
+    },
+    "matrix.native.json": {
+      "bytes": 98563391,
+      "sha256": "f600872126ccf5a46274d3bacad19d8a78700320a3e905e1f73867c406545350"
+    },
+    "omit-write.native.json": {
+      "bytes": 32091442,
+      "sha256": "628afc53118c1294b711c6faef2cc5cbd3c1bb615cedd09dec57b96721a5a0de"
+    },
+    "restored.native.json": {
+      "bytes": 32069862,
+      "sha256": "d83390286b21d862ff05fbd418c754a67eeaa12da45c6d7ae70ad98e5520649f"
+    },
+    "canonical.native.json": {
+      "bytes": 32031744,
+      "sha256": "594a24e85d01862dc96610b14ee88bbfce7bb6ccfcb8e81c2a4f24c668266142"
+    },
+    "runtime-baseline/report.json": {
+      "bytes": 4116212,
+      "sha256": "33665fc43c12f265ac9c3dd2a123e8ecea872b2ef07ab9a5ff34cc7a067cad71"
+    },
+    "runtime-baseline/parameters.json": {
+      "bytes": 92072,
+      "sha256": "189bc8b67ba805ff6418374f96a5e7a531d2b704e888bd0990bc43ec9479e9a0"
+    },
+    "runtime-config-zero/report.json": {
+      "bytes": 4580207,
+      "sha256": "784eeb2c3b465550edd96c93b705760fd87416984dfbe3a204b9712257366bd2"
+    },
+    "runtime-config-zero/parameters.json": {
+      "bytes": 92006,
+      "sha256": "36e0629859d96ccca14ae14b77e2e209ccfc679e750a58263b4b686692995665"
+    },
+    "runtime-config-slow/report.json": {
+      "bytes": 5228811,
+      "sha256": "53c939174c5f464975b8517930fce82581d8cea5e62f5cdfd903aa058ccb8bca"
+    },
+    "runtime-config-slow/parameters.json": {
+      "bytes": 92052,
+      "sha256": "5875f6f9dbafdb602a7841c89a854b8cb01ad514416dc335b99fad318cb18f29"
+    },
+    "runtime-ground-snap/report.json": {
+      "bytes": 4950649,
+      "sha256": "92f4423d5615e07d2e58960f11c49f2a8ffb30475b6e5fdea66c791e425f9cab"
+    },
+    "runtime-ground-snap/parameters.json": {
+      "bytes": 91967,
+      "sha256": "6ae1b75015f44c8083e81590253fce4d87702c637ebb1e099248fbc39c8eeeaf"
+    },
+    "runtime-restored/report.json": {
+      "bytes": 4856980,
+      "sha256": "a99838efb23be7a39c1d525d3934d8643f5013b8b6e65e89490b74599cbf84e1"
+    },
+    "runtime-restored/parameters.json": {
+      "bytes": 92072,
+      "sha256": "189bc8b67ba805ff6418374f96a5e7a531d2b704e888bd0990bc43ec9479e9a0"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/505/runtime-baseline/parameters.json.gz",
+      "bytes": 9953,
+      "sha256": "1ed3f1060c8f93704345c05762139cc6d94e2cad05b0f190b2b0b9a8554c0be9"
+    },
+    {
+      "path": "docs/audit/bf144/508/prepare_reader.py",
+      "bytes": 3718,
+      "sha256": "d3d2d68f604d3962816b4404ef6734c449d728d610dee5c0f1aefd0c0d919ae7"
+    },
+    {
+      "path": "docs/audit/bf144/508/settings.native.json",
+      "bytes": 106177,
+      "sha256": "66e8b8750ba314881a66ee0a93470d18586adeed99e725813995e61ec23658fa"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "assets/ALS/Data/AnimationInstance/Air/als_in_air_settings.json",
+      "bytes": 1847,
+      "sha256": "ef4e7417b7e10996929d348b4d89abd64a606f14816a30e84e30d73437c0507d"
+    }
+  ]
+}

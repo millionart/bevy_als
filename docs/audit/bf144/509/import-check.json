@@ -1,0 +1,12 @@
+{
+  "references": {
+    "lean": "/ALS/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.CF_Als_LeanAmount_Air",
+    "ground_prediction": "/ALS/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.CF_Als_GroundPredictionAmount"
+  },
+  "default_full_asset_exact": true,
+  "configured_values": {
+    "0.2": 0.2,
+    "0.0": 0.0,
+    "0.6": 0.6
+  }
+}

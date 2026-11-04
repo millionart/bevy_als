@@ -1,0 +1,6 @@
+{
+  "readout": "LeanState",
+  "available": false,
+  "original_case_count": 8,
+  "scope": "initial_capture_without_lean_state"
+}
