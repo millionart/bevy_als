@@ -1,0 +1,38 @@
+{
+  "files": [
+    {
+      "path": "ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "line": 564,
+          "text": "// Allow overlap events and such to change physics state and velocity\n\t\tif (IsMovingOnGround())\n\t\t{\n\t\t\t// Make velocity reflect actual move\n\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\n\t\t\t{\n\t\t\t\t// TODO Start of custom ALS code block.\n\n\t\t\t\tPrePenetrationAdjustmentVelocity = MoveVelocity;\n\t\t\t\tbPrePenetrationAdjustmentVelocityValid = true;\n\n\t\t\t\t// TODO End of custom ALS code block.\n\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\n\t\t\t\tMaintainHorizontalGroundVelocity();\n\t\t\t}\n\t\t}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "line": 3641,
+          "text": "bool UCharacterMovementComponent::ResolvePenetrationImpl(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotation)\n{\n\t// If movement occurs, mark that we teleported, so we don't incorrectly adjust velocity based on a potentially very different movement than our movement direction.\n\tbJustTeleported |= Super::ResolvePenetrationImpl(Adjustment, Hit, NewRotation);\n\treturn bJustTeleported;\n}"
+        },
+        {
+          "line": 5513,
+          "text": "void UCharacterMovementComponent::OnCharacterStuckInGeometry(const FHitResult* Hit)\n{\n\tif (CharacterMovementCVars::StuckWarningPeriod >= 0)\n\t{\n\t\tconst UWorld* MyWorld = GetWorld();\n\t\tconst float RealTimeSeconds = MyWorld->GetRealTimeSeconds();\n\t\tif ((RealTimeSeconds - LastStuckWarningTime) >= CharacterMovementCVars::StuckWarningPeriod)\n\t\t{\n\t\t\tLastStuckWarningTime = RealTimeSeconds;\n\t\t\tif (Hit == nullptr)\n\t\t\t{\n\t\t\t\tUE_LOGF(LogCharacterMovement, Log, \"%ls is stuck and failed to move! (%d other events since notify)\", *CharacterOwner->GetName(), StuckWarningCountSinceNotify);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tUE_LOGF(LogCharacterMovement, Log, \"%ls is stuck and failed to move! Velocity: X=%3.2f Y=%3.2f Z=%3.2f Location: X=%3.2f Y=%3.2f Z=%3.2f Normal: X=%3.2f Y=%3.2f Z=%3.2f PenetrationDepth:%.3f Actor:%ls Component:%ls BoneName:%ls (%d other events since notify)\",\n\t\t\t\t\t   *GetNameSafe(CharacterOwner),\n\t\t\t\t\t   Velocity.X, Velocity.Y, Velocity.Z,\n\t\t\t\t\t   Hit->Location.X, Hit->Location.Y, Hit->Location.Z,\n\t\t\t\t\t   Hit->Normal.X, Hit->Normal.Y, Hit->Normal.Z,\n\t\t\t\t\t   Hit->PenetrationDepth,\n\t\t\t\t\t   *Hit->HitObjectHandle.GetName(),\n\t\t\t\t\t   *GetNameSafe(Hit->GetComponent()),\n\t\t\t\t\t   Hit->BoneName.IsValid() ? *Hit->BoneName.ToString() : TEXT(\"None\"),\n\t\t\t\t\t   StuckWarningCountSinceNotify\n\t\t\t\t\t   );\n\t\t\t}\n\t\t\tStuckWarningCountSinceNotify = 0;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tStuckWarningCountSinceNotify += 1;\n\t\t}\n\t}\n\n\t// Don't update velocity based on our (failed) change in position this update since we're stuck.\n\tbJustTeleported = true;\n}\n\nvoid UCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult)\n{\n\tif (!CurrentFloor.IsWalkableFloor())\n\t{\n\t\treturn;\n\t}\n\n\t// Move along the current floor\n\tconst FVector Delta = ProjectToGravityFloor(InVelocity) * DeltaSeconds;\n\tFHitResult Hit(1.f);\n\tFVector RampVector = ComputeGroundMovementDelta(Delta, CurrentFloor.HitResult, CurrentFloor.bLineTrace);\n\tSafeMoveUpdatedComponent(RampVector, UpdatedComponent->GetComponentQuat(), true, Hit);\n\tfloat LastMoveTimeSlice = DeltaSeconds;\n\t\n\tif (Hit.bStartPenetrating)\n\t{\n\t\t// Allow this hit to be used as an impact we can deflect off, otherwise we do nothing the rest of the update and appear to hitch.\n\t\tHandleImpact(Hit);\n\t\tSlideAlongSurface(Delta, 1.f, Hit.Normal, Hit, true);\n\n\t\tif (Hit.bStartPenetrating)\n\t\t{\n\t\t\tOnCharacterStuckInGeometry(&Hit);\n\t\t}\n\t}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/MovementComponent.cpp",
+      "sha256": "86a3a43b4bfa0dede657294303f126893e8518d474db217c282a9b4bf6a6f3ba",
+      "excerpts": [
+        {
+          "line": 558,
+          "text": "bool UMovementComponent::SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, ETeleportType Teleport)\n{\n\tif (UpdatedComponent == NULL)\n\t{\n\t\tOutHit.Reset(1.f);\n\t\treturn false;\n\t}\n\n\tbool bMoveResult = false;\n\n\t// Scope for move flags\n\t{\n\t\t// Conditionally ignore blocking overlaps (based on CVar)\n\t\tconst EMoveComponentFlags IncludeBlockingOverlapsWithoutEvents = (MOVECOMP_NeverIgnoreBlockingOverlaps | MOVECOMP_DisableBlockingOverlapDispatch);\n\t\tTGuardValue<EMoveComponentFlags> ScopedFlagRestore(MoveComponentFlags, MovementComponentCVars::MoveIgnoreFirstBlockingOverlap ? MoveComponentFlags : (MoveComponentFlags | IncludeBlockingOverlapsWithoutEvents));\n\t\tbMoveResult = MoveUpdatedComponent(Delta, NewRotation, bSweep, &OutHit, Teleport);\n\t}\n\n\t// Handle initial penetrations\n\tif (OutHit.bStartPenetrating && UpdatedComponent)\n\t{\n\t\tconst FVector RequestedAdjustment = GetPenetrationAdjustment(OutHit);\n\t\tif (ResolvePenetration(RequestedAdjustment, OutHit, NewRotation))\n\t\t{\n\t\t\t// Retry original move\n\t\t\tbMoveResult = MoveUpdatedComponent(Delta, NewRotation, bSweep, &OutHit, Teleport);\n\t\t}\n\t}\n\n\treturn bMoveResult;\n}"
+        }
+      ]
+    }
+  ]
+}

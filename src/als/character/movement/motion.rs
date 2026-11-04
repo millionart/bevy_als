@@ -3549,7 +3549,7 @@ fn grounded_movement_transaction(
     mode: LocomotionState, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     step_permissions: &Query<&AlsMantleTargetPermission>,
-) -> Option<(Vec3, Option<Vec3>, Option<f32>)> {
+) -> Option<(Vec3, Option<Vec3>, Option<f32>, bool)> {
     let (direction, distance) = Dir3::new_and_length(delta).ok()?;
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
@@ -3565,8 +3565,15 @@ fn grounded_movement_transaction(
     let mut raised = center;
     let mut remaining_delta = delta;
     let mut initial_floor_y = None;
-    let mut result = (center, None, None);
-    if let Some(hit) = spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts) {
+    let raw_config = ShapeCastConfig { ignore_origin_penetration: false, ..forward_config };
+    let raw_hit = spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &raw_config, &filter, &accepts);
+    let penetrating = raw_hit.as_ref().is_some_and(|hit| hit.distance == 0.0
+        && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0);
+    let forward_hit = if raw_hit.as_ref().is_some_and(|hit| hit.distance == 0.0) {
+        spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts)
+    } else { raw_hit };
+    let mut result = (center, None, None, penetrating);
+    if let Some(hit) = forward_hit {
         let advance = *direction * movement_sweep_travel(distance, hit.distance);
         raised += advance;
         remaining_delta -= advance;
@@ -3671,14 +3678,14 @@ fn walking_movement_transaction(
             last_input = step_velocity;
             let center = transform.translation;
             let requested = step_velocity * step_seconds;
-            let Some((advanced, remaining, next_y)) = grounded_movement_transaction(spatial, capsule, center,
+            let Some((advanced, remaining, next_y, penetrating)) = grounded_movement_transaction(spatial, capsule, center,
                 transform.rotation, half, radius, requested, cmc, LocomotionState::Grounded, entity, candidates, step_permissions)
                 else { return (step_velocity, Vec3::ZERO, true) };
             transform.translation = advanced + remaining.unwrap_or(requested);
             if let Some(next_y) = next_y && next_y > center.y { transform.translation.y = next_y; }
             lost_floor = !adjust_walking_floor_height(spatial, capsule, &mut transform, half, radius, cmc, entity, candidates);
             let applied = transform.translation - center;
-            (applied.with_y(0.0) / step_seconds, applied, !lost_floor)
+            (if penetrating { step_velocity } else { applied.with_y(0.0) / step_seconds }, applied, !lost_floor)
         });
     (transform, velocity, steps, remaining_time, lost_floor, last_input)
 }
@@ -3854,9 +3861,10 @@ pub(crate) fn cmc_movement_transaction_system(
             continue;
         }
         let center = position.0;
-        let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query, capsule,
+        let Some((advanced, remaining, next_y, penetrating)) = grounded_movement_transaction(&spatial_query, capsule,
             center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };
-        runtime.grounded_move_start = Some(center);
+        runtime.grounded_move_start = (!penetrating).then_some(center);
+        if penetrating { runtime.grounded_collision_velocity = Some(next_velocity.with_y(0.0)); }
         let world_position = next_y.filter(|height| *height > center.y).map_or(advanced, |height| advanced.with_y(height));
         transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
         commands.entity(entity).insert(Position(world_position));
@@ -4311,6 +4319,85 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn walking_initial_penetration_preserves_the_planned_step_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (gap, left_wall, seconds, expected_penetration) in [
+            (Some(0.55), true, 0.1, true),
+            (Some(0.55), false, 0.05, true),
+            (Some(0.64), true, 0.1, false),
+            (None, false, 0.1, false),
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0),
+                Transform::from_xyz(0.0, -0.1, 0.0)));
+            if let Some(gap) = gap {
+                let sides: &[f32] = if left_wall { &[-1.0, 1.0] } else { &[1.0] };
+                for side in sides {
+                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.5, 2.0, 2.0),
+                        Transform::from_xyz(side * (gap * 0.5 + 0.25), 1.7, 0.0)));
+                }
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                let capsule = als_character_capsule(0.9, 0.3);
+                let cmc = crate::als::params::CmcAdapterParams::default();
+                let start = Transform::from_xyz(0.0, 0.9215, 0.0);
+                let outcome = grounded_movement_transaction(&spatial, &capsule, start.translation, Quat::IDENTITY,
+                    0.9, 0.3, Vec3::X * 0.3125, &cmc, LocomotionState::Grounded, actor, &candidates, &permissions).unwrap();
+                assert_eq!(outcome.3, expected_penetration, "gap={gap:?} left={left_wall}");
+                let dynamics = crate::als::params::GroundedDynamics { acceleration: 0.0, braking_deceleration: 5.0, ground_friction: 0.0 };
+                let (_, velocity, _, _, _, _) = walking_movement_transaction(&spatial, &capsule, start, 0.9, 0.3,
+                    Vec3::X * 6.5, Vec3::ZERO, 6.5, dynamics, &cmc, 0.0, seconds, actor, &candidates, &permissions);
+                if expected_penetration {
+                    assert!((velocity.x - 6.25).abs() < 1e-4, "gap={gap:?} velocity={velocity:?}");
+                } else if gap.is_some() {
+                    assert!(velocity.x < 1.0, "a positive-time wall must still limit velocity: {velocity:?}");
+                } else {
+                    assert!(velocity.x > 5.9, "free walking lost forward velocity: {velocity:?}");
+                }
+            }).unwrap();
+        }
+    }
+
+    #[test]
+    fn single_walking_step_keeps_penetration_velocity_after_physics() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let start = app.world().get::<Position>(actor).unwrap().0;
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.5, 2.0, 2.0),
+            Transform::from_translation(start + Vec3::new(0.525, 0.775, 0.0))));
+        app.update();
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            LinearVelocity(Vec3::X * 6.5), LocomotionState::Grounded));
+        {
+            let mut motor = app.world_mut().get_mut::<TnuaMotor>(actor).unwrap();
+            motor.lin.boost = Vec3::X * -0.25;
+            motor.lin.acceleration = Vec3::ZERO;
+        }
+        {
+            let mut runtime = app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap();
+            runtime.simulation_substeps = 1;
+            runtime.simulation_delta_seconds = 0.05;
+            runtime.grounded_movement_delta = Some(Vec3::X * 0.3125);
+        }
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        let runtime = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap();
+        assert!(runtime.grounded_move_start.is_none());
+        assert!((runtime.grounded_collision_velocity.unwrap().x - 6.25).abs() < 1e-4);
+        app.world_mut().get_mut::<Position>(actor).unwrap().0.x -= 0.0125;
+        app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+        app.world_mut().run_system_once(snapshot_actual_velocity_system).unwrap();
+        assert!((app.world().get::<LinearVelocity>(actor).unwrap().x - 6.25).abs() < 1e-4);
+    }
 
     #[test]
     fn falling_virtual_ditch_kicks_only_after_a_stalled_two_wall_sweep() {
