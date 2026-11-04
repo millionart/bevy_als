@@ -3747,6 +3747,12 @@ fn grounded_movement_transaction(
     let down_distance = MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE * 2.0;
     let Some(floor) = floor_sweep_hit(&spatial_query, capsule, radius, destination,
         down_distance, &filter, &accepts) else {
+        if initial_floor_y.is_some() && spatial_query.cast_shape_predicate(capsule, destination, Quat::IDENTITY,
+            Dir3::NEG_Y, &ShapeCastConfig::from_max_distance(down_distance), &filter, &accepts).is_none() {
+            result.1 = Some(remaining_delta);
+            result.2 = Some(destination.y - down_distance);
+            result.4 = true;
+        }
         return Some(result);
     };
     if floor.distance == 0.0 && (floor.point1 - floor.point2).dot(floor.normal1) > 0.0 { return Some(result); }
@@ -4493,6 +4499,36 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn step_down_commits_a_miss_without_replaying_the_forward_move() {
+        use bevy::ecs::system::RunSystemOnce;
+        for width in [2.0, 2.9] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(width, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+            }).unwrap().unwrap();
+            assert!(result.4 && result.2.is_some(), "width={width} result={result:?}");
+            let end = (result.0 + result.1.unwrap()).with_y(result.2.unwrap());
+            assert!((end.x + 13.6675).abs() < 0.001 && (end.z + 15.0).abs() < 0.001);
+            if width == 2.0 {
+                assert!((end.y - 2.8522).abs() < 0.003, "the miss must consume the full down sweep: {end:?}");
+            } else {
+                assert!((end.y - 2.9105).abs() < 0.003, "the supported step must stop at the floor: {end:?}");
+            }
+        }
+    }
 
     #[test]
     fn successful_step_commits_forward_motion_without_replaying_it_in_the_motor() {
