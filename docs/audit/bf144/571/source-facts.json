@@ -1,0 +1,75 @@
+[
+  {
+    "key": "source:Private/AlsCharacter.cpp",
+    "bytes": 63612,
+    "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+    "excerpts": [
+      {
+        "start": 503,
+        "end": 550,
+        "text": "}\r\n\r\nvoid AAlsCharacter::NotifyLocomotionModeChanged(const FGameplayTag PreviousLocomotionMode)\r\n{\r\n\tApplyDesiredStance();\r\n\r\n\tif (LocomotionMode == AlsLocomotionModeTags::Grounded &&\r\n\t    PreviousLocomotionMode == AlsLocomotionModeTags::InAir)\r\n\t{\r\n\t\tif (Settings->Ragdolling.bStartRagdollingOnLand &&\r\n\t\t    LocomotionState.Velocity.Z <= -Settings->Ragdolling.RagdollingOnLandSpeedThreshold)\r\n\t\t{\r\n\t\t\tStartRagdolling();\r\n\t\t}\r\n\t\telse if (Settings->Rolling.bStartRollingOnLand &&\r\n\t\t         LocomotionState.Velocity.Z <= -Settings->Rolling.RollingOnLandSpeedThreshold)\r\n\t\t{\r\n\t\t\tstatic constexpr auto PlayRate{1.3f};\r\n\r\n\t\t\tStartRolling(LocomotionState.bHasVelocity\r\n\t\t\t\t             ? LocomotionState.VelocityYawAngle\r\n\t\t\t\t             : UE_REAL_TO_FLOAT(FMath::UnwindDegrees(GetActorRotation().Yaw)),\r\n\t\t\t             PlayRate);\r\n\t\t}\r\n\t\telse\r\n\t\t{\r\n\t\t\t// Increase friction for a short period of time to prevent sliding on the ground after landing.\r\n\r\n\t\t\tstatic constexpr auto HasInputBrakingFrictionFactor{0.5f};\r\n\t\t\tstatic constexpr auto NoInputBrakingFrictionFactor{3.0f};\r\n\r\n\t\t\tGetCharacterMovement()->BrakingFrictionFactor = LocomotionState.bHasInput\r\n\t\t\t\t                                                ? HasInputBrakingFrictionFactor\r\n\t\t\t\t                                                : NoInputBrakingFrictionFactor;\r\n\r\n\t\t\tstatic constexpr auto ResetDelay{0.5f};\r\n\r\n\t\t\tGetWorldTimerManager().SetTimer(BrakingFrictionFactorResetTimer,\r\n\t\t\t                                FTimerDelegate::CreateWeakLambda(this, [this]\r\n\t\t\t                                {\r\n\t\t\t\t                                GetCharacterMovement()->BrakingFrictionFactor = 0.0f;\r\n\t\t\t                                }), ResetDelay, false);\r\n\r\n\t\t\t// Block rotation towards the last input direction after landing to prevent\r\n\t\t\t// legs from twisting into a spiral while the landing animation is playing.\r\n\r\n\t\t\tLocomotionState.bRotationTowardsLastInputDirectionBlocked = true;\r\n\t\t}\r\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/TimerManager.cpp",
+    "bytes": 54085,
+    "sha256": "6c2a1d86c3af9de03c6e9da689fc5d5b79c256d0bd30154989e4cb9db852ebb4",
+    "excerpts": [
+      {
+        "start": 664,
+        "end": 673,
+        "text": "#endif\n\n\tif (FindTimer(InOutHandle))\n\t{\n\t\t// if the timer is already set, just clear it and we'll re-add it, since \n\t\t// there's no data to maintain.\n\t\tInternalClearTimer(InOutHandle);\n\t}\n\n\tif (InRate > 0.f)\n"
+      },
+      {
+        "start": 690,
+        "end": 727,
+        "text": "\n\t\tconst float FirstDelay = (InTimerParameters.FirstDelay >= 0.f) ? InTimerParameters.FirstDelay : InRate;\n\n\t\tFTimerHandle NewTimerHandle;\n#if UE_AUTORTFM\n\t\tif (bEnableTransactionalTimers && AutoRTFM::IsClosed())\n\t\t{\n\t\t\t// Reserve a slot in Timers for this transactional timer.\n\t\t\tNewTimerHandle = GenerateReservedHandleForTransaction();\n\n\t\t\t// Add the timer to TransactionalTimers.\n\t\t\tNewTimerData.ExpireTime = FirstDelay;\n\t\t\tNewTimerData.Handle = NewTimerHandle;\n\t\t\tTransactionalTimers.Add(NewTimerHandle, FTransactionalTimer\n\t\t\t\t{\n\t\t\t\t\t.NewData = MoveTemp(NewTimerData),\n\t\t\t\t\t.Status = HasBeenTickedThisFrame() ? FTransactionalTimer::Active : FTransactionalTimer::Pending,\n\t\t\t\t});\n\t\t\tMaybeRegisterTransactionalCallbacks();\n\t\t}\n\t\telse\n#endif  // UE_AUTORTFM\n\t\tif (HasBeenTickedThisFrame())\n\t\t{\n\t\t\tNewTimerData.ExpireTime = InternalTime + FirstDelay;\n\t\t\tNewTimerData.Status = ETimerStatus::Active;\n\t\t\tNewTimerHandle = AddTimer(MoveTemp(NewTimerData));\n\t\t\tActiveTimerHeap.HeapPush(NewTimerHandle, FTimerHeapOrder(Timers));\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Store time remaining in ExpireTime while pending\n\t\t\tNewTimerData.ExpireTime = FirstDelay;\n\t\t\tNewTimerData.Status = ETimerStatus::Pending;\n\t\t\tNewTimerHandle = AddTimer(MoveTemp(NewTimerData));\n\t\t\tPendingTimerSet.Add(NewTimerHandle);\n\t\t}\n\n"
+      },
+      {
+        "start": 1153,
+        "end": 1161,
+        "text": "\t}\n#endif\n\n\tconst double StartTime = FPlatformTime::Seconds();\n\tbool bDumpTimerLogsThresholdExceeded = false;\n\tint32 NbExpiredTimers = 0;\n\n\tInternalTime += DeltaTime;\n\n"
+      },
+      {
+        "start": 1204,
+        "end": 1216,
+        "text": "\t\tif (Top->Status == ETimerStatus::ActivePendingRemoval)\n\t\t{\n\t\t\tUE_TIMER_MANAGER_DEBUG_LOG(\"Removing top timer (%s) with status ActivePendingRemoval\", *TopHandle.ToString());\n\t\t\tActiveTimerHeap.HeapPop(TopHandle, FTimerHeapOrder(Timers), EAllowShrinking::No);\n\t\t\tRemoveTimer(TopHandle);\n\t\t\tcontinue;\n\t\t}\n\n\t\tif (InternalTime > Top->ExpireTime)\n\t\t{\n\t\t\t// Timer has expired! Fire the delegate, then handle potential looping.\n\n\t\t\tif (bDumpTimerLogsThresholdExceeded)\n"
+      },
+      {
+        "start": 1377,
+        "end": 1399,
+        "text": "\tif( PendingTimerSet.Num() > 0 )\n\t{\n\t\tfor (FTimerHandle Handle : PendingTimerSet)\n\t\t{\n\t\t\tFTimerData& TimerToActivate = GetTimer(Handle);\n\n\t\t\t// Convert from time remaining back to a valid ExpireTime\n\t\t\tTimerToActivate.ExpireTime += InternalTime;\n\t\t\tTimerToActivate.Status = ETimerStatus::Active;\n\t\t\tActiveTimerHeap.HeapPush( Handle, FTimerHeapOrder(Timers) );\n\t\t}\n\t\tPendingTimerSet.Reset();\n\t}\n}\n\nTStatId FTimerManager::GetStatId() const\n{\n\tRETURN_QUICK_DECLARE_CYCLE_STAT(FTimerManager, STATGROUP_Tickables);\n}\n\nvoid FTimerManager::SetGameInstance(UGameInstance* InGameInstance)\n{\n\tOwningGameInstance = InGameInstance;\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/LevelTick.cpp",
+    "bytes": 72318,
+    "sha256": "f7db310f4169624be1b8d8f1ad3c089f2a2a627d93110fb7458dfe788bf33a4e",
+    "excerpts": [
+      {
+        "start": 1802,
+        "end": 1820,
+        "text": "\t\t\t\t// Tick our async work (physics, etc.) and tick with no elapsed time for playersonly\n\t\t\t\tTickAsyncWork(0.f);\n\t\t\t\t// Wait for async work to come back\n\t\t\t\tWaitForAsyncWork();\n\t\t\t}\n#endif\n\n\t\t\t{\n\t\t\t\tSCOPE_CYCLE_COUNTER(STAT_TickableTickTime);\n\n\t\t\t\tif (TickType != LEVELTICK_TimeOnly && !bIsPaused)\n\t\t\t\t{\n\t\t\t\t\tSCOPE_TIME_GUARD_MS(TEXT(\"UWorld::Tick - TimerManager\"), 5);\n\t\t\t\t\tSTAT(FScopeCycleCounter Context(GetTimerManager().GetStatId());)\n\t\t\t\t\tGetTimerManager().Tick(DeltaSeconds);\n\t\t\t\t}\n\n\t\t\t\t{\n\t\t\t\t\tSCOPE_TIME_GUARD_MS(TEXT(\"UWorld::Tick - TickObjects\"), 5);\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/dynamics.rs",
+    "bytes": 137040,
+    "sha256": "c4012c45ae1cafc2ef5e7839907cb995ef0d2e7187ff3eb109aaa6e45159765b",
+    "excerpts": [
+      {
+        "start": 375,
+        "end": 449,
+        "text": "pub(crate) fn landing_braking_friction_system(\n    mut transitions: MessageReader<crate::als::transition::StateTransitionEvent>,\n    mut q: Query<\n        (\n            Entity,\n            &LocomotionState,\n            &AlsActualMotion,\n            &mut AlsLandingBrakingFriction,\n            Option<&mut crate::als::motion::AlsRotationResponseState>,\n        ),\n        With<AlsCharacter>,\n    >,\n) {\n    let landings = transitions.read().filter(|event|\n        event.dimension == crate::als::transition::Dimension::LocomotionState\n            && event.from == crate::als::transition::StateValue::LocomotionState(LocomotionState::Air)\n            && event.to == crate::als::transition::StateValue::LocomotionState(LocomotionState::Grounded))\n        .map(|event| event.entity).collect::<Vec<_>>();\n    for (entity, locomotion, motion, mut braking, rotation) in &mut q {\n        let mode = if landings.contains(&entity) {\n            braking.previous_locomotion = LocomotionState::Air;\n            LocomotionState::Grounded\n        } else { *locomotion };\n        let ordinary_landing = update_landing_braking_friction(\n            &mut braking,\n            mode,\n            motion.has_input,\n            motion.world_velocity.y <= -crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD,\n        );\n        braking.previous_locomotion = *locomotion;\n        if ordinary_landing && let Some(mut rotation) = rotation {\n            rotation.rotation_towards_last_input_direction_blocked = true;\n        }\n    }\n}\n\nfn advance_landing_braking_timer_system(\n    time: Res<Time>,\n    mut characters: Query<&mut AlsLandingBrakingFriction, With<AlsCharacter>>,\n) {\n    for mut braking in &mut characters {\n        if braking.factor != BRAKING_FRICTION_FACTOR {\n            braking.remaining_seconds -= f64::from(time.delta_secs().max(0.0));\n        }\n    }\n}\n\npub(crate) fn update_landing_braking_friction(\n    braking: &mut AlsLandingBrakingFriction,\n    locomotion: LocomotionState,\n    has_input: bool,\n    suppress: bool,\n) -> bool {\n    let landed = braking.previous_locomotion == LocomotionState::Air\n        && locomotion == LocomotionState::Grounded;\n    if landed && !suppress {\n        braking.factor = if has_input {\n            LANDING_BRAKING_FRICTION_WITH_INPUT\n        } else {\n            LANDING_BRAKING_FRICTION_WITHOUT_INPUT\n        };\n        braking.remaining_seconds = f64::from(LANDING_BRAKING_FRICTION_DURATION);\n    }\n    braking.previous_locomotion = locomotion;\n    landed && !suppress\n}\n\nfn reset_landing_braking_friction_system(\n    mut characters: Query<&mut AlsLandingBrakingFriction, With<AlsCharacter>>,\n) {\n    for mut braking in &mut characters {\n        if braking.remaining_seconds < 0.0 {\n            braking.factor = BRAKING_FRICTION_FACTOR;\n            braking.remaining_seconds = 0.0;\n        }\n"
+      },
+      {
+        "start": 640,
+        "end": 661,
+        "text": "pub struct AlsGroundedDynamicsPlugin;\n\nimpl Plugin for AlsGroundedDynamicsPlugin {\n    fn build(&self, app: &mut App) {\n        app.add_message::<crate::als::transition::StateTransitionEvent>().add_systems(\n            Update,\n            (\n                advance_landing_braking_timer_system\n                    .before(grounded_dynamics_motor_system),\n                grounded_dynamics_motor_system\n                    .after(TnuaPipelineSystems::Logic)\n                    .before(TnuaPipelineSystems::Motors),\n            ),\n        )\n        .add_systems(PostUpdate, (\n            landing_braking_friction_system\n                .after(crate::als::motion::AlsActualVelocitySet)\n                .before(crate::actual_motion::AlsActualMotionSet),\n            reset_landing_braking_friction_system\n                .after(avian3d::prelude::PhysicsSystems::Last)\n                .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),\n        ));\n"
+      }
+    ]
+  }
+]

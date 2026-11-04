@@ -1,0 +1,13 @@
+{
+  "delta": 0.03125,
+  "factor": 3.0,
+  "frame": 46,
+  "input": false,
+  "mode": "Grounded",
+  "remaining_seconds": 0.3125,
+  "velocity": [
+    0.0,
+    0.0,
+    0.0
+  ]
+}
