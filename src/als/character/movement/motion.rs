@@ -3621,6 +3621,32 @@ fn walking_step_slide_normal(delta: Vec3, normal: Vec3, floor_normal: Vec3, floo
     } else { normal }
 }
 
+fn walking_two_wall_adjust(delta: Vec3, normal: Vec3, previous: Vec3, remaining: f32, floor_distance: f32) -> Vec3 {
+    let dot = previous.dot(normal);
+    let mut adjusted = if dot <= 0.0 {
+        let crease = normal.cross(previous).normalize_or_zero();
+        let result = crease * delta.dot(crease) * remaining;
+        if result.dot(delta) < 0.0 { -result } else { result }
+    } else {
+        let result = (delta - normal * delta.dot(normal)) * remaining;
+        if result.dot(delta) <= 0.0 { Vec3::ZERO }
+        else if (dot - 1.0).abs() < 1e-4 { result + normal * 0.0001 }
+        else { result }
+    };
+    if adjusted.y > 0.0 {
+        if normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos() && normal.y > 1e-4 {
+            let up = adjusted.normalize_or_zero().y * delta.length() / normal.y;
+            adjusted = (delta.with_y(0.0) + Vec3::Y * up) * remaining;
+            if adjusted.y > MAX_STEP_HEIGHT { adjusted *= MAX_STEP_HEIGHT / adjusted.y; }
+        } else {
+            adjusted.y = 0.0;
+        }
+    } else if adjusted.y < 0.0 && floor_distance < MIN_FLOOR_DISTANCE {
+        adjusted.y = 0.0;
+    }
+    adjusted
+}
+
 fn grounded_movement_transaction(
     spatial_query: &SpatialQuery, capsule: &Collider, center: Vec3, rotation: Quat,
     half: f32, radius: f32, delta: Vec3, cmc: &crate::als::params::CmcAdapterParams,
@@ -3696,6 +3722,20 @@ fn grounded_movement_transaction(
                     |hit| movement_sweep_travel(slide_distance, hit.distance));
                 progressed += *slide_direction * slide_travel;
                 had_progress |= slide_travel > 0.0;
+                if let Some(second) = slide_hit {
+                    let adjusted = walking_two_wall_adjust(slide, second.normal1, normal,
+                        1.0 - slide_travel / slide_distance, floor_distance);
+                    if adjusted.abs().max_element() > 1e-5 && adjusted.dot(remaining_delta) > 0.0
+                        && let Ok((next_direction, next_distance)) = Dir3::new_and_length(adjusted) {
+                        let next_config = ShapeCastConfig { max_distance: next_distance, ..forward_config };
+                        let next_hit = spatial_query.cast_shape_predicate(capsule, raised + progressed, Quat::IDENTITY,
+                            next_direction, &next_config, &filter, &accepts);
+                        let next_travel = next_hit.map_or(next_distance,
+                            |hit| movement_sweep_travel(next_distance, hit.distance));
+                        progressed += *next_direction * next_travel;
+                        had_progress |= next_travel > 0.0;
+                    }
+                }
             }
             if !had_progress { return Some(result); }
             remaining_delta = progressed;
@@ -4439,6 +4479,53 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn walking_two_wall_adjust_preserves_source_projection_and_ground_limits() {
+        let first = Vec3::NEG_X;
+        let obtuse = Vec3::new(-0.5, 0.0, -3.0_f32.sqrt() * 0.5);
+        let result = walking_two_wall_adjust(Vec3::Z * 0.2, obtuse, first, 0.5, 0.0215);
+        assert!(result.distance(Vec3::new(-0.04330127, 0.0, 0.025)) < 1e-6);
+        let repeated = walking_two_wall_adjust(Vec3::Z * 0.2, first, first, 0.5, 0.0215);
+        assert!(repeated.distance(Vec3::new(-0.0001, 0.0, 0.1)) < 1e-6);
+        let acute = Vec3::new(0.5, 0.0, -3.0_f32.sqrt() * 0.5);
+        assert!(walking_two_wall_adjust(Vec3::NEG_Y * 0.1, acute, first, 0.5, 0.0215)
+            .distance(Vec3::NEG_Y * 0.05) < 1e-6);
+        assert_eq!(walking_two_wall_adjust(Vec3::NEG_Y * 0.1, acute, first, 0.5, 0.018), Vec3::ZERO);
+    }
+
+    #[test]
+    fn step_up_continues_sliding_after_a_second_wall() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (two_walls, expected) in [(false, Vec2::new(-13.773913, -14.893581)),
+            (true, Vec2::new(-13.802099, -14.883323))] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
+            for (offset, yaw) in [(1.13, 45.0_f32), (1.16, 20.0_f32)].into_iter().take(if two_walls { 2 } else { 1 }) {
+                let rotation = Quat::from_rotation_y(yaw.to_radians());
+                let center = Vec3::new(-15.0 + offset, 3.5, -15.0) + rotation * Vec3::X * 0.32;
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 1.0, 3.0),
+                    Transform::from_translation(center).with_rotation(rotation)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+            }).unwrap().unwrap();
+            assert!(result.2.is_some(), "the step must reach the downward sweep: {result:?}");
+            let destination = result.0 + result.1.unwrap();
+            assert!(Vec2::new(destination.x, destination.z).distance(expected) < 0.001,
+                "two_walls={two_walls} destination={destination:?} expected={expected:?}");
+        }
+    }
 
     #[test]
     fn walking_step_slide_uses_the_near_floor_normal_only_when_opposed() {
