@@ -3752,8 +3752,6 @@ fn grounded_movement_transaction(
     if initial_floor_y.is_some_and(|initial| floor.point1.y > initial) && !can_step_up(floor.entity) {
         return Some(result);
     }
-    if initial_floor_y.is_some() && find_ground_floor(&spatial_query, destination.with_y(next_y), half, radius,
-        cmc, mode, &filter, entity, &candidates).is_none() { return Some(result); }
     if initial_floor_y.is_some_and(|initial| floor.point1.y - initial > MAX_STEP_HEIGHT) {
         return Some(result);
     }
@@ -4479,6 +4477,34 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn step_down_keeps_a_blocking_hit_when_the_perch_is_not_walkable() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (deck_x, walkable) in [(-12.7, true), (-12.63, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.2, 1.3), Transform::from_xyz(deck_x, 2.08, -15.3)));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                let cmc = crate::als::params::CmcAdapterParams::default();
+                let result = grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-14.01, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.17427273,
+                    &cmc, LocomotionState::Grounded, actor, &candidates, &permissions).unwrap();
+                let height = result.2.expect("the blocking StepDown must be committed");
+                let destination = (result.0 + result.1.unwrap()).with_y(height);
+                let floor = find_ground_floor(&spatial, destination, 0.9, 0.3, &cmc, LocomotionState::Grounded,
+                    &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates);
+                assert_eq!(floor.is_some(), walkable, "deck={deck_x} destination={destination:?} floor={floor:?}");
+            }).unwrap();
+        }
+    }
 
     #[test]
     fn walking_two_wall_adjust_preserves_source_projection_and_ground_limits() {

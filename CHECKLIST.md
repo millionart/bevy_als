@@ -4983,6 +4983,7 @@
 - [ ] BF144-D299 / P2 — StepDown无条件拒绝不可走法线，遗漏低处非逆向可提交条件。
   - UE只在不可走下扫法线逆Delta或实际Hit.Location高于旧位时回退，其余仍检查边缘等资格。目标先按法线可走过滤，下扫明明有Hit仍提前退回。
   - 同偏侧凸台和60°坡，50ms第40帧，低处顺向源dot=0、Hit.Z=88cm且通过边缘，真实提交并从约2.89050m转Air。逆向低处和高处顺向源实际回退。目标三案均先按角度拒绝，低处顺向约2.99215m转Air；关闭角度的诊断才到后续D295型floor None守卫。证据 docs/audit/bf144/541/summary.json。
+  - 修复第1轮：开始2026-11-05 03:32 +08:00；预估结束04:17 +08:00。依据：541已有三个源反例；source核查确认本项通过法线后仍会被D295错误floor守卫拦截，先修D295，再恢复本项。测试统一后置。
 
 - [ ] BF144-D298 / P2 — 成功StepUp预置上限间隙，跳过源对下扫拉回位置的平均贴地。
   - BF144.540 预置带内的数值共同作用。同输入新查扫掠的目标距离短约0.231mm，使实测间隙落入2.4cm带内。只替换该distance时本见证会触发贴地；数值归D125，预置时序仍归本条。证据 docs/audit/bf144/540/summary.json。
@@ -4998,9 +4999,11 @@
   - UE StepUp只在阻挡Hit分支做额外floor资格；没有阻挡且未穿透时提交已走的上抬、前进与完整下扫，再由Walking重查及走离。目标floor_sweep_hit返回None即返回旧位置/slide，早于D295的落地重查。
   - 20mm偏侧凸台、50ms第40帧，源完成31.25cm前进并在2.85133m转Air，同Scene ComponentSweepMulti证实下扫零Hit。目标候选下扫同样None，实际退回slide后在2.92582m转Air并横偏约5.17cm。跳过D295守卫不改变重放；宽台真实下扫命中仍通过。证据 docs/audit/bf144/537/summary.json。
 
-- [ ] BF144-D295 / P2 — StepUp把有阻挡但不可走的落下结果提前当作跨步失败。
+- [x] BF144-D295 / P2 — StepUp把有阻挡但不可走的落下结果提前当作跨步失败。
   - UE StepDown有效Hit进入FindFloor，perch失败保bBlockingHit并清walkable；StepUp不会因这个结果自动回退，ALS Walking随后从已抬高的位置消费不可走floor。目标跨步末新查floor只返回None，立即退回先前移动。
   - 18cm高台前缘137cm，真实30ms单步第40帧UE完成StepDown后在3.00885m转Falling；目标真实落下候选同高台、窄胶囊失败，退到2.92202m保持Grounded。只关重查None拒绝的独立重放返回高处候选；130cm前缘两端仍成功Walking。此处不同于D15拒绝后slide和D41初始穿透。证据 docs/audit/bf144/536/summary.json。
+  - 修复第1轮：开始2026-11-05 03:32 +08:00；预估结束04:27 +08:00。依据：536和541已证明有效阻挡却不可走的两类消费者；需区分floor缺失与不可走阻挡、保留源高处/墙侧拒绝条件，并作为D299前置，测试统一后置。
+  - 03:34实现摘要：fresh核StepDown非穿透、边缘合格的阻挡命中被源FindFloor复用，窄perch失败只清walkable、不清blocking；证据 `docs/audit/bf144/d295/source-facts.json`。在这些已验证阻挡条件之后移除目标把“不可走”当“无阻挡”的二次拒绝，保留命中、边缘和高度检查；已写近台与perch失败对照，尚未执行。实现结束03:34、偏差−53分钟；测试、消融与真实入口 Gate 待整体实现完成，不视为已验证。D299恢复。
 
 - [ ] BF144-D294 / P2 — perch 替代缺少源合成line标志及宽胶囊命中字段，导致提前落地。
   - UE FindFloor在宽胶囊不走、窄胶囊perch有效时调用SetFromLineTrace，保宽命中的ImpactPoint、Location、Time和SweepDist，换对象与法线并置bLineTrace。目标只换hit，保宽距离但不合并原命中字段或提升line分类。
