@@ -1,0 +1,606 @@
+{
+  "gate": "PASS_WALL_SWEEP_CONTACT_LIFETIME_WITHOUT_FLOOR",
+  "ordinals": [
+    49,
+    50
+  ],
+  "new_differences": 0,
+  "total_differences": 287,
+  "related_difference": "BF144-D290",
+  "rows": {
+    "baseline": {
+      "before-49": {
+        "consumed_contact": true,
+        "floor": null,
+        "generated_contact": true,
+        "has_basis_displacement": true,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ],
+        "position": [
+          -13.637539863586426,
+          2.8865163326263428,
+          -15.205401420593262
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after-49": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -13.637539863586426,
+          2.8865163326263428,
+          -15.205401420593262
+        ],
+        "published": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Grounded)",
+            "LocomotionState(Air)"
+          ]
+        ],
+        "velocity": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ]
+      },
+      "before-50": {
+        "consumed_contact": false,
+        "floor": null,
+        "generated_contact": false,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 50,
+        "planned_velocity": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ],
+        "position": [
+          -13.532031059265137,
+          2.8684122562408447,
+          -15.30925178527832
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after-50": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 50,
+        "position": [
+          -13.532031059265137,
+          2.8684122562408447,
+          -15.30925178527832
+        ],
+        "published": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ]
+      }
+    },
+    "cleared": {
+      "before-49": {
+        "consumed_contact": false,
+        "floor": null,
+        "generated_contact": true,
+        "has_basis_displacement": true,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ],
+        "position": [
+          -13.637539863586426,
+          2.8865163326263428,
+          -15.205401420593262
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after-49": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -13.637539863586426,
+          2.8865163326263428,
+          -15.205401420593262
+        ],
+        "published": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Grounded)",
+            "LocomotionState(Air)"
+          ]
+        ],
+        "velocity": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ]
+      },
+      "before-50": {
+        "consumed_contact": false,
+        "floor": null,
+        "generated_contact": false,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 50,
+        "planned_velocity": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ],
+        "position": [
+          -13.532031059265137,
+          2.8684122562408447,
+          -15.30925178527832
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after-50": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 50,
+        "position": [
+          -13.532031059265137,
+          2.8684122562408447,
+          -15.30925178527832
+        ],
+        "published": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ]
+      }
+    },
+    "restored": {
+      "before-49": {
+        "consumed_contact": true,
+        "floor": null,
+        "generated_contact": true,
+        "has_basis_displacement": true,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ],
+        "position": [
+          -13.637539863586426,
+          2.8865163326263428,
+          -15.205401420593262
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after-49": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -13.637539863586426,
+          2.8865163326263428,
+          -15.205401420593262
+        ],
+        "published": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Grounded)",
+            "LocomotionState(Air)"
+          ]
+        ],
+        "velocity": [
+          3.1152548789978027,
+          -0.37962573766708374,
+          -3.1155049800872803
+        ]
+      },
+      "before-50": {
+        "consumed_contact": false,
+        "floor": null,
+        "generated_contact": false,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 50,
+        "planned_velocity": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ],
+        "position": [
+          -13.532031059265137,
+          2.8684122562408447,
+          -15.30925178527832
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after-50": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 50,
+        "position": [
+          -13.532031059265137,
+          2.8684122562408447,
+          -15.30925178527832
+        ],
+        "published": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          3.215254783630371,
+          -0.706625759601593,
+          -3.1155049800872803
+        ]
+      }
+    }
+  },
+  "native": [
+    {
+      "movement_mode": 3,
+      "movement_mode_name": "MOVE_Falling",
+      "custom_movement_mode": 0,
+      "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.InAir\")",
+      "registered": true,
+      "begun_play": true,
+      "tick_registered": true,
+      "tick_enabled": true,
+      "velocity_cm_s": {
+        "x": 311.5496044814049,
+        "y": -311.549623291032,
+        "z": -37.97228256985545
+      },
+      "pending_input_world": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "last_input_world": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 884.7457275390625,
+        "y": 0,
+        "z": 0
+      },
+      "max_acceleration_cm_s2": 2000,
+      "last_update_location_cm": {
+        "x": -1363.74401999712,
+        "y": -1520.5277507822248,
+        "z": 80.19625439012903
+      },
+      "last_update_velocity_cm_s": {
+        "x": 311.5496044814049,
+        "y": -311.549623291032,
+        "z": -37.97228256985545
+      },
+      "walkable_floor": false,
+      "floor_distance_cm": 0
+    },
+    {
+      "movement_mode": 3,
+      "movement_mode_name": "MOVE_Falling",
+      "custom_movement_mode": 0,
+      "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.InAir\")",
+      "registered": true,
+      "begun_play": true,
+      "tick_registered": true,
+      "tick_enabled": true,
+      "velocity_cm_s": {
+        "x": 321.5496054003099,
+        "y": -311.549623291032,
+        "z": -70.67228427529335
+      },
+      "pending_input_world": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "last_input_world": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "max_acceleration_cm_s2": 2000,
+      "last_update_location_cm": {
+        "x": -1353.1923659487798,
+        "y": -1530.9127387668784,
+        "z": 78.38551151493895
+      },
+      "last_update_velocity_cm_s": {
+        "x": 321.5496054003099,
+        "y": -311.549623291032,
+        "z": -70.67228427529335
+      },
+      "walkable_floor": false,
+      "floor_distance_cm": 0
+    }
+  ],
+  "byte_exact_wall_trace_and_parameter_reports": true,
+  "restored_snapshots_exact": true,
+  "limitation": "The observed wall has no eligible floor during contact consumption.",
+  "decoded": {
+    "runtime-baseline/parameters.json": {
+      "bytes": 736464,
+      "sha256": "e53e7ec51f39e6c876201ff66e1df0eb47cb42916e8526e0c96dbaa33eea565e"
+    },
+    "runtime-baseline/report.json": {
+      "bytes": 4116943,
+      "sha256": "8188465aa399c810d979fd02c852adaca0e434565c4926e9b4a0979338742a01"
+    },
+    "runtime-cleared/parameters.json": {
+      "bytes": 736464,
+      "sha256": "e53e7ec51f39e6c876201ff66e1df0eb47cb42916e8526e0c96dbaa33eea565e"
+    },
+    "runtime-cleared/report.json": {
+      "bytes": 4209096,
+      "sha256": "398ef251139cdf2f824ef63cf919115ce544d283e8b0d52c4bd2888c23efb9d3"
+    },
+    "runtime-restored/parameters.json": {
+      "bytes": 736464,
+      "sha256": "e53e7ec51f39e6c876201ff66e1df0eb47cb42916e8526e0c96dbaa33eea565e"
+    },
+    "runtime-restored/report.json": {
+      "bytes": 4116160,
+      "sha256": "26f59bb8998974afb7c1c1bdc74857951cb220b1e7bf03d4ffd8b81c51865cd3"
+    }
+  },
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/509/lean_observer.rs",
+      "bytes": 4911,
+      "sha256": "f3144b53b7bbdaa7e1887765e4204fb879bfcc817dd81129b8b4622eb7fbf562"
+    },
+    {
+      "path": "docs/audit/bf144/509/observer.py",
+      "bytes": 1531,
+      "sha256": "527610f484ac25a866d8f3b01f36a311f7f9774c3c8e4f68d205ac31949b041c"
+    },
+    {
+      "path": "docs/audit/bf144/510/acceleration_observer.rs",
+      "bytes": 2613,
+      "sha256": "3e39ba76053efc10be7d9140c532b97f2709986573480fdbdaca77e9eef1451c"
+    },
+    {
+      "path": "docs/audit/bf144/510/observer.py",
+      "bytes": 1468,
+      "sha256": "075da35b4b3901ab93954a19d413693642d6f0069bd8ad72408353ef0729a0fd"
+    },
+    {
+      "path": "docs/audit/bf144/512/observer.py",
+      "bytes": 2349,
+      "sha256": "828e7543b236a7036f7b1872805962c989508cd55572fc12ba1450beddcd05c4"
+    },
+    {
+      "path": "docs/audit/bf144/512/sprint_observer.rs",
+      "bytes": 4925,
+      "sha256": "993c6dbc6932341a5576c83de40fcf4889c69255be31b66aa58d57ea1fab51b1"
+    },
+    {
+      "path": "docs/audit/bf144/513/observer.py",
+      "bytes": 1530,
+      "sha256": "0b01e6d0443691ca250e8849a15d1b79bdf136d5959096642720d7e7b3731295"
+    },
+    {
+      "path": "docs/audit/bf144/513/profile.rs",
+      "bytes": 1829,
+      "sha256": "b345385468544195cbff4f8a3cb51e896c31b6233279363ffe5735221b484e22"
+    },
+    {
+      "path": "docs/audit/bf144/516/ledge_observer.rs",
+      "bytes": 6699,
+      "sha256": "0a38cc87160585f27167ca4f721372d8c74a4a5ae36874106541b3b8e3fd68d0"
+    },
+    {
+      "path": "docs/audit/bf144/516/observer.py",
+      "bytes": 1021,
+      "sha256": "acd345b24ef59286d47a3c8c6fc2c1959774a57c0f0d702e79541b12039655f1"
+    },
+    {
+      "path": "docs/audit/bf144/518/observer.py",
+      "bytes": 727,
+      "sha256": "f62603bd5d72504625d4371e0505fc434413d19a943575b4928131a934914d52"
+    },
+    {
+      "path": "docs/audit/bf144/518/vertical_observer.rs",
+      "bytes": 5297,
+      "sha256": "bc8f110c5fc1f7777569e2d914a1a5882427dbdc3e894be214f4c10ad10f6a5e"
+    },
+    {
+      "path": "docs/audit/bf144/519/observer.py",
+      "bytes": 677,
+      "sha256": "1abd318c28066b8550281797cd5411bb75a4ebcde07f4ef33ee42e9851e57e08"
+    },
+    {
+      "path": "docs/audit/bf144/519/wall.native.json.gz",
+      "bytes": 5901043,
+      "sha256": "d660eef983589e29cfcd01e8dbb470d6f18c48c41ff66d4a7b95f389b4b0ce5b"
+    },
+    {
+      "path": "docs/audit/bf144/519/wall.package.json",
+      "bytes": 192,
+      "sha256": "125695771ce16c5a242382ebd4c06d9f34c11e4a5684f596a1fcd6f7297f46e2"
+    },
+    {
+      "path": "docs/audit/bf144/519/wall.request.json",
+      "bytes": 49308,
+      "sha256": "36212e46562b467edfa266415dae57942c67facf604033627ea0fe394365e11a"
+    },
+    {
+      "path": "docs/audit/bf144/519/wall_fixture.inc",
+      "bytes": 900,
+      "sha256": "4a0b5fbf54608ab53ac5c44dcacb29dd826a8e26341dd01d9a1bca66454e0508"
+    },
+    {
+      "path": "docs/audit/bf144/520/actual-comparison.json",
+      "bytes": 5431,
+      "sha256": "b4fef22c523d5798d56317c73138fed1dd120e5848082e780d54226c05d53118"
+    },
+    {
+      "path": "docs/audit/bf144/520/align_walking.rs",
+      "bytes": 3410,
+      "sha256": "197a9338ad72e34aa28a7479aad0a35a0c19871c73da84e429d7fd0f757c41b7"
+    },
+    {
+      "path": "docs/audit/bf144/520/observer.py",
+      "bytes": 1048,
+      "sha256": "909a12ad0bb149a9cbed1f9ec1c70758845a43f4589dcf910d85ba4e2efdf89a"
+    },
+    {
+      "path": "docs/audit/bf144/520/runtime-wall-162-aligned-air/parameters.json.gz",
+      "bytes": 76045,
+      "sha256": "bc2ea05070a8a454ea47d1a871dabae4dff352faf0ee5d5ac47d4e87cd4fb9e1"
+    },
+    {
+      "path": "docs/audit/bf144/520/wall.native.json.gz",
+      "bytes": 5901175,
+      "sha256": "7431fbcc0dfdf82e9a3e846e194ec7ed5476f78493fcedc969f0bd7bef0a1920"
+    },
+    {
+      "path": "docs/audit/bf144/521/geometry.native.json",
+      "bytes": 127976,
+      "sha256": "fb73bfb9502809a4dcc3a40527d6690cd4b51dea64765042ee75e4a1216b2784"
+    },
+    {
+      "path": "docs/audit/bf144/521/observer.py",
+      "bytes": 739,
+      "sha256": "8c26ca2df3c7e33571f8a931a28b60be4008d4867426fce994044cd3bf1811b0"
+    },
+    {
+      "path": "docs/audit/bf144/521/runtime-wall-162-aligned-air/parameters.json.gz",
+      "bytes": 76045,
+      "sha256": "bc2ea05070a8a454ea47d1a871dabae4dff352faf0ee5d5ac47d4e87cd4fb9e1"
+    },
+    {
+      "path": "docs/audit/bf144/521/runtime-wall-162-aligned-air/wall-trace.json",
+      "bytes": 2094,
+      "sha256": "138ac0fa824e78b06f831404f2fd5132dc5f2c1fd942e8e9d65ca319d0c360f7"
+    },
+    {
+      "path": "docs/audit/bf144/521/summary.json",
+      "bytes": 7236,
+      "sha256": "54bcddfdaf30679fd6dff3239caec53db51483ab73b53a0323d243f3c8d16b46"
+    },
+    {
+      "path": "docs/audit/bf144/521/trace.rs",
+      "bytes": 5192,
+      "sha256": "21cf766558dc648f97aa895ab923f3cbb1d36464422729aa861eb390f1770964"
+    }
+  ]
+}
