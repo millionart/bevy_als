@@ -1,0 +1,22 @@
+{
+  "has_base": false,
+  "mode": "Air",
+  "ordinal": 49,
+  "position": [
+    -13.0,
+    3.970341920852661,
+    -15.0
+  ],
+  "published": [
+    0.0,
+    -0.7886000275611877,
+    0.0
+  ],
+  "stored_contact": false,
+  "transitions": [],
+  "velocity": [
+    0.0,
+    -0.7886000275611877,
+    0.0
+  ]
+}

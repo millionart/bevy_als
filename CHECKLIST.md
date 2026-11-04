@@ -4133,6 +4133,12 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.556 空中极小水平残速的原生双子步阈值。依赖D22旧目标实证与555同哈希原生Air观察包。60ms无输入下落，轴向、双轴阈值内外和零速四组，核原生实际水平终速与仅首步推进，以及目标原生产两个子步结果。开始2026-11-04 22:14:27 +0800，预估结束2026-11-04 22:44:27 +0800。参考555复用原生包及四次目标运行，估30分钟。截图0，性能暂停。
+  - 22:15 source/static：fresh PhysFalling 每个未落地子步末，水平速度平方≤0.001 cm²/s²时清零；目标空中循环直接保留反馈速度。双轴各0.22/0.23mm/s跨长度阈值，垂直下落避免顶点影响。
+  - 22:16 runtime Gate 前：同哈希原生包已完成四组；目标构建通过，实际输入为零并按生产空中双子步运行，记录初速、前物理事务、最终发布及模式。
+  - runtime Gate 后：原生轴向0.20mm/s与双轴各0.22mm/s只首步有位移，末速0；双轴各0.23mm/s在阈值外，两步保持。目标真实事务两步，低速组仍保留残速，目标逐步F32位置重建；无碰撞、阈值以上、零速和各组竖直均通过。
+  - 完成 Gate `PASS_NATIVE_AIR_RESIDUAL_ZEROES_BETWEEN_SUBSTEPS`。四组功能、watchdog、396身份/六库、同哈希原生包与9份报告原始哈希通过。补D22，新增0，累计303（136 P2、167 P3）。实际结束2026-11-04 22:18:42 +0800，实耗255秒，偏差-1545秒。证据 `docs/audit/bf144/556/`。截图0，性能暂停。
+
 - [x] BF144.555 Falling 跨顶点的原生扫掠开关。依赖D28旧重放及523原生/Playground的实际Air初态能力。用相同0.2m/s上升、50ms和1.5mm顶间隙，原生只切换p.ForceJumpPeakSubstep并加无顶对照，目标保持生产整步并测整步/顶点扫掠。核实际碰顶、后续速度及无阻挡轨迹，按D28归属。开始2026-11-04 22:07:39 +0800，预估结束2026-11-04 22:47:39 +0800。参考547与554约5分钟，估40分钟含实际Air阶段、开关恢复和全证据。截图0，性能暂停。
   - 22:09 source/static：fresh UE ForceJumpPeakSubstep默认1，正转非正时将步切至顶点、退回余时；Bevy Falling以整步中点单一扫掠。旧D28完整角色证据使用源公式oracle，本项补原生同几何开关和实际Hit。
   - 22:10 runtime Gate 前：目标观察器等待构建终态，50ms生产路径保持不动，额外读整步与顶点向上两次查询。原生隔离包按案例设置并恢复同一个CVar，同顶板开关对照及无顶一组。
@@ -5276,6 +5282,7 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:2827–2829`直接保留deflected velocity并扣除时间，未移植该阶段。
   - 反例：完整加载角色无输入、空中水平初速0.0001/0.0002m/s，source子步末尾应清零，target分别原样保留；0、0.0004、0.001m/s对照PASS。`bf144_air_tiny_horizontal_velocity_uses_source_final_zeroing`共5组3PASS/2FAIL，证据`target/bf144/06/tiny_velocity/`。
   - 漏检：旧速度回归以较大运动量或全零为输入，未覆盖这个源厘米平方阈值。实际影响为亚毫米每秒残余漂移，优先级P3；只登记，不扩大其他近零阈值调整。
+  - 556 原生双子步实证：60ms无输入空中，单轴0.20mm/s及双轴各0.22mm/s只首30ms推进并清水平速度；双轴各0.23mm/s合速越阈，两步保留。目标低速两案实际两步及帧末残速仍在，逐步F32位置复算精确。证据 `docs/audit/bf144/556/`。
 
 - [ ] BF144-D23 / P2 — 落地滚翻启动读取本帧物理速度，偏离源保留的Character速度快照。
   - Source：fresh `MovementComponent.cpp:35,186–188`让CMC先于owner Tick；ALS `NotifyLocomotionModeChanged:518–527`用LocomotionState.Velocity判断滚翻，该值直到后续`RefreshLocomotion:1376`才刷新。UE `PerformMovement:2871–2885`的外力/launch可在当前CMC运动前改变实际velocity，而不回写这个角色快照。
