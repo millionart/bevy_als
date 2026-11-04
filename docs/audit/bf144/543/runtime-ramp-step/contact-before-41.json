@@ -1,0 +1,70 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 3.0670156478881836,
+    "gap": 0.11942028999328613,
+    "impact": 2.2371597290039062,
+    "lower_hemisphere": 2.5864360332489014,
+    "name": "AuditTransitionRamp"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": true,
+  "manifolds": [
+    {
+      "constraints": true,
+      "normal": [
+        -1.0,
+        3.8424155945904204e-7,
+        -2.9802322387695312e-8
+      ],
+      "other": "AuditRampWitness",
+      "points": [
+        [
+          1.0204583986705984e-6,
+          0.0
+        ],
+        [
+          1.0204583986705984e-6,
+          0.0
+        ],
+        [
+          1.0204583986705984e-6,
+          0.0
+        ]
+      ]
+    },
+    {
+      "constraints": true,
+      "normal": [
+        -0.6427876949310303,
+        0.7660444378852844,
+        5.960464477539063e-8
+      ],
+      "other": "AuditTransitionRamp",
+      "points": [
+        [
+          2.034440279006958,
+          0.0
+        ],
+        [
+          2.034440279006958,
+          0.0
+        ]
+      ]
+    }
+  ],
+  "mode": "Grounded",
+  "ordinal": 41,
+  "planned_velocity": null,
+  "position": [
+    -13.710246086120605,
+    3.1864359378814697,
+    -15.0
+  ],
+  "raw_velocity": [
+    0.0,
+    3.14644718170166,
+    -1.2138600880007289e-7
+  ],
+  "requested_mode": null
+}

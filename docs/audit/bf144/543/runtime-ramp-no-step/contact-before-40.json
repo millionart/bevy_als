@@ -1,0 +1,27 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 2.912787914276123,
+    "gap": 0.010170698165893555,
+    "impact": 2.08296275138855,
+    "lower_hemisphere": 2.3229587078094482,
+    "name": "AuditTransitionRamp"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": true,
+  "manifolds": [],
+  "mode": "Grounded",
+  "ordinal": 40,
+  "planned_velocity": null,
+  "position": [
+    -13.893951416015625,
+    2.9229586124420166,
+    -15.0
+  ],
+  "raw_velocity": [
+    0.0,
+    0.050013281404972076,
+    -4.991527191577916e-8
+  ],
+  "requested_mode": null
+}
