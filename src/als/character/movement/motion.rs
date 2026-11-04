@@ -3669,22 +3669,26 @@ fn grounded_movement_transaction(
         if let Some(hit) = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY,
             direction, &forward_config, &filter, &accepts) {
             if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 { return Some(result); }
-            let advance = *direction * movement_sweep_travel(forward_config.max_distance, hit.distance);
+            let forward_travel = movement_sweep_travel(forward_config.max_distance, hit.distance);
+            let advance = *direction * forward_travel;
             let normal = if hit.normal1.y > 0.0 && hit.normal1.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
                 hit.normal1.with_y(0.0).normalize_or_zero()
             } else { hit.normal1 };
             let tail = remaining_delta - advance;
             let slide = tail - normal * tail.dot(normal);
             let mut progressed = advance;
+            let mut had_progress = forward_travel > 0.0;
             if slide.dot(remaining_delta) > 0.0 && let Ok((slide_direction, slide_distance)) = Dir3::new_and_length(slide) {
                 let slide_config = ShapeCastConfig { max_distance: slide_distance, ..forward_config };
                 let slide_hit = spatial_query.cast_shape_predicate(capsule, raised + advance, Quat::IDENTITY,
                     slide_direction, &slide_config, &filter, &accepts);
                 if slide_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { return Some(result); }
-                progressed += *slide_direction * slide_hit.map_or(slide_distance,
+                let slide_travel = slide_hit.map_or(slide_distance,
                     |hit| movement_sweep_travel(slide_distance, hit.distance));
+                progressed += *slide_direction * slide_travel;
+                had_progress |= slide_travel > 0.0;
             }
-            if progressed.length_squared() <= f32::EPSILON { return Some(result); }
+            if !had_progress { return Some(result); }
             remaining_delta = progressed;
         }
     }
@@ -4423,6 +4427,34 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn step_up_retains_nonzero_submillimeter_progress() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (front, accepted) in [(1.3845, false), (1.38638, true), (1.387, true)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            for (center, size) in [
+                (Vec3::new(-15.0, 1.9, -15.0), Vec3::new(4.0, 0.2, 3.0)),
+                (Vec3::new(-13.855, 2.08, -14.73), Vec3::new(0.02, 0.2, 0.02)),
+                (Vec3::new(-15.0 + front + 0.04, 4.15, -15.0), Vec3::new(0.08, 1.0, 0.7)),
+            ] {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+            }).unwrap().unwrap();
+            assert_eq!(result.2.is_some(), accepted, "front={front} result={result:?}");
+        }
+    }
 
     #[test]
     fn step_height_uses_the_floor_impact_instead_of_the_adjusted_capsule_center() {
