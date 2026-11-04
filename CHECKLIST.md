@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.542 拒绝跨步后的首个沿墙扫掠与单子步落地。依赖541高处对照，两端均撤销跨步后，UE Walking 而 Bevy Air。核原生首次碰撞、沿墙扫掠、TwoWallAdjust 和最终位置，读取目标 CMC 到 Tnua/Avian 的位移及支撑。仅截断目标剩余水平位移，保留原垂直请求与同场景，再移除干预重跑。Gate 要求基线、干预、恢复及现有差异归属明确。开始2026-11-04 20:50:45 +0800，预估结束2026-11-04 21:30:45 +0800。参考541实耗约5分钟，预留同场景编译、三次功能 Gate 和物理解算阶段核对。截图0，性能暂停。
+  - 20:53 source/static：fresh MoveAlongFloor 在 StepUp 失败后调用 SlideAlongSurface，基类连续 SafeMove 与 TwoWallAdjust。541高处原生记录已有三次实际命中，目标生产回传未经第二面扫掠的投影。先对齐原始请求，再在同一 q40 场景验证水平位移截断对支撑的影响。
+  - 20:54 runtime Gate 前：复用 541 的同场景几何与 538 的 solver 观测，编译通过。基线、水平截断和关闭干预恢复共用该构建。先保留实际 CMC 结果，记录进入 Tnua 与 solver 的量。
+  - 20:55 首次 runtime Gate 失败：控制观察器缺少与参数帧递增系统的顺序边，提前读到零请求。保留失败进程记录，两个观察器均明确排在帧递增前，同入口重编。
+  - 20:58 runtime Gate 后：三次功能 Gate 通过，零截图。基线与关闭干预组逐值恢复 q40 Air；只截断水平请求保留凸台地面，Grounded。原生首段和 TwoWall 请求已复算，两端 CMC 起步和剩余请求对齐，新增证据归并 D15，准备身份与 Git 封存。
+  - 完成 Gate `PASS_REJECTED_STEP_FIRST_SLIDE_SWEEP_RECOVERS_SINGLE_STEP_SUPPORT`。UE 实际两次滑动扫掠并保持 Walking。目标原约252.2 mm 水平请求，进入 solver 后竖直速度升至2.763 m/s，同帧转 Air；仅截至首次扫掠停点约30.9 mm 后，竖直请求不变，斜坡/凸台冲量为0，保住凸台并维持 Grounded，终点距源0.68 mm。关闭干预后同帧、下一帧和接触读数复现基线。396身份和六库核对，原始报告、失败诊断与复验均在 `docs/audit/bf144/542/`。新增0，累计296（129 P2、167 P3）。实际结束2026-11-04 20:59:39 +0800，实耗534秒，偏差-1866秒。复用541原生场景和538阶段观测节省了原生重采与全量构建。截图0，性能暂停。
+
 - [x] BF144.541 StepDown不可走陡坡的方向与高度守卫。依赖540。保537偏侧凸台、50ms Walking初态，加入60°下扫坡，低处顺向/反向及高处顺向三案。源取实际StepDown和同场景撤销前的下扫复验，目标生产重放及实际状态，隔离角度守卫与后续floor守卫。证实独立差异再登记。开始2026-11-04 20:45:45 +0800，预估结束2026-11-04 21:30:45 +0800。参考537/539，加三坡形与源复验，估45分钟。截图0，性能暂停。
 
   - 真实Gate前：fresh UE不可走StepDown仅在ImpactNormal逆Delta或Hit.Location高于旧位时回退，随后仍查edge等；目标按命中法线可走先过滤。保同20mm偏侧凸台，60°坡按真实预计下扫中心放在88cm（顺/逆）或94cm（高处顺）；源实际Hit与撤销对照的同ComponentSweepMulti分别记录。截图0。
@@ -5104,11 +5111,12 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整加载角色以50ms帧向uniform缩放0.2的被动角色前进；首次胶囊命中非穿透且normal.y≈0.0025，不属于可行走坡面。默认target把对方当可跨步prop，中心最高升至1.31152m并越过；source禁止跨步应停下。同几何普通prop允许跨过（PASS），仅给被动角色补入现有显式No权限的受控对照最高0.92562m并停在z≈−0.635m（PASS）。`bf144_walk_character_capsule_keeps_source_no_step_permission`语义FAIL，证据`target/bf144/05/permission/`。
   - 漏检：旧permission测试手动插入true/false，验证了consumer分支，却没有从fresh角色CDO核对生产角色默认组件；相同大小的站立胶囊又通常因步高限制掩盖这个缺口。仅登记，不修改角色构造或扩展AI行为。
 
-- [ ] BF144-D15 / P2 — 跨步被拒后的沿墙剩余位移未sweep，多子步可直接进入第二面墙。
+- [ ] BF144-D15 / P2 — 跨步被拒后的沿墙剩余位移缺少后续扫掠，单步可失去支撑，多子步可进入第二面墙。
   - Source：fresh UE CMC `SlideAlongSurface:3649–3686`约束接触normal后调用基类；`MovementComponent.cpp:725–774`对slide执行SafeMoveUpdatedComponent，命中第二面再TwoWallAdjust并sweep，不能直接叠加未检查的投影。StepUp因No权限或上半球命中被拒后也必须走该路径。
   - Target：`src/als/character/movement/motion.rs:3535–3543`在拒绝跨步时直接返回剩余slide；`walking_movement_transaction:3636`把它加入Transform，下一子步已从墙内开始，后置物理解穿透不能恢复源顺序。
   - 反例：角色半径0.3m，初始(x,z)=(0.12,−0.155)m，两面墙使合法中心界限为x≤0.13、z≥−0.18m。0.1s帧分2子步后，物理前已到(0.17914,−0.28758)m；最小夹具最终z=−0.24835m，完整角色一次记录z=−0.20452m，均仍穿入第二墙。默认Yes权限但首墙只命中胶囊上半球的受控几何也复现，无须No权限。`bf144_walk_wall_slide_sweeps_the_remaining_substep`共24组20PASS/4FAIL，证据`target/bf144/05/wall_full/`。
   - 漏检：旧slide测试关注跨步内部已经sweep的剩余路径，或在单物理帧内让Avian处理第二墙；没有组合跨步早退、多CMC子步和第二阻挡面。记录的墙界限来自胶囊几何，未把“子步后的切向速度恒定”当作source oracle。仅登记，不补循环或改solver参数。
+  - 542 单步实证：高处陡坡使两端都撤销 StepUp。UE 在余量上先扫掠至斜坡，再执行 TwoWallAdjust 和第二次扫掠，保持 Walking。Bevy 将余量交给 Tnua/Avian，斜坡与凸台接触使 solver 结束时竖直速度约2.76 m/s，地面查询丢失支撑后转 Air。仅截断水平请求至同胶囊首个扫掠停点，保留竖直请求，目标保住凸台支撑；关闭干预恢复 Air。原始记录、接触和干预复跑见 `docs/audit/bf144/542/`。
 
 - [ ] BF144-D16 / P2 — 地面射线从实体内部出发时，误把出口底面当成可行走地面。
   - Source：fresh `ChaosCore/AABB.cpp:114–116`调用`Raycasts.cpp:12–86,175`，起点在box内部时LatestStartTime保持0；ALS `ComputeFloorDist:763–769`只接受Time>0的line hit，保留原sweep穿透供PhysWalking后续恢复，不把实体出口设成walkable floor。

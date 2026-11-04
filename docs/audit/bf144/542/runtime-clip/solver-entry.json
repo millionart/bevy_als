@@ -1,0 +1,42 @@
+{
+  "contacts": [
+    {
+      "constraints": true,
+      "entity": "AuditStepSlope",
+      "manifolds": []
+    },
+    {
+      "constraints": true,
+      "entity": "AuditStepFin",
+      "manifolds": [
+        {
+          "impulses": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "normal": [
+            -0.19570371508598328,
+            0.4687793254852295,
+            -0.8613628149032593
+          ]
+        }
+      ]
+    },
+    {
+      "constraints": true,
+      "entity": "AuditWalkOffPlatform",
+      "manifolds": []
+    }
+  ],
+  "position_delta": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "velocity": [
+    0.6075754165649414,
+    -4.450431561053847e-7,
+    -0.11382468044757843
+  ]
+}
