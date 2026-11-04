@@ -508,17 +508,17 @@ pub fn grounded_dynamics_motor_system(
         let Ok((roll, mantle)) = actions.get(entity) else {
             continue;
         };
-        if !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air)
-            || roll.is_some_and(AlsRollState::root_motion_active)
-            || mantle.is_some_and(|state| state.active)
-        {
+        if !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air) {
             continue;
         }
+        let root_motion_active = roll.is_some_and(AlsRollState::root_motion_active)
+            || mantle.is_some_and(|state| state.active);
         let Some(params) = params_assets.get(params_handle.id()) else {
             continue;
         };
         let world_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
         if *locomotion == LocomotionState::Air {
+            if root_motion_active { continue; }
             let inherited = if let Some(mut base) = current_base_state {
                 if let Some(previous) = base.entity {
                     let (_, support) = support_velocity_from_base(Some(previous),
@@ -543,19 +543,16 @@ pub fn grounded_dynamics_motor_system(
         );
         let current = locomotion_velocity(world_velocity, *locomotion,
             current_base_state.as_deref().filter(|_| base_entity.is_some()));
+        let max_speed = max_allowed_speed(
+            params, *stance, *rotation_mode, max_allowed_gait.0, current, view_yaw.0,
+        );
+        cmc_runtime.grounded_max_speed = max_speed;
+        if root_motion_active { continue; }
         let thresholds = params.gait_speed_thresholds(*stance, *rotation_mode, current, view_yaw.0);
         gait_amount.0 = calculate_gait_amount_for_thresholds(current.length(), thresholds);
         if AlsMovementParams::has_gait_settings(*stance, *rotation_mode) {
             dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
         }
-        let max_speed = max_allowed_speed(
-            params,
-            *stance,
-            *rotation_mode,
-            max_allowed_gait.0,
-            current,
-            view_yaw.0,
-        );
         let desired_motion = controller.basis.desired_motion;
         let braking_friction_factor = landing_braking
             .get(entity)
@@ -1747,6 +1744,33 @@ mod tests {
             assert_eq!(world.get::<AlsLandingBrakingFriction>(character).unwrap().factor, expected_factor,
                 "Landing input differs: retained={retained_input}, command={command:?}, override={override_input:?}");
         }
+    }
+
+    #[test]
+    fn grounded_speed_cap_refreshes_during_root_motion_and_not_in_air() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let mut assets = Assets::<AlsMovementParams>::default();
+        let handle = assets.add(AlsMovementParams::default());
+        world.insert_resource(assets);
+        let character = world.spawn((AlsCharacter, LocomotionState::Grounded, Stance::Crouching,
+            RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
+            AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y),
+            LinearVelocity(Vec3::X * 2.0), AlsMovementParamsHandle(handle),
+            TnuaController::<AlsControlScheme>::default(), TnuaMotor::default(), AlsCmcAdapterRuntime::default(),
+            AlsRollState { active: true, ..default() })).id();
+        world.run_system_once(grounded_dynamics_motor_system).unwrap();
+        assert!((world.get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_max_speed - 2.0).abs() < 1e-5);
+        world.entity_mut(character).remove::<AlsRollState>();
+        world.entity_mut(character).insert((LocomotionState::Air, Stance::Standing));
+        world.run_system_once(grounded_dynamics_motor_system).unwrap();
+        assert!((world.get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_max_speed - 2.0).abs() < 1e-5);
+        world.entity_mut(character).insert(LocomotionState::Grounded);
+        world.run_system_once(grounded_dynamics_motor_system).unwrap();
+        assert!((world.get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_max_speed - 3.75).abs() < 1e-5);
     }
 
     #[test]
