@@ -1,0 +1,27 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 2.8999998569488525,
+    "gap": 0.02214837074279785,
+    "impact": 2.0,
+    "lower_hemisphere": 2.322148084640503,
+    "name": "AuditWalkOffPlatform"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": true,
+  "manifolds": [],
+  "mode": "Grounded",
+  "ordinal": 41,
+  "planned_velocity": null,
+  "position": [
+    -13.943081855773926,
+    2.9221482276916504,
+    -15.00000286102295
+  ],
+  "raw_velocity": [
+    0.0,
+    0.03333570063114166,
+    -0.00004986996282241307
+  ],
+  "requested_mode": null
+}
