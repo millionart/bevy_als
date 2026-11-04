@@ -521,8 +521,7 @@ pub fn grounded_dynamics_motor_system(
         if *locomotion == LocomotionState::Air {
             let inherited = if let Some(mut base) = current_base_state {
                 if let Some(previous) = base.entity {
-                    let current = controller.basis_memory.standing_on_entity().unwrap_or(previous);
-                    let (_, support) = support_velocity_from_base(Some(current),
+                    let (_, support) = support_velocity_from_base(Some(previous),
                         character_contact_point(params, *stance, position.0), &bases, &colliders);
                     let inherited = support - base.support_velocity;
                     *base = default();
@@ -1747,6 +1746,49 @@ mod tests {
             }
             assert_eq!(world.get::<AlsLandingBrakingFriction>(character).unwrap().factor, expected_factor,
                 "Landing input differs: retained={retained_input}, command={command:?}, override={override_input:?}");
+        }
+    }
+
+    #[test]
+    fn jumping_uses_the_previous_base_when_the_sensor_switches() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_tnua::{TnuaBasis, TnuaBasisContext, TnuaProximitySensor,
+            TnuaProximitySensorOutput, TnuaRigidBodyTracker};
+        for (switched, prior_support) in [(false, 0.0), (true, 0.0), (true, 0.25)] {
+            let mut world = World::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(0.05));
+            world.insert_resource(time);
+            let params = AlsMovementParams::default();
+            let mut assets = Assets::<AlsMovementParams>::default();
+            let handle = assets.add(params.clone());
+            world.insert_resource(assets);
+            let old = world.spawn((Position::default(), LinearVelocity(Vec3::X))).id();
+            let new = world.spawn((Position::default(), LinearVelocity(Vec3::NEG_X))).id();
+            let selected = if switched { new } else { old };
+            let selected_speed = if switched { Vec3::NEG_X } else { Vec3::X };
+            let config = crate::als::motion::initial_als_control_scheme_config(&params).basis;
+            let mut controller = TnuaController::<AlsControlScheme>::default();
+            let sensor = TnuaProximitySensor { output: Some(TnuaProximitySensorOutput {
+                entity: selected, proximity: config.float_height, normal: Dir3::Y,
+                entity_linvel: selected_speed, entity_angvel: Vec3::ZERO,
+            }), ..default() };
+            controller.basis.apply(&config, &mut controller.basis_memory,
+                &bevy_tnua::builtins::TnuaBuiltinWalkSensors { ground: &sensor, headroom: None },
+                TnuaBasisContext { frame_duration: 0.05,
+                    tracker: &TnuaRigidBodyTracker { gravity: Vec3::NEG_Y * 9.81, ..default() }, up_direction: Dir3::Y },
+                &mut TnuaMotor::default());
+            assert_eq!(controller.basis_memory.standing_on_entity(), Some(selected));
+            let character = world.spawn((AlsCharacter, LocomotionState::Air, Stance::Standing,
+                RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
+                AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y),
+                LinearVelocity(Vec3::X * prior_support), AlsMovementParamsHandle(handle), controller,
+                TnuaMotor::default(), AlsCmcAdapterRuntime::default(), AlsMovementBaseDynamicsState {
+                    entity: Some(old), support_velocity: Vec3::X * prior_support, ..default()
+                })).id();
+            world.run_system_once(grounded_dynamics_motor_system).unwrap();
+            let velocity = world.get::<LinearVelocity>(character).unwrap().x + world.get::<TnuaMotor>(character).unwrap().lin.boost.x;
+            assert!((velocity - 1.0).abs() < 1e-5, "switched={switched} prior={prior_support} actual={velocity}");
         }
     }
 

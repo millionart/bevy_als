@@ -1,0 +1,36 @@
+{
+  "files": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "excerpts": [
+        {
+          "line": 1575,
+          "text": "void ACharacter::CheckJumpInput(float DeltaTime)\n{\n\tJumpCurrentCountPreJump = JumpCurrentCount;\n\n\tif (CharacterMovement)\n\t{\n\t\tif (bPressedJump)\n\t\t{\n\t\t\t// If this is the first jump and we're already falling, normally we deny that first jump from happening (by skipping right to the second jump, if available)\n\t\t\t// One exception is if our subclass overrides this to allow first jump to still happen while falling under circumstances they care about\n\t\t\tconst bool bFirstJump = JumpCurrentCount == 0;\n\t\t\tif (bFirstJump && CharacterMovement->IsFalling() && !CanJumpWhileFalling())\n\t\t\t{\n\t\t\t\tJumpCurrentCount++;\n\t\t\t}\n\n\t\t\tconst bool bDidJump = CanJump() && (CharacterCVars::UseLegacyDoJump)? CharacterMovement->DoJump(bClientUpdating) : CharacterMovement->DoJump(bClientUpdating, DeltaTime);\n\t\t\tif (bDidJump)\n\t\t\t{\n\t\t\t\t// Transition from not (actively) jumping to jumping.\n\t\t\t\tif (!bWasJumping)\n\t\t\t\t{\n\t\t\t\t\tJumpCurrentCount++;\n\t\t\t\t\tJumpForceTimeRemaining = GetJumpMaxHoldTime();\n\t\t\t\t\tOnJumped();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tbWasJumping = bDidJump;\n\t\t}\n\t}\n}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "line": 1145,
+          "text": "bool UCharacterMovementComponent::DoJump(bool bReplayingMoves, float DeltaTime)\n{\n\tif ( CharacterOwner && CharacterOwner->CanJump() )\n\t{\n\t\t// Don't jump if we can't move up/down.\n\t\tif (!bConstrainToPlane || !FMath::IsNearlyEqual(FMath::Abs(GetGravitySpaceZ(PlaneConstraintNormal)), 1.f))\n\t\t{\n\t\t\t// If first frame of DoJump, we want to always inject the initial jump velocity.\n\t\t\t// For subsequent frames, during the time Jump is held, it depends... \n\t\t\t// bDontFallXXXX == true means we want to ensure the character's Z velocity is never less than JumpZVelocity in this period\n\t\t\t// bDontFallXXXX == false means we just want to leave Z velocity alone and \"let the chips fall where they may\" (e.g. fall properly in physics)\n\n\t\t\t// NOTE: \n\t\t\t// Checking JumpCurrentCountPreJump instead of JumpCurrentCount because Character::CheckJumpInput might have\n\t\t\t// incremented JumpCurrentCount just before entering this function... in order to compensate for the case when\n\t\t\t// on the first frame of the jump, we're already in falling stage. So we want the original value before any \n\t\t\t// modification here.\n\t\t\t// \n\t\t\tconst bool bFirstJump = (CharacterOwner->JumpCurrentCountPreJump == 0);\n\n\t\t\tif (bFirstJump || bDontFallBelowJumpZVelocityDuringJump)\n\t\t\t{\n\t\t\t\tif (HasCustomGravity())\n\t\t\t\t{\n\t\t\t\t\tSetGravitySpaceZ(Velocity, FMath::Max<FVector::FReal>(GetGravitySpaceZ(Velocity), JumpZVelocity));\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tVelocity.Z = FMath::Max<FVector::FReal>(Velocity.Z, JumpZVelocity);\n\t\t\t\t}\n\t\t\t}\n\t\t\t\n\t\t\tSetMovementMode(MOVE_Falling);\n\t\t\treturn true;\n\t\t}\n\t}\n\t\n\treturn false;\n}"
+        },
+        {
+          "line": 1193,
+          "text": "FVector UCharacterMovementComponent::GetImpartedMovementBaseVelocity() const\n{\n\tFVector Result = FVector::ZeroVector;\n\tif (CharacterOwner)\n\t{\n\t\tconst FMovementBaseInterfaceData* MovementBaseInterfaceData = GetMovementBaseInterfaceData();\n\t\t\n\t\tif (MovementBaseUtility::IsDynamicBase(MovementBaseInterfaceData))\n\t\t{\n\t\t\tFVector BaseVelocity = MovementBaseUtility::GetMovementBaseVelocity(MovementBaseInterfaceData, CharacterOwner->GetBasedMovement().BoneName);\n\t\t\t\n\t\t\tif (bImpartBaseAngularVelocity)\n\t\t\t{\n\t\t\t\tconst FVector CharacterBasePosition = (UpdatedComponent->GetComponentLocation() + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * GetGravityDirection());\n\t\t\t\tconst FVector BaseTangentialVel = MovementBaseUtility::GetMovementBaseTangentialVelocity(MovementBaseInterfaceData, CharacterOwner->GetBasedMovement().BoneName, CharacterBasePosition);\n\t\t\t\tBaseVelocity += BaseTangentialVel;\n\t\t\t}\n\n\t\t\tif (bImpartBaseVelocityX)\n\t\t\t{\n\t\t\t\tResult.X = BaseVelocity.X;\n\t\t\t}\n\t\t\tif (bImpartBaseVelocityY)\n\t\t\t{\n\t\t\t\tResult.Y = BaseVelocity.Y;\n\t\t\t}\n\t\t\tif (bImpartBaseVelocityZ)\n\t\t\t{\n\t\t\t\tResult.Z = BaseVelocity.Z;\n\t\t\t}\n\t\t}\n\t}\n\t\n\treturn Result;\n}"
+        },
+        {
+          "line": 2744,
+          "text": "void UCharacterMovementComponent::ApplyImpartedMovementBaseVelocity()\n{\n\tDecayingFormerBaseVelocity = GetImpartedMovementBaseVelocity();\n\tVelocity += DecayingFormerBaseVelocity;\n\tif (bMovementInProgress && CurrentRootMotion.HasAdditiveVelocity())\n\t{\n\t\t// If we leave a base during movement and we have additive root motion, we need to add the imparted velocity so that it retains it next tick\n\t\tCurrentRootMotion.LastPreAdditiveVelocity += DecayingFormerBaseVelocity;\n\t}\n\tif (!CharacterMovementCVars::bAddFormerBaseVelocityToRootMotionOverrideWhenFalling || FormerBaseVelocityDecayHalfLife == 0.f)\n\t{\n\t\tDecayingFormerBaseVelocity = FVector::ZeroVector;\n\t}\n}"
+        },
+        {
+          "line": 6441,
+          "text": "void UCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds)\n{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}"
+        }
+      ]
+    }
+  ]
+}
