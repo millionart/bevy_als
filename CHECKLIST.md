@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.528 墙顶回查的二次floor Hit资格。依赖527。复核21.5cm首Hit已进边缘回查但源保持Falling，记录源K2_FindFloor的完整Hit、IsValidLandingSpot逐条件与真实Landed事件；以20.5cm同墙顶、22.5cm低台的实际通过及只抬21.5低台5mm作对照。复用目标同二进制，核后置floor、接触和落地。观察开关必须保持原生结果。开始2026-11-04 19:07:14 +0800，预估结束2026-11-04 19:47:14 +0800。参考525原生监听及527矩阵，需扩只读floor字段与Landed委托，估40分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh源先校验墙Hit资格，再把非line的FloorResult.HitResult交IsValidLandingSpot。独立重查保实际查询模式，公开调用前后恢复bForceNextFloorCheck；真正落地以LandedDelegate记录。共同几何21.5只抬低台5mm，目标仍用526同身份。截图0。
+  - 真实Gate后：21.5首墙Hit通过边缘，重查得到墙顶floor Hit也通过walkable及自身边缘，但Impact高于下半球上界0.461096cm，公开IsValidLandingSpot拒绝，49/50无Landed。低台仅抬5mm后第一墙Hit逐值，源实际Landed改为低台并用余35.83426ms走23.29227cm。目标撞墙、位置速度保持，随低台间隙跨门槛同49 Grounded，但仍只走Falling，补D292的低台支撑见证。20.5实际Landed为墙顶，22.5为低台。截图0。
+  - Gate通过。原生实际Landed及二次资格分离、52帧监听开关逐值、两次目标功能及未抬案完整参数与527逐字节、六库/396身份及61份Git证据通过。补D292、无新增，累计289（122P2/167P3）。实际结束2026-11-04 19:12:02 +0800，实耗288秒，偏差-2112秒。证据 docs/audit/bf144/528/summary.json。截图0，性能暂停。
+  - 后继边界：目标21.5原案返回低台，源同段二次floor Hit为墙顶。下一轮直接追目标floor_sweep_hit的原始法线、短射线替换、perch与line选择，明确实际低台来源及与D10、D291的归属；源实际低台Landed已确认是非line。
+
 - [x] BF144.527 合格墙顶边缘跨2.4cm间隙门槛。依赖526。复用同身份原生包和目标二进制，只改墙顶高度，在16/29cm之间取密集区间。对照实际命中、源pullback后边缘与capsule floor、源Walking余时、目标实际floor间隙及发布，找两端仍有同一支撑且仅目标跨门槛的配对。若晚落地沿D292归属，只有独立消费者才新增编号。开始2026-11-04 19:01:00 +0800，预估结束2026-11-04 19:31:00 +0800。参考526约6分钟，现无需重新构建，另留矩阵与证据封存，估30分钟。截图0，性能暂停。
 
   - 真实Gate前：fresh目标后置capsule路径明确使用abs(position.y−floor_center)≤0.024，源合法边缘回查使用可走非line且通过IsValidLandingSpot的floor，再在同帧继续Walking。沿用526读数和真实启动，只改19/20.5/21.5/22.5/23.5/24.5cm墙顶，保持deck、输入和角色初态。截图0。
@@ -4515,6 +4522,7 @@
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D292 / P2 — Falling 的有效边缘回查没有在撞击点交还 Walking 余时。
+  - BF144.528 实际低台Landed。21.5cm墙顶的原案二次floor Hit因高于下半球0.4611cm被拒；只抬低台5mm后第一墙Hit保持，源以低台触发Landed，49用余35.83426ms走23.29227cm。目标撞墙运动不变，49只在PostUpdate转Grounded。证据 docs/audit/bf144/528/summary.json。
   - BF144.527 发布阶段边界。合格20.5cm墙顶源49已Walking，目标因后置地面间隙2.556cm保持Air至50、51才Grounded。仅在物理后下移3mm至2.213cm便在49发布；19cm墙顶反向上移4.5mm从2.072到2.532cm使49保Air，真实Falling事务、墙contact和墙顶对象均保持。证据 docs/audit/bf144/527/summary.json。
   - UE PhysFalling通过边缘回查的非line floor后，ProcessLanded以未消费步长继续StartNewPhysics，实际同帧进入Walking。目标falling_movement_sweep只在自身命中法线可走时返回余时，边缘命中走Falling slide；PostUpdate只发布Grounded并清速度，没有继续同帧Walking。
   - 16cm墙顶的第49帧，源首墙Normal.z=0.46410、ImpactNormal.z=0，pullback后在边缘容差内，独立capsule floor为墙顶。源剩30.85582ms，第二次纯水平Walking sweep前进20.05628cm，接着执行StepUp；角色帧末中心映射约3.05136m。目标同帧Grounded但只执行Falling滑动，发布前后位置相同，帧末中心约2.89970m。资格放宽和余时交接是可分别观察的机制；D291记录无资格碰撞导致的提前发布。证据 docs/audit/bf144/526/summary.json。
