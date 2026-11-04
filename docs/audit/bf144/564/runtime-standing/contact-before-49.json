@@ -1,0 +1,25 @@
+{
+  "consumed_contact": false,
+  "floor": null,
+  "generated_contact": false,
+  "has_basis_displacement": false,
+  "manifolds": [],
+  "mode": "Air",
+  "ordinal": 49,
+  "planned_velocity": [
+    2.1500000953674316,
+    -0.4905000329017639,
+    -2.9206077556409582e-8
+  ],
+  "position": [
+    -12.896249771118164,
+    3.9877374172210693,
+    -15.0
+  ],
+  "raw_velocity": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "requested_mode": null
+}
