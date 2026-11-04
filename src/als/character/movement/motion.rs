@@ -2706,7 +2706,7 @@ pub fn movement_sweep_travel(distance: f32, hit_distance: f32) -> f32 {
 
 pub(crate) fn falling_movement_sweep(
     spatial: &SpatialQuery, capsule: &Collider, start: Vec3, rotation: Quat,
-    movement: Vec3, mut velocity: Vec3, step: f32,
+    movement: Vec3, mut velocity: Vec3, step: f32, air_control: Option<(Vec3, Vec3)>,
     mut landing: Option<(&crate::als::params::CmcAdapterParams, f32, f32, &mut u32)>, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
 ) -> (Vec3, Vec3, bool, Option<(f32, bool)>, Option<LocomotionState>) {
@@ -2785,6 +2785,7 @@ pub(crate) fn falling_movement_sweep(
         let Some(normal) = hit.normal1.try_normalize() else { break };
         if sweep == 0 { first_impact_normal = Some(normal); }
         contact |= normal.y > 0.0 && remaining.dot(normal) < 0.0;
+        let previous_time = remaining_time;
         if !sidestepped { remaining_time *= 1.0 - travel / distance; }
         if normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
             && remaining.dot(normal) < 0.0
@@ -2803,13 +2804,26 @@ pub(crate) fn falling_movement_sweep(
             break;
         }
         let budget = velocity * remaining_time;
-        let slide = crate::extensions::motion::falling_slide(budget, normal, previous_normal);
+        let input = if sweep == 1 && normal.y > 0.001
+            && let Some((without_air, _)) = air_control
+            && previous_time > 0.0 && let Some(first) = previous_normal {
+            crate::extensions::motion::falling_slide(without_air * previous_time, first, None)
+                * (remaining_time / previous_time)
+        } else { budget };
+        let mut slide = crate::extensions::motion::falling_slide(input, normal, previous_normal);
+        if sweep == 1 && let Some((_, acceleration)) = air_control && let Some(first) = previous_normal {
+            let limited = if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(normal) > 0.0 {
+                if acceleration.dot(normal) > 0.0 { acceleration } else { Vec3::ZERO }
+            } else if normal.y > 0.001 && acceleration.dot(normal) < 0.0 {
+                let horizontal_normal = normal.with_y(0.0).normalize_or_zero();
+                acceleration - horizontal_normal * acceleration.dot(horizontal_normal)
+            } else { acceleration };
+            let delta_velocity = limited * remaining_time;
+            if delta_velocity.dot(first) > 0.0 { slide += delta_velocity * remaining_time; }
+        }
         previous_normal = Some(normal);
         if remaining_time > f32::EPSILON { velocity = slide / remaining_time; }
-        if slide.dot(budget) <= 0.0 {
-            if sweep == 1 { remaining = Vec3::ZERO; continue; }
-            break;
-        }
+        if sweep == 0 && slide.dot(budget) <= 0.0 { break; }
         remaining = slide;
     }
     (applied, velocity, contact, None, collision_mode)
@@ -2843,9 +2857,13 @@ fn falling_movement_transaction(
             params.cmc.min_analog_walk_speed, 0.0, params.cmc.braking_substep_time, step);
         velocity = crate::als::dynamics::clamp_falling_velocity(horizontal + Vec3::Y * velocity.y + gravity * step,
             gravity, terminal);
+        let air_control = if desired_motion.with_y(0.0) != Vec3::ZERO && acceleration > 0.0 {
+            let without_air = crate::als::dynamics::clamp_falling_velocity(old_velocity + gravity * step, gravity, terminal);
+            Some((without_air, ((velocity - without_air) / step).with_y(0.0)))
+        } else { None };
         let requested = (old_velocity + velocity) * (0.5 * step);
         let (applied, deflected, hit, landing_remaining, step_collision_mode) = falling_movement_sweep(spatial, capsule, transform.translation,
-            transform.rotation, requested, velocity, step,
+            transform.rotation, requested, velocity, step, air_control,
             Some((&params.cmc, params.jump.jump_z_velocity, max_speed, &mut *random_seed)), entity, candidates);
         collision_mode = step_collision_mode;
         transform.translation += applied;
@@ -4410,6 +4428,44 @@ mod tests {
     use super::*;
 
     #[test]
+    fn second_sloped_impact_recomputes_air_control_and_respects_the_first_wall() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (desired, expected) in [
+            (Vec3::ZERO, Vec3::new(0.0, -0.98087, -0.57504)),
+            (Vec3::Z, Vec3::new(0.0, -0.98087, -0.57504)),
+            (Vec3::new(-0.5, 0.0, 0.75_f32.sqrt()), Vec3::new(-0.03079, -0.98087, -0.58047)),
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<StateTransitionEvent>();
+            app.finish();
+            let rotation = Quat::from_rotation_y(-10.0_f32.to_radians()) * Quat::from_rotation_x(-60.0_f32.to_radians());
+            let slope = Vec3::new(-13.0, 3.4, -15.0) - rotation * Vec3::Y * 0.385;
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 3.0, 2.0), Transform::from_xyz(-12.62, 4.0, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.04, 1.2),
+                Transform::from_translation(slope).with_rotation(rotation)));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>, mut transitions: MessageWriter<StateTransitionEvent>| {
+                let mut seed = 123;
+                falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Transform::from_xyz(-13.0, 4.0, -15.0), Vec3::new(4.0, -2.0, 2.0), desired,
+                    6.5, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
+                    (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
+                    (0.0, false, false), 40.0, 0.05, 0, actor, &mut seed,
+                    &candidates, &permissions, &bases, &owners, &mut transitions)
+            }).unwrap();
+            assert_eq!(result.4, LocomotionState::Air);
+            assert!(result.1.distance(expected) < 0.002, "input={desired:?} actual={:?} expected={expected:?}", result.1);
+        }
+    }
+
+    #[test]
     fn third_zero_time_hit_uses_the_side_sweep_to_choose_locomotion() {
         use bevy::ecs::system::RunSystemOnce;
         for (case, value) in [("floor-stuck", 3.0803), ("floor-positive", 3.077),
@@ -4446,7 +4502,7 @@ mod tests {
                 let velocity = Vec3::new(4.0, old_y - 9.81 * step, 4.0);
                 let movement = Vec3::new(0.2, (old_y + velocity.y) * 0.5 * step, 0.2);
                 falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3), start, Quat::IDENTITY,
-                    movement, velocity, step, Some((&cmc, 4.2, 3.75, &mut seed)), actor, &candidates)
+                    movement, velocity, step, None, Some((&cmc, 4.2, 3.75, &mut seed)), actor, &candidates)
             }).unwrap();
             match case {
                 "floor-stuck" => {
@@ -4719,7 +4775,7 @@ mod tests {
                 let mut seed = 123_u32;
                 let result = falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(0.0, 4.0, 0.0), Quat::IDENTITY, Vec3::new(-0.025, -0.1122625, 0.001),
-                    Vec3::new(-0.5, -2.4905, 0.02), 0.05, Some((&cmc, jump_z, 3.75, &mut seed)),
+                    Vec3::new(-0.5, -2.4905, 0.02), 0.05, None, Some((&cmc, jump_z, 3.75, &mut seed)),
                     actor, &candidates);
                 (result, seed)
             }).unwrap();
