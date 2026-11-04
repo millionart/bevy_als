@@ -4173,57 +4173,55 @@ pub(crate) fn locomotion_state_sync_system(
                 } else {
                     floor_center_y + (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5
                 };
-                if (next_y - position.y).abs() <= MAX_STEP_HEIGHT {
-                    let mut next_transform = *transform;
-                    next_transform.translation = position.0;
-                    let (direction, distance) = Dir3::new_and_length(Vec3::Y * (next_y - position.y))
-                        .unwrap_or((Dir3::NEG_Y, 0.0));
-                    let config = ShapeCastConfig { ignore_origin_penetration: true,
-                        ..ShapeCastConfig::from_max_distance(distance) };
-                    let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
-                    let mut hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
-                        direction, &config, &filter, &accepts);
-                    let initial_penetration = floor_penetration.or(hit.filter(|hit| hit.distance == 0.0));
-                    if let Some(initial) = initial_penetration {
-                        let depth = (initial.point1 - initial.point2).dot(initial.normal1);
-                        if depth > 0.0 {
-                            let body = candidates.get(initial.entity).ok().and_then(|(_, _, owner, _)| owner)
-                                .map_or(initial.entity, |owner| owner.body);
-                            let maximum = if pawns.contains(body) { MAX_DEPENETRATION_WITH_PAWN }
-                                else { MAX_DEPENETRATION_WITH_GEOMETRY };
-                            let adjustment = (initial.normal1 * (depth + PENETRATION_PULLBACK_DISTANCE))
-                                .clamp_length_max(maximum);
-                            let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
-                            let inflated = als_character_capsule(extent.y + PENETRATION_OVERLAP_INFLATION,
-                                extent.x + PENETRATION_OVERLAP_INFLATION);
-                            let encroached = spatial.shape_intersections(&inflated, position.0 + adjustment,
-                                transform.rotation, &filter).into_iter().any(accepts);
-                            let applied = if !encroached {
-                                adjustment
-                            } else if let Ok((exit, exit_distance)) = Dir3::new_and_length(adjustment) {
-                                let exit_config = ShapeCastConfig { max_distance: exit_distance, ..config };
-                                let exit_hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
-                                    exit, &exit_config, &filter, &accepts);
-                                *exit * exit_hit.map_or(exit_distance,
-                                    |hit| movement_sweep_travel(exit_distance, hit.distance))
-                            } else { Vec3::ZERO };
-                            if applied.length_squared() > 0.0 {
-                                next_transform.translation += applied;
-                                if let Some(start) = runtime.grounded_move_start.as_mut() { *start += applied; }
-                                hit = spatial.cast_shape_predicate(capsule, next_transform.translation,
-                                    transform.rotation, direction, &config, &filter, &accepts);
-                            }
+                let mut next_transform = *transform;
+                next_transform.translation = position.0;
+                let (direction, distance) = Dir3::new_and_length(Vec3::Y * (next_y - position.y))
+                    .unwrap_or((Dir3::NEG_Y, 0.0));
+                let config = ShapeCastConfig { ignore_origin_penetration: true,
+                    ..ShapeCastConfig::from_max_distance(distance) };
+                let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
+                let mut hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
+                    direction, &config, &filter, &accepts);
+                let initial_penetration = floor_penetration.or(hit.filter(|hit| hit.distance == 0.0));
+                if let Some(initial) = initial_penetration {
+                    let depth = (initial.point1 - initial.point2).dot(initial.normal1);
+                    if depth > 0.0 {
+                        let body = candidates.get(initial.entity).ok().and_then(|(_, _, owner, _)| owner)
+                            .map_or(initial.entity, |owner| owner.body);
+                        let maximum = if pawns.contains(body) { MAX_DEPENETRATION_WITH_PAWN }
+                            else { MAX_DEPENETRATION_WITH_GEOMETRY };
+                        let adjustment = (initial.normal1 * (depth + PENETRATION_PULLBACK_DISTANCE))
+                            .clamp_length_max(maximum);
+                        let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
+                        let inflated = als_character_capsule(extent.y + PENETRATION_OVERLAP_INFLATION,
+                            extent.x + PENETRATION_OVERLAP_INFLATION);
+                        let encroached = spatial.shape_intersections(&inflated, position.0 + adjustment,
+                            transform.rotation, &filter).into_iter().any(accepts);
+                        let applied = if !encroached {
+                            adjustment
+                        } else if let Ok((exit, exit_distance)) = Dir3::new_and_length(adjustment) {
+                            let exit_config = ShapeCastConfig { max_distance: exit_distance, ..config };
+                            let exit_hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
+                                exit, &exit_config, &filter, &accepts);
+                            *exit * exit_hit.map_or(exit_distance,
+                                |hit| movement_sweep_travel(exit_distance, hit.distance))
+                        } else { Vec3::ZERO };
+                        if applied.length_squared() > 0.0 {
+                            next_transform.translation += applied;
+                            if let Some(start) = runtime.grounded_move_start.as_mut() { *start += applied; }
+                            hit = spatial.cast_shape_predicate(capsule, next_transform.translation,
+                                transform.rotation, direction, &config, &filter, &accepts);
                         }
                     }
-                    next_transform.translation += *direction
-                        * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
-                    let world_position = next_transform.translation;
-                    next_transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
-                    commands.entity(entity).insert((Position(world_position), next_transform));
-                    velocity.0.y = 0.0;
-                    floor_supported = true;
-                    floor_entity = Some(floor);
                 }
+                next_transform.translation += *direction
+                    * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
+                let world_position = next_transform.translation;
+                next_transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
+                commands.entity(entity).insert((Position(world_position), next_transform));
+                velocity.0.y = 0.0;
+                floor_supported = true;
+                floor_entity = Some(floor);
             }
         }
         let airborne = TnuaBuiltinWalk::displacement(&basis).is_none()
@@ -4426,6 +4424,31 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn walking_adjusts_to_a_valid_low_floor_beyond_the_step_height() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (drop, valid) in [(0.447, true), (0.4505, true), (0.46, false)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let far = Vec3::new(10.0, 0.9215, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(far), Transform::from_translation(far)));
+            let top = 2.0 - drop;
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, top - 0.1, 0.0)));
+            app.update();
+            let start = Vec3::new(0.0, 2.9215, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start), LocomotionState::Grounded));
+            app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+            if valid {
+                assert_eq!(mode, LocomotionState::Grounded, "drop={drop}");
+                assert!((position.y - (top + 0.9 + 0.0215)).abs() < 1e-4, "drop={drop} position={position:?}");
+            } else {
+                assert_eq!(mode, LocomotionState::Air, "a floor beyond the query range must not be accepted");
+            }
+        }
+    }
 
     #[test]
     fn second_sloped_impact_recomputes_air_control_and_respects_the_first_wall() {
