@@ -1,0 +1,1283 @@
+{
+  "gate": "PASS_NATIVE_LINE_REJECTION_AND_TARGET_LINE_CONSUMER_ABLATION",
+  "findings": [
+    "BF144-D293"
+  ],
+  "new_differences": 1,
+  "total_differences": 290,
+  "ordinal": 49,
+  "native": {
+    "line": {
+      "modes": [
+        "MOVE_Falling",
+        "MOVE_Falling",
+        "MOVE_Walking"
+      ],
+      "first_hit": {
+        "component": "AuditWall",
+        "penetrating": false,
+        "time": 0.09252817928791046,
+        "location_cm": {
+          "x": -1372.5682869964883,
+          "y": -1508.4931374173314,
+          "z": 90.02119454194967
+        },
+        "impact_point_cm": {
+          "x": -1352.4517842183795,
+          "y": -1488.3766393745555,
+          "z": 20.500003814697266
+        },
+        "trace_start_cm": {
+          "x": -1375.8261680603027,
+          "y": -1508.4931373596191,
+          "z": 90.12036323547363
+        },
+        "trace_end_cm": {
+          "x": -1351.680033427444,
+          "y": -1508.49313778736,
+          "z": 89.3853638360816
+        },
+        "normal": {
+          "x": -0.6705499264925483,
+          "y": -0.6705499197259511,
+          "z": 0.3173729686604685
+        },
+        "impact_normal": {
+          "x": -0.7071067907128405,
+          "y": -0.7071067480216797,
+          "z": 0
+        },
+        "normals_equal": false,
+        "edge_within_at_hit": true,
+        "move_stop_cm": {
+          "x": -1373.5919701858836,
+          "y": -1508.4931373991972,
+          "z": 90.05235507927019
+        },
+        "edge_within_at_move_stop": true,
+        "floor_at_move_stop": {
+          "walkable": true,
+          "line_trace": true,
+          "floor_dist_cm": 2.2523574829101562,
+          "component": "AuditLandingDeck",
+          "query_movement_mode": "MOVE_Falling",
+          "floor_hit": {
+            "component": "AuditLandingDeck",
+            "blocking": true,
+            "penetrating": false,
+            "time": 0.15867918729782104,
+            "location_cm": {
+              "x": -1373.5919701858836,
+              "y": -1508.4931373991972,
+              "z": 82.34054681872131
+            },
+            "impact_point_cm": {
+              "x": -1388.5919698565408,
+              "y": -1523.493137909638,
+              "z": 7.12734356871707
+            },
+            "normal": {
+              "x": 0.49999999901489944,
+              "y": 0.5000000037846449,
+              "z": 0.7071067792069708
+            },
+            "impact_normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "lower_hemisphere_cm": 22.340546818721307,
+            "impact_height_cm": 7.12734356871707,
+            "below_lower_hemisphere": true,
+            "edge_within": true,
+            "walkable": true
+          },
+          "valid_landing_spot": true
+        },
+        "walkable_hit": false,
+        "floor_at_hit": {
+          "walkable": true,
+          "line_trace": false,
+          "floor_dist_cm": 1.430511474609375e-06,
+          "component": "AuditWall",
+          "query_movement_mode": "MOVE_Falling",
+          "floor_hit": {
+            "component": "AuditWall",
+            "blocking": true,
+            "penetrating": false,
+            "time": 0.12345685064792633,
+            "location_cm": {
+              "x": -1372.5682869964883,
+              "y": -1508.4931374173314,
+              "z": 84.02119178884065
+            },
+            "impact_point_cm": {
+              "x": -1352.451788770239,
+              "y": -1488.3766439264148,
+              "z": 20.499988555908203
+            },
+            "normal": {
+              "x": -0.6705498846818443,
+              "y": -0.6705497542845332,
+              "z": 0.31737340654522
+            },
+            "impact_normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "lower_hemisphere_cm": 24.021191788840653,
+            "impact_height_cm": 20.499988555908203,
+            "below_lower_hemisphere": true,
+            "edge_within": true,
+            "walkable": true
+          },
+          "valid_landing_spot": true
+        }
+      },
+      "landed_events": [
+        [],
+        [],
+        [
+          {
+            "component": "AuditWall",
+            "blocking": true,
+            "penetrating": false,
+            "time": 0.45535117387771606,
+            "location_cm": {
+              "x": -1346.1385772296264,
+              "y": -1535.5189756512395,
+              "z": 88.65425036024631
+            },
+            "impact_point_cm": {
+              "x": -1325.7273500375668,
+              "y": -1515.1077495438606,
+              "z": 20.483352661132812
+            },
+            "normal": {
+              "x": -0.6803742634981664,
+              "y": -0.680374244892389,
+              "z": 0.2723632656149493
+            },
+            "impact_normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "lower_hemisphere_cm": 28.65425036024631,
+            "impact_height_cm": 20.483352661132812,
+            "below_lower_hemisphere": true,
+            "edge_within": true,
+            "walkable": true
+          }
+        ]
+      ]
+    },
+    "no-blocker": {
+      "modes": [
+        "MOVE_Walking",
+        "MOVE_Walking",
+        "MOVE_Walking"
+      ],
+      "first_hit": {
+        "component": "AuditWall",
+        "penetrating": false,
+        "time": 0.09252817928791046,
+        "location_cm": {
+          "x": -1372.5682869964883,
+          "y": -1508.4931374173314,
+          "z": 90.02119454194967
+        },
+        "impact_point_cm": {
+          "x": -1352.4517842183795,
+          "y": -1488.3766393745555,
+          "z": 20.500003814697266
+        },
+        "trace_start_cm": {
+          "x": -1375.8261680603027,
+          "y": -1508.4931373596191,
+          "z": 90.12036323547363
+        },
+        "trace_end_cm": {
+          "x": -1351.680033427444,
+          "y": -1508.49313778736,
+          "z": 89.3853638360816
+        },
+        "normal": {
+          "x": -0.6705499264925483,
+          "y": -0.6705499197259511,
+          "z": 0.3173729686604685
+        },
+        "impact_normal": {
+          "x": -0.7071067907128405,
+          "y": -0.7071067480216797,
+          "z": 0
+        },
+        "normals_equal": false,
+        "edge_within_at_hit": true,
+        "move_stop_cm": {
+          "x": -1373.5919701858836,
+          "y": -1508.4931373991972,
+          "z": 90.05235507927019
+        },
+        "edge_within_at_move_stop": true,
+        "floor_at_move_stop": {
+          "walkable": true,
+          "line_trace": false,
+          "floor_dist_cm": 2.252352237701416,
+          "component": "AuditLandingDeck",
+          "query_movement_mode": "MOVE_Walking",
+          "floor_hit": {
+            "component": "AuditLandingDeck",
+            "blocking": true,
+            "penetrating": false,
+            "time": 0.15453816950321198,
+            "location_cm": {
+              "x": -1373.5919701858836,
+              "y": -1508.4931373991972,
+              "z": 81.80000126456748
+            },
+            "impact_point_cm": {
+              "x": -1373.5919723510742,
+              "y": -1508.4931373596191,
+              "z": -2.200003814697265
+            },
+            "normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "impact_normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "lower_hemisphere_cm": 21.800001264567484,
+            "impact_height_cm": -2.200003814697265,
+            "below_lower_hemisphere": true,
+            "edge_within": true,
+            "walkable": true
+          },
+          "valid_landing_spot": true
+        },
+        "walkable_hit": false,
+        "floor_at_hit": {
+          "walkable": true,
+          "line_trace": false,
+          "floor_dist_cm": 1.430511474609375e-06,
+          "component": "AuditWall",
+          "query_movement_mode": "MOVE_Walking",
+          "floor_hit": {
+            "component": "AuditWall",
+            "blocking": true,
+            "penetrating": false,
+            "time": 0.11235938966274261,
+            "location_cm": {
+              "x": -1372.5682869964883,
+              "y": -1508.4931374173314,
+              "z": 84.02119181846892
+            },
+            "impact_point_cm": {
+              "x": -1352.451788770239,
+              "y": -1488.3766439264148,
+              "z": 20.499988555908203
+            },
+            "normal": {
+              "x": -0.6705498846818443,
+              "y": -0.6705497542845332,
+              "z": 0.31737340654522
+            },
+            "impact_normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "lower_hemisphere_cm": 24.02119181846892,
+            "impact_height_cm": 20.499988555908203,
+            "below_lower_hemisphere": true,
+            "edge_within": true,
+            "walkable": true
+          },
+          "valid_landing_spot": true
+        }
+      },
+      "landed_events": [
+        [
+          {
+            "component": "AuditLandingDeck",
+            "blocking": true,
+            "penetrating": false,
+            "time": 0.1698015183210373,
+            "location_cm": {
+              "x": -1373.5919701858836,
+              "y": -1508.4931373991972,
+              "z": 81.80000154796433
+            },
+            "impact_point_cm": {
+              "x": -1373.5919723510742,
+              "y": -1508.4931373596191,
+              "z": -2.200003814697265
+            },
+            "normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "impact_normal": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "lower_hemisphere_cm": 21.800001547964328,
+            "impact_height_cm": -2.200003814697265,
+            "below_lower_hemisphere": true,
+            "edge_within": true,
+            "walkable": true
+          }
+        ],
+        [],
+        []
+      ]
+    }
+  },
+  "target": {
+    "line": {
+      "before": {
+        "consumed_contact": true,
+        "floor": {
+          "center": 2.878000020980835,
+          "gap": 0.02252030372619629,
+          "impact": 1.9780000448226929,
+          "lower_hemisphere": 2.300520181655884,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": true,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ],
+        "position": [
+          -13.626540184020996,
+          2.9005203247070312,
+          -15.194319725036621
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 49,
+        "position": [
+          -13.626540184020996,
+          2.9005203247070312,
+          -15.194319725036621
+        ],
+        "published": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Air)",
+            "LocomotionState(Grounded)"
+          ]
+        ],
+        "velocity": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ]
+      }
+    },
+    "no-blocker": {
+      "before": {
+        "consumed_contact": true,
+        "floor": {
+          "center": 2.878005266189575,
+          "gap": 0.022514820098876953,
+          "impact": 1.9780000448226929,
+          "lower_hemisphere": 2.300520181655884,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": true,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          3.1154983043670654,
+          0.0,
+          -3.1154978275299072
+        ],
+        "position": [
+          -13.62653636932373,
+          2.900520086288452,
+          -15.194315910339355
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 49,
+        "position": [
+          -13.62653636932373,
+          2.900520086288452,
+          -15.194315910339355
+        ],
+        "published": [
+          3.1154983043670654,
+          0.0,
+          -3.1154978275299072
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Air)",
+            "LocomotionState(Grounded)"
+          ]
+        ],
+        "velocity": [
+          3.1154983043670654,
+          0.0,
+          -3.1154978275299072
+        ]
+      }
+    },
+    "line-capsule-only": {
+      "before": {
+        "consumed_contact": false,
+        "floor": {
+          "center": 2.878000020980835,
+          "gap": 0.02252030372619629,
+          "impact": 1.9780000448226929,
+          "lower_hemisphere": 2.300520181655884,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": true,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ],
+        "position": [
+          -13.626540184020996,
+          2.9005203247070312,
+          -15.194319725036621
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": false,
+        "mode": "Air",
+        "ordinal": 49,
+        "position": [
+          -13.626540184020996,
+          2.9005203247070312,
+          -15.194319725036621
+        ],
+        "published": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ],
+        "stored_contact": false,
+        "transitions": [],
+        "velocity": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ]
+      }
+    },
+    "no-blocker-capsule-only": {
+      "before": {
+        "consumed_contact": true,
+        "floor": {
+          "center": 2.878005266189575,
+          "gap": 0.022514820098876953,
+          "impact": 1.9780000448226929,
+          "lower_hemisphere": 2.300520181655884,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": true,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          3.1154983043670654,
+          0.0,
+          -3.1154978275299072
+        ],
+        "position": [
+          -13.62653636932373,
+          2.900520086288452,
+          -15.194315910339355
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 49,
+        "position": [
+          -13.62653636932373,
+          2.900520086288452,
+          -15.194315910339355
+        ],
+        "published": [
+          3.1154983043670654,
+          0.0,
+          -3.1154978275299072
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Air)",
+            "LocomotionState(Grounded)"
+          ]
+        ],
+        "velocity": [
+          3.1154983043670654,
+          0.0,
+          -3.1154978275299072
+        ]
+      }
+    },
+    "line-restored": {
+      "before": {
+        "consumed_contact": true,
+        "floor": {
+          "center": 2.878000020980835,
+          "gap": 0.02252030372619629,
+          "impact": 1.9780000448226929,
+          "lower_hemisphere": 2.300520181655884,
+          "name": "AuditLandingDeck"
+        },
+        "generated_contact": true,
+        "has_basis_displacement": false,
+        "manifolds": [],
+        "mode": "Air",
+        "ordinal": 49,
+        "planned_velocity": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ],
+        "position": [
+          -13.626540184020996,
+          2.9005203247070312,
+          -15.194319725036621
+        ],
+        "raw_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "requested_mode": null
+      },
+      "after": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 49,
+        "position": [
+          -13.626540184020996,
+          2.9005203247070312,
+          -15.194319725036621
+        ],
+        "published": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Air)",
+            "LocomotionState(Grounded)"
+          ]
+        ],
+        "velocity": [
+          3.1154987812042236,
+          0.0,
+          -3.1154978275299072
+        ]
+      }
+    }
+  },
+  "native_observer_disabled_motion_exact_frames": 52,
+  "source_line_passes_other_landing_qualifiers": true,
+  "target_alternate_floor_when_center_ray_disabled": true,
+  "restored_first_late_parameter_difference": {
+    "after": 56,
+    "before": 56,
+    "dynamics": 56
+  },
+  "decoded": {
+    "wall.native.json": {
+      "bytes": 56065640,
+      "sha256": "f2d9393a7b938540ab05a620d23886d2bf44b5ebbce59389b6e5a03bbf6a4ce0"
+    },
+    "runtime-line/parameters.json": {
+      "bytes": 909896,
+      "sha256": "f1b09f04f472182597d5e2898051118d359cb5f1cfa78bdce7af306852cdb5db"
+    },
+    "runtime-line/report.json": {
+      "bytes": 4301141,
+      "sha256": "fe8a3b7d76d81f5fa188055ef3a4051ee00e0d544d64767da269363f9b81c442"
+    },
+    "runtime-line/floor-provenance.json": {
+      "bytes": 51072,
+      "sha256": "79c7c92bfa3f671594d64c409d77c336a4884d6383d544dafb2c2d23f30bd452"
+    },
+    "runtime-no-blocker/parameters.json": {
+      "bytes": 1179485,
+      "sha256": "1a7686d2471153425b97759944a3fc0d22d4017b18957ade7897578aad42ca77"
+    },
+    "runtime-no-blocker/report.json": {
+      "bytes": 4300623,
+      "sha256": "403f2e497c7bcbf8941e2d7cc7daa4e921e35271d5c7dfac22e1f6b5b11d4235"
+    },
+    "runtime-no-blocker/floor-provenance.json": {
+      "bytes": 35420,
+      "sha256": "d035241b3184459c81bc2d3cc7416965ae24056af98fc96e3efab9193a877dc0"
+    },
+    "runtime-line-capsule-only/parameters.json": {
+      "bytes": 743245,
+      "sha256": "e603e9bb9e05e6a38617279a2b7cd280752b3faf10755c608873545388715fb8"
+    },
+    "runtime-line-capsule-only/report.json": {
+      "bytes": 4116250,
+      "sha256": "84a0d96f1ac3f7c2abae9bfe611cb09d533da029b4d83592e3020cb167aa87fb"
+    },
+    "runtime-line-capsule-only/floor-provenance.json": {
+      "bytes": 51072,
+      "sha256": "79c7c92bfa3f671594d64c409d77c336a4884d6383d544dafb2c2d23f30bd452"
+    },
+    "runtime-no-blocker-capsule-only/parameters.json": {
+      "bytes": 1181422,
+      "sha256": "aad75cac2a49e14a12852dce47d58d2796953ac08c6f559bd963efbdbbfd244d"
+    },
+    "runtime-no-blocker-capsule-only/report.json": {
+      "bytes": 4115426,
+      "sha256": "f5cb1809897dd43d9ffc8a3da2850e2fb1231d1a85639a8a561a3edd7801288a"
+    },
+    "runtime-no-blocker-capsule-only/floor-provenance.json": {
+      "bytes": 35420,
+      "sha256": "d035241b3184459c81bc2d3cc7416965ae24056af98fc96e3efab9193a877dc0"
+    },
+    "runtime-line-restored/parameters.json": {
+      "bytes": 907923,
+      "sha256": "244b5ac99a4fecadd670222e0a6d23f46539d6131b5ca4c7d9da35f53b3ada15"
+    },
+    "runtime-line-restored/report.json": {
+      "bytes": 4207411,
+      "sha256": "420e766f540f7eef82b0c1233b1a2578436b1b23a3dc01742b7ef96f6106e04f"
+    },
+    "runtime-line-restored/floor-provenance.json": {
+      "bytes": 51072,
+      "sha256": "79c7c92bfa3f671594d64c409d77c336a4884d6383d544dafb2c2d23f30bd452"
+    }
+  },
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/509/lean_observer.rs",
+      "bytes": 4911,
+      "sha256": "f3144b53b7bbdaa7e1887765e4204fb879bfcc817dd81129b8b4622eb7fbf562"
+    },
+    {
+      "path": "docs/audit/bf144/509/observer.py",
+      "bytes": 1531,
+      "sha256": "527610f484ac25a866d8f3b01f36a311f7f9774c3c8e4f68d205ac31949b041c"
+    },
+    {
+      "path": "docs/audit/bf144/510/acceleration_observer.rs",
+      "bytes": 2613,
+      "sha256": "3e39ba76053efc10be7d9140c532b97f2709986573480fdbdaca77e9eef1451c"
+    },
+    {
+      "path": "docs/audit/bf144/510/observer.py",
+      "bytes": 1468,
+      "sha256": "075da35b4b3901ab93954a19d413693642d6f0069bd8ad72408353ef0729a0fd"
+    },
+    {
+      "path": "docs/audit/bf144/512/observer.py",
+      "bytes": 2349,
+      "sha256": "828e7543b236a7036f7b1872805962c989508cd55572fc12ba1450beddcd05c4"
+    },
+    {
+      "path": "docs/audit/bf144/512/sprint_observer.rs",
+      "bytes": 4925,
+      "sha256": "993c6dbc6932341a5576c83de40fcf4889c69255be31b66aa58d57ea1fab51b1"
+    },
+    {
+      "path": "docs/audit/bf144/513/observer.py",
+      "bytes": 1530,
+      "sha256": "0b01e6d0443691ca250e8849a15d1b79bdf136d5959096642720d7e7b3731295"
+    },
+    {
+      "path": "docs/audit/bf144/513/profile.rs",
+      "bytes": 1829,
+      "sha256": "b345385468544195cbff4f8a3cb51e896c31b6233279363ffe5735221b484e22"
+    },
+    {
+      "path": "docs/audit/bf144/516/ledge_observer.rs",
+      "bytes": 6699,
+      "sha256": "0a38cc87160585f27167ca4f721372d8c74a4a5ae36874106541b3b8e3fd68d0"
+    },
+    {
+      "path": "docs/audit/bf144/516/observer.py",
+      "bytes": 1021,
+      "sha256": "acd345b24ef59286d47a3c8c6fc2c1959774a57c0f0d702e79541b12039655f1"
+    },
+    {
+      "path": "docs/audit/bf144/516/prepare_reader.py",
+      "bytes": 1369,
+      "sha256": "3f648519c89aec109ca6ecb2e0e91fd10c3c556778da9bd8bafecfa3a977fe11"
+    },
+    {
+      "path": "docs/audit/bf144/518/observer.py",
+      "bytes": 727,
+      "sha256": "f62603bd5d72504625d4371e0505fc434413d19a943575b4928131a934914d52"
+    },
+    {
+      "path": "docs/audit/bf144/518/vertical_observer.rs",
+      "bytes": 5297,
+      "sha256": "bc8f110c5fc1f7777569e2d914a1a5882427dbdc3e894be214f4c10ad10f6a5e"
+    },
+    {
+      "path": "docs/audit/bf144/519/native_wall.inc",
+      "bytes": 1081,
+      "sha256": "879f922b0d6d1bb7842e4f1179db5cd514ac7a91970568cf304cfcbcc79534b7"
+    },
+    {
+      "path": "docs/audit/bf144/519/observer.py",
+      "bytes": 677,
+      "sha256": "1abd318c28066b8550281797cd5411bb75a4ebcde07f4ef33ee42e9851e57e08"
+    },
+    {
+      "path": "docs/audit/bf144/519/prepare_reader.py",
+      "bytes": 769,
+      "sha256": "9280552f93fe2737e6914f29bacdac251ea4c11f73e596c1665cf2ac527eb9f6"
+    },
+    {
+      "path": "docs/audit/bf144/519/wall.native.json.gz",
+      "bytes": 5901043,
+      "sha256": "d660eef983589e29cfcd01e8dbb470d6f18c48c41ff66d4a7b95f389b4b0ce5b"
+    },
+    {
+      "path": "docs/audit/bf144/519/wall.package.json",
+      "bytes": 192,
+      "sha256": "125695771ce16c5a242382ebd4c06d9f34c11e4a5684f596a1fcd6f7297f46e2"
+    },
+    {
+      "path": "docs/audit/bf144/519/wall.request.json",
+      "bytes": 49308,
+      "sha256": "36212e46562b467edfa266415dae57942c67facf604033627ea0fe394365e11a"
+    },
+    {
+      "path": "docs/audit/bf144/519/wall_fixture.inc",
+      "bytes": 900,
+      "sha256": "4a0b5fbf54608ab53ac5c44dcacb29dd826a8e26341dd01d9a1bca66454e0508"
+    },
+    {
+      "path": "docs/audit/bf144/520/actual-comparison.json",
+      "bytes": 5431,
+      "sha256": "b4fef22c523d5798d56317c73138fed1dd120e5848082e780d54226c05d53118"
+    },
+    {
+      "path": "docs/audit/bf144/520/align_walking.rs",
+      "bytes": 3410,
+      "sha256": "197a9338ad72e34aa28a7479aad0a35a0c19871c73da84e429d7fd0f757c41b7"
+    },
+    {
+      "path": "docs/audit/bf144/520/observer.py",
+      "bytes": 1048,
+      "sha256": "909a12ad0bb149a9cbed1f9ec1c70758845a43f4589dcf910d85ba4e2efdf89a"
+    },
+    {
+      "path": "docs/audit/bf144/520/runtime-wall-162-aligned-air/parameters.json.gz",
+      "bytes": 76045,
+      "sha256": "bc2ea05070a8a454ea47d1a871dabae4dff352faf0ee5d5ac47d4e87cd4fb9e1"
+    },
+    {
+      "path": "docs/audit/bf144/520/wall.native.json.gz",
+      "bytes": 5901175,
+      "sha256": "7431fbcc0dfdf82e9a3e846e194ec7ed5476f78493fcedc969f0bd7bef0a1920"
+    },
+    {
+      "path": "docs/audit/bf144/520/wall.request.json",
+      "bytes": 49248,
+      "sha256": "b7063a2948e279c1e564ef5a46f3b8bab31b876cfc315e20a0c4e77bda107923"
+    },
+    {
+      "path": "docs/audit/bf144/521/geometry.native.json",
+      "bytes": 127976,
+      "sha256": "fb73bfb9502809a4dcc3a40527d6690cd4b51dea64765042ee75e4a1216b2784"
+    },
+    {
+      "path": "docs/audit/bf144/521/geometry.request.json",
+      "bytes": 1498,
+      "sha256": "2552f3a4091f7d743f4a35705fb1fb9f2450f8471e59b5072e4c282417e0e5e3"
+    },
+    {
+      "path": "docs/audit/bf144/521/observer.py",
+      "bytes": 739,
+      "sha256": "8c26ca2df3c7e33571f8a931a28b60be4008d4867426fce994044cd3bf1811b0"
+    },
+    {
+      "path": "docs/audit/bf144/521/runtime-wall-162-aligned-air/alignment.json",
+      "bytes": 329,
+      "sha256": "e74f0483a99da4a72a3a37fd1c48672ea2cab8286b41772800734f159cb414cf"
+    },
+    {
+      "path": "docs/audit/bf144/521/runtime-wall-162-aligned-air/fixture.json",
+      "bytes": 108,
+      "sha256": "8b3f303223b58af7de1227702298c7bf24187317f8d56ba9be83b5f9709dad66"
+    },
+    {
+      "path": "docs/audit/bf144/521/runtime-wall-162-aligned-air/parameters.json.gz",
+      "bytes": 76045,
+      "sha256": "bc2ea05070a8a454ea47d1a871dabae4dff352faf0ee5d5ac47d4e87cd4fb9e1"
+    },
+    {
+      "path": "docs/audit/bf144/521/runtime-wall-162-aligned-air/wall-trace.json",
+      "bytes": 2094,
+      "sha256": "138ac0fa824e78b06f831404f2fd5132dc5f2c1fd942e8e9d65ca319d0c360f7"
+    },
+    {
+      "path": "docs/audit/bf144/521/summary.json",
+      "bytes": 7236,
+      "sha256": "54bcddfdaf30679fd6dff3239caec53db51483ab73b53a0323d243f3c8d16b46"
+    },
+    {
+      "path": "docs/audit/bf144/521/trace.rs",
+      "bytes": 5192,
+      "sha256": "21cf766558dc648f97aa895ab923f3cbb1d36464422729aa861eb390f1770964"
+    },
+    {
+      "path": "docs/audit/bf144/522/contact.rs",
+      "bytes": 5144,
+      "sha256": "e7a64e870b9132e321e1b0fedb54bb1a7aa930f5260bed45cfc5df16f17ee225"
+    },
+    {
+      "path": "docs/audit/bf144/522/observer.py",
+      "bytes": 674,
+      "sha256": "11fba1cdc2674aa0aa8abdfc9c089df5dd763b70392a0d55ae5c71e7db88b1de"
+    },
+    {
+      "path": "docs/audit/bf144/522/runtime-baseline/profile.json",
+      "bytes": 12042,
+      "sha256": "348aa0a759ac6cb8cd3a4f6c56ad996a710c31c01b623b286646ab417fdff13d"
+    },
+    {
+      "path": "docs/audit/bf144/522/runtime-baseline/rig-definition.json",
+      "bytes": 193745,
+      "sha256": "1a9b6b50a38c323369f2fe9b936f3f066c400c17130f94415505772f5eda95ab"
+    },
+    {
+      "path": "docs/audit/bf144/522/runtime-baseline/skeleton.json",
+      "bytes": 80304,
+      "sha256": "58a247636ef78657479fc6476de23a7ae08252e12bb60854c20d6e2dc5ef5101"
+    },
+    {
+      "path": "docs/audit/bf144/522/runtime-baseline/state-reader-selftest.json",
+      "bytes": 361,
+      "sha256": "c4460d6e071b94fba958d8214276667597dc9b353e889798ec005ad23d856df4"
+    },
+    {
+      "path": "docs/audit/bf144/522/summary.json",
+      "bytes": 16730,
+      "sha256": "19c841d46514bed31acfbef32f56ef79a29f75d7a081bfd8f43c95b2d0f3df34"
+    },
+    {
+      "path": "docs/audit/bf144/523/deck.rs",
+      "bytes": 7118,
+      "sha256": "6a44b0ddd6a496c7418dbf903ef1da7269d767ed271de130ed6593d0387df25d"
+    },
+    {
+      "path": "docs/audit/bf144/523/deck_fixture.inc",
+      "bytes": 874,
+      "sha256": "398509f60da77ecf1d63806ca78fd81ce190234d1ca29088b130de11d97ccf6d"
+    },
+    {
+      "path": "docs/audit/bf144/523/initial.json",
+      "bytes": 282,
+      "sha256": "14c0d0c450400218c46f6c71ff2757c28df79ffef936371c15d9d36bd33dd0b8"
+    },
+    {
+      "path": "docs/audit/bf144/523/native_deck.inc",
+      "bytes": 979,
+      "sha256": "5ad031599da9769692a88464a018b6d90e77f849bea6eaa52eaa03532e1fb8dd"
+    },
+    {
+      "path": "docs/audit/bf144/523/native_initial.inc",
+      "bytes": 1021,
+      "sha256": "f76b1feec2d0103d77369dea676f6996ce1848fa1cd23210c00bee46a3e43154"
+    },
+    {
+      "path": "docs/audit/bf144/523/observer.py",
+      "bytes": 1678,
+      "sha256": "401322ce7c99a7d57d5536f2c260145b72c17e31bba726f8d4cbcc9d8b7ef8a5"
+    },
+    {
+      "path": "docs/audit/bf144/523/prepare_reader.py",
+      "bytes": 1310,
+      "sha256": "5c94c12f483bf462e1ef93cda388e4aa1cbeaa4996b98f605acd371dd23525f5"
+    },
+    {
+      "path": "docs/audit/bf144/523/summary.json",
+      "bytes": 28485,
+      "sha256": "59221b89053bba856c39c21cb8d404cf3b41747c519dea77a2bc8afabdf618ec"
+    },
+    {
+      "path": "docs/audit/bf144/523/wall.request.json",
+      "bytes": 24543,
+      "sha256": "57f19873d07fa16acea163d7aaff4c419979f76b396a1e4d3cc544769c557fbf"
+    },
+    {
+      "path": "docs/audit/bf144/524/observer.py",
+      "bytes": 1369,
+      "sha256": "d939935818196b45d2ded802e54e87b30012b3af611a665124f375ade2d0699d"
+    },
+    {
+      "path": "docs/audit/bf144/524/prepare_reader.py",
+      "bytes": 1479,
+      "sha256": "6bcb21f9c7e851d37f227297263619b4aab59127c7f33d43884c5bacfa8e5a66"
+    },
+    {
+      "path": "docs/audit/bf144/524/summary.json",
+      "bytes": 25388,
+      "sha256": "3f2241dd6d8964a3425126d851a83f6c5a1d4d374b11038ee1c6b8a88b392c24"
+    },
+    {
+      "path": "docs/audit/bf144/524/wall.request.json",
+      "bytes": 24638,
+      "sha256": "08c518cc1b1de4786df8cf36258c5c23555fc0e2804c8984b01643550e9447f1"
+    },
+    {
+      "path": "docs/audit/bf144/525/AlsAuditBlockingHitObserver.h",
+      "bytes": 573,
+      "sha256": "fff0b438f606bb59ffbda9d03b01a255176eb8786c97f5325d23c928624e9c9b"
+    },
+    {
+      "path": "docs/audit/bf144/525/capture_hits.inc",
+      "bytes": 2611,
+      "sha256": "5b1a37f2c94b37e31296d5cf99f4767b383383ac9dc8f16eeb9c76bf1cb3dded"
+    },
+    {
+      "path": "docs/audit/bf144/525/observer.py",
+      "bytes": 228,
+      "sha256": "7ddf733e88e3f1f207fec992aabd1f3a179740abccb3ccb57bcec60073298625"
+    },
+    {
+      "path": "docs/audit/bf144/525/prepare_reader.py",
+      "bytes": 2806,
+      "sha256": "a8d03bcd332aacd008c65d0965dc07d6871ad846c4cf047377222c780c899217"
+    },
+    {
+      "path": "docs/audit/bf144/525/summary.json",
+      "bytes": 23645,
+      "sha256": "8ed14d0ddc563521b78dedb3a34de789d086a73d701a4eb7c78b40cac67976f8"
+    },
+    {
+      "path": "docs/audit/bf144/525/wall.request.json",
+      "bytes": 24700,
+      "sha256": "287b2f8d7239eec86154c38b8616afaf58fec15c42b39e36a1c25a503a037c1d"
+    },
+    {
+      "path": "docs/audit/bf144/526/final-source.json",
+      "bytes": 364,
+      "sha256": "b282fd51241311f9be4c2fd2dc037a8fb700986b04552cddcc699e565392c02e"
+    },
+    {
+      "path": "docs/audit/bf144/526/identity-check.json",
+      "bytes": 331,
+      "sha256": "ce41b2f26d4ae669114c0733832f6af1149c9a436fef310a57f1a7fe7eab024d"
+    },
+    {
+      "path": "docs/audit/bf144/526/observer.py",
+      "bytes": 1391,
+      "sha256": "d2289a8424d40215ab2fe81b72be11d99ebdf801a984e3067fff7ca3485ea0da"
+    },
+    {
+      "path": "docs/audit/bf144/526/prepare_reader.py",
+      "bytes": 2544,
+      "sha256": "3b2b60aba57849630634aa8f94dd602d7959ca57d16f65a98821b2d590e0ff65"
+    },
+    {
+      "path": "docs/audit/bf144/526/reader-source.json",
+      "bytes": 282,
+      "sha256": "86aa95631ae8f0d3fc643351f7f51923df55df28ddc4edfafaebd891cf1e503f"
+    },
+    {
+      "path": "docs/audit/bf144/526/summary.json",
+      "bytes": 50097,
+      "sha256": "02fa3a06a451886bac79837a7ef3b5e312ac414b76ffa77cca21275411622cc3"
+    },
+    {
+      "path": "docs/audit/bf144/526/wall.package.json",
+      "bytes": 192,
+      "sha256": "2af98c002bebdc8f2363951eeeb00c88fcec3ac7c63e3cc2825de44ae97e44ac"
+    },
+    {
+      "path": "docs/audit/bf144/526/wall.request.json",
+      "bytes": 49350,
+      "sha256": "f49b0736ef938e4ceb6057dd909dfbcb6c139bd17c15ed21d4f8c9f9221ea548"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-205/contact-after-49.json",
+      "bytes": 354,
+      "sha256": "7293d1a33371ebed970c568e8552f9c087de5dfa11aa71408511195a57041d09"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-205/contact-after-50.json",
+      "bytes": 385,
+      "sha256": "b3541cd7cb9263bd7153a95e0807e48ac73b6a4115974415630c236266a8fd92"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-205/contact-before-49.json",
+      "bytes": 598,
+      "sha256": "4650b0f974ff757078bfc3678c851632af15ae37f2f0950a79e54ff3fa5f750d"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-205/contact-before-50.json",
+      "bytes": 615,
+      "sha256": "8ebf752df4da152d67189097147c568fabf1acf9647fea3e322c5ab4a920b2dd"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-205/initial-observed.json",
+      "bytes": 1013,
+      "sha256": "5ab97922fb6446a1973d8f1e70debe855d56fec9f5db53349cbe1e761adb72b3"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-205/parameters.json.gz",
+      "bytes": 110329,
+      "sha256": "67675507e05c72b09c90c7f8172b4cd370908582878d1bce23218f0467a6cc75"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-205/stage-after.json",
+      "bytes": 349,
+      "sha256": "07c08b61a40a21404a15401d70b370415c6a04f9d290b6dba4d0ef2565b50ad6"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-215/parameters.json.gz",
+      "bytes": 110400,
+      "sha256": "6a2e2c0b49820feb2443edc0b10ef04ab38b10e692e26f24b074bac8a03c5c16"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-225/contact-after-49.json",
+      "bytes": 352,
+      "sha256": "567eba80eb436116fda310d4e28ec7bd2816428bdee1003cfe6c961d2c9c2d61"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-225/contact-after-50.json",
+      "bytes": 385,
+      "sha256": "b10f338c4513ab36b5b2c4802bdf2ea442392645651f5f08bdbabf38e3d81410"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-225/contact-before-49.json",
+      "bytes": 594,
+      "sha256": "3767ef481cd05e83e075c1e2257f6c65ba8fc4abc670aa37ebe582be4f734411"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-225/contact-before-50.json",
+      "bytes": 611,
+      "sha256": "151b25d76dfc7564f63cac0e5efacfa650e932e6b92cd93d56e97c8fb4a4d0b5"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-225/initial-observed.json",
+      "bytes": 1011,
+      "sha256": "dbd7e92c67a90c910a91a831e76023646a115fd51e7641ad4274519fc9dd1850"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-225/parameters.json.gz",
+      "bytes": 110674,
+      "sha256": "3001f0e66f8ab662dd74939e265d59018d93f537dea0c5df054a204e851a03ac"
+    },
+    {
+      "path": "docs/audit/bf144/527/runtime-top-225/stage-after.json",
+      "bytes": 349,
+      "sha256": "6bd4a4cd4fed7bf6e31b912798958293159af90d50bfe89404e46fc1b5de3fd1"
+    },
+    {
+      "path": "docs/audit/bf144/527/summary.json",
+      "bytes": 40357,
+      "sha256": "d9804c30be2401e201cbf22230ee34da0598f56260838c44bd547f876f1ff987"
+    },
+    {
+      "path": "docs/audit/bf144/527/target-binary.json",
+      "bytes": 158,
+      "sha256": "3514962e7104148afa88051458c584901be55203ca3aa8f1bfb9211cbe8e120a"
+    },
+    {
+      "path": "docs/audit/bf144/527/wall.request.json",
+      "bytes": 74053,
+      "sha256": "206ff597fd4cf181c1896f15ed121ce02ebeb4b808fe0b953c841c2dcebeba37"
+    },
+    {
+      "path": "docs/audit/bf144/528/floor_hit.inc",
+      "bytes": 1758,
+      "sha256": "79e7bc60c099a12c97fdb3eaf6e9491b9c017d22d11efad1dd83bc55ad94f319"
+    },
+    {
+      "path": "docs/audit/bf144/528/prepare_reader.py",
+      "bytes": 3384,
+      "sha256": "eb720f672a9d55f5ad96c5e9bd3d9af729c694916b906773a9e606a19a775879"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215-raised/contact-after-49.json",
+      "bytes": 439,
+      "sha256": "40e2986a942333abc598aeb973d645ad9760eed0ddbb93101a6a43c8161df384"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215-raised/contact-after-50.json",
+      "bytes": 359,
+      "sha256": "39f4cd5146ca8aba327703312a80dcf5312f92822a48defef17990dc4d9e2b43"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215-raised/contact-before-49.json",
+      "bytes": 596,
+      "sha256": "c2dcb8902610ded95516af64ce15c14c36fa71b42d92c75a65008e973b041ba7"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215-raised/contact-before-50.json",
+      "bytes": 578,
+      "sha256": "3afd948cb157bb55284f6e42ae2bd07fb3b920f3af3b32a94a182048b3190551"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215-raised/initial-observed.json",
+      "bytes": 1015,
+      "sha256": "b2187d5517fd445fb447f34143a6b7019fe0b22c2ea2fd63e41634996b32b2b0"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215-raised/parameters.json.gz",
+      "bytes": 129528,
+      "sha256": "7e1bd799f7f172d5ce52f08bb8cf443f803c0ee81ae3e8fa5685aea21d951e1f"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215-raised/stage-after.json",
+      "bytes": 351,
+      "sha256": "8c7e845cf2cceeac16ccafcaeacdebcf1bdff162e28ac2e6aaf1eef69ad525d6"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215/contact-after-49.json",
+      "bytes": 356,
+      "sha256": "9e6710eb10db461dec971631f73571f1ca8bb2f653b1ea05f8195d0851aab518"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215/contact-after-50.json",
+      "bytes": 387,
+      "sha256": "1de279a6fcc97d56b960de1afa72225d30c5513c9656c53d21a77ddb4f3e48f1"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215/contact-before-49.json",
+      "bytes": 596,
+      "sha256": "88836680ba234d8e1d6f64769199d122a1bf5a29b960e9bce66c5c6ecea9e2a6"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215/contact-before-50.json",
+      "bytes": 617,
+      "sha256": "e9ba885384e229fe19d67ee5d01de84db707609234c2276f24b1f3e90f51b6b7"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215/initial-observed.json",
+      "bytes": 1015,
+      "sha256": "b2187d5517fd445fb447f34143a6b7019fe0b22c2ea2fd63e41634996b32b2b0"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215/parameters.json.gz",
+      "bytes": 110400,
+      "sha256": "6a2e2c0b49820feb2443edc0b10ef04ab38b10e692e26f24b074bac8a03c5c16"
+    },
+    {
+      "path": "docs/audit/bf144/528/runtime-top-215/stage-after.json",
+      "bytes": 351,
+      "sha256": "8c7e845cf2cceeac16ccafcaeacdebcf1bdff162e28ac2e6aaf1eef69ad525d6"
+    },
+    {
+      "path": "docs/audit/bf144/528/summary.json",
+      "bytes": 36672,
+      "sha256": "ed896f2e2bce67f6c328d5a758fec82bb096c1fc3d4a860c1b75af22c592ee2e"
+    },
+    {
+      "path": "docs/audit/bf144/528/wall.request.json",
+      "bytes": 61696,
+      "sha256": "b57f550f0c0c716c577e9ef55041e4e4b699bb8146c1daed5463801fd17a3005"
+    },
+    {
+      "path": "docs/audit/bf144/529/floor_trace.rs",
+      "bytes": 3517,
+      "sha256": "48441c6c484bd4454abe006e88d4561e12d96b258ac5d59a363225f9aee30c11"
+    },
+    {
+      "path": "docs/audit/bf144/529/observer.py",
+      "bytes": 7869,
+      "sha256": "a48fdc986c039bf58a16d764db2fc6d87fda5e5e71a6e9fa3553f8fe7ede19dd"
+    }
+  ]
+}
