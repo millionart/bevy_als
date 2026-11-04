@@ -3701,8 +3701,7 @@ fn grounded_movement_transaction(
     }
     if initial_floor_y.is_some() && find_ground_floor(&spatial_query, destination.with_y(next_y), half, radius,
         cmc, mode, &filter, entity, &candidates).is_none() { return Some(result); }
-    if (next_y - center.y).abs() > MAX_STEP_HEIGHT
-        || initial_floor_y.is_some_and(|initial| floor.point1.y - initial > MAX_STEP_HEIGHT) {
+    if initial_floor_y.is_some_and(|initial| floor.point1.y - initial > MAX_STEP_HEIGHT) {
         return Some(result);
     }
     if initial_floor_y.is_some() && spatial_query.shape_intersections(capsule, destination.with_y(next_y),
@@ -4424,6 +4423,32 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn step_height_uses_the_floor_impact_instead_of_the_adjusted_capsule_center() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (height, gap, accepted) in [(0.446, 0.0215, true), (0.449, 0.0215, true),
+            (0.449, 0.003, true), (0.451, 0.0215, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 3.0),
+                Transform::from_xyz(-15.0, 1.9, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.5, height, 2.0),
+                Transform::from_xyz(-13.4, 2.0 + 0.5 * height, -15.0)));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.98, 2.9 + gap, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+            }).unwrap().unwrap();
+            assert_eq!(result.2.is_some(), accepted, "height={height} gap={gap} result={result:?}");
+        }
+    }
 
     #[test]
     fn walking_adjusts_to_a_valid_low_floor_beyond_the_step_height() {
