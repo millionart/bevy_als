@@ -1,0 +1,44 @@
+{
+  "boost_y": 0.0,
+  "collision_velocity": null,
+  "effective_y": 18.92858123779297,
+  "float_height": 0.9239999651908875,
+  "mode": "Grounded",
+  "move_start": [
+    -13.891131401062012,
+    2.9012036323547363,
+    -15.0
+  ],
+  "neutralized": false,
+  "ordinal": 49,
+  "original_y": 18.92858123779297,
+  "position": [
+    -13.802875518798828,
+    2.9012036323547363,
+    -15.0
+  ],
+  "proximity": 0.9012035131454468,
+  "sensor_base_velocity": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "sensor_normal": [
+    0.0,
+    1.0,
+    6.646665440257493e-8
+  ],
+  "spring": 9.11858081817627,
+  "spring_offset": -0.022796452045440674,
+  "strength": 400.0,
+  "tracker_gravity": [
+    0.0,
+    -9.8100004196167,
+    0.0
+  ],
+  "velocity": [
+    5.555089473724365,
+    0.0,
+    0.0
+  ]
+}
