@@ -4133,6 +4133,12 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.566 Walking 同帧先换基座后走离的速度。依赖565实体选择及.11走离继承。100ms两步，第一从旧台到窄新台，第二走离；新台只沿横向运动。原生另用同首50ms控制证明实际设新基座，目标记录同位置floor、旧支持和发布。按当前与历史查重，分离D312起跳、D34竖直量及D287输入缓存。开始2026-11-04 23:14:11 +0800，预估结束2026-11-04 23:59:11 +0800。参考565约6分钟，估45分钟含窄台几何及原生首步控制。截图0，性能暂停。
+  - 23:15 source/static：UE PhysWalking每步可走floor后SetBaseFromFloor，下一步StartFalling读此基座；目标多步回调只保floor有效布尔，外层固定整帧的初始support。历史.11与BF134.K15a2覆盖单基座/整帧携带，未找到同帧先换台再离开的速度实证。
+  - 23:17 runtime Gate 前：原生首50ms已确认新台成为基座，100ms两组离地时分别读到横向100/0cm/s。目标探针编译通过，使用真实Playground同一初始基座与窄台，验证子步floor及最终马达输出。
+  - runtime Gate 后：原生首步实际绑定窄台，Playground同首步位置的floor选中窄台；双步均离地，末位置在2μm内。窄台横向1m/s组仅原生继承该量，目标和静止组均约0。两组功能Gate通过。
+  - 完成 Gate `PASS_WALKING_SWITCHED_BASE_AT_SECOND_STEP_DEPARTURE`。watchdog、396身份/六库、9份原始报告解压哈希及暂存隐私检查通过。查重后新增D313/P2，累计309（142 P2、167 P3）。实际结束2026-11-04 23:19:39 +0800，实耗328秒，偏差-2372秒；已具首步与原生fixture的同类双平台可参考6–10分钟。证据 `docs/audit/bf144/566/`。截图0，性能暂停。
+
 - [x] BF144.565 起跳同帧支撑改选时的速度所有者。依赖.11/D33/D36的源基座与顺序。真实站稳旧平台，跳键帧分别保持/抬高新平台，旧新水平速度方向相反。核源实际跳入Air前的基座及继承、目标上一帧基座与跳键帧传感器/马达，证明是否读错实体。开始2026-11-04 23:06:50 +0800，预估结束2026-11-04 23:51:50 +0800。参考564约5分钟，估45分钟含双平台与输入顺序。截图0，性能暂停。
   - 23:09 source/static：fresh UE CheckJumpInput先于PerformMovement，ApplyImpartedMovementBaseVelocity读MovementBase；目标Air动力可从Tnua当帧standing_on_entity覆盖旧entity。查现行、归档和Git历史无同一基座改选跳跃条目；D33是同组件速度来源，D36是跟随位置时序。待实际是否发生改选。
   - 23:10 runtime Gate 前：目标构建通过，两个平台在实际Playground站稳；q49施加同速度并只改变新台高度。原生提取的插入锚点首轮重复，已收窄锚点重新构建；两端将记录跳键帧和基座。
@@ -4763,6 +4769,10 @@
   - .465a时间：开始2026-11-02 06:52:00、预估结束07:32:00、实际结束07:26:24 +0800，实耗34:24、偏差−05:36；结果PASS。含4次package构建38/66/55/54秒、实际两319/1276 states、getter与类型guard两消融/字节恢复及完整旧域/Git；首mutation/build重叠已由全包消融源码一致性核验，最终恢复按完整顺序执行。相同opaque struct无反射成员且已具work memory的诊断能力按约35分钟参考。父465本轮source事实与读数前置尚开，下一按真实native state恢复数学等价审计，不填造动态数据。
 
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D313 / P2 — Walking 同帧换台后走离，继承帧初旧台速度。
+  - Source：每个 Walking 子步在可走 floor 上调用 SetBaseFromFloor，进入 Falling 时继承最后绑定基座的速度。Target：子步仅返回 floor 是否有效，外层离地时加上整帧开始的 support_velocity。
+  - 反例：100ms 内首步从静止旧台切到横向1m/s的新台，第二步走离。两端位置一致，原生 Falling 继承1m/s，目标约0。新台静止时两端均约0。D312覆盖跳键帧的实体选择。证据 `docs/audit/bf144/566/`。
 
 - [ ] BF144-D312 / P2 — 起跳帧基座改选时，速度继承从新传感器实体读取。
   - Source：CheckJumpInput先于当帧运动和地面更新，ApplyImpartedMovementBaseVelocity读取已绑定旧基座。Target Air动力用Tnua当帧standing_on_entity覆盖上一帧的基座实体。
