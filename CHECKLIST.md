@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.531 自然perch替代的floor分类与落地。依赖530。保20.5墙和侧挡板，将低台左边移到x约−13.61，中心射线错过但窄胶囊可达。记录原生宽胶囊、窄胶囊和合并后Hit、bLineTrace及实际Landed，目标实际重放对照关perch与只拒真实line/拒perch替代的消费者控制。若实际新差独立于D293则登记。开始2026-11-04 19:28:13 +0800，预估结束2026-11-04 20:13:13 +0800。参考530约5分钟，加入原生perch完整读数及选择性控制，估45分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh UE FindFloor在宽胶囊不走、perch有效时调用SetFromLineTrace，保宽Hit的Time/ImpactPoint/Location但换地面对象及法线；Falling消费排除该标志。目标当前if !valid只换hit，保宽距离及初次line标志。共同几何仅移动低台横向0.15m，保墙、挡板及入射。截图0。
+  - 真实Gate后：中心射线实际miss，源宽胶囊挡板无效，15cm窄胶囊非line命中低台；合并后保宽ImpactPoint和1.7118cm SweepDist、LineDist=1.9cm并置bLine，二次资格true仍49/50 Falling。目标同帧也实际perch替代，保持宽距离但换低台point、line仍false，49 Grounded。只拒真实line不改结果，选择性拒perch替代后49 Air。确认D294，补胶囊正对照和封存。截图0。
+  - Gate通过。原生52帧观察开关与宽/窄/合并和实际Landed；目标六次功能、三位置公开重放及真实line/合成perch两控制和无挡板正对照。恢复关键帧精确，整段参数首差56。隔离包、六库/396身份及140份Git证据通过。新增D294/P2，累计291（124P2/167P3）。实际结束2026-11-04 19:32:54 +0800，实耗281秒，偏差-2419秒。证据 docs/audit/bf144/531/summary.json。截图0，性能暂停。
+  - 后继边界：本轮证明宽结果无效而窄胶囊有效的替代路径。另有原宽结果有效、窄胶囊失败时取消支撑的路径，需单独核实际边界及停留/落地状态。
+
 - [x] BF144.530 真实line地面回查与Falling发布。依赖529。保持20.5墙与Falling起点，轻微抬宽低台，在角色另一侧放45°薄挡板，挡向下胶囊但留中心射线，并用去挡板和原生关闭观察对照。要求真实首墙Hit与入射保持、原生bLineTrace及Landed、目标实际公开floor逐值重放及关中心射线控制，才补D291或独立分类。开始2026-11-04 19:20:48 +0800，预估结束2026-11-04 20:10:48 +0800。参考529约4分钟与528原生隔离构建，另留实际几何失配纠正，估50分钟。截图0，性能暂停。
 
   - 真实Gate前：fresh UE ComputeFloorDist只在已有无效胶囊结果后允许中心line，PhysFalling回查显式排除line。45°挡板两向上几何面均低于walkable阈值，按初态下半球留2mm竖直接触间隙，使它挡向下胶囊且避开中心射线；保留同墙无挡板。截图0。
@@ -4534,6 +4541,10 @@
   - .465a时间：开始2026-11-02 06:52:00、预估结束07:32:00、实际结束07:26:24 +0800，实耗34:24、偏差−05:36；结果PASS。含4次package构建38/66/55/54秒、实际两319/1276 states、getter与类型guard两消融/字节恢复及完整旧域/Git；首mutation/build重叠已由全包消融源码一致性核验，最终恢复按完整顺序执行。相同opaque struct无反射成员且已具work memory的诊断能力按约35分钟参考。父465本轮source事实与读数前置尚开，下一按真实native state恢复数学等价审计，不填造动态数据。
 
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D294 / P2 — perch 替代缺少源合成line标志及宽胶囊命中字段，导致提前落地。
+  - UE FindFloor在宽胶囊不走、窄胶囊perch有效时调用SetFromLineTrace，保宽命中的ImpactPoint、Location、Time和SweepDist，换对象与法线并置bLineTrace。目标只换hit，保宽距离但不合并原命中字段或提升line分类。
+  - 中心射线实际miss的20.5cm墙案，源15cm窄胶囊命中低台，合并二次资格仍true但49/50保持Falling、51才落地。目标49由perch替代发布Grounded，仅拒真实中心射线的控制不影响；只加perch替代拒绝则同一事务49保持Air。D293的真实中心射线控制无法覆盖此路径。证据 docs/audit/bf144/531/summary.json。
 
 - [ ] BF144-D293 / P2 — Falling 边缘回查把中心射线地面用于胶囊落地资格。
   - UE要求边缘回查的FloorResult非line后才可落地，独立IsValidLandingSpot通过也不能越过该条件。目标公开floor丢弃line来源，后置墙contact可消费射线地面直接发布Grounded。

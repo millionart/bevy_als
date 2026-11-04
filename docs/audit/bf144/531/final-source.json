@@ -1,0 +1,8 @@
+{
+  "observer.py": "d387c2a2a8d0bbfbe76f442165a330b9f1b29111ad8dfe679ac3897a2cad9635",
+  "prepare_reader.py": "446f1951cd16e20a42f716c2f8c654f8da350812ca0e85da52b26be52fe6f4d7",
+  "perch_query.inc": "704321103078343cf2db995c0619e0c211530254b17ea0d5cc0b9944c8fef270",
+  "prepare_request.py": "8d394385c69a53955bf540f4a341c97f10d444657254d75e8669d20f3a1836db",
+  "contact_control.inc": "e4931b45498bbc40d3791df47b9c5af165b8e743d91b5df0793e8cc464d565f2",
+  "observer-rustc-args.json": "7538bead869b87e3d41d9df6a8c3daa97332429ed4f2e35eea41c2fd1732cd73"
+}
