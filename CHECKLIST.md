@@ -5024,7 +5024,7 @@
   - 修复第1轮：开始2026-11-05 03:49 +08:00；预估结束04:14 +08:00。依据：530已有真实射线与无挡板对照，D294已保留floor来源；补齐真实line合并和消费资格，测试统一后置。
   - 03:50实现摘要：fresh核真实射线的宽命中字段合并及Falling边缘回查非line守卫，证据 `docs/audit/bf144/d293/source-facts.json`。真实line现保留宽扫掠点/时间并使用射线对象/法线；墙接触引起的边缘落地只接受胶囊sweep，真实可走直接接触仍保留。已扩展530/531射线、合成perch和无挡板对照，尚未执行。实现结束03:50、偏差−24分钟；测试、消融与真实入口 Gate 待整体实现完成，不视为已验证。首墙资格和查询时点仍由D291/D292处理。
 
-- [ ] BF144-D292 / P2 — Falling 的有效边缘回查没有在撞击点交还 Walking 余时。
+- [x] BF144-D292 / P2 — Falling 的有效边缘回查没有在撞击点交还 Walking 余时。
   - BF144.532 晚查也可提前发布。16cm墙顶同宽Hit可走，低台中距时源停止点窄胶囊失败、49/50仍Air，51才Land。目标自身和源停止点重查同样无floor，却在Falling滑动后才由窄胶囊找到低台并49 Grounded。只要求停止点已支持则恢复51，近距保持49。证据 docs/audit/bf144/532/summary.json。
   - BF144.529 查询阶段取证。21.5cm原案在目标和源拉回停止点查到短射线修正后的墙顶，目标继续滑动后才由第一胶囊选低台；12位置实际结果均为胶囊。该案候选变化随查询位置发生，保留line消费者为独立待证边界。证据 docs/audit/bf144/529/summary.json。
   - BF144.528 实际低台Landed。21.5cm墙顶的原案二次floor Hit因高于下半球0.4611cm被拒；只抬低台5mm后第一墙Hit保持，源以低台触发Landed，49用余35.83426ms走23.29227cm。目标撞墙运动不变，49只在PostUpdate转Grounded。证据 docs/audit/bf144/528/summary.json。
@@ -5032,6 +5032,7 @@
   - UE PhysFalling通过边缘回查的非line floor后，ProcessLanded以未消费步长继续StartNewPhysics，实际同帧进入Walking。目标falling_movement_sweep只在自身命中法线可走时返回余时，边缘命中走Falling slide；PostUpdate只发布Grounded并清速度，没有继续同帧Walking。
   - 16cm墙顶的第49帧，源首墙Normal.z=0.46410、ImpactNormal.z=0，pullback后在边缘容差内，独立capsule floor为墙顶。源剩30.85582ms，第二次纯水平Walking sweep前进20.05628cm，接着执行StepUp；角色帧末中心映射约3.05136m。目标同帧Grounded但只执行Falling滑动，发布前后位置相同，帧末中心约2.89970m。资格放宽和余时交接是可分别观察的机制；D291记录无资格碰撞导致的提前发布。证据 docs/audit/bf144/526/summary.json。
   - 修复第1轮：开始2026-11-05 03:53 +08:00；预估结束04:48 +08:00。依据：526–532已有命中点、地面结果和余时证据；有效边缘回查依赖D291先区分接触与几何法线及边缘资格，先处理D291，测试统一后置。
+  - 04:22实现摘要：fresh核源撞击停止点的非line地面、二次半球/边缘资格、已提供下扫命中复用及余时交接，证据 `docs/audit/bf144/d292/source-facts.json`。目标保留下扫轨迹数据，在碰撞点验证成功后立即返回Walking预算；失败保留本帧Air，避免后续滑动位置的晚查询提前落地。已写526/528/532内外边缘、低台/窄支撑及实际Walking预算用例，尚未执行。实现结束04:22、偏差−26分钟；测试、消融和真实入口 Gate 待整体实现完成，不视为已验证。
 
 - [x] BF144-D291 / P2 — Falling 微倾墙面的正法线可绕过源落地回查资格，提前落地。
   - BF144.526 容差外边缘。源实际Normal/ImpactNormal不同且可查到非line低台，但pullback后边缘容差失败，49/50仍Falling，51才Walking；目标49已Grounded。证据 docs/audit/bf144/526/summary.json。
