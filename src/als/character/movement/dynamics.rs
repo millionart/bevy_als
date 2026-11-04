@@ -284,6 +284,14 @@ pub(crate) fn source_movement_time_step(remaining: f32, cmc: &CmcAdapterParams, 
     } else { remaining }).max(MIN_MOVEMENT_DELTA_SECONDS)
 }
 
+pub(crate) fn walking_fall_remaining(remaining: f32, step: f32, desired_distance: f32, applied: Vec3) -> f32 {
+    if desired_distance < crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE {
+        0.0
+    } else {
+        remaining + step * (1.0 - (applied.with_y(0.0).length() / desired_distance).min(1.0))
+    }
+}
+
 pub(crate) fn simulate_grounded_motion_until_mode_change(
     velocity: Vec3, desired_motion: Vec3, max_speed: f32, dynamics: GroundedDynamics,
     cmc: &CmcAdapterParams, braking_friction_factor: f32, delta_seconds: f32,
@@ -311,12 +319,7 @@ pub(crate) fn simulate_grounded_motion_until_mode_change(
         substeps += 1;
         displacement += applied;
         if !continue_walking {
-            let desired_distance = current.length() * step;
-            remaining = if desired_distance < crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE {
-                0.0
-            } else {
-                remaining + step * (1.0 - (applied.with_y(0.0).length() / desired_distance).min(1.0))
-            };
+            remaining = walking_fall_remaining(remaining, step, current.length() * step, applied);
             break;
         }
         current = actual_velocity;
@@ -1138,6 +1141,15 @@ mod tests {
                 |_, _| (Vec3::ZERO, Vec3::ZERO, false));
             assert_eq!(remaining, 0.0, "Source near-zero desired movement discards the unused time: speed={speed}");
         }
+    }
+
+    #[test]
+    fn single_step_refund_matches_recorded_wall_and_unblocked_travel() {
+        let step = 1.0 / 30.0;
+        let desired = 0.194159105;
+        let blocked = walking_fall_remaining(0.0, step, desired, Vec3::X * 0.14146172);
+        assert!((blocked - 0.009047115).abs() < 1e-8);
+        assert_eq!(walking_fall_remaining(0.0, step, desired, Vec3::X * desired), 0.0);
     }
 
     #[test]

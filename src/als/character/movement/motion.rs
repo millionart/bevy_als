@@ -4196,6 +4196,55 @@ pub(crate) fn cmc_movement_transaction_system(
             if find_ground_floor(&spatial_query, destination, half, radius, &params.cmc, *loco,
                 &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates).is_none() {
                 motor.lin.acceleration.y = -gravity.value.y;
+                if !root_motion_active
+                    && physics_modes.get(entity).is_ok_and(|(body, _, custom)| *body == RigidBody::Dynamic && !custom)
+                    && !walking_floor_penetrates(&spatial_query, destination, half, radius, entity, &candidates) {
+                    let remaining_time = crate::als::dynamics::walking_fall_remaining(0.0, delta_seconds,
+                        delta.length(), destination - center);
+                    let support = base.as_deref().filter(|base| base.entity.is_some())
+                        .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));
+                    let initial_velocity = base.as_deref().and_then(|base| base.pre_collision_velocity)
+                        .map_or(next_velocity.with_y(0.0), |relative| relative.with_y(0.0) + support);
+                    let terminal = physics_modes.get(entity).ok().and_then(|(_, volume, _)| volume)
+                        .unwrap_or(&default_volume.0).terminal_velocity;
+                    let max_speed = runtime.grounded_max_speed;
+                    let mut falling_start = *transform;
+                    falling_start.translation = destination;
+                    *loco = LocomotionState::Air;
+                    transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
+                        from: StateValue::LocomotionState(LocomotionState::Grounded),
+                        to: StateValue::LocomotionState(LocomotionState::Air) });
+                    let (moved, falling_velocity, _, contact, mode, floor, grounded_max_speed, collision_mode) =
+                        falling_movement_transaction(&spatial_query, capsule, falling_start, initial_velocity,
+                            controller.basis.desired_motion, max_speed, params, gravity.value,
+                            grounded, landing, terminal, remaining_time, 1, entity, &mut runtime.random_seed,
+                            &candidates, &step_permissions, &bases, &owners, &shapes, &mut transitions);
+                    runtime.grounded_max_speed = grounded_max_speed;
+                    runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
+                    runtime.grounded_movement_delta = None;
+                    runtime.grounded_move_start = None;
+                    runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { falling_velocity });
+                    runtime.airborne_sweep_contact |= contact;
+                    *loco = mode;
+                    if mode == LocomotionState::None {
+                        commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
+                            crate::als::dynamics::AlsMovementBase::default(), LinearVelocity::ZERO));
+                        if let Some(base) = base.as_deref_mut() { *base = default(); }
+                    }
+                    let world_position = moved.translation;
+                    *transform = moved;
+                    transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
+                    commands.entity(entity).insert(Position(world_position));
+                    motor.lin.boost = -velocity.0;
+                    motor.lin.acceleration = -gravity.value;
+                    if mode == LocomotionState::None { *motor = default(); }
+                    *margin = SpeculativeMargin::ZERO;
+                    drop(transform);
+                    drop(transform_query);
+                    if mode == LocomotionState::Grounded && let Ok(mut binding) = movement_bases.get_mut(entity) {
+                        bind_walking_base(floor, &mut binding, &transforms.p0());
+                    }
+                }
             }
             continue;
         };
@@ -4244,6 +4293,27 @@ fn floor_sweep_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, orig
     }
     hit.normal1 = normal;
     Some(hit)
+}
+
+fn walking_floor_penetrates(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32, character: Entity,
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>) -> bool {
+    let filter = SpatialQueryFilter::from_excluded_entities([character]);
+    let accepts = |candidate| character_blocks_collider(character, candidate, candidates);
+    let distance = MAX_FLOOR_DISTANCE.max(MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE
+        + crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE);
+    let mut penetrating = false;
+    for (shrink, reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
+        (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {
+        let shrink_height = (half - radius) * shrink;
+        let sweep_radius = (radius - reduction).max(SWEEP_EDGE_MIN_RADIUS);
+        let capsule = als_character_capsule((half - shrink_height).max(sweep_radius), sweep_radius);
+        if let Some(hit) = floor_sweep_hit(spatial, &capsule, sweep_radius, origin,
+            distance + shrink_height, &filter, &accepts) {
+            penetrating = hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0;
+            if hit.distance != 0.0 { break; }
+        }
+    }
+    penetrating
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -5614,6 +5684,76 @@ mod tests {
             assert!((motor.lin.acceleration.y + gravity).abs() <= 1e-6,
                 "The previous floor spring survived: supported={supported} spring={spring}");
         }
+    }
+
+    #[test]
+    fn single_walking_step_returns_blocked_distance_to_falling() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (wall, supported) in [(true, false), (false, false), (false, true)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let width = if supported { 4.0 } else { 2.0 };
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(width, 0.2, 3.0),
+                Transform::from_xyz(-15.0, 1.9, -15.0)));
+            if wall {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 4.0, 2.0),
+                    Transform::from_xyz(-13.38, 3.0, -15.0)
+                        .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4))));
+            }
+            app.update();
+            let start = Vec3::new(-13.8911314, 2.9012036, -15.0);
+            let desired = Vec3::X * 0.1941591;
+            let seconds = 1.0 / 30.0;
+            let pre_collision = desired / seconds;
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LinearVelocity(Vec3::X * 5.5550895), LocomotionState::Grounded));
+            app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
+            {
+                let mut motor = app.world_mut().get_mut::<TnuaMotor>(actor).unwrap();
+                motor.lin.boost = Vec3::X * (pre_collision.x - 5.5550895);
+                motor.lin.acceleration = Vec3::Y * 18.928581;
+            }
+            {
+                let mut runtime = app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap();
+                runtime.simulation_substeps = 1;
+                runtime.simulation_delta_seconds = seconds;
+                runtime.grounded_movement_delta = Some(desired);
+                runtime.grounded_max_speed = 6.5;
+            }
+            if let Some(mut base) = app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor) {
+                base.pre_collision_velocity = Some(pre_collision);
+                base.entity = None;
+                base.support_velocity = Vec3::ZERO;
+            }
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(seconds));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+            if supported {
+                assert_eq!(mode, LocomotionState::Grounded);
+            } else {
+                assert_eq!(mode, LocomotionState::Air);
+                let velocity = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+                if wall { assert!(velocity.y < -0.03 && velocity.y > -0.15, "Refunded time was not integrated: {velocity:?}"); }
+                else { assert!(velocity.y.abs() < 1e-6, "An unobstructed step must not refund time: {velocity:?}"); }
+            }
+        }
+    }
+
+    #[test]
+    fn walking_floor_penetration_is_not_treated_as_a_missing_floor() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+            Transform::from_xyz(0.0, -0.1, 0.0)));
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        let penetrating = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            walking_floor_penetrates(&spatial, Vec3::Y * 0.2, 0.9, 0.3, actor, &candidates)
+        }).unwrap();
+        assert!(penetrating);
     }
 
     #[test]
