@@ -1,0 +1,40 @@
+{
+  "air_maximum": 20.0,
+  "cached_acceleration": 20.0,
+  "cached_world_velocity": [
+    6.5,
+    0.0,
+    0.0
+  ],
+  "delta": 0.05000000074505806,
+  "frame": 40,
+  "fresh_acceleration": 7.5,
+  "mode": "Grounded",
+  "planned_move": [
+    0.3125,
+    0.0,
+    -3.4441129947992977e-9
+  ],
+  "planned_velocity": [
+    6.25,
+    0.0,
+    -6.888225811962911e-8
+  ],
+  "position": [
+    -13.979999542236328,
+    2.9214999675750732,
+    -15.0
+  ],
+  "relative": [
+    6.5,
+    0.0,
+    0.0
+  ],
+  "substeps": 1,
+  "support": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "walking_acceleration": 7.5
+}
