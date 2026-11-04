@@ -1,0 +1,313 @@
+{
+  "gate": "PASS_LOCKED_GJK_BOUND_EXIT_REPRODUCES_D125",
+  "findings": [
+    "BF144-D125"
+  ],
+  "new_differences": 0,
+  "total_differences": 310,
+  "results": {
+    "landing-positive-actual": {
+      "native_toi": 0.16248600006103517,
+      "target_toi": 0.1624860167503357,
+      "diagnostic_toi": 0.16248811781406403,
+      "terminal": {
+        "bound": 1.3363807056521182e-06,
+        "event": "non_decreasing_upper_bound",
+        "iteration": 9,
+        "previous": 1.3363807056521182e-06,
+        "toi": 0.1624860167503357
+      },
+      "last_simplex_update": {
+        "added": true,
+        "after": 2,
+        "before": 2,
+        "event": "simplex_update",
+        "iteration": 8,
+        "projection": [
+          0.0,
+          -1.3149410733603872e-06,
+          -2.384185791015625e-07
+        ]
+      },
+      "diagnostic_terminal": {
+        "event": "distance_tolerance",
+        "iteration": 10,
+        "toi": 0.16248811781406403
+      },
+      "error": 1.6689300524896922e-08,
+      "diagnostic_error": 2.1177530288574165e-06
+    },
+    "landing-positive-direction_control": {
+      "native_toi": 0.16248600006103517,
+      "target_toi": 0.16240279376506805,
+      "diagnostic_toi": 0.16248664259910583,
+      "terminal": {
+        "bound": 5.3911007853457704e-05,
+        "event": "non_decreasing_upper_bound",
+        "iteration": 10,
+        "previous": 5.3911007853457704e-05,
+        "toi": 0.16240279376506805
+      },
+      "last_simplex_update": {
+        "added": true,
+        "after": 2,
+        "before": 2,
+        "event": "simplex_update",
+        "iteration": 9,
+        "projection": [
+          0.0,
+          -5.3910480346530676e-05,
+          -2.384185791015625e-07
+        ]
+      },
+      "diagnostic_terminal": {
+        "event": "distance_tolerance",
+        "iteration": 11,
+        "toi": 0.16248664259910583
+      },
+      "error": -8.320629596711426e-05,
+      "diagnostic_error": 6.425380706664985e-07
+    },
+    "landing-positive-height_control": {
+      "native_toi": 0.16239402770996095,
+      "target_toi": 0.16232487559318542,
+      "diagnostic_toi": 0.16243784129619598,
+      "terminal": {
+        "bound": 7.249214104376733e-05,
+        "event": "non_decreasing_upper_bound",
+        "iteration": 8,
+        "previous": 7.249214104376733e-05,
+        "toi": 0.16232487559318542
+      },
+      "last_simplex_update": {
+        "added": true,
+        "after": 2,
+        "before": 2,
+        "event": "simplex_update",
+        "iteration": 7,
+        "projection": [
+          -1.1920928955078125e-07,
+          -7.249204645631835e-05,
+          0.0
+        ]
+      },
+      "diagnostic_terminal": {
+        "event": "distance_tolerance",
+        "iteration": 9,
+        "toi": 0.16243784129619598
+      },
+      "error": -6.915211677552269e-05,
+      "diagnostic_error": 4.3813586235036395e-05
+    },
+    "landing-negative-actual": {
+      "native_toi": 0.16248600006103517,
+      "target_toi": 0.16198575496673584,
+      "diagnostic_toi": 0.16249489784240723,
+      "terminal": {
+        "bound": 0.0003272201574873179,
+        "event": "non_decreasing_upper_bound",
+        "iteration": 10,
+        "previous": 0.000327220099279657,
+        "toi": 0.16198575496673584
+      },
+      "last_simplex_update": {
+        "added": false,
+        "after": 2,
+        "before": 2,
+        "event": "simplex_update",
+        "iteration": 9,
+        "projection": [
+          -1.1658994480967522e-07,
+          -0.0003272200410719961,
+          2.384185791015625e-07
+        ]
+      },
+      "diagnostic_terminal": {
+        "event": "distance_tolerance",
+        "iteration": 11,
+        "toi": 0.16249489784240723
+      },
+      "error": -0.0005002450942993286,
+      "diagnostic_error": 8.8977813720581e-06
+    },
+    "landing-negative-direction_control": {
+      "native_toi": 0.16248600006103517,
+      "target_toi": 0.1624860167503357,
+      "diagnostic_toi": 0.162530317902565,
+      "terminal": {
+        "bound": 2.8194566766615026e-05,
+        "event": "non_decreasing_upper_bound",
+        "iteration": 7,
+        "previous": 2.8177608328405768e-05,
+        "toi": 0.1624860167503357
+      },
+      "last_simplex_update": {
+        "added": false,
+        "after": 2,
+        "before": 2,
+        "event": "simplex_update",
+        "iteration": 6,
+        "projection": [
+          -2.2351741790771484e-07,
+          -2.8177546482766047e-05,
+          9.5367431640625e-07
+        ]
+      },
+      "diagnostic_terminal": {
+        "event": "inside_simplex",
+        "iteration": 8,
+        "toi": 0.162530317902565
+      },
+      "error": 1.6689300524896922e-08,
+      "diagnostic_error": 4.431784152983398e-05
+    },
+    "landing-negative-height_control": {
+      "native_toi": 0.16239402770996095,
+      "target_toi": 0.1623108685016632,
+      "diagnostic_toi": 0.16240300238132477,
+      "terminal": {
+        "bound": 5.9054935263702646e-05,
+        "event": "non_decreasing_upper_bound",
+        "iteration": 11,
+        "previous": 5.905402576900087e-05,
+        "toi": 0.1623108685016632
+      },
+      "last_simplex_update": {
+        "added": true,
+        "after": 2,
+        "before": 2,
+        "event": "simplex_update",
+        "iteration": 10,
+        "projection": [
+          -1.4901161193847656e-07,
+          -5.9052821598015726e-05,
+          4.76837158203125e-07
+        ]
+      },
+      "diagnostic_terminal": {
+        "event": "distance_tolerance",
+        "iteration": 12,
+        "toi": 0.16240300238132477
+      },
+      "error": -8.315920829773948e-05,
+      "diagnostic_error": 8.974671363820574e-06
+    },
+    "brake-full": {
+      "native_toi": 0.021499993801116942,
+      "target_toi": 0.021350767463445663,
+      "diagnostic_toi": 0.021500490605831146,
+      "terminal": {
+        "bound": 0.00014972334611229599,
+        "event": "non_decreasing_upper_bound",
+        "iteration": 8,
+        "previous": 0.00014972334611229599,
+        "toi": 0.021350767463445663
+      },
+      "last_simplex_update": {
+        "added": false,
+        "after": 2,
+        "before": 2,
+        "event": "simplex_update",
+        "iteration": 7,
+        "projection": [
+          1.341104507446289e-07,
+          -0.00014972327335271984,
+          5.547963155549951e-08
+        ]
+      },
+      "diagnostic_terminal": {
+        "event": "distance_tolerance",
+        "iteration": 9,
+        "toi": 0.021500490605831146
+      },
+      "error": -0.00014922633767127866,
+      "diagnostic_error": 4.968047142041299e-07
+    },
+    "brake-short": {
+      "native_toi": 0.08414915084838867,
+      "target_toi": 0.08408953249454498,
+      "diagnostic_toi": 0.08414967358112335,
+      "terminal": {
+        "bound": 6.014443715685047e-05,
+        "event": "non_decreasing_upper_bound",
+        "iteration": 8,
+        "previous": 6.014443715685047e-05,
+        "toi": 0.08408953249454498
+      },
+      "last_simplex_update": {
+        "added": false,
+        "after": 2,
+        "before": 2,
+        "event": "simplex_update",
+        "iteration": 7,
+        "projection": [
+          2.9802322387695312e-08,
+          -6.0144422604935244e-05,
+          3.2004550121200737e-08
+        ]
+      },
+      "diagnostic_terminal": {
+        "event": "distance_tolerance",
+        "iteration": 9,
+        "toi": 0.08414967358112335
+      },
+      "error": -5.9618353843687855e-05,
+      "diagnostic_error": 5.22732734681286e-07
+    }
+  },
+  "decompressed_files": {
+    "probe.json.gz": {
+      "bytes": 94872,
+      "sha256": "46ce370b60964affac45102bfa458679b75b66ad6d486ff4b16703c81cf323fb"
+    },
+    "first-probe.json.gz": {
+      "bytes": 26163,
+      "sha256": "2aeec7e86309e3fe5f4f7dda0866e2a5755aeba087f766155bb4b4bf2f9fe431"
+    },
+    "before-ablation.json.gz": {
+      "bytes": 26495,
+      "sha256": "2c5b68e59e4ece3805926300ad160242d428c5ee95c1de418fb9460df609a63d"
+    },
+    "ablation.json.gz": {
+      "bytes": 54480,
+      "sha256": "283f7df0657a3f3ee1c6f775c803e50c254d044ef50b5047d3d1baa76afbf545"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/577/runtime-positive/landing-geometry.json",
+      "bytes": 2239,
+      "sha256": "91eeedaddf29821824264b80c3aa8ef5a21967963c32ea62386e6e3579e61fc1"
+    },
+    {
+      "path": "docs/audit/bf144/577/runtime-negative/landing-geometry.json",
+      "bytes": 2246,
+      "sha256": "f82a3bf65c920d413a34d151c006505fec92404535e4368b2a046c58ebe521fd"
+    },
+    {
+      "path": "docs/audit/bf144/577/geometry.native.json.gz",
+      "bytes": 6251,
+      "sha256": "8cbaeca0fc60b55f03b163874ede3d8f77df0fe527694500f98fb107d5568aaa"
+    },
+    {
+      "path": "docs/audit/bf144/578/runtime-baseline/brake-replay.json",
+      "bytes": 2124,
+      "sha256": "8d5c594e1e23fd77d895f53bbc82f0714038262ff5e2447bec9f36dd164691a5"
+    },
+    {
+      "path": "docs/audit/bf144/578/geometry.native.json.gz",
+      "bytes": 5791,
+      "sha256": "0d10146a54674093f373e8fa04f5a7bc671f5eca0dfb5a899105c988ae2f6817"
+    },
+    {
+      "path": "docs/audit/bf144/577/evidence-manifest.json",
+      "bytes": 16563,
+      "sha256": "2bc456cbbc0cbfac0f9b2cb6160ac12c1258a64988a5cd8be58b6da49e3dce7d"
+    },
+    {
+      "path": "docs/audit/bf144/578/evidence-manifest.json",
+      "bytes": 15824,
+      "sha256": "a054d779c61d9b85213278394bd5ef6fc2a3e8137ee5fa48ba63361c84603018"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "tools/tmp/bf144/579/gjk_probe.rs": {
+    "bytes": 7166,
+    "sha256": "6e24683b9bc453d00857d5b8dca53e728ba8e2efa85ac65a5b2f35082d2e07b2"
+  },
+  "tools/tmp/bf144/579/playground_observed": {
+    "bytes": 1051680,
+    "sha256": "ff5b61c2d53e62b662ab46b7349a0455fc94a1633c90fd17fce2f8a1eb94e24c"
+  },
+  "target_game/play/deps/libparry3d-2a5db8d7f878df0a.rlib": {
+    "bytes": 9732296,
+    "sha256": "b8caba4de0851c0e2b44ec74faa2264300f2aaf3d8508262f617a2ed55d57058"
+  },
+  "target_game/play/deps/libapprox-617cf0f4818f9540.rlib": {
+    "bytes": 124992,
+    "sha256": "55a0564fd626c12fb3e82cef250c386039425e40f1d1214fd41d34abbbe31c7f"
+  },
+  "target_game/play/deps/libserde_json-a998c55209bc4613.rlib": {
+    "bytes": 2660776,
+    "sha256": "2a332915e985e130cafba2e4dbe75e56f8ea146cf7d1ae9f18529afa2c985610"
+  },
+  "target_game/play/deps/libnum_traits-9182cd14ec7b4c3d.rlib": {
+    "bytes": 2021432,
+    "sha256": "25ce7151ddab60ee95145beff1bd22755ec991cebb7e8295568f60f298f54e75"
+  }
+}

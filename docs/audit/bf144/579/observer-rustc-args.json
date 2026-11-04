@@ -1,0 +1,20 @@
+[
+  "--edition=2024",
+  "--crate-name",
+  "bf144_phase579",
+  "tools/tmp/bf144/579/gjk_probe.rs",
+  "-C",
+  "opt-level=1",
+  "-L",
+  "dependency=target_game/play/deps",
+  "-o",
+  "tools/tmp/bf144/579/playground_observed",
+  "--extern",
+  "parry3d=target_game/play/deps/libparry3d-2a5db8d7f878df0a.rlib",
+  "--extern",
+  "approx=target_game/play/deps/libapprox-617cf0f4818f9540.rlib",
+  "--extern",
+  "serde_json=target_game/play/deps/libserde_json-a998c55209bc4613.rlib",
+  "--extern",
+  "num_traits=target_game/play/deps/libnum_traits-9182cd14ec7b4c3d.rlib"
+]
