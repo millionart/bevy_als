@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.536 真实StepDown命中复用与重新查地面。依赖535。沿已Walking的100cm主台与第40帧实际起点，加入18cm高台并改变前缘位置，让落下宽胶囊在窄支撑内/外，30ms单步避免后续覆盖。原生记录真实StepDown、CurrentFloor、同点带/不带Hit重查及模式；目标重放生产跨步和floor拒绝、对照实际位置。只确证独立差才登记。开始2026-11-04 20:08:11 +0800，预估结束2026-11-04 20:53:11 +0800。参考533/535约6分钟，加入单步StepDown几何和重放，估45分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh UE StepDown若真实阻挡Hit有效则带Hit进FindFloor；窄失败后只在!bBlockingHit等条件才回退StepUp，ALS Walking可直接取该结果。目标新FindFloor返回None即撤销StepUp。实际普通Walking、主台宽100、高台18cm、前缘130/137cm，按真实终点分别在15cm窄半径内外。截图0。
+  - 真实Gate后：近案UE CurrentFloor实际保StepDown的TraceStart/End和Hit、距离从1.0498cm调到2.15cm，目标重查并Post调整，最终高度差约0.6µm。边缘案UE StepDown真实阻挡、窄失败后仍bBlocking而不可走，跨步保留并40在约3.00885m转Falling。目标同向落下命中高台但新floor None，退到约2.92202m，后置宽Hit为高台边、窄Hit为原台且保持Grounded；只跳过该拒绝的诊断重放可提交高处候选。新增D295，正对照和原生观察开关继续封存。截图0。
+  - Gate通过。原生43帧观察开关、近案实际CurrentFloor复用与边缘实际抬高转Air；目标两次功能、生产步骤重放和单守卫消融、退回后宽/窄归属。隔离包、六库/396身份及72份Git证据通过。新增D295/P2，累计292（125P2/167P3）。实际结束2026-11-04 20:14:17 +0800，实耗366秒，偏差-2334秒。证据 docs/audit/bf144/536/summary.json。截图0，性能暂停。
+  - 后继边界：本项下扫有真实阻挡Hit。另有下扫完全无Hit时源StepUp是否提交及后续重查/走离、目标提前返回旧位置的边界，需独立实际几何。
+
 - [x] BF144.535 合格perch的AvgFloorDist钳制。依赖534。先核默认缩放非穿透胶囊的几何下界，再以两端实际0.3等比胶囊和无水平输入，靠边1cm/脚底间隙1mm，低台深度47.0/47.35cm分开通过且钳制开关。保真实宽/窄命中及Walking贴地，只在真实源/目标证据闭合后结论。开始2026-11-04 19:58:42 +0800，预估结束2026-11-04 20:43:42 +0800。参考534约7分钟，加入等比形体与贴地，估45分钟。截图0，性能暂停。
 
   - 真实Gate前：合格A+d≤Max与钳制Avg−F+d≥Max同时要求A+F≤Avg。默认圆胶囊边缘半径≥15cm时弧高已约4.019cm，大于2.15cm平均间隙；常规非穿透正扫掠不能由该分支触发。选择0.3等比真实形体、边缘外1cm和1mm间隙，低台深度47.0/47.35cm都合格，预测仅后者钳制。截图0。
@@ -4572,6 +4579,10 @@
   - .465a时间：开始2026-11-02 06:52:00、预估结束07:32:00、实际结束07:26:24 +0800，实耗34:24、偏差−05:36；结果PASS。含4次package构建38/66/55/54秒、实际两319/1276 states、getter与类型guard两消融/字节恢复及完整旧域/Git；首mutation/build重叠已由全包消融源码一致性核验，最终恢复按完整顺序执行。相同opaque struct无反射成员且已具work memory的诊断能力按约35分钟参考。父465本轮source事实与读数前置尚开，下一按真实native state恢复数学等价审计，不填造动态数据。
 
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D295 / P2 — StepUp把有阻挡但不可走的落下结果提前当作跨步失败。
+  - UE StepDown有效Hit进入FindFloor，perch失败保bBlockingHit并清walkable；StepUp不会因这个结果自动回退，ALS Walking随后从已抬高的位置消费不可走floor。目标跨步末新查floor只返回None，立即退回先前移动。
+  - 18cm高台前缘137cm，真实30ms单步第40帧UE完成StepDown后在3.00885m转Falling；目标真实落下候选同高台、窄胶囊失败，退到2.92202m保持Grounded。只关重查None拒绝的独立重放返回高处候选；130cm前缘两端仍成功Walking。此处不同于D15拒绝后slide和D41初始穿透。证据 docs/audit/bf144/536/summary.json。
 
 - [ ] BF144-D294 / P2 — perch 替代缺少源合成line标志及宽胶囊命中字段，导致提前落地。
   - UE FindFloor在宽胶囊不走、窄胶囊perch有效时调用SetFromLineTrace，保宽命中的ImpactPoint、Location、Time和SweepDist，换对象与法线并置bLineTrace。目标只换hit，保宽距离但不合并原命中字段或提升line分类。
