@@ -3653,7 +3653,7 @@ fn grounded_movement_transaction(
     mode: LocomotionState, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     step_permissions: &Query<&AlsMantleTargetPermission>,
-) -> Option<(Vec3, Option<Vec3>, Option<f32>, bool)> {
+) -> Option<(Vec3, Option<Vec3>, Option<f32>, bool, bool)> {
     let (direction, distance) = Dir3::new_and_length(delta).ok()?;
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
@@ -3677,7 +3677,7 @@ fn grounded_movement_transaction(
     let forward_hit = if raw_hit.as_ref().is_some_and(|hit| hit.distance == 0.0) {
         spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts)
     } else { raw_hit };
-    let mut result = (center, None, None, penetrating);
+    let mut result = (center, None, None, penetrating, false);
     if let Some(hit) = forward_hit {
         let advance = *direction * movement_sweep_travel(distance, hit.distance);
         raised += advance;
@@ -3768,6 +3768,7 @@ fn grounded_movement_transaction(
         rotation, &filter).into_iter().any(accepts) { return Some(result); }
     if result.1.is_some() { result.1 = Some(remaining_delta); }
     result.2 = Some(next_y);
+    result.4 = initial_floor_y.is_some();
     Some(result)
 }
 
@@ -3806,11 +3807,11 @@ fn walking_movement_transaction(
             last_input = step_velocity;
             let center = transform.translation;
             let requested = step_velocity * step_seconds;
-            let Some((advanced, remaining, next_y, penetrating)) = grounded_movement_transaction(spatial, capsule, center,
+            let Some((advanced, remaining, next_y, penetrating, stepped_up)) = grounded_movement_transaction(spatial, capsule, center,
                 transform.rotation, half, radius, requested, cmc, LocomotionState::Grounded, entity, candidates, step_permissions)
                 else { return (step_velocity, Vec3::ZERO, true) };
             transform.translation = advanced + remaining.unwrap_or(requested);
-            if let Some(next_y) = next_y && next_y > center.y { transform.translation.y = next_y; }
+            if let Some(next_y) = next_y && (stepped_up || next_y > center.y) { transform.translation.y = next_y; }
             let floor = adjust_walking_floor_height(spatial, capsule, &mut transform, half, radius, cmc, entity, candidates);
             lost_floor = floor.is_none();
             if floor.is_some() { last_base = floor; }
@@ -4017,14 +4018,19 @@ pub(crate) fn cmc_movement_transaction_system(
             continue;
         }
         let center = position.0;
-        let Some((advanced, remaining, next_y, penetrating)) = grounded_movement_transaction(&spatial_query, capsule,
+        let Some((advanced, remaining, next_y, penetrating, stepped_up)) = grounded_movement_transaction(&spatial_query, capsule,
             center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };
         runtime.grounded_move_start = (!penetrating).then_some(center);
         if penetrating { runtime.grounded_collision_velocity = Some(next_velocity.with_y(0.0)); }
-        let world_position = next_y.filter(|height| *height > center.y).map_or(advanced, |height| advanced.with_y(height));
+        if stepped_up { runtime.grounded_movement_delta = None; }
+        let advanced = if stepped_up { advanced + remaining.unwrap_or(delta) } else { advanced };
+        let world_position = next_y.filter(|height| stepped_up || *height > center.y).map_or(advanced, |height| advanced.with_y(height));
         transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
         commands.entity(entity).insert(Position(world_position));
-        let remaining_velocity = remaining.unwrap_or(delta) / time.delta_secs();
+        let remaining_velocity = if stepped_up {
+            base.as_deref().filter(|base| base.entity.is_some())
+                .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0))
+        } else { remaining.unwrap_or(delta) / time.delta_secs() };
         motor.lin.boost.x = remaining_velocity.x - velocity.x;
         motor.lin.boost.z = remaining_velocity.z - velocity.z;
         motor.lin.acceleration.x = 0.0;
@@ -4033,7 +4039,8 @@ pub(crate) fn cmc_movement_transaction_system(
         motor.lin.boost.y = -velocity.y;
         motor.lin.acceleration.y = -gravity.value.y;
         *margin = SpeculativeMargin::ZERO;
-        let destination = (advanced + remaining.unwrap_or(delta)).with_y(next_y);
+        let destination = if stepped_up { advanced.with_y(next_y) }
+            else { (advanced + remaining.unwrap_or(delta)).with_y(next_y) };
         let floor = find_ground_floor(&spatial_query, destination, half, radius, &params.cmc, *loco,
             &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates).map(|(_, _, floor)| floor);
         drop(transform);
@@ -4486,6 +4493,39 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn successful_step_commits_forward_motion_without_replaying_it_in_the_motor() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let far = Vec3::new(10.0, 0.9215, 0.0);
+        app.world_mut().entity_mut(actor).insert((Position(far), Transform::from_translation(far)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.9, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
+        app.update();
+        let start = Vec3::new(-13.98, 2.9215, -15.0);
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            LinearVelocity(Vec3::X * 6.5), LocomotionState::Grounded, TnuaMotor::default()));
+        {
+            let mut base = app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor).unwrap();
+            base.support_velocity = Vec3::ZERO;
+        }
+        {
+            let mut runtime = app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap();
+            runtime.simulation_substeps = 1;
+            runtime.simulation_delta_seconds = 0.05;
+            runtime.grounded_movement_delta = Some(Vec3::X * 0.3125);
+        }
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        let position = app.world().get::<Position>(actor).unwrap().0;
+        let motor = app.world().get::<TnuaMotor>(actor).unwrap();
+        let runtime = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap();
+        assert!((position.x - (start.x + 0.3125)).abs() < 0.001 && (position.z - start.z).abs() < 1e-5,
+            "the StepUp transaction did not commit the raised forward sweep: {position:?}");
+        assert!((motor.lin.boost.x + 6.5).abs() < 1e-5 && motor.lin.boost.z.abs() < 1e-5);
+        assert!(runtime.grounded_movement_delta.is_none(), "completed step movement must not be replayed");
+    }
 
     #[test]
     fn step_down_preserves_the_swept_gap_before_floor_adjustment() {
