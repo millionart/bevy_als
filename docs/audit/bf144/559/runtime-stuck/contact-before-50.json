@@ -1,0 +1,51 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 3.980377197265625,
+    "gap": 0.02211475372314453,
+    "impact": 3.0803000926971436,
+    "lower_hemisphere": 3.402491807937622,
+    "name": "AuditAirCornerFloor"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": true,
+  "manifolds": [
+    {
+      "constraints": true,
+      "normal": [
+        8.940696716308594e-8,
+        7.456804951289087e-8,
+        -1.0
+      ],
+      "other": "AuditAirCornerSecond",
+      "points": [
+        [
+          -1.243807400824748e-11,
+          0.007224962115287781
+        ],
+        [
+          -1.243807400824748e-11,
+          0.00020711850083898753
+        ],
+        [
+          -1.243807400824748e-11,
+          3.877776634908514e-6
+        ]
+      ]
+    }
+  ],
+  "mode": "Grounded",
+  "ordinal": 50,
+  "planned_velocity": null,
+  "position": [
+    -12.977246284484863,
+    4.0024919509887695,
+    -14.944841384887695
+  ],
+  "raw_velocity": [
+    -0.00013222552661318332,
+    0.032591503113508224,
+    2.538627086323686e-10
+  ],
+  "requested_mode": null
+}
