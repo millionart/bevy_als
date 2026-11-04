@@ -5,7 +5,8 @@ use bevy::prelude::{Quat, Vec3};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum CapsuleSweepResult {
     Miss,
-    InitialOverlap,
+    InitialOverlap { depth: f32, point: Vec3, normal: Vec3 },
+    DeepOverlap,
     Hit { distance: f32, point: Vec3, normal: Vec3 },
 }
 
@@ -249,13 +250,26 @@ pub(crate) fn capsule_cuboid_sweep(
             if degenerate { break; }
         }
     }
-    if time <= 0.0 { return CapsuleSweepResult::InitialOverlap; }
     let mut moving_point = Vec3::ZERO;
     for index in 0..simplex.len {
         moving_point = simplex.vertices[index].moving.mul_add(Vec3::splat(simplex.weights[index]), moving_point);
     }
-    let contact = position + (-normal).mul_add(Vec3::splat(radius), moving_point);
     let from_source = |value: Vec3| DVec3::new(value.x as f64, value.z as f64, value.y as f64);
+    if time <= 0.0 {
+        if previous_distance <= 1e-6 || previous_distance == f32::MAX {
+            return CapsuleSweepResult::DeepOverlap;
+        }
+        normal = separation.normalize();
+        let depth = (radius - previous_distance.sqrt()).max(0.0);
+        let contact = normal.mul_add(Vec3::splat(depth),
+            (-normal).mul_add(Vec3::splat(radius), moving_point));
+        let world_point = center.as_dvec3() + box_rotation * (from_source(contact) * 0.01);
+        let world_normal = (box_rotation * from_source(normal)).normalize().as_vec3();
+        return CapsuleSweepResult::InitialOverlap {
+            depth: depth * 0.01, point: world_point.as_vec3(), normal: world_normal,
+        };
+    }
+    let contact = position + (-normal).mul_add(Vec3::splat(radius), moving_point);
     let world_point = center.as_dvec3() + box_rotation * (from_source(contact) * 0.01);
     let world_normal = (box_rotation * from_source(normal)).normalize().as_vec3();
     CapsuleSweepResult::Hit { distance: time * 0.01, point: world_point.as_vec3(), normal: world_normal }
@@ -323,5 +337,25 @@ mod tests {
         let result = capsule_cuboid_sweep(&capsule, Vec3::new(3.0, 0.0, 0.0), Quat::IDENTITY,
             &box_shape, Vec3::ZERO, Quat::IDENTITY, Vec3::X, 5.0);
         assert_eq!(result, CapsuleSweepResult::Miss);
+    }
+
+    #[test]
+    fn capsule_box_initial_floor_overlap_returns_source_penetration() {
+        let capsule = Capsule::new_y(0.6, 0.3);
+        for width in [4.0, 100.0] {
+            for expected_depth in [0.01, 0.1] {
+                let box_shape = Cuboid::new(Vec3::new(width * 0.5, 0.1, width * 0.5));
+                let result = capsule_cuboid_sweep(&capsule, Vec3::Y * (0.9 - expected_depth),
+                    Quat::IDENTITY, &box_shape, Vec3::new(0.0, -0.1, 0.0), Quat::IDENTITY,
+                    Vec3::NEG_Y, 0.5);
+                let CapsuleSweepResult::InitialOverlap { depth, point, normal } = result else {
+                    panic!("Initial floor overlap was not detected: {result:?}");
+                };
+                assert!((depth - expected_depth).abs() <= 1e-6,
+                    "Initial floor overlap depth differs: {depth} != {expected_depth}");
+                assert!(point.y.abs() <= 1e-6, "Initial floor overlap point differs: {point:?}");
+                assert!(normal.abs_diff_eq(Vec3::Y, 1e-6), "Initial floor overlap normal differs: {normal:?}");
+            }
+        }
     }
 }
