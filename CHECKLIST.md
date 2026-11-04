@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.507 Roll 淡出播放时钟与 Alpha 归因。依赖506同30Hz自动落地Roll的八帧槽权重差及D118已有累计时钟合同。用fresh原生Roll Montage时钟和实际目标公开状态重放，分别切换位置/剩余时间、Alpha推进和曲线公式，覆盖原实测以及淡出触发临界。Gate含两端旧轨迹、单因素消融/恢复和Git封存。开始2026-11-04 09:02:14 +0800，预估结束2026-11-04 09:42:14 +0800。参考506约6分钟，复用原实跑输入和库，40分钟留原生时钟及数值复算。截图0，性能暂停。
+
+  - 真实Gate前：14条原生AM_Als_Roll与公开目标状态重放已通过；30Hz旧实跑逐值重现，两个临界步长使目标提前一帧脱离全权重。只在原场景落地偏移25缩短单步，随后对照偏移26恢复原生全权重，验证实际Grounded恢复帧。截图0。
+
+  - 真实Gate后：保持真实自动落地，偏移25实际步长0.020512500777840614；目标公开重放和可见槽前30帧逐值。偏移26（序号85）目标权重0.9657064080238342、Grounded写入；仅临时将该帧槽权重恢复原生1，物理和Roll时钟保持，Grounded续冻至偏移27。还原无控制入口后逐帧参数报告逐字节一致。三次功能通过，截图0。
+  - Gate通过。14条原生同输入、645帧位置/权重/停止标志全精确，原30Hz八帧差与两端实际轨迹逐值。去分支拆步、替换elapsed触发、替换elapsed时长、取消Alpha累积、反向求Hermite分别留下372、10、95、53、49字段失配，恢复模型后比较报告逐字节相同。两个临界输入源偏移27恢复、目标26恢复，其中一个已走真实角色入口。并入既有D118，累计仍279。六库、396身份及75份Git证据校验通过，见 docs/audit/bf144/507/summary.json。实际结束2026-11-04 09:31:31 +0800，实耗1757秒，偏差-642秒。截图0，性能暂停。
+
 - [x] BF144.506 自动落地 Roll 对 Grounded 更新的遮蔽与恢复。依赖505原生440cm角色下落与目标普通落地。重新核对源落地仲裁、PostLocomotion槽和目标同一链。原可见Playground用等效下落高度触发真实碰撞和自动Roll，记录两端的槽权重、更新计数及VelocityBlend，消融槽的更新守卫并恢复以验证因果。开始2026-11-04 08:54:28 +0800，预估结束2026-11-04 09:39:28 +0800。参考505约6分钟，另留原生槽重读、实际落地场景验证和三次构建时间。截图0，性能暂停。
 
   - 真实Gate前：本地源落地仲裁读取保留垂速，自动Roll在700–1000cm/s区间，PostLocomotion源权重归零会跳过Source.Update。505原生落地显示26仍部分权重、27起全权重。已重读 AB_Als 原资产并编译目标观察入口，用原 Playground 平地的相对升高3.48m建立实际落地条件，截图0。
@@ -5359,7 +5366,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`apply_profile_to_spawned_ragdoll:1347–1351`直接令已有body的Transform.translation乘scale_factor，该量已经包含世界位移；随后的实际Position因此围绕世界原点缩放。
   - 反例：完整角色的detached mesh origin=(3,0.0015,−2)，从1缩到0.75时，pelvis相对source额外移动(−0.75,−0.000375,+0.5)m，误差约0.901388m；放大到1.5时误差约1.802776m。unit/0.75/1.5×经过零/直接更新×默认/平移/零origin共18组10PASS/8FAIL；unit和零origin均通过，所有质量/关节锚点及rotation控制通过。证据`bf144_ragdoll_phase40_recovery_mass_frames_and_pose_controls`、`40/final/`。旧缩放Gate只核对Collider尺寸、质量和关节局部frame，未核对实际body Position与mesh origin。
 
-- [ ] BF144-D118 / P2 — GetUp与动态过渡反算播放时钟，改变原生混出临界帧。
+- [ ] BF144-D118 / P2 — GetUp、Roll与动态过渡反算播放时钟，改变原生混出临界帧。
+  - BF144.507 自动落地Roll补充：原生AM_Als_Roll在通知点拆分、增量推进、按剩余片段起淡出并累积Alpha；目标AlsRollState以elapsed反算。两个同输入临界样本使源偏移27、目标26恢复Grounded。可见Playground复现其中一个，偏移26槽权重0.965706408而源为1，两个Grounded节点提前写VelocityBlend。仅恢复该帧源槽权重即推迟一帧，Roll时钟、角色位置及速度相同。证据 docs/audit/bf144/507/summary.json。
   - Source：fresh `AnimInstance.cpp:562–578`先UpdateWeight再Advance；`AnimMontage.cpp:2234–2256,2328–2333,2626–2637`逐步累加clip位置，并按当前section剩余时间开始混出；`AlphaBlend.cpp:192–228`累加AlphaLerp和剩余时间。两套原生montage均为1.5秒、RateScale=1.2、0.3秒Cubic，通知会把Advance切到精确分支点。
   - Target：`get_up.rs:107–126`用elapsed×rate反算clip位置、用剩余时间比例反算alpha，临界浮点结果与原生积累状态不同。50ms帧的target在clip约1.1400002就开始混出，原生该帧尚未跨入窗口；不能把数学上等价的表达式视为生命周期等价。
   - 反例：实际两朝向×5帧步长×4倍率共40组36PASS/4FAIL。50ms、单位倍率在elapsed约1秒时target权重0.92592585、source为1；1.1秒时约0.5对0.7046613，target第24帧清理、source第25帧。16.7ms×半速另在source清理帧残留1.19e−7权重，晚一帧清理。49.9/50.1ms、其他倍率及动态倍率通过；暂停只保留已有边界，不引入独立时钟差异。原生FAnimMontageInstance逐帧实证见`41/clock_front_all.native.json`、`clock_back_all.native.json`；target见`bf144_get_up_phase41_clock_weight_notify_and_end`。旧Gate验证最终结束/近似权重，没有相同delta序列的原生生命周期判据。

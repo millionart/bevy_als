@@ -1,0 +1,109 @@
+{
+  "gate": "PASS_ROLL_FADE_CLOCK_AND_GROUNDED_REENTRY_D118",
+  "samples": 14,
+  "native_replay_frames": 645,
+  "trigger_counterexamples": [
+    "fade-edge-5",
+    "fade-edge-6"
+  ],
+  "scoped_to_existing_difference": "BF144-D118",
+  "actual_early_reentry_ordinal": 85,
+  "controlled_reentry_ordinal": 86,
+  "native_reentry_offset": 27,
+  "target_reentry_offset": 26,
+  "ablation_mismatches": {
+    "no-branching": 372,
+    "elapsed-trigger": 10,
+    "elapsed-duration": 95,
+    "no-alpha-history": 53,
+    "reverse-curve": 49
+  },
+  "restored_parameters_exact": true,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "new_differences": 0,
+  "total_differences": 279,
+  "decoded": {
+    "runtime-edge/report.json": {
+      "bytes": 5235787,
+      "sha256": "f2a2393588b4b8ae190138ddbc56808d719462eeaa9637bdb1f5d137d4f9a0b8"
+    },
+    "runtime-edge/parameters.json": {
+      "bytes": 155667,
+      "sha256": "f15dd86e5456c4f81abf901bc041e669488acd77bc74a7687ecec9e0548cf322"
+    },
+    "runtime-native-hold/report.json": {
+      "bytes": 5145320,
+      "sha256": "13e45145954d224018c8641f17fe6a3def739257daeaf89376c9cccd653cedbb"
+    },
+    "runtime-native-hold/parameters.json": {
+      "bytes": 155549,
+      "sha256": "d29c0d00ac2a7f1d30d5da32c9b3b58537c803a473af2bd4dbaffbfe0b150875"
+    },
+    "runtime-restored/report.json": {
+      "bytes": 5329718,
+      "sha256": "e63fc5e0722e9b5854ff8102644ff582db53d2e5745727feca6214fd0d556d6a"
+    },
+    "runtime-restored/parameters.json": {
+      "bytes": 155667,
+      "sha256": "f15dd86e5456c4f81abf901bc041e669488acd77bc74a7687ecec9e0548cf322"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/506/observer.py",
+      "bytes": 2727,
+      "sha256": "5cf06be17780d384ffe1166d3665bf4a4cfbe1c64421181fe515320e25fbba4a"
+    },
+    {
+      "path": "docs/audit/bf144/506/slot_observer.rs",
+      "bytes": 2981,
+      "sha256": "7522039439786d21ad2d650ba108604f365b4626563902080d4e8ae5c4eb30e8"
+    },
+    {
+      "path": "docs/audit/bf144/506/native-slot.json",
+      "bytes": 57694,
+      "sha256": "7ad19cc707046b0a8271db36efb99476a3373cf37051a2ff882313f9b5cc7af5"
+    },
+    {
+      "path": "docs/audit/bf144/506/runtime-baseline/parameters.json.gz",
+      "bytes": 19092,
+      "sha256": "d791b5b9d47b042cfacb76ca2f8b8d65abc6e9e4b8e1248ee424bb068603e92c"
+    },
+    {
+      "path": "docs/audit/bf144/506/summary.json",
+      "bytes": 3564,
+      "sha256": "0de556a0344a1771d622a6bf683f696516beff80c894e6ea3423f4175497fcfe"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}
