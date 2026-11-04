@@ -1,0 +1,7 @@
+{
+  "contact_control.inc": "e4931b45498bbc40d3791df47b9c5af165b8e743d91b5df0793e8cc464d565f2",
+  "observer.py": "7ddf733e88e3f1f207fec992aabd1f3a179740abccb3ccb57bcec60073298625",
+  "AlsAuditBlockingHitObserver.h": "fff0b438f606bb59ffbda9d03b01a255176eb8786c97f5325d23c928624e9c9b",
+  "capture_hits.inc": "5b1a37f2c94b37e31296d5cf99f4767b383383ac9dc8f16eeb9c76bf1cb3dded",
+  "prepare_reader.py": "a8d03bcd332aacd008c65d0965dc07d6871ad846c4cf047377222c780c899217"
+}
