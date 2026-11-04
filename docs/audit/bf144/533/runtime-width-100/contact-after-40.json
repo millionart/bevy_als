@@ -1,0 +1,27 @@
+{
+  "has_base": false,
+  "mode": "Air",
+  "ordinal": 40,
+  "position": [
+    -13.661455154418945,
+    2.9170854091644287,
+    -15.0
+  ],
+  "published": [
+    5.809091091156006,
+    -0.2943003475666046,
+    -5.9343857827798274e-8
+  ],
+  "stored_contact": false,
+  "transitions": [
+    [
+      "LocomotionState(Grounded)",
+      "LocomotionState(Air)"
+    ]
+  ],
+  "velocity": [
+    5.809091091156006,
+    -0.2943003475666046,
+    -5.9343857827798274e-8
+  ]
+}
