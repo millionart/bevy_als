@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.574 走离前的三子步带内抬升与Falling传播。依赖573已单独对齐前向及D273单步。核q52/53普通125ms Walking事务前、事务提交、物理后和同步后Y。仅在有效同一平面和源带内恢复事务前Y，保持原动作、水平、离地时钟及D07长步控制，验证约2.5mm在空中各帧的传播。开始2026-11-05 00:12:26 +0800，预估结束2026-11-05 00:37:26 +0800。参考573约4分钟，本项含逐阶段位置和源带资格，估25分钟。截图0，性能暂停。
+  - source/static：fresh UE AdjustFloorHeight只在1.9–2.4cm带外动。目标Walking多步每个子步也先消费普通下扫生成的2.4cm候选，再执行高度带检查，可能留下带内抬升。D273旧实测是单步路径，D31是物理阶段悬浮弹簧；本项核多步共享写入及后续影响。
+  - 00:14 构建路径校验：首轮复制脚本的目录末尾漏换，实际构建了573旧探针。恢复旧目录跟踪文件，保留错误构建报告；修正574脚本和查询/位置写入的互斥后重新编译，旧二进制不作本轮证据。
+  - runtime Gate 前：574探针同六库编译通过。两组都保留D07的q54缓存控制，band仅在q52/53同台面且预留高度在源有效带时保留原Y。每帧记录事务候选、已提交位置、竖直motor及物理与同步输出。
+  - runtime Gate 后：q52真实三步事务在有效间隙2.14565cm先抬升2.525mm，净竖直马达为0，物理与同步均保持提交高度。仅保留q52/53带内初始Y，q53–57源差约2.50mm降至约0.060mm，前向位置仍<5µm、竖直速度和模式吻合。原公共功能报告保留572骨盆告警。
+  - 完成归因 Gate `PASS_MULTISTEP_IN_BAND_LIFT_PROPAGATES_TO_FALLING`。D273补证，新增0，累计310（143 P2、167 P3）。watchdog、396身份/六库、4份原报告解压哈希、81份暂存证据及572原生身份通过。实际结束2026-11-05 00:18:07 +0800，实耗341秒，偏差-1159秒；已有轨迹及四阶段读数的同类对照可参考6–10分钟。证据 `docs/audit/bf144/574/`。截图0，性能暂停。
+
 - [x] BF144.573 台外长帧首段水平偏移的因果隔离。依赖572相同落地帧的两端实际轨迹及D07/D287。125ms首差q54源旧加速度20、目标刷新9.6741，首走离余时同75ms。仅在真实Walking事务临时用目标自身上一轮缓存，再恢复曲线，核q54位置/速度及后续q58偏移。31.25ms q59普通Walking首差另留观测，避免混入子步对照。开始2026-11-05 00:07:46 +0800，预估结束2026-11-05 00:32:46 +0800。参考572约9分钟，本项复用已封存原生及几何，不重建UE，估25分钟。截图0，性能暂停。
   - source/static：fresh ControlledCharacterMove写旧Acceleration，ALS PhysWalking后刷新参数，UE q54无碰撞、首步6m/s后入Air，末6.225；目标5.7087，后续各整帧Air增量与同输入上限吻合。D287的空中缓存此次预计无信号，需实际控制证明。
   - 00:09 runtime Gate 前：诊断程序编译通过，baseline与cached用同一125ms原Playground入口；仅q54 CMC事务消费缓存，事务后立刻恢复，保留fresh计划/输入/原动画功能报告。
@@ -5023,7 +5030,8 @@
   - actual消费者：.443c current240同库GlobalTransform公开核逐值还原全部实际helper scale，其中170帧actual scale/radius不同于保存值；固定base radius/half、位置、过滤/形体/其余算法，仅换保存scale的public floor查询使45帧最终world Y不同。29号local quat=[0,−0.6227078437805176,0,0.7824543714523315]、scale1，actual scale X/Z=0.9999998807907104；base radius0.29999998211860657→current0.2999999523162842，保存scale保持base。当前最终Y0.9215173125267029，scale-only控制0.9215172529220581，未称完整source world恢复。
   - 去重/漏检：相同rounded quat用double affine仍162帧projected scale不等保存值，29号double scale0.999999924083854；source仍读Scale3D成员1。因此不是仅提高矩阵算术精度可消除的D232 pose求值边界，也不是D151局部速度投影、D11显式非均匀物理shape或D165厘米float阶段，base单位/数值全锁同。旧.b初看cached为1就当unit规模，current-helper回读消掉1ULP工具误差后才暴露producer本身的保存值差；新增无parent/TQS资格与field-only控制。`docs/audit/bf144/443c`已Git封存，消融退出101、三源码SHA恢复同target重编后完整报告byte一致/原场景记录精确，两功能Gate和65证据哈希通过。累计271（116P2/155P3），P3微量尺寸/高度，生产未修，截图0/性能暂停，GPU pass按用户周边排除暂不验收。
 
-- [ ] BF144-D273 / P3 — 单步步行事务在源有效离地距离带内仍抬到固定clearance。
+- [ ] BF144-D273 / P3 — 普通步行事务在源有效离地距离带内仍先抬到固定clearance。
+  - BF144.574 三子步补证：125ms q52保持同一静止台，实际带内间隙2.14565cm，物理前事务抬升2.525mm。净竖直马达0，物理解算与同步不改Y。仅保留q52/53的带内Y后，q53–57约2.50mm竖直余差降至约0.060mm，两组同帧走离/落地且竖直速度一致。归本条，D31弹簧无此信号。证据 `docs/audit/bf144/574/`。
   - Source：fresh UE AdjustFloorHeight:6295–6335对有效sweep floor仅在FloorDist<1.9或>2.4cm时移动，带内保留中心高度；.443新source240保持Walking、floor2.1500000953674316cm/actor92.15cm。Target `grounded_movement_transaction:3524,3576–3595`对非零水平delta下扫后无距离带判断，算destination.y−distance+(0.019+0.005)，`cmc_movement_transaction:3815–3828`只要结果高于center便在Update插入Position，后置floor带检查不能保证消除该前置位移。
   - 实际消费者：.443b真实原场景240中94个free-forward/有效edge/可行走down query、89次前置Y改写全部精确由原query公式产生，89份hit distance换source float厘米均在有效带内。20号center0.9239999055862427、query距0.02360408566892147、motor前物理位置变0.9243957996368408，physics raw与最终world都保留；净linear increment为0且physics初Y速0，排除D31弹簧为本次前置写者。完整force/damping/substep/world及78个后置floor调整240逐值精确，非把不同阶段输出直接比差。
   - 去重/受控输入：固定无query误差的center0.921500027179718、distance0.0215000007301569m（source float2.1500000953674316cm），同目标公式仍写0.9240000247955322，source band控制保持center；只换band决策即可移除信号，因此独立于D125的query数值误差和D31的spring force producer。不是FloorDist/LineDist丢失D09，当前全部正距有效sweep、无penetration/line guard。只登记毫米级P3，未修生产或声称整个source世界反馈恢复；`docs/audit/bf144/443b`已Git封存，selector消融退出101、源码bytes恢复同target重编后完整报告byte一致/场景记录精确、110证据跟踪/隐私/哈希通过。累计270（116P2/154P3）。GPU TAA pass按用户周边排除暂不验收，运动/动画功能Gate继续、截图0性能暂停。
