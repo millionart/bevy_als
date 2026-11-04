@@ -2829,7 +2829,7 @@ fn falling_movement_transaction(
             mode = LocomotionState::Grounded;
             current_base = adjust_walking_floor_height(spatial, capsule, &mut transform, extent.y, extent.x.min(extent.z),
                 &params.cmc, entity, candidates);
-            velocity.y = 0.0;
+            velocity = deflected.with_y(0.0);
             if landing.1 {
                 mode = LocomotionState::None;
                 transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
@@ -4414,6 +4414,10 @@ mod tests {
             let expected_cap = if third_impact { 7.0 } else { 3.75 };
             assert!((result.6 - expected_cap).abs() < 1e-4,
                 "floor={floor_top} walking cap={} expected={expected_cap}", result.6);
+            if third_impact {
+                assert!(result.1.x.abs() < 0.001 && (result.1.z + 0.57524).abs() < 0.002,
+                    "third-impact landing kept the pre-collision velocity: {:?}", result.1);
+            }
         }
     }
 
