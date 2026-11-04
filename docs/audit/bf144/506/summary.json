@@ -1,0 +1,109 @@
+{
+  "gate": "PASS_AUTOMATIC_ROLL_GROUNDED_SLOT_OCCLUSION",
+  "native_landing": 25,
+  "target_landing": 59,
+  "aligned_frames": 35,
+  "first_fully_occluded_offset": 2,
+  "first_updated_again_offset": 26,
+  "inactive_roll_offset": 34,
+  "masked_source_ablation_updates": 24,
+  "snap_error_at_target_return": 9.546056389808655e-09,
+  "damp_error_at_target_return": 0.28180283308029175,
+  "roll_fade_numeric_mismatch_offsets": [
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33
+  ],
+  "maximum_fade_weight_difference": 8.344650268554688e-07,
+  "restored_parameters_exact": true,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "new_differences": 0,
+  "total_differences": 279,
+  "decoded": {
+    "ab_als.native.json": {
+      "bytes": 2527367,
+      "sha256": "44bbd0c4cd5f336b18d56bf4a05a7f4ea87cc326d49bdedb10c45e5715c64a90"
+    },
+    "landing.native.json": {
+      "bytes": 31723034,
+      "sha256": "856c66a1f1e435de2ad27d05f00a9b31954e22d820c052a67e3154e2efc8bc11"
+    },
+    "runtime-baseline/report.json": {
+      "bytes": 5229366,
+      "sha256": "4dc69fa5429fc34b163b1e574e4b9c9371c973b3e242387f08fc0fb543c69e8e"
+    },
+    "runtime-baseline/parameters.json": {
+      "bytes": 153867,
+      "sha256": "d688137611bb88d1f67071719b61c8b1d4a2b6dc5d5f737e651bd01bb6a339e9"
+    },
+    "runtime-masked-source/report.json": {
+      "bytes": 5048370,
+      "sha256": "92d233280ba0e7582242393a97a1cbd209d4816338d3a9d961bcd08337d620da"
+    },
+    "runtime-masked-source/parameters.json": {
+      "bytes": 159296,
+      "sha256": "d1147ed41e781fac98e22f332c2988196ae67f354654947f487238081da8962a"
+    },
+    "runtime-restored/report.json": {
+      "bytes": 5322290,
+      "sha256": "ac8a63a79c486055ad443c347a21af1da9653f0bbb45131fb1dbbd35fbc95106"
+    },
+    "runtime-restored/parameters.json": {
+      "bytes": 153867,
+      "sha256": "d688137611bb88d1f67071719b61c8b1d4a2b6dc5d5f737e651bd01bb6a339e9"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+      "bytes": 82044,
+      "sha256": "e13739154ecb4c8888b2efeac0d22364ddb7b2c6724594b2b817f952595a4d10"
+    },
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/505/landing.native.json.gz",
+      "bytes": 1838163,
+      "sha256": "18ca88decfaffdbabcb6cf0b04a13a74e057098a5f22cfd756c9dbc2f6eb08df"
+    },
+    {
+      "path": "docs/audit/bf144/505/landing.request.json",
+      "bytes": 23546,
+      "sha256": "1e21d7344b044a8aa951ff07fafc67e4b51e27d900ea6eceff898b8ba35bc6e1"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}

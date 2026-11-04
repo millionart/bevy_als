@@ -1,0 +1,68 @@
+[
+  {
+    "key": "source:Private/AlsCharacter.cpp",
+    "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+    "excerpts": [
+      {
+        "start": 505,
+        "end": 526,
+        "text": "void AAlsCharacter::NotifyLocomotionModeChanged(const FGameplayTag PreviousLocomotionMode)\n{\n\tApplyDesiredStance();\n\n\tif (LocomotionMode == AlsLocomotionModeTags::Grounded &&\n\t    PreviousLocomotionMode == AlsLocomotionModeTags::InAir)\n\t{\n\t\tif (Settings->Ragdolling.bStartRagdollingOnLand &&\n\t\t    LocomotionState.Velocity.Z <= -Settings->Ragdolling.RagdollingOnLandSpeedThreshold)\n\t\t{\n\t\t\tStartRagdolling();\n\t\t}\n\t\telse if (Settings->Rolling.bStartRollingOnLand &&\n\t\t         LocomotionState.Velocity.Z <= -Settings->Rolling.RollingOnLandSpeedThreshold)\n\t\t{\n\t\t\tstatic constexpr auto PlayRate{1.3f};\n\n\t\t\tStartRolling(LocomotionState.bHasVelocity\n\t\t\t\t             ? LocomotionState.VelocityYawAngle\n\t\t\t\t             : UE_REAL_TO_FLOAT(FMath::UnwindDegrees(GetActorRotation().Yaw)),\n\t\t\t             PlayRate);\n\t\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "excerpts": [
+      {
+        "start": 90,
+        "end": 100,
+        "text": "void AAlsCharacter::StartRollingImplementation(UAnimMontage* Montage, const float PlayRate,\n                                               const float InitialYawAngle, const float TargetYawAngle)\n{\n\tif (IsRollingAllowedToStart(Montage) && GetMesh()->GetAnimInstance()->Montage_Play(Montage, PlayRate) > 0.0f)\n\t{\n\t\tRollingState.TargetYawAngle = TargetYawAngle;\n\n\t\tSetRotationInstant(InitialYawAngle);\n\n\t\tSetLocomotionAction(AlsLocomotionActionTags::Rolling);\n\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/AnimGraphRuntime/Private/AnimNodes/AnimNode_Slot.cpp",
+    "sha256": "8346317117ee8bbe971e58a4645fdea5bf21f8329eea3516cea433cb305875c5",
+    "excerpts": [
+      {
+        "start": 49,
+        "end": 86,
+        "text": "void FAnimNode_Slot::Update_AnyThread(const FAnimationUpdateContext& Context)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)\n\n\t// Update weights.\n\tconst float PreviousSourceWeight = WeightData.SourceWeight;\n\tContext.AnimInstanceProxy->GetSlotWeight(SlotName, OUT WeightData.SlotNodeWeight, OUT WeightData.SourceWeight, OUT WeightData.TotalNodeWeight);\n\n\t// Update cache in AnimInstance.\n\tContext.AnimInstanceProxy->UpdateSlotNodeWeight(SlotName, WeightData.SlotNodeWeight, Context.GetFinalBlendWeight());\n\n\tFInertializationRequest InertializationRequest;\n\tif (Context.AnimInstanceProxy->GetSlotInertializationRequestData(SlotName, InertializationRequest))\n\t{\n\t\tUE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();\n\t\tif (InertializationRequester)\n\t\t{\n#if ANIM_TRACE_ENABLED\n\t\t\tInertializationRequest.NodeId = Context.GetCurrentNodeId();\n\t\t\tInertializationRequest.AnimInstance = Context.AnimInstanceProxy->GetAnimInstanceObject();\n#endif\n\n\t\t\tInertializationRequester->RequestInertialization(InertializationRequest);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tFAnimNode_Inertialization::LogRequestError(Context, Source);\n\t\t}\n\t}\n\n\tconst bool bUpdateSource = bAlwaysUpdateSourcePose || FAnimWeight::IsRelevant(WeightData.SourceWeight);\n\tif (bUpdateSource)\n\t{\n\t\tconst float SourceWeight = FMath::Max(FAnimWeight::GetSmallestRelevantWeight(), WeightData.SourceWeight);\n\t\tconst bool bBlendingOutSource = PreviousSourceWeight > WeightData.SourceWeight || FAnimWeight::IsFullWeight(WeightData.SlotNodeWeight);\n\t\tconst FAnimationUpdateContext SourceContext = MontageCVars::bMarkMontageSourceAsBlendingOut && bBlendingOutSource ? Context.AsInactive() : Context;\n\t\tSource.Update(SourceContext.FractionalWeight(SourceWeight));\n\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/AnimInstanceProxy.cpp",
+    "sha256": "05bbce3b799bcb42df19528c8f014eadea728e922382fffda1bb074d0e4a40b1",
+    "excerpts": [
+      {
+        "start": 2103,
+        "end": 2177,
+        "text": "void FAnimInstanceProxy::GetSlotWeight(const FName& SlotNodeName, float& out_SlotNodeWeight, float& out_SourceWeight, float& out_TotalNodeWeight) const\n{\n\t// node total weight \n\tfloat NewSlotNodeWeight = 0.f;\n\t// this is required to track, because it will be 1-SourceWeight\n\t// if additive, it can be applied more\n\tfloat NonAdditiveTotalWeight = 0.f;\n\n#if DEBUGMONTAGEWEIGHT\n\tfloat TotalDesiredWeight = 0.f;\n#endif\n\n\t// first get all the montage instance weight this slot node has\n\tfor (const FMontageEvaluationState& EvalState : GetMontageEvaluationData())\n\t{\n\t\tif (EvalState.Montage.IsValid())\n\t\t{\n\t\t\tconst UAnimMontage* const Montage = EvalState.Montage.Get();\n\t\t\tif (Montage->IsValidSlot(SlotNodeName))\n\t\t\t{\n\t\t\t\tconst float MontageWeight = EvalState.BlendInfo.GetBlendedValue();\n\t\t\t\tNewSlotNodeWeight += MontageWeight;\n\t\t\t\tif (!Montage->IsValidAdditiveSlot(SlotNodeName))\n\t\t\t\t{\n\t\t\t\t\tNonAdditiveTotalWeight += MontageWeight;\n\t\t\t\t}\n\n#if DEBUGMONTAGEWEIGHT\t\t\t\n\t\t\t\tTotalDesiredWeight += EvalState->DesiredWeight;\n#endif\n#if ENABLE_ANIM_LOGGING\n\t\t\t\tUE_LOGF(LogAnimation, Verbose, \"GetSlotWeight : Owner: %ls, AnimMontage: %ls,  (DesiredWeight:%0.2f, Weight:%0.2f)\",\n\t\t\t\t\t\t\t*GetActorName(), *EvalState.Montage->GetName(), EvalState.BlendInfo.GetDesiredValue(), MontageWeight);\n#endif\n\t\t\t}\n\t\t}\n\t}\n\n\t// save the total node weight, it can be more than 1\n\t// we need this so that when we eval, we normalized by this weight\n\t// calculating there can cause inconsistency if some data changes\n\tout_TotalNodeWeight = NewSlotNodeWeight;\n\n\t// this can happen when it's blending in OR when newer animation comes in with shorter blendtime\n\t// say #1 animation was blending out time with current blendtime 1.0 #2 animation was blending in with 1.0 (old) but got blend out with new blendtime 0.2f\n\t// #3 animation was blending in with the new blendtime 0.2f, you'll have sum of #1, 2, 3 exceeds 1.f\n\tif (NewSlotNodeWeight > 1.f)\n\t{\n\t\t// you don't want to change weight of montage instance since it can play multiple slots\n\t\t// if you change one, it will apply to all slots in that montage\n\t\t// instead we should renormalize when we eval\n\t\t// this should happen in the eval phase\n\t\tNonAdditiveTotalWeight /= NewSlotNodeWeight;\n\t\t// since we normalized, we reset\n\t\tNewSlotNodeWeight = 1.f;\n\t}\n#if DEBUGMONTAGEWEIGHT\n\telse if (TotalDesiredWeight == 1.f && TotalSum < 1.f - ZERO_ANIMWEIGHT_THRESH)\n\t{\n\t\t// this can happen when it's blending in OR when newer animation comes in with longer blendtime\n\t\t// say #1 animation was blending out time with current blendtime 0.2 #2 animation was blending in with 0.2 (old) but got blend out with new blendtime 1.f\n\t\t// #3 animation was blending in with the new blendtime 1.f, you'll have sum of #1, 2, 3 doesn't meet 1.f\n\t\tUE_LOGF(LogAnimation, Warning, \"[%ls] Montage has less weight. Blending in?(%f)\", *SlotNodeName.ToString(), TotalSum);\n\t}\n#endif\n\n\tout_SlotNodeWeight = NewSlotNodeWeight;\n\tout_SourceWeight = 1.f - NonAdditiveTotalWeight;\n}\n\nconst FMontageEvaluationState* FAnimInstanceProxy::GetActiveMontageEvaluationState() const\n{\n\t// Start from end, as most recent instances are added at the end of the queue.\n\tint32 const NumInstances = GetMontageEvaluationData().Num();\n\tfor (int32 InstanceIndex = NumInstances - 1; InstanceIndex >= 0; InstanceIndex--)\n"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_slot.rs",
+    "sha256": "35a9b005b2422f4ddd0d18f1c4fcd57b6fea1160205a91f555692c9f15c74fb7",
+    "excerpts": [
+      {
+        "start": 67,
+        "end": 136,
+        "text": "impl SourceSlotNode {\n    pub(crate) fn update_weights(&self, ctx: &NodeContext) -> Result<(f32, f32, bool, f32), GraphError> {\n        let slot_weight = slot_blend_weight(\n            ctx.graph_context\n                .global_input_data\n                .get(&self.weight_key)\n                .map(|value| value.as_f32())\n                .transpose()?,\n        );\n        let layer_weight = slot_blend_weight(\n            ctx.graph_context\n                .global_input_data\n                .get(&self.layer_weight_key)\n                .map(|value| value.as_f32())\n                .transpose()?,\n        );\n        let mesh_space_additive = if self.mesh_space_additive_key.is_empty() {\n            false\n        } else {\n            ctx.graph_context\n                .global_input_data\n                .get(&self.mesh_space_additive_key)\n                .map(|value| value.as_f32())\n                .transpose()?\n                .is_some_and(|value| value.is_finite() && value > 0.5)\n        };\n        let source_weight = if mesh_space_additive || !ctx.graph_context.global_input_data.contains_key(&self.pose_key) {\n            1.0\n        } else { 1.0 - slot_weight * layer_weight };\n        let source_weight = if !self.always_update_source_pose && source_weight <= 1e-5 {\n            0.0\n        } else { source_weight.max(2e-5) };\n        Ok((slot_weight, layer_weight, mesh_space_additive, source_weight))\n    }\n}\n\nimpl NodeLike for SourceSlotNode {\n    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {\n        let (slot_weight, layer_weight, mesh_space_additive, source_weight) = self.update_weights(&ctx)?;\n        let overlay = if slot_weight > 0.0 && layer_weight > 0.0 {\n            ctx.graph_context\n                .global_input_data\n                .get(&self.pose_key)\n                .cloned()\n                .map(|value| value.into_pose())\n                .transpose()?\n        } else {\n            None\n        };\n        if source_weight == 0.0\n            && let Some(pose) = overlay.as_ref()\n        {\n            let mut context = slot_context(\n                pose_input_context_state(&ctx, \"Source\"),\n                active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key),\n                1.0,\n                false,\n            )\n            .unwrap_or_default();\n            for sample in context.asset_samples.iter_mut().filter(|sample| sample.montage && sample.slot_key.is_empty()) {\n                sample.slot_key.clone_from(&self.pose_key);\n            }\n            ctx.set_time(pose.timestamp);\n            ctx.set_data_fwd(\"Pose\", pose.normalize_quat());\n            *ctx.state_mut_or_else(AnimationContextState::default)? = context;\n            return Ok(());\n        }\n        let base = crate::extensions::interruptible_fsm::with_machine_weight(source_weight,\n            || ctx.data_back(\"Source\"))?.into_pose()?;\n        let base_context = pose_input_context_state(&ctx, \"Source\");\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/actions/roll.rs",
+    "sha256": "87c852e3d285e17b5ed16a5fb6c2760a14508a28539537891191de9d7722ccea",
+    "excerpts": [
+      {
+        "start": 87,
+        "end": 102,
+        "text": "\nimpl AlsRollState {\n    pub fn weight(&self) -> f32 {\n        let alpha = if let Some(start) = self.natural_blend_start {\n            let duration = ROLL_DURATION_SECS - start;\n            if duration > 0.0 { (ROLL_DURATION_SECS - self.time) / duration } else { 0.0 }\n        } else { self.time / ROLL_WEIGHT_IN_SECS }.clamp(0.0, 1.0);\n        alpha * alpha * (3.0 - 2.0 * alpha)\n    }\n\n    pub fn root_motion_active(&self) -> bool {\n        self.active && self.time < ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS\n    }\n\n    pub fn start_from_landing(\n        &mut self,\n"
+      }
+    ]
+  }
+]
