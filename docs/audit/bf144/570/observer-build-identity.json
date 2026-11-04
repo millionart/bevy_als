@@ -1,0 +1,10 @@
+{
+  "playground_observed.rs": {
+    "bytes": 158848,
+    "sha256": "fb4850b51f348f5f574823c2123c38cd33f02f886e616a7cd4acec7b53530db8"
+  },
+  "playground_observed": {
+    "bytes": 325652176,
+    "sha256": "f296e295a9d30a7d30fe895eeb68443f31a0f2915a5c0eb7b3eb335cf023518e"
+  }
+}

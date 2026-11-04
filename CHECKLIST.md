@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.570 普通落地对模拟支撑物的撞击力。依赖.07落地交接和.12/D38撞击力，实际Air→Walking落到中央模拟台。对照原生交互关/开及静态台，站立下压力保持0以隔离D37；目标记录真实落地和body前后速度/接触。开始2026-11-04 23:39:26 +0800，预估结束2026-11-05 00:14:26 +0800。参考569约5分钟，加上动态台、物理时序及质量控制，估35分钟。截图0，性能暂停。
+  - source/static：fresh ProcessLanded在SetPostLandedPhysics记录PreImpactAccel/Velocity并切Walking，然后调用和D38共用的ApplyImpactPhysicsForces。目标falling sweep命中后提交角色落地与余时，不保留被撞刚体供施力。先排除D37站立力与普通接触，再按D38同根或独立判定。
+  - 23:42 runtime Gate 前：目标动态台探针编译通过。原生首轮准备脚本发现旧.523读取器无落地委托观察，改复用.553已有委托并保留失败报告；三案继续相同台面和初速度。
+  - 23:44 首轮原生资格失败：继承的.553只装了Walking初始化，未消费本案Falling输入；该轮无真实落地，保留读数并复用.523实际Air初始化，同包重建。目标两案Air→Grounded成立，动态台无接触冲量或位移。
+  - runtime Gate 后：三组原生Landed命中逐字段相同。站立力为0时，仅开启交互的100kg模拟台获得−0.049983m/s竖直速度，禁用和静态控制均为0。Playground两组真实着陆并绑定台面，动态台无物理接触冲量，落地帧与后帧均静止。按共用ApplyImpactPhysicsForces归D38。
+  - 完成 Gate `PASS_SIMULATED_DECK_LANDING_IMPACT`。补入D38，新增0，累计310（143 P2、167 P3）。watchdog、396身份/六库、6份原始报告解压哈希及82份暂存证据通过。实际结束2026-11-04 23:46:50 +0800，实耗444秒，偏差-1656秒；已有委托与Air初始化的同类多组刚体对照按约7–12分钟估计。证据 `docs/audit/bf144/570/`。截图0，性能暂停。
+
 - [x] BF144.569 Walking 成功脱困的反向位移与实际速度方向。依赖568零时前向命中，只留右墙使角色可向后脱离，缩为50ms一个子步。核原生guard、位移和已发布速度方向，与目标事务/物理位移、实际速度及方向消费者对照；保留普通正时命中和无墙。开始2026-11-04 23:33:41 +0800，预估结束2026-11-05 00:03:41 +0800。参考568约6分钟，本项含单步目标诊断与方向采样，估30分钟。截图0，性能暂停。
   - source/static：SafeMove成功解重叠后重试原扫掠，CMC把成功校正置bJustTeleported；ALS跳过速度及pre-penetration缓存回写，RefreshLocomotion发布实际速度方向。目标单步末以位置差发布速度，需证实际校正是否反向及进入角色状态。历史BF124.A07处理碰撞前期望yaw数据，D314处理同一guard的失败触发，本轮先看是否同根。
   - 23:35 runtime Gate 前：目标单步探针编译通过，三组按同初速6.5m/s和50ms启动。首轮请求生成的键引号拼接已修正，成功请求与拒绝报告分别保留。原生隔离包读取进行中。
@@ -5494,11 +5501,12 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色稳定站在GravityScale0、质量100/1000kg的动态平台，胶囊离地0.023667m，控制首帧平台速度为0。按用户采用的Bevy重力9.81，16.667ms后源平台vy应−0.1635/−0.01635m/s，target均0；owner0仍应−0.1635，target0。`bf144_force_standing_downward_uses_character_mass`6组3PASS/3FAIL，Static、Kinematic和角色gravity0对照通过；证据`target/bf144/12/impact_downward/`。
   - 漏检：旧基座回归主要核对角色跟随与继承，没有断言被站立的动态body受力；角色velocity.y=0和正确floor距离均不能证明下压力已移植。仅登记，不更改物件质量、场景或重力政策。
 
-- [ ] BF144-D38 / P2 — blocking sweep命中动态物体后缺少源推挤力。
+- [ ] BF144-D38 / P2 — 阻挡扫掠或普通落地后，未对命中的模拟刚体提交源撞击力。
   - Source：fresh UE `HandleImpact:7783–7811`进入`ApplyImpactPhysicsForces:7814–7930`；native InitialPushForce500、PushForce750000、PushScaledToMass=False、UsingZOffset=False。本机CVar `p.ApplyCharacterCollisionForceAsImpulse=False`，静止阈值1cm/s内用500×30 kg·cm/s²，移动body用750000 kg·cm/s²，均AddForceAtLocation，不能按旧版本把500当一次冲量。
   - Target：`src/als/character/movement/motion.rs`空中/地面sweep和slide只调整角色位移/速度，未把命中的simulated body与源力参数提交给物理；实际air blocking命中后目标body保持原速度。
   - 反例：完整角色以5m/s撞向距胶囊前缘7cm的动态竖面，质量100kg，16.667ms首次命中。静止物体源应增加0.025m/s，target增加0；初速+0.1/−0.1m/s时源应到+1.35/+1.15，target仍+0.1/−0.1。`bf144_force_blocking_impact_keeps_source_force_branch`8组2PASS/6FAIL，同时覆盖质量200、初速0.005和20ms帧；Static/Kinematic不施力对照通过，证据`target/bf144/12/impact_downward/`。
   - 漏检：旧动态墙测试只检查角色slide及被撞物体的输入速度，未核对HandleImpact向body输出的force。D20是角色保留动态接触速度的独立消费者；补齐其中一条不能作为另一条证据。本批仅登记，不修改生产实现。
+  - 落地入口补证：UE SetPostLandedPhysics在切Walking后调用同一个ApplyImpactPhysicsForces。站立下压力设0，三个原生场景落地命中相同，仅开启交互的100kg动态台竖直速度变为−0.049983m/s。Playground实测Air→Grounded、绑定同类动态台、无物理接触冲量，台速保持0。D37单独覆盖站立下压力。证据 `docs/audit/bf144/570/`。
 
 - [ ] BF144-D39 / P2 — simulated overlap物体首次触碰时缺少CapsuleTouched冲量。
   - Source：fresh native胶囊GenerateOverlapEvents=True，CMC PhysicsInteraction=True、TouchForceFactor1、TouchScaledToMass=True、Min−1/Max250；UE `SetUpdatedComponent:1037–1042`绑定BeginOverlap，`CapsuleTouched:11674–11717`以角色水平速度×body mass后夹到MaxTouchForce，按几何与运动方向混合得到方向并AddImpulse。`PrimitiveComponent.cpp:224–230,4100–4140`要求双方生成事件且pair response=Overlap。
