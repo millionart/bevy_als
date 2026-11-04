@@ -1,0 +1,846 @@
+[
+  {
+    "frame": 0,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 1,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 2,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 3,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 4,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 5,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 6,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 7,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 8,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 9,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 10,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 11,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 12,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 13,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 14,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 15,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 16,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 17,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 18,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 19,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 20,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 21,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 22,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 23,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 24,
+    "state": "Fall",
+    "grounded_update_counter": 1,
+    "movement": "MOVE_Falling",
+    "tag": "Als.LocomotionMode.InAir",
+    "amounts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": []
+  },
+  {
+    "frame": 25,
+    "state": "Land Movement",
+    "grounded_update_counter": 27,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 26,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 27,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 28,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 29,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 30,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 31,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 32,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 33,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 34,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 35,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 36,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 37,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 38,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 39,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 40,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 41,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 42,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 43,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 44,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 45,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 46,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 47,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 48,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 49,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 50,
+    "state": "Land Movement",
+    "grounded_update_counter": 28,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.581749439239502,
+      0,
+      0,
+      0.41825056076049805
+    ],
+    "recomputed_snap": null,
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  },
+  {
+    "frame": 51,
+    "state": "Grounded",
+    "grounded_update_counter": 53,
+    "movement": "MOVE_Walking",
+    "tag": "Als.LocomotionMode.Grounded",
+    "amounts": [
+      0.8913185596466064,
+      0,
+      0,
+      0.10868149250745773
+    ],
+    "recomputed_snap": [
+      0.8913185596466064,
+      0,
+      0,
+      0.10868149250745773
+    ],
+    "roll_sequences": [
+      "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+    ]
+  }
+]
