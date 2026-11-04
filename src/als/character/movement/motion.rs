@@ -2709,7 +2709,7 @@ pub(crate) fn falling_movement_sweep(
     movement: Vec3, mut velocity: Vec3, step: f32,
     mut landing: Option<(&crate::als::params::CmcAdapterParams, f32, f32, &mut u32)>, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
-) -> (Vec3, Vec3, bool, Option<f32>) {
+) -> (Vec3, Vec3, bool, Option<(f32, bool)>) {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, candidates);
     let mut remaining = movement;
@@ -2772,7 +2772,7 @@ pub(crate) fn falling_movement_sweep(
                 LocomotionState::Air, &filter, entity, candidates)
                 .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
                     && impact < position.y - extent.y + extent.x.min(extent.z)) {
-                return (applied, velocity, contact, Some(remaining_time));
+                return (applied, velocity, contact, Some((remaining_time, sweep == 2)));
             }
         }
         let budget = velocity * remaining_time;
@@ -2822,8 +2822,8 @@ fn falling_movement_transaction(
         transform.translation += applied;
         contact |= hit;
         let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
-        if let Some(landing_remaining) = landing_remaining {
-            remaining = remaining - step + landing_remaining;
+        if let Some((landing_remaining, last_impact)) = landing_remaining {
+            remaining = if last_impact { 0.0 } else { remaining - step + landing_remaining };
             transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
                 from: StateValue::LocomotionState(LocomotionState::Air), to: StateValue::LocomotionState(LocomotionState::Grounded) });
             mode = LocomotionState::Grounded;
@@ -4375,6 +4375,47 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn third_impact_landing_discards_the_entire_remaining_frame() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (floor_top, third_impact) in [(3.04, true), (3.065, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<StateTransitionEvent>();
+            app.finish();
+            let slope_rotation = Quat::from_rotation_y(-10.0_f32.to_radians()) * Quat::from_rotation_x(-60.0_f32.to_radians());
+            let slope = Vec3::new(0.0, 3.4, 0.0) - slope_rotation * Vec3::Y * 0.385;
+            for (center, rotation, size) in [
+                (Vec3::new(0.38, 4.0, 0.0), Quat::IDENTITY, Vec3::new(0.1, 3.0, 2.0)),
+                (slope, slope_rotation, Vec3::new(2.0, 0.04, 1.2)),
+                (Vec3::new(0.0, floor_top - 0.1, 0.0), Quat::IDENTITY, Vec3::new(2.0, 0.2, 2.0)),
+            ] {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(size.x, size.y, size.z),
+                    Transform::from_translation(center).with_rotation(rotation)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>, mut transitions: MessageWriter<StateTransitionEvent>| {
+                let mut seed = 123;
+                falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Transform::from_xyz(0.0, 4.0, 0.0), Vec3::new(4.0, -2.0, 2.0), Vec3::ZERO,
+                    7.0, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
+                    (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
+                    (0.0, false, false), 40.0, 0.1, 0, actor, &mut seed,
+                    &candidates, &permissions, &bases, &owners, &mut transitions)
+            }).unwrap();
+            assert_eq!(result.4, LocomotionState::Grounded, "floor={floor_top}");
+            let expected_cap = if third_impact { 7.0 } else { 3.75 };
+            assert!((result.6 - expected_cap).abs() < 1e-4,
+                "floor={floor_top} walking cap={} expected={expected_cap}", result.6);
+        }
+    }
 
     #[test]
     fn falling_keeps_the_last_grounded_speed_cap_after_stance_changes() {
