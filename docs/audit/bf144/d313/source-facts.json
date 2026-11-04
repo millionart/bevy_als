@@ -1,0 +1,32 @@
+{
+  "files": [
+    {
+      "path": "ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "line": 512,
+          "text": "if (CurrentFloor.IsWalkableFloor())\n\t\t\t{\n\t\t\t\tif (ShouldCatchAir(OldFloor, CurrentFloor))\n\t\t\t\t{\n\t\t\t\t\tHandleWalkingOffLedge(OldFloor.HitResult.ImpactNormal, OldFloor.HitResult.Normal, OldLocation, timeTick);\n\t\t\t\t\tif (IsMovingOnGround())\n\t\t\t\t\t{\n\t\t\t\t\t\t// If still walking, then fall. If not, assume the user set a different mode they want to keep.\n\t\t\t\t\t\tStartFalling(Iterations, remainingTime, timeTick, Delta, OldLocation);\n\t\t\t\t\t}\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tAdjustFloorHeight();\n\t\t\t\tSetBaseFromFloor(CurrentFloor);\n\t\t\t}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "line": 1193,
+          "text": "FVector UCharacterMovementComponent::GetImpartedMovementBaseVelocity() const\n{\n\tFVector Result = FVector::ZeroVector;\n\tif (CharacterOwner)\n\t{\n\t\tconst FMovementBaseInterfaceData* MovementBaseInterfaceData = GetMovementBaseInterfaceData();\n\t\t\n\t\tif (MovementBaseUtility::IsDynamicBase(MovementBaseInterfaceData))\n\t\t{\n\t\t\tFVector BaseVelocity = MovementBaseUtility::GetMovementBaseVelocity(MovementBaseInterfaceData, CharacterOwner->GetBasedMovement().BoneName);\n\t\t\t\n\t\t\tif (bImpartBaseAngularVelocity)\n\t\t\t{\n\t\t\t\tconst FVector CharacterBasePosition = (UpdatedComponent->GetComponentLocation() + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * GetGravityDirection());\n\t\t\t\tconst FVector BaseTangentialVel = MovementBaseUtility::GetMovementBaseTangentialVelocity(MovementBaseInterfaceData, CharacterOwner->GetBasedMovement().BoneName, CharacterBasePosition);\n\t\t\t\tBaseVelocity += BaseTangentialVel;\n\t\t\t}\n\n\t\t\tif (bImpartBaseVelocityX)\n\t\t\t{\n\t\t\t\tResult.X = BaseVelocity.X;\n\t\t\t}\n\t\t\tif (bImpartBaseVelocityY)\n\t\t\t{\n\t\t\t\tResult.Y = BaseVelocity.Y;\n\t\t\t}\n\t\t\tif (bImpartBaseVelocityZ)\n\t\t\t{\n\t\t\t\tResult.Z = BaseVelocity.Z;\n\t\t\t}\n\t\t}\n\t}\n\t\n\treturn Result;\n}"
+        },
+        {
+          "line": 2449,
+          "text": "void UCharacterMovementComponent::SetBaseFromFloor(const FFindFloorResult& FloorResult)\n{\n\tif (FloorResult.IsWalkableFloor())\n\t{\n\t\tconst FFindFloorResult InitialFloor = FloorResult;\n\n\t\tFMovementBaseInterfaceData MovementBaseInterfaceData = MovementBaseUtility::GetMovementBaseDataFromHitResult(&FloorResult.HitResult);\n\t\t\n\t\tSetBase(&MovementBaseInterfaceData, FloorResult.HitResult.BoneName);\n\n\t\t// Support valid hit results that don't return a PrimitiveComponent.\n\t\t// SetBase will clear the floor in those cases, but we should keep the valid floor.\n\t\t// SetBase also never keeps the base when bIsNavWalkingOnServer, so don't bother keeping the floor there.\n\t\tif (CharacterMovementCVars::bRestoreFloorWhenMissingBaseComponent)\n\t\t{\n\t\t\tif (!MovementBaseUtility::IsMovementBaseDataValid(GetMovementBaseInterfaceData()) && !bIsNavWalkingOnServer)\n\t\t\t{\n\t\t\t\tCurrentFloor = InitialFloor;\n\t\t\t}\n\t\t}\n\t}\n\telse\n\t{\n\t\tSetBase(static_cast<FMovementBaseInterfaceData*>(nullptr));\n\t}\n}"
+        },
+        {
+          "line": 1407,
+          "text": "void UCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)\n{\n\tif (!HasValidData())\n\t{\n\t\treturn;\n\t}\n\n\t// Update collision settings if needed\n\tif (MovementMode == MOVE_NavWalking)\n\t{\n\t\t// Reset cached nav location used by NavWalking\n\t\tCachedNavLocation = FNavLocation();\n\n\t\tGroundMovementMode = MovementMode;\n\t\t// Walking uses only XY velocity\n\t\tVelocity = ProjectToGravityFloor(Velocity);\n\t\tSetNavWalkingPhysics(true);\n\t}\n\telse if (PreviousMovementMode == MOVE_NavWalking)\n\t{\n\t\tif (MovementMode == DefaultLandMovementMode || IsWalking())\n\t\t{\n\t\t\tconst bool bSucceeded = TryToLeaveNavWalking();\n\t\t\tif (!bSucceeded)\n\t\t\t{\n\t\t\t\treturn;\n\t\t\t}\n\t\t}\n\t\telse\n\t\t{\n\t\t\tSetNavWalkingPhysics(false);\n\t\t}\n\t}\n\n\t// React to changes in the movement mode.\n\tif (MovementMode == MOVE_Walking)\n\t{\n\t\t// Walking uses only XY velocity, and must be on a walkable floor, with a Base.\n\t\tVelocity = FVector::VectorPlaneProject(Velocity, -GetGravityDirection());\n\t\tbCrouchMaintainsBaseLocation = true;\n\t\tGroundMovementMode = MovementMode;\n\n\t\t// make sure we update our new floor/base on initial entry of the walking physics\n\t\tFindFloor(UpdatedComponent->GetComponentLocation(), CurrentFloor, false);\n\t\tAdjustFloorHeight();\n\t\tSetBaseFromFloor(CurrentFloor);\n\t}\n\telse\n\t{\n\t\tCurrentFloor.Clear();\n\t\tbCrouchMaintainsBaseLocation = false;\n\n\t\tif (MovementMode == MOVE_Falling)\n\t\t{\n\t\t\tif (bStayBasedInAir == false)\n\t\t\t{\n\t\t\t\tApplyImpartedMovementBaseVelocity();\n\t\t\t}\n\t\t\tCharacterOwner->Falling();\n\t\t}\n\n\t\tif (!IsFalling() || bStayBasedInAir == false)\n\t\t{\n\t\t\tFMovementBaseInterfaceData EmptyMovementBaseData;\n\t\t\tSetBase(&EmptyMovementBaseData);\n\t\t}\n\n\t\tif (MovementMode == MOVE_None)\n\t\t{\n\t\t\t// Kill velocity and clear queued up events\n\t\t\tStopMovementKeepPathing();\n\t\t\tCharacterOwner->ResetJumpState();\n\t\t\tClearAccumulatedForces();\n\t\t}\n\t}"
+        }
+      ]
+    }
+  ]
+}

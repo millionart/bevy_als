@@ -98,7 +98,7 @@ fn character_contact_point(params: &AlsMovementParams, stance: Stance, position:
     position - Vec3::Y * half_height
 }
 
-fn support_velocity_from_base(
+pub(crate) fn support_velocity_from_base(
     base_entity: Option<Entity>,
     contact_point: Vec3,
     bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
