@@ -1,0 +1,23 @@
+{
+  "input_source": "docs/audit/bf144/499/evidence-input.json",
+  "input_sha256": "6df2c22fbba29e0f96e87d6ab824879d6a66c1060339c83ade2a8efda3ba3388",
+  "query": 101,
+  "world_velocity": [
+    2.0000267028808594,
+    0.0,
+    -8.583068120060489e-05
+  ],
+  "world_rotation": [
+    0.0,
+    -0.47920921444892883,
+    0.0,
+    0.8777007460594177
+  ],
+  "local_f64_then_f32": [
+    1.081376552581787,
+    0.0,
+    -1.6824780702590942
+  ],
+  "method": "Widen the recorded F32 vector and quaternion, evaluate the expanded inverse rotation in F64, then cast each component to F32.",
+  "source_replay": "docs/audit/bf144/502/replay.rs"
+}

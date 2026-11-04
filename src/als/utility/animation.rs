@@ -1,8 +1,12 @@
 use bevy::prelude::*;
 use bevy::math::{DQuat, DVec3};
 
+fn velocity_local_f64(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
+    (character_rotation.as_dquat().inverse() * world_velocity.as_dvec3()).as_vec3()
+}
+
 pub fn velocity_blend_direction(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
-    let local = character_rotation.inverse() * world_velocity;
+    let local = velocity_local_f64(world_velocity, character_rotation);
     if local.length_squared() > 1e-12 {
         local / local.abs().element_sum()
     } else {
@@ -48,6 +52,14 @@ pub fn inv_exp_approx(value: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn velocity_local_rotation_preserves_double_precision() {
+        let velocity = Vec3::new(2.0000267, 0.0, -0.00008583068);
+        let rotation = Quat::from_xyzw(0.0, -0.4792092, 0.0, 0.87770075);
+        let local = velocity_local_f64(velocity, rotation);
+        assert_eq!(local, Vec3::new(1.08137655, 0.0, -1.68247807));
+    }
 
     #[test]
     fn source_local_acceleration_amount_matches_native_lean_controls() {

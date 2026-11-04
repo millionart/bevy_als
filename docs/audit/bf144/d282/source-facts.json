@@ -1,0 +1,90 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 824,
+          "last_line": 827,
+          "text": "FVector3f UAlsAnimationInstance::GetVelocity() const\n{\n\treturn FVector3f{LocomotionState.RotationQuaternionWorldSpace.UnrotateVector(LocomotionState.VelocityWorldSpace)};\n}"
+        },
+        {
+          "first_line": 850,
+          "last_line": 866,
+          "text": "void UAlsAnimationInstance::RefreshVelocityBlend()\n{\n\t// Calculate and interpolate the velocity blend amounts. This value represents the velocity amount of\n\t// the character in each direction (normalized so that diagonals equal 0.5 for each direction) and is\n\t// used in a blend multi node to produce better directional blending than a standard blend space.\n\n\tauto& VelocityBlend{GroundedState.VelocityBlend};\n\n\tauto VelocityDirection{GetVelocity()};\n\tauto TargetVelocityBlend{FVector3f::ZeroVector};\n\n\tif (VelocityDirection.Normalize())\n\t{\n\t\tTargetVelocityBlend = VelocityDirection /\n\t\t                      (FMath::Abs(VelocityDirection.X) + FMath::Abs(VelocityDirection.Y) + FMath::Abs(VelocityDirection.Z));\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Public/State/AlsLocomotionAnimationState.h",
+      "sha256": "26cdecf75ce4e2e86ed11f3f6142c30c52b6c694ef542c5a0725287640eefdf7",
+      "excerpts": [
+        {
+          "first_line": 15,
+          "last_line": 26,
+          "text": "\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = 0, ForceUnits = \"cm/s\"))\n\tfloat Speed{0.0f};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFVector VelocityWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\", Meta = (ClampMin = -180, ClampMax = 180, ForceUnits = \"deg\"))\n\tfloat VelocityYawAngleWorldSpace{0.0f};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFVector AccelerationWorldSpace{ForceInit};"
+        },
+        {
+          "first_line": 49,
+          "last_line": 54,
+          "text": "\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFRotator RotationWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFQuat RotationQuaternionWorldSpace{ForceInit};\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Quat.h",
+      "sha256": "7004f385a524d92a6baba51c545c0460263551526813e4ed06d31ad6edb08300",
+      "excerpts": [
+        {
+          "first_line": 1252,
+          "last_line": 1257,
+          "text": "inline TVector<T> TQuat<T>::UnrotateVector(TVector<T> V) const\n{\t\n\tconst TVector<T> Q(-X, -Y, -Z); // Inverse\n\tconst TVector<T> TT = 2.f * TVector<T>::CrossProduct(Q, V);\n\tconst TVector<T> Result = V + (W * TT) + TVector<T>::CrossProduct(Q, TT);\n\treturn Result;"
+        }
+      ]
+    },
+    {
+      "path": "src/f64/dquat.rs",
+      "sha256": "a32fa76cef63aa1aa4b7d892984bf0ead4f3a370b4c6f82f2a6b209d9ac4101f",
+      "excerpts": [
+        {
+          "first_line": 754,
+          "last_line": 763,
+          "text": "    pub fn mul_vec3(self, rhs: DVec3) -> DVec3 {\n        glam_assert!(self.is_normalized());\n\n        let w = self.w;\n        let b = DVec3::new(self.x, self.y, self.z);\n        let b2 = b.dot(b);\n        rhs.mul(w * w - b2)\n            .add(b.mul(rhs.dot(b) * 2.0))\n            .add(b.cross(rhs).mul(w * 2.0))\n    }"
+        }
+      ]
+    },
+    {
+      "path": "src/als/utility/animation.rs",
+      "sha256": "a74b9f47775fca2f48fbc4a4c532832ce500d24736da5aa322a2a3304d364dde",
+      "excerpts": [
+        {
+          "first_line": 1,
+          "last_line": 11,
+          "text": "use bevy::prelude::*;\nuse bevy::math::{DQuat, DVec3};\n\npub fn velocity_blend_direction(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {\n    let local = character_rotation.inverse() * world_velocity;\n    if local.length_squared() > 1e-12 {\n        local / local.abs().element_sum()\n    } else {\n        Vec3::ZERO\n    }\n}"
+        }
+      ]
+    },
+    {
+      "path": "docs/audit/bf144/502/replay.rs",
+      "sha256": "93024c1192ecf980e0dcd76a971526b3ef5e53142e4c68802b07d30dff6805c1",
+      "excerpts": [
+        {
+          "first_line": 15,
+          "last_line": 22,
+          "text": "fn expanded_unrotate_f32(v: Vec3, q: Quat) -> Vec3 {\n    let u = -q.xyz();\n    v * (q.w * q.w - u.dot(u)) + u * (2.0 * v.dot(u)) + u.cross(v) * (2.0 * q.w)\n}\n\nfn runtime_direction(local: Vec3) -> [f32; 4] {\n    let v = local / local.abs().element_sum();\n    [(-v.z).max(0.0), v.z.max(0.0), (-v.x).max(0.0), v.x.max(0.0)]"
+        },
+        {
+          "first_line": 29,
+          "last_line": 37,
+          "text": "fn cross_unrotate(v: DVec3, q: DQuat) -> DVec3 {\n    let u = -q.xyz();\n    let t = u.cross(v) * 2.0;\n    v + q.w * t + u.cross(t)\n}\n\nfn expanded_unrotate(v: DVec3, q: DQuat) -> DVec3 {\n    let u = -q.xyz();\n    v * (q.w * q.w - u.dot(u)) + u * (2.0 * v.dot(u)) + u.cross(v) * (2.0 * q.w)"
+        },
+        {
+          "first_line": 134,
+          "last_line": 155,
+          "text": "        let actual_v = Vec3::from_array(a32(&actual[\"velocity\"]));\n        let actual_q = Quat::from_array(a32(&actual[\"rotation\"]));\n        let actual_local = actual_q.inverse() * actual_v;\n        assert_eq!(actual_local, expanded_unrotate_f32(actual_v, actual_q));\n        let actual_previous = a32(&actual[\"previous\"]);\n        let actual_amounts = target_lerp(\n            actual_previous,\n            runtime_direction(actual_local),\n            target_alpha(delta),\n        );\n        assert_eq!(json!(actual_amounts), actual[\"actual\"]);\n        let widened_local = if WIDEN_RUNTIME_ROTATION {\n            expanded_unrotate(actual_v.as_dvec3(), actual_q.as_dquat()).as_vec3()\n        } else {\n            actual_local\n        };\n        let actual_widened = target_lerp(\n            actual_previous,\n            runtime_direction(widened_local),\n            target_alpha(delta),\n        );\n        rows.push(json!({\"query\":row[\"query\"],\"runtime_combined\":runtime,\"actual_target\":actual_amounts,\"actual_target_widened\":actual_widened,\"reports\":reports}));"
+        }
+      ]
+    }
+  ]
+}
