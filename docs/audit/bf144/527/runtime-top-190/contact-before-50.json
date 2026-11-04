@@ -1,0 +1,27 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 2.9305267333984375,
+    "gap": 0.02430891990661621,
+    "impact": 2.190000057220459,
+    "lower_hemisphere": 2.3548357486724854,
+    "name": "AuditWalkOffBarrier"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": false,
+  "manifolds": [],
+  "mode": "Grounded",
+  "ordinal": 50,
+  "planned_velocity": null,
+  "position": [
+    -13.49973201751709,
+    2.9548356533050537,
+    -15.283391952514648
+  ],
+  "raw_velocity": [
+    2.6582419872283936,
+    0.0,
+    -2.007272481918335
+  ],
+  "requested_mode": null
+}
