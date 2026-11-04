@@ -1,0 +1,444 @@
+{
+  "gate": "PASS_LANDING_WALKING_RECEIVES_DEFLECTED_HORIZONTAL_VELOCITY",
+  "findings": [
+    "BF144-D309"
+  ],
+  "new_differences": 1,
+  "total_differences": 306,
+  "ordinal": 49,
+  "native": {
+    "end": [
+      -12.977105724470402,
+      3.9985000378182542,
+      -14.95454770464734
+    ],
+    "velocity_cm_s": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "target": {
+    "baseline": {
+      "replay": {
+        "landing": [
+          -12.9772310256958,
+          3.998591184616089,
+          -14.954564094543457
+        ],
+        "remaining": 0.03757622465491295,
+        "variants": {
+          "deflected": {
+            "end": [
+              -12.9772310256958,
+              3.998591184616089,
+              -14.954564094543457
+            ],
+            "feedback": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "requested_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "walking_input": [
+              -0.00041663358570076525,
+              0.0,
+              -7.712732440268155e-06
+            ]
+          },
+          "incoming": {
+            "end": [
+              -12.977213859558105,
+              3.998591184616089,
+              -14.836679458618164
+            ],
+            "feedback": [
+              0.00045683508506044745,
+              0.0,
+              3.1372134685516357
+            ],
+            "requested_velocity": [
+              3.136763572692871,
+              0.0,
+              3.136763572692871
+            ],
+            "walking_input": [
+              4.0,
+              0.0,
+              4.0
+            ]
+          }
+        }
+      },
+      "handoff": {
+        "enabled": false,
+        "motor_acceleration": [
+          -0.0,
+          9.8100004196167,
+          -0.0
+        ],
+        "motor_boost": [
+          -4.0,
+          1.0,
+          -4.0
+        ],
+        "original_feedback": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ],
+        "original_position": [
+          -12.977213859558105,
+          3.998591184616089,
+          -14.836679458618164
+        ],
+        "selected_feedback": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ],
+        "selected_position": [
+          -12.977213859558105,
+          3.998591184616089,
+          -14.836679458618164
+        ]
+      },
+      "actual": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 49,
+        "position": [
+          -12.977213859558105,
+          3.998591184616089,
+          -14.94474983215332
+        ],
+        "published": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Air)",
+            "LocomotionState(Grounded)"
+          ]
+        ],
+        "velocity": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ]
+      }
+    },
+    "corrected": {
+      "replay": {
+        "landing": [
+          -12.9772310256958,
+          3.998591184616089,
+          -14.954564094543457
+        ],
+        "remaining": 0.03757622465491295,
+        "variants": {
+          "deflected": {
+            "end": [
+              -12.9772310256958,
+              3.998591184616089,
+              -14.954564094543457
+            ],
+            "feedback": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "requested_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "walking_input": [
+              -0.00041663358570076525,
+              0.0,
+              -7.712732440268155e-06
+            ]
+          },
+          "incoming": {
+            "end": [
+              -12.977213859558105,
+              3.998591184616089,
+              -14.836679458618164
+            ],
+            "feedback": [
+              0.00045683508506044745,
+              0.0,
+              3.1372134685516357
+            ],
+            "requested_velocity": [
+              3.136763572692871,
+              0.0,
+              3.136763572692871
+            ],
+            "walking_input": [
+              4.0,
+              0.0,
+              4.0
+            ]
+          }
+        }
+      },
+      "handoff": {
+        "enabled": true,
+        "motor_acceleration": [
+          -0.0,
+          9.8100004196167,
+          -0.0
+        ],
+        "motor_boost": [
+          -4.0,
+          1.0,
+          -4.0
+        ],
+        "original_feedback": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ],
+        "original_position": [
+          -12.977213859558105,
+          3.998591184616089,
+          -14.836679458618164
+        ],
+        "selected_feedback": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "selected_position": [
+          -12.9772310256958,
+          3.998591184616089,
+          -14.954564094543457
+        ]
+      },
+      "actual": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 49,
+        "position": [
+          -12.9772310256958,
+          3.998591184616089,
+          -14.954564094543457
+        ],
+        "published": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Air)",
+            "LocomotionState(Grounded)"
+          ]
+        ],
+        "velocity": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "restored": {
+      "replay": {
+        "landing": [
+          -12.9772310256958,
+          3.998591184616089,
+          -14.954564094543457
+        ],
+        "remaining": 0.03757622465491295,
+        "variants": {
+          "deflected": {
+            "end": [
+              -12.9772310256958,
+              3.998591184616089,
+              -14.954564094543457
+            ],
+            "feedback": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "requested_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "walking_input": [
+              -0.00041663358570076525,
+              0.0,
+              -7.712732440268155e-06
+            ]
+          },
+          "incoming": {
+            "end": [
+              -12.977213859558105,
+              3.998591184616089,
+              -14.836679458618164
+            ],
+            "feedback": [
+              0.00045683508506044745,
+              0.0,
+              3.1372134685516357
+            ],
+            "requested_velocity": [
+              3.136763572692871,
+              0.0,
+              3.136763572692871
+            ],
+            "walking_input": [
+              4.0,
+              0.0,
+              4.0
+            ]
+          }
+        }
+      },
+      "handoff": {
+        "enabled": false,
+        "motor_acceleration": [
+          -0.0,
+          9.8100004196167,
+          -0.0
+        ],
+        "motor_boost": [
+          -4.0,
+          1.0,
+          -4.0
+        ],
+        "original_feedback": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ],
+        "original_position": [
+          -12.977213859558105,
+          3.998591184616089,
+          -14.836679458618164
+        ],
+        "selected_feedback": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ],
+        "selected_position": [
+          -12.977213859558105,
+          3.998591184616089,
+          -14.836679458618164
+        ]
+      },
+      "actual": {
+        "has_base": true,
+        "mode": "Grounded",
+        "ordinal": 49,
+        "position": [
+          -12.977213859558105,
+          3.998591184616089,
+          -14.94474983215332
+        ],
+        "published": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ],
+        "stored_contact": false,
+        "transitions": [
+          [
+            "LocomotionState(Air)",
+            "LocomotionState(Grounded)"
+          ]
+        ],
+        "velocity": [
+          0.00045683508506044745,
+          0.0,
+          3.1372134685516357
+        ]
+      }
+    }
+  },
+  "decompressed_files": {
+    "runtime-baseline/parameters.json.gz": {
+      "bytes": 191988,
+      "sha256": "5be328224641914284572668359ef2187393fb6de3270b5abe92b7633e8075c5"
+    },
+    "runtime-baseline/report.json.gz": {
+      "bytes": 4022701,
+      "sha256": "f3a44c19d653d311172b7e594db16c54243be78873ff571aa3ab7b95f45e592f"
+    },
+    "runtime-corrected/parameters.json.gz": {
+      "bytes": 169906,
+      "sha256": "d581d8c4eda1b6d9f1447e9ff2e4accaa0c78c126deb1ccd24257748939af45d"
+    },
+    "runtime-corrected/report.json.gz": {
+      "bytes": 4114374,
+      "sha256": "7614d7bbc2baeda45c03b743897e386069f5361bfe38fdf1bd561b3a443da4ef"
+    },
+    "runtime-restored/parameters.json.gz": {
+      "bytes": 191988,
+      "sha256": "5be328224641914284572668359ef2187393fb6de3270b5abe92b7633e8075c5"
+    },
+    "runtime-restored/report.json.gz": {
+      "bytes": 4394007,
+      "sha256": "9ea85ee19ef6574dfeb9e412a00d3d2e5b668bf399fad4a35d1c4e5ee421ecf9"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/559/third.native.json.gz",
+      "bytes": 3089388,
+      "sha256": "be443b08970c03fe8f93c1bbef921938402f462cc3d5d83dca909faa59cd2d61"
+    },
+    {
+      "path": "docs/audit/bf144/559/observer.py",
+      "bytes": 714,
+      "sha256": "ffab1b09a8a20ae12459d23b9289056cf96e48ebb15aa0e5b3d549e0bb0ed755"
+    },
+    {
+      "path": "docs/audit/bf144/559/corner_fixture.inc",
+      "bytes": 977,
+      "sha256": "1a6158335ff01a3d89d000c60f43dfe34986070149b60d0a3ce72c6f5d0d42eb"
+    },
+    {
+      "path": "docs/audit/bf144/559/corner_probe.inc",
+      "bytes": 5597,
+      "sha256": "673ea25bd61100f4f6d4f0db01cccf17f1ea9eefdb4e715f54d2ad4759f41e66"
+    },
+    {
+      "path": "docs/audit/bf144/559/runtime-positive/air-corner.json",
+      "bytes": 161,
+      "sha256": "81bac17837581e86d949a4d807ebf1e4895f3e92e3d3139220d3410836fb6f5c"
+    },
+    {
+      "path": "docs/audit/bf144/559/runtime-positive/third-contact.json",
+      "bytes": 2263,
+      "sha256": "74f39473eff42e86944ab3bd796fe4aa4114a513bdfa8b754d9d82f0955e3ae7"
+    },
+    {
+      "path": "docs/audit/bf144/559/runtime-positive/stage-before.json",
+      "bytes": 455,
+      "sha256": "25bc6ff73a8c4c9fdd654d1064f1d58ce28535e571af64086677fcb5627f7598"
+    },
+    {
+      "path": "docs/audit/bf144/559/runtime-positive/stage-after.json",
+      "bytes": 345,
+      "sha256": "9c2e09a232c17bfe5082230222ea9980dd9f39d67c38e0698043dd95c05b19fb"
+    },
+    {
+      "path": "docs/audit/bf144/559/runtime-positive/contact-after-49.json",
+      "bytes": 443,
+      "sha256": "58ac8d2f57da039797446b44b37175ac412a76e794fd89aa3a1c5e303c7da9f1"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "has_base": true,
+  "mode": "Grounded",
+  "ordinal": 49,
+  "position": [
+    -12.9772310256958,
+    3.998591184616089,
+    -14.954564094543457
+  ],
+  "published": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "stored_contact": false,
+  "transitions": [
+    [
+      "LocomotionState(Air)",
+      "LocomotionState(Grounded)"
+    ]
+  ],
+  "velocity": [
+    0.0,
+    0.0,
+    0.0
+  ]
+}
