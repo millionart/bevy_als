@@ -1,0 +1,31 @@
+{
+  "consumed_contact": true,
+  "floor": {
+    "center": 3.940192222595215,
+    "gap": 0.021481037139892578,
+    "impact": 3.0399999618530273,
+    "lower_hemisphere": 3.36167311668396,
+    "name": "AuditThirdFloor"
+  },
+  "generated_contact": true,
+  "has_basis_displacement": false,
+  "manifolds": [],
+  "mode": "Grounded",
+  "ordinal": 49,
+  "planned_velocity": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "position": [
+    -12.978400230407715,
+    3.9616732597351074,
+    -14.964459419250488
+  ],
+  "raw_velocity": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "requested_mode": null
+}

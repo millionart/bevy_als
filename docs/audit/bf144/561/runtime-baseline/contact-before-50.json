@@ -1,0 +1,47 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 3.940000057220459,
+    "gap": 0.024640560150146484,
+    "impact": 3.0399999618530273,
+    "lower_hemisphere": 3.364640474319458,
+    "name": "AuditThirdFloor"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": true,
+  "manifolds": [
+    {
+      "constraints": true,
+      "normal": [
+        0.15038377046585083,
+        0.5000001192092896,
+        -0.8528684973716736
+      ],
+      "other": "AuditAirCornerSlope",
+      "points": [
+        [
+          1.257285475730896e-7,
+          0.12216228246688843
+        ],
+        [
+          1.257285475730896e-7,
+          0.0035061626695096493
+        ]
+      ]
+    }
+  ],
+  "mode": "Grounded",
+  "ordinal": 50,
+  "planned_velocity": null,
+  "position": [
+    -12.972606658935547,
+    3.9646406173706055,
+    -14.936483383178711
+  ],
+  "raw_velocity": [
+    0.09189235419034958,
+    0.0023652599193155766,
+    0.01620304584503174
+  ],
+  "requested_mode": null
+}
