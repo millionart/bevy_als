@@ -1,0 +1,31 @@
+{
+  "consumed_contact": false,
+  "floor": {
+    "center": 2.8730223178863525,
+    "gap": 0.013485431671142578,
+    "impact": 1.9730000495910645,
+    "lower_hemisphere": 2.2865076065063477,
+    "name": "AuditLandingDeck"
+  },
+  "generated_contact": false,
+  "has_basis_displacement": false,
+  "manifolds": [],
+  "mode": "Air",
+  "ordinal": 49,
+  "planned_velocity": [
+    3.1152865886688232,
+    -0.37985649704933167,
+    -3.1154911518096924
+  ],
+  "position": [
+    -13.637532234191895,
+    2.886507749557495,
+    -15.205394744873047
+  ],
+  "raw_velocity": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "requested_mode": null
+}
