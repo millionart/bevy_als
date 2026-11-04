@@ -1,0 +1,140 @@
+{
+  "gate": "PASS_D07_CACHED_ACCELERATION_ACTUAL_MOVEMENT_AND_ANIMATION",
+  "findings": [
+    "BF144-D07"
+  ],
+  "new_differences": 0,
+  "total_differences": 283,
+  "native_speed": 4.666666929472355,
+  "target_current_speed": 4.565763473510742,
+  "target_cached_speed": 4.666728496551514,
+  "native_cached_maximum": 20.0,
+  "native_refreshed_maximum": 16.97229248046875,
+  "target_fresh_maximum": 16.971708297729492,
+  "target_sprint_clip_time": [
+    0.3204651176929474,
+    0.32142430543899536
+  ],
+  "root_changed_bones": 73,
+  "restored_witness_exact": true,
+  "restored_first_difference": {
+    "after": 35,
+    "before": 35,
+    "dynamics": 35
+  },
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "runtime-baseline/report.json": {
+      "bytes": 4123684,
+      "sha256": "b0abfa8ade4d59346537b8833fca4a879559c73690e5a26fc224a08fb50f2fc1"
+    },
+    "runtime-baseline/parameters.json": {
+      "bytes": 4212897,
+      "sha256": "06082faad988eee4df88964ffa3acb6be5fbe967bc93c7e6b2c76ad1af51315f"
+    },
+    "runtime-cached/report.json": {
+      "bytes": 4306494,
+      "sha256": "a3331965e9672626106593bdc63a0faff4a97dd87332dcfd715c952d4007c4fe"
+    },
+    "runtime-cached/parameters.json": {
+      "bytes": 4190617,
+      "sha256": "703da7f78e3b8951161bae07ca39e1c52c2f650cf547db57e7ff4e82d0149d20"
+    },
+    "runtime-restored/report.json": {
+      "bytes": 4220039,
+      "sha256": "9488746aba33057cf8c45dfc892c29462b5298d85d20c4fc1d142b1aa7dcbc8c"
+    },
+    "runtime-restored/parameters.json": {
+      "bytes": 4257245,
+      "sha256": "79b8a4fdb12d6e6cfe550d7adf3cffb211d4f09601099cd50d99951bbd59b7cd"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/509/observer.py",
+      "bytes": 1531,
+      "sha256": "527610f484ac25a866d8f3b01f36a311f7f9774c3c8e4f68d205ac31949b041c"
+    },
+    {
+      "path": "docs/audit/bf144/509/lean_observer.rs",
+      "bytes": 4911,
+      "sha256": "f3144b53b7bbdaa7e1887765e4204fb879bfcc817dd81129b8b4622eb7fbf562"
+    },
+    {
+      "path": "docs/audit/bf144/510/observer.py",
+      "bytes": 1468,
+      "sha256": "075da35b4b3901ab93954a19d413693642d6f0069bd8ad72408353ef0729a0fd"
+    },
+    {
+      "path": "docs/audit/bf144/510/acceleration_observer.rs",
+      "bytes": 2613,
+      "sha256": "3e39ba76053efc10be7d9140c532b97f2709986573480fdbdaca77e9eef1451c"
+    },
+    {
+      "path": "docs/audit/bf144/512/observer.py",
+      "bytes": 2349,
+      "sha256": "828e7543b236a7036f7b1872805962c989508cd55572fc12ba1450beddcd05c4"
+    },
+    {
+      "path": "docs/audit/bf144/512/sprint_observer.rs",
+      "bytes": 4925,
+      "sha256": "993c6dbc6932341a5576c83de40fcf4889c69255be31b66aa58d57ea1fab51b1"
+    },
+    {
+      "path": "docs/audit/bf144/512/native-sprint.json",
+      "bytes": 23221,
+      "sha256": "02e1d95176a20cdf05f3931937571c028c4b02fab62231f2256c84cafcc1fa09"
+    },
+    {
+      "path": "docs/audit/bf144/512/sprint.native.json.gz",
+      "bytes": 2505631,
+      "sha256": "05a8517ace6846bf37b13f7c15f1a41eff0d57f2a0e065a11d2145465a81797a"
+    },
+    {
+      "path": "docs/audit/bf144/513/observer.py",
+      "bytes": 1530,
+      "sha256": "0b01e6d0443691ca250e8849a15d1b79bdf136d5959096642720d7e7b3731295"
+    },
+    {
+      "path": "docs/audit/bf144/513/profile.rs",
+      "bytes": 1829,
+      "sha256": "b345385468544195cbff4f8a3cb51e896c31b6233279363ffe5735221b484e22"
+    },
+    {
+      "path": "docs/audit/bf144/513/runtime-normal/parameters.json.gz",
+      "bytes": 488885,
+      "sha256": "a3c7a28c5f182c7c15335e614d5d4c26b068d7b9b07f0c295851246e6ae23091"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}

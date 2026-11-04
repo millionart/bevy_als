@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.514 D07 缓存加速度的实际运动阶段对照。依赖513 Normal Sprint序号26原生/目标计划。fresh核对源先缩放输入后更新曲线、目标计划与碰撞事务顺序。仅在当前Normal场景的单子步见证捕获旧加速度，并在原事务前用生产速度步重算计划，保留当帧刷新三元组和其他输入。验证实际位移、Standing/Sprint消费及恢复。开始2026-11-04 17:22:21 +0800，预估结束2026-11-04 18:02:21 +0800。参考513约7分钟，增加精确调度及实际阶段取证，估40分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh源ControlledCharacterMove先缓存Acceleration，PhysWalking再刷新曲线。目标已定位motor→碰撞事务的实际排序。诊断在同Normal场景捕获旧标量，在一个子步的见证用生产速度步复算计划，确认未触发碰撞事务且原计划逐值匹配后才应用。刷新三元组继续给动画，截图0。
+  - 真实Gate后：同输入Normal的单子步序号26，原生旧20、刷新16.972292，目标刷新16.971708。只在事务前用旧20复算并应用，目标实际纵向4.5657635→4.6667285m/s，原生4.6666669。位置变化与计划位移差吻合。动画最大值保持刷新值，Standing和Sprint原始加速变化、混合仍1，播放器时点变化，最终Root73骨数值改变。
+  - Gate通过。三次功能、原事务前排序及原计划生产步逐值校准、去控制的见证完整恢复、六库/396身份、65份Git证据通过。早版观察将上一帧地面起点误当本帧事务已执行，修订为帧前快照。完整恢复轨迹从35起有过程间末位差，独立保存。D07实际消费补强，无新增，累计283。实际结束2026-11-04 17:26:37 +0800，实耗256秒，偏差-2143秒。见 docs/audit/bf144/514/summary.json。截图0，性能暂停。
+  - 后继边界：单子步对照已证。多子步走另一实际事务并在子步重算动力，后继按源缓存生命周期与目标碰撞路径单列。
+
 - [x] BF144.513 D05 曲线选择对实际 Sprint 入场与动画的影响。依赖512原生/目标实跑计时及D05旧profile反例。fresh读取MS_Als_Normal及两CurveVector，复用同一Playground输入，仅对该角色在内存替换Responsive三曲线为Normal，分开比较加速单曲线对照、0.5秒边界和实际播放器混合。开始2026-11-04 17:13:12 +0800，预估结束2026-11-04 17:53:12 +0800。参考512约9分钟，另留原生两资产及四次功能时间，估40分钟。截图0，性能暂停。
 
   - 真实Gate前：fresh MS_Als_Normal已确认站姿VelocityDirection的动力引用Normal、旋转单独绑定。目标control仅给同一角色复制运动设置并替换Responsive槽的三轴，第二对照仅换加速轴；检测其他字段和共享原资产保持。沿512相同Sprint输入，额外记录实际motor曲线采样和计划速度。截图0。
@@ -4783,6 +4790,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 漏检：旧完整帧和hitch验收测试主要使用0.1/0.12/0.2秒，启动器还按target现有max_delta限制注入值，未覆盖250毫秒上方和source WorldSettings的单独合同。只记录世界时钟对运动的影响，不开展性能验收或场景修复。
 
 - [ ] BF144-D07 / P2 — 输入Acceleration使用了本轮刚刷新的曲线，而非源调用顺序中的缓存值。
+  - BF144.514 实际阶段对照。同Normal Sprint单子步序号26，只在原事务前换用旧加速度20，刷新值16.971708保留。目标实际纵向4.5657635→4.6667285m/s，源4.6666669。Sprint混合保持1，播放时点及Root73骨数值改变。恢复见证逐值。证据 docs/audit/bf144/514/summary.json。
   - BF144.513 实际Sprint补充。排除D05后的实际Normal Sprint，序号26源角色缓存20、本轮刷新16.972292m/s²。目标本轮16.971708，实际计划4.5657768m/s。只在数值复算换回旧缓存得到4.6667199，源4.6666669。实际阶段对照后继。证据 docs/audit/bf144/513/summary.json。
   - Source：fresh UE `CharacterMovementComponent.cpp:6442–6457,8134–8137` 在ControlledCharacterMove先用GetMaxAcceleration缩放输入并缓存Acceleration；ALS `GetMaxAcceleration:292–299` 读取之前的MaxAccelerationWalking；随后ALS `PhysWalking:333–335` 才RefreshGroundedMovementSettings。UE CalcVelocity直接使用缓存Acceleration，不用新的MaxAccel重算普通玩家输入。
   - Target：`src/als/character/movement/dynamics.rs:543–564` 先覆写dynamics，再把fresh dynamics交给积分；`grounded_velocity_step_with_braking_friction:175–176` 立即以fresh acceleration缩放输入，丢失源阶段边界。
