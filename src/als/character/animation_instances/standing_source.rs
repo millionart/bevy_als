@@ -84,6 +84,7 @@ pub(crate) fn sample_source_montage(
 
 #[derive(Deserialize)]
 struct StandingCurves {
+    velocity_blend_interpolation_half_life: f32,
     stride_walk: crate::extensions::als_curves::AlsFloatCurve,
     stride_run: crate::extensions::als_curves::AlsFloatCurve,
     yaw_forward_backward: crate::extensions::als_curves::AlsFloatCurve,
@@ -95,6 +96,10 @@ static CURVES: LazyLock<StandingCurves> = LazyLock::new(|| {
     serde_json::from_str(include_str!("../../../../assets/ALS/Data/AnimationInstance/Grounded/als_standing_curves.json"))
         .expect("generated Standing curves are valid")
 });
+
+pub(crate) fn velocity_blend_interpolation_half_life() -> f32 {
+    CURVES.velocity_blend_interpolation_half_life
+}
 
 pub(crate) fn standing_stride_amount(running: f32, speed: f32) -> f32 {
     CURVES

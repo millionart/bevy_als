@@ -149,13 +149,15 @@ impl AlsSourceRefreshNode {
                 std::f32::consts::LN_2 / (half_life + 1e-8) * dt,
             )
         };
+        let velocity_half_life = scalar("grounded_source.velocity_blend_interpolation_half_life",
+            crate::standing_source::velocity_blend_interpolation_half_life())?;
         let velocity_alpha = if boolean(
             "grounded_state.velocity_blend.b_initialization_required",
             true,
-        )? {
+        )? || velocity_half_life <= 0.0 {
             1.0
         } else {
-            alpha(0.1)
+            alpha(velocity_half_life)
         };
         set_source_property(
             ctx,
@@ -1089,8 +1091,8 @@ mod tests {
 
     #[test]
     fn grounded_source_refresh_uses_configured_lean_half_life() {
-        fn sample(In((root, half_life, pending)): In<(Handle<AnimationGraph>, f32, bool)>,
-            resources: SystemResources) -> f32 {
+        fn sample(In((root, lean_half, velocity_half, pending, initializing)):
+            In<(Handle<AnimationGraph>, f32, f32, bool, bool)>, resources: SystemResources) -> (f32, f32) {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arena = GraphContextArena::new(root.id());
             let mut gizmos = DeferredGizmos::default();
@@ -1100,7 +1102,10 @@ mod tests {
                 ("fixture".to_owned(), DataValue::Pose(default())),
                 ("animation.delta_seconds".to_owned(), DataValue::F32(0.1)),
                 ("animation.pending_update".to_owned(), DataValue::Bool(pending)),
-                ("in_air_source.lean_interpolation_half_life".to_owned(), DataValue::F32(half_life)),
+                ("in_air_source.lean_interpolation_half_life".to_owned(), DataValue::F32(lean_half)),
+                ("grounded_source.velocity_blend_interpolation_half_life".to_owned(), DataValue::F32(velocity_half)),
+                ("grounded_state.velocity_blend.b_initialization_required".to_owned(), DataValue::Bool(initializing)),
+                ("grounded_state.velocity_blend.forward_amount".to_owned(), DataValue::F32(0.0)),
                 ("locomotion_state.velocity_world_space".to_owned(), DataValue::Vec3(Vec3::NEG_Z)),
                 ("locomotion_state.acceleration_world_space".to_owned(), DataValue::Vec3(Vec3::NEG_Z * 10.0)),
                 ("locomotion_state.max_acceleration".to_owned(), DataValue::F32(20.0)),
@@ -1112,7 +1117,8 @@ mod tests {
                     Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
             let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(
                 NodeId::default(), StateKey::Default).unwrap();
-            state.values["lean_state.forward_amount"].as_f32().unwrap()
+            (state.values["lean_state.forward_amount"].as_f32().unwrap(),
+                state.values["grounded_state.velocity_blend.forward_amount"].as_f32().unwrap())
         }
         let mut graph = AnimationGraph::new();
         let pose = AnimationNode::new("pose", GlobalPoseInputNode { key: "fixture".to_owned(), output: "Pose".to_owned() });
@@ -1129,16 +1135,24 @@ mod tests {
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
-        let zero = world.run_system_cached_with(sample, (root.clone(), 0.0, false)).unwrap();
-        let negative = world.run_system_cached_with(sample, (root.clone(), -0.1, false)).unwrap();
-        let normal = world.run_system_cached_with(sample, (root.clone(), 0.2, false)).unwrap();
-        let slow = world.run_system_cached_with(sample, (root.clone(), 0.6, false)).unwrap();
-        let pending = world.run_system_cached_with(sample, (root, 0.6, true)).unwrap();
+        let zero = world.run_system_cached_with(sample, (root.clone(), 0.0, 0.1, false, false)).unwrap().0;
+        let negative = world.run_system_cached_with(sample, (root.clone(), -0.1, 0.1, false, false)).unwrap().0;
+        let normal = world.run_system_cached_with(sample, (root.clone(), 0.2, 0.1, false, false)).unwrap().0;
+        let slow = world.run_system_cached_with(sample, (root.clone(), 0.6, 0.1, false, false)).unwrap().0;
+        let pending = world.run_system_cached_with(sample, (root.clone(), 0.6, 0.1, true, false)).unwrap().0;
         assert!((zero - 0.5).abs() < 1e-6 && (negative - 0.5).abs() < 1e-6);
         assert!((pending - 0.5).abs() < 1e-6);
         assert!(slow > 0.0 && slow < normal && normal < zero);
         let source_alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * 0.1);
         assert!((normal - 0.5 * source_alpha).abs() < 1e-6);
+        let velocity_zero = world.run_system_cached_with(sample, (root.clone(), 0.2, 0.0, false, false)).unwrap().1;
+        let velocity_negative = world.run_system_cached_with(sample, (root.clone(), 0.2, -0.1, false, false)).unwrap().1;
+        let velocity_normal = world.run_system_cached_with(sample, (root.clone(), 0.2, 0.1, false, false)).unwrap().1;
+        let velocity_slow = world.run_system_cached_with(sample, (root.clone(), 0.2, 0.4, false, false)).unwrap().1;
+        let velocity_initial = world.run_system_cached_with(sample, (root, 0.2, 0.4, false, true)).unwrap().1;
+        assert!((velocity_zero - 1.0).abs() < 1e-6 && (velocity_negative - 1.0).abs() < 1e-6);
+        assert!((velocity_initial - 1.0).abs() < 1e-6);
+        assert!(velocity_slow > 0.0 && velocity_slow < velocity_normal && velocity_normal < velocity_zero);
     }
 
     #[test]

@@ -1,0 +1,204 @@
+{
+	"format": "ue_asset_source_v1",
+	"asset_path": "/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward",
+	"asset_class": "/Script/Engine.CurveFloat",
+	"asset_properties": [
+		{
+			"name": "FloatCurve",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FRichCurve",
+			"flags": "0x10000000000000",
+			"exported_text": "(Keys=((Time=-180.000000),(Time=-120.000000,Value=60.000000),(Time=-90.000000),(Time=-60.000000,Value=-60.000000),(),(Time=60.000000,Value=60.000000),(Time=90.000000),(Time=120.000000,Value=-60.000000),(Time=180.000000)),DefaultValue=340282346638528859811704183484516925440.000000,PreInfinityExtrap=RCCE_CycleWithOffset,PostInfinityExtrap=RCCE_CycleWithOffset)",
+			"fields": [
+				{
+					"name": "Keys",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000241",
+					"exported_text": "((Time=-180.000000),(Time=-120.000000,Value=60.000000),(Time=-90.000000),(Time=-60.000000,Value=-60.000000),(),(Time=60.000000,Value=60.000000),(Time=90.000000),(Time=120.000000,Value=-60.000000),(Time=180.000000))"
+				},
+				{
+					"name": "DefaultValue",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "340282346638528859811704183484516925440.000000",
+					"numeric_value": 3.4028234663852886e+38
+				},
+				{
+					"name": "PreInfinityExtrap",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ERichCurveExtrapolation>",
+					"flags": "0x18001040000200",
+					"exported_text": "RCCE_CycleWithOffset"
+				},
+				{
+					"name": "PostInfinityExtrap",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ERichCurveExtrapolation>",
+					"flags": "0x18001040000200",
+					"exported_text": "RCCE_CycleWithOffset"
+				},
+				{
+					"name": "KeyHandlesToIndices",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FKeyHandleMap",
+					"flags": "0x20080000002000",
+					"exported_text": "()",
+					"fields": []
+				}
+			]
+		},
+		{
+			"name": "bIsEventCurve",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000200",
+			"exported_text": "False"
+		},
+		{
+			"name": "AssetImportData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UAssetImportData>",
+			"flags": "0x11E0018000A0209",
+			"exported_text": "/Script/Engine.AssetImportData'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward:AssetImportData'"
+		}
+	],
+	"engine_debug_fonts":
+	{
+		"tiny":
+		{
+			"size_points": 8,
+			"max_char_height": 13,
+			"style": "Light"
+		},
+		"medium":
+		{
+			"size_points": 10,
+			"max_char_height": 15,
+			"style": "Regular"
+		}
+	},
+	"blueprint_cdo_path": "None",
+	"blueprint_cdo_properties": [],
+	"blueprint_cdo_subobjects": [],
+	"asset_objects": [
+		{
+			"index": 0,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward",
+			"class_path": "/Script/Engine.CurveFloat",
+			"properties": [
+				{
+					"name": "FloatCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FRichCurve",
+					"flags": "0x10000000000000",
+					"exported_text": "(Keys=((Time=-180.000000),(Time=-120.000000,Value=60.000000),(Time=-90.000000),(Time=-60.000000,Value=-60.000000),(),(Time=60.000000,Value=60.000000),(Time=90.000000),(Time=120.000000,Value=-60.000000),(Time=180.000000)),DefaultValue=340282346638528859811704183484516925440.000000,PreInfinityExtrap=RCCE_CycleWithOffset,PostInfinityExtrap=RCCE_CycleWithOffset)",
+					"fields": [
+						{
+							"name": "Keys",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": "((Time=-180.000000),(Time=-120.000000,Value=60.000000),(Time=-90.000000),(Time=-60.000000,Value=-60.000000),(),(Time=60.000000,Value=60.000000),(Time=90.000000),(Time=120.000000,Value=-60.000000),(Time=180.000000))"
+						},
+						{
+							"name": "DefaultValue",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "340282346638528859811704183484516925440.000000",
+							"numeric_value": 3.4028234663852886e+38
+						},
+						{
+							"name": "PreInfinityExtrap",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ERichCurveExtrapolation>",
+							"flags": "0x18001040000200",
+							"exported_text": "RCCE_CycleWithOffset"
+						},
+						{
+							"name": "PostInfinityExtrap",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ERichCurveExtrapolation>",
+							"flags": "0x18001040000200",
+							"exported_text": "RCCE_CycleWithOffset"
+						},
+						{
+							"name": "KeyHandlesToIndices",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FKeyHandleMap",
+							"flags": "0x20080000002000",
+							"exported_text": "()",
+							"fields": []
+						}
+					]
+				},
+				{
+					"name": "bIsEventCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000200",
+					"exported_text": "False"
+				},
+				{
+					"name": "AssetImportData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAssetImportData>",
+					"flags": "0x11E0018000A0209",
+					"exported_text": "/Script/Engine.AssetImportData'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward:AssetImportData'"
+				}
+			]
+		},
+		{
+			"index": 1,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward:AssetImportData",
+			"class_path": "/Script/Engine.AssetImportData",
+			"properties": [
+				{
+					"name": "SourceData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAssetImportInfo",
+					"flags": "0x10000800020001",
+					"exported_text": "()",
+					"fields": []
+				}
+			]
+		}
+	],
+	"graphs": []
+}

@@ -1,0 +1,15 @@
+{
+  "old_path": "assets/ALS/Data/AnimationInstance/Grounded/als_standing_curves.json",
+  "old_sha256": "936145ecbf1129171f034112fa341965c3aa8b7a6d41f2679b59471a8d6ec9ee",
+  "new_path": "docs/audit/bf144/d283/standing.generated.json",
+  "new_sha256": "2b679d4bc2c31f19554342aeef9497e46c18a44059e459ea58407ca4d87f0a8b",
+  "removed_keys": [],
+  "added_keys": [
+    "velocity_blend_interpolation_half_life"
+  ],
+  "changed_existing_keys": [],
+  "added_values": {
+    "velocity_blend_interpolation_half_life": 0.1
+  },
+  "old_revision": "326fbede74283c9ef4c383773eaa980a2a8b0def"
+}

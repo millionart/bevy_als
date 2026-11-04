@@ -48,6 +48,10 @@ def runtime_curve(source, input_scale, value_scale):
     }
 
 
+def velocity_blend_half_life(grounded):
+    return parse_number(field(grounded, 'VelocityBlendInterpolationHalfLife'))
+
+
 def self_test():
     source = {'format': 'ue_asset_source_v1', 'asset_class': '/Script/Engine.CurveFloat', 'asset_properties': [
         {'name': 'FloatCurve', 'exported_text': '(Keys=((Time=-60,Value=-30),(Time=60,Value=30)),DefaultValue=0,PreInfinityExtrap=RCCE_CycleWithOffset,PostInfinityExtrap=RCCE_CycleWithOffset)'}]}
@@ -65,6 +69,9 @@ def self_test():
         pass
     else:
         raise AssertionError('reversed cubic curve was accepted')
+    for value in ('0.0', '0.1', '0.4', '-0.2'):
+        grounded = parse_struct('(VelocityBlendInterpolationHalfLife=' + value + ')')
+        assert velocity_blend_half_life(grounded) == float(value)
     print('Standing curve conversion self-test PASS', flush=True)
 
 
@@ -108,6 +115,7 @@ def main():
             print('Read ' + reference, flush=True)
             output[name] = runtime_curve(native_source_asset(reference, args.source_reader), scale, value_scale)
             references[name] = reference
+        output['velocity_blend_interpolation_half_life'] = velocity_blend_half_life(grounded)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(output, indent=2) + '\n', encoding='utf-8')
         report.update(success=True, source_settings=settings['asset_path'], source_curves=references)

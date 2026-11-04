@@ -5108,9 +5108,14 @@
   - 05:25 source/static闭环：fresh设置资产确认General半衰期0.2，Grounded与InAir均读取同字段并在非正值直接取目标；现有生成JSON与InAir图输入已包含它。Grounded的source refresh和Standing兼容输入各有常量；后者执行先于InAir输入写入，不能通过反向排序读取同帧输入。证据与范围在 `docs/audit/bf144/d284/`、`tools/animgraph_authoring/bf144_d284.scope.json`，静态/视觉Gate待执行。
   - 05:26实现摘要：Grounded图刷新消费现有同帧General半衰期输入，非正值及pending立即取目标；Standing兼容路径读取同一离线生成配置，避免引入系统排序环。已写0/负值/0.2/0.6及pending图刷新控制。实现结束05:26、偏差−41分钟；测试、消融、图静态审计及公共视觉Gate尚未运行。
 
-- [ ] BF144-D283 / P3 — VelocityBlend 半衰期未接入源动画设置。
+- [x] BF144-D283 / P3 — VelocityBlend 半衰期未接入源动画设置。
   - 原生 AB_Als 绑定 AIS_Als_Default，Grounded.VelocityBlendInterpolationHalfLife 为可编辑 Float，默认0.1秒。源刷新读取该值，非正值直接采用当帧目标。目标Grounded刷新固定用0.1，Grounded导入只生成Yaw曲线，配置变化无直接输入。
   - UE原生角色仅复制并改变当前实例的Settings字段，保持48帧速度、朝向和步长相同。第12帧前向权重在0、0.1、0.4秒时分别为0.4999999702、0.1031737253、0.0281888526。Bevy可见Playground序号32同输入的常量阻尼和立即取值结果分别为0.7785965204、0.8906687498。默认配置仍为0.1，本项限定配置变化的消费。证据 docs/audit/bf144/508/summary.json。
+
+  - 修复第1轮：开始2026-11-05 05:28 +08:00；预估结束06:23 +08:00。依据：.508已有源设置和0/0.1/0.4/负值原生矩阵，D284已fresh读共同设置；需补Grounded离线数据、同帧图输入、兼容路径及非正值分支。导入工具改变后的全量生成AnimBP转换与完整diff按项目规则登记为后续验证边界，测试及公共视觉Gate统一后置。
+  - 05:29 source/static闭环：fresh源 `RefreshVelocityBlend` 读取Grounded半衰期，首次初始化或非正值直接赋目标；D284同轮原生设置确认0.1。现有 `gen_standing_curves.py` 已读取该Grounded结构但仅导出曲线，目标两条刷新均用常量。仅扩展该现有导入并复用其目标数据；源/目标事实见 `docs/audit/bf144/d283/source-facts.json`，转换全域diff和各Gate未执行。
+  - 05:34导入进展：默认Python 3.9不支持现有读取器参数，失败watchdog及原因已保留；使用可注入的Python 3.12后生成完成。新旧Grounded目标数据逐键比较仅新增0.1半衰期，其余五条曲线不变；见 `docs/audit/bf144/d283/generated-diff.json`。该次导入实际引用五条源曲线，接下来封存它们的原生读数；尚未执行全量AnimBP转换diff或测试。
+  - 05:39实现摘要：五条曲线的fresh原生读数及身份已封存；Grounded生成数据、同帧图输入和Standing兼容路径共享源半衰期，非正值或初始化直接取目标。已补0/负值/0.1/0.4和初始化用例及导入器self-test。实现结束05:39、偏差−44分钟；全量生成AnimBP及递归依赖转换/完整diff、测试、消融、图静态审计和公共视觉Gate均待整体实现后执行。
 
 - [ ] BF144-D282 / P3 — VelocityBlend 的局部逆旋转提前按 F32 求值。
   - BF144.504 延长同场景见证。146 停稳，149 最终 Root 姿态合拢，150 两 Pole 阻尼状态合拢并保持到198。两组 Rig 构造次数均保持1。证据 docs/audit/bf144/504/summary.json。

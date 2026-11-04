@@ -405,5 +405,6 @@
     ],
     "pre_infinity": "CycleWithOffset",
     "post_infinity": "CycleWithOffset"
-  }
+  },
+  "velocity_blend_interpolation_half_life": 0.1
 }

@@ -219,6 +219,10 @@ fn locomotion_input_writer(
             IN_AIR_SETTINGS.lean_interpolation_half_life,
         );
         player.set_global_input_data(
+            "grounded_source.velocity_blend_interpolation_half_life",
+            crate::standing_source::velocity_blend_interpolation_half_life(),
+        );
+        player.set_global_input_data(
             "in_air_source.jump_play_rate",
             IN_AIR_SETTINGS.jump_min_play_rate.lerp(
                 IN_AIR_SETTINGS.jump_max_play_rate,

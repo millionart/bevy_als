@@ -40,7 +40,6 @@ use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
 
 const VELOCITY_EPSILON: f32 = 0.01;
 const MOVING_SMOOTH_SPEED_THRESHOLD: f32 = 1.5;
-const VELOCITY_BLEND_HALF_LIFE: f32 = 0.1;
 const MIN_PLAY_RATE: f32 = 1e-4;
 const RUN_START_DURATION: f32 = 0.72;
 const RUN_START_FROM_WALK_DURATION: f32 = 0.68;
@@ -1517,7 +1516,7 @@ fn update_standing_inputs(
         runtime.velocity_blend = damp_velocity_blend(
             runtime.velocity_blend,
             target_velocity_blend,
-            damper_exact_alpha(delta_seconds, VELOCITY_BLEND_HALF_LIFE),
+            damper_exact_alpha(delta_seconds, crate::standing_source::velocity_blend_interpolation_half_life()),
         );
         runtime.lean = runtime.lean.lerp(
             target_lean,
@@ -2582,7 +2581,8 @@ mod tests {
     #[test]
     fn source_velocity_and_lean_half_lives_are_exact() {
         assert!(
-            (damper_exact_alpha(VELOCITY_BLEND_HALF_LIFE, VELOCITY_BLEND_HALF_LIFE) - 0.5).abs()
+            (damper_exact_alpha(crate::standing_source::velocity_blend_interpolation_half_life(),
+                crate::standing_source::velocity_blend_interpolation_half_life()) - 0.5).abs()
                 < 1e-6
         );
         let lean_half_life = crate::locomotion_layer::lean_interpolation_half_life();
