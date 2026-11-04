@@ -1,0 +1,240 @@
+{
+  "baseline": {
+    "before": {
+      "animation_frame": 111,
+      "gameplay": "Grounded",
+      "graph_error": null,
+      "graph_tag": "Als.LocomotionMode.Grounded",
+      "input": [
+        0.0,
+        1.0
+      ],
+      "ordinal": 32,
+      "position": [
+        -13.666662216186523,
+        0.9214999079704285,
+        -15.00002670288086
+      ],
+      "velocity": [
+        3.749999761581421,
+        0.0,
+        -2.8610227673198096e-05
+      ],
+      "velocity_blend": {
+        "amounts": [
+          0.7494580745697021,
+          0.0,
+          0.0,
+          0.18808726966381073
+        ],
+        "calls": [],
+        "candidates": {
+          "alpha": 0.20634746551513672,
+          "damp": [
+            0.7785965204238892,
+            0.0,
+            0.0,
+            0.17183618247509003
+          ],
+          "snap": [
+            0.8906687498092651,
+            0.0,
+            0.0,
+            0.10933130979537964
+          ]
+        },
+        "delta": 0.03333333507180214,
+        "instance_id": 7,
+        "required": false,
+        "rotation": [
+          0.0,
+          -0.6626293063163757,
+          0.0,
+          0.7489476799964905
+        ],
+        "velocity": [
+          3.749999761581421,
+          0.0,
+          -2.8610227673198096e-05
+        ],
+        "write_frame": 111
+      }
+    },
+    "after": {
+      "animation_frame": 112,
+      "gameplay": "Grounded",
+      "graph_error": null,
+      "graph_tag": "Als.LocomotionMode.Grounded",
+      "input": [
+        0.0,
+        1.0
+      ],
+      "ordinal": 32,
+      "position": [
+        -13.666662216186523,
+        0.9214999079704285,
+        -15.00002670288086
+      ],
+      "velocity": [
+        3.749999761581421,
+        0.0,
+        -2.8610227673198096e-05
+      ],
+      "velocity_blend": {
+        "amounts": [
+          0.7785965204238892,
+          0.0,
+          0.0,
+          0.17183618247509003
+        ],
+        "calls": [
+          [
+            "18c00b87-478a-29b9-7505-1daa6d305742",
+            "GraphContextId(9)",
+            "Default"
+          ],
+          [
+            "74f5c4c5-443b-85dc-123b-5f80f77250f5",
+            "GraphContextId(9)",
+            "Default"
+          ]
+        ],
+        "candidates": null,
+        "delta": 0.03333333507180214,
+        "instance_id": 7,
+        "required": false,
+        "rotation": [
+          0.0,
+          -0.6626293063163757,
+          0.0,
+          0.7489476799964905
+        ],
+        "velocity": [
+          3.749999761581421,
+          0.0,
+          -2.8610227673198096e-05
+        ],
+        "write_frame": 112
+      }
+    }
+  },
+  "snap": {
+    "before": {
+      "animation_frame": 111,
+      "gameplay": "Grounded",
+      "graph_error": null,
+      "graph_tag": "Als.LocomotionMode.Grounded",
+      "input": [
+        0.0,
+        1.0
+      ],
+      "ordinal": 32,
+      "position": [
+        -13.666662216186523,
+        0.9214999079704285,
+        -15.00002670288086
+      ],
+      "velocity": [
+        3.749999761581421,
+        0.0,
+        -2.8610227673198096e-05
+      ],
+      "velocity_blend": {
+        "amounts": [
+          0.7494580745697021,
+          0.0,
+          0.0,
+          0.18808726966381073
+        ],
+        "calls": [],
+        "candidates": {
+          "alpha": 0.20634746551513672,
+          "damp": [
+            0.7785965204238892,
+            0.0,
+            0.0,
+            0.17183618247509003
+          ],
+          "snap": [
+            0.8906687498092651,
+            0.0,
+            0.0,
+            0.10933130979537964
+          ]
+        },
+        "delta": 0.03333333507180214,
+        "instance_id": 7,
+        "required": false,
+        "rotation": [
+          0.0,
+          -0.6626293063163757,
+          0.0,
+          0.7489476799964905
+        ],
+        "velocity": [
+          3.749999761581421,
+          0.0,
+          -2.8610227673198096e-05
+        ],
+        "write_frame": 111
+      }
+    },
+    "after": {
+      "animation_frame": 112,
+      "gameplay": "Grounded",
+      "graph_error": null,
+      "graph_tag": "Als.LocomotionMode.Grounded",
+      "input": [
+        0.0,
+        1.0
+      ],
+      "ordinal": 32,
+      "position": [
+        -13.666662216186523,
+        0.9214999079704285,
+        -15.00002670288086
+      ],
+      "velocity": [
+        3.749999761581421,
+        0.0,
+        -2.8610227673198096e-05
+      ],
+      "velocity_blend": {
+        "amounts": [
+          0.8906687498092651,
+          0.0,
+          0.0,
+          0.10933130979537964
+        ],
+        "calls": [
+          [
+            "18c00b87-478a-29b9-7505-1daa6d305742",
+            "GraphContextId(9)",
+            "Default"
+          ],
+          [
+            "74f5c4c5-443b-85dc-123b-5f80f77250f5",
+            "GraphContextId(9)",
+            "Default"
+          ]
+        ],
+        "candidates": null,
+        "delta": 0.03333333507180214,
+        "instance_id": 7,
+        "required": false,
+        "rotation": [
+          0.0,
+          -0.6626293063163757,
+          0.0,
+          0.7489476799964905
+        ],
+        "velocity": [
+          3.749999761581421,
+          0.0,
+          -2.8610227673198096e-05
+        ],
+        "write_frame": 112
+      }
+    }
+  }
+}
