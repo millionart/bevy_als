@@ -4699,6 +4699,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn falling_rotated_wall_consumes_native_capsule_sweep_normal() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .add_message::<StateTransitionEvent>();
+        app.finish();
+        let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 4.0, 2.0),
+            Transform::from_xyz(-13.38, 3.0, -15.0)
+                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4)))).id();
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        let (hit, result) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+            shapes: Query<(&Collider, &Position, &Rotation)>| {
+            let capsule = als_character_capsule(0.9, 0.3);
+            let start = Vec3::new(-13.7582617, 2.9012036, -15.0849314);
+            let movement = Vec3::new(0.24020796, -0.0073499945, -4.47101e-9);
+            let velocity = Vec3::new(6.2309957, -0.37974584, -1.2050123e-7);
+            let (direction, distance) = Dir3::new_and_length(movement).unwrap();
+            let hit = spatial.cast_shape(&capsule, start, Quat::IDENTITY, direction,
+                &ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) },
+                &SpatialQueryFilter::from_excluded_entities([actor]));
+            let result = falling_movement_sweep(&spatial, &capsule, start, Quat::IDENTITY, movement,
+                velocity, 0.038710073, None, None, actor, &candidates, &shapes);
+            (hit, result)
+        }).unwrap();
+        let hit = hit.unwrap();
+        assert_eq!(hit.entity, wall);
+        assert!((hit.distance - 0.010649537).abs() <= 1e-6);
+        let source_normal = Vec3::new(-std::f32::consts::FRAC_1_SQRT_2, 0.0, -std::f32::consts::FRAC_1_SQRT_2);
+        assert!(hit.normal1.abs_diff_eq(source_normal, 1e-6), "Wall normal differs: {:?}", hit.normal1);
+        let expected = Vec3::new(3.1154974, -0.37974584, -3.1154983);
+        assert!(result.1.abs_diff_eq(expected, 1e-5), "Falling slide differs: {:?}", result.1);
+    }
+
+    #[test]
     fn falling_edge_rechecks_floor_at_the_impact_before_returning_time() {
         use bevy::ecs::system::RunSystemOnce;
         for (wall_top, deck_x, deck_top, lands) in [
