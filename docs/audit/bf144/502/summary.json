@@ -1,0 +1,107 @@
+{
+  "gate": "PASS_VELOCITY_BLEND_LOCAL_UNIT_AND_ROTATION_PRECISION",
+  "new_differences": 1,
+  "difference": "D282",
+  "priority": "P3",
+  "known_total": 279,
+  "existing_unit_difference": "D268",
+  "exact_source_and_target_input_frames": 12,
+  "exact_native_calibrated_modes": 96,
+  "meter_projection_changes": [
+    99,
+    101,
+    102,
+    110
+  ],
+  "held_formula_projected_source_changes": [
+    100,
+    102
+  ],
+  "held_formula_actual_target_changes": [
+    101
+  ],
+  "first_native_right": 0.09887274354696274,
+  "first_meter_right": 0.09887273609638214,
+  "first_runtime_combined_exact": true,
+  "wide_formula_switch_final_changes": 0,
+  "witness": {
+    "query": 101,
+    "observed_right": 0.21511630713939667,
+    "widened_right": 0.21511632204055786,
+    "f32_steps": 1
+  },
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "replay-baseline.json": {
+      "bytes": 1829114,
+      "sha256": "a91444b2d84371ff9014b95aef6d7f1384d1828d8f28f524864d2bbb4bd86884"
+    },
+    "replay-restored.json": {
+      "bytes": 1829114,
+      "sha256": "a91444b2d84371ff9014b95aef6d7f1384d1828d8f28f524864d2bbb4bd86884"
+    },
+    "replay-no-meter-stage.json": {
+      "bytes": 1823738,
+      "sha256": "cb1d5a0bad7d274dfa8f61b2223b4ed54fd25f0151b3ad79c7f9f0181c4f0409"
+    },
+    "replay-no-wide-rotation.json": {
+      "bytes": 1829114,
+      "sha256": "7c635352c3597c7ed9baa090a99a9d1f1e598d6986438f467440dc2bcfcc5d44"
+    }
+  },
+  "generated_sources": [
+    {
+      "path": "tools/tmp/bf144/502/math.rs",
+      "bytes": 2802,
+      "sha256": "d6cb15d0d4d09ce72896afc60b6390be42f465010f689d47f7ab9e5d7042189c"
+    },
+    {
+      "path": "tools/tmp/bf144/502/basis.rs",
+      "bytes": 1092,
+      "sha256": "f97c44573e98799ed906456cfd9bcf6274c59d5137aec25c895fe8d3fdacf0f6"
+    }
+  ],
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/501/evidence-input.json",
+      "bytes": 1574,
+      "sha256": "033517ae9f6bcd1a6e0bcf6c2a47d0be263a0c0db91309aafc1d8da2ed01daab"
+    },
+    {
+      "path": "docs/audit/bf144/501/replay-restored.json",
+      "bytes": 6449,
+      "sha256": "cfa70899472944287cd905e24d01fd8ee74845d27988f201d7641693c477a3a7"
+    },
+    {
+      "path": "docs/audit/bf144/499/evidence-input.json",
+      "bytes": 12254,
+      "sha256": "6df2c22fbba29e0f96e87d6ab824879d6a66c1060339c83ade2a8efda3ba3388"
+    },
+    {
+      "path": "docs/audit/bf144/499/replay-restored.json.gz",
+      "bytes": 11297,
+      "sha256": "0503d785d63b4b6ccb479827636da66ca54cb36528afb2703e12f64a3c0c260f"
+    },
+    {
+      "path": "docs/audit/bf144/499/replay.rs",
+      "bytes": 7099,
+      "sha256": "190ea8a8889d8b2cb4898355ace43e05cc06a5cd3c0a55f292293849221cb020"
+    },
+    {
+      "path": "docs/audit/bf144/500/replay.rs",
+      "bytes": 7427,
+      "sha256": "c3d6f7d217026fbfb8c30f6957e53493ff1fbfc2d5f025749edbfb174415c935"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    }
+  ]
+}

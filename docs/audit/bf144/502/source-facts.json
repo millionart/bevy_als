@@ -1,0 +1,104 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 824,
+        "end": 827,
+        "text": "FVector3f UAlsAnimationInstance::GetVelocity() const\n{\n\treturn FVector3f{LocomotionState.RotationQuaternionWorldSpace.UnrotateVector(LocomotionState.VelocityWorldSpace)};\n}"
+      },
+      {
+        "start": 856,
+        "end": 866,
+        "text": "\tauto& VelocityBlend{GroundedState.VelocityBlend};\n\n\tauto VelocityDirection{GetVelocity()};\n\tauto TargetVelocityBlend{FVector3f::ZeroVector};\n\n\tif (VelocityDirection.Normalize())\n\t{\n\t\tTargetVelocityBlend = VelocityDirection /\n\t\t                      (FMath::Abs(VelocityDirection.X) + FMath::Abs(VelocityDirection.Y) + FMath::Abs(VelocityDirection.Z));\n\t}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/Quat.h",
+    "sha256": "7004f385a524d92a6baba51c545c0460263551526813e4ed06d31ad6edb08300",
+    "excerpts": [
+      {
+        "start": 1252,
+        "end": 1258,
+        "text": "inline TVector<T> TQuat<T>::UnrotateVector(TVector<T> V) const\n{\t\n\tconst TVector<T> Q(-X, -Y, -Z); // Inverse\n\tconst TVector<T> TT = 2.f * TVector<T>::CrossProduct(Q, V);\n\tconst TVector<T> Result = V + (W * TT) + TVector<T>::CrossProduct(Q, TT);\n\treturn Result;\n}"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "excerpts": [
+      {
+        "start": 324,
+        "end": 329,
+        "text": "\t[[nodiscard]] TVector<T> operator/(FArg Scale) const\n\t{\n\t\tconst T RScale = T(1) / Scale;\n\t\treturn TVector<T>(X * RScale, Y * RScale, Z * RScale);\n\t}\n"
+      },
+      {
+        "start": 1764,
+        "end": 1774,
+        "text": "template<typename T>\ninline bool TVector<T>::Normalize(T Tolerance)\n{\n    const T SquareSum = X*X + Y*Y + Z*Z;\n    if(SquareSum > Tolerance)\n    {\n        const T Scale = FMath::InvSqrt(SquareSum);\n        X *= Scale; Y *= Scale; Z *= Scale;\n        return true;\n    }\n    return false;"
+      }
+    ]
+  },
+  {
+    "key": "dependency:glam-0.32.1/src/f32/neon/quat.rs",
+    "sha256": "98274e9ae2d8c175c58554bdd23562ab366f8dc356eb238ee99b2d1d9c23093d",
+    "excerpts": [
+      {
+        "start": 534,
+        "end": 538,
+        "text": "    #[must_use]\n    pub fn inverse(self) -> Self {\n        glam_assert!(self.is_normalized());\n        self.conjugate()\n    }"
+      },
+      {
+        "start": 773,
+        "end": 783,
+        "text": "    /// # Panics\n    ///\n    /// Will panic if `self` is not normalized when `glam_assert` is enabled.\n    #[inline]\n    #[must_use]\n    pub fn mul_vec3(self, rhs: Vec3) -> Vec3 {\n        glam_assert!(self.is_normalized());\n\n        self.mul_vec3a(rhs.into()).into()\n    }\n"
+      },
+      {
+        "start": 872,
+        "end": 884,
+        "text": "    pub fn mul_vec3a(self, rhs: Vec3A) -> Vec3A {\n        unsafe {\n            let w = self.w;\n            let b = Vec3A::from(self.0);\n            let b2 = b.length_squared();\n            Vec3A(vaddq_f32(\n                vaddq_f32(\n                    vmulq_n_f32(rhs.0, (w * w) - b2),\n                    vmulq_n_f32(b.0, rhs.dot(b) * 2.0),\n                ),\n                vmulq_n_f32(b.cross(rhs).0, w * 2.0),\n            ))\n        }"
+      }
+    ]
+  },
+  {
+    "key": "src/als/utility/animation.rs",
+    "sha256": "9c42596c8c64beff0695403f1619a78632a57aab2cf68cbe469566ed5e25eb10",
+    "excerpts": [
+      {
+        "start": 1,
+        "end": 12,
+        "text": "use bevy::prelude::*;\n\npub fn velocity_blend_direction(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {\n    let local = character_rotation.inverse() * world_velocity;\n    if local.length_squared() > 1e-12 {\n        local / local.abs().element_sum()\n    } else {\n        Vec3::ZERO\n    }\n}\n\npub fn acceleration_amount("
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/source_native_refresh.rs",
+    "sha256": "3ebcbf46289cd41384afbd6e1cc750b1ab7e5237769f311f94f184c090ce281a",
+    "excerpts": [
+      {
+        "start": 141,
+        "end": 146,
+        "text": "            |key| source_input_data(ctx, key).map_or(Ok(Vec3::ZERO), |value| value.as_vec3());\n        let rotation = source_input_data(ctx, \"locomotion_state.rotation_quaternion_world_space\")\n            .map_or(Ok(Quat::IDENTITY), |value| value.as_quat())?;\n        let velocity = vector(\"locomotion_state.velocity_world_space\")?;\n        let direction = crate::als::animation::velocity_blend_direction(velocity, rotation);\n        let dt = scalar(\"animation.delta_seconds\", 0.0)?;"
+      }
+    ]
+  },
+  {
+    "key": "tools/import/coordinate_basis.py",
+    "sha256": "cdb545e870644e1756b210f9bede438dc6d9b3bd918638b07be5bce9e7d894d9",
+    "excerpts": [
+      {
+        "start": 5,
+        "end": 29,
+        "text": "SOURCE_LENGTH_TO_RUNTIME_SCALE = 0.01\n\n\ndef source_point_to_runtime(values):\n    return [\n        values[0] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[2] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[1] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n    ]\n\n\ndef runtime_point_to_source(values):\n    return [\n        values[0] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[2] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[1] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n    ]\n\n\ndef source_direction_to_runtime(values):\n    return [values[0], values[2], values[1]]\n\n\ndef runtime_direction_to_source(values):\n    return [values[0], values[2], values[1]]"
+      },
+      {
+        "start": 40,
+        "end": 46,
+        "text": "def source_rotation_to_runtime(values):\n    return [-values[0], -values[2], -values[1], values[3]]\n\n\ndef runtime_rotation_to_source(values):\n    return [-values[0], -values[2], -values[1], values[3]]\n"
+      }
+    ]
+  }
+]

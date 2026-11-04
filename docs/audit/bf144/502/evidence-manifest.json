@@ -1,0 +1,121 @@
+{
+  "gate": "PASS_VELOCITY_BLEND_LOCAL_UNIT_AND_ROTATION_PRECISION",
+  "files": {
+    "README.md": {
+      "sha256": "b8528bbf52b0d75c03265a1e8e77336285e29d93b21d327c62285aa6d8ec99b1",
+      "bytes": 952
+    },
+    "final-source.json": {
+      "sha256": "bc5023c4c94c2faceb94d2a9bd86bf6ecf2e98d36179f985eac6e055636c2b7a",
+      "bytes": 144
+    },
+    "finalize.py": {
+      "sha256": "c13d9f935674a6ef4e3b2fc036396f88ffef8ba5b7cc8ff88ef385da5faa0842",
+      "bytes": 5127
+    },
+    "finalize.report.json": {
+      "sha256": "0e061e4080fd4462579fb00de90172cbaf36c843dfeba5f28924f7cd3b1913ea",
+      "bytes": 406
+    },
+    "identity-check.json": {
+      "sha256": "b8d42dabd394d51ec1491234b0ed7428face8774f0c568338a1b5827ecc03acc",
+      "bytes": 335
+    },
+    "identity.py": {
+      "sha256": "66fad71f267bb9306bbafabe2e992d999a8c4e3905b11bb5639d297679427676",
+      "bytes": 2824
+    },
+    "identity.report.json": {
+      "sha256": "a98ac58e1a6876c6682bc5d979722ad06ab91e39ddfa8b15424b80cbb71bdd3a",
+      "bytes": 406
+    },
+    "prepare.py": {
+      "sha256": "7199471357d6c7e5f81b6bd7fb6e3b63fa40bdd7800d9b394b85685cb56fb67f",
+      "bytes": 2576
+    },
+    "prepare.report.json": {
+      "sha256": "5da8773d68cd43a6dcf78a965a6017bed727da6f9828b75c31157a8fe169cac8",
+      "bytes": 405
+    },
+    "replay-baseline.json.gz": {
+      "sha256": "4d956133e9747eb0daed86df4cd5812a734853ba388ae0ed7717d214dada7645",
+      "bytes": 16394
+    },
+    "replay-baseline.report.json": {
+      "sha256": "b9ddea7bb94d77982e6f74e44b3ceb790d8286198d03a034b2217cbf93aa0517",
+      "bytes": 412
+    },
+    "replay-compile-baseline.report.json": {
+      "sha256": "bcab48d3ec738a43cf934ace22e70b00e4b1bf06ab53aff08e65409e142a2217",
+      "bytes": 422
+    },
+    "replay-compile-no-meter-stage.report.json": {
+      "sha256": "ae3f41d3c5821f7a3b06aeb740c8b476045a59eb3122d46532c3666601162ad6",
+      "bytes": 428
+    },
+    "replay-compile-no-wide-rotation.report.json": {
+      "sha256": "d093189fa4d5eca08b59ac6d17f218443a6aa2a1ec6cb91d67af30c601f12ad9",
+      "bytes": 430
+    },
+    "replay-compile-restored.report.json": {
+      "sha256": "665b5abf4c44de7838fee331862948ef01fad51ea7a1d1fba0d23b432759254c",
+      "bytes": 422
+    },
+    "replay-no-meter-stage.json.gz": {
+      "sha256": "1d6d9bcf0c1cbec0e153f64d477e5a6e2e69e6dd35d38148b2c79ed8f437ade6",
+      "bytes": 16117
+    },
+    "replay-no-meter-stage.report.json": {
+      "sha256": "ab357a7170ca59de73ed2316ae07032e03d371a55d46bf96c3015d6cd3bd3267",
+      "bytes": 421
+    },
+    "replay-no-wide-rotation.json.gz": {
+      "sha256": "2f28e46f30fe005d20556ae0215de77625e3b5ad306117719f4e180b4949c3e8",
+      "bytes": 16380
+    },
+    "replay-no-wide-rotation.report.json": {
+      "sha256": "dadffdb0ae0405ce18aab2daae8e5022617eae05f92e32dea42f1a2b348447c6",
+      "bytes": 423
+    },
+    "replay-restored.json.gz": {
+      "sha256": "4d956133e9747eb0daed86df4cd5812a734853ba388ae0ed7717d214dada7645",
+      "bytes": 16394
+    },
+    "replay-restored.report.json": {
+      "sha256": "b200527f74f2ad69f55728025399e75668f190a1bb1b97c114936c2388d1a06f",
+      "bytes": 411
+    },
+    "replay.rs": {
+      "sha256": "93024c1192ecf980e0dcd76a971526b3ef5e53142e4c68802b07d30dff6805c1",
+      "bytes": 7135
+    },
+    "run_python.ps1": {
+      "sha256": "06231d75f482f342069b871b3679f0a0390f384ba3a6fc7174c42fd79ed92612",
+      "bytes": 901
+    },
+    "run_replay.ps1": {
+      "sha256": "d0d0afe703177c5581db28c168f57db7a634a1881a16e97af2447be0564f19d5",
+      "bytes": 1582
+    },
+    "rustc-args.json": {
+      "sha256": "e77f102eb3c1b692899f497181b84d578756b3b05fa43392e7e9b7a50e929ca0",
+      "bytes": 4337
+    },
+    "seal.py": {
+      "sha256": "dcb96c5bdfcd63c35ca68b7de2a68c7aa586ef9947e5516b10a8a848a81986ce",
+      "bytes": 1499
+    },
+    "source-facts.json": {
+      "sha256": "813714108aa9bb954f5ab9b63ddf0c162193851fd039a8a359c668a60fee6144",
+      "bytes": 5984
+    },
+    "summary.json": {
+      "sha256": "bdd14b713d568e7c544acda22d9a89ea3f681187119115b498c919258babbce7",
+      "bytes": 3236
+    }
+  },
+  "full_root_or_als_equivalence_claimed": false,
+  "new_differences": 1,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
