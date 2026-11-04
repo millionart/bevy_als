@@ -1,0 +1,140 @@
+{
+  "samples": [
+    {
+      "name": "grazing-verified-world",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -1500.0,
+          -1500.0,
+          -10.000002384185791
+        ],
+        "box_half_extents_cm": [
+          144.99999284744263,
+          150.0,
+          10.000000149011612
+        ],
+        "start_cm": [
+          -1366.7499542236328,
+          -1500.0,
+          92.4015760421753
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 29.999998211860657,
+        "half_height_cm": 83.99999737739563,
+        "length_cm": 53.40009927749634
+      }
+    },
+    {
+      "name": "grazing-verified-relative",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "box_half_extents_cm": [
+          144.99999284744263,
+          150.0,
+          10.000000149011612
+        ],
+        "start_cm": [
+          133.2500457763672,
+          0.0,
+          102.40157842636108
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 29.999998211860657,
+        "half_height_cm": 83.99999737739563,
+        "length_cm": 53.40009927749634
+      }
+    },
+    {
+      "name": "source-gap-world",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -1500.0,
+          -1500.0,
+          -10.000002384185791
+        ],
+        "box_half_extents_cm": [
+          144.99999284744263,
+          150.0,
+          10.000000149011612
+        ],
+        "start_cm": [
+          -1366.7499542236328,
+          -1500.0,
+          91.07286930084229
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 29.999998211860657,
+        "half_height_cm": 83.99999737739563,
+        "length_cm": 53.40009927749634
+      }
+    },
+    {
+      "name": "source-gap-relative",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "box_half_extents_cm": [
+          144.99999284744263,
+          150.0,
+          10.000000149011612
+        ],
+        "start_cm": [
+          133.2500457763672,
+          0.0,
+          101.07287168502808
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 29.999998211860657,
+        "half_height_cm": 83.99999737739563,
+        "length_cm": 53.40009927749634
+      }
+    }
+  ]
+}

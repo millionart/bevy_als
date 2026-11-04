@@ -4133,6 +4133,13 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.540 跨步后fresh floor原始距离余差。依赖539自然/源间隙案。实际状态同步输入记录生产胶囊重放、主台实尺寸、hit见证和地面中心，用同尺寸/方向/相对位置的Chaos直接重查。只换原始距离复算两案后置带判定及高度，按D125归属。开始2026-11-04 20:39:47 +0800，预估结束2026-11-04 21:14:47 +0800。参考539约6分钟，复用几何与源实际报告，只目标观察和同输入原生查询，估35分钟。截图0，性能暂停。
+
+  - 真实Gate前：fresh目标floor从缩短胶囊原始distance减shrink得到gap，中心为origin−gap，再按[1.9,2.4]cm决定是否向2.15cm移动。本轮在已有源间隙提交后、真实同步前只读记录原始cast与主台实形，保旧539运动作对照。截图0。
+  - 真实Gate后：两案实际fresh均为单宽胶囊命中，原始Chaos同输入世界/盒相对结果相同。目标短约0.2307/0.2483mm，和见证点分离相符。只换原始距离的复算把自然案从带内改为超上限，两案最终都回到源约2.9215m。补D125；D298自然案的带内结果有该数值共同作用。截图0。
+  - Gate通过。两次真实功能/旧40行为逐值、原始宽胶囊和点对、同输入Chaos世界/相对距离逐值、两案只换distance复算。六库/396身份及73份Git证据通过。补D125/D298、无新增，累计295（128P2/167P3）。实际结束2026-11-04 20:43:44 +0800，实耗237秒，偏差-1863秒。证据 docs/audit/bf144/540/summary.json。截图0，性能暂停。
+  - 后继边界：跨步重查数值余差闭合。源StepDown另允许命中不可走、法线不逆向且终点不高于旧位的情况；下一轮以实际低处陡坡与反向对照核StepUp提交/回退。
+
 - [x] BF144.539 成功StepUp的带内高度余差。依赖538。145cm主台与50ms初态相同，侧凸台高度调到17.3cm，保初始真实碰撞且落低后自然不再碰撞。读源真实下扫拉回/CurrentFloor调高及目标预置clearance、解算/状态同步间隙；仅在物理后以源实际间隙作高度控制隔离。按真实因果登记。开始2026-11-04 20:32:29 +0800，预估结束2026-11-04 21:12:29 +0800。参考538约7分钟，另加原生自然几何与仅高度控制，估40分钟。截图0，性能暂停。
 
   - 真实Gate前：fresh源StepDown拉回后旧间隙约1.05cm，低于1.9cm遂调整到2.15cm。目标StepUp预置1.9+0.5=2.4cm，Post只在带外纠正。17.3cm侧凸台按初态/落低的胶囊截面选择，保首Hit并让后续自然不再接触；同原生实际间隙在目标物理后单因素控制。截图0。
@@ -4603,6 +4610,7 @@
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D298 / P2 — 成功StepUp预置上限间隙，跳过源对下扫拉回位置的平均贴地。
+  - BF144.540 预置带内的数值共同作用。同输入新查扫掠的目标距离短约0.231mm，使实测间隙落入2.4cm带内。只替换该distance时本见证会触发贴地；数值归D125，预置时序仍归本条。证据 docs/audit/bf144/540/summary.json。
   - UE StepDown保实际拉回间隙，再在Walking低于下限时调整到平均值。目标以命中位置加2.4cm直接摆放；重查结果在带内时保持该高度。
   - 17.3cm偏侧凸台的真实跨步无解算横偏。源下扫1.0498cm、最终2.15cm；目标重查2.3785cm在带内，帧末高2.5158mm。只在物理后换入源拉回间隙，目标正常调整并将余差降到0.2484mm，XY/解算不变。与D297再碰撞分离。证据 docs/audit/bf144/539/summary.json。
 
@@ -5766,6 +5774,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.174 Movement补充：明确raw_model的SprintAcceleration实际第52帧，79骨骼native与目标VB ik_hand_l最大位置分量差0.034578234m；相同目标普通骨骼按fresh11个source/target绑定重算虚拟骨骼后，与native raw最大残差约8.42e−6m，native自身重算闭合到约1e−10m。根因仍为raw Sequencer逐次生成与目标30Hz独立VB键插值不交换。准备platform数据后同点compressed差降至1.76e−5m，故原幅度只归此raw模型边界，不作为压缩路径的新缺陷。证据`174/virtual-bone-check.json`、`peak-actual-mode.native.json`及`peak-compressed.native.json`。
 
 - [ ] BF144-D125 / P2 — 大型平地箱体的胶囊sweep数值偏差，改变落地与地面预测。
+  - BF144.540 跨步后fresh floor消费者。两案直接同输入Chaos比目标长约0.231/0.248mm，与目标命中点分离一致。只换原始距离的标量复算使自然案超过2.4cm触发贴地，并消掉源间隙案约0.248mm余差。证据 docs/audit/bf144/540/summary.json。
   - BF144.534 窄胶囊支撑上限消费者。47.403cm低台同几何下，Chaos原始距离比目标长68.78µm；源40首步超限转Falling，目标同二进制两次均判在限内并贴到低台，帧末高度差约0.470m。只换原生原始距离的复算越限，47.3/47.5两侧对照一致。证据 docs/audit/bf144/534/summary.json。
   - Source：fresh `CapsuleComponent.cpp:240–244`与`ChaosEngineInterface.cpp:122–147`确认半高包含端球、segment沿Z且半长H−R；`WorldCollision.cpp:545–563`、`SceneQuery.cpp:365–382`、`SQVisitor.h:336`及`GeometryQueries.h:320–325`进入MTD开启、Thickness=0的原生SweepQuery/GJKRaycast2。本机同输入4m/100m箱体均返回20ms方向distance=0.055680113m、50ms方向=0.054472971m；源不是先前的解析平面假设。
   - Target：Avian/Parry的support-map shape cast进入directional_distance→minkowski_ray_cast，后者在距离阈值或不再收紧上界等条件下返回当前TOI；`motion.rs:2701–2733`直接把该距离经源式pullback转为applied及remaining_time，再进入落地walking积分。当前证据定位到实际查询核差异，未把某个提前退出分支冒称为已动态插桩确认。
