@@ -1,0 +1,79 @@
+[
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/PrimitiveComponent.cpp",
+    "bytes": 184320,
+    "sha256": "5ef63e4b1ce58c83e4dd3a8f8b6ea579e78811052bf3c4556db03743ebdae19c",
+    "excerpts": [
+      {
+        "start": 3095,
+        "end": 3099,
+        "text": "static void PullBackHit(FHitResult& Hit, const FVector& Start, const FVector& End, const float Dist)\n{\n\tconst float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;\n\tHit.Time = FMath::Clamp( Hit.Time - DesiredTimeBack, 0.f, 1.f );\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "bytes": 545515,
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "excerpts": [
+      {
+        "start": 5045,
+        "end": 5056,
+        "text": "\t\t\tStartSwimming(OldLocation, OldVelocity, timeTick, remainingTime, Iterations);\n\t\t\treturn;\n\t\t}\n\t\telse if ( Hit.bBlockingHit )\n\t\t{\n\t\t\tif (IsValidLandingSpot(UpdatedComponent->GetComponentLocation(), Hit))\n\t\t\t{\n\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\tProcessLanded(Hit, remainingTime, Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\telse\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "bytes": 378291,
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 2701,
+        "end": 2705,
+        "text": "pub fn movement_sweep_travel(distance: f32, hit_distance: f32) -> f32 {\n    let pullback = (distance * PULLBACK_PROPORTION).clamp(PULLBACK_MIN_DISTANCE, PULLBACK_MAX_DISTANCE)\n        + distance * PULLBACK_TIME_BIAS;\n    (hit_distance - pullback).max(0.0)\n}\n"
+      },
+      {
+        "start": 2719,
+        "end": 2745,
+        "text": "    for _ in 0..3 {\n        let Ok((direction, distance)) = Dir3::new_and_length(remaining) else { break };\n        let config = ShapeCastConfig { ignore_origin_penetration: true,\n            ..ShapeCastConfig::from_max_distance(distance) };\n        let Some(hit) = spatial.cast_shape_predicate(capsule, start + applied, rotation,\n            direction, &config, &filter, &accepts) else { applied += remaining; break };\n        let travel = movement_sweep_travel(distance, hit.distance);\n        applied += *direction * travel;\n        let Some(normal) = hit.normal1.try_normalize() else { break };\n        contact |= normal.y > 0.0 && remaining.dot(normal) < 0.0;\n        remaining_time *= 1.0 - travel / distance;\n        if normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()\n            && remaining.dot(normal) < 0.0\n            && let Some(cmc) = landing_cmc {\n            let extent = capsule.shape_scaled().compute_local_aabb().half_extents();\n            let position = start + applied;\n            if find_ground_floor(spatial, position, extent.y, extent.x.min(extent.z), cmc,\n                LocomotionState::Air, &filter, entity, candidates)\n                .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE\n                    && impact < position.y - extent.y + extent.x.min(extent.z)) {\n                return (applied, velocity, contact, Some(remaining_time));\n            }\n        }\n        let budget = velocity * remaining_time;\n        let slide = crate::extensions::motion::falling_slide(budget, normal, previous_normal);\n        previous_normal = Some(normal);\n        if remaining_time > f32::EPSILON { velocity = slide / remaining_time; }\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als_extras/levels/playground.rs",
+    "bytes": 100661,
+    "sha256": "e193601e935b1b70df9c7a40f4e67e54d82f23beaa1d1250f016da26fab405bc",
+    "excerpts": [
+      {
+        "start": 264,
+        "end": 270,
+        "text": "pub fn playground_collider_kind(mesh_base: &str) -> PlaygroundColliderKind {\n    match mesh_base {\n        \"SM_Als_Block_2x2\" | \"SM_Als_Block_3x3\" | \"SM_Als_Crate\" | \"SM_Als_Floor_20x20\"\n        | \"SM_Als_Pillar\" | \"SM_Als_TitleBoard\" | \"SM_Als_Wall_2x20\" | \"SM_Als_Wall_3x5\" => {\n            PlaygroundColliderKind::Box\n        }\n        \"SM_Als_Arch_01\" => PlaygroundColliderKind::Convex { source_hulls: 5 },\n"
+      }
+    ]
+  },
+  {
+    "key": "dependency:avian3d-0.7.0/src/spatial_query/system_param.rs",
+    "bytes": 48066,
+    "sha256": "a568d6d6d411e2832b3efb91dfc919770712da09eae38e4a9dff53ffd8d72fea",
+    "excerpts": [
+      {
+        "start": 550,
+        "end": 583,
+        "text": "\n                    let Ok((position, rotation, collider)) = self.colliders.get(proxy.collider)\n                    else {\n                        return Scalar::MAX;\n                    };\n\n                    let pose1 = make_pose(position.0, *rotation);\n                    let pose2 = make_pose(origin, shape_rotation);\n\n                    let Ok(Some(hit)) = parry::query::cast_shapes(\n                        &pose1,\n                        Vector::ZERO,\n                        collider.shape_scaled().as_ref(),\n                        &pose2,\n                        direction.adjust_precision(),\n                        shape.shape_scaled().as_ref(),\n                        ShapeCastOptions {\n                            max_time_of_impact: config.max_distance,\n                            target_distance: config.target_distance,\n                            stop_at_penetration: !config.ignore_origin_penetration,\n                            compute_impact_geometry_on_penetration: config\n                                .compute_contact_on_penetration,\n                        },\n                    ) else {\n                        return Scalar::MAX;\n                    };\n                    if hit.time_of_impact < closest_distance {\n                        closest_distance = hit.time_of_impact;\n                        closest_hit = Some(ShapeHitData {\n                            entity: proxy.collider,\n                            point1: pose1 * hit.witness1,\n                            point2: pose2 * hit.witness2\n                                + direction.adjust_precision() * hit.time_of_impact,\n                            normal1: pose1.rotation * hit.normal1,\n"
+      }
+    ]
+  },
+  {
+    "key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "bytes": 470425,
+    "sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "excerpts": [
+      {
+        "start": 1361,
+        "end": 1386,
+        "text": "            if (BoxHalfExtents.GetMin() <= 0 || !Direction.IsNormalized()) { return nullptr; }\n            FPhysicsShapeAdapter BoxAdapter(FQuat::Identity, FCollisionShape::MakeBox(BoxHalfExtents));\n            Chaos::FReal Time = Length;\n            Chaos::FVec3 Position = Chaos::FVec3::ZeroVector;\n            Chaos::FVec3 Normal = Chaos::FVec3::ZeroVector;\n            Chaos::FVec3 FaceNormal = Chaos::FVec3::ZeroVector;\n            int32 FaceIndex = INDEX_NONE;\n            const FTransform BoxTransform(Rotation, BoxTranslation);\n            bool Hit = false;\n            if (bRay)\n            {\n                Hit = BoxAdapter.GetGeometry().Raycast(BoxTransform.InverseTransformPositionNoScale(Start),\n                    BoxTransform.InverseTransformVectorNoScale(Direction), Length, 0.0, Time, Position, Normal, FaceIndex);\n                if (Hit)\n                {\n                    Position = BoxTransform.TransformPositionNoScale(Position);\n                    Normal = BoxTransform.TransformVectorNoScale(Normal);\n                }\n            }\n            else\n            {\n                FPhysicsShapeAdapter QueryAdapter(FQuat::Identity, bCapsule\n                    ? FCollisionShape::MakeCapsule(Radius, HalfHeight) : FCollisionShape::MakeSphere(Radius));\n                Hit = Chaos::SweepQuery(BoxAdapter.GetGeometry(), BoxTransform,\n                    QueryAdapter.GetGeometry(), QueryAdapter.GetGeomPose(Start), Direction, Length, Time, Position, Normal,\n                    FaceIndex, FaceNormal, 0.0, true);\n"
+      }
+    ]
+  }
+]
