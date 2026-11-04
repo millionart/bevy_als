@@ -1,0 +1,99 @@
+{
+  "native": {
+    "70": {
+      "mode_48": "MOVE_Falling",
+      "vertical_48": -0.2942999934218824,
+      "vertical_49": -0.6213000104762614
+    },
+    "75": {
+      "mode_48": "MOVE_Falling",
+      "vertical_48": -0.2942999934218824,
+      "vertical_49": -0.6213000104762614
+    },
+    "80": {
+      "mode_48": "MOVE_Falling",
+      "vertical_48": -0.2942999934218824,
+      "vertical_49": -0.6213000104762614
+    },
+    "85": {
+      "mode_48": "MOVE_Falling",
+      "vertical_48": 0.0,
+      "vertical_49": -0.327000017054379
+    },
+    "90": {
+      "mode_48": "MOVE_Falling",
+      "vertical_48": 0.0,
+      "vertical_49": -0.327000017054379
+    },
+    "100": {
+      "mode_48": "MOVE_Walking",
+      "vertical_48": 0.0,
+      "vertical_49": 0.0
+    }
+  },
+  "target": {
+    "ledge-75": {
+      "mode_48": "Air",
+      "vertical_48": -0.29430001974105835,
+      "vertical_49": -0.6213000416755676,
+      "air_time_48": 0.030000000729108772
+    },
+    "ledge-80": {
+      "mode_48": "Air",
+      "vertical_48": 0.0,
+      "vertical_49": -0.3270000219345093,
+      "air_time_48": -0.0
+    },
+    "ledge-85": {
+      "mode_48": "Air",
+      "vertical_48": 0.0,
+      "vertical_49": -0.3270000219345093,
+      "air_time_48": -0.0
+    },
+    "ledge-90": {
+      "mode_48": "Air",
+      "vertical_48": 0.0,
+      "vertical_49": -0.3270000219345093,
+      "air_time_48": -0.0
+    },
+    "ledge-100": {
+      "mode_48": "Grounded",
+      "vertical_48": 0.0,
+      "vertical_49": 0.30395272374153137,
+      "air_time_48": -0.0
+    },
+    "start-aligned": {
+      "mode_48": "Air",
+      "vertical_48": -0.29430001974105835,
+      "vertical_49": -0.6213000416755676,
+      "air_time_48": 0.030000000729108772,
+      "switch_x": 0.9544523724973392
+    },
+    "step-aligned": {
+      "mode_48": "Air",
+      "vertical_48": -0.29430001974105835,
+      "vertical_49": -0.6213000416755676,
+      "air_time_48": 0.030000000729108772,
+      "switch_x": 0.9638355740964603
+    },
+    "restored": {
+      "mode_48": "Air",
+      "vertical_48": 0.0,
+      "vertical_49": -0.3270000219345093,
+      "air_time_48": -0.0
+    }
+  },
+  "alignment": {
+    "native_start": 0.796635966568088,
+    "native_first_step_end": 0.963835098847777,
+    "target_start": 0.7843990325927734,
+    "target_first_step_end": 0.9422157705352827,
+    "start_shift": 0.012236933975314557,
+    "first_step_shift": 0.021619328312494246
+  },
+  "restored_first_difference": {
+    "after": null,
+    "before": null,
+    "dynamics": null
+  }
+}

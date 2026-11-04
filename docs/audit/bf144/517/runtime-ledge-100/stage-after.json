@@ -1,0 +1,22 @@
+{
+  "collision_velocity": [
+    5.555089473724365,
+    0.0,
+    0.0
+  ],
+  "delta": 0.05999999865889549,
+  "frame": 48,
+  "mode": "Grounded",
+  "position": [
+    -13.891131401062012,
+    2.9012036323547363,
+    -15.0
+  ],
+  "published_grounded_acceleration": 9.817638397216797,
+  "substeps": 2,
+  "walking_last_input": [
+    5.555091857910156,
+    0.0,
+    -1.3270258136799384e-7
+  ]
+}
