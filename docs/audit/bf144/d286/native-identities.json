@@ -1,0 +1,206 @@
+{
+  "reader_binary": {
+    "bytes": 3606168,
+    "sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  },
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/AB_Als.uasset",
+      "asset_identity": {
+        "bytes": 150527,
+        "sha256": "6097dd4043b2051a18b6fdcd2258385afb535a369c97cac8598d815e7b81f1bf"
+      },
+      "native_output": "docs/audit/bf144/d286/root.native.json.gz",
+      "raw": {
+        "bytes": 2527345,
+        "sha256": "470de46f0dd4015ed7cdc34ae955d49459fe14426a7f9e373d00f7a6938a0af6"
+      },
+      "compressed": {
+        "bytes": 104101,
+        "sha256": "a2c25aec872ded848c49f6b98d87515cb1b811358b09b2a91a51cfcda420a01a"
+      },
+      "reader_report": "docs/audit/bf144/d286/root.native.json.reader.report.json",
+      "request_asset": "/ALS/ALS/Character/AB_Als.AB_Als"
+    },
+    {
+      "asset": "Content/ALS/Character/AnimationInstances/AB_Als_Grounded.uasset",
+      "asset_identity": {
+        "bytes": 401770,
+        "sha256": "bdcdf06caf74e8007a874dc2c7f8f11a10afa933423e1a1c7567d1553d5e081a"
+      },
+      "native_output": "docs/audit/bf144/d286/grounded.native.json.gz",
+      "raw": {
+        "bytes": 34725374,
+        "sha256": "955750fde1ae943b7eb829f220d4898e76d3978457edc5bcff0a3e141b08fd0d"
+      },
+      "compressed": {
+        "bytes": 1237173,
+        "sha256": "c63e63a1006dd685c0c31b9a586f53d3157b2298be2c4c064785e94dad3927a4"
+      },
+      "reader_report": "docs/audit/bf144/d286/grounded.native.json.reader.report.json",
+      "request_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded"
+    },
+    {
+      "asset": "Content/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.uasset",
+      "asset_identity": {
+        "bytes": 2145227,
+        "sha256": "52470475c15cd33106b1e964bd0ed9bb239e4331cd28b3b9388334c80e0b11df"
+      },
+      "native_output": "docs/audit/bf144/d286/standing.native.json.gz",
+      "raw": {
+        "bytes": 94113450,
+        "sha256": "e584089d4b91a0c98e9ebd60bf8285bd07e1a1cb0b5661f394fa005ce3f97eff"
+      },
+      "compressed": {
+        "bytes": 3870982,
+        "sha256": "96bb66165a7067913654da51bb6693c1deb6d570df0f6d9805539feb72fb1d07"
+      },
+      "reader_report": "docs/audit/bf144/d286/standing.native.json.reader.report.json",
+      "request_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing"
+    },
+    {
+      "asset": "Content/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.uasset",
+      "asset_identity": {
+        "bytes": 1102860,
+        "sha256": "d3fb8ce0fed7231ddddf3603550f6cf8455593f78a737fffdc17ac87f7a2d3e8"
+      },
+      "native_output": "docs/audit/bf144/d286/crouching.native.json.gz",
+      "raw": {
+        "bytes": 48668148,
+        "sha256": "ac931aa534713a13b0100beaa6f01a71129f9f6e4014f3c7ebcf671b6d60d009"
+      },
+      "compressed": {
+        "bytes": 1980170,
+        "sha256": "1fba6a5935bd7656fb882eda3e53309c1b924b631e611d6069a9e77120aab4bc"
+      },
+      "reader_report": "docs/audit/bf144/d286/crouching.native.json.reader.report.json",
+      "request_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/BS_Als_Lean.uasset",
+      "asset_identity": {
+        "bytes": 15286,
+        "sha256": "2ead99c309d3cdfef5eca07531b6b66dd5ae8a9c6e424356bcedd11d392fed3b"
+      },
+      "request_asset": "/ALS/ALS/Animations/Grounded/Lean/BS_Als_Lean.BS_Als_Lean",
+      "native_output": "docs/audit/bf144/d286/lean.native.json",
+      "raw": {
+        "bytes": 48166,
+        "sha256": "a80e67c745ec77ed47392324dac3f3ae1b13a4e8d4b64fb8418111753a88cbc4"
+      },
+      "reader_report": "docs/audit/bf144/d286/lean.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean.uasset",
+      "asset_identity": {
+        "bytes": 28037,
+        "sha256": "4737b5ae11141348fd375db92ff2fed3441be1796dc9626c652792baed6af90f"
+      },
+      "request_asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean.A_Als_Lean",
+      "native_output": "docs/audit/bf144/d286/sample_center.native.json",
+      "raw": {
+        "bytes": 204005,
+        "sha256": "92cf14b7aff0e179c9d0fa72e8962d0e9d1e8f34b9f22daedfc58169b6b461f9"
+      },
+      "reader_report": "docs/audit/bf144/d286/sample_center.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.uasset",
+      "asset_identity": {
+        "bytes": 27946,
+        "sha256": "d9980292cb17bda2e8d8f2f144c29924823a63af7fe0cc4379a86443bb28e836"
+      },
+      "request_asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.A_Als_Lean_Forward",
+      "native_output": "docs/audit/bf144/d286/sample_forward.native.json",
+      "raw": {
+        "bytes": 204577,
+        "sha256": "b941f719993621dfb7271657f92ed7b55af6118a2a4af9c22fe697177de6c51a"
+      },
+      "reader_report": "docs/audit/bf144/d286/sample_forward.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.uasset",
+      "asset_identity": {
+        "bytes": 27913,
+        "sha256": "040ea4b63d4715223c7ed4c73c49bf32b39c432a116de68b8a6988c2a6c86c8a"
+      },
+      "request_asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.A_Als_Lean_Backward",
+      "native_output": "docs/audit/bf144/d286/sample_backward.native.json",
+      "raw": {
+        "bytes": 204726,
+        "sha256": "4a782e3afb6ba547ef0102ca1b4002568820d8ae586c33f79d771e1420a11788"
+      },
+      "reader_report": "docs/audit/bf144/d286/sample_backward.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.uasset",
+      "asset_identity": {
+        "bytes": 28195,
+        "sha256": "568fcd07d23a5cabb105aacf46990cd0503f5ace54634c95a9e1bb8e15ba78b5"
+      },
+      "request_asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.A_Als_Lean_Left",
+      "native_output": "docs/audit/bf144/d286/sample_left.native.json",
+      "raw": {
+        "bytes": 204473,
+        "sha256": "23135d6971b1d8d35e8c879a8d815f8f71123c8c09d41e9856932a528efc80c9"
+      },
+      "reader_report": "docs/audit/bf144/d286/sample_left.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.uasset",
+      "asset_identity": {
+        "bytes": 28099,
+        "sha256": "608665210924480f34f86728f6b2f004676774ffd71db04576e40cbb24bc3c19"
+      },
+      "request_asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.A_Als_Lean_Right",
+      "native_output": "docs/audit/bf144/d286/sample_right.native.json",
+      "raw": {
+        "bytes": 204605,
+        "sha256": "df4bece6fd88dc7fa79ae38b4d71c18eaf0c7b5f63d732942f227d6b32681ec1"
+      },
+      "reader_report": "docs/audit/bf144/d286/sample_right.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.uasset",
+      "asset_identity": {
+        "bytes": 27549,
+        "sha256": "75ef730084f5f8f054cb2ce2b0b90c4993f6ac4ef28b17b84e542482fd742a62"
+      },
+      "request_asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.A_Als_Lean_Pose",
+      "native_output": "docs/audit/bf144/d286/sample_reference.native.json",
+      "raw": {
+        "bytes": 204140,
+        "sha256": "98df8d13d0c4dd479e038f2bf86c9dab05756145f4b4e508ea5e5f5ace2609b5"
+      },
+      "reader_report": "docs/audit/bf144/d286/sample_reference.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Character/SK_Als.uasset",
+      "asset_identity": {
+        "bytes": 45766,
+        "sha256": "8696ff0584e471a93366a2bb0b371e907d42cb13fa489755f388c5a463e5e0a6"
+      },
+      "request_asset": "/ALS/ALS/Character/SK_Als.SK_Als",
+      "native_output": "docs/audit/bf144/d286/skeleton.native.json",
+      "raw": {
+        "bytes": 125692,
+        "sha256": "044c0328a241f6f15a73e656141985a71959506765ed161fac44baf8e8148012"
+      },
+      "reader_report": "docs/audit/bf144/d286/skeleton.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Character/SKM_Als.uasset",
+      "asset_identity": {
+        "bytes": 2606592,
+        "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+      },
+      "request_asset": "/ALS/ALS/Character/SKM_Als.SKM_Als",
+      "native_output": "docs/audit/bf144/d286/mesh.native.json",
+      "raw": {
+        "bytes": 170624,
+        "sha256": "de06d457a23cc94ee339b06938500cdf3b31c19ad3aa9af9fa0f409146dd930c"
+      },
+      "reader_report": "docs/audit/bf144/d286/mesh.native.json.reader.report.json"
+    }
+  ]
+}

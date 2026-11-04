@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::math::{DQuat, DVec3};
 
 pub fn velocity_blend_direction(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
     let local = character_rotation.inverse() * world_velocity;
@@ -24,11 +25,16 @@ pub fn acceleration_amount(
     if maximum <= 1e-6 {
         return Vec2::ZERO;
     }
-    let amount = (acceleration / maximum).clamp_length_max(1.0);
-    Vec2::new(
-        amount.dot(rotation * Vec3::NEG_Z),
-        amount.dot(rotation * Vec3::X),
-    )
+    let half = std::f64::consts::FRAC_1_SQRT_2;
+    let source_rotation = rotation.as_dquat() * DQuat::from_xyzw(0.0, half, 0.0, half);
+    let inverse = DVec3::new(source_rotation.x, source_rotation.z, source_rotation.y);
+    let world = DVec3::new(acceleration.x as f64, acceleration.z as f64, acceleration.y as f64) * 100.0;
+    let twice_cross = 2.0 * inverse.cross(world);
+    let local = (world + source_rotation.w * twice_cross + inverse.cross(twice_cross)).as_vec3();
+    let amount = local / (maximum * 100.0);
+    let length_squared = amount.length_squared();
+    let amount = if length_squared > 1.0 { amount * length_squared.sqrt().recip() } else { amount };
+    Vec2::new(amount.x, amount.y)
 }
 
 pub fn inv_exp_approx(value: f32) -> f32 {
@@ -36,4 +42,23 @@ pub fn inv_exp_approx(value: f32) -> f32 {
         + 1.00746054 * value
         + 0.45053901 * value * value
         + 0.25724632 * value * value * value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_local_acceleration_amount_matches_native_lean_controls() {
+        let acceleration = Vec3::new(20.000265, 0.0, -0.0008583067);
+        let velocity = Vec3::new(1.333351, 0.0, -0.00008583068);
+        let rotation = Quat::from_xyzw(0.0, -0.43686104, 0.0, 0.8995291);
+        let amount = acceleration_amount(acceleration, velocity, rotation, 20.0, 15.0);
+        let source = Vec2::new(0.785964787, 0.618271291);
+        assert!(amount.abs_diff_eq(source, 1e-7), "Native local lean differs: {amount:?} != {source:?}");
+        let vertical = Vec3::new(0.0, 3.0, -4.0);
+        assert!(acceleration_amount(vertical, vertical, Quat::IDENTITY, 1.0, 1.0)
+            .abs_diff_eq(Vec2::new(0.8, 0.0), 1e-6));
+        assert_eq!(acceleration_amount(Vec3::X, Vec3::X, Quat::IDENTITY, 0.0, 0.0), Vec2::ZERO);
+    }
 }

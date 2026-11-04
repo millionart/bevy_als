@@ -5079,10 +5079,17 @@
   - 05:00 source/static闭环：fresh ALS重读确认 `ControlledCharacterMove` 先用旧 `MaxAccelerationWalking` 缩放当帧输入，ALS `PhysWalking` 随后才刷新曲线；UE Falling对缓存向量乘AirControl并以空中最大值限幅，boost按进入Falling时速度取值。目标当前每帧覆盖 `AlsGroundedDynamics` 后才进Falling，故需在覆盖前保存当前帧输入上限；源闭包见 `docs/audit/bf144/d287/source-facts.json`。部分摇杆输入须先按幅度缩放再限幅。
   - 05:03实现摘要：每帧在Walking曲线刷新前缓存输入上限，Air帧改存空中上限；单/多步与同帧再离地的Falling共享该值，按输入幅度、boost及空中上限计算。已写.516缓存/普通Air速度、半输入与低速、逐帧刷新对照。实现结束05:03、偏差−47分钟；测试、消融及真实Playground Gate尚未运行。
 
-- [ ] BF144-D286 / P3 — Grounded Lean 先在世界空间限幅，再投影到局部。
+- [x] BF144-D286 / P3 — Grounded Lean 先在世界空间限幅，再投影到局部。
   - BF144.511 实际消费者。仅换序号61一个前向Lean浮点步长，实际BlendSpace69骨、叠加43骨、Root71骨数值改变；62直接链合拢，Root仍6骨。证据 docs/audit/bf144/511/summary.json。
   - 源先逆旋转并转FVector3f，再按选中的阈值缩放、在局部限制向量长度，最后取前/右分量。目标在F32世界空间缩放和限幅后才投影。固定点积选择、世界F32除法与目标轴投影，只把限幅移到局部，8个自然帧的结果改变，未限幅帧保持。
   - 可见Playground序号21的实际Standing前向0.7859649658，仅移动限幅得到0.7859648466。同一物理输入的原生调用得0.7859647870，另包含源精度和运算差异。证据 docs/audit/bf144/510/summary.json。
+
+  - 修复第1轮：开始2026-11-05 05:04 +08:00；预估结束05:54 +08:00。依据：.510/.511已保存8个限幅目标及Standing实际Pose消费；本轮重取本地动画源、核局部旋转/三维限幅与共用的Sprint输入，测试及公共视觉Gate统一后置。
+  - 05:04 source范围：`GetAccelerationAmount` 被 `RefreshGroundedLean` 和Sprint起步加速度共用；Standing与Crouching均可消费父Lean。先核对应源码和资产绑定，不扩张到其他动画图或更换资产；当前无新静态/视觉Gate结果。
+  - 05:12 source闭包进展：同次原生读取Root/Grounded/Standing/Crouching共533图，四份输出已gzip并按原始字节哈希核对；Standing/Crouching都绑定父Lean。fresh `BS_Als_Lean` 明确引用五个Lean sequence，下一步仅递归读取这些样本及其源声明参考；静态审计与公共视觉Gate尚未运行。范围与后续命令登记于 `tools/animgraph_authoring/bf144_d286.scope.json`。
+  - 05:15 source闭包进展：五个Lean样本及共同参考已fresh读取；样本与根资产均引用 `SK_Als` 和 `SKM_Als`，为后续RequiredBones身份补读这两项。其他独立资产继续沿既有清单范围，不因名称相邻扩张。
+  - 05:17 source/static闭环：13项原生资产读取及watchdog完成；533图包含本次源可达的四个动画实例，Lean BlendSpace、五样本、参考姿态、骨架和网格身份已封存。fresh C++确认双精度逆旋转后才转F32、按阈值缩放并在三维局部限幅；静态图审计/视觉Gate尚未执行，D285点积与D281共享倒数保持独立。
+  - 05:18实现摘要：共享加速度函数按源坐标基逆旋转、转F32，再在局部三维向量限幅；Standing/Crouching Lean和Sprint起步仍使用同一源函数。已添加.510自然帧原生值及竖直分量控制，范围清单和13份可重验原生证据已登记。实现结束05:18、偏差−36分钟；静态审计、测试、消融与公共视觉Gate尚未运行。
 
 - [ ] BF144-D285 / P3 — Grounded Lean 用F32点积判定加速或制动。
   - BF144.511 实际消费者。序号20的同输入制动选择控制沿实际Lean进入BlendSpace68骨、叠加59骨、Root72骨。Sprint混合未更新。证据 docs/audit/bf144/511/summary.json。
