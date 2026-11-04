@@ -1,0 +1,15 @@
+{
+  "initial_solver_velocity": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "linear_damping_rhs": 1.0,
+  "linear_increment": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "substep_seconds": 0.00555555522441864,
+  "substeps": 6
+}
