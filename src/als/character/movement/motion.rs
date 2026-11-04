@@ -3750,12 +3750,14 @@ fn grounded_movement_transaction(
         return Some(result);
     };
     if floor.distance == 0.0 && (floor.point1 - floor.point2).dot(floor.normal1) > 0.0 { return Some(result); }
+    let down_travel = movement_sweep_travel(down_distance, floor.distance);
     if floor.normal1.y < deg_to_rad(MAX_SLOPE_DEGREES).cos()
         && (initial_floor_y.is_none() || step_delta.dot(floor.normal1) < 0.0
-            || destination.y - movement_sweep_travel(down_distance, floor.distance) > center.y) {
+            || destination.y - down_travel > center.y) {
         return Some(result);
     }
-    let next_y = destination.y - floor.distance + clearance;
+    let next_y = if initial_floor_y.is_some() { destination.y - down_travel }
+        else { destination.y - floor.distance + clearance };
     if initial_floor_y.is_some_and(|initial| floor.point1.y > initial) && !can_step_up(floor.entity) {
         return Some(result);
     }
@@ -4484,6 +4486,32 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn step_down_preserves_the_swept_gap_before_floor_adjustment() {
+        use bevy::ecs::system::RunSystemOnce;
+        for roof_bottom in [4.256, 4.28] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.5, 0.44, 2.0), Transform::from_xyz(-13.4, 2.22, -15.0)));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.3, 0.1, 2.0),
+                Transform::from_xyz(-13.85, roof_bottom + 0.05, -15.0)));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+            }).unwrap().unwrap();
+            let gap = result.2.expect("the raw StepDown position must pass beneath the roof") - 2.44 - 0.9;
+            assert!((0.008..0.013).contains(&gap), "roof={roof_bottom} raw_gap={gap}");
+        }
+    }
 
     #[test]
     fn unwalkable_step_down_rejects_only_opposed_or_high_hits() {
