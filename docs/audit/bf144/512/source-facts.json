@@ -1,0 +1,51 @@
+[
+  {
+    "key": "source:Private/AlsAnimationInstance.cpp",
+    "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+    "excerpts": [
+      {
+        "start": 1045,
+        "end": 1065,
+        "text": "\tif (Gait != AlsGaitTags::Sprinting)\n\t{\n\t\tStandingState.SprintTime = 0.0f;\n\t\tStandingState.SprintAccelerationAmount = 0.0f;\n\t\treturn;\n\t}\n\n\t// Set the sprint acceleration amount to zero if more than 0.5 seconds have elapsed since the\n\t// start of the sprint. Otherwise, use the acceleration amount as the sprint acceleration amount.\n\t// This ensures that the acceleration animation is applied only at the beginning of the sprint.\n\n\tstatic constexpr auto SprintTimeThreshold{0.5f};\n\n\tStandingState.SprintTime = bPendingUpdate\n\t\t                           ? SprintTimeThreshold\n\t\t                           : StandingState.SprintTime + GetDeltaSeconds();\n\n\tStandingState.SprintAccelerationAmount = StandingState.SprintTime >= SprintTimeThreshold\n\t\t                                         ? 0.0f\n\t\t                                         : GetAccelerationAmount().X;\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Engine/Private/Animation/InputScaleBias.cpp",
+    "sha256": "2740eccf7160da418bee212a0abd509a61b122e057224e79c5402673e45159cb",
+    "excerpts": [
+      {
+        "start": 119,
+        "end": 149,
+        "text": "float FInputScaleBiasClamp::ApplyTo(float Value, float InDeltaTime) const\n{\n\tfloat Result = Value;\n\n\tif (bMapRange)\n\t{\n\t\tResult = FMath::GetMappedRangeValueUnclamped(InRange.ToVector2f(), OutRange.ToVector2f(), Result);\n\t}\n\n\tResult = Result * Scale + Bias;\n\n\tif (bClampResult)\n\t{\n\t\tResult = FMath::Clamp<float>(Result, ClampMin, ClampMax);\n\t}\n\n\tif (bInterpResult)\n\t{\n\t\tif (bInitialized)\n\t\t{\n\t\t\tconst float InterpSpeed = (Result >= InterpolatedResult) ? InterpSpeedIncreasing : InterpSpeedDecreasing;\n\t\t\tResult = FMath::FInterpTo(InterpolatedResult, Result, InDeltaTime, InterpSpeed);\n\t\t}\n\n\t\tInterpolatedResult = Result;\n\t}\n\n\tbInitialized = true;\n\treturn Result;\n}\n\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/animation_instances/source_native_refresh.rs",
+    "sha256": "3ebcbf46289cd41384afbd6e1cc750b1ab7e5237769f311f94f184c090ce281a",
+    "excerpts": [
+      {
+        "start": 232,
+        "end": 254,
+        "text": "        let sprinting = scalar(\"als_standing_gait_is_sprinting\", 0.0)? > 0.5;\n        let sprint_time = if !sprinting {\n            0.0\n        } else if boolean(\"animation.pending_update\", true)? {\n            0.5\n        } else {\n            scalar(\"standing_state.sprint_time\", 0.0)? + scalar(\"animation.delta_seconds\", 0.0)?\n        };\n        let acceleration = if sprinting && sprint_time < 0.5 {\n            scalar(\"standing_source.acceleration_forward\", 0.0)?\n        } else {\n            0.0\n        };\n        set_source_property(&ctx, \"standing_state.sprint_time\", sprint_time)?;\n        set_source_property(\n            &ctx,\n            \"standing_state.sprint_acceleration_amount\",\n            acceleration,\n        )?;\n        Ok(())\n    }\n\n    fn refresh_native(&self, ctx: &NodeContext) -> Result<(), GraphError> {\n"
+      }
+    ]
+  },
+  {
+    "key": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "bf5b1061712f4f28a6120504790a2d8599666ee735942381d3f02ccb9de87671",
+    "excerpts": [
+      {
+        "start": 161,
+        "end": 194,
+        "text": "pub fn apply_source_input_scale_bias_clamp(\n    state: &mut SourceInputScaleBiasClampState,\n    raw: f32,\n    mapping: &SourceAlphaMapping,\n    delta: f32,\n) -> f32 {\n    if !mapping.source_semantics {\n        return raw;\n    }\n    let mut target = raw;\n    if mapping.map_range {\n        let divisor = mapping.input_max - mapping.input_min;\n        let percent = if divisor.abs() <= 1.0e-8 {\n            if raw >= mapping.input_max { 1.0 } else { 0.0 }\n        } else {\n            (raw - mapping.input_min) / divisor\n        };\n        target = mapping.output_min + (mapping.output_max - mapping.output_min) * percent;\n    }\n    target = target * mapping.scale + mapping.bias;\n    if mapping.clamp_result {\n        target = target.clamp(mapping.clamp_min, mapping.clamp_max);\n    }\n    if mapping.interpolate_result {\n        if state.initialized {\n            let speed = if target >= state.value {\n                mapping.interpolate_speed_increasing\n            } else {\n                mapping.interpolate_speed_decreasing\n            };\n            target = f_interp_to(state.value, target, delta, speed);\n        }\n        state.value = target;\n    }\n"
+      },
+      {
+        "start": 199,
+        "end": 222,
+        "text": "fn source_blend_alpha(\n    state: &mut SourceBlendState,\n    raw: f32,\n    mapping_max: f32,\n    mapping: &SourceAlphaMapping,\n    alpha_scale: f32,\n    alpha_bias: f32,\n    minimum: f32,\n    maximum: f32,\n    increasing_speed: f32,\n    decreasing_speed: f32,\n    delta: f32,\n) -> f32 {\n    if mapping.source_semantics {\n        let mut mapping_state = SourceInputScaleBiasClampState {\n            initialized: state.initialized,\n            value: state.value,\n        };\n        let target = apply_source_input_scale_bias_clamp(&mut mapping_state, raw, mapping, delta);\n        state.initialized = mapping_state.initialized;\n        state.value = mapping_state.value;\n        return (target * alpha_scale + alpha_bias).clamp(0.0, 1.0);\n    }\n    let mapped = if mapping_max > f32::EPSILON {\n"
+      }
+    ]
+  }
+]

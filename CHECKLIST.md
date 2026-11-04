@@ -4133,6 +4133,14 @@
 
   - 14:22完成摘要：Gate PASS_DOUBLE_UNIT_PHASE_INDEPENDENT_PUBLIC_CONTROLS_AND_EXISTING_D232_CLASSIFICATION；44本项证据/14 external及manifest在docs/audit/bf144/475/受Git跟踪，1968组独立public cm/m、原native/source控制、Q/S与算法保持、必要物理消融101与诊断1拒绝、源码bytes同target六库复编完整报告byte恢复、396含474a reader/六库/压缩原SHA/压缩后输入重建/暂存隐私全过。归属既有D232单位phase维度，保全部旧早F32/归一化事实与域边界；新增0、累计272（116P2/156P3），不归D165/D275、不称可见故障/实际IK恢复。开始2026-11-02 14:08:00 +0800、预估14:38:00、实际结束14:22:24，实耗14:24、偏差−15:36；已具完整数据/阶段因素且可复用public方法的数值归属约15–20分钟，旧实现/机器结果必须回读后归并，不能仅按旧标题猜测。生产/reader/引擎/转换器/原资产不改，下一更早actual IK pose producer与全descendant写回，完整Rig/Root仍开；截图0/性能暂停。
 
+- [x] BF144.512 实际 Sprint 入场的加速度消费及退出。依赖511两实际Lean见证、.69/.132原生计时与混合合同。重新核对源Standing回调及实际Sprint绑定，保持正常角色Sprint准入与输入，记录原生和目标的实际入场、0.5秒关闭、独立混合与退出。单独替换已活动消费者的前向加速度以验证输入到实际Pose。开始2026-11-04 17:03:39 +0800，预估结束2026-11-04 17:43:39 +0800。复用510/511实际入口与观察方式，预留40分钟核原生和受控姿态。截图0，性能暂停。
+
+  - 真实Gate前：源Standing在实际Sprint中累加GetDeltaSeconds，0.5秒起不读前向加速度；已有原生Standing资产的两路Sprint播放及0–0.25混合接线重新核对。新UE角色实跑25入场，39到0.5，60退出。目标观察使用输入和实际步态判定，未直接写Gait或Sprint时间。截图0。
+
+  - 真实Gate后：目标实际24入场、38达到0.5、60退出，入场和截止相隔14次更新，与UE相同。24只改Standing前向输入为0.125，实际alpha 1→0.5、两Sprint播放器求值、最终Root72骨数值变。38注入0.9后Sprint加速度仍0。两端各自实际输入/计时/混合逐值复算，提前clamp消融失败；UE和目标全权重分别在41与43首次低于1。目标无控制恢复在24逐值，34起物理出现过程间末位差，38截止输出仍精确。D05的20/25m/s²在真实入场重现，归因对照后继。截图0。
+  - Gate通过。原生80帧/35活动Sprint的计时、直接加速度及两缓存权重精确；目标全部活动混合按各自输入精确。单帧对照通过，首版截止诊断固定旧末位导致退出101，已改为记录实际注入及核对精确输出。恢复24整帧一致，38的时间/原始和有效权重相同，整报告从34起有物理末位差已单列。四次功能、六库/396身份/97份Git证据均通过。无新增差异，累计283。实际结束2026-11-04 17:11:58 +0800，实耗499秒，偏差-1900秒。见 docs/audit/bf144/512/summary.json。截图0，性能暂停。
+  - 后继边界：D05原生Normal起步20、目标VelocityDirection Responsive起步25已在实际Sprint入场测得，下一轮只替换该profile对照入场和混合历史，分离其余输入差。
+
 - [x] BF144.511 D285/D286 的实际 Standing Lean 与姿态消费。依赖510已证输入核和可见对照。fresh核对实际Standing回调、Lean BlendSpace与叠加；先判定普通跑步是否消费Sprint加速权重。复用同一角色输入，分开跟踪点积分支控制与只换局部限幅结果的单帧Lean权重，沿实际图读出最终姿态。Gate含两条实际链、单因素恢复和Git封存。开始2026-11-04 10:22:31 +0800，预估结束2026-11-04 11:02:31 +0800。参考503/510同类实际控制，复用两节点观测和姿态快照，估40分钟。截图0，性能暂停。
 
   - 真实Gate前：Standing原生图fresh重读；Lean前/右输入接同一BlendSpace，输出接Apply Additive，Sprint加速权重另有独立的步态与时间条件。D286单换局部限幅后，8帧仅61和63的单帧阻尼结果保留末位差，本轮固定61的前向差。目标观察已编译，同一Playground、截图0。
@@ -4754,6 +4762,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 漏检：旧瞄准测试覆盖reset/primary/secondary和普通帧长，暂停回归在稳定角度暂停；没有覆盖0 owner delta×半转×已收紧限位。仅登记，不改公式或放宽阈值。
 
 - [ ] BF144-D05 / P2 — Standing/VelocityDirection 错选 Responsive 加减速曲线。
+  - BF144.512 实际Sprint补充。原生起步最大加速度20m/s²，目标VelocityDirection起步25m/s²。两端实际步态入场序号25/24，按各自输入复算计时和混合精确。单因素归因后继。证据 docs/audit/bf144/512/summary.json。
   - Source：fresh B_Als_Character→MS_Als_Normal，三种站姿rotation的 `AccelerationAndDecelerationAndGroundFrictionCurve` 均引用Normal，蹲姿才引用Responsive；VelocityDirection仅 `RotationInterpolationSpeedCurve` 引用Responsive。fresh两条CV资产确认起步Normal=20/15/5、Responsive=25/20/10（前两项已从cm换算m）。
   - Target：`src/als/settings/params.rs:78–99` 把VelocityDirection当作加减速Responsive条件；`character/movement/dynamics.rs:543–565` 的实际motor以及stop预测、落地剩余积分共享这个选择。
   - 反例：真实运动插件的站姿VelocityDirection首帧无障碍前进速度0.4166667m/s，source Normal应0.3333333m/s；实际加速/制动/摩擦为25/20/10而非20/15/5。三rotation×两stance的另外5组都通过。`bf144_cmc_grounded_dynamics_uses_source_stance_mapping` 语义FAIL，证据 `target/bf144/03/profile/`。

@@ -1,0 +1,207 @@
+{
+  "gate": "PASS_NATURAL_SPRINT_ACCELERATION_CONSUMER_AND_CUTOFF",
+  "native_sprint_start": 25,
+  "target_sprint_start": 24,
+  "native_cutoff": 39,
+  "target_cutoff": 38,
+  "native_first_weight_below_one": 41,
+  "target_first_weight_below_one": 43,
+  "early_override_changed_bones": 72,
+  "cutoff_override_blocked": true,
+  "premature_clamp_counterexamples": {
+    "native": [
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59
+    ],
+    "target": [
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67
+    ]
+  },
+  "restored_parameters_exact": false,
+  "first_restored_difference": 34,
+  "restored_entry_and_cutoff_exact": true,
+  "known_upstream_profile": "BF144-D05",
+  "new_differences": 0,
+  "total_differences": 283,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "decoded": {
+    "sprint.native.json": {
+      "bytes": 33554862,
+      "sha256": "da1a0dd6980a1815541e69a11c83d5cf5756b615acf942ecd0dab289cddfbea8"
+    },
+    "runtime-baseline/report.json": {
+      "bytes": 4218637,
+      "sha256": "b7142e25fbe34b19e2ede1260d6be439cb5a6e0b3ccd6bfd0e7988d47c82f624"
+    },
+    "runtime-baseline/parameters.json": {
+      "bytes": 4321310,
+      "sha256": "0fb3148322f366fd5ec67cd08d734e15c6b3abc3764357da361aa4154f2fe92c"
+    },
+    "runtime-acceleration-only/report.json": {
+      "bytes": 4119180,
+      "sha256": "5b8d048e33cb247e79d9d4fb45377d8294863be4a180f158d39fe3a4e82346d4"
+    },
+    "runtime-acceleration-only/parameters.json": {
+      "bytes": 4300077,
+      "sha256": "f72515677c6189b90fa4ecddace23a0fa8d5f62cd4e22b3a0d4e92c38b7c83e4"
+    },
+    "runtime-cutoff/report.json": {
+      "bytes": 4125097,
+      "sha256": "e93be7c4b356bcbf980619a96f1c0969db0da5554125adf3e0745536e9c0d887"
+    },
+    "runtime-cutoff/parameters.json": {
+      "bytes": 4299209,
+      "sha256": "4de47c8a4a3c861b1fc7a3c2805ee84a2b7a9ec53c014cd314d3e6a59755f8f6"
+    },
+    "runtime-restored/report.json": {
+      "bytes": 4307874,
+      "sha256": "d80706978e958dffeb536a3d2a179e09dfa87f7fa9934ac62fc8369bab6f8c2c"
+    },
+    "runtime-restored/parameters.json": {
+      "bytes": 4309884,
+      "sha256": "0f7521b8e35e853cdd51afa0db994d6d05967065ed6436c6d29be34a745defc2"
+    },
+    "runtime-initial-baseline/report.json": {
+      "bytes": 4859113,
+      "sha256": "5e0a906fa275a1a2b2e09cb4c7325d5b8289b6c97b4152ad445c647c192c338a"
+    },
+    "runtime-initial-baseline/parameters.json": {
+      "bytes": 4295852,
+      "sha256": "d479746688c05f3d95676cab39929cfa967c844c42bd9ef4565c2210ce7ca4f2"
+    },
+    "runtime-initial-acceleration-only/report.json": {
+      "bytes": 4496112,
+      "sha256": "36c62b1629543c0b3b0a18bd89d9f1dda96b5151fb2ed319f41557fd28def19f"
+    },
+    "runtime-initial-acceleration-only/parameters.json": {
+      "bytes": 4343394,
+      "sha256": "00407ec58b4f9c49534bfa4c19b13d4f89fd4a7d8b5c6a7fa944779960b27f63"
+    }
+  },
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/484/playground_observed.rs",
+      "bytes": 99280,
+      "sha256": "60bc94e5e0d03c32cd38c6c56b898e36df60e5cd98fe39b1b482b34bd98e056e"
+    },
+    {
+      "path": "docs/audit/bf144/484/foot_observer.rs",
+      "bytes": 4805,
+      "sha256": "e9cb3f5ec43cb1a4814f39a948aab327774c8e7259abc7c10b6a81c4810dbdca"
+    },
+    {
+      "path": "docs/audit/bf144/505/observer.py",
+      "bytes": 2714,
+      "sha256": "617fbc71c7a7faeab9549f9a135d21585b909c5739d823ccc64ce60f95eea4e4"
+    },
+    {
+      "path": "docs/audit/bf144/505/velocity_observer.rs",
+      "bytes": 4699,
+      "sha256": "e56df78352ac3314607f62a89438ae2ad38a371991af5384a9b27a5c0998ac0c"
+    },
+    {
+      "path": "docs/audit/bf144/508/matrix.request.json",
+      "bytes": 60898,
+      "sha256": "8b2f78a1fd7ee55aeca0d82918b6e94cc2f930f8fe0050bab806fdcb738bc66b"
+    },
+    {
+      "path": "docs/audit/bf144/509/observer.py",
+      "bytes": 1531,
+      "sha256": "527610f484ac25a866d8f3b01f36a311f7f9774c3c8e4f68d205ac31949b041c"
+    },
+    {
+      "path": "docs/audit/bf144/509/lean_observer.rs",
+      "bytes": 4911,
+      "sha256": "f3144b53b7bbdaa7e1887765e4204fb879bfcc817dd81129b8b4622eb7fbf562"
+    },
+    {
+      "path": "docs/audit/bf144/510/observer.py",
+      "bytes": 1468,
+      "sha256": "075da35b4b3901ab93954a19d413693642d6f0069bd8ad72408353ef0729a0fd"
+    },
+    {
+      "path": "docs/audit/bf144/510/acceleration_observer.rs",
+      "bytes": 2613,
+      "sha256": "3e39ba76053efc10be7d9140c532b97f2709986573480fdbdaca77e9eef1451c"
+    },
+    {
+      "path": "docs/audit/bf144/511/standing.native.json.gz",
+      "bytes": 4247045,
+      "sha256": "0a6e9fcbc1685b8f6fff32dcbd43b55f58929673f9cc24004369fba354339c22"
+    },
+    {
+      "path": "docs/audit/bf144/491/reader-migration.json",
+      "bytes": 455,
+      "sha256": "c3359ebe41a7c3f566d92dd3b2d22038efeacc9314640970e30a733e89fe1702"
+    },
+    {
+      "path": "docs/audit/bf144/441c/library-identities.json",
+      "bytes": 1039,
+      "sha256": "a26aa904ba9632bb077cbbb1c2d2b353130a2f50fa9ddc52e0a75ad43080d931"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+      "bytes": 114086,
+      "sha256": "0aa77a0144efad90d6bbd326ab7650a74e0eb341d83107b95cfd539ef27c48bc"
+    }
+  ]
+}
