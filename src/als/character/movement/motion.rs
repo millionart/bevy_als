@@ -4191,7 +4191,14 @@ pub(crate) fn cmc_movement_transaction_system(
         motor.lin.boost.z = remaining_velocity.z - velocity.z;
         motor.lin.acceleration.x = 0.0;
         motor.lin.acceleration.z = 0.0;
-        let Some(next_y) = next_y else { continue };
+        let Some(next_y) = next_y else {
+            let destination = if stepped_up { advanced } else { advanced + remaining.unwrap_or(delta) };
+            if find_ground_floor(&spatial_query, destination, half, radius, &params.cmc, *loco,
+                &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates).is_none() {
+                motor.lin.acceleration.y = -gravity.value.y;
+            }
+            continue;
+        };
         motor.lin.boost.y = -velocity.y;
         motor.lin.acceleration.y = -gravity.value.y;
         *margin = SpeculativeMargin::ZERO;
@@ -5575,6 +5582,38 @@ mod tests {
         app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
         app.world_mut().run_system_once(snapshot_actual_velocity_system).unwrap();
         assert!((app.world().get::<LinearVelocity>(actor).unwrap().x - 6.25).abs() < 1e-4);
+    }
+
+    #[test]
+    fn single_walking_step_drops_stale_vertical_spring_after_leaving_floor() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (supported, spring) in [(false, 9.11858), (false, -169.39), (true, 9.11858)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let (width, center) = if supported { (4.0, 0.0) } else { (1.0, -0.5) };
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(width, 0.2, 2.0),
+                Transform::from_xyz(center, 1.05, 0.0)));
+            app.update();
+            let start = Vec3::new(0.2, 2.0715, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LinearVelocity(Vec3::X * 6.0), LocomotionState::Grounded));
+            let gravity = app.world().get::<AlsEffectiveGravity>(actor).unwrap().value.y;
+            {
+                let mut motor = app.world_mut().get_mut::<TnuaMotor>(actor).unwrap();
+                motor.lin.acceleration.y = -gravity + spring;
+                motor.lin.boost.y = 0.0;
+            }
+            {
+                let mut runtime = app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap();
+                runtime.simulation_substeps = 1;
+                runtime.simulation_delta_seconds = 1.0 / 30.0;
+                runtime.grounded_movement_delta = Some(Vec3::X * 0.2);
+            }
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 30.0));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            let motor = app.world().get::<TnuaMotor>(actor).unwrap();
+            assert!((motor.lin.acceleration.y + gravity).abs() <= 1e-6,
+                "The previous floor spring survived: supported={supported} spring={spring}");
+        }
     }
 
     #[test]
