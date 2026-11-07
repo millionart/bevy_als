@@ -114,6 +114,12 @@ def main() -> int:
         if not g.get("animations"):
             continue
         errs, anim_name = check_anim(g, rel, stem)
+        source_rel = rel
+        runtime = ASSETS / "ALSRuntime" / p.relative_to(ANIMS)
+        if runtime.is_file():
+            source_rel = runtime.relative_to(ASSETS).as_posix()
+            runtime_errs, _ = check_anim(load_gltf(runtime), source_rel, stem)
+            errs.extend(runtime_errs)
         skeleton = next((value for prefix, value in SKELETON_MAP.items() if rel.startswith(prefix)), DEFAULT_SKELETON)
         out = p.with_suffix(".anim.ron")
         if errs:
@@ -124,7 +130,7 @@ def main() -> int:
         out.write_text(
             "(\n"
             f"    source: GltfNamed(\n"
-            f"        path: {ron_str(rel)},\n"
+            f"        path: {ron_str(source_rel)},\n"
             f"        animation_name: {ron_str(anim_name)},\n"
             "    ),\n"
             f"    skeleton: {ron_str(skeleton)},\n"

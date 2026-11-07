@@ -1,0 +1,35 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Animations/Base/A_Als_Stand_Pose.uasset",
+      "asset_identity": {
+        "bytes": 27659,
+        "sha256": "c4599b1752fdc4292a2b4fa0e6bde5c99399bc217aa2472416639fdf9d6e675d"
+      },
+      "request_asset": "/ALS/ALS/Animations/Base/A_Als_Stand_Pose.A_Als_Stand_Pose",
+      "request": "docs/audit/bf144/d275/raw.request.json",
+      "native_output": "docs/audit/bf144/d275/raw.native.json",
+      "raw": {
+        "bytes": 413296,
+        "sha256": "e4f97aab46dd4fb9be0315bfbb8dc2a61120adbf3291a371ae3f42e615670e99"
+      },
+      "reader_report": "docs/audit/bf144/d275/raw.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Base/A_Als_Stand_Pose.uasset",
+      "asset_identity": {
+        "bytes": 27659,
+        "sha256": "c4599b1752fdc4292a2b4fa0e6bde5c99399bc217aa2472416639fdf9d6e675d"
+      },
+      "request_asset": "/ALS/ALS/Animations/Base/A_Als_Stand_Pose.A_Als_Stand_Pose",
+      "request": "docs/audit/bf144/d275/compressed.request.json",
+      "native_output": "docs/audit/bf144/d275/compressed.native.json",
+      "raw": {
+        "bytes": 414212,
+        "sha256": "b6929c26243b4364c0aa4d28c0aa7182d9f10b155442ff3b9b1f00839a8c7cac"
+      },
+      "reader_report": "docs/audit/bf144/d275/compressed.native.json.reader.report.json"
+    }
+  ],
+  "mesh_and_rig_identity": "docs/audit/bf144/d279/native-identities.json"
+}

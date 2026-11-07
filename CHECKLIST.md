@@ -5190,12 +5190,16 @@
   - 06:19 source/static闭环：fresh UE在动画及PostProcess求值后、写入Mesh local与组件空间递推前归一化有效紧凑Pose；目标共享writer仅角色avatar播放器拥有现有骨刷新门控。已固化query99足骨输入/源投影和前态链，其他播放器、空通道及关闭刷新保持原合同。
   - 06:20实现摘要：角色骨骼现有旋转通道在发布时经源轴F64归一化后投回，Pose及其他通道不变；已写query99、禁刷、缺旋转与非角色播放器控制。实现结束06:20、偏差−53分钟；测试、消融、图静态审计与公共视觉Gate尚未运行。
 
-- [ ] BF144-D275 / P3 — glTF动画导入的厘米到米系数先量化为float，改变实际叶位置及Root首高度。
+- [x] BF144-D275 / P3 — glTF动画导入的厘米到米系数先量化为float，改变实际叶位置及Root首高度。
   - BF144.450微量输入补充：同cm值1.7007638171697125e−28，经物理.01后投F32为1.7007639074476786e−30，经export float .01f为1.7007637193685825e−30；actual absolute输入精确后者，Raw参考物理投影单因素public差分保−1.88079096131566e−37，未吞为0或归D224。另compressed delta .003921627998352051cm两种单位投影恰好同3.921628012903966e−5，故该大幅首Root X恢复不额外归本因，见`docs/audit/bf144/450/endpoints.json`与`.450b/summary.json`。
   - Source：fresh correct SKM/Stand0的raw与prepared compressed pelvis Z同为96.75060272216797cm，真实source首BaseProviderInput亦消费该值；源ALS在厘米FTransform中保留，依已验证物理基/单位合同投影F32为.9675060510635376m。
   - Target数据producer：fresh UE GLTFDelayedAnimationTasks先将FTransform translation cast FVector3f，再经GLTFCoreUtilities::ConvertPosition乘float ExportUniformScale，默认.01f实际.009999999776482582；原gltf/bin首键、loaded GraphClip/public sample_pose及actual a189 Idle叶均精确得到.9675059914588928。该字段raw/compressed相同，固定同一source值仅换系数阶段即复现，不是D224平台模式、D165 Rig厘米状态求值或D232多pose混合前投影。
   - 实际consumer/控制：239个真实叶/18881骨公开核全精确，前98正步长BaseProviderInput原样消费；仅clone原clip并换pelvis translation Y，其余字段由完整Pose断言不变，且只Idle caller路由新handle、Head参考保原，98输入和首最终Root Y恢复source。删除唯一handle赋值（保clone/曲线构造）即回原高度；once guard移除拒重复转换，源码bytes同target六库恢复后完整数组/check精确，所有其它input/clock/physics精确。rows唯一camera本地Entity跨程序+1按稳定角色资格核对，未删改原始记录或放宽值阈。
   - 漏检/边界：旧.423整体换prepared pose同时修正多个数据因素，未把raw==compressed的位置字段与单位系数分开；本次有限复开只修正首高度归属后收口。四负fixture、两functional Gate、396身份及63Git证据见`docs/audit/bf144/449b/summary.json`，源端点与gltf/bin身份在`docs/audit/bf144/449/endpoints.json`。当前差为1 float ULP、约5.96e−8m，不声明可见故障或其它Root残差恢复；只登记，不修改原始导出、生产或引擎。
+
+  - 修复第1轮：开始2026-11-08 06:22 +08:00；预估结束07:17 +08:00。依据：.449/.449b已闭source时间0、目标完整叶与Rig首消费者；Stand Pose有两个导出采样，需fresh原生读取两点、确认共享引用及单位恢复不可从量化glTF逆算，再以离线生成的独立target资产替换消费，原始导出保持不变。测试及公共视觉Gate统一后置。
+  - 06:24 source/static闭环：fresh正确网格raw/compressed各79骨×2帧，474个位置标量中148个两模式相同且全部可由导出公式精确复算，22个标量（每帧同10骨11轴，包括pelvis Z）仅因系数阶段改变F32；其余326个两模式不同，保留给D224。该源序列目标descriptor被Standing Idle、Head、Layering、Locomotion和多个Overlay等26个文件共享，本项只修共享数据生产及引用，不展开各图行为；其递归静态审计与视觉Gate后置。
+  - 06:31实现摘要：已由两份原生记录离线生成独立运行时glTF/bin，记录22个改动的字节偏移与源值；共享descriptor及通用导入规则指向该副本，原始导出未改。已写源身份、其他通道和导入路由用例。实现结束06:31、偏差−46分钟；focused测试、全量AnimBP递归转换与完整diff、消融、图静态审计和公共视觉Gate尚未运行。
 
 
 

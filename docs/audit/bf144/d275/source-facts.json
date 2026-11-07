@@ -1,0 +1,255 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Plugins/Enterprise/GLTFExporter/Source/GLTFExporter/Private/Tasks/GLTFDelayedAnimationTasks.cpp",
+      "sha256": "a66975cba3c60c7acfdeeacb0f7433bc156764db8c3f59dc45f7ef8174e3e841",
+      "excerpts": [
+        {
+          "first_line": 23,
+          "last_line": 27,
+          "text": "\tJsonAnimation->Name = AnimSequence->GetName() + TEXT(\"_\") + FString::FromInt(JsonAnimation->Index); // Ensure unique name due to limitation in certain gltf viewers\n\n\tTArray<float> Timestamps;\n\tFGLTFBoneUtilities::GetFrameTimestamps(AnimSequence, Timestamps);\n\tconst int32 FrameCount = Timestamps.Num();"
+        },
+        {
+          "first_line": 47,
+          "last_line": 68,
+          "text": "\tTArray<FBoneIndexType> BoneIndices;\n\tFGLTFBoneUtilities::GetBoneIndices(SkeletalMesh->GetRefSkeleton(), BoneIndices);\n\n\tTArray<TArray<FTransform>> FrameTransforms;\n\tFGLTFBoneUtilities::GetBoneTransformsByFrame(SkeletalMesh, AnimSequence, BoneIndices, Timestamps, FrameTransforms);\n\n\tfor (const FBoneIndexType BoneIndex : BoneIndices)\n\t{\n\t\tFGLTFJsonNode* Node = Builder.AddUniqueNode(RootNode, SkeletalMesh, BoneIndex);\n\n\t\t// TODO: detect if a bone has the same transforms across multiple frames (at least if its the same across all frames) and optimize\n\n\t\t{\n\t\t\tTArray<FGLTFVector3> Translations;\n\t\t\tTranslations.AddUninitialized(FrameCount);\n\n\t\t\tfor (int32 Frame = 0; Frame < FrameCount; ++Frame)\n\t\t\t{\n\t\t\t\tconst FVector3f KeyPosition = FVector3f(FrameTransforms[Frame][BoneIndex].GetTranslation());\n\t\t\t\tTranslations[Frame] = FGLTFCoreUtilities::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportUniformScale);\n\t\t\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Plugins/Enterprise/GLTFExporter/Source/GLTFExporter/Private/Converters/GLTFBoneUtilities.cpp",
+      "sha256": "769eeb7da1b692fcee850c12976e809758eaa92bf0f5ce2bd9762719dff3beaa",
+      "excerpts": [
+        {
+          "first_line": 38,
+          "last_line": 50,
+          "text": "void FGLTFBoneUtilities::GetFrameTimestamps(const UAnimSequence* AnimSequence, TArray<float>& OutFrameTimestamps)\n{\n\tconst int32 FrameCount = AnimSequence->GetNumberOfSampledKeys();\n\tOutFrameTimestamps.AddUninitialized(FrameCount);\n\n\tconst float SequenceLength = AnimSequence->GetPlayLength();\n\tconst float FrameLength = FrameCount > 1 ? SequenceLength / (FrameCount - 1) : 0;\n\n\tfor (int32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex)\n\t{\n\t\tOutFrameTimestamps[FrameIndex] = FMath::Clamp(FrameIndex * FrameLength, 0.0f, SequenceLength);\n\t}\n}"
+        },
+        {
+          "first_line": 52,
+          "last_line": 80,
+          "text": "void FGLTFBoneUtilities::GetBoneTransformsByFrame(const UObject* SkeletalMeshOrSkeleton, const UAnimSequence* AnimSequence, const TArray<FBoneIndexType>& BoneIndices, const TArray<float>& FrameTimestamps, TArray<TArray<FTransform>>& OutBoneTransformsByFrame)\n{\n\t// Make sure to free stack allocations made by FCompactPose, FBlendedCurve, and FStackCustomAttributes when end of scope\n\tFMemMark Mark(FMemStack::Get());\n\n\tFBoneContainer BoneContainer;\n\tBoneContainer.InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::DisallowAll), *const_cast<UObject*>(SkeletalMeshOrSkeleton));\n\n\tconst int32 FrameCount = FrameTimestamps.Num();\n\tOutBoneTransformsByFrame.AddDefaulted(FrameCount);\n\n\tFCompactPose Pose;\n\tPose.SetBoneContainer(&BoneContainer);\n\n\tFBlendedCurve Curve;\n\tCurve.InitFrom(BoneContainer);\n\n\tUE::Anim::FStackAttributeContainer Attributes;\n\tFAnimationPoseData PoseData(Pose, Curve, Attributes);\n\n\tfor (int32 Frame = 0; Frame < FrameCount; ++Frame)\n\t{\n\t\tconst FAnimExtractContext ExtractionContext(static_cast<double>(FrameTimestamps[Frame])); // TODO: set bExtractRootMotion?\n\t\tAnimSequence->GetBonePose(PoseData, ExtractionContext);\n\t\tPose.CopyBonesTo(OutBoneTransformsByFrame[Frame]);\n\t}\n\n\t// Clear all stack allocations to allow FMemMark to free them\n\tPose.Empty();"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Plugins/Enterprise/GLTFExporter/Source/GLTFExporter/Private/Utilities/GLTFCoreUtilities.cpp",
+      "sha256": "cc700e8224d02daacef0fb8fbf0e52ae89c94cbc1a43322d1f7e75e706978d02",
+      "excerpts": [
+        {
+          "first_line": 7,
+          "last_line": 21,
+          "text": "{\n\treturn Length * ConversionScale;\n}\n\nFGLTFVector3 FGLTFCoreUtilities::ConvertVector(const FVector3f& Vector)\n{\n\t// Unreal uses a left-handed coordinate system, with Z up.\n\t// glTF uses a right-handed coordinate system, with Y up.\n\treturn { Vector.X, Vector.Z, Vector.Y };\n}\n\nFGLTFVector3 FGLTFCoreUtilities::ConvertPosition(const FVector3f& Position, const float ConversionScale)\n{\n\treturn ConvertVector(Position * ConversionScale);\n}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Plugins/Enterprise/GLTFExporter/Source/GLTFExporter/Private/Options/GLTFExportOptions.cpp",
+      "sha256": "f989e826600775e8794f7b70bd3884d355b538fe670b15df4821389036b18be1",
+      "excerpts": [
+        {
+          "first_line": 9,
+          "last_line": 18,
+          "text": "{\n\tResetToDefault();\n}\n\nvoid UGLTFExportOptions::ResetToDefault()\n{\n\tExportUniformScale = 0.01f;\n\tbExportPreviewMesh = true;\n\tbSkipNearDefaultValues = true;\n\tbIncludeCopyrightNotice = false;"
+        }
+      ]
+    },
+    {
+      "path": "src/animation_graph_ext/source_sequence_evaluator.rs",
+      "sha256": "10e3d7ca56764dcb98fc274136efde570c7732becdeaee7d7274cf0b6c0fb4aa",
+      "excerpts": [
+        {
+          "first_line": 88,
+          "last_line": 117,
+          "text": "    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {\n        let Some(clip) = ctx\n            .graph_context\n            .resources\n            .graph_clip_assets\n            .get(&self.clip)\n        else {\n            ctx.set_data_fwd(\"Pose\", DataValue::Pose(default()));\n            return Ok(());\n        };\n        let value = self.input_value(&ctx)?;\n        let time = if self.use_explicit_frame { frame_to_time(value, self.frames_per_second) } else { value }\n            .clamp(0.0, clip.duration().max(0.0));\n        let sample_time = if self.step_interpolation { step_sample_time(time, self.frames_per_second, clip.duration()) } else { time };\n        let mut pose = sample_source_pose(&ctx, clip, sample_time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;\n        pose.timestamp = time;\n        *ctx.state_mut_or_else(crate::extensions::AnimationContextState::default)? =\n            crate::extensions::AnimationContextState {\n                curves: self.curves.sample_all(time),\n                curves_are_authoritative: true,\n                ..default()\n            };\n        ctx.set_time(time);\n        ctx.set_data_fwd(\"Pose\", pose);\n        Ok(())\n    }\n\n    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {\n        if self.expose_explicit_value_pin {\n            ctx.add_input_data(self.explicit_value_pin.clone(), DataSpec::F32);"
+        }
+      ]
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S0_Idle.animgraph.ron",
+      "sha256": "1a25c4bbf7e082c0c5a5efebb6f236d3e28fc51d3fa4b7c1fc2031cabb0e5cc5",
+      "excerpts": [
+        {
+          "first_line": 1,
+          "last_line": 8,
+          "text": "(\n    nodes: [\n        (id: \"0f935ba2-4997-f4ef-1d6f-3f89cb17901b\", name: \"Output Animation Pose\", inner: { \"als_ext::SourcePosePassthroughNode\": (input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: \"StopTransitionAndTurnInPlaceAnimations\", call_site: \"OnStateExit\", synchronize_groups: false) }, should_debug: false),\n        (id: \"3cc1dfa5-4d9f-81b4-2eb5-55b4808c547d\", name: \"Modify Curve\", inner: { \"als_ext::SourceCurveModifyNode\": (source_pose_pin: \"SourcePose\", curve_name: \"\", curve_names: [\"FootLeftLock\", \"FootRightLock\", \"AllowTransitions\"], value: 0.0, pin_default: 0.0, pin_defaults: [1.0, 1.0, 1.0], value_pin_names: [\"CurveValues_0\", \"CurveValues_1\", \"CurveValues_2\"], value_key: \"\", value_keys: [\"\", \"\", \"\"], source_value_path: \"\", source_value_paths: [\"\", \"\", \"\"], alpha: 1.0, alpha_key: \"\", alpha_pin: \"Alpha\", expose_alpha_pin: false, apply_mode: \"Blend\") }, should_debug: false),\n        (id: \"30dc1cb1-4b55-0471-d6d4-49a67fbbf6fe\", name: \"Modify Curve\", inner: { \"als_ext::SourceCurveModifyNode\": (source_pose_pin: \"SourcePose\", curve_name: \"\", curve_names: [\"RotationYawSpeed\"], value: 0.0, pin_default: 0.0, pin_defaults: [0.0], value_pin_names: [\"CurveValues_0\"], value_key: \"\", value_keys: [\"turn_in_place_state.play_rate\"], source_value_path: \"\", source_value_paths: [\"TurnInPlaceState.PlayRate\"], alpha: 1.0, alpha_key: \"\", alpha_pin: \"Alpha\", expose_alpha_pin: false, apply_mode: \"Scale\") }, should_debug: false),\n        (id: \"a189ffa4-46d2-a4ea-01e7-728ccfb6d729\", name: \"A_Als_Stand_Pose\\nSequence Evaluator (by frame)\", inner: { \"als_ext::SourceSequenceEvaluatorNode\": (clip: \"ALS/Animations/Base/A_Als_Stand_Pose.anim.ron\", curves: ({}), additive_reference: None, additive_reference_position: 0.0, use_explicit_frame: true, explicit_value: 0.0, explicit_value_key: \"\", explicit_value_pin: \"ExplicitFrame\", expose_explicit_value_pin: true, frames_per_second: 30.0, step_interpolation: false, should_loop: true, teleport_to_explicit_time: true, reinitialization_behavior: \"ExplicitTime\", root_lock: None) }, should_debug: false),\n        (id: \"63d1e290-46eb-6b6f-4722-90a914ab60d5\", name: \"Slot 'TurnInPlaceStanding'\\nGroup 'Grounded'\", inner: { \"als_ext::SourceSlotNode\": (slot_name: \"TurnInPlaceStanding\", group_name: \"Grounded\", pose_key: \"turn_in_place_standing.pose\", weight_key: \"turn_in_place_standing.weight\", layer_weight_key: \"turn_in_place_standing.layer_weight\", mesh_space_additive_key: \"turn_in_place_standing.mesh_space_additive\") }, should_debug: false),\n        (id: \"9e358639-4fa8-a83f-1913-b9808973c5f9\", name: \"InitializeTurnInPlace\\r\\nOn Become Relevant\", inner: { \"als_ext::SourcePropertyWriteNode\": (assignments: [(property: \"turn_in_place_state.activation_delay\", value: F32(0.0))], on_become_relevant: true) }, should_debug: false),"
+        }
+      ]
+    },
+    {
+      "path": "tools/import/gen_ron.py",
+      "sha256": "c44b69e549e42bfb4691f15ba9cf7503a8cb814e04e2d0eeff1adb532e3b6331",
+      "excerpts": [
+        {
+          "first_line": 105,
+          "last_line": 140,
+          "text": "                     if p.stem not in SKELETON_SOURCES)\n    if skipped:\n        print(f\"[skn] skipped mesh skeletons without animated counterpart: {', '.join(skipped)}\")\n\n    anim_paths = sorted(p for p in ANIMS.rglob(\"*.gltf\"))\n    for p in anim_paths:\n        rel = p.relative_to(ASSETS).as_posix().replace(\"\\\\\", \"/\")\n        stem = p.stem\n        g = load_gltf(p)\n        if not g.get(\"animations\"):\n            continue\n        errs, anim_name = check_anim(g, rel, stem)\n        source_rel = rel\n        runtime = ASSETS / \"ALSRuntime\" / p.relative_to(ANIMS)\n        if runtime.is_file():\n            source_rel = runtime.relative_to(ASSETS).as_posix()\n            runtime_errs, _ = check_anim(load_gltf(runtime), source_rel, stem)\n            errs.extend(runtime_errs)\n        skeleton = next((value for prefix, value in SKELETON_MAP.items() if rel.startswith(prefix)), DEFAULT_SKELETON)\n        out = p.with_suffix(\".anim.ron\")\n        if errs:\n            failed = True\n            out.unlink(missing_ok=True)\n            print(\"\\n\".join(errs), file=sys.stderr)\n            continue\n        out.write_text(\n            \"(\\n\"\n            f\"    source: GltfNamed(\\n\"\n            f\"        path: {ron_str(source_rel)},\\n\"\n            f\"        animation_name: {ron_str(anim_name)},\\n\"\n            \"    ),\\n\"\n            f\"    skeleton: {ron_str(skeleton)},\\n\"\n            \")\\n\",\n            encoding=\"utf-8\",\n        )\n        n_anim += 1"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/449/endpoints.json",
+      "sha256": "a115247175477837dcbfb8d4c0306680fb50d33b6f57ee602bbf536ca8839c11",
+      "bytes": 1802
+    },
+    {
+      "path": "docs/audit/bf144/449b/summary.json",
+      "sha256": "15645a8cf9ae686fb7823cc7735a1b9add7212db10129d94885f8a5e9a732d42",
+      "bytes": 1343
+    },
+    {
+      "path": "docs/audit/bf144/450/endpoints.json",
+      "sha256": "f2e8106ef7a7d8a934e731b442a654d5359c32dc8372612cbe4451c639e3208c",
+      "bytes": 2250
+    },
+    {
+      "path": "docs/audit/bf144/d279/native-identities.json",
+      "sha256": "f814d498d098eb188f083a40bc903857e80e505f4638683ec8e970e2076dfc4d",
+      "bytes": 1903
+    },
+    {
+      "path": "docs/audit/bf144/d275/raw.request.json",
+      "sha256": "dc444d2764a5da78b78a7f7524c2f1192abf1fb7e98f4fa24910c413e5aeaad7",
+      "bytes": 198
+    },
+    {
+      "path": "docs/audit/bf144/d275/raw.native.json",
+      "sha256": "e4f97aab46dd4fb9be0315bfbb8dc2a61120adbf3291a371ae3f42e615670e99",
+      "bytes": 413296
+    },
+    {
+      "path": "docs/audit/bf144/d275/raw.native.json.reader.report.json",
+      "sha256": "545f3c8647e36f98cf4a5e4063b58d96e9a1e156cd4fc9ea6fef70cc06c0c681",
+      "bytes": 420
+    },
+    {
+      "path": "docs/audit/bf144/d275/compressed.request.json",
+      "sha256": "e279f3a5648b51cefd83ddf7a18477f61d21d5c6f7570eb932690e1d8c8f1d61",
+      "bytes": 199
+    },
+    {
+      "path": "docs/audit/bf144/d275/compressed.native.json",
+      "sha256": "b6929c26243b4364c0aa4d28c0aa7182d9f10b155442ff3b9b1f00839a8c7cac",
+      "bytes": 414212
+    },
+    {
+      "path": "docs/audit/bf144/d275/compressed.native.json.reader.report.json",
+      "sha256": "3851897ee7760b5ef6f37309e44c910bc6d9739ab790d2b1b395bb99bd7af446",
+      "bytes": 428
+    }
+  ],
+  "native_source_asset": {
+    "asset": "/ALS/ALS/Animations/Base/A_Als_Stand_Pose.A_Als_Stand_Pose",
+    "bytes": 27659,
+    "sha256": "c4599b1752fdc4292a2b4fa0e6bde5c99399bc217aa2472416639fdf9d6e675d"
+  },
+  "shared_consumers": [
+    {
+      "path": "assets/ALS/Character/AnimationInstances/AB_Als_Head/AnimGraph.animgraph.ron",
+      "sha256": "2f59d0d40f4e718ff7c25c6e393ee36bb4d243cf17c744260dde16c20c8d0851"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron",
+      "sha256": "00ec8672bacebafa98532cb49f6a3bc56999a7e7656fa8b0ab23862b58deb585"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron",
+      "sha256": "302a891eed96b484bbdbe8259d5fc7b11a3bd8f59a15acc3d358d82e69974514"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel/Overlay.animgraph.ron",
+      "sha256": "4c3f597c9edf242cb15838ea265ecf70ca66c7b82c4a4b968ae2e19efd383e81"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars/Overlay.animgraph.ron",
+      "sha256": "d7506b57c140b7669a9783d79551183c9fa355cd308de1a337a188f683fcce60"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
+      "sha256": "c4232d11be8fe8fb2e056e6de7fcadfe7f9af590f8e00f29e5ec1173e332f90c"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
+      "sha256": "e3c9542115103d9c4c863f1812bd26c85b8a088b47bac1000aa3ffc108f52cd8"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
+      "sha256": "feefce741f8e84962967c56192121f8e6d11eafba0f300d49b07805b79e15eaa"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/Overlay.animgraph.ron",
+      "sha256": "1e50834522f59040217a304d8bb14dda92b4fb3a75d20a53f7c55b61e80a3cdc"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron",
+      "sha256": "bb080c56f53445e819b155bd3b908ea5dd8bd49632177e124a32b3ea8811855c"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/Overlay.animgraph.ron",
+      "sha256": "c755481b2c52f8d3315ab52f7ec96bd4a4035384dadae5c25f812606eadb0bd6"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied/Overlay.animgraph.ron",
+      "sha256": "11a97505178f540e67aa6123c19c4b1880ceb1ff6f02871eca321d508cf0c866"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured/Overlay.animgraph.ron",
+      "sha256": "05e6c696f13bdd858d1f3ebd0aa49e7689bf19ce02a3950795a2376d173e0351"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine/Overlay.animgraph.ron",
+      "sha256": "6f20898a3c8835339d1532ea2e05c7dbebce9a60a3ddb4799e6eeafff3fd3c7d"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
+      "sha256": "a2355b9ee4655a15a293cb89eac19528e9431797fa0d74237bb61e83790edd4e"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
+      "sha256": "61bba7188294973859decd1804b90f272ccf676eb1e79dd4aae378a3f2526ff4"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
+      "sha256": "78cdbc9d949d7fd1e5fd9d2e7aca69ad65317262e287048e60c8d4eae2745f3a"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
+      "sha256": "bbed1c684cb564e6d449247d6198e3350538c2905681ec97bc249b39917e239b"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
+      "sha256": "856940d9bcb5cde69b997a5392d285b7cdaf7f2d0350aac9a5ce834905ec3b55"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
+      "sha256": "ac13ae660d2300e13df8a1310838a5f7cbdd3ad9edaeaf6392cca2669d762578"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S13_Ready.animgraph.ron",
+      "sha256": "a0dc266568cca14ff8f16ba4dee94a3df46f941e5566185cd6ce5040b92872ca"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S2_Relaxed.animgraph.ron",
+      "sha256": "2ea94822119017a5d7b563c19efdd90ef6100c1bf30deb047050931f7b0eddc6"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S9_Aiming.animgraph.ron",
+      "sha256": "13ee1cac49d6f7aee707d6652c178ddc488e9271a0908fe25b1bc981a815b5ab"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch/Overlay.animgraph.ron",
+      "sha256": "8241a6168f2316e50997dab9aaad8baaf7767ed8dc858c96b3bdb1e9b622e34a"
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S0_Idle.animgraph.ron",
+      "sha256": "1a25c4bbf7e082c0c5a5efebb6f236d3e28fc51d3fa4b7c1fc2031cabb0e5cc5"
+    },
+    {
+      "path": "assets/ALS/Data/AnimationInstance/Grounded/als_standing_montages.ron",
+      "sha256": "300838d91f705740d3dda7fbdfb66d252e166d64f0d09532f160a8b214ecf7c4"
+    }
+  ],
+  "scope": "two source frames; patch only translation scalars with identical raw and compressed source values and an exact float-export match; other source modes remain unchanged"
+}

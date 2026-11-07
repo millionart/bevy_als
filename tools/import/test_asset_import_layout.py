@@ -77,6 +77,14 @@ class AssetImportLayoutTests(unittest.TestCase):
             self.assertIn('ALS/OverlayObjects/Bow/SKM_Als_Bow.skn.ron', (assets / (clips[1] + '.anim.ron')).read_text())
             self.assertFalse(mesh.with_suffix('.anim.ron').exists())
             self.assertFalse((assets / 'skeletons').exists())
+            runtime = assets / 'ALSRuntime/Animations/Base/A_Test.gltf'
+            runtime.parent.mkdir(parents=True)
+            runtime.write_text((assets / (clips[0] + '.gltf')).read_text())
+            with patch.multiple(gen_ron, REPO=root, ASSETS=assets, MODELS=assets, ANIMS=assets/'ALS', SKELS=assets/'ALS/Character',
+                                SKELETON_SOURCES={'SKM_Als': (clips[0] + '.gltf', 'Scene0')}), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(gen_ron.main(), 0)
+            self.assertIn('ALSRuntime/Animations/Base/A_Test.gltf', (assets / (clips[0] + '.anim.ron')).read_text())
+            self.assertIn(clips[1] + '.gltf', (assets / (clips[1] + '.anim.ron')).read_text())
 
 
 if __name__ == '__main__':
