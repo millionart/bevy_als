@@ -1,0 +1,178 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "excerpts": [
+        {
+          "first_line": 75,
+          "last_line": 87,
+          "text": "\tbUseControllerRotationYaw = true;\n\n\tCapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(ACharacter::CapsuleComponentName);\n\tCapsuleComponent->InitCapsuleSize(34.0f, 88.0f);\n\tCapsuleComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);\n\n\tCapsuleComponent->CanCharacterStepUpOn = ECB_No;\n\tCapsuleComponent->SetShouldUpdatePhysicsVolume(true);\n\tCapsuleComponent->SetCanEverAffectNavigation(false);\n\tCapsuleComponent->bDynamicObstacle = true;\n\tRootComponent = CapsuleComponent;\n\n\tbClientCheckEncroachmentOnNetUpdate = true;"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Classes/Components/CapsuleComponent.h",
+      "sha256": "fb64f466a89ece55b9b782b502152733b62894a8e64ba7e0fd1f83d826346088",
+      "excerpts": [
+        {
+          "first_line": 202,
+          "last_line": 210,
+          "text": "inline float UCapsuleComponent::GetScaledCapsuleRadius() const\n{\n\tconst FVector& ComponentScale = GetComponentTransform().GetScale3D();\n\treturn CapsuleRadius * UE_REAL_TO_FLOAT(ComponentScale.X < ComponentScale.Y ? ComponentScale.X : ComponentScale.Y);\n}\n\ninline float UCapsuleComponent::GetScaledCapsuleHalfHeight() const\n{\n\treturn CapsuleHalfHeight * UE_REAL_TO_FLOAT(GetComponentTransform().GetScale3D().Z);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+      "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+      "excerpts": [
+        {
+          "first_line": 1233,
+          "last_line": 1244,
+          "text": "\t * Returns the Scale3D component\n\t *\n\t * @return The Scale3D component\n\t */\n\t[[nodiscard]] inline TVector<T> GetScale3D() const\n\t{\n\t\tDiagnosticCheckNaN_Scale3D();\n\t\tTVector<T> OutScale3D;\n\t\tVectorStoreFloat3(Scale3D, &OutScale3D);\n\t\treturn OutScale3D;\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 5738,
+          "last_line": 5775,
+          "text": "\t\t{\n\t\t\tremainingTime = 0.f;\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// try to move forward\n\t\t\tMoveAlongFloor(MoveVelocity, timeTick, &StepDownResult);\n\n\t\t\tif (IsSwimming()) //just entered water\n\t\t\t{\n\t\t\t\tStartSwimming(OldLocation, OldVelocity, timeTick, remainingTime, Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\telse if (MovementMode != StartingMovementMode || CustomMovementMode != StartingCustomMovementMode)\n\t\t\t{\n\t\t\t\t// pawn ended up in a different mode, probably due to the step-up-and-over flow\n\t\t\t\t// let's refund the estimated unused time (if any) and keep moving in the new mode\n\t\t\t\tconst float DesiredDist = Delta.Size();\n\t\t\t\tif (DesiredDist > UE_KINDA_SMALL_NUMBER)\n\t\t\t\t{\n\t\t\t\t\tconst float ActualDist = ProjectToGravityFloor(UpdatedComponent->GetComponentLocation() - OldLocation).Size();\n\t\t\t\t\tremainingTime += timeTick * (1.f - FMath::Min(1.f,ActualDist/DesiredDist));\n\t\t\t\t}\n\t\t\t\tStartNewPhysics(remainingTime,Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t}\n\n\t\t// Update floor.\n\t\t// StepUp might have already done it for us.\n\t\tif (StepDownResult.bComputedFloor)\n\t\t{\n\t\t\tCurrentFloor = StepDownResult.FloorResult;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tFindFloor(UpdatedComponent->GetComponentLocation(), CurrentFloor, bZeroDelta, NULL);\n\t\t}"
+        },
+        {
+          "first_line": 7058,
+          "last_line": 7066,
+          "text": "void UCharacterMovementComponent::ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, const FHitResult* DownwardSweepResult) const\n{\n\tUE_LOGF(LogCharacterMovement, VeryVerbose, \"[Role:%d] ComputeFloorDist: %ls at location %ls\", (int32)CharacterOwner->GetLocalRole(), *GetNameSafe(CharacterOwner), *CapsuleLocation.ToString());\n\tOutFloorResult.Clear();\n\n\tfloat PawnRadius, PawnHalfHeight;\n\tCharacterOwner->GetCapsuleComponent()->GetScaledCapsuleSize(PawnRadius, PawnHalfHeight);\n\n\tbool bSkipSweep = false;"
+        },
+        {
+          "first_line": 7225,
+          "last_line": 7240,
+          "text": "\n\tfloat FloorSweepTraceDist = FMath::Max(MAX_FLOOR_DIST, MaxStepHeight + HeightCheckAdjust);\n\tfloat FloorLineTraceDist = FloorSweepTraceDist;\n\tbool bNeedToValidateFloor = true;\n\t\n\t// Sweep floor\n\tif (FloorLineTraceDist > 0.f || FloorSweepTraceDist > 0.f)\n\t{\n\t\tUCharacterMovementComponent* MutableThis = const_cast<UCharacterMovementComponent*>(this);\n\n\t\tif ( bAlwaysCheckFloor || !bCanUseCachedLocation || bForceNextFloorCheck || bJustTeleported )\n\t\t{\n\t\t\tMutableThis->bForceNextFloorCheck = false;\n\t\t\tComputeFloorDist(CapsuleLocation, FloorLineTraceDist, FloorSweepTraceDist, OutFloorResult, CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius(), DownwardSweepResult);\n\t\t}\n\t\telse"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/motion.rs",
+      "sha256": "254fbd02bc7243de2b65a713c7db5f59d65f802a0ce745f59bb4596dcb6ed99a",
+      "excerpts": [
+        {
+          "first_line": 3936,
+          "last_line": 3939,
+          "text": "fn character_floor_scale(local: &Transform, parented: bool, world: &GlobalTransform) -> Vec3 {\n    if parented { world.to_scale_rotation_translation().0 } else { local.scale }\n}\n"
+        },
+        {
+          "first_line": 4036,
+          "last_line": 4044,
+          "text": "        let cached_input_max = runtime.controlled_input_max_acceleration;\n        let Ok(world) = transforms.p0().compute_global_transform(entity) else { continue };\n        let Ok(parent_world) = parent.map(|parent| transforms.p0().compute_global_transform(parent.parent())).transpose() else { continue };\n        let mut transform_query = transforms.p1();\n        let Ok(mut transform) = transform_query.get_mut(entity) else { continue };\n        let scale = character_floor_scale(&transform, parent.is_some(), &world);\n        let mut landing_braking = braking.copied().unwrap_or_default();\n        landing_braking.previous_locomotion = LocomotionState::Air;\n        if let Ok(motion) = motion.get(entity) {"
+        },
+        {
+          "first_line": 4508,
+          "last_line": 4521,
+          "text": "        let Ok(basis) = controller.basis_access() else {\n            continue;\n        };\n        let jumping = controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);\n        let Ok(world) = transforms.compute_global_transform(entity) else { continue };\n        let scale = character_floor_scale(transform, parent.is_some(), &world);\n        let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue };\n        let floor_result = params_assets.get(handle.id()).and_then(|params| {\n            let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }\n                else { params.crouch.standing_capsule_half_height } * scale.y;\n            let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);\n            find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc, *current,\n                &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates, None)\n        });"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/443c/summary.json",
+      "bytes": 853,
+      "sha256": "a9c237f5b6060d06ced570c8275202130c0dbe1d9b3a80864bec5dd84da54a22"
+    },
+    {
+      "path": "docs/audit/bf144/443c/replay-baseline.json",
+      "bytes": 133909,
+      "sha256": "858ae31aff3e05169782e73146cc4a32b68ebbb6bd4feaa4989bd5c51edecbda"
+    },
+    {
+      "path": "docs/audit/bf144/443c/runtime-baseline/parameters.json",
+      "bytes": 1504710,
+      "sha256": "361a89e3928cf3e93f040555cc9b0ec5a12aa7e869819f42737dd50a19c37864"
+    },
+    {
+      "path": "docs/audit/bf144/443/source-phases.json",
+      "bytes": 836126,
+      "sha256": "37e67684e85c320092197a8723b2a3470781179b9fa2cacdf6502bb6e646ee93"
+    }
+  ],
+  "witness": {
+    "ordinal": 29,
+    "position": [
+      -14.041662216186523,
+      0.924094021320343,
+      -15.00002384185791
+    ],
+    "scale_inputs": {
+      "actual_half": 0.8999999761581421,
+      "actual_radius": 0.2999999523162842,
+      "actual_scale": [
+        0.9999998807907104,
+        1.0,
+        0.9999998807907104
+      ],
+      "base_half": 0.8999999761581421,
+      "base_radius": 0.29999998211860657,
+      "cached_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "collider_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "local_rotation": [
+        0.0,
+        -0.6227078437805176,
+        0.0,
+        0.7824543714523315
+      ],
+      "local_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "local_translation": [
+        -14.041662216186523,
+        0.924094021320343,
+        -15.00002384185791
+      ],
+      "parented": false,
+      "source_scale_floor": {
+        "adjustment_blocked": false,
+        "center": 0.900017261505127,
+        "distance": 0.024076759815216064,
+        "entity": "970v0",
+        "impact_y": 0.0,
+        "target_y": 0.9215172529220581,
+        "unblocked_final_y": 0.9215172529220581
+      },
+      "source_scale_half": 0.8999999761581421,
+      "source_scale_radius": 0.29999998211860657
+    },
+    "floor": {
+      "adjustment_hit": null,
+      "cached_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "center": 0.9000173211097717,
+      "distance": 0.02407670021057129,
+      "entity": "970v0",
+      "half": 0.8999999761581421,
+      "impact_y": 0.0,
+      "scale": [
+        0.9999998807907104,
+        1.0,
+        0.9999998807907104
+      ],
+      "target_y": 0.9215173125267029
+    }
+  },
+  "scope": "unparented character root scale for walking transaction and post-physics floor recheck; parented and other scale consumers retain their existing path"
+}

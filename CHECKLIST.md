@@ -5203,10 +5203,14 @@
 
 
 
-- [ ] BF144-D274 / P3 — 从含旋转的仿射矩阵重提scale，改变源保存scale及实际floor尺寸。
+- [x] BF144-D274 / P3 — 从含旋转的仿射矩阵重提scale，改变源保存scale及实际floor尺寸。
   - Source：fresh CapsuleComponent.h:202–221以GetComponentTransform().GetScale3D取movement radius/half；TransformVectorized:1237–1244/NonVectorized:1128–1134直接返回保存的Scale3D，不依赖rotation矩阵列长。Character.cpp:85将Capsule设为root；当前source240实际root TQS scale全1。Target floor producer用TransformHelper→GlobalTransform affine.to_scale_rotation_translation取scale，虽local scale和Collider.scale全1、无parent，旋转转矩阵再提取会给非1微量并进入radius。
   - actual消费者：.443c current240同库GlobalTransform公开核逐值还原全部实际helper scale，其中170帧actual scale/radius不同于保存值；固定base radius/half、位置、过滤/形体/其余算法，仅换保存scale的public floor查询使45帧最终world Y不同。29号local quat=[0,−0.6227078437805176,0,0.7824543714523315]、scale1，actual scale X/Z=0.9999998807907104；base radius0.29999998211860657→current0.2999999523162842，保存scale保持base。当前最终Y0.9215173125267029，scale-only控制0.9215172529220581，未称完整source world恢复。
   - 去重/漏检：相同rounded quat用double affine仍162帧projected scale不等保存值，29号double scale0.999999924083854；source仍读Scale3D成员1。因此不是仅提高矩阵算术精度可消除的D232 pose求值边界，也不是D151局部速度投影、D11显式非均匀物理shape或D165厘米float阶段，base单位/数值全锁同。旧.b初看cached为1就当unit规模，current-helper回读消掉1ULP工具误差后才暴露producer本身的保存值差；新增无parent/TQS资格与field-only控制。`docs/audit/bf144/443c`已Git封存，消融退出101、三源码SHA恢复同target重编后完整报告byte一致/原场景记录精确，两功能Gate和65证据哈希通过。累计271（116P2/155P3），P3微量尺寸/高度，生产未修，截图0/性能暂停，GPU pass按用户周边排除暂不验收。
+
+  - 修复第1轮：开始2026-11-08 06:33 +08:00；预估结束07:18 +08:00。依据：.443c已有240帧source/target尺寸及45帧floor消费者，fresh核对UE root胶囊保存scale、Walking→FindFloor与目标两处walking floor调用；只修已证无parent根角色，父级、蹲伏与其他scale消费者保留原路径。测试统一后置。
+  - 06:33 source/static闭环：UE `PhysWalking` 及floor重查最终共用CapsuleComponent保存的scale；目标移动事务和物理后floor同步各自从仿射重提，适用同一无parent根角色反例。已限定这两处floor消费者，下一步复用本地 `Transform.scale` 并保留父级路径。
+  - 06:36实现摘要：两处walking floor消费者共用根角色保存的scale，父级继续原有路径；已写第29帧精确半径、非均匀及父级控制和实际floor同步用例。实现结束06:36、偏差−42分钟；测试、消融和真实Playground Gate尚未运行。
 
 - [ ] BF144-D273 / P3 — 普通步行事务在源有效离地距离带内仍先抬到固定clearance。
   - BF144.578 制动帧补证：源q45保持原2.15cm间隙。目标仅首个制动子步移动，普通下扫先写2.424149m，再由D125短扫带外调整回2.42155957m。只在真实对照保留原带内高度，q45–57与源高度差<0.5µm。证据 `docs/audit/bf144/578/`。

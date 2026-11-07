@@ -3933,6 +3933,10 @@ fn grounded_movement_transaction(
     Some(result)
 }
 
+fn character_floor_scale(local: &Transform, parented: bool, world: &GlobalTransform) -> Vec3 {
+    if parented { world.to_scale_rotation_translation().0 } else { local.scale }
+}
+
 fn adjust_walking_floor_height(
     spatial: &SpatialQuery, capsule: &Collider, transform: &mut Transform, half: f32, radius: f32,
     cmc: &crate::als::params::CmcAdapterParams, entity: Entity,
@@ -4031,10 +4035,10 @@ pub(crate) fn cmc_movement_transaction_system(
         let Some(params) = params_assets.get(handle.id()) else { continue };
         let cached_input_max = runtime.controlled_input_max_acceleration;
         let Ok(world) = transforms.p0().compute_global_transform(entity) else { continue };
-        let scale = world.to_scale_rotation_translation().0;
         let Ok(parent_world) = parent.map(|parent| transforms.p0().compute_global_transform(parent.parent())).transpose() else { continue };
         let mut transform_query = transforms.p1();
         let Ok(mut transform) = transform_query.get_mut(entity) else { continue };
+        let scale = character_floor_scale(&transform, parent.is_some(), &world);
         let mut landing_braking = braking.copied().unwrap_or_default();
         landing_braking.previous_locomotion = LocomotionState::Air;
         if let Ok(motion) = motion.get(entity) {
@@ -4506,7 +4510,7 @@ pub(crate) fn locomotion_state_sync_system(
         };
         let jumping = controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);
         let Ok(world) = transforms.compute_global_transform(entity) else { continue };
-        let scale = world.to_scale_rotation_translation().0;
+        let scale = character_floor_scale(transform, parent.is_some(), &world);
         let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue };
         let floor_result = params_assets.get(handle.id()).and_then(|params| {
             let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
@@ -4653,6 +4657,48 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn root_floor_dimensions_use_the_stored_scale() {
+        let local = Transform::from_rotation(Quat::from_xyzw(0.0, -0.6227078437805176, 0.0, 0.7824543714523315));
+        let world = GlobalTransform::from(local);
+        let extracted = world.to_scale_rotation_translation().0;
+        assert_eq!(extracted, Vec3::new(0.9999998807907104, 1.0, 0.9999998807907104));
+        let scale = character_floor_scale(&local, false, &world);
+        assert_eq!(scale, Vec3::ONE);
+        let radius = 0.29999998211860657_f32;
+        assert_eq!(radius * scale.x.min(scale.z), 0.29999998211860657_f32);
+        assert_eq!(radius * extracted.x.min(extracted.z), 0.2999999523162842_f32);
+
+        let scaled = local.with_scale(Vec3::new(1.25, 0.8, 0.6));
+        assert_eq!(character_floor_scale(&scaled, false, &GlobalTransform::from(scaled)), scaled.scale);
+        let parented_world = GlobalTransform::from(Transform::from_scale(Vec3::new(2.0, 3.0, 4.0)));
+        assert_eq!(character_floor_scale(&scaled, true, &parented_world), parented_world.to_scale_rotation_translation().0);
+    }
+
+    #[test]
+    fn rotated_root_floor_recheck_uses_the_stored_radius() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let start = Vec3::new(-14.041662, 0.924094, -15.000024);
+        let rotation = Quat::from_xyzw(0.0, -0.6227078437805176, 0.0, 0.7824543714523315);
+        let local = Transform::from_translation(start).with_rotation(rotation);
+        app.world_mut().entity_mut(actor).insert((Position(start), local, LocomotionState::Grounded,
+            AlsCmcAdapterRuntime::default()));
+        let handle = app.world().get::<AlsMovementParamsHandle>(actor).unwrap().0.clone();
+        let params = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().clone();
+        let center = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            find_ground_floor(&spatial, start, params.crouch.standing_capsule_half_height,
+                params.crouch.standing_capsule_radius, &params.cmc, LocomotionState::Grounded,
+                &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates).unwrap().0
+        }).unwrap();
+        let distance = start.y - center;
+        let expected = if (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&distance) { start.y }
+            else { center + (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5 };
+        app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+        assert_eq!(app.world().get::<Position>(actor).unwrap().y, expected);
+    }
+
     #[test]
     fn landing_roll_that_leaves_ground_interrupts_before_remaining_falling() {
         use bevy::ecs::system::RunSystemOnce;
