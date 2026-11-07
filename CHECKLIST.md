@@ -5325,11 +5325,16 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 07:41 source/static闭环：fresh原生同输入、轴向、对角及零速制动重采，侧向单位分量F32为4.3711281705327565e−8；UE加速、反向制动和超速回退均调用FVector double安全归一化。目标三处共用F64平方和/倒数并在原消费边界投F32，保留后续乘积阶段。
   - 07:41实现摘要：三个地面方向消费者共用源式F64安全归一化，已写侧向精度、零/阈值与制动计划用例。实现结束07:41、偏差−48分钟；旧30组/40帧原始报告仍缺失，测试、消融及真实Gate待静态修复和Bevy/依赖迁移后执行。
 
-- [ ] BF144-D264 / P3 — 无碰撞地面计划先从位移重建速度再积分，额外往返舍入改变实际运动。
+- [x] BF144-D264 / P3 — 无碰撞地面计划先从位移重建速度再积分，额外往返舍入改变实际运动。
   - Source：fresh `AlsCharacterMovementComponent.cpp:424–440`保存CalcVelocity所得MoveVelocity并直接交MoveAlongFloor，`565–581`仅在实际移动结束后按world位置差/timeTick刷新Velocity。静态基座包装委托Engine CalcVelocity；同一初速375cm/s、加速度2000、max375、braking1250、friction4、analog1和float dt0.03333333507180214的原生核输出完整向量(375,0,0)，与目标公共计划(3.75,0,0)m/s精确对应。
   - Target：`motion.rs:3815–3827`在无碰撞平地仍以remaining.unwrap_or(delta)/frame_dt生成物理前速度；正确计划delta0.125m因这次往返将3.75变为3.749999761581421，再交默认六次物理累计。该阶段先于D253子步delta累计及D254实际世界位置差分，保留六步、同一初速/输入/参数/plan，仅绕过本往返即可隔离，不能当作它们的重复编号。
   - 最小消费者：公开标准角色/同一原floor、空输入20帧后以共同初速3.75和world+X做单步受控输入；这是显式共同输入fixture，非自然source历史回填。实际x原为0.1249999850988388m，去往返后为0.125m，精确对应源原Move算法的native plan×dt厘米double再投影；此source位置是已核算法控制，不是新采的world sample。两组相同F32积分模型逐值复现各自实际值，原native位置合同稳定红测失败，控制通过。末速度分别3.7499992847442627/3.749999761581421，仍未恢复source3.75，不将其它单位/反馈因素吞入本项。
   - 当前自然240单因传播：输入/模式/首次plan保持，首25发生预物理速度变化；后续反馈使position202、velocity50、provider speed3、捕获asset-clock DTO88（未称全部当帧活跃采样）、pose202、RigInput201帧改变，stride/play-rate当前均未变，pose通道行T4516/R6948/S1。该计数是target控制反馈前后数值影响，不是source完整轨迹恢复，也不宣称可见故障。旧Gate只看首次2/3m/s（其delta/dt恰保持）及末回算，漏了达到3.75 cap时的额外物理前阶段；证据`target/bf144/436/natural-consumer-check.json`、`natural-causal-check.json`、`seed-check.json`及`seed-velocity.native.json`。物理去控制恢复280基线，源码bytes恢复同target重编后280控制完整恢复；诊断资格/查询删去无信号，最终精简版本独立重过恢复Gate，见`controls-check.json`、`prune-check.json`。生产未修，身份按当前条目封口。
+
+  - 旧`target/bf144/436`原始证据当前缺失；沿用D264编号重采源共同输入，并保留真实consumer的可重复回归入口。
+  - 修复第1轮：开始2026-11-08 07:42 +08:00；预估结束08:32 +08:00。依据：.436旧记录给出3.75m/s单步无碰撞反例但原报告缺失；fresh重采CalcVelocity并核planned velocity生命周期、碰撞/step、多子步、基座与时间膨胀边界。测试在静态修复及Bevy/依赖迁移后统一执行。
+  - 07:44 source/static闭环：fresh原生同输入在速度上限保留375cm/s，低速和无输入控制另存；ALS在实际移动前直接使用CalcVelocity的MoveVelocity。目标同帧已保存单步计划速度；仅对无碰撞、有效floor、单步、无基座速度且无时间膨胀的已证路径复用该值，其他分支保留原流程。
+  - 07:45实现摘要：已证无碰撞路径复用同帧计划速度，碰撞、基座、多步与时间膨胀保持原处理；已写真实角色无碰撞、墙阻挡及半速控制。实现结束07:45、偏差−47分钟；旧240/280帧原报告仍缺失，测试、消融与真实Gate待静态修复和Bevy/依赖迁移后执行。
 
 - [ ] BF144-D262 / P3 — Foot Lock世界四元数中间乘法提前降为F32，改变限位缓存与实际Rig输入。
   - Source：fresh `AlsFeetState.h:18–28`的TargetRotationWorldSpace/LockRotationWorldSpace为FQuat double，`AlsAnimationInstance.cpp:1562–1574`先double相对乘法再降FQuat4f取twist，末段将FQuat4f offset升double乘原LockWorld。local/FinalRotation降F32发生在各自消费阶段，不能反推世界乘法也应F32。

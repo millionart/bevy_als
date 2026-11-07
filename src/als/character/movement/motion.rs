@@ -4252,10 +4252,16 @@ pub(crate) fn cmc_movement_transaction_system(
         let world_position = next_y.filter(|height| stepped_up || *height > center.y).map_or(advanced, |height| advanced.with_y(height));
         transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
         commands.entity(entity).insert(Position(world_position));
+        let planned_velocity = if !stepped_up && !penetrating && remaining.is_none() && next_y.is_some()
+            && runtime.simulation_substeps == 1 && runtime.grounded_movement_delta.is_some()
+            && delta_seconds == time.delta_secs() {
+            base.as_deref().filter(|base| base.support_velocity == Vec3::ZERO)
+                .and_then(|base| base.pre_collision_velocity)
+        } else { None };
         let remaining_velocity = if stepped_up {
             base.as_deref().filter(|base| base.entity.is_some())
                 .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0))
-        } else { remaining.unwrap_or(delta) / time.delta_secs() };
+        } else { planned_velocity.unwrap_or_else(|| remaining.unwrap_or(delta) / time.delta_secs()) };
         motor.lin.boost.x = remaining_velocity.x - velocity.x;
         motor.lin.boost.z = remaining_velocity.z - velocity.z;
         motor.lin.acceleration.x = 0.0;
@@ -4781,6 +4787,35 @@ mod tests {
             if comparison == 0 { assert_eq!(height, center.y, "gap={gap}"); }
             else if comparison > 0 { assert!(height > center.y, "gap={gap}"); }
             else { assert!(height < center.y, "gap={gap}"); }
+        }
+    }
+
+    #[test]
+    fn free_walking_keeps_the_planned_velocity_before_physics() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (wall, dilation) in [(false, 1.0_f32), (true, 1.0), (false, 0.5)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            if wall {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 3.0, 5.0),
+                    Transform::from_xyz(0.36, 1.5, 0.0)));
+                app.update();
+                app.update();
+            }
+            let center = Vec3::new(0.0, 0.9215, 0.0);
+            let dt = 1.0_f32 / 30.0;
+            app.world_mut().entity_mut(actor).insert((Position(center), Transform::from_translation(center),
+                LinearVelocity(Vec3::X * 3.75), LocomotionState::Grounded, TnuaMotor::default(),
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                AlsCmcAdapterRuntime { simulation_substeps: 1, simulation_delta_seconds: dt * dilation,
+                    grounded_movement_delta: Some(Vec3::X * (3.75 * dt * dilation)), ..default() },
+                crate::als::dynamics::AlsMovementBaseDynamicsState {
+                    pre_collision_velocity: Some(Vec3::X * 3.75), ..default() }));
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(dt));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            let boost = app.world().get::<TnuaMotor>(actor).unwrap().lin.boost.x;
+            if wall { assert!(boost < -1.0); }
+            else if dilation == 1.0 { assert_eq!(boost, 0.0); }
+            else { assert!((boost + 1.875).abs() < 1e-6); }
         }
     }
 

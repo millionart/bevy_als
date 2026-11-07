@@ -1,0 +1,19 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/SK_Als.uasset",
+      "asset_identity": {
+        "bytes": 45766,
+        "sha256": "8696ff0584e471a93366a2bb0b371e907d42cb13fa489755f388c5a463e5e0a6"
+      },
+      "request_asset": "/ALS/ALS/Character/SK_Als.SK_Als",
+      "request": "docs/audit/bf144/d264/velocity.request.json",
+      "native_output": "docs/audit/bf144/d264/velocity.native.json",
+      "raw": {
+        "bytes": 128579,
+        "sha256": "b6a1b6d1389942064cdee03be6e29ff52f8f7802e705439d0e1a39a892558e07"
+      },
+      "reader_report": "docs/audit/bf144/d264/velocity.native.json.reader.report.json"
+    }
+  ]
+}
