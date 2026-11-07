@@ -218,8 +218,10 @@ pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
 }
 
 pub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
-    let axes = view_relative_move_axes(move_dir, view_yaw);
-    Vec3::new(axes.x, 0.0, -axes.y).normalize_or_zero()
+    let source_degrees = (-(view_yaw as f64) - std::f64::consts::FRAC_PI_2).to_degrees() as f32;
+    let (sin, cos) = source_degrees.to_radians().sin_cos();
+    Vec3::new(cos * move_dir.y - sin * move_dir.x, 0.0,
+        sin * move_dir.y + cos * move_dir.x).normalize_or_zero()
 }
 
 pub fn wrap_yaw_radians(yaw: f32) -> f32 {
@@ -1512,6 +1514,18 @@ mod rotation_cap_tests {
                 "yaw={yaw} input={input:?}"
             );
         }
+    }
+
+    #[test]
+    fn movement_direction_rounds_source_degrees_before_radians() {
+        for (yaw, expected_z) in [
+            (-1.5707480907440186_f32, -4.823604831472039e-5_f32),
+            (-1.570765733718872_f32, -3.059307346120477e-5_f32),
+        ] {
+            let actual = view_relative_move_direction(Vec2::Y, yaw);
+            assert_eq!(actual, Vec3::new(1.0, 0.0, expected_z));
+        }
+        assert_eq!(view_relative_move_direction(Vec2::ZERO, 0.7), Vec3::ZERO);
     }
 
     #[test]

@@ -1,0 +1,214 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALSExtras/Private/AlsCharacterExample.cpp",
+      "sha256": "bcfacb62ffc48eb77937c4c9a74ac68d49d8b5a9d687374530c0e72f406cb833",
+      "excerpts": [
+        {
+          "first_line": 141,
+          "last_line": 158,
+          "text": "void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)\n{\n\tconst auto Value{UAlsVector::ClampMagnitude012D(ActionValue.Get<FVector2D>())};\n\n\tauto ViewRotation{GetViewState().Rotation};\n\n\tif (IsValid(GetController()))\n\t{\n\t\t// Use exact camera rotation instead of target rotation whenever possible.\n\n\t\tFVector ViewLocation;\n\t\tGetController()->GetPlayerViewPoint(ViewLocation, ViewRotation);\n\t}\n\n\tconst auto ForwardDirection{UAlsVector::AngleToDirectionXY(UE_REAL_TO_FLOAT(ViewRotation.Yaw))};\n\tconst auto RightDirection{UAlsVector::PerpendicularCounterClockwiseXY(ForwardDirection)};\n\n\tAddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Public/Utility/AlsVector.h",
+      "sha256": "4ace2c024b4c3c7ff6fb89b6f72eecdbc7c482f1720538880e78849bfb4db519",
+      "excerpts": [
+        {
+          "first_line": 127,
+          "last_line": 153,
+          "text": "\ninline FVector2D UAlsVector::RadianToDirection(const float Radian)\n{\n\tfloat Sin, Cos;\n\tFMath::SinCos(&Sin, &Cos, Radian);\n\n\treturn {Cos, Sin};\n}\n\ninline FVector UAlsVector::RadianToDirectionXY(const float Radian)\n{\n\tfloat Sin, Cos;\n\tFMath::SinCos(&Sin, &Cos, Radian);\n\n\treturn {Cos, Sin, 0.0f};\n}\n\ninline FVector2D UAlsVector::AngleToDirection(const float Angle)\n{\n\treturn RadianToDirection(FMath::DegreesToRadians(Angle));\n}\n\ninline FVector UAlsVector::AngleToDirectionXY(const float Angle)\n{\n\treturn RadianToDirectionXY(FMath::DegreesToRadians(Angle));\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacter.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+      "excerpts": [
+        {
+          "first_line": 1107,
+          "last_line": 1128,
+          "text": "\nvoid AAlsCharacter::SetInputDirection(FVector NewInputDirection)\n{\n\tNewInputDirection = NewInputDirection.GetSafeNormal();\n\n\tCOMPARE_ASSIGN_AND_MARK_PROPERTY_DIRTY(ThisClass, InputDirection, NewInputDirection, this);\n}\n\nvoid AAlsCharacter::RefreshInput(const float DeltaTime)\n{\n\tif (GetLocalRole() >= ROLE_AutonomousProxy)\n\t{\n\t\tSetInputDirection(GetCharacterMovement()->GetCurrentAcceleration() / GetCharacterMovement()->GetMaxAcceleration());\n\t}\n\n\tLocomotionState.bHasInput = InputDirection.SizeSquared() > UE_KINDA_SMALL_NUMBER;\n\n\tif (LocomotionState.bHasInput)\n\t{\n\t\tLocomotionState.InputYawAngle = UE_REAL_TO_FLOAT(UAlsVector::DirectionToAngleXY(InputDirection));\n\t}\n}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+      "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+      "excerpts": [
+        {
+          "first_line": 125,
+          "last_line": 131,
+          "text": "#endif\n\n#undef UE_INCLUDETOOL_IGNORE_INCONSISTENT_STATE\n\n#define UE_PI \t\t\t\t\t(3.1415926535897932f)\t/* Extra digits if needed: 3.1415926535897932384626433832795f */\n#define UE_SMALL_NUMBER\t\t\t(1.e-8f)\n#define UE_KINDA_SMALL_NUMBER\t(1.e-4f)"
+        },
+        {
+          "first_line": 875,
+          "last_line": 884,
+          "text": "\t * @return\t\t\t\t\tValue in radians.\n\t */\n\ttemplate<class T>\n\t[[nodiscard]] static constexpr UE_FORCEINLINE_HINT auto DegreesToRadians(T const& DegVal) -> decltype(DegVal * (UE_PI / 180.f))\n\t{\n\t\treturn DegVal * (UE_PI / 180.f);\n\t}\n\n\tstatic constexpr UE_FORCEINLINE_HINT float DegreesToRadians(float const& DegVal) { return DegVal * (UE_PI / 180.f); }\n\tstatic constexpr UE_FORCEINLINE_HINT double DegreesToRadians(double const& DegVal) { return DegVal * (UE_DOUBLE_PI / 180.0); }"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/motion.rs",
+      "sha256": "a32294257fd0a3fe838f5df60287d722ae31d0db7d75cb117d7044a581024dd2",
+      "excerpts": [
+        {
+          "first_line": 212,
+          "last_line": 227,
+          "text": "pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {\n    let (sin, cos) = view_yaw.sin_cos();\n    Vec2::new(\n        cos * move_dir.x - sin * move_dir.y,\n        sin * move_dir.x + cos * move_dir.y,\n    )\n}\n\npub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {\n    let source_degrees = (-(view_yaw as f64) - std::f64::consts::FRAC_PI_2).to_degrees() as f32;\n    let (sin, cos) = source_degrees.to_radians().sin_cos();\n    Vec3::new(cos * move_dir.y - sin * move_dir.x, 0.0,\n        sin * move_dir.y + cos * move_dir.x).normalize_or_zero()\n}\n\npub fn wrap_yaw_radians(yaw: f32) -> f32 {"
+        },
+        {
+          "first_line": 3343,
+          "last_line": 3358,
+          "text": "        if let Some(crate::als::control_scheme::AlsControlSchemeActionState::Jump(jump)) = controller.current_action.as_mut() {\n            jump.input.delta_seconds = delta_seconds;\n            if *loco != LocomotionState::Air || ragdolling {\n                jump.memory.hold_elapsed = f32::INFINITY;\n            }\n        }\n        let input_blocked = blocked.contains(entity);\n        let effective =\n            movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);\n\n        let move_len = effective.move_dir.length().min(1.0);\n        let movement_yaw = player_view.map_or_else(|| {\n            if readiness.is_some_and(|readiness| !readiness.has_published) {\n                world_forward_to_yaw(gtf.forward().as_vec3())\n            } else { view_yaw.0 }\n        }, |view| view.0);"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/actions/stop_link.rs",
+      "sha256": "b01c4ea30cfe55a143aa23778c887a2fdf37253ae52e885fe88495545ef0c521",
+      "excerpts": [
+        {
+          "first_line": 777,
+          "last_line": 789,
+          "text": "    let Some(p) = params.get(handle.id()) else {\n        return;\n    };\n    let effective = ovr.map(|o| &o.0).unwrap_or(cmd);\n    let hspeed = vel.horizontal_speed;\n    let input_move = effective.move_dir.length();\n    if input_move > STOP_RELEASE_INPUT_EPSILON {\n        let direction = view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0));\n        if direction.length_squared() > 1e-6 {\n            m.last_input_yaw = Some(world_forward_to_yaw(direction));\n        }\n    }\n"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/442b/basis.json",
+      "bytes": 727,
+      "sha256": "143e485e0d18bee135d4d3b8a4a2cb8ad28cf4f6dcbea8475b898295bb2764b6"
+    },
+    {
+      "path": "docs/audit/bf144/442b/actual-consumers.json",
+      "bytes": 615790,
+      "sha256": "cee219aab43f3cb99490e6be7760eb3bb6fbd27608a95510284de07e2f101eae"
+    },
+    {
+      "path": "docs/audit/bf144/442b/actual.native.json",
+      "bytes": 334274,
+      "sha256": "95bdf982254d351585fb6e0e9ebcadeaa67f266ab5c50cb6be04b616615b8f75"
+    },
+    {
+      "path": "docs/audit/bf144/d271/geometry.request.json",
+      "bytes": 528,
+      "sha256": "fd82a699b4a23fa9b073a23ffce4a3916d212725ba7b401972a0b7ab3917e8e5"
+    },
+    {
+      "path": "docs/audit/bf144/d271/geometry.native.json",
+      "bytes": 127554,
+      "sha256": "e3ad12c9730dc85d8feee826bd1d66969f37054374ccc6cd282db6aef449886a"
+    },
+    {
+      "path": "docs/audit/bf144/d271/geometry.native.json.reader.report.json",
+      "bytes": 425,
+      "sha256": "949d4a4fe0a4e5449193ab7429a0fb409ed2db4a346a09aa6b546329cf3601fa"
+    }
+  ],
+  "native_cases": [
+    {
+      "input": {
+        "name": "observed-21",
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "move_input": {
+          "yaw_degrees": -0.0027637221356878986,
+          "axes": [
+            0,
+            1
+          ]
+        }
+      },
+      "rotator_degrees": {
+        "pitch": 0,
+        "yaw": 0,
+        "roll": 0
+      },
+      "move_input": {
+        "yaw_degrees_float": -0.0027637220919132233,
+        "yaw_radians_float": -4.823604831472039e-05,
+        "clamped_x": 0,
+        "clamped_y": 1,
+        "forward": {
+          "x": 1,
+          "y": -4.823604831472039e-05,
+          "z": 0
+        },
+        "right": {
+          "x": 4.823604831472039e-05,
+          "y": 1,
+          "z": 0
+        },
+        "world_input": {
+          "x": 1,
+          "y": -4.823604831472039e-05,
+          "z": 0
+        },
+        "cmc_input": {
+          "x": 0.9999999988366419,
+          "y": -4.8236048258604595e-05,
+          "z": 0
+        }
+      }
+    },
+    {
+      "input": {
+        "name": "observed-22",
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "move_input": {
+          "yaw_degrees": -0.0017528541385260115,
+          "axes": [
+            0,
+            1
+          ]
+        }
+      },
+      "rotator_degrees": {
+        "pitch": 0,
+        "yaw": 0,
+        "roll": 0
+      },
+      "move_input": {
+        "yaw_degrees_float": -0.0017528540920466185,
+        "yaw_radians_float": -3.059307346120477e-05,
+        "clamped_x": 0,
+        "clamped_y": 1,
+        "forward": {
+          "x": 1,
+          "y": -3.059307346120477e-05,
+          "z": 0
+        },
+        "right": {
+          "x": 3.059307346120477e-05,
+          "y": 1,
+          "z": 0
+        },
+        "world_input": {
+          "x": 1,
+          "y": -3.059307346120477e-05,
+          "z": 0
+        },
+        "cmc_input": {
+          "x": 0.9999999995320319,
+          "y": -3.059307344688818e-05,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "basis": "source (x,y,z) maps to runtime (x,z,y); runtime view yaw phi = -source yaw theta - pi/2",
+  "scope": "source degree float and radians phase at shared world movement direction; generic relative 2D axes, minimax and extra normalization remain separate"
+}

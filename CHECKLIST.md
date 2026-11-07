@@ -5232,10 +5232,15 @@
   - 06:43 source/static闭环：fresh角色probe再次取得manager存在、cache时间0、viewtarget为角色且control 60°/getter 0°；UE仅在cache有效时消费相机POV。目标的角色输入资格、关联camera source和首次发布状态需要共同区分冷缓存，不能仅凭当前 `AlsPlayerViewYaw` 缺失推断；无manager与无controller沿原分支。
   - 06:49实现摘要：活动玩家相机源首次发布前，移动输入回退角色世界朝向；记录源身份及首次发布状态，避免把曾发布后失效或停用相机直接当冷缓存，源更换/玩家资格丢失会重置。已写生命周期、真实输入系统及旧回退对照；目标状态是发布代理而非原生cache时钟。实现结束06:49、偏差−48分钟；测试、消融与真实入口Gate待全部静态修复和Bevy迁移后执行。
 
-- [ ] BF144-D271 / P3 — 运动输入在runtime弧度坐标直接求值，未保留源角度float阶段。
+- [x] BF144-D271 / P3 — 运动输入在runtime弧度坐标直接求值，未保留源角度float阶段。
   - Source：Input_OnMove先把视点double yaw度数降float，再用float DegreesToRadians进入方向计算；Target `motion.rs:204–215`直接使用runtime float radians。物理方向基为source(cosθ,sinθ,0)→runtime(cosθ,0,sinθ)，与runtime前向(−sinφ,0,−cosφ)等价时φ=−θ−π/2；把基偏置/float表示移到三角函数之前不保持源舍入阶段。
   - 同物理角实际样本：21号runtime相机yaw−1.5707480907440186，经同一物理基得到source yawDouble−0.0027637221356878986°，native float degree−0.0027637220919132233、float rad−4.823604831472039e−5。源方向侧向−4.823604831472039e−5，当前−4.82360519526992e−5；22号亦为−3.059307346120477e−5与−3.0593077099183574e−5。输入轴均(0,1)，不是request/raw view与published view不一致。
   - 去重/消费：两份在同source float radians下，系统trig原始值、共同算子normalize/CMC都已精确source，因此不能归D269或D270；也不是D237的double ViewYaw差分前过早f32换算，因为此处source明确先cast degree再trig，没有MovementDirection阈值。用两份实际输入/初速/参数，公开核原计划逐值匹配实测；只换source角度表示方向，第22帧侧向由−9.871950896922499e−5恢复−9.871950169326738e−5，21计划相消。240其余方向保持，尚未证明最终世界反馈/Root恢复。证据`docs/audit/bf144/442b/actual-consumers.json`、`actual.native.json`与`basis.json`；完整消融/恢复随当前项封存，生产未修。
+
+  - 修复第1轮：开始2026-11-08 06:50 +08:00；预估结束07:30 +08:00。依据：.442b已有240实际输入、两帧角度反例和原生算子；fresh核ALS角度转换、坐标基和目标调用，区分通用二维旋转与实际移动世界方向。测试及真实Gate在静态修复和Bevy迁移后统一执行。
+  - 06:50 source/static范围：`view_relative_move_direction` 由移动与停止输入方向共用，二维 `view_relative_move_axes` 还处理相对角分类，不能整体套世界坐标偏置；本项只修世界方向共享入口，保留相对角和D269/D270各自阶段。
+  - 06:52 source/static闭环：fresh原生复读21/22两角，float degree、float radians与方向均复现；ALS实际先输出世界输入、CMC后生成InputDirection并供动画输入角消费，目标停止链接复用同一世界方向入口。已按source基转换后先转float度数再求弧度，三角近似D269及多余归一化D270仍待各自修复。
+  - 06:53实现摘要：共享世界移动方向恢复源float度数→float弧度阶段，通用相对二维旋转不改；已写21/22实际角和零输入用例。实现结束06:53、偏差−37分钟；测试、消融和真实入口Gate待全部静态修复及Bevy迁移后执行。
 
 - [ ] BF144-D270 / P3 — 运动输入额外单位化世界方向，改变源保留的次单位输入。
   - Source：Input_OnMove先ClampMagnitude012D再用float方向构造double WorldInput；CMC ScaleInputAcceleration仅GetClampedToMaxSize(1)，长度小于1时保留原向量。Target `motion.rs:212–215`对旋转后的world_dir无条件normalize_or_zero，再乘输入强度；这不是源仅在超幅时的clamp分支。
