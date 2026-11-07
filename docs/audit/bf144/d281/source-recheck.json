@@ -1,0 +1,82 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+      "expected_sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+      "current_sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567"
+    },
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "expected_sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "current_sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
+    }
+  ],
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/AB_Als.uasset",
+      "expected_sha256": "6097dd4043b2051a18b6fdcd2258385afb535a369c97cac8598d815e7b81f1bf",
+      "current_sha256": "6097dd4043b2051a18b6fdcd2258385afb535a369c97cac8598d815e7b81f1bf"
+    },
+    {
+      "asset": "Content/ALS/Character/AnimationInstances/AB_Als_Grounded.uasset",
+      "expected_sha256": "bdcdf06caf74e8007a874dc2c7f8f11a10afa933423e1a1c7567d1553d5e081a",
+      "current_sha256": "bdcdf06caf74e8007a874dc2c7f8f11a10afa933423e1a1c7567d1553d5e081a"
+    },
+    {
+      "asset": "Content/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.uasset",
+      "expected_sha256": "52470475c15cd33106b1e964bd0ed9bb239e4331cd28b3b9388334c80e0b11df",
+      "current_sha256": "52470475c15cd33106b1e964bd0ed9bb239e4331cd28b3b9388334c80e0b11df"
+    },
+    {
+      "asset": "Content/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.uasset",
+      "expected_sha256": "d3fb8ce0fed7231ddddf3603550f6cf8455593f78a737fffdc17ac87f7a2d3e8",
+      "current_sha256": "d3fb8ce0fed7231ddddf3603550f6cf8455593f78a737fffdc17ac87f7a2d3e8"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/BS_Als_Lean.uasset",
+      "expected_sha256": "2ead99c309d3cdfef5eca07531b6b66dd5ae8a9c6e424356bcedd11d392fed3b",
+      "current_sha256": "2ead99c309d3cdfef5eca07531b6b66dd5ae8a9c6e424356bcedd11d392fed3b"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean.uasset",
+      "expected_sha256": "4737b5ae11141348fd375db92ff2fed3441be1796dc9626c652792baed6af90f",
+      "current_sha256": "4737b5ae11141348fd375db92ff2fed3441be1796dc9626c652792baed6af90f"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.uasset",
+      "expected_sha256": "d9980292cb17bda2e8d8f2f144c29924823a63af7fe0cc4379a86443bb28e836",
+      "current_sha256": "d9980292cb17bda2e8d8f2f144c29924823a63af7fe0cc4379a86443bb28e836"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.uasset",
+      "expected_sha256": "040ea4b63d4715223c7ed4c73c49bf32b39c432a116de68b8a6988c2a6c86c8a",
+      "current_sha256": "040ea4b63d4715223c7ed4c73c49bf32b39c432a116de68b8a6988c2a6c86c8a"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.uasset",
+      "expected_sha256": "568fcd07d23a5cabb105aacf46990cd0503f5ace54634c95a9e1bb8e15ba78b5",
+      "current_sha256": "568fcd07d23a5cabb105aacf46990cd0503f5ace54634c95a9e1bb8e15ba78b5"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.uasset",
+      "expected_sha256": "608665210924480f34f86728f6b2f004676774ffd71db04576e40cbb24bc3c19",
+      "current_sha256": "608665210924480f34f86728f6b2f004676774ffd71db04576e40cbb24bc3c19"
+    },
+    {
+      "asset": "Content/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.uasset",
+      "expected_sha256": "75ef730084f5f8f054cb2ce2b0b90c4993f6ac4ef28b17b84e542482fd742a62",
+      "current_sha256": "75ef730084f5f8f054cb2ce2b0b90c4993f6ac4ef28b17b84e542482fd742a62"
+    },
+    {
+      "asset": "Content/ALS/Character/SK_Als.uasset",
+      "expected_sha256": "8696ff0584e471a93366a2bb0b371e907d42cb13fa489755f388c5a463e5e0a6",
+      "current_sha256": "8696ff0584e471a93366a2bb0b371e907d42cb13fa489755f388c5a463e5e0a6"
+    },
+    {
+      "asset": "Content/ALS/Character/SKM_Als.uasset",
+      "expected_sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8",
+      "current_sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+    }
+  ],
+  "fresh_reader": "docs/audit/bf144/d281/resumed-identities.json"
+}

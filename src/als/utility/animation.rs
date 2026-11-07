@@ -5,10 +5,14 @@ fn velocity_local_f64(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
     (character_rotation.as_dquat().inverse() * world_velocity.as_dvec3()).as_vec3()
 }
 
+fn source_scalar_divide(vector: Vec3, divisor: f32) -> Vec3 {
+    vector * divisor.recip()
+}
+
 pub fn velocity_blend_direction(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
     let local = velocity_local_f64(world_velocity, character_rotation);
     if local.length_squared() > 1e-12 {
-        local / local.abs().element_sum()
+        source_scalar_divide(local, local.abs().element_sum())
     } else {
         Vec3::ZERO
     }
@@ -36,7 +40,7 @@ pub fn acceleration_amount(
     let inverse = DVec3::new(source_rotation.x, source_rotation.z, source_rotation.y);
     let twice_cross = 2.0 * inverse.cross(world);
     let local = (world + source_rotation.w * twice_cross + inverse.cross(twice_cross)).as_vec3();
-    let amount = local / (maximum * 100.0);
+    let amount = source_scalar_divide(local, maximum * 100.0);
     let length_squared = amount.length_squared();
     let amount = if length_squared > 1.0 { amount * length_squared.sqrt().recip() } else { amount };
     Vec2::new(amount.x, amount.y)
@@ -59,6 +63,18 @@ mod tests {
         let rotation = Quat::from_xyzw(0.0, -0.4792092, 0.0, 0.87770075);
         let local = velocity_local_f64(velocity, rotation);
         assert_eq!(local, Vec3::new(1.08137655, 0.0, -1.68247807));
+    }
+
+    #[test]
+    fn source_scalar_division_reuses_a_single_reciprocal() {
+        let value = source_scalar_divide(Vec3::new(5.0, 7.0, 1.0), 3.0);
+        assert_eq!(value.x, 1.6666667461395264_f32);
+        assert_eq!(value.y, 2.3333334922790527_f32);
+        assert_eq!(value.z, 0.3333333432674408_f32);
+        let acceleration = Vec3::new(-17.219351, 0.0, 0.0);
+        let rotation = Quat::from_xyzw(0.0, -0.6944257, 0.0, 0.71956444);
+        let lean = acceleration_amount(acceleration, Vec3::ZERO, rotation, 20.0, 15.0);
+        assert_eq!(lean.x, -0.8604235053062439_f32);
     }
 
     #[test]
