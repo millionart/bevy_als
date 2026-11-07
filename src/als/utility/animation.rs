@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::math::{DQuat, DVec3};
 
 fn velocity_local_f64(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
-    (character_rotation.as_dquat().inverse() * world_velocity.as_dvec3()).as_vec3()
+    (character_rotation.as_dquat().inverse() * (world_velocity.as_dvec3() * 100.0)).as_vec3()
 }
 
 fn source_scalar_divide(vector: Vec3, divisor: f32) -> Vec3 {
@@ -11,7 +11,7 @@ fn source_scalar_divide(vector: Vec3, divisor: f32) -> Vec3 {
 
 fn velocity_blend_local_direction(local: Vec3) -> Vec3 {
     let length_squared = local.length_squared();
-    if length_squared > 1e-12 {
+    if length_squared > 1e-8 {
         let unit = local * length_squared.sqrt().recip();
         source_scalar_divide(unit, unit.abs().element_sum())
     } else {
@@ -67,7 +67,7 @@ mod tests {
         let velocity = Vec3::new(2.0000267, 0.0, -0.00008583068);
         let rotation = Quat::from_xyzw(0.0, -0.4792092, 0.0, 0.87770075);
         let local = velocity_local_f64(velocity, rotation);
-        assert_eq!(local, Vec3::new(1.08137655, 0.0, -1.68247807));
+        assert_eq!(local, Vec3::new(108.13764953613281, 0.0, -168.247802734375));
     }
 
     #[test]
@@ -76,8 +76,19 @@ mod tests {
         let expected = Vec3::new(0.39125669, 0.0, -0.60874331);
         assert_eq!(velocity_blend_local_direction(local), expected);
         assert_eq!(velocity_blend_local_direction(Vec3::ZERO), Vec3::ZERO);
-        assert_eq!(velocity_blend_local_direction(Vec3::X * 1e-7), Vec3::ZERO);
-        assert_eq!(velocity_blend_local_direction(Vec3::X * 2e-6), Vec3::X);
+        assert_eq!(velocity_blend_local_direction(Vec3::X * 1e-5), Vec3::ZERO);
+        assert_eq!(velocity_blend_local_direction(Vec3::X * 2e-4), Vec3::X);
+    }
+
+    #[test]
+    fn velocity_blend_casts_source_centimeters_before_normalizing() {
+        let centimeters = Vec3::new(45.136112213134766, 0.0, -49.062984466552734);
+        let premature_meters = Vec3::new(0.45136111974716187, 0.0, -0.4906298518180847);
+        let source = velocity_blend_local_direction(centimeters);
+        let target = velocity_blend_local_direction(premature_meters);
+        assert_eq!(source.x, 0.4791565537452698);
+        assert_eq!(target.x, 0.4791565239429474);
+        assert_ne!(source, target);
     }
 
     #[test]
