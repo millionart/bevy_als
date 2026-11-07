@@ -1,0 +1,40 @@
+{
+  "control_rotation_degrees": {
+    "pitch": 0,
+    "yaw": 60,
+    "roll": 0
+  },
+  "player_view": {
+    "manager_present": true,
+    "cache_time": 0,
+    "view_target_is_character": true,
+    "view_target_is_controller": false,
+    "returned_location_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 92.15
+    },
+    "returned_rotation_degrees": {
+      "pitch": 0,
+      "yaw": 0,
+      "roll": 0
+    },
+    "view_target_actor_rotation_degrees": {
+      "pitch": 0,
+      "yaw": 0,
+      "roll": 0
+    },
+    "view_target_actor_location_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 92.15
+    },
+    "cache_rotation_degrees": {
+      "pitch": 0,
+      "yaw": 0,
+      "roll": 0
+    }
+  },
+  "controller_class": "/Script/Engine.PlayerController",
+  "possesses_source_character": true
+}

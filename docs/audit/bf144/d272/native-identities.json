@@ -1,0 +1,23 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/B_Als_Character.uasset",
+      "asset_identity": {
+        "bytes": 261358,
+        "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+      },
+      "request_asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+      "request": "docs/audit/bf144/d272/cold.request.json",
+      "native_output": "docs/audit/bf144/d272/cold.native.json.gz",
+      "raw": {
+        "bytes": 11036082,
+        "sha256": "776e481731206c71e06b7202a2f78c2704f0d9c2a58b5b2177d074b6dff0c3e3"
+      },
+      "compressed": {
+        "bytes": 421236,
+        "sha256": "376085f5912534af67557af801abc2c301be1a9a2b3d162d98d2aeb02be763d2"
+      },
+      "reader_report": "docs/audit/bf144/d272/cold.native.json.reader.report.json"
+    }
+  ]
+}

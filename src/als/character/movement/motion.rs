@@ -3270,7 +3270,7 @@ fn tnua_config_sync_system(
 type DriveQueryItem<'a> = (
     Entity,
     &'a mut TnuaController<AlsControlScheme>,
-    (&'a AlsViewYaw, Option<&'a crate::als::view::AlsPlayerViewYaw>),
+    (&'a AlsViewYaw, Option<&'a crate::als::view::AlsPlayerViewYaw>, Option<&'a crate::als::view::AlsPlayerViewReadiness>),
     &'a GlobalTransform,
     &'a LocomotionState,
     Option<&'a crate::actual_motion::AlsActualMotion>,
@@ -3307,7 +3307,7 @@ pub(crate) fn locomotion_drive_system(
     for (
         entity,
         mut controller,
-        (view_yaw, player_view),
+        (view_yaw, player_view, readiness),
         gtf,
         loco,
         motion,
@@ -3337,7 +3337,12 @@ pub(crate) fn locomotion_drive_system(
             movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);
 
         let move_len = effective.move_dir.length().min(1.0);
-        let world_dir = view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0));
+        let movement_yaw = player_view.map_or_else(|| {
+            if readiness.is_some_and(|readiness| !readiness.has_published) {
+                world_forward_to_yaw(gtf.forward().as_vec3())
+            } else { view_yaw.0 }
+        }, |view| view.0);
+        let world_dir = view_relative_move_direction(effective.move_dir, movement_yaw);
 
         let desired_forward = roll
             .filter(|state| state.active)
@@ -7405,6 +7410,37 @@ mod tests {
         app.world_mut().get_mut::<crate::als::view::AlsPlayerViewYaw>(character).unwrap().0 = control;
         app.update();
         assert_eq!(app.world().get::<crate::als::gait::AlsMaxAllowedGait>(character).unwrap().0, Gait::Sprinting);
+    }
+
+    #[test]
+    fn cold_player_view_uses_actor_yaw_until_a_view_is_published() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::view::{AlsPlayerViewReadiness, AlsPlayerViewYaw};
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let control = -150.0_f32.to_radians();
+        let mut transform = *app.world().get::<Transform>(character).unwrap();
+        transform.rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2);
+        app.world_mut().entity_mut(character).insert((transform, GlobalTransform::from(transform), AlsViewYaw(control),
+            AlsPlayerViewReadiness { source: Entity::PLACEHOLDER, has_published: false }));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
+        assert!(desired.abs_diff_eq(Vec3::X, 1e-6));
+
+        let published = -120.0_f32.to_radians();
+        app.world_mut().entity_mut(character).insert(AlsPlayerViewYaw(published));
+        app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
+        assert!(desired.abs_diff_eq(view_relative_move_direction(Vec2::Y, published), 1e-6));
+        app.world_mut().entity_mut(character).remove::<AlsPlayerViewYaw>();
+        app.world_mut().get_mut::<AlsPlayerViewReadiness>(character).unwrap().has_published = true;
+        app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
+        assert!(desired.abs_diff_eq(view_relative_move_direction(Vec2::Y, control), 1e-6));
+        app.world_mut().entity_mut(character).remove::<AlsPlayerViewReadiness>();
+        app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
+        assert!(desired.abs_diff_eq(view_relative_move_direction(Vec2::Y, control), 1e-6));
     }
 
     #[test]

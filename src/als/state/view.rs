@@ -23,6 +23,12 @@ pub struct AlsViewSmoothed(pub f32);
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsPlayerViewYaw(pub f32);
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AlsPlayerViewReadiness {
+    pub source: Entity,
+    pub has_published: bool,
+}
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsViewInputSet;
 

@@ -4871,7 +4871,7 @@
 
 ### 已确认差异及修复
 
-> 本轮按用户要求先逐项实现、勾选并提交；本节勾选只表示修复实现已提交。所有条目实现后再统一执行测试、消融及真实入口 Gate，失败时复开对应条目。
+> 本轮按用户要求先逐项实现、勾选并提交；本节勾选只表示修复实现已提交。全部静态修复完成后，先按 [Bevy 0.19→0.20 迁移指南](https://bevy.org/learn/migration-guides/0-19-to-0-20/) 升级项目，再统一执行完整转换对比、测试、消融及真实入口 Gate；失败时复开对应条目。
 
 - [x] BF144-D316 / P3 — Falling 近同法线二次命中后缺少沿法线的离墙微移。
   - Source：`UMovementComponent::TwoWallAdjust` 的第二面投影仍沿原请求方向、且两法线满足 `1 − dot < 10⁻⁴` 时，加 `Hit.Normal × 0.01 cm`。`PhysFalling` 用该偏转量扫第三次并以第二碰余时回写速度。Target：`falling_slide` 对近同法线仅作投影，实际法线速度接近零。
@@ -5223,10 +5223,14 @@
   - 06:37 source/static闭环：UE Walking在FindFloor后仅对带外距离调整，目标普通下扫却无条件用固定clearance构造候选；该候选由单步与多子步共同消费。保留带内destination高度即可移除已证前置上抬，D125短扫误差及其他边界仍独立。
   - 06:38实现摘要：普通有效sweep落在距离带内时保留destination高度，带外及step流程未改；已写真实碰撞查询的三组带内和两组带外控制。实现结束06:38、偏差−44分钟；测试、消融和真实Playground Gate尚未运行。
 
-- [ ] BF144-D272 / P2 — 有controller但相机cache尚未有效时，输入方向回退误取control而非实际viewtarget actor角。
+- [x] BF144-D272 / P2 — 有controller但相机cache尚未有效时，输入方向回退误取control而非实际viewtarget actor角。
   - Source：fresh `Input_OnMove:141–158`调用controller.GetPlayerViewPoint；PlayerController:1008–1025只有cache time>0才读相机缓存，否则取GetViewTarget的actor rotation。`.442c0`实际local controller/manager存在、cache0、viewtarget角色快照中control yaw60°，返回/actor yaw均0°；不是把requested yaw当实际返回。
   - Target：`camera_component.rs:1001–1017`新/无效render view可无PlayerViewYaw；`motion.rs:3072–3088`此时map_or(raw AlsViewYaw)并构造实际basis，未读actor/viewtarget角。相同actor0/control60/no有效发布视点协议、同输入[0,1]下，source native映射方向[1,0,0]，target同物理角公开核约[0.5000000596046448,0,0.8660253882408142]。固定各端数学只换字段仍有约60°差，独立于D269 trig、D270多normalize、D271表示阶段。
   - 受控消费/范围：同公开grounded核的X计划当前0.3333333730697632，只换source actor角后0.6666666865348816，等于native actor输入同核X计划；侧向仍有2.914092789296774e−8既有角度残差，未称整向量/世界反馈恢复。真实.c1失效第20/21帧证明无published时实际消费raw，但camera-off≠source cache0；自然首2冷帧只观察到零输入，未称自然位移故障或实际调用Enhanced Input事件。无manager时GetViewTarget回controller，其absolute root随control更新，不能据此泛化本差异；nocontroller的ViewState分支另列source合同。漏检因旧ready观察/数学矩阵未持有actor≠control且cache0的真实getter字段，.c0/.c1/同状态fixture补该边界。证据`docs/audit/bf144/442c2`已Git封存；selector消融令反例消失退出101，源码bytes恢复同target重编后完整反例JSON byte精确，4条件负fixture拒绝。累计269（116P2/153P3），生产未修。
+
+  - 修复第1轮：开始2026-11-08 06:42 +08:00；预估结束07:37 +08:00。依据：.442c0有实际冷缓存getter、.c1有实际发布缺失消费、.c2有四条件隔离与运动核；需fresh重读源角色并区分controller/manager、未发布、曾发布后失效及manager替换，避免把camera-off一概当冷缓存。测试统一后置。
+  - 06:43 source/static闭环：fresh角色probe再次取得manager存在、cache时间0、viewtarget为角色且control 60°/getter 0°；UE仅在cache有效时消费相机POV。目标的角色输入资格、关联camera source和首次发布状态需要共同区分冷缓存，不能仅凭当前 `AlsPlayerViewYaw` 缺失推断；无manager与无controller沿原分支。
+  - 06:49实现摘要：活动玩家相机源首次发布前，移动输入回退角色世界朝向；记录源身份及首次发布状态，避免把曾发布后失效或停用相机直接当冷缓存，源更换/玩家资格丢失会重置。已写生命周期、真实输入系统及旧回退对照；目标状态是发布代理而非原生cache时钟。实现结束06:49、偏差−48分钟；测试、消融与真实入口Gate待全部静态修复和Bevy迁移后执行。
 
 - [ ] BF144-D271 / P3 — 运动输入在runtime弧度坐标直接求值，未保留源角度float阶段。
   - Source：Input_OnMove先把视点double yaw度数降float，再用float DegreesToRadians进入方向计算；Target `motion.rs:204–215`直接使用runtime float radians。物理方向基为source(cosθ,sinθ,0)→runtime(cosθ,0,sinθ)，与runtime前向(−sinφ,0,−cosφ)等价时φ=−θ−π/2；把基偏置/float表示移到三角函数之前不保持源舍入阶段。
