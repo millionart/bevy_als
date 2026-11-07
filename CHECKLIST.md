@@ -5179,12 +5179,16 @@
   - 06:13 source/static闭环：fresh UE确认root直接复制、每个后代骨骼相乘后调用 `NormalizeRotation`、最后再乘mesh world；目标动画播放器以Pose路径和骨骼实体映射识别实际骨骼，可排除场景包装。已保存query3实际链及源对照，继续只补组件空间调用阶段，数值算子D248未提前改动。
   - 06:16实现摘要：D278骨链依据真实Pose/实体映射区分骨骼与包装，根直接复制、后续骨组合后复用现有归一化，再乘mesh world；两种足选择均写入根例外、后代及足锁定控制。实现结束06:16、偏差−50分钟；测试、消融、图静态审计与公共视觉Gate尚未运行。
 
-- [ ] BF144-D276 / P3 — 骨骼写入阶段缺少源在 Root 之后的旋转归一化。
+- [x] BF144-D276 / P3 — 骨骼写入阶段缺少源在 Root 之后的旋转归一化。
   - BF144.485 后续 VM。实测319帧/13378调用/636条trace精确；固定逐帧前态替换103侧 RigInput Q 后，103行足骨局部 F32 Q 改变，trace保持。连续反事实轨迹待核。
   - BF144.484 足部消费者。318 个有效实际帧的目标矩阵和锁定状态经生产 FootIk 系统逐值重放，1272 个 T/Q 字段与当前帧 VM 输入一致。固定每个实测前态，仅换 D276 的前帧发布旋转，149 侧世界目标 Q、105 侧最终 Q 和 103 侧 RigInput Q 改变。105 中未锁定85、部分锁定20，锁定姿态和量相等。query100 左脚的链内唯一改动是 prior Root99 的 ik_foot_l，RigInput x 从 0.08631793409585953 变为 0.08631795644760132。证据 docs/audit/bf144/484/comparison.json。该对照是逐帧固定前态，连续反事实与后续 VM 输出另核。
   - 源在 EvaluateAnimation 和 PostProcess 后进入 USkeletalMeshComponent::FinalizePoseEvaluationResult，先对全部有效骨调用 NormalizeRotations，再写入 BoneSpaceTransforms。BF144.457 的 318 个普通帧中，按源 F64 归一化复算的 25122 骨 T/Q/S 全部等于实际 mesh local，17363 个四元数改变，40 个改变 F32 投影。初始化 mesh 缓冲单独记录。
   - 目标在 PostPhysicsAnimationPlugin::finish 注册的 apply_animation_to_visible_targets 中直接写入 Root 四元数。使用实际公开注册并隔离写入系统，319 份既有 Root 逐骨均按原值发布。固定已算出的同一份目标 Root F32，再提升到源 F64 基，补末端归一化后投回 F32，有 11552 个旋转记录不同。ik_foot_l 有 79 个，ik_foot_r 有 75 个。最大分量差 1.1920928955078125e-7。
   - 最小消费者在 query99 的 ik_foot_l，当前发布 w=0.7065211534500122，同输入的源末端归一化 w=0.7065210938453674。D245 的 Ragdolling 内归一化已包含在冻结的 Root 输入里，本差异发生在写入实体时。D248 的算术方法已经通过原生 mesh 校准，这里的遗漏是调用阶段。证据 docs/audit/bf144/483/replay-unit-baseline.json.gz 和 summary.json。foot 世界采样和锁定反馈另核。
+
+  - 修复第1轮：开始2026-11-08 06:18 +08:00；预估结束07:13 +08:00。依据：.483已重放319帧完整Root与公开写入、.484/.485已覆盖足锁定和Rig直接消费者；需fresh核对UE发布阶段、生产写入资格和共享writer的角色边界，并保留刷新关闭、其他通道与非角色播放器控制。D248算术仍独立，测试及公共视觉Gate统一后置。
+  - 06:19 source/static闭环：fresh UE在动画及PostProcess求值后、写入Mesh local与组件空间递推前归一化有效紧凑Pose；目标共享writer仅角色avatar播放器拥有现有骨刷新门控。已固化query99足骨输入/源投影和前态链，其他播放器、空通道及关闭刷新保持原合同。
+  - 06:20实现摘要：角色骨骼现有旋转通道在发布时经源轴F64归一化后投回，Pose及其他通道不变；已写query99、禁刷、缺旋转与非角色播放器控制。实现结束06:20、偏差−53分钟；测试、消融、图静态审计与公共视觉Gate尚未运行。
 
 - [ ] BF144-D275 / P3 — glTF动画导入的厘米到米系数先量化为float，改变实际叶位置及Root首高度。
   - BF144.450微量输入补充：同cm值1.7007638171697125e−28，经物理.01后投F32为1.7007639074476786e−30，经export float .01f为1.7007637193685825e−30；actual absolute输入精确后者，Raw参考物理投影单因素public差分保−1.88079096131566e−37，未吞为0或归D224。另compressed delta .003921627998352051cm两种单位投影恰好同3.921628012903966e−5，故该大幅首Root X恢复不额外归本因，见`docs/audit/bf144/450/endpoints.json`与`.450b/summary.json`。

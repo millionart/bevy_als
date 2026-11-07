@@ -220,7 +220,15 @@ fn apply_animation_to_visible_targets(
         let Some(pose) = player.get_default_output_pose() else { continue; };
         let Some(bone) = pose.get_bone(BoneId::from(*id)) else { continue; };
         if let Some(value) = bone.translation { transform.translation = value; }
-        if let Some(value) = bone.rotation { transform.rotation = value; }
+        if let Some(value) = bone.rotation {
+            transform.rotation = if gate.is_some() {
+                let value = value.as_dquat();
+                let source = crate::extensions::control_rig_hierarchy::rig_normalize(
+                    bevy::math::DQuat::from_xyzw(-value.x, -value.z, -value.y, value.w),
+                );
+                Quat::from_xyzw(-source.x as f32, -source.z as f32, -source.y as f32, source.w as f32)
+            } else { value };
+        }
         if let Some(value) = bone.scale { transform.scale = value; }
         if let Some(weights) = &bone.weights && let Some(mut morphs) = morphs {
             for (target, source) in morphs.weights_mut().iter_mut().zip(weights) { *target = *source; }
@@ -509,6 +517,43 @@ mod tests {
     };
 
     #[test]
+    fn character_pose_publication_normalizes_only_refreshed_rotation_channels() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let id = AnimationTargetId::from_name(&Name::new("foot"));
+        let missing_id = AnimationTargetId::from_name(&Name::new("missing rotation"));
+        let input = Quat::from_xyzw(0.02744010090827942, 0.0263987984508276, 0.7066669464111328, 0.7065211534500122);
+        let expected = Quat::from_xyzw(0.02744009904563427, 0.02639879658818245, 0.706666886806488, 0.7065210938453674);
+        let mut pose = Pose::default();
+        pose.add_bone(BonePose::from_transform(Transform::from_xyz(1.0, 2.0, 3.0)
+            .with_rotation(input).with_scale(Vec3::new(1.0, 2.0, 3.0))), BoneId::from(id));
+        pose.add_bone(BonePose { translation: Some(Vec3::Y), ..default() }, BoneId::from(missing_id));
+        let mut character = AnimationGraphPlayer::default();
+        character.set_animation(bevy_animation_graph::core::animation_graph_player::AnimationSource::Pose(pose.clone()));
+        let character = world.spawn((character, AnimationPoseUpdateGate { update_graph: true, refresh_bones: false, pending_update: false })).id();
+        let mut other = AnimationGraphPlayer::default();
+        other.set_animation(bevy_animation_graph::core::animation_graph_player::AnimationSource::Pose(pose));
+        let other = world.spawn(other).id();
+        let bone = world.spawn((Transform::IDENTITY, id, AnimatedBy(character))).id();
+        let other_bone = world.spawn((Transform::IDENTITY, id, AnimatedBy(other))).id();
+        let unchanged = Quat::from_rotation_x(0.3);
+        let missing = world.spawn((Transform::from_rotation(unchanged), missing_id, AnimatedBy(character))).id();
+        world.run_system_once(apply_animation_to_visible_targets).unwrap();
+        assert_eq!(*world.get::<Transform>(bone).unwrap(), Transform::IDENTITY);
+        assert_eq!(world.get::<Transform>(other_bone).unwrap().rotation, input);
+        world.get_mut::<AnimationPoseUpdateGate>(character).unwrap().refresh_bones = true;
+        world.run_system_once(apply_animation_to_visible_targets).unwrap();
+        let published = world.get::<Transform>(bone).unwrap();
+        assert_eq!(published.rotation, expected);
+        assert_eq!(published.translation, Vec3::new(1.0, 2.0, 3.0));
+        assert_eq!(published.scale, Vec3::new(1.0, 2.0, 3.0));
+        assert_eq!(world.get::<Transform>(missing).unwrap().rotation, unchanged);
+        assert_eq!(world.get::<Transform>(other_bone).unwrap().rotation, input);
+        assert_eq!(world.get::<AnimationGraphPlayer>(character).unwrap().get_default_output_pose().unwrap()
+            .get_bone(BoneId::from(id)).unwrap().rotation, Some(input));
+    }
+
+    #[test]
     fn bone_visibility_gate_keeps_the_last_transforms_until_refresh_is_allowed() {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
@@ -524,7 +569,10 @@ mod tests {
         assert_eq!(*world.get::<Transform>(bone).unwrap(), Transform::IDENTITY);
         world.get_mut::<AnimationPoseUpdateGate>(player).unwrap().refresh_bones = true;
         world.run_system_once(apply_animation_to_visible_targets).unwrap();
-        assert_eq!(*world.get::<Transform>(bone).unwrap(), expected);
+        let actual = world.get::<Transform>(bone).unwrap();
+        assert_eq!(actual.translation, expected.translation);
+        assert_eq!(actual.scale, expected.scale);
+        assert!(actual.rotation.dot(expected.rotation).abs() > 0.999999);
     }
 
     #[test]

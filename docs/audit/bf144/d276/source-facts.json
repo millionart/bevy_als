@@ -1,0 +1,141 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/SkeletalMeshComponent.cpp",
+      "sha256": "c189e185a1a80c699d82c4677cbe1e6427cfeeb58b6dcd02c80edc8d7a055d04",
+      "excerpts": [
+        {
+          "first_line": 900,
+          "last_line": 931,
+          "text": "void USkeletalMeshComponent::FinalizePoseEvaluationResult(const USkeletalMesh* InMesh, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FCompactPose& InFinalPose) const\n{\n\tconst TArray<FTransform>& RefBonePose = InMesh->GetRefSkeleton().GetRefBonePose();\n\tif(InFinalPose.IsValid() && InFinalPose.GetNumBones() > 0)\n\t{\n\t\tInFinalPose.NormalizeRotations();\n\n\t\t// Bone index array is in increasing order, so we can fill gaps with reference pose\n\t\tconst auto FillReferencePose = [&](int32 BeginIndex, int32 EndIndex)\n\t\t{\n\t\t\tfor (int32 MeshPoseIndex = BeginIndex; MeshPoseIndex < EndIndex; ++MeshPoseIndex)\n\t\t\t{\n\t\t\t\tOutBoneSpaceTransforms[MeshPoseIndex] = RefBonePose[MeshPoseIndex];\n\t\t\t}\n\t\t};\n\n\t\tint32 LastMeshPoseIndex = 0;\n\t\tconst int32 BoneCount = RefBonePose.Num();\n\t\tOutBoneSpaceTransforms.SetNum(BoneCount);\n\t\tfor (const FCompactPoseBoneIndex BoneIndex : InFinalPose.ForEachBoneIndex())\n\t\t{\n\t\t\tconst int32 MeshPoseIndex = InFinalPose.GetBoneContainer().MakeMeshPoseIndex(BoneIndex).GetInt();\n\t\t\tFillReferencePose(LastMeshPoseIndex, MeshPoseIndex);\n\t\t\tOutBoneSpaceTransforms[MeshPoseIndex] = InFinalPose[BoneIndex];\n\t\t\tLastMeshPoseIndex = MeshPoseIndex + 1;\n\t\t}\n\t\tFillReferencePose(LastMeshPoseIndex, BoneCount);\n\t}\n\telse\n\t{\n\t\tOutBoneSpaceTransforms = RefBonePose;\n\t}"
+        },
+        {
+          "first_line": 2555,
+          "last_line": 2575,
+          "text": "\t\t// If we don't have an anim instance, we may still have a post physics instance\n\t\tPostProcessAnimInstance->ParallelUpdateAnimation();\n\t}\n\n\t// Do nothing more if no bones in skeleton.\n\tif(bInDoEvaluation && OutSpaceBases.Num() > 0)\n\t{\n\t\tFMemMark Mark(FMemStack::Get());\n\t\tFCompactPose EvaluatedPose;\n\n\t\tUE::Anim::FHeapAttributeContainer Attributes;\t\t\n\n\t\t// evaluate pure animations, and fill up BoneSpaceTransforms\n\t\tEvaluateAnimation(InSkeletalMesh, InAnimInstance, bInForceRefPose, OutRootBoneTranslation, OutCurve, EvaluatedPose, Attributes);\n\t\tEvaluatePostProcessMeshInstance(OutBoneSpaceTransforms, EvaluatedPose, OutCurve, InSkeletalMesh, OutRootBoneTranslation, Attributes, bInForceRefPose);\n\n\t\t// Finalize the transforms from the evaluation\n\t\tFinalizePoseEvaluationResult(InSkeletalMesh, OutBoneSpaceTransforms, OutRootBoneTranslation, EvaluatedPose);\n\n\t\tif (EvaluatedPose.IsValid())\n\t\t{"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/BonePose.cpp",
+      "sha256": "cae9bb65d906709f1afb967057f0958383eeb6c578a5d2806463094815d1286e",
+      "excerpts": [
+        {
+          "first_line": 30,
+          "last_line": 53,
+          "text": "void FCompactPose::NormalizeRotations()\n{\n\tif (bAnim_BonePose_ISPC_Enabled)\n\t{\n#if INTEL_ISPC\n\t\tUE_AUTORTFM_OPEN_NO_VALIDATION // Open writes are recorded\n\t\t{\n\t\t\tAutoRTFM::RecordOpenWrite(\n\t\t\t\tthis->Bones.GetData(),\n\t\t\t\tthis->Bones.Num() * sizeof(FTransform));\n\t\t\tispc::NormalizeRotations(\n\t\t\t\treinterpret_cast<ispc::FTransform*>(this->Bones.GetData()), \n\t\t\t\tthis->Bones.Num());\n\t\t};\n#endif\n\t}\n\telse\n\t{\n\t\tfor (FTransform& Bone : this->Bones)\n\t\t{\n\t\t\tBone.NormalizeRotation();\n\t\t}\n\t}\n}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+      "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+      "excerpts": [
+        {
+          "first_line": 1130,
+          "last_line": 1139,
+          "text": "\n\t/**\n\t * Normalize the rotation component of this transformation\n\t */\n\tinline void NormalizeRotation()\n\t{\n\t\tRotation = VectorNormalizeQuaternion(Rotation);\n\t\tDiagnosticCheckNaN_Rotate();\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "src/animation_graph_ext/post_physics_animation.rs",
+      "sha256": "30779870ba2bc673a7d96ab547e770bd100b00b8dd6de8abc36fea62c7ec02c7",
+      "excerpts": [
+        {
+          "first_line": 42,
+          "last_line": 83,
+          "text": "pub struct PostPhysicsAnimationPlugin;\n\nimpl Plugin for PostPhysicsAnimationPlugin {\n    fn build(&self, app: &mut App) {\n        if !app.is_plugin_added::<crate::extensions::SourceAnimationInputsPlugin>() { app.add_plugins(crate::extensions::SourceAnimationInputsPlugin); }\n        app.configure_sets(PostUpdate, (\n            PostPhysicsAnimationSet::Inputs.after(PhysicsSystems::Last),\n            PostPhysicsAnimationSet::Evaluate.after(PostPhysicsAnimationSet::Inputs)\n                .before(AnimationGraphSet::PostPhysics),\n            PostPhysicsAnimationSet::Readback.after(AnimationGraphSet::Final)\n                .after(TransformSystems::Propagate),\n        )).add_systems(PostUpdate,\n            evaluate_players::<Without<PostPhysicsAnimation>>\n                .after(spawn_missing_ragdolls_avian).before(extract_root_motion)\n                .in_set(AnimationGraphSet::PrePhysics),\n        ).add_systems(PostUpdate,\n            (evaluate_players::<With<PostPhysicsAnimation>>, extract_late_root_motion)\n                .chain().in_set(PostPhysicsAnimationSet::Evaluate),\n        );\n    }\n\n    fn finish(&self, app: &mut App) {\n        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {\n            let count = schedule.remove_systems_in_set(animation_player, world,\n                ScheduleCleanupPolicy::RemoveSystemsOnly).expect(\"animation evaluation schedule must initialize\");\n            assert_eq!(count, 1, \"animation evaluation must replace exactly one default player system\");\n            let count = schedule.remove_systems_in_set(bevy_animation_graph::core::systems::apply_animation_to_targets, world,\n                ScheduleCleanupPolicy::RemoveSystemsOnly).expect(\"bone refresh schedule must initialize\");\n            assert_eq!(count, 1, \"bone refresh must replace exactly one default player system\");\n            let count = schedule.remove_systems_in_set(read_back_poses_avian, world,\n                ScheduleCleanupPolicy::RemoveSystemsOnly).expect(\"physics readback schedule must initialize\");\n            assert_eq!(count, 1, \"physics readback must replace exactly one default readback system\");\n            let count = schedule.remove_systems_in_set(update_relative_kinematic_position_based_body_velocities, world,\n                ScheduleCleanupPolicy::RemoveSystemsOnly).expect(\"kinematic velocity schedule must initialize\");\n            assert_eq!(count, 1, \"kinematic velocity update must replace exactly one default system\");\n        });\n        app.add_systems(PostUpdate, update_relative_kinematic_position_based_body_velocities\n            .after(update_ragdolls_avian).before(update_relative_kinematic_body_velocities)\n            .in_set(AnimationGraphSet::PrePhysics).run_if(|time: Res<Time>| !time.delta().is_zero()));\n        app.add_systems(PostUpdate, apply_animation_to_visible_targets.in_set(AnimationGraphSet::Final));\n        app.add_systems(PostUpdate,\n            (read_back_poses_avian, normalize_scaled_readback_pose, apply_readback_pose)"
+        },
+        {
+          "first_line": 165,
+          "last_line": 178,
+          "text": "\nfn apply_readback_pose(\n    mut targets: Query<(&mut Transform, &AnimationTargetId, &AnimatedBy)>,\n    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,\n) {\n    for (mut transform, id, animated_by) in &mut targets {\n        let Ok((player, gate)) = players.get(animated_by.0) else { continue; };\n        if gate.is_some_and(|gate| !gate.refresh_bones) || !has_physics_readback(player) { continue; }\n        let Some(pose) = player.get_default_output_pose() else { continue; };\n        let Some(index) = pose.paths.get(&BoneId::from(*id)) else { continue; };\n        let bone = &pose.bones[*index];\n        if let Some(value) = bone.translation { transform.translation = value; }\n        if let Some(value) = bone.rotation { transform.rotation = value; }\n        if let Some(value) = bone.scale { transform.scale = value; }"
+        },
+        {
+          "first_line": 213,
+          "last_line": 230,
+          "text": "fn apply_animation_to_visible_targets(\n    mut targets: Query<(&mut Transform, Option<&mut bevy::mesh::morph::MorphWeights>, &AnimationTargetId, &AnimatedBy)>,\n    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,\n) {\n    for (mut transform, morphs, id, animated_by) in &mut targets {\n        let Ok((player, gate)) = players.get(animated_by.0) else { continue; };\n        if gate.is_some_and(|gate| !gate.refresh_bones) { continue; }\n        let Some(pose) = player.get_default_output_pose() else { continue; };\n        let Some(bone) = pose.get_bone(BoneId::from(*id)) else { continue; };\n        if let Some(value) = bone.translation { transform.translation = value; }\n        if let Some(value) = bone.rotation { transform.rotation = value; }\n        if let Some(value) = bone.scale { transform.scale = value; }\n        if let Some(weights) = &bone.weights && let Some(mut morphs) = morphs {\n            for (target, source) in morphs.weights_mut().iter_mut().zip(weights) { *target = *source; }\n        }\n    }\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/animation_instances/animation_visibility.rs",
+      "sha256": "970c28c839ab6214a8d075c51dc306638d387130311e663b0e0409768ed8ccfe",
+      "excerpts": [
+        {
+          "first_line": 29,
+          "last_line": 57,
+          "text": "    time: Res<Time>,\n    spawner: Option<Res<bevy::world_serialization::WorldInstanceSpawner>>,\n    meshes: Query<(&ViewVisibility, &InheritedVisibility), With<Mesh3d>>,\n    mut avatars: Query<(Entity, &AnimatedSceneInstance, &bevy::world_serialization::WorldInstance, Option<&AlsAnimationTickOption>, Option<&mut AlsMeshRenderTime>), With<AlsCharacterAvatar>>,\n    mut players: Query<(&AnimationGraphPlayer, Option<&mut AnimationPoseUpdateGate>)>,\n    mut commands: Commands,\n) {\n    let Some(spawner) = spawner else { return; };\n    let now = time.elapsed_secs_f64();\n    for (avatar, instance, world_instance, option, render_time) in &mut avatars {\n        let rendered = spawner.iter_instance_entities(**world_instance).any(|entity| meshes.get(entity).is_ok_and(|(view, inherited)| view.get() && inherited.get()));\n        let previous = render_time.as_ref().map_or(0.0, |time| time.0);\n        let last_render = if rendered { (now - time.delta_secs_f64()) as f32 } else { previous };\n        if let Some(mut render_time) = render_time { render_time.0 = last_render; }\n        else { commands.entity(avatar).insert(AlsMeshRenderTime(last_render)); }\n        let recent = (last_render as f64) > now - crate::ab_als_provider::ANIMATION_COMPONENT.recently_rendered_seconds;\n        let option = option.copied().unwrap_or(crate::ab_als_provider::ANIMATION_COMPONENT.visibility_tick_option);\n        let Ok((player, gate)) = players.get_mut(instance.player_entity()) else { continue; };\n        let initialize = player.get_animation_source().is_graph() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);\n        let update_graph = initialize || recent || option != AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered;\n        let refresh_bones = initialize || recent || option == AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones;\n        if let Some(mut gate) = gate {\n            gate.update_graph = update_graph;\n            gate.refresh_bones = refresh_bones;\n            gate.pending_update |= !update_graph;\n        } else {\n            commands.entity(instance.player_entity()).insert(AnimationPoseUpdateGate { update_graph, refresh_bones, pending_update: true });\n        }\n    }"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/character_runtime.rs",
+      "sha256": "63a46cb4ff861b91da2e44c536214c612848bac17049e5075cefd3f0d5b49fb8",
+      "excerpts": [
+        {
+          "first_line": 101,
+          "last_line": 130,
+          "text": "        .add_systems(PostUpdate, mark_character_animation_phase\n            .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics));\n    }\n}\n\nfn mark_character_animation_phase(\n    mut commands: Commands,\n    avatars: Query<(Entity, &crate::character_assembly::AlsCharacterAvatar,\n        &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,\n    assemblies: Query<&crate::character_assembly::AlsCharacterAssembly, With<AlsCharacter>>,\n    players: Query<Has<crate::extensions::post_physics_animation::PostPhysicsAnimation>,\n        With<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>>,\n    mut previous: Local<std::collections::HashSet<Entity>>,\n) {\n    let current = avatars.iter().filter(|(entity, avatar, _)|\n        assemblies.get(avatar.character).is_ok_and(|assembly| assembly.avatar == *entity))\n        .map(|(_, _, instance)| instance.player_entity()).filter(|player| players.get(*player).is_ok())\n        .collect::<std::collections::HashSet<_>>();\n    for player in previous.difference(&current) {\n        if let Ok(mut entity) = commands.get_entity(*player) {\n            entity.remove::<crate::extensions::post_physics_animation::PostPhysicsAnimation>();\n        }\n    }\n    for player in &current {\n        if players.get(*player).is_ok_and(|marked| !marked) {\n            commands.entity(*player).insert(crate::extensions::post_physics_animation::PostPhysicsAnimation);\n        }\n    }\n    *previous = current;\n}"
+        }
+      ]
+    },
+    {
+      "path": "src/control_rig/control_rig_hierarchy.rs",
+      "sha256": "851498e0a3fd6f52d3c8e47764c4dfb7d2a7f225a48e36faa6e25a00ab578efd",
+      "excerpts": [
+        {
+          "first_line": 26,
+          "last_line": 32,
+          "text": "pub fn rig_normalize(rotation: DQuat) -> DQuat {\n    if rotation.length_squared() >= 1e-8_f32 as f64 {\n        rotation.normalize()\n    } else {\n        DQuat::IDENTITY\n    }\n}"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d279/native-identities.json",
+      "sha256": "f814d498d098eb188f083a40bc903857e80e505f4638683ec8e970e2076dfc4d",
+      "bytes": 1903
+    },
+    {
+      "path": "docs/audit/bf144/483/summary.json",
+      "sha256": "9e5843c04556e8bfb1196d9ef76f0758fe781edba413f17ff3d0776acc16fe8a",
+      "bytes": 5812
+    },
+    {
+      "path": "docs/audit/bf144/484/comparison.json",
+      "sha256": "d9459901c9f076529de236dca617f700e8df638b16d0db9c7153a6f0907dcb65",
+      "bytes": 1702
+    },
+    {
+      "path": "docs/audit/bf144/485/summary.json",
+      "sha256": "a853d07771b42721a01fa60b4ce2cfa8f145e7793aa690ff54369f0b07295af4",
+      "bytes": 3495
+    }
+  ],
+  "witness": {
+    "bone": "ik_foot_l",
+    "native_end_normalization": [
+      0.02744009904563427,
+      0.02639879658818245,
+      0.706666886806488,
+      0.7065210938453674
+    ],
+    "published": [
+      0.02744010090827942,
+      0.0263987984508276,
+      0.7066669464111328,
+      0.7065211534500122
+    ],
+    "query": 99,
+    "root_f32": [
+      0.02744010090827942,
+      0.0263987984508276,
+      0.7066669464111328,
+      0.7065211534500122
+    ]
+  },
+  "scope": "character mesh published pose only, existing rotation channels, refresh gate enabled; D248 normalizer arithmetic remains separate"
+}
