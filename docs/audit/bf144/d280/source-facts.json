@@ -1,0 +1,74 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 824,
+          "last_line": 827,
+          "text": "FVector3f UAlsAnimationInstance::GetVelocity() const\n{\n\treturn FVector3f{LocomotionState.RotationQuaternionWorldSpace.UnrotateVector(LocomotionState.VelocityWorldSpace)};\n}"
+        },
+        {
+          "first_line": 850,
+          "last_line": 866,
+          "text": "void UAlsAnimationInstance::RefreshVelocityBlend()\n{\n\t// Calculate and interpolate the velocity blend amounts. This value represents the velocity amount of\n\t// the character in each direction (normalized so that diagonals equal 0.5 for each direction) and is\n\t// used in a blend multi node to produce better directional blending than a standard blend space.\n\n\tauto& VelocityBlend{GroundedState.VelocityBlend};\n\n\tauto VelocityDirection{GetVelocity()};\n\tauto TargetVelocityBlend{FVector3f::ZeroVector};\n\n\tif (VelocityDirection.Normalize())\n\t{\n\t\tTargetVelocityBlend = VelocityDirection /\n\t\t                      (FMath::Abs(VelocityDirection.X) + FMath::Abs(VelocityDirection.Y) + FMath::Abs(VelocityDirection.Z));\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+      "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+      "excerpts": [
+        {
+          "first_line": 623,
+          "last_line": 630,
+          "text": "\n    /**\n     * Normalize this vector in-place if it is larger than a given tolerance. Leaves it unchanged if not.\n     *\n     * @param Tolerance Minimum squared length of vector for normalization.\n     * @return true if the vector was normalized correctly, false otherwise.\n     */\n    bool Normalize(T Tolerance=UE_SMALL_NUMBER);"
+        },
+        {
+          "first_line": 1765,
+          "last_line": 1774,
+          "text": "inline bool TVector<T>::Normalize(T Tolerance)\n{\n    const T SquareSum = X*X + Y*Y + Z*Z;\n    if(SquareSum > Tolerance)\n    {\n        const T Scale = FMath::InvSqrt(SquareSum);\n        X *= Scale; Y *= Scale; Z *= Scale;\n        return true;\n    }\n    return false;"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+      "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+      "excerpts": [
+        {
+          "first_line": 128,
+          "last_line": 131,
+          "text": "\n#define UE_PI \t\t\t\t\t(3.1415926535897932f)\t/* Extra digits if needed: 3.1415926535897932384626433832795f */\n#define UE_SMALL_NUMBER\t\t\t(1.e-8f)\n#define UE_KINDA_SMALL_NUMBER\t(1.e-4f)"
+        }
+      ]
+    },
+    {
+      "path": "src/als/utility/animation.rs",
+      "sha256": "966dd603283b0a8da80cb255ae638217decbe17d22eae29522b55351d3303d3a",
+      "excerpts": [
+        {
+          "first_line": 4,
+          "last_line": 19,
+          "text": "fn velocity_local_f64(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {\n    (character_rotation.as_dquat().inverse() * world_velocity.as_dvec3()).as_vec3()\n}\n\nfn source_scalar_divide(vector: Vec3, divisor: f32) -> Vec3 {\n    vector * divisor.recip()\n}\n\npub fn velocity_blend_direction(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {\n    let local = velocity_local_f64(world_velocity, character_rotation);\n    if local.length_squared() > 1e-12 {\n        source_scalar_divide(local, local.abs().element_sum())\n    } else {\n        Vec3::ZERO\n    }\n}"
+        }
+      ]
+    },
+    {
+      "path": "docs/audit/bf144/499/replay.rs",
+      "sha256": "190ea8a8889d8b2cb4898355ace43e05cc06a5cd3c0a55f292293849221cb020",
+      "excerpts": [
+        {
+          "first_line": 55,
+          "last_line": 70,
+          "text": "fn native_direction(local: Vec3, normalize: bool, mode: u8) -> [f32; 4] {\n    let square = match mode {\n        0 => local.x * local.x + local.y * local.y,\n        1 => local.x.mul_add(local.x, local.y * local.y),\n        _ => local.y.mul_add(local.y, local.x * local.x),\n    };\n    if square <= 1e-8 {\n        return [0.0; 4];\n    }\n    let v = if normalize {\n        local * square.sqrt().recip()\n    } else {\n        local\n    };\n    let v = v * (v.x.abs() + v.y.abs() + v.z.abs()).recip();\n    [v.x.max(0.0), (-v.x).max(0.0), (-v.y).max(0.0), v.y.max(0.0)]"
+        },
+        {
+          "first_line": 110,
+          "last_line": 120,
+          "text": "        let target_before = a32(&target[\"previous\"]);\n        let target_actual = a32(&target[\"actual\"]);\n        let delta = target[\"delta\"].as_f64().unwrap() as f32;\n        let target_goal = target_direction(target);\n        let ta = target_alpha(delta);\n        let local = Quat::from_array(a32(&target[\"rotation\"])).inverse()\n            * Vec3::from_array(a32(&target[\"velocity\"]));\n        let unit = local * local.length_squared().sqrt().recip();\n        let direction = unit / unit.abs().element_sum();\n        let target_euclidean = [\n            (-direction.z).max(0.0),"
+        }
+      ]
+    }
+  ]
+}

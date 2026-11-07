@@ -9,13 +9,18 @@ fn source_scalar_divide(vector: Vec3, divisor: f32) -> Vec3 {
     vector * divisor.recip()
 }
 
-pub fn velocity_blend_direction(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
-    let local = velocity_local_f64(world_velocity, character_rotation);
-    if local.length_squared() > 1e-12 {
-        source_scalar_divide(local, local.abs().element_sum())
+fn velocity_blend_local_direction(local: Vec3) -> Vec3 {
+    let length_squared = local.length_squared();
+    if length_squared > 1e-12 {
+        let unit = local * length_squared.sqrt().recip();
+        source_scalar_divide(unit, unit.abs().element_sum())
     } else {
         Vec3::ZERO
     }
+}
+
+pub fn velocity_blend_direction(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
+    velocity_blend_local_direction(velocity_local_f64(world_velocity, character_rotation))
 }
 
 pub fn acceleration_amount(
@@ -63,6 +68,16 @@ mod tests {
         let rotation = Quat::from_xyzw(0.0, -0.4792092, 0.0, 0.87770075);
         let local = velocity_local_f64(velocity, rotation);
         assert_eq!(local, Vec3::new(1.08137655, 0.0, -1.68247807));
+    }
+
+    #[test]
+    fn velocity_blend_normalizes_euclidean_before_l1() {
+        let local = Vec3::new(1.08137655, 0.0, -1.68247807);
+        let expected = Vec3::new(0.39125669, 0.0, -0.60874331);
+        assert_eq!(velocity_blend_local_direction(local), expected);
+        assert_eq!(velocity_blend_local_direction(Vec3::ZERO), Vec3::ZERO);
+        assert_eq!(velocity_blend_local_direction(Vec3::X * 1e-7), Vec3::ZERO);
+        assert_eq!(velocity_blend_local_direction(Vec3::X * 2e-6), Vec3::X);
     }
 
     #[test]
