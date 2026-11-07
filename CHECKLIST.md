@@ -5212,12 +5212,16 @@
   - 06:33 source/static闭环：UE `PhysWalking` 及floor重查最终共用CapsuleComponent保存的scale；目标移动事务和物理后floor同步各自从仿射重提，适用同一无parent根角色反例。已限定这两处floor消费者，下一步复用本地 `Transform.scale` 并保留父级路径。
   - 06:36实现摘要：两处walking floor消费者共用根角色保存的scale，父级继续原有路径；已写第29帧精确半径、非均匀及父级控制和实际floor同步用例。实现结束06:36、偏差−42分钟；测试、消融和真实Playground Gate尚未运行。
 
-- [ ] BF144-D273 / P3 — 普通步行事务在源有效离地距离带内仍先抬到固定clearance。
+- [x] BF144-D273 / P3 — 普通步行事务在源有效离地距离带内仍先抬到固定clearance。
   - BF144.578 制动帧补证：源q45保持原2.15cm间隙。目标仅首个制动子步移动，普通下扫先写2.424149m，再由D125短扫带外调整回2.42155957m。只在真实对照保留原带内高度，q45–57与源高度差<0.5µm。证据 `docs/audit/bf144/578/`。
   - BF144.574 三子步补证：125ms q52保持同一静止台，实际带内间隙2.14565cm，物理前事务抬升2.525mm。净竖直马达0，物理解算与同步不改Y。仅保留q52/53的带内Y后，q53–57约2.50mm竖直余差降至约0.060mm，两组同帧走离/落地且竖直速度一致。归本条，D31弹簧无此信号。证据 `docs/audit/bf144/574/`。
   - Source：fresh UE AdjustFloorHeight:6295–6335对有效sweep floor仅在FloorDist<1.9或>2.4cm时移动，带内保留中心高度；.443新source240保持Walking、floor2.1500000953674316cm/actor92.15cm。Target `grounded_movement_transaction:3524,3576–3595`对非零水平delta下扫后无距离带判断，算destination.y−distance+(0.019+0.005)，`cmc_movement_transaction:3815–3828`只要结果高于center便在Update插入Position，后置floor带检查不能保证消除该前置位移。
   - 实际消费者：.443b真实原场景240中94个free-forward/有效edge/可行走down query、89次前置Y改写全部精确由原query公式产生，89份hit distance换source float厘米均在有效带内。20号center0.9239999055862427、query距0.02360408566892147、motor前物理位置变0.9243957996368408，physics raw与最终world都保留；净linear increment为0且physics初Y速0，排除D31弹簧为本次前置写者。完整force/damping/substep/world及78个后置floor调整240逐值精确，非把不同阶段输出直接比差。
   - 去重/受控输入：固定无query误差的center0.921500027179718、distance0.0215000007301569m（source float2.1500000953674316cm），同目标公式仍写0.9240000247955322，source band控制保持center；只换band决策即可移除信号，因此独立于D125的query数值误差和D31的spring force producer。不是FloorDist/LineDist丢失D09，当前全部正距有效sweep、无penetration/line guard。只登记毫米级P3，未修生产或声称整个source世界反馈恢复；`docs/audit/bf144/443b`已Git封存，selector消融退出101、源码bytes恢复同target重编后完整报告byte一致/场景记录精确、110证据跟踪/隐私/哈希通过。累计270（116P2/154P3）。GPU TAA pass按用户周边排除暂不验收，运动/动画功能Gate继续、截图0性能暂停。
+
+  - 修复第1轮：开始2026-11-08 06:37 +08:00；预估结束07:22 +08:00。依据：.443b已有89个有效带内实际反例，.574/.578补齐多子步和制动消费；fresh核UE floor距离带及目标普通下扫、单步/多步消费者。只修已证非step、有效sweep带内写入，带外与step保留现有流程；测试统一后置。
+  - 06:37 source/static闭环：UE Walking在FindFloor后仅对带外距离调整，目标普通下扫却无条件用固定clearance构造候选；该候选由单步与多子步共同消费。保留带内destination高度即可移除已证前置上抬，D125短扫误差及其他边界仍独立。
+  - 06:38实现摘要：普通有效sweep落在距离带内时保留destination高度，带外及step流程未改；已写真实碰撞查询的三组带内和两组带外控制。实现结束06:38、偏差−44分钟；测试、消融和真实Playground Gate尚未运行。
 
 - [ ] BF144-D272 / P2 — 有controller但相机cache尚未有效时，输入方向回退误取control而非实际viewtarget actor角。
   - Source：fresh `Input_OnMove:141–158`调用controller.GetPlayerViewPoint；PlayerController:1008–1025只有cache time>0才读相机缓存，否则取GetViewTarget的actor rotation。`.442c0`实际local controller/manager存在、cache0、viewtarget角色快照中control yaw60°，返回/actor yaw均0°；不是把requested yaw当实际返回。

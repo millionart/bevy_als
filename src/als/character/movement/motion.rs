@@ -3918,6 +3918,7 @@ fn grounded_movement_transaction(
         return Some(result);
     }
     let next_y = if initial_floor_y.is_some() { destination.y - down_travel }
+        else if (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&floor.distance) { destination.y }
         else { destination.y - floor.distance + clearance };
     if initial_floor_y.is_some_and(|initial| floor.point1.y > initial) && !can_step_up(floor.entity) {
         return Some(result);
@@ -4697,6 +4698,33 @@ mod tests {
             else { center + (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5 };
         app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
         assert_eq!(app.world().get::<Position>(actor).unwrap().y, expected);
+    }
+
+    #[test]
+    fn free_walking_preserves_the_valid_floor_distance_band() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 0.2, 10.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        for (gap, comparison) in [(0.015, 1), (0.020, 0), (0.0215, 0), (0.023, 0), (0.031, -1)] {
+            let center = Vec3::new(0.0, 0.9 + gap, 0.0);
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), center,
+                    Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.1, &crate::als::params::CmcAdapterParams::default(),
+                    LocomotionState::Grounded, actor, &candidates, &permissions).unwrap()
+            }).unwrap();
+            assert!(!result.4);
+            let height = result.2.unwrap();
+            if comparison == 0 { assert_eq!(height, center.y, "gap={gap}"); }
+            else if comparison > 0 { assert!(height > center.y, "gap={gap}"); }
+            else { assert!(height < center.y, "gap={gap}"); }
+        }
     }
 
     #[test]
