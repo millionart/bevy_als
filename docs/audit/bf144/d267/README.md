@@ -4,4 +4,4 @@
 
 独立 `grounded_dynamics.runtime.json` 替代原硬编码拟合数据，保持 `GroundedDynamicsCurves` 的 SI 接口。与 `.513` 完整三profile/九轴旧数据逐字段对比仅7个切线字段改变：已知 Normal/Responsive 各1个，fresh Sluggish 另5个；键时间、值和其他字段保持。Sluggish 是同一拟合根因的源数据修复，不据此声明默认场景消费或完整运动恢复。
 
-项目根目录运行 `pwsh -NoProfile -File docs/audit/bf144/d267/generate.ps1` 可用 Git 跟踪的原生读数重新生成配置和字段 diff，保留原始导出。已写两处已知原生切线、线性段和生成器完整 diff/坏权重用例。厘米 float 求值仍归 D268c，Hermite 算序仍归 D206。全部静态修复及 Bevy/依赖迁移后执行 focused 测试、消融、全量 AnimBP/递归依赖转换及完整新旧 diff、图静态审计和公共视觉 Gate；恢复旧拟合值应使相应用例失败，源码字节恢复并同 target 重编后复验。上述测试和消融尚未运行。
+本项原SI F32生成器及报告保留为历史证据，需在对应提交复验；后续 D268c 为保持厘米计算精度将目标键拓宽为SI F64，当前重生成入口见 `docs/audit/bf144/d268c/generate.ps1`。已写两处已知原生切线、线性段和生成器完整 diff/坏权重用例。Hermite 算序仍归 D206。全部静态修复及 Bevy/依赖迁移后执行 focused 测试、消融、全量 AnimBP/递归依赖转换及完整新旧 diff、图静态审计和公共视觉 Gate；恢复旧拟合值应使相应用例失败，源码字节恢复并同 target 重编后复验。上述测试和消融尚未运行。

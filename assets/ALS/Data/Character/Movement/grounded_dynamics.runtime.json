@@ -18,7 +18,7 @@
           "time": 2.0,
           "value": 20.0,
           "arrive_tangent": 0.0,
-          "leave_tangent": -36.42372131347656
+          "leave_tangent": -36.423720703125
         },
         {
           "time": 3.0,
@@ -104,7 +104,7 @@
           "time": 2.0,
           "value": 25.0,
           "arrive_tangent": 0.0,
-          "leave_tangent": -58.633941650390625
+          "leave_tangent": -58.6339404296875
         },
         {
           "time": 3.0,
@@ -132,7 +132,7 @@
           "time": 2.0,
           "value": 20.0,
           "arrive_tangent": 0.0,
-          "leave_tangent": -27.156404495239258
+          "leave_tangent": -27.15640380859375
         },
         {
           "time": 3.0,
@@ -190,7 +190,7 @@
           "time": 2.0,
           "value": 5.0,
           "arrive_tangent": 0.0,
-          "leave_tangent": -8.434028625488281
+          "leave_tangent": -8.434028930664063
         },
         {
           "time": 3.0,
@@ -217,8 +217,8 @@
         {
           "time": 2.0,
           "value": 7.5,
-          "arrive_tangent": -5.8537211418151855,
-          "leave_tangent": -5.8537211418151855
+          "arrive_tangent": -5.853721313476562,
+          "leave_tangent": -5.853721313476562
         },
         {
           "time": 3.0,

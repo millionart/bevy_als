@@ -1,0 +1,20 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/SK_Als.uasset",
+      "asset_identity": {
+        "bytes": 45766,
+        "sha256": "8696ff0584e471a93366a2bb0b371e907d42cb13fa489755f388c5a463e5e0a6"
+      },
+      "request_asset": "/ALS/ALS/Character/SK_Als.SK_Als",
+      "request": "docs/audit/bf144/d268c/curve.request.json",
+      "native_output": "docs/audit/bf144/d268c/curve.native.json",
+      "raw": {
+        "bytes": 234550,
+        "sha256": "52afd106383dd61f1b8023b3189868e00d6a96652ef0c9c7e836d71709d952a6"
+      },
+      "reader_report": "docs/audit/bf144/d268c/curve.native.json.reader.report.json"
+    }
+  ],
+  "curve_identity": "docs/audit/bf144/d267/native-identities.json"
+}

@@ -1568,7 +1568,7 @@ mod tests {
             world.insert_resource(time);
             let mut value = AlsMovementParams::default();
             for key in &mut value.acceleration.grounded.normal.acceleration.keys {
-                key.value = maximum_acceleration;
+                key.value = f64::from(maximum_acceleration);
                 key.arrive_tangent = 0.0;
                 key.leave_tangent = 0.0;
             }

@@ -396,9 +396,9 @@ pub struct GroundedDynamics {
 #[derive(Reflect, Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub struct HermiteKey {
     pub time: f32,
-    pub value: f32,
-    pub arrive_tangent: f32,
-    pub leave_tangent: f32,
+    pub value: f64,
+    pub arrive_tangent: f64,
+    pub leave_tangent: f64,
 }
 
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -408,6 +408,10 @@ pub struct HermiteCurve {
 
 impl HermiteCurve {
     pub fn sample(&self, time: f32) -> f32 {
+        self.sample_scaled(time, 1.0)
+    }
+
+    fn sample_scaled(&self, time: f32, scale: f64) -> f32 {
         let Some(first) = self.keys.first() else {
             return 0.0;
         };
@@ -415,10 +419,10 @@ impl HermiteCurve {
             return 0.0;
         };
         if time <= first.time {
-            return first.value;
+            return (first.value * scale) as f32;
         }
         if time >= last.time {
-            return last.value;
+            return (last.value * scale) as f32;
         }
         let upper = self.keys.partition_point(|key| key.time <= time);
         let start = self.keys[upper - 1];
@@ -431,10 +435,10 @@ impl HermiteCurve {
         let h10 = normalized_cubed - 2.0 * normalized_squared + normalized;
         let h01 = -2.0 * normalized_cubed + 3.0 * normalized_squared;
         let h11 = normalized_cubed - normalized_squared;
-        h00 * start.value
-            + h10 * duration * start.leave_tangent
-            + h01 * end.value
-            + h11 * duration * end.arrive_tangent
+        h00 * (start.value * scale) as f32
+            + h10 * duration * (start.leave_tangent * scale) as f32
+            + h01 * (end.value * scale) as f32
+            + h11 * duration * (end.arrive_tangent * scale) as f32
     }
 }
 
@@ -448,8 +452,8 @@ pub struct GroundedDynamicsCurve {
 impl GroundedDynamicsCurve {
     pub fn sample(&self, gait_amount: f32) -> GroundedDynamics {
         GroundedDynamics {
-            acceleration: self.acceleration.sample(gait_amount),
-            braking_deceleration: self.braking_deceleration.sample(gait_amount),
+            acceleration: (self.acceleration.sample_scaled(gait_amount, 100.0) as f64 * 0.01) as f32,
+            braking_deceleration: (self.braking_deceleration.sample_scaled(gait_amount, 100.0) as f64 * 0.01) as f32,
             ground_friction: self.ground_friction.sample(gait_amount),
         }
     }
@@ -1177,9 +1181,21 @@ mod tests {
     #[test]
     fn grounded_dynamics_uses_source_curve_tangents() {
         let curves = GroundedDynamicsCurves::default();
-        assert_eq!(curves.normal.acceleration.keys[2].leave_tangent, -36.42372131347656);
-        assert_eq!(curves.responsive.braking_deceleration.keys[2].leave_tangent, -27.156404495239258);
+        assert_eq!(curves.normal.acceleration.keys[2].leave_tangent as f32, -36.42372131347656);
+        assert_eq!(curves.responsive.braking_deceleration.keys[2].leave_tangent as f32, -27.156404495239258);
         assert_eq!(curves.normal.acceleration.sample(2.125), 15.97702693939209);
         assert_eq!(curves.normal.braking_deceleration.keys[1].leave_tangent, -2.5);
+    }
+
+    #[test]
+    fn grounded_dynamics_samples_before_projecting_source_units() {
+        let curves = GroundedDynamicsCurves::default();
+        let normal = &curves.normal;
+        assert_eq!(normal.braking_deceleration.sample(1.1131258010864258), 14.717185974121094);
+        assert_eq!(normal.sample(1.1131258010864258).braking_deceleration, 14.717185020446777);
+        assert_eq!(normal.sample(1.7916673421859741).braking_deceleration, 13.020831108093262);
+        let tangent = curves.sluggish.acceleration.keys[2].leave_tangent;
+        assert_eq!((tangent * 100.0) as f32, -843.4028930664062_f32);
+        assert_ne!((tangent as f32) * 100.0, -843.4028930664062_f32);
     }
 }

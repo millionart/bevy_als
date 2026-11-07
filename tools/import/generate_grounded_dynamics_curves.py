@@ -31,17 +31,17 @@ def curve_references(value):
 def convert_keys(keys, scale):
     if len(keys) < 2 or any(key['weight_mode'] != 0 for key in keys):
         raise ValueError('unsupported weighted or empty curve')
-    output = [{'time': f32(key['time']), 'value': f32(key['value'] * scale),
-               'arrive_tangent': f32(key['arrive_tangent'] * scale),
-               'leave_tangent': f32(key['leave_tangent'] * scale)} for key in keys]
+    output = [{'time': f32(key['time']), 'value': key['value'] * scale,
+               'arrive_tangent': key['arrive_tangent'] * scale,
+               'leave_tangent': key['leave_tangent'] * scale} for key in keys]
     for index, (start, end) in enumerate(zip(keys, keys[1:])):
         duration = f32(end['time'] - start['time'])
         if duration <= 0.0:
             raise ValueError('curve key times are not increasing')
         if start['interp_mode'] == 0:
             slope = f32(f32(end['value'] - start['value']) / duration)
-            output[index]['leave_tangent'] = f32(slope * scale)
-            output[index + 1]['arrive_tangent'] = f32(slope * scale)
+            output[index]['leave_tangent'] = slope * scale
+            output[index + 1]['arrive_tangent'] = slope * scale
         elif start['interp_mode'] != 2:
             raise ValueError('unsupported curve interpolation')
     return {'keys': output}
@@ -87,9 +87,9 @@ def generate(native_path, settings_paths, baseline_path, output_path):
                 raise ValueError('baseline key count differs')
             for index, (old, new) in enumerate(zip(before, after)):
                 for field in ('time', 'value', 'arrive_tangent', 'leave_tangent'):
-                    if f32(old[field]) != new[field]:
+                    if f32(old[field]) != f32(new[field]):
                         changes.append({'profile': profile, 'channel': channel, 'key': index,
-                                        'field': field, 'before': f32(old[field]), 'after': new[field]})
+                                        'field': field, 'before': f32(old[field]), 'after': f32(new[field])})
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(result, indent=2) + '\n')
     return {'source_curves': identities, 'changed_fields': changes,
