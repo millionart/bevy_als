@@ -5342,6 +5342,14 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 原生/同输入：6次实际当前offset与lock完全固定，旧通用native rotation product直接确认double结果，投影后5份不同于当前F32 product；原相同lock/target的native relative投影6份不同。保留目标坐标/算序、只提升runtime运算为F64即6份全投影精确native，排除了轴转换/算序混因。单换relative精度当前轨迹仅1锁缓存差，未声称Final变化；单换末乘精度产生5锁缓存/2Final/2 actual RigInput rotation变化。
   - 消费/漏检：首末乘Final消费者frame172/right，前态/目标/锁量/所有位置及Atan/系数/Normalize均保持；数值见`target/bf144/421/native-check.json`、`consumers-check.json`、`final-product.json`。旧锁测试用同F32公开helper自生期望，未从原生double world乘法到F32实际consumer验证。三因子移除各回当前，源码字节恢复同target重编全部240产物byte同；生产未修，整体连续world/Root恢复仍未证。
 
+  - 旧`target/bf144/421`原始报告当前缺失；沿用D262编号，以Git跟踪的真实骨骼输入重采原生相对和末乘，不以旧摘要代替原始证明。
+  - 拆分：先修共同F32输入下的相对/末乘精度，再沿已证目标采样与锁定生命周期保留世界F64状态；两子项单独提交，均完成后才勾选D262。
+  - [x] BF144-D262a — 足限位相对与末端四元数乘法使用F64。
+    - 修复第1轮：开始2026-11-08 07:48 +08:00；预估结束08:38 +08:00。依据：旧6组报告缺失，现有.484真实目标骨骼前态可重采原生；fresh核source逆、FQuat4f边界和末乘，并保留D259–D261各自算子。测试在静态修复及Bevy/依赖迁移后统一执行。
+    - 07:50 source/static闭环：由Git封存的23/172两帧双足目标与锁定前态重采7组原生相对/末乘（含受控限位），源双精度结果投F32与目标同输入F64模型一致；使用共享乘法保留两处F64计算，Atan、度数系数和末Normalize仍按D259–D261独立处理。
+    - 07:52实现摘要：两处世界乘法复用F64算子，已写实际相对与受控末乘精确用例；完整7组原生/宽窄对照与watchdog已封存。实现结束07:52、偏差−46分钟；世界状态精度仍待D262b，测试、消融及视觉Gate待静态修复和Bevy/依赖迁移后执行。
+  - [ ] BF144-D262b — 足目标与锁定世界四元数贯通F64生命周期。
+
 - [ ] BF144-D261 / P3 — Foot Lock限位后额外归一化世界锁旋转，改变源保留的数值状态。
   - Source：fresh `AlsAnimationInstance.cpp:1571`直接写`FQuat{OffsetRotation} * LockRotationWorldSpace`，该位置无Normalize；最终旋转混合在此前1519–1520另有明确Normalize，阶段不能合并。源原生foot_lock_rotation与普通rotation_product保留raw double输出，已用当前相同输入校准。
   - Target：`src/als/state/foot_ik.rs:584`在同一次限位末尾无条件normalize product，`foot_ik_apply.rs:529–539`随后再次混合并归一化Final。只删除前一次Normalize、保留F32乘法/系统Atan/角度系数/目标/前态，独立改变当前frame172/right的LockRotation、FinalRotation和actual RigInput rotation各1份。

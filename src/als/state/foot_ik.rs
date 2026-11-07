@@ -572,16 +572,23 @@ pub fn constrain_foot_lock_location(
         .unwrap_or(lock_location)
 }
 
+fn source_foot_rotation_product(left: Quat, right: Quat) -> Quat {
+    (left.as_dquat() * right.as_dquat()).as_quat()
+}
+
 pub fn constrain_foot_lock_rotation(
     lock_rotation: Quat,
     target_rotation: Quat,
     foot_angle_limit_degrees: f32,
 ) -> Quat {
-    let delta = lock_rotation * target_rotation.conjugate();
+    let delta = source_foot_rotation_product(lock_rotation, target_rotation.conjugate());
     let twist_angle = wrap_foot_yaw(2.0 * delta.y.atan2(delta.w)).to_degrees();
     let limit = foot_angle_limit_degrees;
     if twist_angle.abs() <= limit + 1e-4 { return lock_rotation; }
-    (Quat::from_rotation_y((twist_angle.clamp(-limit, limit) - twist_angle).to_radians()) * lock_rotation).normalize()
+    source_foot_rotation_product(
+        Quat::from_rotation_y((twist_angle.clamp(-limit, limit) - twist_angle).to_radians()),
+        lock_rotation,
+    ).normalize()
 }
 
 fn move_toward_cap(current: f32, target: f32, max_delta: f32) -> f32 {
@@ -1205,6 +1212,21 @@ mod tests {
         let constrained = constrain_foot_lock_rotation(lock_rotation, Quat::IDENTITY, 40.0);
         let (_, constrained_yaw, _) = constrained.to_euler(EulerRot::XYZ);
         assert!((constrained_yaw - 40.0_f32.to_radians()).abs() < 1e-6);
+    }
+
+    #[test]
+    fn foot_lock_world_products_match_native_double_projection() {
+        let lock = Quat::from_xyzw(0.6779860854148865, 0.6779860854148865,
+            0.20083531737327576, 0.20083531737327576);
+        let target = Quat::from_xyzw(0.6657518148422241, 0.6657516360282898,
+            0.2382742166519165, 0.23827414214611053);
+        let relative = source_foot_rotation_product(lock, target.conjugate());
+        assert_eq!(relative, Quat::from_xyzw(-8.642605564546102e-8, 0.05568023771047592,
+            1.0626996527207666e-7, 0.9984485507011414));
+        let offset = Quat::from_xyzw(0.0, -0.803851306438446, 0.0, 0.5948302745819092);
+        let limited = source_foot_rotation_product(offset, lock);
+        assert_eq!(limited, Quat::from_xyzw(0.24184492230415344, 0.24184492230415344,
+            0.6644629240036011, 0.6644629240036011));
     }
 
     #[test]
