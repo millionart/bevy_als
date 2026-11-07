@@ -1,0 +1,51 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/SK_Als.uasset",
+      "asset_identity": {
+        "bytes": 45766,
+        "sha256": "8696ff0584e471a93366a2bb0b371e907d42cb13fa489755f388c5a463e5e0a6"
+      },
+      "request_asset": "/ALS/ALS/Character/SK_Als.SK_Als",
+      "native_output": "docs/audit/bf144/d279/skeleton.native.json",
+      "raw": {
+        "bytes": 125692,
+        "sha256": "044c0328a241f6f15a73e656141985a71959506765ed161fac44baf8e8148012"
+      },
+      "reader_report": "docs/audit/bf144/d279/skeleton.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Character/SKM_Als.uasset",
+      "asset_identity": {
+        "bytes": 2606592,
+        "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+      },
+      "request_asset": "/ALS/ALS/Character/SKM_Als.SKM_Als",
+      "native_output": "docs/audit/bf144/d279/mesh.native.json",
+      "raw": {
+        "bytes": 170624,
+        "sha256": "de06d457a23cc94ee339b06938500cdf3b31c19ad3aa9af9fa0f409146dd930c"
+      },
+      "reader_report": "docs/audit/bf144/d279/mesh.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Character/CR_Als.uasset",
+      "asset_identity": {
+        "bytes": 1555021,
+        "sha256": "fe52b72061bc62e0dece654b3b3bc88a9d8cf2686251f1092cb37f91127cf6ff"
+      },
+      "request_asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "native_output": "docs/audit/bf144/d279/rig.native.json.gz",
+      "raw": {
+        "bytes": 20439701,
+        "sha256": "dd2eeed4cdb595d6095914bcf54db5877e88122838bdbee2d7df9b8d5d9bad45"
+      },
+      "compressed": {
+        "bytes": 488694,
+        "sha256": "1fdf19b774b78de0b7b1e50e28c46adbd6debe3ba6c3e51c6aaf748725e08652"
+      },
+      "reader_report": "docs/audit/bf144/d279/rig.native.json.reader.report.json"
+    }
+  ],
+  "root_identity": "docs/audit/bf144/d280/native-identities.json"
+}

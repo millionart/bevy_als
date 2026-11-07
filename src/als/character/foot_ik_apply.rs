@@ -454,17 +454,18 @@ fn invalidate_missing_foot_bones(
 fn foot_bones_are_valid(
     bones: &AlsFootBones,
     use_ik_bones: bool,
+    avatar: Entity,
     transforms: &Query<&GlobalTransform, Without<crate::als::character::AlsCharacter>>,
 ) -> bool {
     [
         bones.left_thigh,
         bones.left_calf,
         bones.left,
-        bones.target(0, use_ik_bones),
+        bones.target(0, use_ik_bones).unwrap_or(avatar),
         bones.right_thigh,
         bones.right_calf,
         bones.right,
-        bones.target(1, use_ik_bones),
+        bones.target(1, use_ik_bones).unwrap_or(avatar),
     ]
     .into_iter()
     .all(|entity| {
@@ -585,7 +586,7 @@ fn refresh_foot_lock_inputs(
             }
         }
         let use_ik_bones = selection.map_or(true, |selection| selection.use_ik_bones);
-        if !foot_bones_are_valid(bones, use_ik_bones, &bone_globals) {
+        if !foot_bones_are_valid(bones, use_ik_bones, assembly.avatar, &bone_globals) {
             if let Some(input) = rig_input.as_mut() { input.foot_transforms_valid = false; }
             *lock_state = AlsFootLockState::default();
             *dynamic_transition = default();
@@ -630,7 +631,7 @@ fn refresh_foot_lock_inputs(
             }
         }
         for side in 0..2usize {
-            let Ok(target) = transforms.compute_global_transform(bones.target(side, use_ik_bones)) else {
+            let Ok(target) = transforms.compute_global_transform(bones.target(side, use_ik_bones).unwrap_or(assembly.avatar)) else {
                 continue;
             };
             let (foot_state, ik_amount, lock_amount) = match side {
@@ -710,13 +711,48 @@ mod tests {
     use super::*;
 
     #[test]
+    fn missing_selected_foot_marker_uses_mesh_transform_in_foot_lock() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..5 { app.update(); }
+        let original = *app.world().get::<AlsFootBones>(actor).unwrap();
+        for (use_ik, missing, original_name) in [
+            (false, original.left_virtual_target.unwrap(), "VB foot_l"),
+            (true, original.left_target.unwrap(), "ik_foot_l"),
+        ] {
+            app.world_mut().entity_mut(missing).insert(Name::new("Missing selected marker"));
+            app.world_mut().run_system_once(refresh_current_foot_bones).unwrap();
+            let bones = *app.world().get::<AlsFootBones>(actor).unwrap();
+            assert_eq!(bones.target(0, use_ik), None);
+            let right = bones.target(1, use_ik).unwrap();
+            app.world_mut().entity_mut(actor).insert((AlsFootTargetSelection { use_ik_bones: use_ik },
+                AlsFootLockState::default(), AlsFootLockInput { left_ik_amount: 1.0, right_ik_amount: 1.0, ..default() }));
+            app.world_mut().run_system_once(refresh_foot_lock_inputs).unwrap();
+            let (mesh, right_world) = app.world_mut().run_system_once(move |transforms: TransformHelper| {
+                (transforms.compute_global_transform(avatar).unwrap(), transforms.compute_global_transform(right).unwrap())
+            }).unwrap();
+            let state = app.world().get::<AlsFootLockState>(actor).unwrap();
+            assert!(state.valid);
+            assert!(state.left.target_location.distance(mesh.translation()) < 1e-5);
+            assert!(state.left.target_rotation.dot(mesh.rotation()).abs() > 0.99999);
+            assert!(state.right.target_location.distance(right_world.translation()) < 1e-5);
+            assert!(state.right.target_rotation.dot(right_world.rotation()).abs() > 0.99999);
+            let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
+            assert!(rig.foot_transforms_valid && rig.foot_left_location_armature.length() < 1e-5);
+            assert!(rig.foot_left_rotation_armature.dot(Quat::IDENTITY).abs() > 0.99999);
+            app.world_mut().entity_mut(missing).insert(Name::new(original_name));
+            app.world_mut().run_system_once(refresh_current_foot_bones).unwrap();
+        }
+    }
+
+    #[test]
     fn source_foot_twist_reaches_the_actual_rig_rotation() {
         use std::sync::{Arc, Mutex};
         for delta in [Quat::IDENTITY, Quat::from_rotation_y(90.0_f32.to_radians()), Quat::from_xyzw(0.0, 1.0, 0.0, 0.0), Quat::from_xyzw(0.0, -1.0, 0.0, 0.0), Quat::from_xyzw(1.0, 0.000_01, 0.0, 0.000_01).normalize()] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             for _ in 0..5 { app.update(); }
             let pelvis = app.world().get::<ChildOf>(app.world().get::<AlsFootBones>(actor).unwrap().left_thigh).unwrap().parent();
-            let target = app.world().get::<AlsFootBones>(actor).unwrap().target(0, true);
+            let target = app.world().get::<AlsFootBones>(actor).unwrap().target(0, true).unwrap();
             let source = Arc::new(Mutex::new(None));
             let capture = source.clone();
             app.add_systems(PostUpdate,
@@ -1728,14 +1764,18 @@ mod tests {
         let right_thigh = app.world_mut().spawn((Transform::IDENTITY, ChildOf(pelvis))).id();
         let right_calf = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(right_thigh))).id();
         let right_foot = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(right_calf))).id();
+        let left_target = app.world_mut().spawn((Transform::IDENTITY, ChildOf(foot), Name::new("ik_foot_l"),
+            EntityPath::from(vec!["ik_foot_l".to_owned()]).id().animation_target_id())).id();
+        let right_target = app.world_mut().spawn((Transform::IDENTITY, ChildOf(right_foot), Name::new("ik_foot_r"),
+            EntityPath::from(vec!["ik_foot_r".to_owned()]).id().animation_target_id())).id();
         for (name, bone) in ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].into_iter()
             .zip([thigh, calf, foot, right_thigh, right_calf, right_foot]) {
             app.world_mut().entity_mut(bone).insert((Name::new(name), EntityPath::from(vec![name.to_owned()]).id().animation_target_id()));
         }
         app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
         app.world_mut().entity_mut(character).insert(AlsFootBones {
-            left_thigh: thigh, left_calf: calf, left: foot, left_target: None, left_virtual_target: None,
-            right_thigh, right_calf, right: right_foot, right_target: None, right_virtual_target: None,
+            left_thigh: thigh, left_calf: calf, left: foot, left_target: Some(left_target), left_virtual_target: None,
+            right_thigh, right_calf, right: right_foot, right_target: Some(right_target), right_virtual_target: None,
         });
         app.add_systems(PostUpdate, (move |mut transforms: Query<&mut Transform>| {
             transforms.get_mut(character).unwrap().translation.y += 0.1;

@@ -147,12 +147,12 @@ impl AlsFootBones {
         }
     }
 
-    pub fn target(&self, side: usize, use_ik_bones: bool) -> Entity {
+    pub fn target(&self, side: usize, use_ik_bones: bool) -> Option<Entity> {
         match side {
-            0 if use_ik_bones => self.left_target.unwrap_or(self.left),
-            0 => self.left_virtual_target.unwrap_or(self.left),
-            _ if use_ik_bones => self.right_target.unwrap_or(self.right),
-            _ => self.right_virtual_target.unwrap_or(self.right),
+            0 if use_ik_bones => self.left_target,
+            0 => self.left_virtual_target,
+            _ if use_ik_bones => self.right_target,
+            _ => self.right_virtual_target,
         }
     }
 }
@@ -952,22 +952,23 @@ pub fn foot_ground_probe_system(
             &GlobalTransform,
             &AlsFootBones,
             Option<&AlsFootTargetSelection>,
+            Option<&crate::character_assembly::AlsCharacterAssembly>,
         ),
         With<AlsCharacter>,
     >,
     bones_tf: Query<&GlobalTransform, Without<AlsCharacter>>,
 ) {
-    for (entity, char_tf, feet, selection) in &characters {
+    for (entity, char_tf, feet, selection, assembly) in &characters {
         let origin_base = char_tf.translation();
         let up = char_tf.up().as_vec3();
         let down = Dir3::new(-up).unwrap_or(Dir3::NEG_Y);
         let mut probe = AlsFootProbe::default();
         for side in 0..2usize {
             let chain = feet.chain(side);
-            let target = feet.target(
+            let Some(target) = feet.target(
                 side,
                 selection.map_or(true, |selection| selection.use_ik_bones),
-            );
+            ).or_else(|| assembly.map(|assembly| assembly.avatar)) else { continue; };
             let Ok(target_tf) = bones_tf.get(target) else {
                 continue;
             };
@@ -1086,6 +1087,51 @@ mod tests {
     use crate::als::transitions::TransitionSequence;
 
     const DT: f32 = 1.0 / 60.0;
+
+    #[test]
+    fn missing_selected_foot_target_keeps_its_absence() {
+        let mut world = World::new();
+        let left = world.spawn_empty().id();
+        let right = world.spawn_empty().id();
+        let left_ik = world.spawn_empty().id();
+        let right_virtual = world.spawn_empty().id();
+        let bones = AlsFootBones {
+            left_thigh: left, left_calf: left, left, left_target: Some(left_ik), left_virtual_target: None,
+            right_thigh: right, right_calf: right, right, right_target: None,
+            right_virtual_target: Some(right_virtual),
+        };
+        assert_eq!(bones.target(0, true), Some(left_ik));
+        assert_eq!(bones.target(0, false), None);
+        assert_eq!(bones.target(1, true), None);
+        assert_eq!(bones.target(1, false), Some(right_virtual));
+    }
+
+    #[test]
+    fn foot_ground_probe_uses_mesh_origin_when_selected_marker_is_missing() {
+        use avian3d::prelude::{Collider, CollisionLayers, LayerMask, PhysicsPlugins, RigidBody};
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.4, 0.2, 0.4),
+            Transform::from_xyz(0.0, -0.1, 0.0), CollisionLayers::new(
+                [crate::als::character::AlsCollisionLayer::Default, crate::als::character::AlsCollisionLayer::Visibility],
+                LayerMask::ALL)));
+        let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
+            AlsFootTargetSelection { use_ik_bones: false })).id();
+        let avatar = app.world_mut().spawn((Transform::from_xyz(0.0, 0.1, 0.0), ChildOf(actor))).id();
+        let left = app.world_mut().spawn(Transform::from_xyz(1.0, 0.1, 0.0)).id();
+        let right = app.world_mut().spawn(Transform::from_xyz(0.05, 0.1, 0.0)).id();
+        app.world_mut().entity_mut(actor).insert((crate::character_assembly::AlsCharacterAssembly { avatar, camera: None },
+            AlsFootBones { left_thigh: left, left_calf: left, left, left_target: None, left_virtual_target: None,
+                right_thigh: right, right_calf: right, right, right_target: None, right_virtual_target: Some(right) }));
+        app.update();
+        app.update();
+        app.world_mut().run_system_once(foot_ground_probe_system).unwrap();
+        let probe = app.world().get::<AlsFootProbe>(actor).unwrap();
+        assert!(probe.left.is_some(), "The missing left marker must trace from the mesh origin");
+        assert!(probe.right.is_some(), "The present right marker must retain its own trace");
+    }
 
     #[test]
     fn target_offset_positive_when_ground_above_ankle() {
