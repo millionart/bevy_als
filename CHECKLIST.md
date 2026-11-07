@@ -5314,11 +5314,16 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
     - 07:36 source/static闭环：fresh原生±60°及目标可表示角度重采，−60°对角输入夹限后投F32为(0.9659258127212524,0,−0.2588191032409668)。当前目标一次只生产一个水平移动输入，先以F64计算二维clamp、源旋转及CMC最大长度clamp，再投F32供Tnua；不新增跨帧缓存，也不宣称覆盖源多输入累积。
     - 07:38实现摘要：单次水平移动输入的二维限制、旋转和CMC clamp保持F64至投影，已写两角原生精确值及角色输入用例；既有317个原生结果投F32后无二次目标clamp，未外推其他输入。两个子项实现完成，父项勾选；实现结束07:38、偏差−40分钟，测试、消融和真实Gate待静态修复及Bevy/依赖迁移后执行。
 
-- [ ] BF144-D265 / P3 — 地面运动方向归一化提前使用F32，改变共同输入的计划侧向分量。
+- [x] BF144-D265 / P3 — 地面运动方向归一化提前使用F32，改变共同输入的计划侧向分量。
   - Source：fresh `CalcVelocity:3920–3923`的Acceleration.GetSafeNormal与`ApplyVelocityBraking:4403–4405`的Velocity.GetSafeNormal均为FVector double；`Vector.h:2058–2074`在double平方和/sqrt/倒数后逐分量乘回。Target `dynamics.rs:178–186`对Vec3执行F32 normalize_or_zero，再进入转向或反向制动向量。此为精度阶段差，不是D249同double的dot/乘倒数算序，也不套用D248的Quaternion ARM64 reciprocal估算。
   - 原生/同算法控制：当前29实际方向加1加速度方向，通过有效原生Character的零摩擦/4cm/s²/0.25秒精确1cm制动，从double before-after提取方向；30组F32投影均精确source模型。完全相同的runtime物理向量按固定XYZ平方和、sqrt、倒数、乘法用F32计算可重放当前，单换F64并投影则30组全等native，当前两非零轴样本不需改单位或dot顺序即可解释。共同v=(0.985679566860199,0,4.308531842411867e-8)m/s的当前normal.z为4.3711285258041244e-8，源投影为4.3711281705327565e-8。
   - 实际计划消费者：同一公开角色/原floor/共同初速向量、空输入制动15m/s²、friction5/factor0、原33.333335ms；只换normal计算精度，保其余F32乘法与delta/dt/六子步，实际计划侧向由2.1229674018741207e-8恢复native CalcVelocity投影2.1229675795098046e-8，计划delta从7.076558228291674e-10变7.076558783403186e-10。X保持原值，原D255的X余差仍在；source-normal单因恢复Z而wide-product单因恢复X，两个根因未混合。
   - 边界/漏检：当前40帧最终body/动画/pose/curve/clock/Rig全部相同，后续位置累计与回算已吸收该微差；只登记实际plan合同，不宣称可见故障或整物理恢复。旧近似/主轴X验收漏了约4.3e-8的方向侧分量和归一中间值。source完整240/native29、原生normal30及实际40证据`target/bf144/438/source-check.json`、`native-check.json`、`normal-native-check.json`、`normal-precision-check.json`、`consumer-check.json`；去normal因素丢最小plan侧向恢复、源码bytes恢复同target重编240/40完整恢复，见`controls-check.json`。identity按当前项封口，生产未修。
+
+  - 旧`target/bf144/438`原始证据当前缺失；沿用D265编号重新提取共同输入的原生制动方向，不以旧摘要代替原始证明。
+  - 修复第1轮：开始2026-11-08 07:39 +08:00；预估结束08:29 +08:00。依据：旧记录给出30组源方向与计划输入但报告缺失；fresh重采原生制动、核 `GetSafeNormal` 容差及加速/制动/超速回退三个同源调用。测试在静态修复及Bevy/依赖迁移后统一执行。
+  - 07:41 source/static闭环：fresh原生同输入、轴向、对角及零速制动重采，侧向单位分量F32为4.3711281705327565e−8；UE加速、反向制动和超速回退均调用FVector double安全归一化。目标三处共用F64平方和/倒数并在原消费边界投F32，保留后续乘积阶段。
+  - 07:41实现摘要：三个地面方向消费者共用源式F64安全归一化，已写侧向精度、零/阈值与制动计划用例。实现结束07:41、偏差−48分钟；旧30组/40帧原始报告仍缺失，测试、消融及真实Gate待静态修复和Bevy/依赖迁移后执行。
 
 - [ ] BF144-D264 / P3 — 无碰撞地面计划先从位移重建速度再积分，额外往返舍入改变实际运动。
   - Source：fresh `AlsCharacterMovementComponent.cpp:424–440`保存CalcVelocity所得MoveVelocity并直接交MoveAlongFloor，`565–581`仅在实际移动结束后按world位置差/timeTick刷新Velocity。静态基座包装委托Engine CalcVelocity；同一初速375cm/s、加速度2000、max375、braking1250、friction4、analog1和float dt0.03333333507180214的原生核输出完整向量(375,0,0)，与目标公共计划(3.75,0,0)m/s精确对应。

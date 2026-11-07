@@ -1,0 +1,181 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/MathFwd.h",
+      "sha256": "5b00a9627e73c35713a757d5f0e59c3e94f8d6c87486d7f8fe944e5d3abc772d",
+      "excerpts": [
+        {
+          "first_line": 45,
+          "last_line": 51,
+          "text": "\n// Forward declaration of concrete types\t\t\t\t// Macro version - declares all three variants.\nusing FVector \t\t= UE::Math::TVector<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector, 3);\nusing FVector2D \t= UE::Math::TVector2<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector2,, FVector2D);\nusing FVector4 \t\t= UE::Math::TVector4<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector4);\nusing FQuat \t\t= UE::Math::TQuat<double>;\t\t\t// UE_DECLARE_LWC_TYPE(Quat, 4);\nusing FMatrix \t\t= UE::Math::TMatrix<double>;\t\t// UE_DECLARE_LWC_TYPE(Matrix, 44);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+      "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+      "excerpts": [
+        {
+          "first_line": 2053,
+          "last_line": 2075,
+          "text": "{\n    return *this - MirrorNormal * (2.f * (*this | MirrorNormal));\n}\n\ntemplate<typename T>\ninline TVector<T> TVector<T>::GetSafeNormal(T Tolerance, const TVector<T>& ResultIfZero) const\n{\n    const T SquareSum = X*X + Y*Y + Z*Z;\n\n    // Not sure if it's safe to add tolerance in there. Might introduce too many errors\n    if(SquareSum == 1.f)\n    {\n        return *this;\n    }\t\t\n    else if(SquareSum < Tolerance)\n    {\n        return ResultIfZero;\n    }\n    const T Scale = (T)FMath::InvSqrt(SquareSum);\n    return TVector<T>(X*Scale, Y*Scale, Z*Scale);\n}\n\ntemplate<typename T>"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 3917,
+          "last_line": 3929,
+          "text": "\t\t// Don't allow braking to lower us below max speed if we started above it.\n\t\tif (bVelocityOverMax && Velocity.SizeSquared() < FMath::Square(MaxSpeed) && FVector::DotProduct(Acceleration, OldVelocity) > 0.0f)\n\t\t{\n\t\t\tVelocity = OldVelocity.GetSafeNormal() * MaxSpeed;\n\t\t}\n\t}\n\telse if (!bZeroAcceleration)\n\t{\n\t\t// Friction affects our ability to change direction. This is only done for input acceleration, not path following.\n\t\tconst FVector AccelDir = Acceleration.GetSafeNormal();\n\t\tconst float VelSize = Velocity.Size();\n\t\tVelocity = Velocity - (Velocity - AccelDir * VelSize) * FMath::Min(DeltaTime * Friction, 1.f);\n\t}"
+        },
+        {
+          "first_line": 4394,
+          "last_line": 4410,
+          "text": "\n\tconst FVector OldVel = Velocity;\n\n\t// subdivide braking to get reasonably consistent results at lower frame rates\n\t// (important for packet loss situations w/ networking)\n\tfloat RemainingTime = DeltaTime;\n\tconst float MaxTimeStep = FMath::Clamp(BrakingSubStepTime, 1.0f / 75.0f, 1.0f / 20.0f);\n\n\t// Decelerate to brake to a stop\n\tconst FVector RevAccel = (bZeroBraking ? FVector::ZeroVector : (-BrakingDeceleration * Velocity.GetSafeNormal()));\n\twhile( RemainingTime >= MIN_TICK_TIME )\n\t{\n\t\t// Zero friction uses constant deceleration, so no need for iteration.\n\t\tconst float dt = ((RemainingTime > MaxTimeStep && !bZeroFriction) ? FMath::Min(MaxTimeStep, RemainingTime * 0.5f) : RemainingTime);\n\t\tRemainingTime -= dt;\n\n\t\t// apply friction and braking"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/dynamics.rs",
+      "sha256": "dab89d0fd52ea8a62c60656ddda691154bbac6bd98d431382cf050d0512c561b",
+      "excerpts": [
+        {
+          "first_line": 17,
+          "last_line": 32,
+          "text": "const PHYSICAL_VECTOR_MIN_LENGTH_SQUARED: f32 = 1e-12;\nconst MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER: f32 = 1e-10;\npub const LANDING_BRAKING_FRICTION_WITH_INPUT: f32 = 0.5;\npub const LANDING_BRAKING_FRICTION_WITHOUT_INPUT: f32 = 3.0;\npub const LANDING_BRAKING_FRICTION_DURATION: f32 = 0.5;\n\nfn source_grounded_normal(vector: Vec3) -> Vec3 {\n    let vector = vector.as_dvec3();\n    let length_squared = vector.length_squared();\n    if length_squared < f64::from(PHYSICAL_VECTOR_MIN_LENGTH_SQUARED) {\n        Vec3::ZERO\n    } else {\n        (vector * length_squared.sqrt().recip()).as_vec3()\n    }\n}\n"
+        },
+        {
+          "first_line": 175,
+          "last_line": 210,
+          "text": ") -> Vec3 {\n    let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);\n    let desired_horizontal = Vec3::new(desired_motion.x, 0.0, desired_motion.z);\n    let desired_amount = desired_horizontal.length().min(1.0);\n    let speed = horizontal_velocity.length();\n    let delta_seconds = delta_seconds.max(0.0);\n    if delta_seconds < MIN_MOVEMENT_DELTA_SECONDS { return horizontal_velocity; }\n    let acceleration = desired_horizontal.clamp_length_max(1.0) * dynamics.acceleration.max(0.0);\n    let has_acceleration = acceleration != Vec3::ZERO;\n    let analog_modifier = if has_acceleration && dynamics.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_amount } else { 0.0 };\n    let target_speed = analog_target_speed(max_speed, analog_modifier, min_analog_walk_speed);\n    let overspeed = horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO;\n    let acceleration_direction = source_grounded_normal(acceleration);\n    let mut next = horizontal_velocity;\n    if !has_acceleration || overspeed {\n        let friction = dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0);\n        let deceleration = dynamics.braking_deceleration.max(0.0);\n        if friction > 0.0 || deceleration > 0.0 {\n            let reverse_acceleration = -source_grounded_normal(horizontal_velocity) * deceleration;\n            let mut remaining = delta_seconds;\n            let max_step = braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);\n            while remaining >= MIN_MOVEMENT_DELTA_SECONDS {\n                let step = if remaining > max_step && friction > 0.0 {\n                    max_step.min(remaining * 0.5)\n                } else { remaining };\n                remaining -= step;\n                next += (-next * friction + reverse_acceleration) * step;\n                if next.dot(horizontal_velocity) <= 0.0 {\n                    next = Vec3::ZERO;\n                    break;\n                }\n            }\n            if next.length_squared() <= BRAKING_SMALL_VELOCITY_SQUARED\n                || deceleration > 0.0 && next.length_squared() <= BRAKE_TO_STOP_VELOCITY.powi(2)\n            {\n                next = Vec3::ZERO;"
+        },
+        {
+          "first_line": 686,
+          "last_line": 703,
+          "text": "    fn grounded_direction_normalization_keeps_source_double_precision() {\n        let velocity = Vec3::new(0.985679566860199, 0.0, 4.308531842411867e-8);\n        let normal = source_grounded_normal(velocity);\n        assert_eq!(normal.z, 4.3711281705327565e-8_f32);\n        assert_eq!(source_grounded_normal(Vec3::ZERO), Vec3::ZERO);\n        assert_eq!(source_grounded_normal(Vec3::X * 0.5e-6), Vec3::ZERO);\n        assert_eq!(source_grounded_normal(Vec3::X * 2e-6), Vec3::X);\n        let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 5.0 };\n        let actual = grounded_velocity_step_with_braking_friction(\n            velocity, Vec3::ZERO, 3.75, dynamics, 0.0, 0.0, 1.0 / 33.0, 1.0 / 30.0,\n        );\n        assert_eq!(actual.z, 2.1229675795098046e-8_f32);\n    }\n\n    #[test]\n    fn turning_velocity_retains_double_precision_through_acceleration() {\n        let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 5.0 };\n        let delta = 0.031250014901161194_f32;"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d265/braking.request.json",
+      "bytes": 1260,
+      "sha256": "4b46a49e2bd94bec1fe06c4f05446d3fa330316696668c63a29073d6a07fa6c8"
+    },
+    {
+      "path": "docs/audit/bf144/d265/braking.native.json",
+      "bytes": 127795,
+      "sha256": "aee4d4bbf8d8656f1104c382abf2489dc5c608c50a0ad963f1109159c9c8e525"
+    },
+    {
+      "path": "docs/audit/bf144/d265/braking.native.json.reader.report.json",
+      "bytes": 425,
+      "sha256": "222c09c6347288e0c1967bf8021b9e3b41583594fcc19d17eb812d11d1d70cb1"
+    }
+  ],
+  "native_kernel": {
+    "format": "ue_character_braking_probe_v1",
+    "character_class": "/Script/Engine.Character",
+    "movement_class": "/Script/Engine.CharacterMovementComponent",
+    "movement_registered": true,
+    "has_animation_root_motion": false,
+    "world_ticked": false,
+    "samples": [
+      {
+        "name": "small-side",
+        "delta_seconds": 0.25,
+        "friction": 0,
+        "braking_deceleration_cm_s2": 4,
+        "friction_factor": 0,
+        "braking_substep_seconds": 0.03030303120613098,
+        "before_velocity_cm_s": {
+          "x": 98.5679566860199,
+          "y": 4.308531842411867e-06,
+          "z": 0
+        },
+        "has_valid_data_before": true,
+        "has_valid_data_after": true,
+        "after_velocity_cm_s": {
+          "x": 97.5679566860199,
+          "y": 4.264820559483112e-06,
+          "z": 0
+        }
+      },
+      {
+        "name": "axis",
+        "delta_seconds": 0.25,
+        "friction": 0,
+        "braking_deceleration_cm_s2": 4,
+        "friction_factor": 0,
+        "braking_substep_seconds": 0.03030303120613098,
+        "before_velocity_cm_s": {
+          "x": 100,
+          "y": 0,
+          "z": 0
+        },
+        "has_valid_data_before": true,
+        "has_valid_data_after": true,
+        "after_velocity_cm_s": {
+          "x": 99,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "name": "diagonal",
+        "delta_seconds": 0.25,
+        "friction": 0,
+        "braking_deceleration_cm_s2": 4,
+        "friction_factor": 0,
+        "braking_substep_seconds": 0.03030303120613098,
+        "before_velocity_cm_s": {
+          "x": 100,
+          "y": 75,
+          "z": 0
+        },
+        "has_valid_data_before": true,
+        "has_valid_data_after": true,
+        "after_velocity_cm_s": {
+          "x": 99.2,
+          "y": 74.4,
+          "z": 0
+        }
+      },
+      {
+        "name": "zero",
+        "delta_seconds": 0.25,
+        "friction": 0,
+        "braking_deceleration_cm_s2": 4,
+        "friction_factor": 0,
+        "braking_substep_seconds": 0.03030303120613098,
+        "before_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "has_valid_data_before": true,
+        "has_valid_data_after": true,
+        "after_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    ]
+  },
+  "one_centimeter_braking_normal_f32": [
+    1.0,
+    0.0,
+    4.3711281705327565e-08
+  ],
+  "missing_previous_evidence": [
+    "target/bf144/438/normal-native-check.json",
+    "target/bf144/438/normal-precision-check.json",
+    "target/bf144/438/consumer-check.json"
+  ],
+  "scope": "F64 safe normal for source acceleration and braking directions; F32 products remain D255"
+}

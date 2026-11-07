@@ -1,0 +1,56 @@
+{
+  "samples": [
+    {
+      "name": "small-side",
+      "velocity_cm_s": {
+        "x": 98.5679566860199,
+        "y": 4.308531842411867e-06,
+        "z": 0.0
+      },
+      "delta_seconds": 0.25,
+      "friction": 0.0,
+      "braking_deceleration_cm_s2": 4.0,
+      "friction_factor": 0.0,
+      "braking_substep_seconds": 0.03030303120613098
+    },
+    {
+      "name": "axis",
+      "velocity_cm_s": {
+        "x": 100.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "delta_seconds": 0.25,
+      "friction": 0.0,
+      "braking_deceleration_cm_s2": 4.0,
+      "friction_factor": 0.0,
+      "braking_substep_seconds": 0.03030303120613098
+    },
+    {
+      "name": "diagonal",
+      "velocity_cm_s": {
+        "x": 100.0,
+        "y": 75.0,
+        "z": 0.0
+      },
+      "delta_seconds": 0.25,
+      "friction": 0.0,
+      "braking_deceleration_cm_s2": 4.0,
+      "friction_factor": 0.0,
+      "braking_substep_seconds": 0.03030303120613098
+    },
+    {
+      "name": "zero",
+      "velocity_cm_s": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "delta_seconds": 0.25,
+      "friction": 0.0,
+      "braking_deceleration_cm_s2": 4.0,
+      "friction_factor": 0.0,
+      "braking_substep_seconds": 0.03030303120613098
+    }
+  ]
+}

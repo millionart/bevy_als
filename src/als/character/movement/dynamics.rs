@@ -20,6 +20,16 @@ pub const LANDING_BRAKING_FRICTION_WITH_INPUT: f32 = 0.5;
 pub const LANDING_BRAKING_FRICTION_WITHOUT_INPUT: f32 = 3.0;
 pub const LANDING_BRAKING_FRICTION_DURATION: f32 = 0.5;
 
+fn source_grounded_normal(vector: Vec3) -> Vec3 {
+    let vector = vector.as_dvec3();
+    let length_squared = vector.length_squared();
+    if length_squared < f64::from(PHYSICAL_VECTOR_MIN_LENGTH_SQUARED) {
+        Vec3::ZERO
+    } else {
+        (vector * length_squared.sqrt().recip()).as_vec3()
+    }
+}
+
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsGroundedDynamics(pub GroundedDynamics);
 
@@ -174,17 +184,13 @@ pub fn grounded_velocity_step_with_braking_friction(
     let analog_modifier = if has_acceleration && dynamics.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_amount } else { 0.0 };
     let target_speed = analog_target_speed(max_speed, analog_modifier, min_analog_walk_speed);
     let overspeed = horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO;
-    let acceleration_direction = if acceleration.length_squared() < PHYSICAL_VECTOR_MIN_LENGTH_SQUARED {
-        Vec3::ZERO
-    } else {
-        acceleration.normalize_or_zero()
-    };
+    let acceleration_direction = source_grounded_normal(acceleration);
     let mut next = horizontal_velocity;
     if !has_acceleration || overspeed {
         let friction = dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0);
         let deceleration = dynamics.braking_deceleration.max(0.0);
         if friction > 0.0 || deceleration > 0.0 {
-            let reverse_acceleration = -horizontal_velocity.normalize_or_zero() * deceleration;
+            let reverse_acceleration = -source_grounded_normal(horizontal_velocity) * deceleration;
             let mut remaining = delta_seconds;
             let max_step = braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);
             while remaining >= MIN_MOVEMENT_DELTA_SECONDS {
@@ -207,7 +213,7 @@ pub fn grounded_velocity_step_with_braking_friction(
         if overspeed && next.length_squared() < target_speed * target_speed
             && acceleration.dot(horizontal_velocity) > 0.0
         {
-            next = horizontal_velocity.normalize_or_zero() * target_speed;
+            next = source_grounded_normal(horizontal_velocity) * target_speed;
         }
     }
     let next = if has_acceleration && !overspeed {
@@ -675,6 +681,21 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn grounded_direction_normalization_keeps_source_double_precision() {
+        let velocity = Vec3::new(0.985679566860199, 0.0, 4.308531842411867e-8);
+        let normal = source_grounded_normal(velocity);
+        assert_eq!(normal.z, 4.3711281705327565e-8_f32);
+        assert_eq!(source_grounded_normal(Vec3::ZERO), Vec3::ZERO);
+        assert_eq!(source_grounded_normal(Vec3::X * 0.5e-6), Vec3::ZERO);
+        assert_eq!(source_grounded_normal(Vec3::X * 2e-6), Vec3::X);
+        let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 5.0 };
+        let actual = grounded_velocity_step_with_braking_friction(
+            velocity, Vec3::ZERO, 3.75, dynamics, 0.0, 0.0, 1.0 / 33.0, 1.0 / 30.0,
+        );
+        assert_eq!(actual.z, 2.1229675795098046e-8_f32);
+    }
 
     #[test]
     fn turning_velocity_retains_double_precision_through_acceleration() {
