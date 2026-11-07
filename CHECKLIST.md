@@ -5242,10 +5242,15 @@
   - 06:52 source/static闭环：fresh原生复读21/22两角，float degree、float radians与方向均复现；ALS实际先输出世界输入、CMC后生成InputDirection并供动画输入角消费，目标停止链接复用同一世界方向入口。已按source基转换后先转float度数再求弧度，三角近似D269及多余归一化D270仍待各自修复。
   - 06:53实现摘要：共享世界移动方向恢复源float度数→float弧度阶段，通用相对二维旋转不改；已写21/22实际角和零输入用例。实现结束06:53、偏差−37分钟；测试、消融和真实入口Gate待全部静态修复及Bevy迁移后执行。
 
-- [ ] BF144-D270 / P3 — 运动输入额外单位化世界方向，改变源保留的次单位输入。
+- [x] BF144-D270 / P3 — 运动输入额外单位化世界方向，改变源保留的次单位输入。
   - Source：Input_OnMove先ClampMagnitude012D再用float方向构造double WorldInput；CMC ScaleInputAcceleration仅GetClampedToMaxSize(1)，长度小于1时保留原向量。Target `motion.rs:212–215`对旋转后的world_dir无条件normalize_or_zero，再乘输入强度；这不是源仅在超幅时的clamp分支。
   - 原生单因反例：45°、源输入(0,1)的原生旋转向量经坐标基映射为(0.7071067094802856,0,0.7071067690849304)，double长度平方0.9999998814777662，原生CMC逐值保留。固定该完全相同向量、单位输入强度和trig数据，额外normalize后CMC值变(0.7071067690849304,0,0.7071068286895752)。公开运动核同v0/accel20/max3.75/friction5/dt1/30，计划由原向量0.471404492855072/0.4714045524597168变0.4714045524597168/0.4714045822620392；只去额外normalize即回原生输入控制计划。
   - 边界/去重：此例source本来不归一化，区别于D265两端都归一化但F32/F64精度不同；此处trig值固定，亦不归D269。当前证据为同输入阶段/实际公开核计划，不称原真实轨迹/Root已恢复。旧测试只检查方向近似单位长度，把额外单位化视作无害。证据`docs/audit/bf144/442b/preliminary-findings.json`、`source-producer.json`，消融/恢复与身份在本项最终Gate封口，生产未修。
+
+  - 修复第1轮：开始2026-11-08 06:55 +08:00；预估结束07:40 +08:00。依据：.442b有45°原生次单位反例与公开CMC消费；fresh核输入二维clamp、CMC只对超幅clamp及全部方向调用，分别保留方向查询API与运动输入幅值，避免小幅输入重复缩放。测试及真实Gate在静态修复和Bevy迁移后统一执行。
+  - 06:55 source/static范围：已有方向API同时用于停止方向和视觉对齐，实际Tnua输入则应先clamp二维输入并保留旋转后幅值；移动消费者及真实入口的输入预期需同步，D269三角近似和D265/D266数值精度仍独立。
+  - 06:56 source/static闭环：fresh原生45°零/单位/超幅/模拟量四组确认先clamp输入，单位前向原始世界向量次单位且CMC原样保留。目标将单位方向查询与带幅值的移动输入分开，实际入口探针改核带幅值输入；其他数值阶段不提前合并。
+  - 06:57实现摘要：实际运动先限制二维输入再保留世界向量幅值，方向查询继续返回单位向量，原Playground相机输入探针同步；已写次单位、半幅、超幅、零输入及角色模拟量用例。实现结束06:57、偏差−43分钟；测试、消融及真实Gate待静态修复和Bevy迁移后执行。
 
 - [ ] BF144-D269 / P3 — 运动输入使用系统SinCos，未保留源float minimax方向计算。
   - Source：UAlsVector::RadianToDirectionXY调用FMath::SinCos(float)，fresh `UnrealMathUtility.h:760–798`先fold到±π/2，再用11/10阶minimax求sin/cos；Target `motion.rs:204–209`直接f32.sin_cos。固定同一原生float radians和已夹取输入，不涉及相机选择、角度换算、后续normalize或vector产品精度。

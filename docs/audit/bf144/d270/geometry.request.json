@@ -1,0 +1,68 @@
+{
+  "samples": [
+    {
+      "name": "45:0",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 45,
+        "axes": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "45:1",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 45,
+        "axes": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "45:4",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 45,
+        "axes": [
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "name": "45:5",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 45,
+        "axes": [
+          0.20000000298023224,
+          0.30000001192092896
+        ]
+      }
+    }
+  ]
+}

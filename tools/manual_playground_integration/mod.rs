@@ -523,7 +523,7 @@ impl CameraMovementProbe {
     fn observe(&mut self, view: Option<f32>, control: f32, input: Vec2, snapshot: Option<f32>, desired: Option<Vec3>) {
         if input.length_squared() > 1e-6 && let Some(previous) = self.previous_view {
             self.samples += 1;
-            let expected = crate::als::motion::view_relative_move_direction(input, previous) * input.length().min(1.0);
+            let expected = crate::als::motion::view_relative_move_input(input, previous);
             self.invalid |= snapshot.is_none_or(|value| crate::als::motion::wrap_yaw_radians(value - previous).abs() > 1e-5)
                 || desired.is_none_or(|value| !value.abs_diff_eq(expected, 1e-5));
             self.lagged |= view.is_some_and(|value| crate::als::motion::wrap_yaw_radians(value - control).abs() > 0.01);

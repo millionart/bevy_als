@@ -217,11 +217,16 @@ pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
     )
 }
 
-pub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
+pub fn view_relative_move_input(move_dir: Vec2, view_yaw: f32) -> Vec3 {
+    let move_dir = move_dir.clamp_length_max(1.0);
     let source_degrees = (-(view_yaw as f64) - std::f64::consts::FRAC_PI_2).to_degrees() as f32;
     let (sin, cos) = source_degrees.to_radians().sin_cos();
     Vec3::new(cos * move_dir.y - sin * move_dir.x, 0.0,
-        sin * move_dir.y + cos * move_dir.x).normalize_or_zero()
+        sin * move_dir.y + cos * move_dir.x)
+}
+
+pub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
+    view_relative_move_input(move_dir, view_yaw).normalize_or_zero()
 }
 
 pub fn wrap_yaw_radians(yaw: f32) -> f32 {
@@ -1526,6 +1531,17 @@ mod rotation_cap_tests {
             assert_eq!(actual, Vec3::new(1.0, 0.0, expected_z));
         }
         assert_eq!(view_relative_move_direction(Vec2::ZERO, 0.7), Vec3::ZERO);
+    }
+
+    #[test]
+    fn movement_input_preserves_subunit_rotation_and_analog_magnitude() {
+        let yaw = -std::f32::consts::PI * 0.75;
+        let unit = view_relative_move_input(Vec2::Y, yaw);
+        assert!(unit.length_squared() < 1.0);
+        assert_eq!(view_relative_move_input(Vec2::Y * 0.5, yaw), unit * 0.5);
+        assert_eq!(view_relative_move_input(Vec2::Y * 2.0, yaw), unit);
+        assert_eq!(view_relative_move_input(Vec2::ZERO, yaw), Vec3::ZERO);
+        assert!((view_relative_move_direction(Vec2::Y * 0.5, yaw).length() - 1.0).abs() < 1e-6);
     }
 
     #[test]
@@ -3350,13 +3366,12 @@ pub(crate) fn locomotion_drive_system(
         let effective =
             movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);
 
-        let move_len = effective.move_dir.length().min(1.0);
         let movement_yaw = player_view.map_or_else(|| {
             if readiness.is_some_and(|readiness| !readiness.has_published) {
                 world_forward_to_yaw(gtf.forward().as_vec3())
             } else { view_yaw.0 }
         }, |view| view.0);
-        let world_dir = view_relative_move_direction(effective.move_dir, movement_yaw);
+        let world_input = view_relative_move_input(effective.move_dir, movement_yaw);
 
         let desired_forward = roll
             .filter(|state| state.active)
@@ -3364,7 +3379,7 @@ pub(crate) fn locomotion_drive_system(
             .or_else(|| Dir3::new(gtf.forward().as_vec3()).ok());
 
         controller.basis = TnuaBuiltinWalk {
-            desired_motion: world_dir * move_len,
+            desired_motion: world_input,
             desired_forward,
         };
 
@@ -7455,6 +7470,17 @@ mod tests {
         app.world_mut().run_system_once(locomotion_drive_system).unwrap();
         let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
         assert!(desired.abs_diff_eq(view_relative_move_direction(Vec2::Y, control), 1e-6));
+    }
+
+    #[test]
+    fn player_analog_motion_is_scaled_once() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        app.world_mut().entity_mut(character).insert(crate::als::view::AlsPlayerViewYaw(-std::f32::consts::PI * 0.75));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y * 0.5;
+        app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
+        assert!(desired.abs_diff_eq(Vec3::new(0.35355338, 0.0, 0.35355338), 1e-6));
     }
 
     #[test]
