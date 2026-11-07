@@ -19,7 +19,7 @@ use avian3d::prelude::{ColliderOf, RigidBody};
 use bevy::transform::{TransformSystems, helper::TransformHelper};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer};
-use crate::extensions::{control_rig_hierarchy::{RigSpace, RigTransform}, control_rig_math::RigValue,
+use crate::extensions::{control_rig_hierarchy::{RigSpace, RigTransform, rig_normalize}, control_rig_math::RigValue,
     control_rig_program::{RigDefinition, RigInstruction}, root_graph_boundaries::{ControlRigBoundaryNode, ControlRigNodeState, RigCallSample, current_control_rig}};
 
 use crate::animation_context_projection::AlsRootAnimationContextSet;
@@ -545,26 +545,42 @@ fn positive_scale_foot_rotation(
     avatar: Entity,
     armature: &GlobalTransform,
     parents: &Query<&ChildOf>,
-    local_transforms: &Query<&Transform>,
+    local_transforms: &Query<(&Transform, Option<&AnimationTargetId>)>,
+    player: Option<&AnimationGraphPlayer>,
 ) -> Option<Quat> {
     let mut rotations = Vec::new();
     let mut current = target;
     while current != avatar {
-        let local = local_transforms.get(current).ok()?;
+        let (local, target_id) = local_transforms.get(current).ok()?;
         if local.scale.min_element() < 0.0 { return None; }
-        rotations.push(local.rotation.as_dquat());
+        let bone = player.zip(target_id).is_some_and(|(player, id)| {
+            let id = (*id).into();
+            player.get_default_output_pose().is_some_and(|pose| pose.paths.contains_key(&id))
+                && player.bone_entity(id) == Some(current)
+        });
+        rotations.push((local.rotation.as_dquat(), bone));
         current = parents.get(current).ok()?.parent();
     }
     let mut ancestor = Some(avatar);
     while let Some(entity) = ancestor {
-        if local_transforms.get(entity).ok()?.scale.min_element() < 0.0 { return None; }
+        if local_transforms.get(entity).ok()?.0.scale.min_element() < 0.0 { return None; }
         ancestor = parents.get(entity).ok().map(ChildOf::parent);
     }
-    let Some(mut component_rotation) = rotations.pop() else { return Some(armature.rotation()); };
-    while let Some(rotation) = rotations.pop() {
-        component_rotation *= rotation;
+    if rotations.is_empty() { return Some(armature.rotation()); }
+    let mut prefix = bevy::math::DQuat::IDENTITY;
+    let mut component_rotation = None;
+    while let Some((rotation, bone)) = rotations.pop() {
+        if let Some(component) = component_rotation {
+            let combined = component * rotation;
+            component_rotation = Some(if bone { rig_normalize(combined) } else { combined });
+        } else if bone {
+            component_rotation = Some(rotation);
+        } else {
+            prefix *= rotation;
+        }
     }
-    Some((armature.rotation().as_dquat() * component_rotation).as_quat())
+    Some((armature.rotation().as_dquat() * prefix
+        * component_rotation.unwrap_or(bevy::math::DQuat::IDENTITY)).as_quat())
 }
 
 fn refresh_foot_lock_inputs(
@@ -579,12 +595,13 @@ fn refresh_foot_lock_inputs(
     ), With<crate::als::character::AlsCharacter>>,
     transforms: TransformHelper,
     parents: Query<&ChildOf>,
-    local_transforms: Query<&Transform>,
+    local_transforms: Query<(&Transform, Option<&AnimationTargetId>)>,
     bone_globals: Query<&GlobalTransform, Without<crate::als::character::AlsCharacter>>,
     mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
     instances: Query<&AnimatedSceneInstance>,
+    players: Query<&AnimationGraphPlayer>,
     update_gates: Query<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
 ) {
     for (entity, assembly, bones, selection, locomotion, lock_input, stance, settings, movement_base,
@@ -599,6 +616,8 @@ fn refresh_foot_lock_inputs(
             continue;
         }
         let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
+        let player = instances.get(assembly.avatar).ok()
+            .and_then(|instance| players.get(instance.player_entity()).ok());
         let current_character_transform = armature.compute_transform();
         if !lock_state.valid
             && let Ok(pelvis_parent) = parents.get(bones.left_thigh)
@@ -664,7 +683,7 @@ fn refresh_foot_lock_inputs(
                 continue;
             };
             let target_rotation = positive_scale_foot_rotation(
-                target_entity, assembly.avatar, &armature, &parents, &local_transforms,
+                target_entity, assembly.avatar, &armature, &parents, &local_transforms, player,
             ).unwrap_or_else(|| target.rotation());
             let (foot_state, ik_amount, lock_amount) = match side {
                 0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),
@@ -741,6 +760,48 @@ fn foot_lock_movement_base(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn foot_rotation_normalizes_component_bones_but_not_root() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..5 { app.update(); }
+        let bones = *app.world().get::<AlsFootBones>(actor).unwrap();
+        for use_ik in [true, false] {
+            let foot = bones.target(0, use_ik).unwrap();
+            let parent = app.world().get::<ChildOf>(foot).unwrap().parent();
+            let root = app.world().get::<ChildOf>(parent).unwrap().parent();
+            let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            for bone in [root, parent, foot] {
+                let id = (*app.world().get::<AnimationTargetId>(bone).unwrap()).into();
+                assert_eq!(player.bone_entity(id), Some(bone));
+                assert!(player.get_default_output_pose().unwrap().paths.contains_key(&id));
+            }
+            let root_rotation = Quat::from_xyzw(0.0, 0.0, 0.0, 0.99999);
+            app.world_mut().get_mut::<Transform>(root).unwrap().rotation = root_rotation;
+            app.world_mut().get_mut::<Transform>(parent).unwrap().rotation = Quat::IDENTITY;
+            app.world_mut().get_mut::<Transform>(foot).unwrap().rotation = Quat::IDENTITY;
+            let (mesh_rotation, sampled_root, sampled_foot) = app.world_mut().run_system_once(move |
+                transforms: TransformHelper, parents: Query<&ChildOf>,
+                locals: Query<(&Transform, Option<&AnimationTargetId>)>, players: Query<&AnimationGraphPlayer>| {
+                let armature = transforms.compute_global_transform(avatar).unwrap();
+                let player = players.get(player_entity).unwrap();
+                (armature.rotation(),
+                    positive_scale_foot_rotation(root, avatar, &armature, &parents, &locals, Some(player)).unwrap(),
+                    positive_scale_foot_rotation(foot, avatar, &armature, &parents, &locals, Some(player)).unwrap())
+            }).unwrap();
+            assert_eq!(sampled_root, (mesh_rotation.as_dquat() * root_rotation.as_dquat()).as_quat());
+            assert_eq!(sampled_foot, mesh_rotation);
+            assert_ne!(sampled_root, sampled_foot);
+            app.world_mut().entity_mut(actor).insert((AlsFootTargetSelection { use_ik_bones: use_ik },
+                AlsFootLockState::default(), AlsFootLockInput { left_ik_amount: 1.0, right_ik_amount: 1.0, ..default() }));
+            app.world_mut().run_system_once(refresh_foot_lock_inputs).unwrap();
+            let state = app.world().get::<AlsFootLockState>(actor).unwrap();
+            assert!(state.valid);
+            assert_eq!(state.left.target_rotation, sampled_foot);
+        }
+    }
 
     #[test]
     fn foot_targets_keep_rotation_under_positive_nonuniform_bone_scale() {

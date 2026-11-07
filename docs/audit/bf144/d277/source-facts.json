@@ -1,0 +1,395 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/SkinnedAsset.cpp",
+      "sha256": "cad970f3bf0ec476b578a9a5e0af61b4dd30d459fa1bced991ab00ed262b3d52",
+      "excerpts": [
+        {
+          "first_line": 483,
+          "last_line": 495,
+          "text": "#endif\n\n\tconst FTransform* LocalTransformsData = InBoneSpaceTransforms.GetData();\n\tFTransform* ComponentSpaceData = OutComponentSpaceTransforms.GetData();\n\n\t// First bone (if we have one) is always root bone, and it doesn't have a parent.\n\t{\n\t\tcheck(InFillComponentSpaceTransformsRequiredBones.Num() == 0 || InFillComponentSpaceTransformsRequiredBones[0] == 0);\n\t\tOutComponentSpaceTransforms[0] = InBoneSpaceTransforms[0];\n\n#if DO_GUARD_SLOW\n\t\t// Mark bone as processed\n\t\tBoneProcessed[0] = 1;"
+        },
+        {
+          "first_line": 523,
+          "last_line": 547,
+          "text": "\t\t{\n\t\t\tconst int32 BoneIndex = InFillComponentSpaceTransformsRequiredBones[i];\n\t\t\tFTransform* SpaceBase = ComponentSpaceData + BoneIndex;\n\n\t\t\tFPlatformMisc::Prefetch(SpaceBase);\n\n#if DO_GUARD_SLOW\n\t\t\t// Mark bone as processed\n\t\t\tBoneProcessed[BoneIndex] = 1;\n#endif\n\t\t\t// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.\n\t\t\tconst int32 ParentIndex = GetRefSkeleton().GetParentIndex(BoneIndex);\n\t\t\tFTransform* ParentSpaceBase = ComponentSpaceData + ParentIndex;\n\t\t\tFPlatformMisc::Prefetch(ParentSpaceBase);\n\n#if DO_GUARD_SLOW\n\t\t\t// Check the precondition that Parents occur before Children in the RequiredBones array.\n\t\t\tcheckSlow(BoneProcessed[ParentIndex] == 1);\n#endif\n\t\t\tFTransform::Multiply(SpaceBase, LocalTransformsData + BoneIndex, ParentSpaceBase);\n\n\t\t\tSpaceBase->NormalizeRotation();\n\n\t\t\tcheckSlow(SpaceBase->IsRotationNormalized());\n\t\t\tcheckSlow(!SpaceBase->ContainsNaN());"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+      "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+      "excerpts": [
+        {
+          "first_line": 1130,
+          "last_line": 1139,
+          "text": "\n\t/**\n\t * Normalize the rotation component of this transformation\n\t */\n\tinline void NormalizeRotation()\n\t{\n\t\tRotation = VectorNormalizeQuaternion(Rotation);\n\t\tDiagnosticCheckNaN_Rotate();\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/SkinnedMeshComponent.cpp",
+      "sha256": "67302f17ccd18a95695111399619c7889e4477673de94d903e49e618165d99b6",
+      "excerpts": [
+        {
+          "first_line": 2460,
+          "last_line": 2478,
+          "text": "\t\t\t}\n\t\t}\n\t\telse\n\t\t{\n\t\t\tUE_LOGF(LogSkinnedMeshComp, Warning, \"GetBoneTransform : BoneIndex(%d) out of range of LeaderBoneMap for %ls\", BoneIdx, *this->GetFName().ToString() );\n\t\t\treturn FTransform::Identity;\n\t\t}\n\t}\n\telse\n\t{\n\t\tconst int32 NumTransforms = GetNumComponentSpaceTransforms();\n\t\tif(BoneIdx >= 0 && BoneIdx < NumTransforms)\n\t\t{\n\t\t\treturn GetComponentSpaceTransforms()[BoneIdx] * LocalToWorld;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tUE_LOGF(LogSkinnedMeshComp, Verbose, \"GetBoneTransform : BoneIndex(%d) out of range of SpaceBases for %ls (%ls)\", BoneIdx, *GetPathName(), GetSkinnedAsset() ? *GetSkinnedAsset()->GetFullName() : TEXT(\"NULL\") );\n\t\t\treturn FTransform::Identity;"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 1274,
+          "last_line": 1296,
+          "text": "\t}\n\n\tFeetState.PelvisRotation = FQuat4f{PelvisTransform.GetRotation()};\n\n\tconst auto FootLeftTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootLeftIkBoneName()\n\t\t\t                         : UAlsConstants::FootLeftVirtualBoneName())\n\t};\n\n\tFeetState.Left.TargetLocationWorldSpace = FootLeftTargetTransform.GetLocation();\n\tFeetState.Left.TargetRotationWorldSpace = FootLeftTargetTransform.GetRotation();\n\n\tconst auto FootRightTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootRightIkBoneName()\n\t\t\t                         : UAlsConstants::FootRightVirtualBoneName())\n\t};\n\n\tFeetState.Right.TargetLocationWorldSpace = FootRightTargetTransform.GetLocation();\n\tFeetState.Right.TargetRotationWorldSpace = FootRightTargetTransform.GetRotation();\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/foot_ik_apply.rs",
+      "sha256": "c4d35ad77cafd81d58e0fad54569e347bcca1bdace3ee14bf3c5a9387a80cdd4",
+      "excerpts": [
+        {
+          "first_line": 543,
+          "last_line": 570,
+          "text": "fn positive_scale_foot_rotation(\n    target: Entity,\n    avatar: Entity,\n    armature: &GlobalTransform,\n    parents: &Query<&ChildOf>,\n    local_transforms: &Query<&Transform>,\n) -> Option<Quat> {\n    let mut rotations = Vec::new();\n    let mut current = target;\n    while current != avatar {\n        let local = local_transforms.get(current).ok()?;\n        if local.scale.min_element() < 0.0 { return None; }\n        rotations.push(local.rotation.as_dquat());\n        current = parents.get(current).ok()?.parent();\n    }\n    let mut ancestor = Some(avatar);\n    while let Some(entity) = ancestor {\n        if local_transforms.get(entity).ok()?.scale.min_element() < 0.0 { return None; }\n        ancestor = parents.get(entity).ok().map(ChildOf::parent);\n    }\n    let Some(mut component_rotation) = rotations.pop() else { return Some(armature.rotation()); };\n    while let Some(rotation) = rotations.pop() {\n        component_rotation *= rotation;\n    }\n    Some((armature.rotation().as_dquat() * component_rotation).as_quat())\n}\n\nfn refresh_foot_lock_inputs("
+        },
+        {
+          "first_line": 659,
+          "last_line": 689,
+          "text": "            }\n        }\n        for side in 0..2usize {\n            let target_entity = bones.target(side, use_ik_bones).unwrap_or(assembly.avatar);\n            let Ok(target) = transforms.compute_global_transform(target_entity) else {\n                continue;\n            };\n            let target_rotation = positive_scale_foot_rotation(\n                target_entity, assembly.avatar, &armature, &parents, &local_transforms,\n            ).unwrap_or_else(|| target.rotation());\n            let (foot_state, ik_amount, lock_amount) = match side {\n                0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),\n                _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),\n            };\n            if became_valid {\n                reset_foot_lock_to_target(foot_state, target.translation(), target_rotation);\n            }\n            refresh_foot_lock(\n                foot_state,\n                target.translation(),\n                target_rotation,\n                ik_amount,\n                lock_amount,\n                settings.allow_foot_lock,\n                lock_input.moving_smooth,\n                *locomotion == LocomotionState::Grounded,\n                became_valid,\n                dt,\n                current_base,\n            );\n            let chain = bones.chain(side);"
+        }
+      ]
+    },
+    {
+      "path": "src/control_rig/control_rig_hierarchy.rs",
+      "sha256": "851498e0a3fd6f52d3c8e47764c4dfb7d2a7f225a48e36faa6e25a00ab578efd",
+      "excerpts": [
+        {
+          "first_line": 26,
+          "last_line": 32,
+          "text": "pub fn rig_normalize(rotation: DQuat) -> DQuat {\n    if rotation.length_squared() >= 1e-8_f32 as f64 {\n        rotation.normalize()\n    } else {\n        DQuat::IDENTITY\n    }\n}"
+        }
+      ]
+    },
+    {
+      "path": "src/animation_graph_ext/post_physics_animation.rs",
+      "sha256": "30779870ba2bc673a7d96ab547e770bd100b00b8dd6de8abc36fea62c7ec02c7",
+      "excerpts": [
+        {
+          "first_line": 165,
+          "last_line": 181,
+          "text": "\nfn apply_readback_pose(\n    mut targets: Query<(&mut Transform, &AnimationTargetId, &AnimatedBy)>,\n    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,\n) {\n    for (mut transform, id, animated_by) in &mut targets {\n        let Ok((player, gate)) = players.get(animated_by.0) else { continue; };\n        if gate.is_some_and(|gate| !gate.refresh_bones) || !has_physics_readback(player) { continue; }\n        let Some(pose) = player.get_default_output_pose() else { continue; };\n        let Some(index) = pose.paths.get(&BoneId::from(*id)) else { continue; };\n        let bone = &pose.bones[*index];\n        if let Some(value) = bone.translation { transform.translation = value; }\n        if let Some(value) = bone.rotation { transform.rotation = value; }\n        if let Some(value) = bone.scale { transform.scale = value; }\n    }\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "dependency:bevy_animation_graph/crates/bevy_animation_graph_core/src/animation_graph_player.rs",
+      "sha256": "35a6f15907ebc52e1fcf83fafd34188df8879fc7521dd3f79fab134c23af9ada",
+      "excerpts": [
+        {
+          "first_line": 340,
+          "last_line": 348,
+          "text": "        self.elapsed\n    }\n\n    /// Gets the default output pose from the graph, or the forced pose if set.\n    pub fn get_default_output_pose(&self) -> Option<&Pose> {\n        match &self.animation {\n            AnimationSource::Graph(_) => self.outputs.get(DEFAULT_OUTPUT_POSE)?.as_pose().ok(),\n            AnimationSource::Pose(pose) => Some(pose),\n            AnimationSource::None => None,"
+        },
+        {
+          "first_line": 357,
+          "last_line": 365,
+          "text": "    pub fn set_default_output_pose(&mut self, pose: Pose) {\n        self.outputs.insert(DEFAULT_OUTPUT_POSE.into(), pose.into());\n    }\n\n    pub fn bone_entity(&self, bone_id: BoneId) -> Option<Entity> {\n        self.entity_map.get(&bone_id).copied()\n    }\n\n    pub fn get_spawned_ragdoll(&self) -> Option<&SpawnedRagdoll> {"
+        }
+      ]
+    },
+    {
+      "path": "dependency:bevy_animation_graph/crates/bevy_animation_graph_core/src/pose.rs",
+      "sha256": "962f07a8d357fd26d0494dc0486830cd3701dfdab25416fa8c4cefa25090570d",
+      "excerpts": [
+        {
+          "first_line": 234,
+          "last_line": 247,
+          "text": "#[derive(Asset, Reflect, Clone, Debug, Default, Serialize, Deserialize, PartialEq)]\n#[reflect(Default)]\npub struct Pose {\n    pub bones: Vec<BonePose>,\n    pub paths: HashMap<BoneId, usize>,\n    pub timestamp: f32,\n    #[serde(skip)]\n    pub skeleton: Handle<Skeleton>,\n    /// Root motion delta for this frame, if root motion extraction is active.\n    /// Automatically blended when poses are blended via interpolators.\n    #[serde(default)]\n    pub root_motion: Option<RootMotionDelta>,\n}\n"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d279/native-identities.json",
+      "sha256": "f814d498d098eb188f083a40bc903857e80e505f4638683ec8e970e2076dfc4d",
+      "bytes": 1903
+    },
+    {
+      "path": "docs/audit/bf144/d278/source-facts.json",
+      "sha256": "bec2485af4a0f1f0bb2906e5936705088b08bd253957dc18262fcadf8d41b03b",
+      "bytes": 17676
+    },
+    {
+      "path": "docs/audit/bf144/486/summary.json",
+      "sha256": "f053d26df888d58ca85204af59677e18059e3157005dd5b3c5ee57d9e8b97b46",
+      "bytes": 3665
+    },
+    {
+      "path": "docs/audit/bf144/487/summary.json",
+      "sha256": "020315cab68d41dbe5b2f378165890eda221419b182f1ce58d0538c692ed34c7",
+      "bytes": 3515
+    }
+  ],
+  "witness": {
+    "query": 3,
+    "side": "left",
+    "target_chain": [
+      {
+        "bone": "ik_foot_l",
+        "name": "ik_foot_l",
+        "rotation": [
+          0.034635528922080994,
+          0.0346355177462101,
+          0.7062581181526184,
+          0.7062579393386841
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation": [
+          0.1899147480726242,
+          0.13465358316898346,
+          -0.01606004871428013
+        ]
+      },
+      {
+        "bone": "ik_foot_root",
+        "name": "ik_foot_root",
+        "rotation": [
+          3.0616171314629196e-17,
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bone": "root",
+        "name": "root",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bone": null,
+        "name": "GltfNode0",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bone": null,
+        "name": "Scene0",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bone": null,
+        "name": null,
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          -4.371138828673793e-08
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation": [
+          0.0,
+          -0.9200000166893005,
+          0.0
+        ]
+      },
+      {
+        "bone": null,
+        "name": null,
+        "rotation": [
+          0.0,
+          -0.3826834559440613,
+          0.0,
+          0.9238795042037964
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "translation": [
+          -15.0,
+          0.9199999570846558,
+          -15.0
+        ]
+      }
+    ],
+    "armature_rotation": [
+      0.0,
+      0.9238795638084412,
+      0.0,
+      0.3826834559440613
+    ],
+    "source_replay": {
+      "differing_fields": [
+        {
+          "q32": true,
+          "q64": true,
+          "t32": false,
+          "t64": false
+        },
+        {
+          "q32": true,
+          "q64": true,
+          "t32": false,
+          "t64": false
+        },
+        {
+          "q32": false,
+          "q64": false,
+          "t32": false,
+          "t64": false
+        },
+        {
+          "q32": false,
+          "q64": false,
+          "t32": false,
+          "t64": false
+        }
+      ],
+      "tqs": [
+        {
+          "rotation": [
+            0.6657518709332055,
+            0.23827423468313919,
+            0.6657517014538489,
+            -0.23827417657916483
+          ],
+          "scale": [
+            0.9999999403953552,
+            0.9999999403953552,
+            1.0
+          ],
+          "translation": [
+            -1514.5646189930148,
+            -1512.2933840495948,
+            13.465352356433868
+          ]
+        },
+        {
+          "rotation": [
+            0.665751886041364,
+            0.23827424009038636,
+            0.6657517165620035,
+            -0.23827418198641068
+          ],
+          "scale": [
+            0.9999999403953552,
+            0.9999999403953552,
+            1.0
+          ],
+          "translation": [
+            -1514.5646189930148,
+            -1512.2933840495948,
+            13.465352356433868
+          ]
+        },
+        {
+          "rotation": [
+            0.6657518709332055,
+            0.23827423468313919,
+            0.6657517014538489,
+            -0.23827417657916483
+          ],
+          "scale": [
+            0.9999999403953552,
+            0.9999999403953552,
+            1.0
+          ],
+          "translation": [
+            -1514.5646189930148,
+            -1512.2933840495948,
+            13.465352356433868
+          ]
+        },
+        {
+          "rotation": [
+            0.665751886041364,
+            0.23827424009038636,
+            0.6657517165620035,
+            -0.23827418198641068
+          ],
+          "scale": [
+            0.9999999403953552,
+            0.9999999403953552,
+            1.0
+          ],
+          "translation": [
+            -1514.5646189930148,
+            -1512.2933840495948,
+            13.465352356433868
+          ]
+        }
+      ]
+    }
+  },
+  "scope": "non-root component-space normalization only; normalizer arithmetic and pose publication remain D248 and D276"
+}
