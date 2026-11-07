@@ -540,6 +540,33 @@ fn source_constrain_foot_lock(
         .normalize();
 }
 
+fn positive_scale_foot_rotation(
+    target: Entity,
+    avatar: Entity,
+    armature: &GlobalTransform,
+    parents: &Query<&ChildOf>,
+    local_transforms: &Query<&Transform>,
+) -> Option<Quat> {
+    let mut rotations = Vec::new();
+    let mut current = target;
+    while current != avatar {
+        let local = local_transforms.get(current).ok()?;
+        if local.scale.min_element() < 0.0 { return None; }
+        rotations.push(local.rotation.as_dquat());
+        current = parents.get(current).ok()?.parent();
+    }
+    let mut ancestor = Some(avatar);
+    while let Some(entity) = ancestor {
+        if local_transforms.get(entity).ok()?.scale.min_element() < 0.0 { return None; }
+        ancestor = parents.get(entity).ok().map(ChildOf::parent);
+    }
+    let Some(mut component_rotation) = rotations.pop() else { return Some(armature.rotation()); };
+    while let Some(rotation) = rotations.pop() {
+        component_rotation *= rotation;
+    }
+    Some((armature.rotation().as_dquat() * component_rotation).as_quat())
+}
+
 fn refresh_foot_lock_inputs(
     time: Res<Time>,
     profile: Res<CrAlsRuntimeProfileTemplate>,
@@ -552,6 +579,7 @@ fn refresh_foot_lock_inputs(
     ), With<crate::als::character::AlsCharacter>>,
     transforms: TransformHelper,
     parents: Query<&ChildOf>,
+    local_transforms: Query<&Transform>,
     bone_globals: Query<&GlobalTransform, Without<crate::als::character::AlsCharacter>>,
     mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
     owners: Query<&ColliderOf>,
@@ -631,20 +659,24 @@ fn refresh_foot_lock_inputs(
             }
         }
         for side in 0..2usize {
-            let Ok(target) = transforms.compute_global_transform(bones.target(side, use_ik_bones).unwrap_or(assembly.avatar)) else {
+            let target_entity = bones.target(side, use_ik_bones).unwrap_or(assembly.avatar);
+            let Ok(target) = transforms.compute_global_transform(target_entity) else {
                 continue;
             };
+            let target_rotation = positive_scale_foot_rotation(
+                target_entity, assembly.avatar, &armature, &parents, &local_transforms,
+            ).unwrap_or_else(|| target.rotation());
             let (foot_state, ik_amount, lock_amount) = match side {
                 0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),
                 _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),
             };
             if became_valid {
-                reset_foot_lock_to_target(foot_state, target.translation(), target.rotation());
+                reset_foot_lock_to_target(foot_state, target.translation(), target_rotation);
             }
             refresh_foot_lock(
                 foot_state,
                 target.translation(),
-                target.rotation(),
+                target_rotation,
                 ik_amount,
                 lock_amount,
                 settings.allow_foot_lock,
@@ -709,6 +741,50 @@ fn foot_lock_movement_base(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn foot_targets_keep_rotation_under_positive_nonuniform_bone_scale() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..5 { app.update(); }
+        let bones = *app.world().get::<AlsFootBones>(actor).unwrap();
+        for use_ik in [true, false] {
+            let foot = bones.target(0, use_ik).unwrap();
+            let parent = app.world().get::<ChildOf>(foot).unwrap().parent();
+            let root = app.world().get::<ChildOf>(parent).unwrap().parent();
+            app.world_mut().get_mut::<Transform>(parent).unwrap().scale = Vec3::new(1.3432261, 1.0, 1.3432261);
+            app.world_mut().get_mut::<Transform>(parent).unwrap().rotation = Quat::from_rotation_y(0.3);
+            app.world_mut().get_mut::<Transform>(foot).unwrap().rotation = Quat::from_rotation_z(0.8);
+            let root_rotation = app.world().get::<Transform>(root).unwrap().rotation;
+            let parent_rotation = app.world().get::<Transform>(parent).unwrap().rotation;
+            let foot_rotation = app.world().get::<Transform>(foot).unwrap().rotation;
+            let component = root_rotation.as_dquat() * parent_rotation.as_dquat() * foot_rotation.as_dquat();
+            let (mesh, affine) = app.world_mut().run_system_once(move |transforms: TransformHelper| {
+                (transforms.compute_global_transform(avatar).unwrap(), transforms.compute_global_transform(foot).unwrap())
+            }).unwrap();
+            let expected = (mesh.rotation().as_dquat() * component).as_quat();
+            assert!(expected.normalize().dot(affine.rotation().normalize()).abs() < 0.9999);
+            app.world_mut().entity_mut(actor).insert((AlsFootTargetSelection { use_ik_bones: use_ik },
+                AlsFootLockState::default(), AlsFootLockInput { left_ik_amount: 1.0, right_ik_amount: 1.0, ..default() }));
+            app.world_mut().run_system_once(refresh_foot_lock_inputs).unwrap();
+            let state = app.world().get::<AlsFootLockState>(actor).unwrap();
+            assert!(state.valid);
+            assert!(state.left.target_rotation.normalize().dot(expected.normalize()).abs() > 0.999999);
+            assert!(state.left.target_location.distance(affine.translation()) < 1e-5);
+            let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
+            assert!(rig.foot_transforms_valid);
+            assert!(rig.foot_left_rotation_armature.normalize().dot(component.as_quat().normalize()).abs() > 0.999999);
+
+            app.world_mut().get_mut::<Transform>(parent).unwrap().scale.x *= -1.0;
+            let negative = app.world_mut().run_system_once(move |transforms: TransformHelper| {
+                transforms.compute_global_transform(foot).unwrap().rotation()
+            }).unwrap();
+            app.world_mut().entity_mut(actor).insert(AlsFootLockState::default());
+            app.world_mut().run_system_once(refresh_foot_lock_inputs).unwrap();
+            assert_eq!(app.world().get::<AlsFootLockState>(actor).unwrap().left.target_rotation, negative);
+            app.world_mut().get_mut::<Transform>(parent).unwrap().scale.x *= -1.0;
+        }
+    }
 
     #[test]
     fn missing_selected_foot_marker_uses_mesh_transform_in_foot_lock() {
