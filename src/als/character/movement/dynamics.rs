@@ -209,16 +209,18 @@ pub fn grounded_velocity_step_with_braking_friction(
         {
             next = horizontal_velocity.normalize_or_zero() * target_speed;
         }
-    } else {
-        let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);
-        next -= (next - acceleration_direction * speed) * friction_alpha;
     }
-    if !has_acceleration { return next; }
-    let input_limit = if next.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO {
-        next.length()
+    let next = if has_acceleration && !overspeed {
+        let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);
+        let next = next.as_dvec3();
+        next - (next - (acceleration_direction * speed).as_dvec3()) * f64::from(friction_alpha)
+    } else { next.as_dvec3() };
+    if !has_acceleration { return next.as_vec3(); }
+    let input_limit = if next.length_squared() > f64::from(target_speed * target_speed * MAX_SPEED_SQUARED_RATIO) {
+        next.length() as f32
     } else { target_speed };
-    (next + acceleration * delta_seconds)
-        .clamp_length_max(input_limit)
+    (next + (acceleration * delta_seconds).as_dvec3())
+        .clamp_length_max(f64::from(input_limit)).as_vec3()
 }
 
 pub fn analog_target_speed(max_speed: f32, desired_amount: f32, min_analog_walk_speed: f32) -> f32 {
@@ -673,6 +675,44 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn turning_velocity_retains_double_precision_through_acceleration() {
+        let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 5.0 };
+        let delta = 0.031250014901161194_f32;
+        let actual = grounded_velocity_step_with_braking_friction(
+            Vec3::new(1.0, 0.0, 0.75), Vec3::X, 3.75, dynamics, 0.0, 0.0, 0.03030303120613098, delta,
+        );
+        assert_eq!(actual, Vec3::new(1.6640628576278687, 0.0, 0.6328124403953552));
+        let no_turn = grounded_velocity_step_with_braking_friction(
+            Vec3::new(1.0, 0.0, 0.75), Vec3::X, 3.75,
+            GroundedDynamics { ground_friction: 0.0, ..dynamics }, 0.0, 0.0, 0.03030303120613098, delta,
+        );
+        assert_eq!(no_turn, Vec3::new(1.625000238418579, 0.0, 0.75));
+        let capped = grounded_velocity_step_with_braking_friction(
+            Vec3::new(3.0, 0.0, 2.0), Vec3::X, 3.75,
+            GroundedDynamics { ground_friction: 0.0, ..dynamics }, 0.0, 0.0, 0.03030303120613098, 0.05,
+        );
+        assert_eq!(capped, Vec3::new(3.3541018962860107, 0.0, 1.6770509481430054));
+    }
+
+    #[test]
+    fn grounded_motor_consumes_source_turning_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let initial = Vec3::new(1.0, 0.0, 0.75);
+        app.world_mut().entity_mut(character).insert((LinearVelocity(initial), LocomotionState::Grounded,
+            Stance::Standing, RotationMode::ViewDirection, AlsMaxAllowedGait(Gait::Running),
+            TnuaMotor::default(), AlsCmcAdapterRuntime::default(), AlsMovementBaseDynamicsState::default(),
+            AlsLandingBrakingFriction::default()));
+        app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion = Vec3::X;
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.031250014901161194));
+        app.world_mut().run_system_once(grounded_dynamics_motor_system).unwrap();
+        let motor = app.world().get::<TnuaMotor>(character).unwrap();
+        let planned = initial + motor.lin.boost;
+        assert_eq!(planned.with_y(0.0), Vec3::new(1.6640628576278687, 0.0, 0.6328124403953552));
+        assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().simulation_substeps, 1);
+    }
 
     #[test]
     fn actual_walking_displacement_integrates_each_source_velocity_substep() {

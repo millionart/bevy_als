@@ -1,0 +1,221 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/MathFwd.h",
+      "sha256": "5b00a9627e73c35713a757d5f0e59c3e94f8d6c87486d7f8fe944e5d3abc772d",
+      "excerpts": [
+        {
+          "first_line": 45,
+          "last_line": 51,
+          "text": "\n// Forward declaration of concrete types\t\t\t\t// Macro version - declares all three variants.\nusing FVector \t\t= UE::Math::TVector<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector, 3);\nusing FVector2D \t= UE::Math::TVector2<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector2,, FVector2D);\nusing FVector4 \t\t= UE::Math::TVector4<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector4);\nusing FQuat \t\t= UE::Math::TQuat<double>;\t\t\t// UE_DECLARE_LWC_TYPE(Quat, 4);\nusing FMatrix \t\t= UE::Math::TMatrix<double>;\t\t// UE_DECLARE_LWC_TYPE(Matrix, 44);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Classes/GameFramework/MovementComponent.h",
+      "sha256": "4b564f3f75d1d3158118da7c3f85540406cbcf0d2f25b98edafe864ce84f75e8",
+      "excerpts": [
+        {
+          "first_line": 90,
+          "last_line": 98,
+          "text": "\t * @see EMoveComponentFlags\n\t */\n\tEMoveComponentFlags MoveComponentFlags;\n\n\t/** Current velocity of updated component. */\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Velocity)\n\tFVector Velocity;\n\nprotected:"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 3919,
+          "last_line": 3941,
+          "text": "\t\t{\n\t\t\tVelocity = OldVelocity.GetSafeNormal() * MaxSpeed;\n\t\t}\n\t}\n\telse if (!bZeroAcceleration)\n\t{\n\t\t// Friction affects our ability to change direction. This is only done for input acceleration, not path following.\n\t\tconst FVector AccelDir = Acceleration.GetSafeNormal();\n\t\tconst float VelSize = Velocity.Size();\n\t\tVelocity = Velocity - (Velocity - AccelDir * VelSize) * FMath::Min(DeltaTime * Friction, 1.f);\n\t}\n\n\t// Apply fluid friction\n\tif (bFluid)\n\t{\n\t\tVelocity = Velocity * (1.f - FMath::Min(Friction * DeltaTime, 1.f));\n\t}\n\n\t// Apply input acceleration\n\tif (!bZeroAcceleration)\n\t{\n\t\tconst float NewMaxInputSpeed = IsExceedingMaxSpeed(MaxInputSpeed) ? Velocity.Size() : MaxInputSpeed;\n\t\tVelocity += Acceleration * DeltaTime;"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+      "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+      "excerpts": [
+        {
+          "first_line": 1903,
+          "last_line": 1922,
+          "text": "template<typename T>\ninline TVector<T> TVector<T>::GetClampedToMaxSize(T MaxSize) const\n{\n    if (MaxSize < UE_KINDA_SMALL_NUMBER)\n    {\n        return ZeroVector;\n    }\n\n    const T VSq = SizeSquared();\n    if (VSq > FMath::Square(MaxSize))\n    {\n        const T Scale = MaxSize * FMath::InvSqrt(VSq);\n        return TVector<T>(X*Scale, Y*Scale, Z*Scale);\n    }\n    else\n    {\n        return *this;\n    }\t\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/dynamics.rs",
+      "sha256": "7d2d02e080e717b5c15cabe6ef2ed2c7b94bedec121ee9f68e4f9f801f23ac46",
+      "excerpts": [
+        {
+          "first_line": 156,
+          "last_line": 225,
+          "text": "pub fn grounded_velocity_step_with_braking_friction(\n    velocity: Vec3,\n    desired_motion: Vec3,\n    max_speed: f32,\n    dynamics: GroundedDynamics,\n    min_analog_walk_speed: f32,\n    braking_friction_factor: f32,\n    braking_substep_time: f32,\n    delta_seconds: f32,\n) -> Vec3 {\n    let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);\n    let desired_horizontal = Vec3::new(desired_motion.x, 0.0, desired_motion.z);\n    let desired_amount = desired_horizontal.length().min(1.0);\n    let speed = horizontal_velocity.length();\n    let delta_seconds = delta_seconds.max(0.0);\n    if delta_seconds < MIN_MOVEMENT_DELTA_SECONDS { return horizontal_velocity; }\n    let acceleration = desired_horizontal.clamp_length_max(1.0) * dynamics.acceleration.max(0.0);\n    let has_acceleration = acceleration != Vec3::ZERO;\n    let analog_modifier = if has_acceleration && dynamics.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_amount } else { 0.0 };\n    let target_speed = analog_target_speed(max_speed, analog_modifier, min_analog_walk_speed);\n    let overspeed = horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO;\n    let acceleration_direction = if acceleration.length_squared() < PHYSICAL_VECTOR_MIN_LENGTH_SQUARED {\n        Vec3::ZERO\n    } else {\n        acceleration.normalize_or_zero()\n    };\n    let mut next = horizontal_velocity;\n    if !has_acceleration || overspeed {\n        let friction = dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0);\n        let deceleration = dynamics.braking_deceleration.max(0.0);\n        if friction > 0.0 || deceleration > 0.0 {\n            let reverse_acceleration = -horizontal_velocity.normalize_or_zero() * deceleration;\n            let mut remaining = delta_seconds;\n            let max_step = braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);\n            while remaining >= MIN_MOVEMENT_DELTA_SECONDS {\n                let step = if remaining > max_step && friction > 0.0 {\n                    max_step.min(remaining * 0.5)\n                } else { remaining };\n                remaining -= step;\n                next += (-next * friction + reverse_acceleration) * step;\n                if next.dot(horizontal_velocity) <= 0.0 {\n                    next = Vec3::ZERO;\n                    break;\n                }\n            }\n            if next.length_squared() <= BRAKING_SMALL_VELOCITY_SQUARED\n                || deceleration > 0.0 && next.length_squared() <= BRAKE_TO_STOP_VELOCITY.powi(2)\n            {\n                next = Vec3::ZERO;\n            }\n        }\n        if overspeed && next.length_squared() < target_speed * target_speed\n            && acceleration.dot(horizontal_velocity) > 0.0\n        {\n            next = horizontal_velocity.normalize_or_zero() * target_speed;\n        }\n    }\n    let next = if has_acceleration && !overspeed {\n        let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);\n        let next = next.as_dvec3();\n        next - (next - (acceleration_direction * speed).as_dvec3()) * f64::from(friction_alpha)\n    } else { next.as_dvec3() };\n    if !has_acceleration { return next.as_vec3(); }\n    let input_limit = if next.length_squared() > f64::from(target_speed * target_speed * MAX_SPEED_SQUARED_RATIO) {\n        next.length() as f32\n    } else { target_speed };\n    (next + (acceleration * delta_seconds).as_dvec3())\n        .clamp_length_max(f64::from(input_limit)).as_vec3()\n}\n"
+        },
+        {
+          "first_line": 678,
+          "last_line": 721,
+          "text": "\n    #[test]\n    fn turning_velocity_retains_double_precision_through_acceleration() {\n        let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 5.0 };\n        let delta = 0.031250014901161194_f32;\n        let actual = grounded_velocity_step_with_braking_friction(\n            Vec3::new(1.0, 0.0, 0.75), Vec3::X, 3.75, dynamics, 0.0, 0.0, 0.03030303120613098, delta,\n        );\n        assert_eq!(actual, Vec3::new(1.6640628576278687, 0.0, 0.6328124403953552));\n        let no_turn = grounded_velocity_step_with_braking_friction(\n            Vec3::new(1.0, 0.0, 0.75), Vec3::X, 3.75,\n            GroundedDynamics { ground_friction: 0.0, ..dynamics }, 0.0, 0.0, 0.03030303120613098, delta,\n        );\n        assert_eq!(no_turn, Vec3::new(1.625000238418579, 0.0, 0.75));\n        let capped = grounded_velocity_step_with_braking_friction(\n            Vec3::new(3.0, 0.0, 2.0), Vec3::X, 3.75,\n            GroundedDynamics { ground_friction: 0.0, ..dynamics }, 0.0, 0.0, 0.03030303120613098, 0.05,\n        );\n        assert_eq!(capped, Vec3::new(3.3541018962860107, 0.0, 1.6770509481430054));\n    }\n\n    #[test]\n    fn grounded_motor_consumes_source_turning_velocity() {\n        use bevy::ecs::system::RunSystemOnce;\n        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();\n        let initial = Vec3::new(1.0, 0.0, 0.75);\n        app.world_mut().entity_mut(character).insert((LinearVelocity(initial), LocomotionState::Grounded,\n            Stance::Standing, RotationMode::ViewDirection, AlsMaxAllowedGait(Gait::Running),\n            TnuaMotor::default(), AlsCmcAdapterRuntime::default(), AlsMovementBaseDynamicsState::default(),\n            AlsLandingBrakingFriction::default()));\n        app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion = Vec3::X;\n        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.031250014901161194));\n        app.world_mut().run_system_once(grounded_dynamics_motor_system).unwrap();\n        let motor = app.world().get::<TnuaMotor>(character).unwrap();\n        let planned = initial + motor.lin.boost;\n        assert_eq!(planned.with_y(0.0), Vec3::new(1.6640628576278687, 0.0, 0.6328124403953552));\n        assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().simulation_substeps, 1);\n    }\n\n    #[test]\n    fn actual_walking_displacement_integrates_each_source_velocity_substep() {\n        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();\n        for _ in 0..35 { app.update(); }\n        let before = app.world().get::<Position>(character).unwrap().0;"
+        }
+      ]
+    },
+    {
+      "path": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+      "sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+      "excerpts": [
+        {
+          "first_line": 4000,
+          "last_line": 4018,
+          "text": "        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||\n        !Request->TryGetArrayField(TEXT(\"samples\"), Samples) || Samples->IsEmpty() || Samples->Num() > 256) { return nullptr; }\n    struct FMovementKernelAccess : UCharacterMovementComponent\n    {\n        static void Configure(UCharacterMovementComponent& Movement, const FVector& InputAcceleration, float AnalogModifier)\n        {\n            Movement.*&FMovementKernelAccess::Acceleration = InputAcceleration;\n            Movement.*&FMovementKernelAccess::AnalogInputModifier = AnalogModifier;\n        }\n        static void Apply(UCharacterMovementComponent& Movement, float Delta, float Friction, float Deceleration)\n        {\n            (Movement.*&FMovementKernelAccess::ApplyVelocityBraking)(Delta, Friction, Deceleration);\n        }\n    };\n    UWorld::InitializationValues Settings;\n    Settings.AllowAudioPlayback(false).RequiresHitProxies(false).CreatePhysicsScene(true).ShouldSimulatePhysics(false).CreateNavigation(false).CreateAISystem(false).CreateFXSystem(false).SetTransactional(false);\n    UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &Settings);\n    if (World == nullptr) { return nullptr; }\n    ON_SCOPE_EXIT { World->DestroyWorld(false); };"
+        },
+        {
+          "first_line": 4035,
+          "last_line": 4075,
+          "text": "        Row->SetStringField(TEXT(\"name\"), Name);\n        TArray<float> Inputs;\n        TArray<const TCHAR*> Keys{TEXT(\"delta_seconds\"), TEXT(\"friction\"), TEXT(\"braking_deceleration_cm_s2\"), TEXT(\"friction_factor\"), TEXT(\"braking_substep_seconds\")};\n        if (bCalculateVelocity) { Keys.Append({TEXT(\"max_speed_cm_s\"), TEXT(\"max_acceleration_cm_s2\"), TEXT(\"min_analog_speed_cm_s\"), TEXT(\"analog_input_modifier\")}); }\n        for (const TCHAR* Key : Keys)\n        {\n            double Value;\n            if (!(*Sample)->HasTypedField<EJson::Number>(Key) || !(*Sample)->TryGetNumberField(Key, Value) || !FMath::IsFinite(static_cast<float>(Value))) { return nullptr; }\n            Inputs.Add(static_cast<float>(Value));\n            Row->SetNumberField(Key, Inputs.Last());\n        }\n        if (FMath::Abs(Inputs[0]) > 0.25f) { return nullptr; }\n        Movement->Velocity = FVector(X, Y, Z);\n        Movement->BrakingFrictionFactor = Inputs[3];\n        Movement->BrakingSubStepTime = Inputs[4];\n        if (bCalculateVelocity)\n        {\n            const TSharedPtr<FJsonObject>* Acceleration = nullptr;\n            double AX, AY, AZ;\n            if (!(*Sample)->TryGetObjectField(TEXT(\"acceleration_cm_s2\"), Acceleration) ||\n                !(*Acceleration)->HasTypedField<EJson::Number>(TEXT(\"x\")) || !(*Acceleration)->HasTypedField<EJson::Number>(TEXT(\"y\")) || !(*Acceleration)->HasTypedField<EJson::Number>(TEXT(\"z\")) ||\n                !(*Acceleration)->TryGetNumberField(TEXT(\"x\"), AX) || !(*Acceleration)->TryGetNumberField(TEXT(\"y\"), AY) || !(*Acceleration)->TryGetNumberField(TEXT(\"z\"), AZ) ||\n                !FMath::IsFinite(AX) || !FMath::IsFinite(AY) || !FMath::IsFinite(AZ)) { return nullptr; }\n            Movement->MovementMode = MOVE_Walking;\n            Movement->MaxWalkSpeed = Inputs[5];\n            Movement->MaxAcceleration = Inputs[6];\n            Movement->MinAnalogWalkSpeed = Inputs[7];\n            FMovementKernelAccess::Configure(*Movement, FVector(AX, AY, AZ), Inputs[8]);\n            Row->SetObjectField(TEXT(\"acceleration_cm_s2\"), CaptureVector(Movement->GetCurrentAcceleration()));\n            Row->SetNumberField(TEXT(\"actual_max_speed_cm_s\"), Movement->GetMaxSpeed());\n            Row->SetNumberField(TEXT(\"actual_max_acceleration_cm_s2\"), Movement->GetMaxAcceleration());\n            Row->SetNumberField(TEXT(\"actual_min_analog_speed_cm_s\"), Movement->GetMinAnalogSpeed());\n            Row->SetNumberField(TEXT(\"actual_analog_input_modifier\"), Movement->GetAnalogInputModifier());\n            Row->SetStringField(TEXT(\"movement_mode_name\"), UEnum::GetValueAsString(Movement->MovementMode.GetValue()));\n        }\n        Row->SetObjectField(TEXT(\"before_velocity_cm_s\"), CaptureVector(Movement->Velocity));\n        Row->SetBoolField(TEXT(\"has_valid_data_before\"), Movement->HasValidData());\n        if (bCalculateVelocity) { Movement->CalcVelocity(Inputs[0], Inputs[1], false, Inputs[2]); }\n        else { FMovementKernelAccess::Apply(*Movement, Inputs[0], Inputs[1], Inputs[2]); }\n        if (Movement->Velocity.ContainsNaN() || !Movement->HasValidData()) { return nullptr; }\n        Row->SetBoolField(TEXT(\"has_valid_data_after\"), Movement->HasValidData());"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d266a/velocity.request.json",
+      "bytes": 1698,
+      "sha256": "cc9669a67657ecd3ebf7fd155dc01d45d9d297922bde80ec71e3e9878c6c744e"
+    },
+    {
+      "path": "docs/audit/bf144/d266a/velocity.native.json",
+      "bytes": 128634,
+      "sha256": "29eca087362675b3782245e6640ea6fedce1a1417540a504c8b98793d15e9625"
+    },
+    {
+      "path": "docs/audit/bf144/d266a/velocity.native.json.reader.report.json",
+      "bytes": 426,
+      "sha256": "615ba89676f446f3db4afc39e49b048f7fcabde31643281a0f09c7100aaf4990"
+    },
+    {
+      "path": "docs/audit/bf144/442b/preliminary-findings.json",
+      "bytes": 3628,
+      "sha256": "6ce57499bc563d6c33bc73f51c59e04a1627e90c4bdcd4b98328f0fafdba5549"
+    }
+  ],
+  "native_kernel": {
+    "format": "ue_character_velocity_probe_v1",
+    "character_class": "/Script/Engine.Character",
+    "movement_class": "/Script/Engine.CharacterMovementComponent",
+    "movement_registered": true,
+    "has_animation_root_motion": false,
+    "world_ticked": false,
+    "samples": [
+      {
+        "name": "turn-accel",
+        "delta_seconds": 0.031250014901161194,
+        "friction": 5,
+        "braking_deceleration_cm_s2": 1500,
+        "friction_factor": 0,
+        "braking_substep_seconds": 0.03030303120613098,
+        "max_speed_cm_s": 375,
+        "max_acceleration_cm_s2": 2000,
+        "min_analog_speed_cm_s": 0,
+        "analog_input_modifier": 1,
+        "acceleration_cm_s2": {
+          "x": 2000,
+          "y": 0,
+          "z": 0
+        },
+        "actual_max_speed_cm_s": 375,
+        "actual_max_acceleration_cm_s2": 2000,
+        "actual_min_analog_speed_cm_s": 0,
+        "actual_analog_input_modifier": 1,
+        "movement_mode_name": "MOVE_Walking",
+        "before_velocity_cm_s": {
+          "x": 100,
+          "y": 75,
+          "z": 0
+        },
+        "has_valid_data_before": true,
+        "has_valid_data_after": true,
+        "after_velocity_cm_s": {
+          "x": 166.40628166496754,
+          "y": 63.28124441206455,
+          "z": 0
+        }
+      },
+      {
+        "name": "no-turn",
+        "delta_seconds": 0.031250014901161194,
+        "friction": 0,
+        "braking_deceleration_cm_s2": 1500,
+        "friction_factor": 0,
+        "braking_substep_seconds": 0.03030303120613098,
+        "max_speed_cm_s": 375,
+        "max_acceleration_cm_s2": 2000,
+        "min_analog_speed_cm_s": 0,
+        "analog_input_modifier": 1,
+        "acceleration_cm_s2": {
+          "x": 2000,
+          "y": 0,
+          "z": 0
+        },
+        "actual_max_speed_cm_s": 375,
+        "actual_max_acceleration_cm_s2": 2000,
+        "actual_min_analog_speed_cm_s": 0,
+        "actual_analog_input_modifier": 1,
+        "movement_mode_name": "MOVE_Walking",
+        "before_velocity_cm_s": {
+          "x": 100,
+          "y": 75,
+          "z": 0
+        },
+        "has_valid_data_before": true,
+        "has_valid_data_after": true,
+        "after_velocity_cm_s": {
+          "x": 162.5000298023224,
+          "y": 75,
+          "z": 0
+        }
+      },
+      {
+        "name": "capped-accel",
+        "delta_seconds": 0.05000000074505806,
+        "friction": 0,
+        "braking_deceleration_cm_s2": 1500,
+        "friction_factor": 0,
+        "braking_substep_seconds": 0.03030303120613098,
+        "max_speed_cm_s": 375,
+        "max_acceleration_cm_s2": 2000,
+        "min_analog_speed_cm_s": 0,
+        "analog_input_modifier": 1,
+        "acceleration_cm_s2": {
+          "x": 2000,
+          "y": 0,
+          "z": 0
+        },
+        "actual_max_speed_cm_s": 375,
+        "actual_max_acceleration_cm_s2": 2000,
+        "actual_min_analog_speed_cm_s": 0,
+        "actual_analog_input_modifier": 1,
+        "movement_mode_name": "MOVE_Walking",
+        "before_velocity_cm_s": {
+          "x": 300,
+          "y": 200,
+          "z": 0
+        },
+        "has_valid_data_before": true,
+        "has_valid_data_after": true,
+        "after_velocity_cm_s": {
+          "x": 335.4101968748686,
+          "y": 167.7050978126841,
+          "z": 0
+        }
+      }
+    ]
+  },
+  "missing_previous_evidence": [
+    "target/bf144/439/rounding.json",
+    "target/bf144/439/native-check.json",
+    "target/bf144/439/cap.native.json",
+    "target/bf144/439/clamp.native.json"
+  ],
+  "scope": "turning intermediate through acceleration and final clamp; F32 products and input normalization remain separate"
+}

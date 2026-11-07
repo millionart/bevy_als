@@ -5303,6 +5303,14 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 真实数据/夹限入口：当前20 cap的六舍入边界64组合中，全当前边界重放所有active public；只取消转向结果边界即可恢复19个native侧向值，取消其它单边界均零恢复。剩25以完整原生source before-clamp double向量与其F32投影各经同一native夹限，只有后者丢侧向；二进制31.25ms/零前速包装保证Acceleration×dt精确还原指定输入，40个输入/原算法double输出均逐值复算，未将源数据替换冒作数学修改。同一中间量化根因覆盖转向后与非线性夹限前两边界，未另拆D。
   - 实际计划消费者/限制：同公开角色原floor、共同初速和参数，保当前delta/dt/六子步，只去转向中间量化，实际plan与计划delta改变并恢复该native plan投影；当前40最终body/动画/pose/curve/clock/Rig全部相同，后续舍入相消，不能宣称整运动或可见恢复。旧Gate只看最终F32/单个乘积或夹限数学，漏了后续加法/nonlinear之前仍需保留的低位。证据`target/bf144/439/rounding.json`、`native-check.json`、`consumer-check.json`、`cap.native.json`、`clamp.native.json`；去保精度丢19恢复/实际40回baseline，源码bytes恢复同target重编全部矩阵/40控制精确，见`controls-check.json`。identity按当前项封口，生产未修。
 
+  - 旧`target/bf144/439`原始证据当前缺失；沿用D266编号，先重新提取原生共同输入与输出并保存Git证据，不能把旧清单数字当作本轮原始证明。
+  - 拆分：同一F32中间投影根因分别出现在地面转向/加速累积与世界输入进入CMC夹限两个消费阶段；分别实现、提交并在最终Gate验证，全部子项完成后勾选D266。
+  - [x] BF144-D266a — 地面转向结果保持F64至加速和最终夹限。
+    - 修复第1轮：开始2026-11-08 07:28 +08:00；预估结束08:18 +08:00。依据：.439旧记录给出共同输入与19个控制但原报告缺失；需fresh重采原生CalcVelocity、核项目公共核和真实角色消费，保留D255乘积及D265归一化边界。测试在静态修复及Bevy/依赖迁移后统一执行。
+    - 07:29 source/static闭环：fresh原生同输入转向+加速结果投米制为(1.6640628576278687,0,0.6328124403953552)，无转向及封顶控制亦已重采。UE `Velocity` 保持double跨转向、加速与夹限；目标仅在这三阶段之间拓宽，保留既有F32乘积及归一化以隔离D255/D265。
+    - 07:32实现摘要：公共地面核保留转向中间F64至加速和最终夹限，制动及其他数值因素保持；已写fresh三组原生对照与实际角色motor用例。实现结束07:32、偏差−46分钟；旧64组合/40帧原始报告仍缺失，测试、消融及真实Gate待静态修复和Bevy/依赖迁移后执行。
+  - [ ] BF144-D266b — 世界移动输入在CMC夹限前保留F64中间结果。
+
 - [ ] BF144-D265 / P3 — 地面运动方向归一化提前使用F32，改变共同输入的计划侧向分量。
   - Source：fresh `CalcVelocity:3920–3923`的Acceleration.GetSafeNormal与`ApplyVelocityBraking:4403–4405`的Velocity.GetSafeNormal均为FVector double；`Vector.h:2058–2074`在double平方和/sqrt/倒数后逐分量乘回。Target `dynamics.rs:178–186`对Vec3执行F32 normalize_or_zero，再进入转向或反向制动向量。此为精度阶段差，不是D249同double的dot/乘倒数算序，也不套用D248的Quaternion ARM64 reciprocal估算。
   - 原生/同算法控制：当前29实际方向加1加速度方向，通过有效原生Character的零摩擦/4cm/s²/0.25秒精确1cm制动，从double before-after提取方向；30组F32投影均精确source模型。完全相同的runtime物理向量按固定XYZ平方和、sqrt、倒数、乘法用F32计算可重放当前，单换F64并投影则30组全等native，当前两非零轴样本不需改单位或dot顺序即可解释。共同v=(0.985679566860199,0,4.308531842411867e-8)m/s的当前normal.z为4.3711285258041244e-8，源投影为4.3711281705327565e-8。
