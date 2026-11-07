@@ -218,11 +218,17 @@ pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
 }
 
 pub fn view_relative_move_input(move_dir: Vec2, view_yaw: f32) -> Vec3 {
-    let move_dir = move_dir.clamp_length_max(1.0);
+    let mut move_dir = move_dir.as_dvec2();
+    let input_length_squared = move_dir.length_squared();
+    if input_length_squared > 1.0 { move_dir *= input_length_squared.sqrt().recip(); }
     let source_degrees = (-(view_yaw as f64) - std::f64::consts::FRAC_PI_2).to_degrees() as f32;
     let (sin, cos) = crate::extensions::control_rig_math::rig_sin_cos(source_degrees.to_radians());
-    Vec3::new(cos * move_dir.y - sin * move_dir.x, 0.0,
-        sin * move_dir.y + cos * move_dir.x)
+    let (sin, cos) = (f64::from(sin), f64::from(cos));
+    let mut world = bevy::math::DVec3::new(cos * move_dir.y - sin * move_dir.x, 0.0,
+        sin * move_dir.y + cos * move_dir.x);
+    let world_length_squared = world.length_squared();
+    if world_length_squared > 1.0 { world *= world_length_squared.sqrt().recip(); }
+    world.as_vec3()
 }
 
 pub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
@@ -1549,6 +1555,16 @@ mod rotation_cap_tests {
         let yaw = -std::f32::consts::PI * 0.75;
         let actual = view_relative_move_input(Vec2::Y, yaw);
         assert_eq!(actual, Vec3::new(0.7071067094802856, 0.0, 0.7071067690849304));
+    }
+
+    #[test]
+    fn movement_input_clamps_before_projecting_to_float() {
+        for (yaw, expected) in [
+            (-30.0_f32.to_radians(), Vec3::new(0.9659258127212524, 0.0, -0.2588191032409668)),
+            (-150.0_f32.to_radians(), Vec3::new(-0.2588188946247101, 0.0, 0.9659258723258972)),
+        ] {
+            assert_eq!(view_relative_move_input(Vec2::ONE, yaw), expected);
+        }
     }
 
     #[test]
@@ -7488,6 +7504,17 @@ mod tests {
         app.world_mut().run_system_once(locomotion_drive_system).unwrap();
         let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
         assert!(desired.abs_diff_eq(Vec3::new(0.35355338, 0.0, 0.35355338), 1e-6));
+    }
+
+    #[test]
+    fn player_diagonal_motion_preserves_source_clamp_precision() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        app.world_mut().entity_mut(character).insert(crate::als::view::AlsPlayerViewYaw(-30.0_f32.to_radians()));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::ONE;
+        app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
+        assert_eq!(desired, Vec3::new(0.9659258127212524, 0.0, -0.2588191032409668));
     }
 
     #[test]

@@ -1,0 +1,84 @@
+{
+  "samples": [
+    {
+      "name": "45:1",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 45,
+        "axes": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "60:3",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 60,
+        "axes": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "-60:3",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": -60,
+        "axes": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "runtime--150",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 59.99999734394111,
+        "axes": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "runtime--30",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": -59.999999165173946,
+        "axes": [
+          1,
+          1
+        ]
+      }
+    }
+  ]
+}
