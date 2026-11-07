@@ -220,7 +220,7 @@ pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
 pub fn view_relative_move_input(move_dir: Vec2, view_yaw: f32) -> Vec3 {
     let move_dir = move_dir.clamp_length_max(1.0);
     let source_degrees = (-(view_yaw as f64) - std::f64::consts::FRAC_PI_2).to_degrees() as f32;
-    let (sin, cos) = source_degrees.to_radians().sin_cos();
+    let (sin, cos) = crate::extensions::control_rig_math::rig_sin_cos(source_degrees.to_radians());
     Vec3::new(cos * move_dir.y - sin * move_dir.x, 0.0,
         sin * move_dir.y + cos * move_dir.x)
 }
@@ -1542,6 +1542,13 @@ mod rotation_cap_tests {
         assert_eq!(view_relative_move_input(Vec2::Y * 2.0, yaw), unit);
         assert_eq!(view_relative_move_input(Vec2::ZERO, yaw), Vec3::ZERO);
         assert!((view_relative_move_direction(Vec2::Y * 0.5, yaw).length() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn movement_input_uses_source_float_sine_and_cosine() {
+        let yaw = -std::f32::consts::PI * 0.75;
+        let actual = view_relative_move_input(Vec2::Y, yaw);
+        assert_eq!(actual, Vec3::new(0.7071067094802856, 0.0, 0.7071067690849304));
     }
 
     #[test]

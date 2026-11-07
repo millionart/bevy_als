@@ -5252,10 +5252,14 @@
   - 06:56 source/static闭环：fresh原生45°零/单位/超幅/模拟量四组确认先clamp输入，单位前向原始世界向量次单位且CMC原样保留。目标将单位方向查询与带幅值的移动输入分开，实际入口探针改核带幅值输入；其他数值阶段不提前合并。
   - 06:57实现摘要：实际运动先限制二维输入再保留世界向量幅值，方向查询继续返回单位向量，原Playground相机输入探针同步；已写次单位、半幅、超幅、零输入及角色模拟量用例。实现结束06:57、偏差−43分钟；测试、消融及真实Gate待静态修复和Bevy迁移后执行。
 
-- [ ] BF144-D269 / P3 — 运动输入使用系统SinCos，未保留源float minimax方向计算。
+- [x] BF144-D269 / P3 — 运动输入使用系统SinCos，未保留源float minimax方向计算。
   - Source：UAlsVector::RadianToDirectionXY调用FMath::SinCos(float)，fresh `UnrealMathUtility.h:760–798`先fold到±π/2，再用11/10阶minimax求sin/cos；Target `motion.rs:204–209`直接f32.sin_cos。固定同一原生float radians和已夹取输入，不涉及相机选择、角度换算、后续normalize或vector产品精度。
   - 原生最小反例：radians0.7853981852531433、单位轴源forward（共同旋转算子中runtime右轴经已推导符号/基映射）。原生cos0.7071067094802856，系统cos0.7071067690849304，sin均0.7071067690849304；因此77旋转控制有43原始方向不等。独立source minimax在全部317 source/current实际角样本逐值同原生，排除凭近似数学作oracle。
   - 消费/边界：保额外归一化，只换原生trig数据，同一公开核计划X由0.4714045822620392变0.4714045524597168、另一分量保持；仍有D270余差，不称单因已匹配整个source运动。与D259的minimax Atan2、D248的ARM64 reciprocal-sqrt和D237的View角度差分不同。旧direction测试只用宽容差/target自身sin_cos期望，没有source float中间值。证据`docs/audit/bf144/442b/preliminary-findings.json`、`source-producer.json`；未修改生产。
+
+  - 修复第1轮：开始2026-11-08 06:58 +08:00；预估结束07:28 +08:00。依据：.442b已有317原生同角样本和45°消费反例，D270刚fresh读取相同45°；重核UE多项式与仓库既有 `rig_sin_cos`，只替换移动输入的三角算子，不改变相对角或其他消费者。测试及真实Gate在静态修复和Bevy迁移后统一执行。
+  - 06:58 source/static闭环：fresh UE float `SinCos` 的范围折叠和11/10阶系数与现有 `rig_sin_cos` 逐项一致，D270同轮原生45°输出cos 0.7071067094802856、sin 0.7071067690849304；复用现有实现，不新增近似核。
+  - 06:59实现摘要：移动输入改用现有源式float近似，已写45°原生精确对照；其他三角调用不变。实现结束06:59、偏差−29分钟；测试、消融和真实Gate待静态修复及Bevy迁移后执行。
 
 - [ ] BF144-D268 / P3 — 运动标量在计算前换算米制，改变gait映射与曲线float结果。
   - BF144.502 VelocityBlend单位阶段消费者。固定原生局部D64向量和其余F32归一化/历史，从厘米cast换成先换米再cast，99右向由0.09887274354696274变为0.09887273609638214，精确复现501组合控制余量。证据 docs/audit/bf144/502/summary.json。
