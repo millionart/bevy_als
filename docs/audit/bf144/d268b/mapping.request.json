@@ -1,0 +1,118 @@
+{
+  "samples": [
+    {
+      "name": "cm-25",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "float_range_map": {
+        "input": 333.3377685546875,
+        "input_range": [
+          175.0,
+          375.0
+        ],
+        "output_range": [
+          1,
+          2
+        ]
+      },
+      "scaled_distance": {
+        "a": [
+          333.33775997161865,
+          0.008583068120060489,
+          0
+        ],
+        "b": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "projected-25",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "float_range_map": {
+        "input": 3.3333775997161865,
+        "input_range": [
+          1.75,
+          3.75
+        ],
+        "output_range": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "name": "cm-26",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "float_range_map": {
+        "input": 374.9999694824219,
+        "input_range": [
+          175.0,
+          375.0
+        ],
+        "output_range": [
+          1,
+          2
+        ]
+      },
+      "scaled_distance": {
+        "a": [
+          374.9999761581421,
+          0.008583068120060489,
+          0
+        ],
+        "b": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "projected-26",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "float_range_map": {
+        "input": 3.749999761581421,
+        "input_range": [
+          1.75,
+          3.75
+        ],
+        "output_range": [
+          1,
+          2
+        ]
+      }
+    }
+  ]
+}

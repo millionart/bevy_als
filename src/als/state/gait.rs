@@ -173,6 +173,12 @@ pub fn calculate_gait_amount(speed: f32, settings: &StanceGaitSpeeds) -> f32 {
 }
 
 pub fn calculate_gait_amount_for_thresholds(speed: f32, thresholds: GaitSpeedThresholds) -> f32 {
+    let speed = speed * 100.0;
+    let thresholds = GaitSpeedThresholds {
+        walk: thresholds.walk * 100.0,
+        run: thresholds.run * 100.0,
+        sprint: thresholds.sprint * 100.0,
+    };
     if speed > thresholds.run {
         remap_clamped(speed, thresholds.run, thresholds.sprint, 2.0, 3.0)
     } else if speed > thresholds.walk {
@@ -536,6 +542,14 @@ mod tests {
         assert!((calculate_gait_amount(1.75, &settings) - 1.0).abs() < 1e-6);
         assert!((calculate_gait_amount(3.75, &settings) - 2.0).abs() < 1e-6);
         assert!((calculate_gait_amount(6.5, &settings) - 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn gait_amount_uses_source_centimeter_mapping() {
+        let thresholds = StanceGaitSpeeds::default().gait_speed_thresholds(1.0);
+        assert_eq!(calculate_gait_amount_for_thresholds(3.3333775997161865, thresholds), 1.7916889190673828);
+        assert_eq!(calculate_gait_amount_for_thresholds(3.749999761581421, thresholds), 1.999999761581421);
+        assert_eq!(calculate_gait_amount_for_thresholds(3.75, thresholds), 2.0);
     }
 
     #[test]
