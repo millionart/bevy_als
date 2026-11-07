@@ -476,96 +476,11 @@ impl GroundedDynamicsCurves {
     }
 }
 
-fn source_curve(keys: &[(f32, f32, f32, f32)]) -> HermiteCurve {
-    HermiteCurve {
-        keys: keys
-            .iter()
-            .map(|&(time, value, arrive_tangent, leave_tangent)| HermiteKey {
-                time,
-                value,
-                arrive_tangent,
-                leave_tangent,
-            })
-            .collect(),
-    }
-}
-
-fn source_dynamics_curve(
-    acceleration: &[(f32, f32, f32, f32)],
-    braking_deceleration: &[(f32, f32, f32, f32)],
-    ground_friction: &[(f32, f32, f32, f32)],
-) -> GroundedDynamicsCurve {
-    GroundedDynamicsCurve {
-        acceleration: source_curve(acceleration),
-        braking_deceleration: source_curve(braking_deceleration),
-        ground_friction: source_curve(ground_friction),
-    }
-}
-
 impl Default for GroundedDynamicsCurves {
     fn default() -> Self {
-        Self {
-            normal: source_dynamics_curve(
-                &[
-                    (0.0, 20.0, 0.0, 0.0),
-                    (1.0, 20.0, 0.0, 0.0),
-                    (2.0, 20.0, 0.0, -36.423_724),
-                    (3.0, 7.5, 0.0, 0.0),
-                ],
-                &[
-                    (0.0, 15.0, 0.0, 0.0),
-                    (1.0, 15.0, 0.0, -2.5),
-                    (2.0, 12.5, -2.5, -7.5),
-                    (3.0, 5.0, -7.5, 0.0),
-                ],
-                &[
-                    (0.0, 5.0, 0.0, 0.0),
-                    (1.0, 5.0, 0.0, -1.0),
-                    (2.0, 4.0, -1.0, -3.5),
-                    (3.0, 0.5, -3.5, 0.0),
-                ],
-            ),
-            responsive: source_dynamics_curve(
-                &[
-                    (0.0, 25.0, 0.0, 0.0),
-                    (1.0, 25.0, 0.0, 0.0),
-                    (2.0, 25.0, 0.0, -58.633_94),
-                    (3.0, 5.0, 0.0, 0.0),
-                ],
-                &[
-                    (0.0, 20.0, 0.0, 0.0),
-                    (1.0, 20.0, 0.0, 0.0),
-                    (2.0, 20.0, 0.0, -27.156_406),
-                    (3.0, 8.0, 0.0, 0.0),
-                ],
-                &[
-                    (0.0, 10.0, 0.0, 0.0),
-                    (1.0, 10.0, 0.0, 0.0),
-                    (2.0, 10.0, 0.0, 0.0),
-                    (3.0, 5.0, 0.0, 0.0),
-                ],
-            ),
-            sluggish: source_dynamics_curve(
-                &[
-                    (0.0, 5.0, 0.0, 0.0),
-                    (1.0, 5.0, 0.0, 0.0),
-                    (2.0, 5.0, 0.0, -8.434_028),
-                    (3.0, 2.0, 0.0, 0.0),
-                ],
-                &[
-                    (0.0, 10.0, 0.0, 0.0),
-                    (1.0, 10.0, 0.0, 0.0),
-                    (2.0, 7.5, -5.853_719, -5.853_719),
-                    (3.0, 3.0, 0.0, 0.0),
-                ],
-                &[
-                    (0.0, 4.0, 0.0, 0.0),
-                    (1.0, 4.0, 0.0, 0.0),
-                    (2.0, 3.0, -2.125_014, -2.125_014),
-                    (3.0, 1.0, 0.0, 0.0),
-                ],
-            ),
-        }
+        serde_json::from_str(include_str!(
+            "../../../assets/ALS/Data/Character/Movement/grounded_dynamics.runtime.json"
+        )).expect("generated grounded dynamics configuration is invalid")
     }
 }
 
@@ -1257,5 +1172,14 @@ mod tests {
         assert!((sluggish.acceleration - 2.445_746).abs() < 1e-4);
         assert!((sluggish.braking_deceleration - 4.518_285).abs() < 1e-4);
         assert!((sluggish.ground_friction - 1.734_373).abs() < 1e-4);
+    }
+
+    #[test]
+    fn grounded_dynamics_uses_source_curve_tangents() {
+        let curves = GroundedDynamicsCurves::default();
+        assert_eq!(curves.normal.acceleration.keys[2].leave_tangent, -36.42372131347656);
+        assert_eq!(curves.responsive.braking_deceleration.keys[2].leave_tangent, -27.156404495239258);
+        assert_eq!(curves.normal.acceleration.sample(2.125), 15.97702693939209);
+        assert_eq!(curves.normal.braking_deceleration.keys[1].leave_tangent, -2.5);
     }
 }

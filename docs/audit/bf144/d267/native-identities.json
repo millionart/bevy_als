@@ -1,0 +1,86 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Data/Character/Movement/MS_Als_Normal.uasset",
+      "asset_identity": {
+        "bytes": 4961,
+        "sha256": "9934e80baba0a90db405eefff7c817eb2175f5219300501c73e7753db07d9533"
+      },
+      "request_asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+      "native_output": "docs/audit/bf144/d267/settings_normal.native.json",
+      "raw": {
+        "bytes": 53915,
+        "sha256": "4fd9a40b49c984a8d07761c414e14bb57522cf6d23c36a07b889e28fcc9671af"
+      },
+      "reader_report": "docs/audit/bf144/d267/settings_normal.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Data/Character/Movement/MS_Als_Responsive.uasset",
+      "asset_identity": {
+        "bytes": 4523,
+        "sha256": "94ad9041887082381602cfe05d5e5736e7e2aebdfe484a0fc4f9bda2214aa00a"
+      },
+      "request_asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Responsive.MS_Als_Responsive",
+      "native_output": "docs/audit/bf144/d267/settings_responsive.native.json",
+      "raw": {
+        "bytes": 55251,
+        "sha256": "3888dfc79ad3698dec26d59307ab9890cd3c608e16f88bdc62dcb39a5ff8c397"
+      },
+      "reader_report": "docs/audit/bf144/d267/settings_responsive.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Data/Character/Movement/MS_Als_Sluggish.uasset",
+      "asset_identity": {
+        "bytes": 4505,
+        "sha256": "b7533b452f4836d73ff157895acf7baefb9eb58e6b91261dc297ddec3c06fc6c"
+      },
+      "request_asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Sluggish.MS_Als_Sluggish",
+      "native_output": "docs/audit/bf144/d267/settings_sluggish.native.json",
+      "raw": {
+        "bytes": 55411,
+        "sha256": "820bbea88bf79d2cff08700999b0e6f374afbc029be33437dec251b95cff820a"
+      },
+      "reader_report": "docs/audit/bf144/d267/settings_sluggish.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Normal.uasset",
+      "asset_identity": {
+        "bytes": 6343,
+        "sha256": "e105939b76deb4bda0067334cea5f43392670b04c113d3b42f0c948e17eadbb5"
+      },
+      "probe_output": "docs/audit/bf144/d267/curves.native.json",
+      "request": "docs/audit/bf144/d267/curves.request.json"
+    },
+    {
+      "asset": "Content/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.uasset",
+      "asset_identity": {
+        "bytes": 6303,
+        "sha256": "0b76a589ac6b6b033f5674b5d46fc6c828b9ec0251dba4659581ee5b0b95ef26"
+      },
+      "probe_output": "docs/audit/bf144/d267/curves.native.json",
+      "request": "docs/audit/bf144/d267/curves.request.json"
+    },
+    {
+      "asset": "Content/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Sluggish.uasset",
+      "asset_identity": {
+        "bytes": 6585,
+        "sha256": "dec9165d5baf5fc4223caf3616e7ab44afcdf14ca92150744f88be28c59ad0c1"
+      },
+      "probe_output": "docs/audit/bf144/d267/curves.native.json",
+      "request": "docs/audit/bf144/d267/curves.request.json"
+    },
+    {
+      "asset": "Content/ALS/Character/SK_Als.uasset",
+      "asset_identity": {
+        "bytes": 45766,
+        "sha256": "8696ff0584e471a93366a2bb0b371e907d42cb13fa489755f388c5a463e5e0a6"
+      },
+      "native_output": "docs/audit/bf144/d267/curves.native.json",
+      "raw": {
+        "bytes": 1141951,
+        "sha256": "ae07faa395b5b74bc7a433e1954e549022c2405c6acf0f20c155b545ece35a8e"
+      },
+      "reader_report": "docs/audit/bf144/d267/curves.native.json.reader.report.json"
+    }
+  ]
+}

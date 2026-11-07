@@ -1,0 +1,186 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Classes/Curves/RealCurve.h",
+      "sha256": "1d9e64f9f17d486b50b55abffd218067b01cf6705f7fd135ee48fbde8d85e5c8",
+      "excerpts": [
+        {
+          "first_line": 10,
+          "last_line": 39,
+          "text": "/** Method of interpolation between this key and the next. */\nUENUM(BlueprintType)\nenum ERichCurveInterpMode : int\n{\n\t/** Use linear interpolation between values. */\n\tRCIM_Linear UMETA(DisplayName = \"Linear\"),\n\t/** Use a constant value. Represents stepped values. */\n\tRCIM_Constant UMETA(DisplayName = \"Constant\"),\n\t/** Cubic interpolation. See TangentMode for different cubic interpolation options. */\n\tRCIM_Cubic UMETA(DisplayName = \"Cubic\"),\n\t/** No interpolation. */\n\tRCIM_None UMETA(Hidden)\n};\n\n/** Enumerates extrapolation options. */\nUENUM(BlueprintType)\nenum ERichCurveExtrapolation : int\n{\n\t/** Repeat the curve without an offset. */\n\tRCCE_Cycle UMETA(DisplayName = \"Cycle\"),\n\t/** Repeat the curve with an offset relative to the first or last key's value. */\n\tRCCE_CycleWithOffset UMETA(DisplayName = \"CycleWithOffset\"),\n\t/** Sinusoidally extrapolate. */\n\tRCCE_Oscillate UMETA(DisplayName = \"Oscillate\"),\n\t/** Use a linearly increasing value for extrapolation.*/\n\tRCCE_Linear UMETA(DisplayName = \"Linear\"),\n\t/** Use a constant value for extrapolation */\n\tRCCE_Constant UMETA(DisplayName = \"Constant\"),\n\t/** No Extrapolation */\n\tRCCE_None UMETA(DisplayName = \"None\")"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Curves/CurveEvaluation.cpp",
+      "sha256": "e1d2b4f85b8e45a1a1b74c59c5167dbdaf95660abfaf727a6cedb6d732f1d985",
+      "excerpts": [
+        {
+          "first_line": 205,
+          "last_line": 240,
+          "text": "\t\tfloat EvalForTwoKeys(const FRichCurveKey& Key1, const FRichCurveKey& Key2, const float InTime)\n\t\t{\n\t\t\tconst float Diff = Key2.Time - Key1.Time;\n\n\t\t\tif (Diff > 0.f)\n\t\t\t{\n\t\t\t\tif (Key1.InterpMode != RCIM_Constant)\n\t\t\t\t{\n\t\t\t\t\tconst float Alpha = (InTime - Key1.Time) / Diff;\n\t\t\t\t\tconst float P0 = Key1.Value;\n\t\t\t\t\tconst float P3 = Key2.Value;\n\n\t\t\t\t\tif (Key1.InterpMode == RCIM_Linear)\n\t\t\t\t\t{\n\t\t\t\t\t\treturn FMath::Lerp(P0, P3, Alpha);\n\t\t\t\t\t}\n\t\t\t\t\telse \n\t\t\t\t\t{\t\t\t\t\t\n\t\t\t\t\t\tif (IsItNotWeighted(Key1,Key2))\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tconst float OneThird = 1.0f / 3.0f;\n\t\t\t\t\t\t\tconst float P1 = P0 + (Key1.LeaveTangent * Diff * OneThird);\n\t\t\t\t\t\t\tconst float P2 = P3 - (Key2.ArriveTangent * Diff * OneThird);\n\n\t\t\t\t\t\t\treturn BezierInterp(P0, P1, P2, P3, Alpha);\n\t\t\t\t\t\t}\n\t\t\t\t\t\t//if (IsWeighted(Key1, Key2))//it's weighted\n\t\t\t\t\t\telse\t\n\t\t\t\t\t\t{\n\t\t\t\t\t\treturn WeightedEvalForTwoKeys(\n\t\t\t\t\t\t\tKey1.Value, Key1.Time, Key1.LeaveTangent, Key1.LeaveTangentWeight, Key1.TangentWeightMode,\n\t\t\t\t\t\t\tKey2.Value, Key2.Time, Key2.ArriveTangent, Key2.ArriveTangentWeight, Key2.TangentWeightMode,\n\t\t\t\t\t\t\tInTime);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "first_line": 1007,
+          "last_line": 1020,
+          "text": "\t// Get acceleration, deceleration and ground friction using a curve. This\n\t// allows us to precisely control the movement behavior at each speed.\n\n\tif (ALS_ENSURE(IsValid(GaitSettings.AccelerationAndDecelerationAndGroundFrictionCurve)))\n\t{\n\t\tconst auto& AccelerationAndDecelerationAndGroundFrictionCurves{\n\t\t\tGaitSettings.AccelerationAndDecelerationAndGroundFrictionCurve->FloatCurves\n\t\t};\n\n\t\tMaxAccelerationWalking = AccelerationAndDecelerationAndGroundFrictionCurves[0].Eval(GaitAmount);\n\t\tBrakingDecelerationWalking = AccelerationAndDecelerationAndGroundFrictionCurves[1].Eval(GaitAmount);\n\t\tGroundFriction = AccelerationAndDecelerationAndGroundFrictionCurves[2].Eval(GaitAmount);\n\t}\n}"
+        }
+      ]
+    },
+    {
+      "path": "tools/export/fit_ground_dynamics_curves.py",
+      "sha256": "cd8322e9543c08af04b6ae4ab5f2d7e768405ab38ff159464c470ebd3c54d952",
+      "excerpts": [
+        {
+          "first_line": 34,
+          "last_line": 46,
+          "text": "def solve_tangents(start_value, end_value, quarter_value, three_quarter_value):\n    h00a, h10a, h01a, h11a = basis(0.25)\n    h00b, h10b, h01b, h11b = basis(0.75)\n    rhs_a = quarter_value - h00a * start_value - h01a * end_value\n    rhs_b = three_quarter_value - h00b * start_value - h01b * end_value\n    determinant = h10a * h11b - h10b * h11a\n    if abs(determinant) <= 1e-12:\n        raise RuntimeError(\"singular Hermite basis\")\n    start_tangent = (rhs_a * h11b - rhs_b * h11a) / determinant\n    end_tangent = (h10a * rhs_b - h10b * rhs_a) / determinant\n    return start_tangent, end_tangent\n\n"
+        },
+        {
+          "first_line": 60,
+          "last_line": 84,
+          "text": "for name, curve in source.items():\n    samples = curve[\"samples\"]\n    axes_result = {}\n    for axis in axes:\n        segments = []\n        for start, end in zip(key_times, key_times[1:]):\n            start_value = sample_at(samples, start)[axis]\n            end_value = sample_at(samples, end)[axis]\n            quarter_value = sample_at(samples, start + 0.25)[axis]\n            three_quarter_value = sample_at(samples, start + 0.75)[axis]\n            start_tangent, end_tangent = solve_tangents(\n                start_value,\n                end_value,\n                quarter_value,\n                three_quarter_value,\n            )\n            segments.append(\n                {\n                    \"start\": start,\n                    \"end\": end,\n                    \"start_value\": start_value,\n                    \"end_value\": end_value,\n                    \"start_tangent\": start_tangent,\n                    \"end_tangent\": end_tangent,\n                }"
+        }
+      ]
+    },
+    {
+      "path": "src/als/settings/params.rs",
+      "sha256": "831b54b0168dcaee8c93bb26c080ffadfa067df2ada38bf882db101f711e9ea0",
+      "excerpts": [
+        {
+          "first_line": 400,
+          "last_line": 455,
+          "text": "    pub arrive_tangent: f32,\n    pub leave_tangent: f32,\n}\n\n#[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]\npub struct HermiteCurve {\n    pub keys: Vec<HermiteKey>,\n}\n\nimpl HermiteCurve {\n    pub fn sample(&self, time: f32) -> f32 {\n        let Some(first) = self.keys.first() else {\n            return 0.0;\n        };\n        let Some(last) = self.keys.last() else {\n            return 0.0;\n        };\n        if time <= first.time {\n            return first.value;\n        }\n        if time >= last.time {\n            return last.value;\n        }\n        let upper = self.keys.partition_point(|key| key.time <= time);\n        let start = self.keys[upper - 1];\n        let end = self.keys[upper];\n        let duration = (end.time - start.time).max(f32::EPSILON);\n        let normalized = ((time - start.time) / duration).clamp(0.0, 1.0);\n        let normalized_squared = normalized * normalized;\n        let normalized_cubed = normalized_squared * normalized;\n        let h00 = 2.0 * normalized_cubed - 3.0 * normalized_squared + 1.0;\n        let h10 = normalized_cubed - 2.0 * normalized_squared + normalized;\n        let h01 = -2.0 * normalized_cubed + 3.0 * normalized_squared;\n        let h11 = normalized_cubed - normalized_squared;\n        h00 * start.value\n            + h10 * duration * start.leave_tangent\n            + h01 * end.value\n            + h11 * duration * end.arrive_tangent\n    }\n}\n\n#[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]\npub struct GroundedDynamicsCurve {\n    pub acceleration: HermiteCurve,\n    pub braking_deceleration: HermiteCurve,\n    pub ground_friction: HermiteCurve,\n}\n\nimpl GroundedDynamicsCurve {\n    pub fn sample(&self, gait_amount: f32) -> GroundedDynamics {\n        GroundedDynamics {\n            acceleration: self.acceleration.sample(gait_amount),\n            braking_deceleration: self.braking_deceleration.sample(gait_amount),\n            ground_friction: self.ground_friction.sample(gait_amount),\n        }\n    }"
+        },
+        {
+          "first_line": 475,
+          "last_line": 487,
+          "text": "        self.curve(profile).sample(gait_amount)\n    }\n}\n\nimpl Default for GroundedDynamicsCurves {\n    fn default() -> Self {\n        serde_json::from_str(include_str!(\n            \"../../../assets/ALS/Data/Character/Movement/grounded_dynamics.runtime.json\"\n        )).expect(\"generated grounded dynamics configuration is invalid\")\n    }\n}\n\n#[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]"
+        }
+      ]
+    },
+    {
+      "path": "tools/import/generate_grounded_dynamics_curves.py",
+      "sha256": "b1c6ddf1ce6d0019299dd1a6c3e3c842c6a1efbf7a451c129e3971d8becdff2c",
+      "excerpts": [
+        {
+          "first_line": 23,
+          "last_line": 46,
+          "text": "        for child in value.values():\n            references.update(curve_references(child))\n    elif isinstance(value, list):\n        for child in value:\n            references.update(curve_references(child))\n    return references\n\n\ndef convert_keys(keys, scale):\n    if len(keys) < 2 or any(key['weight_mode'] != 0 for key in keys):\n        raise ValueError('unsupported weighted or empty curve')\n    output = [{'time': f32(key['time']), 'value': f32(key['value'] * scale),\n               'arrive_tangent': f32(key['arrive_tangent'] * scale),\n               'leave_tangent': f32(key['leave_tangent'] * scale)} for key in keys]\n    for index, (start, end) in enumerate(zip(keys, keys[1:])):\n        duration = f32(end['time'] - start['time'])\n        if duration <= 0.0:\n            raise ValueError('curve key times are not increasing')\n        if start['interp_mode'] == 0:\n            slope = f32(f32(end['value'] - start['value']) / duration)\n            output[index]['leave_tangent'] = f32(slope * scale)\n            output[index + 1]['arrive_tangent'] = f32(slope * scale)\n        elif start['interp_mode'] != 2:\n            raise ValueError('unsupported curve interpolation')"
+        },
+        {
+          "first_line": 49,
+          "last_line": 86,
+          "text": "\ndef generate(native_path, settings_paths, baseline_path, output_path):\n    protected = {path.resolve() for path in (native_path, baseline_path, *settings_paths.values())}\n    if output_path.resolve() in protected:\n        raise ValueError('output would overwrite source data')\n    native = json.loads(native_path.read_text())\n    settings = {name: curve_references(json.loads(path.read_text())['asset_properties'])\n                for name, path in settings_paths.items()}\n    allowed = {'normal': settings['normal'], 'responsive': settings['normal'] & settings['responsive'],\n               'sluggish': settings['sluggish']}\n    result = {profile: {} for profile in PROFILES}\n    identities = {}\n    for sample in native['blend_profile_probe']['samples']:\n        profile, axis_text = sample['name'].rsplit('-', 1)\n        axis = int(axis_text)\n        if profile not in result or axis not in range(3) or axis != sample['custom_curve_axis']:\n            raise ValueError('curve sample identity is invalid')\n        curve = sample['custom_curve']\n        if curve not in allowed[profile] or sample['custom_curve_class'] != '/Script/Engine.CurveVector':\n            raise ValueError('curve is not referenced by the source settings')\n        if sample['custom_curve_pre_extrap'] != 4 or sample['custom_curve_post_extrap'] != 4:\n            raise ValueError('unsupported curve extrapolation')\n        if profile in identities and identities[profile] != curve:\n            raise ValueError('profile axes use different curves')\n        identities[profile] = curve\n        channel = CHANNELS[axis]\n        if channel in result[profile]:\n            raise ValueError('duplicate curve axis')\n        result[profile][channel] = convert_keys(sample['custom_curve_keys'], 0.01 if axis < 2 else 1.0)\n    if any(set(result[profile]) != set(CHANNELS) for profile in PROFILES):\n        raise ValueError('source curve axes are incomplete')\n    baseline = json.loads(baseline_path.read_text())['original']\n    changes = []\n    for profile in PROFILES:\n        for channel in CHANNELS:\n            before = baseline[profile][channel]['keys']\n            after = result[profile][channel]['keys']\n            if len(before) != len(after):"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/441b/source-parameters.json",
+      "bytes": 139581,
+      "sha256": "69533a39a59a3fad5320790a004a4b43cbb49543e55b3d4edd6b67081b7a3613"
+    },
+    {
+      "path": "docs/audit/bf144/441b/scalar-check.json",
+      "bytes": 1201,
+      "sha256": "e2be110b51f2921c0403260e5051a69b33c79ba62aaf46a20517372fd8a6b597"
+    },
+    {
+      "path": "docs/audit/bf144/513/summary.json",
+      "bytes": 6297,
+      "sha256": "2f50cc0589cf8450e96e33ee7b84f5b2bf646f8609108be25e91890e954cbf3e"
+    },
+    {
+      "path": "docs/audit/bf144/513/runtime-baseline/profile.json",
+      "bytes": 12049,
+      "sha256": "78e57fb5598819270d15dbb7540cb00c3447523911cba606e81f06263786d0fd"
+    },
+    {
+      "path": "docs/audit/bf144/d267/curves.request.json",
+      "bytes": 16699,
+      "sha256": "c5f84c8bd59d21c01df14c630f656fe4fd8aa64083c99854ea2aec8277e1e539"
+    },
+    {
+      "path": "docs/audit/bf144/d267/curves.native.json",
+      "bytes": 1141951,
+      "sha256": "ae07faa395b5b74bc7a433e1954e549022c2405c6acf0f20c155b545ece35a8e"
+    },
+    {
+      "path": "docs/audit/bf144/d267/generated-report.json",
+      "bytes": 2227,
+      "sha256": "45b768d403f79d705278c77db84f146f5442ac92bcbecfe733c27057893a50a3"
+    },
+    {
+      "path": "docs/audit/bf144/d267/generator.watchdog.json",
+      "bytes": 407,
+      "sha256": "081e673e0cb9b0ca06fc5d7e774dc094ea54f12b44c3c6f79548af8b97596fb8"
+    }
+  ],
+  "changed_fields": [
+    {
+      "profile": "normal",
+      "channel": "acceleration",
+      "key": 2,
+      "field": "leave_tangent",
+      "before": -36.42372512817383,
+      "after": -36.42372131347656
+    },
+    {
+      "profile": "responsive",
+      "channel": "braking_deceleration",
+      "key": 2,
+      "field": "leave_tangent",
+      "before": -27.15640640258789,
+      "after": -27.156404495239258
+    },
+    {
+      "profile": "sluggish",
+      "channel": "acceleration",
+      "key": 2,
+      "field": "leave_tangent",
+      "before": -8.434027671813965,
+      "after": -8.434028625488281
+    },
+    {
+      "profile": "sluggish",
+      "channel": "braking_deceleration",
+      "key": 2,
+      "field": "arrive_tangent",
+      "before": -5.853719234466553,
+      "after": -5.8537211418151855
+    },
+    {
+      "profile": "sluggish",
+      "channel": "braking_deceleration",
+      "key": 2,
+      "field": "leave_tangent",
+      "before": -5.853719234466553,
+      "after": -5.8537211418151855
+    },
+    {
+      "profile": "sluggish",
+      "channel": "ground_friction",
+      "key": 2,
+      "field": "arrive_tangent",
+      "before": -2.125014066696167,
+      "after": -2.1250131130218506
+    },
+    {
+      "profile": "sluggish",
+      "channel": "ground_friction",
+      "key": 2,
+      "field": "leave_tangent",
+      "before": -2.125014066696167,
+      "after": -2.1250131130218506
+    }
+  ],
+  "scope": "direct source key data and linear-segment Hermite equivalents in SI; source centimeter evaluation remains D268c and interpolation arithmetic remains D206"
+}

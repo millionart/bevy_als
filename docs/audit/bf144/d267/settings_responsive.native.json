@@ -1,0 +1,1199 @@
+{
+	"format": "ue_asset_source_v1",
+	"asset_path": "/ALS/ALS/Data/Character/Movement/MS_Als_Responsive.MS_Als_Responsive",
+	"asset_class": "/Script/ALS.AlsMovementSettings",
+	"asset_properties": [
+		{
+			"name": "VelocityAngleToSpeedInterpolationRange",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FFloatInterval",
+			"flags": "0x18001040000215",
+			"exported_text": "(Min=100.000000,Max=125.000000)",
+			"fields": [
+				{
+					"name": "Min",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "100.000000",
+					"numeric_value": 100
+				},
+				{
+					"name": "Max",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "125.000000",
+					"numeric_value": 125
+				}
+			]
+		},
+		{
+			"name": "RotationModes",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "MapProperty",
+			"cpp_type": "TMap",
+			"flags": "0x10000000000015",
+			"exported_text": "(((TagName=\"Als.RotationMode.VelocityDirection\"), (Stances=(((TagName=\"Als.Stance.Standing\"), (RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\"))))),((TagName=\"Als.RotationMode.ViewDirection\"), (Stances=(((TagName=\"Als.Stance.Standing\"), (RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\"))))),((TagName=\"Als.RotationMode.Aiming\"), (Stances=(((TagName=\"Als.Stance.Standing\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\"))))))",
+			"elements": [
+				{
+					"key": "(TagName=\"Als.RotationMode.VelocityDirection\")",
+					"fields": [
+						{
+							"name": "Stances",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000000000005",
+							"exported_text": "(((TagName=\"Als.Stance.Standing\"), (RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")))",
+							"elements": [
+								{
+									"key": "(TagName=\"Als.Stance.Standing\")",
+									"fields": [
+										{
+											"name": "bAllowDirectionDependentMovementSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "uint8",
+											"flags": "0x18001000000015",
+											"exported_text": "False"
+										},
+										{
+											"name": "WalkForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "175.000000",
+											"numeric_value": 175
+										},
+										{
+											"name": "WalkBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "175.000000",
+											"numeric_value": 175
+										},
+										{
+											"name": "RunForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "400.000000",
+											"numeric_value": 400
+										},
+										{
+											"name": "RunBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "400.000000",
+											"numeric_value": 400
+										},
+										{
+											"name": "SprintSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "700.000000",
+											"numeric_value": 700
+										},
+										{
+											"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveVector>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+										},
+										{
+											"name": "RotationInterpolationSpeedCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveFloat>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+										}
+									]
+								},
+								{
+									"key": "(TagName=\"Als.Stance.Crouching\")",
+									"fields": [
+										{
+											"name": "bAllowDirectionDependentMovementSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "uint8",
+											"flags": "0x18001000000015",
+											"exported_text": "False"
+										},
+										{
+											"name": "WalkForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "150.000000",
+											"numeric_value": 150
+										},
+										{
+											"name": "WalkBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "150.000000",
+											"numeric_value": 150
+										},
+										{
+											"name": "RunForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "200.000000",
+											"numeric_value": 200
+										},
+										{
+											"name": "RunBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "200.000000",
+											"numeric_value": 200
+										},
+										{
+											"name": "SprintSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "300.000000",
+											"numeric_value": 300
+										},
+										{
+											"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveVector>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+										},
+										{
+											"name": "RotationInterpolationSpeedCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveFloat>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"key": "(TagName=\"Als.RotationMode.ViewDirection\")",
+					"fields": [
+						{
+							"name": "Stances",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000000000005",
+							"exported_text": "(((TagName=\"Als.Stance.Standing\"), (RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")))",
+							"elements": [
+								{
+									"key": "(TagName=\"Als.Stance.Standing\")",
+									"fields": [
+										{
+											"name": "bAllowDirectionDependentMovementSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "uint8",
+											"flags": "0x18001000000015",
+											"exported_text": "False"
+										},
+										{
+											"name": "WalkForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "175.000000",
+											"numeric_value": 175
+										},
+										{
+											"name": "WalkBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "175.000000",
+											"numeric_value": 175
+										},
+										{
+											"name": "RunForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "400.000000",
+											"numeric_value": 400
+										},
+										{
+											"name": "RunBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "400.000000",
+											"numeric_value": 400
+										},
+										{
+											"name": "SprintSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "700.000000",
+											"numeric_value": 700
+										},
+										{
+											"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveVector>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+										},
+										{
+											"name": "RotationInterpolationSpeedCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveFloat>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+										}
+									]
+								},
+								{
+									"key": "(TagName=\"Als.Stance.Crouching\")",
+									"fields": [
+										{
+											"name": "bAllowDirectionDependentMovementSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "uint8",
+											"flags": "0x18001000000015",
+											"exported_text": "False"
+										},
+										{
+											"name": "WalkForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "150.000000",
+											"numeric_value": 150
+										},
+										{
+											"name": "WalkBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "150.000000",
+											"numeric_value": 150
+										},
+										{
+											"name": "RunForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "200.000000",
+											"numeric_value": 200
+										},
+										{
+											"name": "RunBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "200.000000",
+											"numeric_value": 200
+										},
+										{
+											"name": "SprintSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "300.000000",
+											"numeric_value": 300
+										},
+										{
+											"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveVector>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+										},
+										{
+											"name": "RotationInterpolationSpeedCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveFloat>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"key": "(TagName=\"Als.RotationMode.Aiming\")",
+					"fields": [
+						{
+							"name": "Stances",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "MapProperty",
+							"cpp_type": "TMap",
+							"flags": "0x10000000000005",
+							"exported_text": "(((TagName=\"Als.Stance.Standing\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")))",
+							"elements": [
+								{
+									"key": "(TagName=\"Als.Stance.Standing\")",
+									"fields": [
+										{
+											"name": "bAllowDirectionDependentMovementSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "uint8",
+											"flags": "0x18001000000015",
+											"exported_text": "False"
+										},
+										{
+											"name": "WalkForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "150.000000",
+											"numeric_value": 150
+										},
+										{
+											"name": "WalkBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "150.000000",
+											"numeric_value": 150
+										},
+										{
+											"name": "RunForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "400.000000",
+											"numeric_value": 400
+										},
+										{
+											"name": "RunBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "400.000000",
+											"numeric_value": 400
+										},
+										{
+											"name": "SprintSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "700.000000",
+											"numeric_value": 700
+										},
+										{
+											"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveVector>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+										},
+										{
+											"name": "RotationInterpolationSpeedCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveFloat>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+										}
+									]
+								},
+								{
+									"key": "(TagName=\"Als.Stance.Crouching\")",
+									"fields": [
+										{
+											"name": "bAllowDirectionDependentMovementSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "BoolProperty",
+											"cpp_type": "uint8",
+											"flags": "0x18001000000015",
+											"exported_text": "False"
+										},
+										{
+											"name": "WalkForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "150.000000",
+											"numeric_value": 150
+										},
+										{
+											"name": "WalkBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "150.000000",
+											"numeric_value": 150
+										},
+										{
+											"name": "RunForwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "200.000000",
+											"numeric_value": 200
+										},
+										{
+											"name": "RunBackwardSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "200.000000",
+											"numeric_value": 200
+										},
+										{
+											"name": "SprintSpeed",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "300.000000",
+											"numeric_value": 300
+										},
+										{
+											"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveVector>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+										},
+										{
+											"name": "RotationInterpolationSpeedCurve",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ObjectProperty",
+											"cpp_type": "TObjectPtr<UCurveFloat>",
+											"flags": "0x11C001000000205",
+											"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	],
+	"engine_debug_fonts":
+	{
+		"tiny":
+		{
+			"size_points": 8,
+			"max_char_height": 13,
+			"style": "Light"
+		},
+		"medium":
+		{
+			"size_points": 10,
+			"max_char_height": 15,
+			"style": "Regular"
+		}
+	},
+	"blueprint_cdo_path": "None",
+	"blueprint_cdo_properties": [],
+	"blueprint_cdo_subobjects": [],
+	"asset_objects": [
+		{
+			"index": 0,
+			"object_path": "/ALS/ALS/Data/Character/Movement/MS_Als_Responsive.MS_Als_Responsive",
+			"class_path": "/Script/ALS.AlsMovementSettings",
+			"properties": [
+				{
+					"name": "VelocityAngleToSpeedInterpolationRange",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FFloatInterval",
+					"flags": "0x18001040000215",
+					"exported_text": "(Min=100.000000,Max=125.000000)",
+					"fields": [
+						{
+							"name": "Min",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "100.000000",
+							"numeric_value": 100
+						},
+						{
+							"name": "Max",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "125.000000",
+							"numeric_value": 125
+						}
+					]
+				},
+				{
+					"name": "RotationModes",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "MapProperty",
+					"cpp_type": "TMap",
+					"flags": "0x10000000000015",
+					"exported_text": "(((TagName=\"Als.RotationMode.VelocityDirection\"), (Stances=(((TagName=\"Als.Stance.Standing\"), (RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\"))))),((TagName=\"Als.RotationMode.ViewDirection\"), (Stances=(((TagName=\"Als.Stance.Standing\"), (RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\"))))),((TagName=\"Als.RotationMode.Aiming\"), (Stances=(((TagName=\"Als.Stance.Standing\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\"))))))",
+					"elements": [
+						{
+							"key": "(TagName=\"Als.RotationMode.VelocityDirection\")",
+							"fields": [
+								{
+									"name": "Stances",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "MapProperty",
+									"cpp_type": "TMap",
+									"flags": "0x10000000000005",
+									"exported_text": "(((TagName=\"Als.Stance.Standing\"), (RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")))",
+									"elements": [
+										{
+											"key": "(TagName=\"Als.Stance.Standing\")",
+											"fields": [
+												{
+													"name": "bAllowDirectionDependentMovementSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "BoolProperty",
+													"cpp_type": "uint8",
+													"flags": "0x18001000000015",
+													"exported_text": "False"
+												},
+												{
+													"name": "WalkForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "175.000000",
+													"numeric_value": 175
+												},
+												{
+													"name": "WalkBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "175.000000",
+													"numeric_value": 175
+												},
+												{
+													"name": "RunForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "400.000000",
+													"numeric_value": 400
+												},
+												{
+													"name": "RunBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "400.000000",
+													"numeric_value": 400
+												},
+												{
+													"name": "SprintSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "700.000000",
+													"numeric_value": 700
+												},
+												{
+													"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveVector>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+												},
+												{
+													"name": "RotationInterpolationSpeedCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveFloat>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+												}
+											]
+										},
+										{
+											"key": "(TagName=\"Als.Stance.Crouching\")",
+											"fields": [
+												{
+													"name": "bAllowDirectionDependentMovementSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "BoolProperty",
+													"cpp_type": "uint8",
+													"flags": "0x18001000000015",
+													"exported_text": "False"
+												},
+												{
+													"name": "WalkForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "150.000000",
+													"numeric_value": 150
+												},
+												{
+													"name": "WalkBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "150.000000",
+													"numeric_value": 150
+												},
+												{
+													"name": "RunForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "200.000000",
+													"numeric_value": 200
+												},
+												{
+													"name": "RunBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "200.000000",
+													"numeric_value": 200
+												},
+												{
+													"name": "SprintSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "300.000000",
+													"numeric_value": 300
+												},
+												{
+													"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveVector>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+												},
+												{
+													"name": "RotationInterpolationSpeedCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveFloat>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"key": "(TagName=\"Als.RotationMode.ViewDirection\")",
+							"fields": [
+								{
+									"name": "Stances",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "MapProperty",
+									"cpp_type": "TMap",
+									"flags": "0x10000000000005",
+									"exported_text": "(((TagName=\"Als.Stance.Standing\"), (RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")))",
+									"elements": [
+										{
+											"key": "(TagName=\"Als.Stance.Standing\")",
+											"fields": [
+												{
+													"name": "bAllowDirectionDependentMovementSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "BoolProperty",
+													"cpp_type": "uint8",
+													"flags": "0x18001000000015",
+													"exported_text": "False"
+												},
+												{
+													"name": "WalkForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "175.000000",
+													"numeric_value": 175
+												},
+												{
+													"name": "WalkBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "175.000000",
+													"numeric_value": 175
+												},
+												{
+													"name": "RunForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "400.000000",
+													"numeric_value": 400
+												},
+												{
+													"name": "RunBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "400.000000",
+													"numeric_value": 400
+												},
+												{
+													"name": "SprintSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "700.000000",
+													"numeric_value": 700
+												},
+												{
+													"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveVector>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+												},
+												{
+													"name": "RotationInterpolationSpeedCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveFloat>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+												}
+											]
+										},
+										{
+											"key": "(TagName=\"Als.Stance.Crouching\")",
+											"fields": [
+												{
+													"name": "bAllowDirectionDependentMovementSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "BoolProperty",
+													"cpp_type": "uint8",
+													"flags": "0x18001000000015",
+													"exported_text": "False"
+												},
+												{
+													"name": "WalkForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "150.000000",
+													"numeric_value": 150
+												},
+												{
+													"name": "WalkBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "150.000000",
+													"numeric_value": 150
+												},
+												{
+													"name": "RunForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "200.000000",
+													"numeric_value": 200
+												},
+												{
+													"name": "RunBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "200.000000",
+													"numeric_value": 200
+												},
+												{
+													"name": "SprintSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "300.000000",
+													"numeric_value": 300
+												},
+												{
+													"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveVector>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+												},
+												{
+													"name": "RotationInterpolationSpeedCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveFloat>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"key": "(TagName=\"Als.RotationMode.Aiming\")",
+							"fields": [
+								{
+									"name": "Stances",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "MapProperty",
+									"cpp_type": "TMap",
+									"flags": "0x10000000000005",
+									"exported_text": "(((TagName=\"Als.Stance.Standing\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=400.000000,RunBackwardSpeed=400.000000,SprintSpeed=700.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")),((TagName=\"Als.Stance.Crouching\"), (WalkForwardSpeed=150.000000,WalkBackwardSpeed=150.000000,RunForwardSpeed=200.000000,RunBackwardSpeed=200.000000,SprintSpeed=300.000000,AccelerationAndDecelerationAndGroundFrictionCurve=\"/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'\",RotationInterpolationSpeedCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'\")))",
+									"elements": [
+										{
+											"key": "(TagName=\"Als.Stance.Standing\")",
+											"fields": [
+												{
+													"name": "bAllowDirectionDependentMovementSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "BoolProperty",
+													"cpp_type": "uint8",
+													"flags": "0x18001000000015",
+													"exported_text": "False"
+												},
+												{
+													"name": "WalkForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "150.000000",
+													"numeric_value": 150
+												},
+												{
+													"name": "WalkBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "150.000000",
+													"numeric_value": 150
+												},
+												{
+													"name": "RunForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "400.000000",
+													"numeric_value": 400
+												},
+												{
+													"name": "RunBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "400.000000",
+													"numeric_value": 400
+												},
+												{
+													"name": "SprintSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "700.000000",
+													"numeric_value": 700
+												},
+												{
+													"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveVector>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+												},
+												{
+													"name": "RotationInterpolationSpeedCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveFloat>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+												}
+											]
+										},
+										{
+											"key": "(TagName=\"Als.Stance.Crouching\")",
+											"fields": [
+												{
+													"name": "bAllowDirectionDependentMovementSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "BoolProperty",
+													"cpp_type": "uint8",
+													"flags": "0x18001000000015",
+													"exported_text": "False"
+												},
+												{
+													"name": "WalkForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "150.000000",
+													"numeric_value": 150
+												},
+												{
+													"name": "WalkBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "150.000000",
+													"numeric_value": 150
+												},
+												{
+													"name": "RunForwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "200.000000",
+													"numeric_value": 200
+												},
+												{
+													"name": "RunBackwardSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "200.000000",
+													"numeric_value": 200
+												},
+												{
+													"name": "SprintSpeed",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "FloatProperty",
+													"cpp_type": "float",
+													"flags": "0x18001040000205",
+													"exported_text": "300.000000",
+													"numeric_value": 300
+												},
+												{
+													"name": "AccelerationAndDecelerationAndGroundFrictionCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveVector>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveVector'/ALS/ALS/Data/Character/Movement/CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive.CV_Als_AccelerationAndDecelerationAndGroundFriction_Responsive'"
+												},
+												{
+													"name": "RotationInterpolationSpeedCurve",
+													"array_index": 0,
+													"array_dim": 1,
+													"property_class": "ObjectProperty",
+													"cpp_type": "TObjectPtr<UCurveFloat>",
+													"flags": "0x11C001000000205",
+													"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.CF_Als_RotationInterpolationSpeed_Responsive'"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	],
+	"graphs": []
+}
