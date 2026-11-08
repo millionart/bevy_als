@@ -6364,11 +6364,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧cached参考按target同样的逐轴顺序复算，且实际PA drive测试每次只激活一个角轴；未覆盖源SIMD soft与惯量耦合的组合。
   - 20:11 source/static摘要：fresh solver选择条件、SIMD共享起点与合计DQ已核对，PA原生UseSimd=True；目标复用各轴修正计算，仅全soft limited cached分支累计后写回。已写spine参数、耦合/单轴、1/6迭代及PhysicsSchedule对照；D85初速阻尼、测试、消融与完整角色/Playground待统一Gate。证据`docs/audit/bf144/d78/`。实际结束：2026-11-08 20:11 +08:00；偏差：−50分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D79 / P3 — 混合Locked/Limited角约束遗漏源接近180°的退化保护。
+- [x] BF144-D79 / P3 — 混合Locked/Limited角约束遗漏源接近180°的退化保护。
+  - 本轮开始：2026-11-08 20:11 +08:00；预计结束：2026-11-08 20:46 +08:00。核对源阈值、scalar与全soft SIMD的分支差异，按native阈值添加混合轴退化保护并补边界及锁轴控制；统一验证留待升级后。
   - Source：fresh cached solver `1157–1168,1183–1188`在两frame的Twist轴dot<−0.998时跳过不可分解的Limited twist及单Limited swing，仍处理Locked轴。native neck_01为Twist/Swing1 Limited、Swing2 Locked，纯Swing1接近π时Locked误差为0，源这一轮不修正。
   - Target：`source_physics_joint.rs:365–406,2267–2294`只在quat twist长度几乎为零时放弃，没有源dot阈值；接近π但不等于π时继续施加大幅soft修正。
   - 反例：源阈值两侧、2.8rad、π−0.03与π共5组3PASS/2FAIL；完整角色neck在π−0.03时target每body额外修正1.125131rad，源应0。精确π反而因目标自身零长度guard而PASS。罕见极端角度边界，不按普通neck姿态缺陷描述。
   - 漏检：只验证普通角度或精确180°会错过这一窄区间；证据`bf144_pa_angle_mixed_limits_preserve_source_degenerate_swing_guard`及完整角色物理消费者。
+  - 20:14 source/static摘要：fresh scalar混合限位、双Swing及全soft SIMD分支已区分，native退化阈值−0.998由独立离线工具生成目标参数；目标仅跳过源排除的限位轴，保留硬锁。已写阈值两侧、双Swing/SIMD和实际物理调度对照；极小硬锁分母、测试、消融及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d79/`。实际结束：2026-11-08 20:14 +08:00；偏差：−32分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D80 / P2 — Ragdoll锁定锚点与投影复用了不同的球形约束算法。
   - Source：fresh `PBDJointCachedSolverGaussSeidel.cpp:379–433,576–630,824–903`在三轴Locked/SIMD分支缓存parent connector轴、双body力臂和各轴有效质量，以当次共同DP/DQ同时算三轴lambda，再累加线性DP与角向DQ；`241–274,2168–2238`的projection使用同样三轴公式，parent固定、child球形惯量。`ConstraintGroupSolver.cpp:518–559`在projection前提交并清空原DP/DQ。

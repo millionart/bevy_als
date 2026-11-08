@@ -1,0 +1,23 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 1155,
+    "end_line": 1222,
+    "text": "\n\n\n\t\tconst FVec3 Twist0 = ConnectorRs[0] * FJointConstants::TwistAxis();\n\t\tconst FVec3 Twist1 = ConnectorRs[1] * FJointConstants::TwistAxis();\n\t\tconst bool bDegenerate = (FVec3::DotProduct(Twist0, Twist1) < Chaos_Joint_DegenerateRotationLimit);\n\n\t\t// Apply twist constraint\n\t\t// NOTE: Cannot calculate twist angle at 180degree swing\n\t\tif (SolverSettings.bEnableTwistLimits)\n\t\t{\n\t\t\tif (bAngularLimited[TW] && !bDegenerate)\n\t\t\t{\n\t\t\t\tInitTwistConstraint(JointSettings, Dt);\n\t\t\t}\n\t\t}\n\n\t\t// Apply swing constraints\n\t\t// NOTE: Cannot separate swing angles at 180degree swing (but we can still apply locks)\n\t\tif (SolverSettings.bEnableSwingLimits)\n\t\t{\n\t\t\tif (bAngularLimited[S1] && bAngularLimited[S2])\n\t\t\t{\n\t\t\t\t// When using non linear solver, the cone swing direction could change at each iteration\n\t\t\t\t// stabilizing the solver. In the linear case we need to constraint along the 2 directions\n\t\t\t\t// for better stability\n\t\t\t\tInitPyramidSwingConstraint(JointSettings, Dt, true, true);\n\t\t\t}\n\t\t\telse if (bAngularLimited[S1] && bAngularLocked[S2])\n\t\t\t{\n\t\t\t\tif (!bDegenerate)\n\t\t\t\t{\n\t\t\t\t\tInitPyramidSwingConstraint(JointSettings, Dt, true, false);\n\t\t\t\t}\n\t\t\t}\n\t\t\telse if (bAngularLimited[S1] && bAngularFree[S2])\n\t\t\t{\n\t\t\t\tif (!bDegenerate)\n\t\t\t\t{\n\t\t\t\t\tInitDualConeSwingConstraint(JointSettings, Dt, EJointAngularConstraintIndex::Swing1);\n\t\t\t\t}\n\t\t\t}\n\t\t\telse if (bAngularLocked[S1] && bAngularLimited[S2])\n\t\t\t{\n\t\t\t\tif (!bDegenerate)\n\t\t\t\t{\n\t\t\t\t\tInitPyramidSwingConstraint(JointSettings, Dt, false, true);\n\t\t\t\t}\n\t\t\t}\n\t\t\telse if (bAngularFree[S1] && bAngularLimited[S2])\n\t\t\t{\n\t\t\t\tif (!bDegenerate)\n\t\t\t\t{\n\t\t\t\t\tInitDualConeSwingConstraint(JointSettings, Dt, EJointAngularConstraintIndex::Swing2);\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\n\n\t\t// Note: single-swing locks are already handled above so we only need to do something here if both are locked\n\t\tconst bool bLockedTwist = SolverSettings.bEnableTwistLimits && bAngularLocked[TW];\n\t\tconst bool bLockedSwing1 = SolverSettings.bEnableSwingLimits && bAngularLocked[S1];\n\t\tconst bool bLockedSwing2 = SolverSettings.bEnableSwingLimits && bAngularLocked[S2];\n\t\tif (bLockedTwist || bLockedSwing1 || bLockedSwing2)\n\t\t{\n\t\t\tInitLockedRotationConstraints(JointSettings, Dt, bLockedTwist, bLockedSwing1, bLockedSwing2);\n\t\t}\n\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 1226,
+    "end_line": 1249,
+    "text": "\nvoid FPBDJointCachedSolver::InitRotationConstraintsSimd(\n\tconst FPBDJointSettings& JointSettings,\n\tconst FRealSingle Dtf)\n{\n\tconst FVec3 Twist0 = ConnectorRs[0] * FJointConstants::TwistAxis();\n\tconst FVec3 Twist1 = ConnectorRs[1] * FJointConstants::TwistAxis();\n\tconst bool bDegenerate = (FVec3::DotProduct(Twist0, Twist1) < Chaos_Joint_DegenerateRotationLimit);\n\n\tFVec3 Axes[3];\n\tFReal Angles[3];\n\n\tFPBDJointUtilities::GetTwistAxisAngle(ConnectorRs[0], ConnectorRs[1], Axes[0], Angles[0]);\n\n\t// Project the angle directly to avoid checking the limits during the solve.\n\n\t// Decompose rotation of body 1 relative to body 0 into swing and twist rotations, assuming twist is X axis\n\tFRotation3 R01Twist, R01Swing;\n\tFPBDJointUtilities::DecomposeSwingTwistLocal(ConnectorRs[0], ConnectorRs[1], R01Swing, R01Twist);\n\tconst FRotation3 R0Swing = ConnectorRs[0] * R01Swing;\n\tAxes[2] = R0Swing * FJointConstants::Swing1Axis();\n\tAngles[2] = 4.0 * FMath::Atan2(R01Swing.Z, (FReal)(1. + R01Swing.W));\n\tAxes[1] = R0Swing * FJointConstants::Swing2Axis();\n\tAngles[1] = 4.0 * FMath::Atan2(R01Swing.Y, (FReal)(1. + R01Swing.W));"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/JointConstraintsCVars.cpp",
+    "sha256": "5217eccb71e3b2ddff0e6922e1622efa0c8483005b5fa0797e2ab144b524fe26",
+    "start_line": 10,
+    "end_line": 11,
+    "text": "float Chaos_Joint_DegenerateRotationLimit = -0.998f;\t// Cos(176deg)\nFAutoConsoleVariableRef CVarChaosJointDegenerateRotationLimit(TEXT(\"p.Chaos.Joint.DegenerateRotationLimit\"), Chaos_Joint_DegenerateRotationLimit, TEXT(\"Cosine of the swing angle that is considered degerenerate (default Cos(176deg))\"));"
+  }
+]

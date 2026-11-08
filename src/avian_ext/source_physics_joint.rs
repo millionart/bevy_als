@@ -25,6 +25,8 @@ use bevy::{
 };
 use serde::Deserialize;
 
+const JOINT_DEGENERATE_ROTATION_LIMIT: f32 = include!("joint_degenerate_rotation_limit.rs");
+
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 pub enum SourceAngularLimit {
     Free,
@@ -202,18 +204,22 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
         let simultaneous_limits = self.use_linear_solver
             && self.angular_limits.iter().all(|limit| matches!(limit, SourceAngularLimit::Limited(_)))
             && self.twist_spring.is_some() && self.swing_spring.is_some();
+        let initial_frames = (data.pre_solve_rotation[0] * data.frames[0], data.pre_solve_rotation[1] * data.frames[1]);
+        let degenerate = (initial_frames.0 * Vec3::X).dot(initial_frames.1 * Vec3::X) < JOINT_DEGENERATE_ROTATION_LIMIT;
+        let both_swing_limits = self.angular_limits[1..].iter().all(|limit| matches!(limit, SourceAngularLimit::Limited(_)));
         let mut accumulated_rotation = [Vec3::ZERO; 2];
         for index in 0..3 {
             let cached_limit = self.use_linear_solver && matches!(self.angular_limits[index],SourceAngularLimit::Limited(_));
             let cached_locked = self.use_linear_solver && self.angular_limits[index] == SourceAngularLimit::Locked;
-            let correction = if cached_locked {
-                let frames = (data.pre_solve_rotation[0] * data.frames[0], data.pre_solve_rotation[1] * data.frames[1]);
-                let (axis, mut error) = cached_locked_rotation(frames, index);
+            let correction = if cached_limit && degenerate && !simultaneous_limits && (index == 0 || !both_swing_limits) {
+                None
+            } else if cached_locked {
+                let (axis, mut error) = cached_locked_rotation(initial_frames, index);
                 error += axis.dot(cached_rotation_delta(child.delta_rotation.0 * data.pre_solve_rotation[1].conjugate())
                     - cached_rotation_delta(parent.delta_rotation.0 * data.pre_solve_rotation[0].conjugate()));
                 Some((axis, error))
             } else if cached_limit {
-                let frames = (data.pre_solve_rotation[0]*data.frames[0],data.pre_solve_rotation[1]*data.frames[1]);
+                let frames = initial_frames;
                 let mut limits = self.angular_limits;
                 limits[index] = SourceAngularLimit::Limited(0.0);
                 let (mut axis, mut angle) = angular_limit_correction(frames,limits,index,true).unwrap_or_else(||
@@ -949,6 +955,94 @@ mod tests {
             0,
             true,
         )
+    }
+
+    #[test]
+    fn cached_mixed_limits_skip_only_source_degenerate_axes() {
+        let profile = crate::pa_als::parse_pa_als_profile();
+        let neck = profile.joints.iter().find(|joint| joint.label == "neck_01").unwrap().definition.clone();
+        let boundary = (-0.998_f32).acos();
+        for angle in [2.8, boundary - 0.001, boundary + 0.001, std::f32::consts::PI - 0.03, std::f32::consts::PI] {
+            let mut definition = neck.clone();
+            definition.linear_locked = false;
+            definition.motors = [SourceAngularMotor::default(); 3];
+            definition.mass_conditioning = false;
+            let frame = Quat::from_rotation_y(angle);
+            let mut data = SourcePhysicsJointSolverData { frames: [Quat::IDENTITY, frame], ..default() };
+            let mut parent = SolverBody::default();
+            let mut child = SolverBody::default();
+            let mass = inertia(1.0, Vec3::ONE);
+            definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, 1.0 / 60.0);
+            let moved = !child.delta_rotation.0.abs_diff_eq(Quat::IDENTITY, 1e-6);
+            assert_eq!(moved, angle.cos() >= -0.998, "angle={angle} rotation={:?}", child.delta_rotation.0);
+        }
+        for both_swings in [true, false] {
+            let mut definition = joint();
+            definition.use_linear_solver = true;
+            definition.angular_limits = if both_swings {
+                [SourceAngularLimit::Free, SourceAngularLimit::Limited(0.1), SourceAngularLimit::Limited(0.1)]
+            } else {
+                [SourceAngularLimit::Limited(0.1); 3]
+            };
+            let spring = SourceAngularSpring { stiffness: 25_000.0, damping: 0.0, acceleration_mode: true };
+            definition.swing_spring = Some(spring);
+            definition.twist_spring = Some(spring);
+            let mut data = SourcePhysicsJointSolverData {
+                frames: [Quat::IDENTITY, Quat::from_rotation_y(std::f32::consts::PI - 0.03)], ..default()
+            };
+            let mut parent = SolverBody::default();
+            let mut child = SolverBody::default();
+            let mass = inertia(1.0, Vec3::ONE);
+            definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, 1.0 / 60.0);
+            assert!(!child.delta_rotation.0.abs_diff_eq(Quat::IDENTITY, 1e-6), "both_swings={both_swings}");
+        }
+        let mut definition = neck;
+        definition.linear_locked = false;
+        definition.motors = [SourceAngularMotor::default(); 3];
+        definition.mass_conditioning = false;
+        let mut data = SourcePhysicsJointSolverData {
+            frames: [Quat::IDENTITY, Quat::from_rotation_z(std::f32::consts::PI - 0.03)], ..default()
+        };
+        let mut parent = SolverBody::default();
+        let mut child = SolverBody::default();
+        let mass = inertia(1.0, Vec3::ONE);
+        definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, 1.0 / 60.0);
+        assert!(!child.delta_rotation.0.abs_diff_eq(Quat::IDENTITY, 1e-6), "The locked axis must remain active");
+    }
+
+    #[test]
+    fn degenerate_neck_limit_reaches_the_physics_schedule() {
+        use avian3d::prelude::{AngularVelocity, Gravity, Mass, PhysicsPlugins, RigidBody, Rotation, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        for angle in [2.8_f32, std::f32::consts::PI - 0.03] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin))
+                .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(1))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish(); app.cleanup();
+            let parent = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0), AngularInertia::new(Vec3::ONE), Transform::IDENTITY)).id();
+            let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0), AngularInertia::new(Vec3::ONE),
+                Transform::from_rotation(Quat::from_rotation_y(angle)))).id();
+            let mut definition = crate::pa_als::parse_pa_als_profile().joints.into_iter()
+                .find(|joint| joint.label == "neck_01").unwrap().definition;
+            definition.parent = parent; definition.child = child;
+            definition.parent_frame = Isometry3d::IDENTITY; definition.child_frame = Isometry3d::IDENTITY;
+            definition.linear_locked = false; definition.mass_conditioning = false;
+            definition.motors = [SourceAngularMotor::default(); 3];
+            definition.settings.position_iterations = 1; definition.settings.velocity_iterations = 0;
+            app.world_mut().spawn(definition);
+            app.update();
+            for (entity, rotation) in [(parent, Quat::IDENTITY), (child, Quat::from_rotation_y(angle))] {
+                app.world_mut().get_mut::<Rotation>(entity).unwrap().0 = rotation;
+                app.world_mut().get_mut::<Transform>(entity).unwrap().rotation = rotation;
+                app.world_mut().get_mut::<AngularVelocity>(entity).unwrap().0 = Vec3::ZERO;
+            }
+            app.update();
+            let rotation = app.world().get::<Rotation>(parent).unwrap().0;
+            assert_eq!(!rotation.abs_diff_eq(Quat::IDENTITY, 1e-6), angle.cos() >= -0.998,
+                "angle={angle} parent={rotation:?}");
+        }
     }
 
     fn simultaneous_soft_reference(joint: &SourcePhysicsJoint, frame: Quat, inverse: Mat3,
