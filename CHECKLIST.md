@@ -6337,13 +6337,16 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：`joint_drive_uses_source_constraint_drive_values`只对纯speed→stiffness函数传0/5/10，未把启动限速和实际ECS消费者组合。反例/对照见`bf144_pa_joint_drive_reads_velocity_before_initial_speed_limit`与`target/bf144/22/`；未修改移植实现或转换器。
   - 19:57 source/static摘要：fresh ALS读取、角驱动写入和后续限速顺序已核对，fresh PA原生刚度系数1.5与受跟踪数据一致。现有交接链将adapter排在限速前；已写加载角色8组速度/限速状态及57个motor对照。旧反例缓存缺失，测试、顺序消融、完整轨迹和真实入口待统一Gate。证据`docs/audit/bf144/d75/`。实际结束：2026-11-08 19:57 +08:00；偏差：−32分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D76 / P2 — Ragdoll硬角锁使用非线性角校正，偏离源cached四元数约束。
+- [x] BF144-D76 / P2 — Ragdoll硬角锁使用非线性角校正，偏离源cached四元数约束。
+  - 本轮开始：2026-11-08 19:57 +08:00；预计结束：2026-11-08 20:52 +08:00。对照fresh cached硬锁、轴Jacobian和旋转更新，复用既有cached增量路径实现三轴与混合锁，并补独立源公式/实际关节反例；统一验证留待升级后。
+  - 19:59 source/static摘要：fresh UE确认硬锁始终走scalar分支，轴和初始误差取子步开始时的connector quaternion，逐迭代累加DQ且不应用angle tolerance；只有三轴均soft limited才走SIMD，留D78。目标已有cached增量恢复路径，可直接复用而不扩展相邻soft规则。
   - Source：fresh `PBDJointCachedSolverGaussSeidel.cpp:1459–1483,1566–1597`按初始frame的四元数Jacobian和相对quat分量锁轴，锁定路径没有角容差；`PBDJointConstraintUtilities.cpp:346–371`给出Jacobian，最终由`ChaosCore/Private/Rotation.cpp:158–168`将累计DQ以一阶quat增量归一化。该源算法的有限角误差也须保留。
   - Target：`source_physics_joint.rs:365–373`对Locked Twist仍取完整twist angle和child X轴；`203–217,575–589`只有Limited走cached增量，Locked每轮重新算当前角并用指数旋转；`531–533`还给硬锁加了0.001rad死区。
   - 反例：native clavicle_l锁Twist、其余轴无误差；两Dynamic等惯量body相差1rad，源两body各修正约0.533293rad，target各0.5rad，完整角色实际物理帧每body差0.033293rad。0.0005rad时源仍校正，target完全跳过。静态parent且普通角度、零误差是对照；1/6次迭代共20组10PASS/10FAIL，完整角色两组都FAIL。夹具只隔离point/contact和相邻joint，不改生产角算法，不把有限角源特性改为理想完全锁定。
   - 漏检：旧cached drive测试不触发硬Twist；一般角测试只核对方向/减小误差，没有独立源Jacobian和有限迭代终值。证据`bf144_pa_angle_locked_twist_matches_source_cached_quaternion_constraint`及`23/`。
 
   - BF144.25补充：fresh同一GetLockedRotationAxes/InitLockedRotationConstraint也用于swing锁与混合硬锁。全部15个native Locked轴×parent dynamic/static×0/0.5rad共60组40PASS/20FAIL，source固定quat Jacobian与target当前角度求解的差异覆盖twist及swing。lowerarm的两组mixed旋转×dynamic/static加identity控制共6组2PASS/4FAIL，最大角校正差0.104148rad；仍是D76的同一硬锁非cached根因，不重复编号。证据`bf144_pa_angular_native_locked_axes_use_source_cached_jacobian`与`bf144_pa_angular_mixed_hard_locks_use_source_linearized_corrections`，源参考独立复算，无native Chaos仿真声明。
+  - 20:03 source/static摘要：fresh硬锁初始化、quaternion Jacobian、逐轮DQ和一阶旋转更新已闭合，PA原生身份与受跟踪记录一致；cached Locked三轴已接入固定源Jacobian和无角容差的增量路径。已写15个源锁轴、混合有限差分及真实物理调度对照；接近180度、极小分母、测试、消融及完整角色/Playground仍待统一Gate。证据`docs/audit/bf144/d76/`。实际结束：2026-11-08 20:03 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D77 / P3 — Ragdoll角drive与soft limit容差没有按实际dt缩放。
   - Source：fresh cached solver `Init:190–192`用`min(1,3600×dt²)`缩放AngleTolerance；该值同时控制`InitSwingTwistDrives:2612–2614`和soft limit的scalar/SIMD判断。native配置为0.001rad，120Hz实际阈值应为0.00025rad。

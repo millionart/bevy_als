@@ -1,0 +1,37 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 1459,
+    "end_line": 1485,
+    "text": "void FPBDJointCachedSolver::InitLockedRotationConstraints(\n\tconst FPBDJointSettings& JointSettings,\n\tconst FReal Dt,\n\tconst bool bApplyTwist,\n\tconst bool bApplySwing1,\n\tconst bool bApplySwing2)\n{\n\tFVec3 Axis0, Axis1, Axis2;\n\tFPBDJointUtilities::GetLockedRotationAxes(ConnectorRs[0], ConnectorRs[1], Axis0, Axis1, Axis2);\n\n\tconst FRotation3 R01 = ConnectorRs[0].Inverse() * ConnectorRs[1];\n\n\tif (bApplyTwist)\n\t{\n\t\tInitRotationConstraintDatas(JointSettings, (int32)EJointAngularConstraintIndex::Twist, Axis0, R01.X, 0.0, Dt, false);\n\t}\n\n\tif (bApplySwing1)\n\t{\n\t\tInitRotationConstraintDatas(JointSettings, (int32)EJointAngularConstraintIndex::Swing1, Axis2, R01.Z, 0.0, Dt, false);\n\t}\n\n\tif (bApplySwing2)\n\t{\n\t\tInitRotationConstraintDatas(JointSettings, (int32)EJointAngularConstraintIndex::Swing2, Axis1, R01.Y, 0.0, Dt, false);\n\t}\n}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 1566,
+    "end_line": 1597,
+    "text": "\tconst FReal Dt)\n{\n\tFReal DeltaAngle = RotationConstraints.Data.ConstraintCX[ConstraintIndex] +\n\t\tFVec3::DotProduct(Body(1).DQ() - Body(0).DQ(), RotationConstraints.Data.ConstraintAxis[ConstraintIndex]);\n\n\tbool NeedsSolve = false;\n\tif (RotationConstraints.GetLimitsCheck(ConstraintIndex))\n\t{\n\t\tif (DeltaAngle > RotationConstraints.Data.ConstraintLimits[ConstraintIndex])\n\t\t{\n\t\t\tDeltaAngle -= RotationConstraints.Data.ConstraintLimits[ConstraintIndex];\n\t\t\tNeedsSolve = true;\n\t\t}\n\t\telse if (DeltaAngle < -RotationConstraints.Data.ConstraintLimits[ConstraintIndex])\n\t\t{\n\t\t\tDeltaAngle += RotationConstraints.Data.ConstraintLimits[ConstraintIndex];\n\t\t\tNeedsSolve = true;\n\n\t\t}\n\t}\n\n\tif (!RotationConstraints.GetLimitsCheck(ConstraintIndex) || (RotationConstraints.GetLimitsCheck(ConstraintIndex) && NeedsSolve && FMath::Abs(DeltaAngle) > AngleTolerance))\n\t{\n\t\tif (RotationConstraints.GetSoftLimit(ConstraintIndex))\n\t\t{\n\t\t\tSolveRotationConstraintSoft(ConstraintIndex, DeltaAngle, Dt, 0.0f);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tSolveRotationConstraintHard(ConstraintIndex, DeltaAngle);\n\t\t}\n\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDJointConstraintUtilities.cpp",
+    "sha256": "99b9836d619a076415716f47a2f89b3b0e1082d6f1e760c83be0e27860e2039d",
+    "start_line": 346,
+    "end_line": 371,
+    "text": "\tvoid FPBDJointUtilities::GetLockedRotationAxes(const FRotation3& R0, const FRotation3& R1, FVec3& Axis0, FVec3& Axis1, FVec3& Axis2)\n\t{\n\t\tconst FReal W0 = R0.W;\n\t\tconst FReal W1 = R1.W;\n\t\tconst FVec3 V0 = FVec3(R0.X, R0.Y, R0.Z);\n\t\tconst FVec3 V1 = FVec3(R1.X, R1.Y, R1.Z);\n\n\t\tconst FVec3 C = V1 * W0 + V0 * W1;\n\t\tconst FReal D0 = W0 * W1;\n\t\tconst FReal D1 = FVec3::DotProduct(V0, V1);\n\t\tconst FReal D = D0 - D1;\n\n\t\tAxis0 = 0.5f * (V0 * V1.X + V1 * V0.X + FVec3(D, C.Z, -C.Y));\n\t\tAxis1 = 0.5f * (V0 * V1.Y + V1 * V0.Y + FVec3(-C.Z, D, C.X));\n\t\tAxis2 = 0.5f * (V0 * V1.Z + V1 * V0.Z + FVec3(C.Y, -C.X, D));\n\n\t\t// Handle degenerate case of 180 deg swing\n\t\tif (FMath::Abs(D0 + D1) < UE_SMALL_NUMBER)\n\t\t{\n\t\t\tconst FReal Epsilon = UE_SMALL_NUMBER;\n\t\t\tAxis0.X += Epsilon;\n\t\t\tAxis1.Y += Epsilon;\n\t\t\tAxis2.Z += Epsilon;\n\t\t}\n\t}\n\t"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Private/Rotation.cpp",
+    "sha256": "6c65555f6b14d7201540615e5a60f5257862561a1c79944b59ebb3c86f543088",
+    "start_line": 154,
+    "end_line": 170,
+    "text": "\t * Return a new rotation equal to the input rotation with angular velocity W applied over time Dt.\n\t *\n\t * Uses the relation: DQ/DT = (W * Q)/2\n\t */\n\tTRotation<FReal, 3> TRotation<FReal, 3>::IntegrateRotationWithAngularVelocity(const TRotation<FReal, 3>& InR0, const TVector<FReal, 3>& InW, const FReal InDt)\n\t{\n\t\tTRotation<FReal, 3> R1 = InR0 + (TRotation<FReal, 3>::FromElements(InW.X, InW.Y, InW.Z, 0.f) * InR0) * decltype(InR0.X)(InDt * 0.5f);\n\t\treturn R1.GetNormalized();\n\t}\n\n\tTRotation<FRealSingle, 3> TRotation<FRealSingle, 3>::IntegrateRotationWithAngularVelocity(const TRotation<FRealSingle, 3>& InR0, const TVector<FRealSingle, 3>& InW, const FRealSingle InDt)\n\t{\n\t\tTRotation<FRealSingle, 3> R1 = InR0 + (TRotation<FRealSingle, 3>::FromElements(InW.X, InW.Y, InW.Z, 0.f) * InR0) * decltype(InR0.X)(InDt * 0.5f);\n\t\treturn R1.GetNormalized();\n\t}\n\n}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 1103,
+    "end_line": 1119,
+    "text": "\tRotationConstraints.SetValidDatas(0, false);\n\tRotationConstraints.SetValidDatas(1, false);\n\tRotationConstraints.SetValidDatas(2, false);\n\tRotationConstraints.bUseSimd = false;\n\n\n\tTVec3<bool> bAngularLocked, bAngularLimited, bAngularFree;\n\tif (!ExtractAngularMotion(JointSettings, bAngularLocked, bAngularLimited, bAngularFree))\n\t\treturn;\n\n\tRotationConstraints.bAccelerationMode = FPBDJointUtilities::GetAngularSoftAccelerationMode(SolverSettings, JointSettings);\n\n\tRotationConstraints.bUseSimd = bUseSimd && bAngularLimited[0] && bAngularLimited[1] && bAngularLimited[2] &&\n\t\tFPBDJointUtilities::GetSoftTwistLimitEnabled(SolverSettings, JointSettings) && FPBDJointUtilities::GetSoftSwingLimitEnabled(SolverSettings, JointSettings);\n\n\tif (RotationConstraints.bUseSimd)\n\t{"
+  }
+]
