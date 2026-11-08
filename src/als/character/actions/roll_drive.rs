@@ -508,6 +508,27 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_airborne_roll_uses_source_midpoint_at_short_frames() {
+        use bevy::time::TimeUpdateStrategy;
+        for delta in [1.0 / 60.0, 0.025, 1.0 / 30.0, 0.034, 0.05, 0.1] {
+            for rolling in [false, true] {
+                let (mut app, actor, _) = loaded_roll_character();
+                if rolling { play_loaded_roll(&mut app, actor); }
+                let start = Vec3::Y * 10.0;
+                app.world_mut().entity_mut(actor).insert((avian3d::prelude::Position(start),
+                    Transform::from_translation(start), LinearVelocity::ZERO, LocomotionState::Air));
+                *app.world_mut().resource_mut::<TimeUpdateStrategy>() =
+                    TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
+                app.update();
+                let actual = app.world().get::<avian3d::prelude::Position>(actor).unwrap().y - start.y;
+                let expected = -0.5 * 9.81 * delta * delta;
+                assert!((actual - expected).abs() < 0.00005,
+                    "rolling={rolling} delta={delta} displacement={actual} source={expected}");
+            }
+        }
+    }
+
+    #[test]
     fn loaded_roll_rotation_is_applied_once_through_physics() {
         use avian3d::prelude::AngularVelocity;
         for (dilation, yaw) in [(0.5, 0.7), (1.0, 0.7), (2.0, 0.7),

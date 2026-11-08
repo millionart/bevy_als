@@ -128,13 +128,15 @@ fn enable_character_full_frame(
     frame_time: Res<Time<Virtual>>,
     mut commands: Commands,
     characters: Query<(Entity, &LocomotionState, &RigidBody, Option<&AlsNotifyLocomotionAction>,
-        Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>, &crate::als::character::AlsCmcAdapterRuntime),
+        Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>, &crate::als::character::AlsCmcAdapterRuntime,
+        Option<&crate::als::roll::AlsRollState>),
         (With<AlsCharacter>, Without<CustomPositionIntegration>)>,
 ) {
-    for (entity, locomotion, body, action, base, runtime) in &characters {
+    for (entity, locomotion, body, action, base, runtime, roll) in &characters {
         if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA
             && !(*locomotion == LocomotionState::Grounded && runtime.simulation_substeps > 1
-                && runtime.grounded_movement_delta.is_some() && runtime.grounded_move_start.is_none()) {
+                && runtime.grounded_movement_delta.is_some() && runtime.grounded_move_start.is_none())
+            && !(*locomotion == LocomotionState::Air && roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)) {
             continue;
         }
         if base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {
@@ -277,6 +279,25 @@ mod tests {
     use super::*;
     use avian3d::prelude::{Collider, CollisionLayers, GravityScale, LayerMask, LinearVelocity, Position, RigidBody, Sensor};
     use bevy::time::TimeUpdateStrategy;
+
+    #[test]
+    fn short_airborne_roll_enables_source_midpoint_integration() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (mode, active, delta, expected) in [(LocomotionState::Air, true, 1.0 / 60.0, true),
+            (LocomotionState::Air, false, 1.0 / 60.0, false),
+            (LocomotionState::Grounded, true, 1.0 / 60.0, false),
+            (LocomotionState::Air, false, 0.05, true)] {
+            let mut world = World::new();
+            let mut time = Time::<Virtual>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(delta));
+            world.insert_resource(time);
+            let actor = world.spawn((AlsCharacter, mode, RigidBody::Dynamic,
+                crate::als::roll::AlsRollState { active, time: 0.1, ..default() })).id();
+            world.run_system_once(enable_character_full_frame).unwrap();
+            assert_eq!(world.get::<CustomPositionIntegration>(actor).is_some(), expected,
+                "mode={mode:?} active={active} delta={delta}");
+        }
+    }
 
     #[test]
     fn free_grounded_plan_survives_six_physics_substeps() {

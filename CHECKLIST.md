@@ -6124,7 +6124,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色自然播放到0.75/0.816667s后，实际action=None、root motion仍active；当前yaw0.7、原Roll目标0，源应保持0.7，target在物理前已改为0.6234436。`bf144_roll_root_rotation_stops_with_action_notify`4组1PASS/3FAIL，也覆盖0.716667s下一帧跨过notify结束的边界；0.3s仍Rolling的对照正确。证据`target/bf144/15/root_core/`；这里在物理前取样，明确排除D47叠加角速度。
   - 漏检：旧自然结束测试核对action/stance/weight/clock，没有检查动画仍提根但action已结束时的rotation gate。初始组合观察同时包含D47，已按消费阶段拆开；未修改生产实现。
 
-- [ ] BF144-D49 / P3 — 空中Roll在短帧下使用末速度积分，偏离源midpoint位置。
+- [x] BF144-D49 / P3 — 空中Roll在短帧下使用末速度积分，偏离源midpoint位置；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:13 +08:00；预估结束17:58 +08:00；实际结束17:16 +08:00，提前42分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE/Avian积分源码与四组原生Falling位置保存在`docs/audit/bf144/d49/`；空中活动Roll短帧启用已有midpoint路径，已写加载角色和无Roll对照。旧target报告缺失，原生组合Roll未重跑，动画Gate待执行。
   - Source：fresh UE `PhysFalling:4910,4962,5018–5019`保存OldVelocityWithRootMotion，施加gravity后以新旧速度平均乘timeTick求位移；animation root motion也不例外。竖直初速度0且未碰撞时，下落距离为0.5×gravity×dt²。
   - Target：`src/als/character/movement/motion.rs:3703–3711`把活动Roll排除在普通falling transaction外；`movement/source_physics_timing.rs:132–147`只有world delta超过33.333ms才启用完整帧midpoint。短帧落入Avian `integrator/mod.rs:503–521`的末速度积分，当前6子步仍保留数值差。
   - 反例：完整Air Roll、vy初值0，16.667/25/33.333ms下源下降约1.3625/3.0656/5.45mm，实际多下降约0.223/0.511/0.908mm；速度都正确。`bf144_roll_root_falling_position_keeps_source_midpoint`12组9PASS/3FAIL；六组无Roll及34/50/100ms三组Roll对照均匹配源midpoint，证据`target/bf144/15/midpoint/`。
