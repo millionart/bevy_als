@@ -1,6 +1,6 @@
 use crate::als::animation::inv_exp_approx;
 use bevy::{
-    math::{DQuat, DVec3, EulerRot},
+    math::{DQuat, DVec3},
     prelude::Reflect,
 };
 use serde::{Deserialize, Serialize};
@@ -18,12 +18,18 @@ pub fn rig_clamp01(value: f32) -> f32 {
 }
 
 pub fn rig_quaternion(euler: DVec3) -> DQuat {
-    DQuat::from_euler(
-        EulerRot::YZX,
-        (euler.y % 360.0).to_radians(),
-        (euler.z % 360.0).to_radians(),
-        (euler.x % 360.0).to_radians(),
-    )
+    let half_radians = (std::f64::consts::PI / 180.0) * 0.5;
+    let pitch = (euler.z % 360.0) * half_radians;
+    let yaw = (-euler.y % 360.0) * half_radians;
+    let roll = (euler.x % 360.0) * half_radians;
+    let (sp, cp) = (pitch.sin(), pitch.cos());
+    let (sy, cy) = (yaw.sin(), yaw.cos());
+    let (sr, cr) = (roll.sin(), roll.cos());
+    let source_x = cr * (sp * sy) - sr * (cp * cy);
+    let source_y = -(cr * (sp * cy)) - sr * (cp * sy);
+    let source_z = cr * (cp * sy) - sr * (sp * cy);
+    let source_w = cr * (cp * cy) + sr * (sp * sy);
+    DQuat::from_xyzw(-source_x, -source_z, -source_y, source_w)
 }
 
 pub fn rig_euler(rotation: DQuat) -> DVec3 {
@@ -205,6 +211,28 @@ impl RigMathOp {
 mod tests {
     use super::*;
     use RigMathOp::*;
+
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    #[test]
+    fn control_rig_quaternion_preserves_native_constructor_grouping() {
+        for (input, expected) in [
+            (DVec3::new(-6.547_454_357_147_217, -34.043_178_558_349_61, 9.512_281_417_846_68),
+                DQuat::from_xyzw(-0.078_648_914_469_597_38, -0.295_775_520_917_375_36,
+                    0.062_494_240_386_112_565, 0.949_960_872_561_271_3)),
+            (DVec3::new(-13.009_467_124_938_965, 0.514_994_800_090_789_8, -0.432_090_520_858_764_65),
+                DQuat::from_xyzw(-0.113_300_186_182_874_53, 0.004_892_359_080_218_457,
+                    -0.003_237_261_626_034_576, 0.993_543_483_079_991_2)),
+            (DVec3::new(-15.028_626_441_955_566, 0.020_022_543_147_206_306, 0.086_365_029_215_812_68),
+                DQuat::from_xyzw(-0.130_773_694_097_085_78, 0.000_074_667_811_716_492_4,
+                    0.000_770_054_631_790_078_2, 0.991_411_943_832_019_7)),
+            (DVec3::new(381.0, 443.0, 397.0),
+                DQuat::from_xyzw(0.336_164_954_622_312_44, 0.661_163_764_996_504_5,
+                    0.119_154_870_823_217_57, 0.660_043_722_717_312)),
+        ] {
+            assert_eq!(rig_quaternion(input), expected);
+            assert_eq!(QuaternionFromEulerYzx.evaluate(&[EulerDegrees(input)]).unwrap(), Quaternion(expected));
+        }
+    }
 
     #[test]
     fn control_rig_euler_preserves_double_singularities_and_target_angles() {

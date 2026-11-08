@@ -1,0 +1,34 @@
+{
+  "assets": [
+    {
+      "path": "Content/ALS/Character/CR_Als.uasset",
+      "bytes": 1555021,
+      "sha256": "fe52b72061bc62e0dece654b3b3bc88a9d8cf2686251f1092cb37f91127cf6ff"
+    },
+    {
+      "path": "Content/ALS/Data/AnimationInstance/AIS_Als_Default.uasset",
+      "bytes": 9631,
+      "sha256": "9af2ffa2d8e832b93d3bbaeea2f35e4663acc3aa643e65a128e3f9df8f73c6a7"
+    }
+  ],
+  "rig": {
+    "request": "docs/audit/bf144/d251/rig.request.json",
+    "native_output": "docs/audit/bf144/d251/rig.native.json.gz",
+    "raw": {
+      "bytes": 20439701,
+      "sha256": "2439479063cbea92052f7704b2351a0b773996bb25b45e3ded99cc704289eac4"
+    },
+    "compressed": {
+      "bytes": 488696,
+      "sha256": "8e8dc81346fb549f6813163639af8eb491303b0666aed0e049123200ada531d3"
+    },
+    "reader_report": "docs/audit/bf144/d251/rig.native.json.reader.report.json"
+  },
+  "rotation": {
+    "request": "docs/audit/bf144/d251/rotation.request.json",
+    "native_output": "docs/audit/bf144/d251/rotation.native.json",
+    "bytes": 108897,
+    "sha256": "48ca8e76a190627e408d94be18f5dbf7f879b931ba5a2db3037c75ec7f959f3d",
+    "reader_report": "docs/audit/bf144/d251/rotation.native.json.reader.report.json"
+  }
+}

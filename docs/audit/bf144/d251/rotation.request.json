@@ -1,0 +1,10 @@
+{
+  "samples": [
+    {"name": "warm-left", "rotation_xyzw": [0, 0, 0, 1], "euler_degrees": [9.51228141784668, 34.04317855834961, -6.547454357147217]},
+    {"name": "actual-left", "rotation_xyzw": [0, 0, 0, 1], "euler_degrees": [-0.43209052085876465, -0.5149948000907898, -13.009467124938965]},
+    {"name": "actual-right", "rotation_xyzw": [0, 0, 0, 1], "euler_degrees": [0.08636502921581268, -0.020022543147206306, -15.028626441955566]},
+    {"name": "identity", "rotation_xyzw": [0, 0, 0, 1], "euler_degrees": [0, 0, 0]},
+    {"name": "half-turn", "rotation_xyzw": [0, 0, 0, 1], "euler_degrees": [0, 180, 0]},
+    {"name": "winding", "rotation_xyzw": [0, 0, 0, 1], "euler_degrees": [397, -443, 381]}
+  ]
+}

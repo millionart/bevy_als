@@ -1,0 +1,93 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Core/Private/Math/UnrealMath.cpp",
+      "sha256": "0e0bfe3cb82a6f322f45d159ab97ea37666d4e0744861372d5885a652dd4a6e6",
+      "excerpts": [
+        {
+          "first_line": 483,
+          "last_line": 515,
+          "text": "FQuat4d FRotator3d::Quaternion() const\n{\n\tDiagnosticCheckNaN();\n\n#if PLATFORM_ENABLE_VECTORINTRINSICS\n\tconst VectorRegister4Double Angles = MakeVectorRegisterDouble(Pitch, Yaw, Roll, 0.0);\n\tconst VectorRegister4Double AnglesNoWinding = VectorMod360(Angles);\n\tconst VectorRegister4Double HalfAngles = VectorMultiply(AnglesNoWinding, GlobalVectorConstants::DOUBLE_DEG_TO_RAD_HALF);\n\n\tVectorRegister4Double SinAngles, CosAngles;\n\tVectorSinCos(&SinAngles, &CosAngles, &HalfAngles);\n\n\t// Vectorized conversion, measured 20% faster than using scalar version after VectorSinCos.\n\t// Indices within VectorRegister (for shuffles): P=0, Y=1, R=2\n\tconst VectorRegister4Double SR = VectorReplicate(SinAngles, 2);\n\tconst VectorRegister4Double CR = VectorReplicate(CosAngles, 2);\n\n\tconst VectorRegister4Double SY_SY_CY_CY_Temp = VectorShuffle(SinAngles, CosAngles, 1, 1, 1, 1);\n\n\tconst VectorRegister4Double SP_SP_CP_CP = VectorShuffle(SinAngles, CosAngles, 0, 0, 0, 0);\n\tconst VectorRegister4Double SY_CY_SY_CY = VectorShuffle(SY_SY_CY_CY_Temp, SY_SY_CY_CY_Temp, 0, 2, 0, 2);\n\n\tconst VectorRegister4Double CP_CP_SP_SP = VectorShuffle(CosAngles, SinAngles, 0, 0, 0, 0);\n\tconst VectorRegister4Double CY_SY_CY_SY = VectorShuffle(SY_SY_CY_CY_Temp, SY_SY_CY_CY_Temp, 2, 0, 2, 0);\n\n\tconst uint64 Neg = uint64(1) << 63;\n\tconst uint64 Pos = uint64(0);\n\tconst VectorRegister4Double SignBitsLeft = MakeVectorRegisterDoubleMask(Pos, Neg, Pos, Pos);\n\tconst VectorRegister4Double SignBitsRight = MakeVectorRegisterDoubleMask(Neg, Neg, Neg, Pos);\n\tconst VectorRegister4Double LeftTerm = VectorBitwiseXor(SignBitsLeft, VectorMultiply(CR, VectorMultiply(SP_SP_CP_CP, SY_CY_SY_CY)));\n\tconst VectorRegister4Double RightTerm = VectorBitwiseXor(SignBitsRight, VectorMultiply(SR, VectorMultiply(CP_CP_SP_SP, CY_SY_CY_SY)));\n\n\tconst VectorRegister4Double Result = VectorAdd(LeftTerm, RightTerm);\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathNeon.h",
+      "sha256": "bfcba580c7c1f4b39dd6d4b45390d5db64c6f63c3579ef645f83ea19dc6a4b7c",
+      "excerpts": [
+        {
+          "first_line": 955,
+          "last_line": 965,
+          "text": "FORCEINLINE VectorRegister4Float VectorNegateMultiplyAdd(VectorRegister4Float Vec1, VectorRegister4Float Vec2, VectorRegister4Float Sub)\n{\n\treturn vfmsq_f32(Sub, Vec1, Vec2);\n}\n\nFORCEINLINE VectorRegister4Double VectorNegateMultiplyAdd(VectorRegister4Double Vec1, VectorRegister4Double Vec2, VectorRegister4Double Sub)\n{\n\tVectorRegister4Double Result;\n\tResult.XY = vfmsq_f64(Sub.XY, Vec1.XY, Vec2.XY);\n\tResult.ZW = vfmsq_f64(Sub.ZW, Vec1.ZW, Vec2.ZW);\n\treturn Result;\n"
+        },
+        {
+          "first_line": 2721,
+          "last_line": 2750,
+          "text": "FORCEINLINE VectorRegister4Double VectorSin(VectorRegister4Double X)\n{\n\tAlignedDouble4 Doubles(X);\n\tDoubles[0] = FMath::Sin(Doubles[0]);\n\tDoubles[1] = FMath::Sin(Doubles[1]);\n\tDoubles[2] = FMath::Sin(Doubles[2]);\n\tDoubles[3] = FMath::Sin(Doubles[3]);\n\treturn Doubles.ToVectorRegister();\n}\n\nFORCEINLINE VectorRegister4Float VectorCos(VectorRegister4Float X)\n{\n\treturn VectorSin(VectorAdd(X, GlobalVectorConstants::PiByTwo));\n}\n\nFORCEINLINE VectorRegister4Double VectorCos(VectorRegister4Double X)\n{\n\tAlignedDouble4 Doubles(X);\n\tDoubles[0] = FMath::Cos(Doubles[0]);\n\tDoubles[1] = FMath::Cos(Doubles[1]);\n\tDoubles[2] = FMath::Cos(Doubles[2]);\n\tDoubles[3] = FMath::Cos(Doubles[3]);\n\treturn Doubles.ToVectorRegister();\n}\n\nFORCEINLINE void VectorSinCos(VectorRegister4Double* RESTRICT VSinAngles, VectorRegister4Double* RESTRICT VCosAngles, const VectorRegister4Double* RESTRICT VAngles)\n{\n\t*VSinAngles = VectorSin(*VAngles);\n\t*VCosAngles = VectorCos(*VAngles);\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorCommon.h.inl",
+      "sha256": "5f43e189d66b68c76ed29bda5713e8daa1fdf3201a76efee2fa9251d4fc01293",
+      "excerpts": [
+        {
+          "first_line": 611,
+          "last_line": 624,
+          "text": "FORCEINLINE VectorRegister4Float VectorMod360(VectorRegister4Float X)\n{\n\t// R = X - (Y * (Trunc(X / Y))\n\tVectorRegister4Float Temp = VectorTruncate(VectorDivide(X, GlobalVectorConstants::Float360));\n\tVectorRegister4Float FloatResult = VectorNegateMultiplyAdd(GlobalVectorConstants::Float360, Temp, X);\n\treturn FloatResult;\n}\n\nFORCEINLINE VectorRegister4Double VectorMod360(VectorRegister4Double X)\n{\n\t// R = X - (Y * (Trunc(X / Y))\n\tVectorRegister4Double Temp = VectorTruncate(VectorDivide(X, GlobalVectorConstants::Double360));\n\tVectorRegister4Double DoubleResult = VectorNegateMultiplyAdd(GlobalVectorConstants::Double360, Temp, X);\n\treturn DoubleResult;\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorConstants.h.inl",
+      "sha256": "62c8ebfcd4498fcf28f85a001c57e63cd8701f92d07b121e77745b84b7cec621",
+      "excerpts": [
+        {
+          "first_line": 94,
+          "last_line": 98,
+          "text": "\tinline constexpr VectorRegister4Float DEG_TO_RAD_HALF = MakeVectorRegisterConstant((UE_PI/180.f)*0.5f, (UE_PI/180.f)*0.5f, (UE_PI/180.f)*0.5f, (UE_PI/180.f)*0.5f);\n\tinline constexpr VectorRegister4Float RAD_TO_DEG = MakeVectorRegisterConstant((180.f)/UE_PI, (180.f)/UE_PI, (180.f)/UE_PI, (180.f)/UE_PI);\n\tinline constexpr VectorRegister4Double DOUBLE_DEG_TO_RAD = MakeVectorRegisterConstant(UE_DOUBLE_PI/(180.), UE_DOUBLE_PI/(180.), UE_DOUBLE_PI/(180.), UE_DOUBLE_PI/(180.));\n\tinline constexpr VectorRegister4Double DOUBLE_DEG_TO_RAD_HALF = MakeVectorRegisterConstant((UE_DOUBLE_PI/180.) * 0.5, (UE_DOUBLE_PI/180.) * 0.5, (UE_DOUBLE_PI/180.) * 0.5, (UE_DOUBLE_PI/180.) * 0.5);\n\tinline constexpr VectorRegister4Double DOUBLE_RAD_TO_DEG = MakeVectorRegisterConstant((180.)/UE_DOUBLE_PI, (180.)/UE_DOUBLE_PI, (180.)/UE_DOUBLE_PI, (180.)/UE_DOUBLE_PI);\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/Nodes/AlsRigUnit_ApplyFootOffsetRotation.cpp",
+      "sha256": "f8a72e6a1112cad3b3f01e380f013d43c114a1f143c72913469ce4533da4e80d",
+      "excerpts": [
+        {
+          "first_line": 25,
+          "last_line": 97,
+          "text": "\r\n\tif (!bInitialized)\r\n\t{\r\n\t\tbInitialized = true;\r\n\r\n\t\tOffsetNormal = FootOffsetNormal;\r\n\r\n\t\t// Get the foot initial rotation and convert it to the calf space.\r\n\r\n\t\tconst auto CalfInitialRotation{Hierarchy->GetInitialGlobalTransform(CachedCalfItem).GetRotation()};\r\n\t\tconst auto FootInitialRotation{Hierarchy->GetInitialGlobalTransform(CachedFootItem).GetRotation()};\r\n\r\n\t\tFootInitialRotationCalfSpace = CalfInitialRotation.Inverse() * FootInitialRotation;\r\n\t}\r\n\r\n\tOffsetNormal = UAlsMath::DamperExact(OffsetNormal, FootOffsetNormal,\r\n\t                                     UE_REAL_TO_FLOAT(ExecuteContext.GetDeltaTime()), OffsetInterpolationHalfLife);\r\n\r\n\tconst auto OffsetRotation{FQuat::FindBetweenVectors(FVector::UpVector, OffsetNormal)};\r\n\r\n\t// Transform the current foot rotation and the target foot rotation with applied foot offset to the calf space.\r\n\r\n\tconst auto CalfRotation{Hierarchy->GetGlobalTransform(CachedCalfItem).GetRotation()};\r\n\tFootRotation = Hierarchy->GetGlobalTransform(CachedFootItem).GetRotation();\r\n\r\n\tconst auto CurrentRotationCalfSpace{\r\n\t\t(CalfRotation.Inverse() * FootRotation * FootInitialRotationCalfSpace.Inverse()).Rotator()\r\n\t};\r\n\r\n\tconst auto TargetRotationCalfSpace{\r\n\t\t(CalfRotation.Inverse() * (OffsetRotation * FootTargetRotation) * FootInitialRotationCalfSpace.Inverse()).Rotator()\r\n\t};\r\n\r\n\t// Apply limits.\r\n\r\n\tstatic const auto ConstraintTargetAngle{\r\n\t\t[](const float CurrentAngle, const float TargetAngle, const FFloatInterval& LimitAngle)\r\n\t\t{\r\n\t\t\t// Initial rotation is the rotation of the foot that comes from animations. It must be taken\r\n\t\t\t// into account so that, for example, if the foot is rotated 45 degrees in the animation\r\n\t\t\t// and the limit angle is 25 degrees, the resulting foot rotation will still be 45 degrees.\r\n\r\n\t\t\tconst auto MinAngle{FMath::Min3(CurrentAngle, LimitAngle.Min, LimitAngle.Max)};\r\n\t\t\tconst auto MaxAngle{FMath::Max3(CurrentAngle, LimitAngle.Min, LimitAngle.Max)};\r\n\r\n\t\t\treturn FMath::Clamp(TargetAngle, MinAngle, MaxAngle);\r\n\t\t}\r\n\t};\r\n\r\n\tconst auto FinalPitchAngleCalfSpace{\r\n\t\tConstraintTargetAngle(UE_REAL_TO_FLOAT(CurrentRotationCalfSpace.Pitch),\r\n\t\t                      UE_REAL_TO_FLOAT(TargetRotationCalfSpace.Pitch),\r\n\t\t                      Swing2LimitAngle)\r\n\t};\r\n\r\n\tconst auto FinalYawAngleCalfSpace{\r\n\t\tConstraintTargetAngle(UE_REAL_TO_FLOAT(CurrentRotationCalfSpace.Yaw),\r\n\t\t                      UE_REAL_TO_FLOAT(TargetRotationCalfSpace.Yaw),\r\n\t\t                      Swing1LimitAngle)\r\n\t};\r\n\r\n\tconst auto FinalRollAngleCalfSpace{\r\n\t\tConstraintTargetAngle(UE_REAL_TO_FLOAT(CurrentRotationCalfSpace.Roll),\r\n\t\t                      UE_REAL_TO_FLOAT(TargetRotationCalfSpace.Roll),\r\n\t\t                      TwistLimitAngle)\r\n\t};\r\n\r\n\tconst auto FinalRotationCalfSpace{FRotator{FinalPitchAngleCalfSpace, FinalYawAngleCalfSpace, FinalRollAngleCalfSpace}.Quaternion()};\r\n\r\n\t// Convert the new calf space foot rotation back to the global space.\r\n\r\n\tFootRotation = CalfRotation * (FinalRotationCalfSpace * FootInitialRotationCalfSpace);\r\n\tFootRotation.Normalize();\r\n"
+        }
+      ]
+    },
+    {
+      "path": "src/control_rig/control_rig_math.rs",
+      "sha256": "30a6d2a39e3a76be9c84418eac38777ebe61bbe972b4db00ffa71c6a63046518",
+      "excerpts": [
+        {
+          "first_line": 1,
+          "last_line": 28,
+          "text": "use crate::als::animation::inv_exp_approx;\nuse bevy::{\n    math::{DQuat, DVec3, EulerRot},\n    prelude::Reflect,\n};\nuse serde::{Deserialize, Serialize};\n\npub fn rig_damper_alpha(delta_seconds: f32, half_life: f32) -> f32 {\n    1.0 - inv_exp_approx(std::f32::consts::LN_2 / (half_life + 1e-8) * delta_seconds)\n}\n\npub fn rig_clamp01(value: f32) -> f32 {\n    if value > 0.0 {\n        if value < 1.0 { value } else { 1.0 }\n    } else {\n        0.0\n    }\n}\n\npub fn rig_quaternion(euler: DVec3) -> DQuat {\n    DQuat::from_euler(\n        EulerRot::YZX,\n        (euler.y % 360.0).to_radians(),\n        (euler.z % 360.0).to_radians(),\n        (euler.x % 360.0).to_radians(),\n    )\n}\n\n"
+        },
+        {
+          "first_line": 155,
+          "last_line": 195,
+          "text": "pub enum RigMathOp {\n    F32Add,\n    F32Mul,\n    F32Min,\n    F32Clamp01,\n    F64Add,\n    F64Sub,\n    F64Mul,\n    F64Abs,\n    F64Clamp,\n    F64Lerp,\n    F64GreaterEqual,\n    VectorAdd,\n    VectorScale,\n    QuaternionFromEulerYzx,\n}\n\nimpl RigMathOp {\n    pub fn evaluate(self, inputs: &[RigValue]) -> Result<RigValue, String> {\n        use RigValue::*;\n        Ok(match (self, inputs) {\n            (Self::F32Add, [F32(a), F32(b)]) => F32(a + b),\n            (Self::F32Mul, [F32(a), F32(b)]) => F32(a * b),\n            (Self::F32Min, [F32(a), F32(b)]) => F32(if a < b { *a } else { *b }),\n            (Self::F32Clamp01, [F32(value)]) => F32(rig_clamp01(*value)),\n            (Self::F64Add, [F64(a), F64(b)]) => F64(a + b),\n            (Self::F64Sub, [F64(a), F64(b)]) => F64(a - b),\n            (Self::F64Mul, [F64(a), F64(b)]) => F64(a * b),\n            (Self::F64Abs, [F64(value)]) => F64(value.abs()),\n            (Self::F64Clamp, [F64(value), F64(minimum), F64(maximum)]) => {\n                let upper = if value < maximum { *value } else { *maximum };\n                F64(if *minimum < upper { upper } else { *minimum })\n            }\n            (Self::F64Lerp, [F64(a), F64(b), F64(t)]) => F64(a + t * (b - a)),\n            (Self::F64GreaterEqual, [F64(a), F64(b)]) => Bool(a >= b),\n            (Self::VectorAdd, [Vector(a), Vector(b)]) => Vector(*a + *b),\n            (Self::VectorScale, [Vector(value), F32(factor)]) => Vector(*value * *factor as f64),\n            (Self::QuaternionFromEulerYzx, [EulerDegrees(value)]) => {\n                Quaternion(rig_quaternion(*value))\n            }\n            _ => {\n"
+        }
+      ],
+      "revision": "before_D251"
+    },
+    {
+      "path": "src/control_rig/control_rig_units.rs",
+      "sha256": "aa05e0c81d08ea31fbb9c176f3235610da79893db8010e09fbd5638985547c48",
+      "excerpts": [
+        {
+          "first_line": 219,
+          "last_line": 278,
+          "text": "                \"FAlsRigUnit_ApplyFootOffsetRotation::Execute\",\n                [\n                    calf,\n                    foot,\n                    Quaternion(target),\n                    Vector(normal),\n                    List(swing_y),\n                    List(swing_z),\n                    List(twist_x),\n                    F32(half_life),\n                    Bool(initialized),\n                    _cached_calf,\n                    _cached_foot,\n                    Vector(offset_normal),\n                    Quaternion(rotation),\n                    Quaternion(initial_rotation),\n                ],\n            ) => {\n                let Some(calf) = self.hierarchy.item_index(calf)? else {\n                    return Ok(());\n                };\n                let Some(foot) = self.hierarchy.item_index(foot)? else {\n                    return Ok(());\n                };\n                if !*initialized {\n                    *initialized = true;\n                    *offset_normal = *normal;\n                    let calf = self\n                        .hierarchy\n                        .transform(calf, RigSpace::Global, true)?\n                        .rotation;\n                    let foot = self\n                        .hierarchy\n                        .transform(foot, RigSpace::Global, true)?\n                        .rotation;\n                    *initial_rotation = calf.conjugate() * foot;\n                }\n                *offset_normal += (*normal - *offset_normal)\n                    * rig_damper_alpha(self.delta_seconds as f32, *half_life) as f64;\n                let offset_rotation = self\n                    .geometry\n                    .between_vectors(self.geometry.basis[2], *offset_normal);\n                let calf = self\n                    .hierarchy\n                    .transform(calf, RigSpace::Global, false)?\n                    .rotation;\n                let foot = self\n                    .hierarchy\n                    .transform(foot, RigSpace::Global, false)?\n                    .rotation;\n                let current = rig_euler(calf.conjugate() * foot * initial_rotation.conjugate());\n                let target = rig_euler(\n                    calf.conjugate() * (offset_rotation * *target) * initial_rotation.conjugate(),\n                );\n                let euler = DVec3::new(\n                    constrained_angle(current.x, target.x, twist_x)?,\n                    constrained_angle(current.y, target.y, swing_y)?,\n                    constrained_angle(current.z, target.z, swing_z)?,\n                );\n                *rotation = rig_normalize(calf * (rig_quaternion(euler) * *initial_rotation));\n"
+        }
+      ],
+      "revision": "before_D251"
+    }
+  ]
+}
