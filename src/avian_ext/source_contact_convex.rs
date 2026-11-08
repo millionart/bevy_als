@@ -158,7 +158,7 @@ pub(super) fn source_box_convex_manifold(
     Some(SourceBoxConvexManifold { gjk, contacts })
 }
 
-fn source_convex_contact(first: DVec3, second: DVec3, normal: DVec3, phi: f64) -> SourceConvexContactPoint {
+pub(super) fn source_convex_contact(first: DVec3, second: DVec3, normal: DVec3, phi: f64) -> SourceConvexContactPoint {
     SourceConvexContactPoint { first_m: source_float_position(first), second_m: source_float_position(second),
         normal_second: source_direction(source_direction(normal).as_vec3().as_dvec3()),
         phi_m: f64::from((phi * 100.0) as f32) * 0.01 }

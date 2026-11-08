@@ -1,0 +1,137 @@
+[
+  {
+    "label": "arch_head_cylinder",
+    "point_count": 2,
+    "phi_cm": [
+      -0.09999954700469971,
+      -0.019998624920845032
+    ],
+    "mesh_scale": [
+      1,
+      1,
+      1
+    ],
+    "body_rotation_xyzw": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "label": "arch_head_endcap",
+    "point_count": 3,
+    "phi_cm": [
+      -6.443201065063477,
+      -9.843799591064453,
+      -11.537934303283691
+    ],
+    "mesh_scale": [
+      1,
+      1,
+      1
+    ],
+    "body_rotation_xyzw": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "label": "arch_head_raised",
+    "point_count": 3,
+    "phi_cm": [
+      -5.2574052810668945,
+      -10.358260154724121,
+      -11.943325996398926
+    ],
+    "mesh_scale": [
+      1,
+      1,
+      1
+    ],
+    "body_rotation_xyzw": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "label": "arch_head_separated",
+    "point_count": 0,
+    "phi_cm": [],
+    "mesh_scale": [
+      1,
+      1,
+      1
+    ],
+    "body_rotation_xyzw": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "label": "arch_head_tilted",
+    "point_count": 3,
+    "phi_cm": [
+      -6.548768043518066,
+      -9.795455932617188,
+      -11.398545265197754
+    ],
+    "mesh_scale": [
+      1,
+      1,
+      1
+    ],
+    "body_rotation_xyzw": [
+      0.12467473338522769,
+      0,
+      0,
+      0.992197667229329
+    ]
+  },
+  {
+    "label": "arch_head_scaled",
+    "point_count": 3,
+    "phi_cm": [
+      -9.550126075744629,
+      -9.913511276245117,
+      -10.377548217773438
+    ],
+    "mesh_scale": [
+      1.25,
+      0.75,
+      1
+    ],
+    "body_rotation_xyzw": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "label": "arch_head_mirrored",
+    "point_count": 3,
+    "phi_cm": [
+      -4.9473958015441895,
+      -10.011874198913574,
+      -11.57204532623291
+    ],
+    "mesh_scale": [
+      -1,
+      1,
+      1
+    ],
+    "body_rotation_xyzw": [
+      0,
+      0,
+      0,
+      1
+    ]
+  }
+]

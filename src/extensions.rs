@@ -123,6 +123,8 @@ pub(crate) mod source_contact_gjk;
 pub(crate) mod source_contact_face;
 #[path = "avian_ext/source_contact_convex.rs"]
 pub(crate) mod source_contact_convex;
+#[path = "avian_ext/source_contact_capsule.rs"]
+pub(crate) mod source_contact_capsule;
 #[path = "avian_ext/source_contact_epa.rs"]
 pub(crate) mod source_contact_epa;
 #[path = "avian_ext/source_contact_history.rs"]

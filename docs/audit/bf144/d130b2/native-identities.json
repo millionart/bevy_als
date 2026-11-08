@@ -1,0 +1,14 @@
+{
+  "request": "docs/audit/bf144/d130b2/manifold.request.json",
+  "request_sha256": "d952c4eaf31bb4977b62f158dbe271a3ecfcaddf061bc638e74853aac8236845",
+  "native": "docs/audit/bf144/d130b2/manifold.native.json.gz",
+  "raw_bytes": 4839009,
+  "raw_sha256": "aafe1713759c606c17cfdf9a1315d86a68e5e7a52b03481547cccced21cc8e4d",
+  "gzip_bytes": 231346,
+  "gzip_sha256": "18f6dfbbeeb37f3932012290d47a179fea38a3aba52cb768ae51ae0526e52664",
+  "reader_report": "docs/audit/bf144/d130b2/manifold.native.json.reader.report.json",
+  "sample": "docs/audit/bf144/d130b2/manifold.native-samples.json",
+  "sample_sha256": "13f21acc163d33ce62d09f9c5eb9474595d4653f58ebe045c12ecd70ba81cfb0",
+  "source_topology": "docs/audit/bf144/d100b3b1/identities.json",
+  "source_topology_sha256": "c39208a44d0de4940d3f16d76a1426c7857d04e41372cf69ae99715dbef37721"
+}
