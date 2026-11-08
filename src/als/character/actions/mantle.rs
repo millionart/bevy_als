@@ -487,7 +487,7 @@ pub fn detect_mantle(
     spatial: &SpatialQuery,
     excluded: Entity,
     input: MantleDetectionInput,
-    velocities: &Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
+    velocities: &Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
     target_permissions: &Query<Option<&AlsMantleTargetPermission>>,
     colliders: &Query<&ColliderOf>,
 ) -> MantleDetection {
@@ -565,9 +565,15 @@ pub fn detect_mantle(
         || forward_hit.normal1.y >= MANTLE_WALKABLE_FLOOR_COS
         || !target_allows_step_up
         || velocities
-            .get(body)
+            .get(forward_hit.entity)
             .ok()
-            .is_some_and(|(kind, physical, component)| component_velocity(kind, physical, component).length() > MANTLE_TARGET_SPEED_THRESHOLD)
+            .is_some_and(|(kind, physical, component)| {
+                let velocity = match (kind, physical) {
+                    (Some(kind), Some(physical)) => component_velocity(kind, physical, component),
+                    _ => component.map_or(Vec3::ZERO, |velocity| velocity.0),
+                };
+                velocity.length_squared() > MANTLE_TARGET_SPEED_THRESHOLD * MANTLE_TARGET_SPEED_THRESHOLD
+            })
     {
         return MantleDetection {
             intent: None,
@@ -1006,12 +1012,47 @@ mod tests {
     fn debug_probe(app: &mut App, actor: Entity, locomotion: LocomotionState) -> MantleDetection {
         use bevy::ecs::system::RunSystemOnce;
         app.world_mut().run_system_once_with(|In((actor, locomotion)): In<(Entity, LocomotionState)>, spatial: SpatialQuery,
-            velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
+            velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
             permissions: Query<Option<&AlsMantleTargetPermission>>, colliders: Query<&ColliderOf>,
             actors: Query<&Transform, With<crate::als::character::AlsCharacter>>| {
             detect_mantle(&spatial, actor, MantleDetectionInput { origin: actors.get(actor).unwrap().translation, input_yaw: Some(0.0),
                 locomotion, ..default() }, &velocities, &permissions, &colliders)
         }, (actor, locomotion)).unwrap()
+    }
+
+    #[test]
+    fn mantle_uses_the_hit_components_own_velocity() {
+        for (body_speed, component_speed, allowed) in [(0.0, Some(0.2), false),
+            (0.2, Some(0.0), true), (0.2, None, true), (0.2, Some(0.2), false),
+            (0.0, Some(0.0), true), (0.2, Some(0.1), true)] {
+            let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
+            let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::from_xyz(0.0, 0.4, -1.4),
+                AlsComponentVelocity(Vec3::X * body_speed))).id();
+            app.world_mut().entity_mut(ledge).remove::<RigidBody>().insert((ChildOf(body), Transform::IDENTITY));
+            if let Some(speed) = component_speed {
+                app.world_mut().entity_mut(ledge).insert(AlsComponentVelocity(Vec3::X * speed));
+            }
+            app.update();
+            app.update();
+            let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
+            assert_eq!(detection.intent.is_some(), allowed,
+                "body_speed={body_speed} component_speed={component_speed:?} trace={:?}", detection.trace);
+            if allowed { assert_eq!(detection.intent.unwrap().target_entity, ledge); }
+        }
+        for (speed, allowed) in [(0.0, true), (0.1, true), (0.2, false)] {
+            let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
+            app.world_mut().entity_mut(ledge).insert(AlsComponentVelocity(Vec3::X * speed));
+            let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
+            assert_eq!(detection.intent.is_some(), allowed, "speed={speed} trace={:?}", detection.trace);
+        }
+        for (physical, component, allowed) in [(0.0, 0.2, true), (0.2, 0.0, false)] {
+            let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
+            app.world_mut().entity_mut(ledge).insert((RigidBody::Dynamic, LinearVelocity(Vec3::X * physical),
+                AlsComponentVelocity(Vec3::X * component)));
+            let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
+            assert_eq!(detection.intent.is_some(), allowed,
+                "physical={physical} component={component} trace={:?}", detection.trace);
+        }
     }
 
     #[test]

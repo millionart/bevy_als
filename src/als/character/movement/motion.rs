@@ -3993,7 +3993,7 @@ pub(crate) fn locomotion_drive_system(
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
     spatial: SpatialQuery,
-    velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
+    velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
     target_permissions: Query<Option<&AlsMantleTargetPermission>>,
     target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
     target_bodies: Query<&RigidBody, Without<AlsCharacter>>,
@@ -10771,7 +10771,7 @@ mod tests {
         app.world_mut().entity_mut(character).insert(AlsCharacterDebug::default());
         let origin = app.world().get::<Position>(character).unwrap().0;
         let source_detection = app.world_mut().run_system_once(move |spatial: SpatialQuery,
-            velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
+            velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
             permissions: Query<Option<&AlsMantleTargetPermission>>, colliders: Query<&ColliderOf>| {
             detect_mantle(&spatial, character, MantleDetectionInput { origin, actor_yaw: 0.0,
                 velocity_yaw: None, input_yaw: Some(0.0), locomotion: LocomotionState::Grounded,
@@ -10792,6 +10792,35 @@ mod tests {
             "Source stationary-on-base Mantle trace follows character input rather than perpendicular base velocity: origin={origin:?} target={target:?} forward={forward:?} base={base:?}");
         assert!(app.world().get::<AlsMantleState>(character).unwrap().active,
             "The actual public Jump Mantle attempt must reach the forward static ledge");
+    }
+
+    #[test]
+    fn loaded_mantle_attempt_uses_hit_component_velocity() {
+        use avian3d::prelude::{CollisionLayers, LayerMask};
+        use crate::als::character::AlsCollisionLayer;
+        use crate::als::dynamics::AlsComponentVelocity;
+        for (body_speed, component_speed, allowed) in [(0.0, 0.2, false), (0.2, 0.0, true)] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            let origin = app.world().get::<Position>(character).unwrap().0;
+            let body = app.world_mut().spawn((RigidBody::Kinematic,
+                Transform::from_xyz(origin.x, 0.4, origin.z - 1.4), LinearVelocity::ZERO)).id();
+            let ledge = app.world_mut().spawn((Collider::cuboid(2.4, 0.8, 1.2), ChildOf(body), Transform::IDENTITY,
+                CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL))).id();
+            app.update();
+            app.update();
+            app.world_mut().entity_mut(body).insert(AlsComponentVelocity(Vec3::X * body_speed));
+            app.world_mut().entity_mut(ledge).insert(AlsComponentVelocity(Vec3::X * component_speed));
+            app.world_mut().entity_mut(character).insert(AlsCharacterDebug::default());
+            {
+                let mut input = app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+                input.move_dir = Vec2::Y;
+                input.jump_pressed = true;
+            }
+            app.update();
+            let trace = app.world().get::<AlsCharacterDebug>(character).unwrap().0.mantle_probe.unwrap();
+            assert_eq!(app.world().get::<AlsMantleState>(character).unwrap().active, allowed,
+                "body_speed={body_speed} component_speed={component_speed} trace={trace:?}");
+        }
     }
 
     #[test]

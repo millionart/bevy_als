@@ -6156,7 +6156,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整已播放Roll的Air角色、初始vy0，在4m静态平台上方5/20mm，50/100ms内实际落地。源应调整到1.9–2.4cm带内，target已Grounded但离地仅0.040/0.021mm；无Roll两组为21.499mm。`bf144_roll_root_landing_enters_walking_before_remaining_move`6组2PASS/4FAIL；夹具只关闭角色solver约束、仍保留floor sweep的两组也仅0.046/0.138mm，证据`target/bf144/15/landing_walking/`。
   - 漏检：旧Roll落地检查mode/velocity，没有比较切Walking的当帧floor合同；模式对照8组全通过也掩盖了这里的缺口。消融证明缺失高度不是单靠接触摩擦产生，D45以初始vy0排除；附带横向轨迹偏移尚不单独归因或登记。生产实现未改。
 
-- [ ] BF144-D53 / P2 — Mantle的速度许可读取父刚体，丢失命中组件身份。
+- [x] BF144-D53 / P2 — Mantle的速度许可读取父刚体，丢失命中组件身份；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:40 +08:00；预估结束18:10 +08:00；实际结束17:43 +08:00，提前27分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS/UE命中组件速度与原生10cm/s阈值证据保存在`docs/audit/bf144/d53/`；目标读取命中实体并保留模拟刚体优先规则，已写父子反向、阈值、模拟体和加载角色对照。旧target报告缺失，焊接模拟子组件及动画Gate待验证。
   - Source：fresh ALS `AlsCharacter_Actions.cpp:235–242`直接读取ForwardTraceHit的TargetPrimitive.GetComponentVelocity；UE `PrimitiveComponentPhysics.cpp:1333–1344`对非simulated组件返回该组件自己的ComponentVelocity，`SceneComponent.cpp:3022–3024`没有转取父刚体。`MovementComponent.cpp:382–388`也将velocity写给实际UpdatedComponent。
   - Target：`src/als/character/actions/mantle.rs:560,570–573`先把命中实体转成ColliderOf.body，再只在body上读取AlsComponentVelocity。显式提供在子碰撞组件上的速度被忽略，父body的组件速度被错误继承。
   - 反例：完整角色面对同一0.8m ledge，父Kinematic component速度0、命中child component速度0.2m/s时，source应拒绝，target probe Success且实际开始Mantle；父0.2、child0时反向误拒绝。`bf144_mantle_hit_component_velocity_keeps_component_identity`6组4PASS/2FAIL，独立组件及父子速度相同的4个对照PASS；证据`target/bf144/16/initial/`。

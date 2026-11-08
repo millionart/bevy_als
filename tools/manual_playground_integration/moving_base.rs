@@ -183,7 +183,7 @@ pub(super) fn drive(
     params: Res<Assets<AlsMovementParams>>,
     spatial: SpatialQuery,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
-    velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
+    velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     owners: Query<&ColliderOf>,
 ) {
@@ -230,7 +230,7 @@ pub(super) fn drive(
         return;
     }
     let candidate = state.moving_base_probe.stage == Stage::WaitMantle && *mode == LocomotionState::Grounded
-        && velocities.get(body).is_ok_and(|(_, velocity, _)| moving_mantle_candidate(path.kind, velocity.0))
+        && velocities.get(body).is_ok_and(|(_, velocity, _)| velocity.is_some_and(|velocity| moving_mantle_candidate(path.kind, velocity.0)))
         && detect_mantle(&spatial, character, MantleDetectionInput {
             origin: position.0, actor_yaw: world_forward_to_yaw(*transform.forward()),
             velocity_yaw: crate::als::motion::locomotion_movement_flags(false, velocity.0.with_y(0.0).length()).0
@@ -445,7 +445,7 @@ mod tests {
     fn rotating_mantle_approach_stays_clear_and_reaches_the_actual_component() {
         use bevy::ecs::system::RunSystemOnce;
         fn candidate(In((character, origin, target, half, radius)): In<(Entity, Vec3, Entity, f32, f32)>,
-            spatial: SpatialQuery, velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
+            spatial: SpatialQuery, velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
             permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>, owners: Query<&ColliderOf>) -> bool {
             detect_mantle(&spatial, character, MantleDetectionInput {
                 origin, actor_yaw:0.0, velocity_yaw:None, input_yaw:Some(0.0),

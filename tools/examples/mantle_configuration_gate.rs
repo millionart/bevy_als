@@ -110,7 +110,7 @@ fn auto_start_settings() -> AlsMantleStartTimeSettings {
 fn verify(
     mut state: ResMut<GateState>,
     spatial: SpatialQuery,
-    velocities: Query<(&RigidBody, &LinearVelocity, Option<&bevy_als::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
+    velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&bevy_als::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
     permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     colliders: Query<&ColliderOf>,
     mut exit: MessageWriter<AppExit>,
