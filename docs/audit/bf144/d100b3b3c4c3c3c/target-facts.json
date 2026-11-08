@@ -1,0 +1,26 @@
+[
+  {
+    "source_file": "src/dynamics/solver/constraint_graph.rs",
+    "sha256": "0340a115f03d53e0e7c66eea42faabaaeafd86e10b07663421816b5ef442da3e",
+    "start_line": 163,
+    "end_line": 176,
+    "text": "    pub fn push_manifold(&mut self, contact_edge: &mut ContactEdge, contact_pair: &ContactPair) {\n        // TODO: These shouldn't be `Option`s.\n        let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) else {\n            return;\n        };\n\n        let is_static1 = contact_pair.flags.contains(ContactPairFlags::STATIC1);\n        let is_static2 = contact_pair.flags.contains(ContactPairFlags::STATIC2);\n\n        debug_assert!(!contact_pair.manifolds.is_empty());\n        debug_assert!(!is_static1 || !is_static2);\n\n        let mut color_index = COLOR_OVERFLOW_INDEX;\n\n",
+    "dependency": "avian3d-0.7.0"
+  },
+  {
+    "source_file": "src/dynamics/solver/plugin.rs",
+    "sha256": "b8c96fa4fcdc013ef28830afe5821a013676252519fb1169fb08b8d33227ceea",
+    "start_line": 386,
+    "end_line": 404,
+    "text": "\n    // Generate contact constraints for each contact pair, parallelizing over graph colors.\n    crate::utils::par_for_each(&mut active_colors, 2, |_i, color| {\n        for handle in color.manifold_handles.iter() {\n            // Get the contact pair and its manifold.\n            let contact_pair = contact_graph\n                .get_by_id(handle.contact_id)\n                .unwrap_or_else(|| {\n                    panic!(\"Contact pair not found in graph: {:?}\", handle.contact_id)\n                })\n                .1;\n            let manifold_index = handle.manifold_index;\n            let manifold = &contact_pair.manifolds[manifold_index];\n\n            if !contact_pair.generates_constraints() {\n                continue;\n            }\n\n            let (Some(body1_entity), Some(body2_entity)) = (contact_pair.body1, contact_pair.body2)\n",
+    "dependency": "avian3d-0.7.0"
+  },
+  {
+    "source_file": "src/dynamics/solver/plugin.rs",
+    "sha256": "b8c96fa4fcdc013ef28830afe5821a013676252519fb1169fb08b8d33227ceea",
+    "start_line": 544,
+    "end_line": 568,
+    "text": "    // Solve overflow constraints serially. They have lower priority, so they are solved first.\n    for constraint in constraint_graph.colors[COLOR_OVERFLOW_INDEX]\n        .contact_constraints\n        .iter_mut()\n    {\n        solve_contacts_internal::<USE_BIAS>(\n            &bodies,\n            constraint,\n            max_overlap_solve_speed,\n            delta_secs,\n        );\n    }\n\n    // Solve contact constraints in each color in parallel.\n    for color in constraint_graph\n        .colors\n        .iter_mut()\n        .take(COLOR_OVERFLOW_INDEX)\n        .filter(|color| !color.contact_constraints.is_empty())\n    {\n        crate::utils::par_for_each(&mut color.contact_constraints, 64, |_i, constraint| {\n            solve_contacts_internal::<USE_BIAS>(\n                &bodies,\n                constraint,\n                max_overlap_solve_speed,\n",
+    "dependency": "avian3d-0.7.0"
+  }
+]

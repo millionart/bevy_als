@@ -1,0 +1,16 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/ParticlePairMidPhase.cpp",
+    "sha256": "0fbacb4c35a2c3cbd600cf96e071d96cb8b6c3d01d524845189456795f57d8d3",
+    "start_line": 1139,
+    "end_line": 1162,
+    "text": "\n\tvoid FShapePairParticlePairMidPhase::BuildDetectorsImpl()\n\t{\n\t\tif (IsValid() && (Particle0 != Particle1))\n\t\t{\n\t\t\tconst FShapesArray& Shapes0 = Particle0->ShapesArray();\n\t\t\tconst FShapesArray& Shapes1 = Particle1->ShapesArray();\n\t\t\tfor (int32 ShapeIndex0 = 0; ShapeIndex0 < Shapes0.Num(); ++ShapeIndex0)\n\t\t\t{\n\t\t\t\tconst FPerShapeData* Shape0 = Shapes0[ShapeIndex0].Get();\n\t\t\t\tfor (int32 ShapeIndex1 = 0; ShapeIndex1 < Shapes1.Num(); ++ShapeIndex1)\n\t\t\t\t{\n\t\t\t\t\tconst FPerShapeData* Shape1 = Shapes1[ShapeIndex1].Get();\n\t\t\t\t\tTryAddShapePair(Shape0, ShapeIndex0, Shape1, ShapeIndex1);\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n\n\tvoid FShapePairParticlePairMidPhase::TryAddShapePair(const FPerShapeData* Shape0, const int32 ShapeIndex0, const FPerShapeData* Shape1, const int32 ShapeIndex1)\n\t{\n\t\tconst FImplicitObject* Implicit0 = Shape0->GetLeafGeometry();\n\t\tconst EImplicitObjectType ImplicitType0 = Private::GetImplicitCollisionType(Particle0, Implicit0);\n\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/ParticlePairMidPhase.cpp",
+    "sha256": "0fbacb4c35a2c3cbd600cf96e071d96cb8b6c3d01d524845189456795f57d8d3",
+    "start_line": 1197,
+    "end_line": 1220,
+    "text": "\t\tconst FVec3f& RelativeMovement,\n\t\tconst FCollisionContext& Context)\n\t{\n\t\tCHAOS_MIDPHASE_SCOPE_CYCLE_TIMER(FShapePairParticlePairMidPhase_GenerateCollision);\n\n\t\t//TRACE_COUNTER_INCREMENT(ChaosTraceCounter_MidPhase_NumShapePair);\n\n\t\tint32 NumActive = 0;\n\t\tif (Flags.bIsCCDActive != 0)\n\t\t{\n\t\t\tfor (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)\n\t\t\t{\n\t\t\t\tNumActive += ShapePair.GenerateCollisionCCD(Dt, CullDistance, RelativeMovement, Flags.bUseSweep, Context);\n\t\t\t}\n\t\t}\n\t\telse\n\t\t{\n\t\t\tfor (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)\n\t\t\t{\n\t\t\t\tNumActive += ShapePair.GenerateCollision(Dt, CullDistance, RelativeMovement, Context);\n\t\t\t}\n\t\t}\n\t\treturn NumActive;\n\t}\n"
+  }
+]

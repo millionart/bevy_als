@@ -1,6 +1,8 @@
 use avian3d::collision::contact_types::{ContactGraph, ContactId, ContactManifold, ContactPoint};
 use avian3d::collision::narrow_phase::NarrowPhaseConfig;
-use avian3d::dynamics::solver::{constraint_graph::{ConstraintGraph, ContactConstraintHandle, COLOR_OVERFLOW_INDEX}, PhysicsLengthUnit};
+use avian3d::dynamics::solver::{constraint_graph::{ConstraintGraph, ContactConstraintHandle}, PhysicsLengthUnit};
+#[cfg(test)]
+use avian3d::dynamics::solver::constraint_graph::COLOR_OVERFLOW_INDEX;
 use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
 use avian3d::parry::shape::Cuboid;
 use avian3d::prelude::{ActiveCollisionHooks, AngularVelocity, Collider, ColliderOf, ColliderTransform, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
@@ -98,12 +100,7 @@ fn order_compound_groups(
     source_side: usize,
 ) {
     if manifolds.len() < 2 || manifolds.len() != ids.len() || manifolds.len() != handles.len() { return; }
-    let mut slots = (0..manifolds.len()).collect::<Vec<_>>();
-    slots.sort_by_key(|index| {
-        let handle = handles[*index];
-        let color = handle.color_index as usize;
-        (if color == COLOR_OVERFLOW_INDEX { 0 } else { color + 1 }, handle.local_index)
-    });
+    let slots = source_solver_slots(handles);
     let mut source = (0..manifolds.len()).collect::<Vec<_>>();
     source.sort_by_key(|index| ids[*index][source_side]);
     let ordered = source.into_iter().map(|index| manifolds[index].clone()).collect::<Vec<_>>();
@@ -718,6 +715,28 @@ mod tests {
                 for (actual, expected) in manifold.points.iter().zip(expected) {
                     let midpoint = (vector(&expected["world_point_0_cm"]) + vector(&expected["world_point_1_cm"])) * 0.005;
                     assert!(actual.point.abs_diff_eq(midpoint, 2e-5));
+                }
+            }
+            if name == "SM_Als_Bench" && native.len() == 2 {
+                let outside: serde_json::Value = serde_json::from_str(include_str!(
+                    "../../docs/audit/bf144/d100b3b3c4c3b/aggregate-outside.native-sample.json")).unwrap();
+                for (distance, expected) in [(0.011, &outside), (-0.011, &fixture)] {
+                    app.world_mut().get_mut::<Position>(foot).unwrap().0.y += distance;
+                    app.world_mut().get_mut::<Transform>(foot).unwrap().translation.y += distance;
+                    app.update();
+                    let (edge, pair) = app.world().resource::<ContactGraph>().get(ground, foot).unwrap();
+                    let expected = expected["aggregate_contacts"].as_array().unwrap();
+                    let mut shapes = app.world().resource::<SourceBoxContactHistory>().compounds.keys()
+                        .filter(|key| key.0 == pair.contact_id.0).map(|key| key.1).collect::<Vec<_>>();
+                    shapes.sort_unstable();
+                    assert_eq!(shapes, expected.iter().map(|group| group["mesh_shape_index"].as_u64().unwrap() as u32).collect::<Vec<_>>());
+                    assert_eq!(edge.constraint_handles.len(), expected.len());
+                    for (slot, group) in source_solver_slots(&edge.constraint_handles).into_iter().zip(expected) {
+                        let normal = pair.manifolds[slot].normal * if pair.collider1 == foot { -1.0 } else { 1.0 };
+                        assert!(normal.abs_diff_eq(vector(&group["points"][0]["world_normal"]), 2e-5));
+                    }
+                    assert_eq!(app.world().resource::<ObservedContactEvents>().starts, 1);
+                    assert_eq!(app.world().resource::<ObservedContactEvents>().ends, 0);
                 }
             }
             if name == "SM_Als_Barrel" && !native.is_empty() {
