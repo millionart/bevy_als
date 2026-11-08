@@ -1,0 +1,16 @@
+{
+  "settings": {
+    "bAllowAimingWhenInAir": "True",
+    "bSprintHasPriorityOverAiming": "True",
+    "bRotateToVelocityWhenSprinting": "True"
+  },
+  "character_settings_reference": "docs/audit/bf144/d243/first-tick.native.json.gz",
+  "rotation_priority_inputs": [
+    "desired aiming",
+    "desired rotation mode",
+    "max allowed gait",
+    "view mode",
+    "locomotion mode"
+  ],
+  "air_uses_separate_branch": true
+}

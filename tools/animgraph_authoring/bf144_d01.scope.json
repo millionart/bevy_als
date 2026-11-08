@@ -1,0 +1,315 @@
+{
+  "format": "als_animation_behavior_scope_v1",
+  "id": "bf144_d01",
+  "source_facts": "docs/audit/bf144/d01/source-facts.json",
+  "native_identity": "docs/audit/bf144/d01/native-identities.json",
+  "source_closure": [
+    {
+      "asset": "AB_Als",
+      "graphs_read": 8,
+      "evidence": "docs/audit/bf144/d280/root.native.json.gz",
+      "authoring": "tools/animgraph_authoring/ab_als.authoring.json"
+    },
+    {
+      "asset": "AB_Als_Grounded",
+      "graphs_read": 120,
+      "evidence": "docs/audit/bf144/d286/grounded.native.json.gz",
+      "authoring": "tools/animgraph_authoring/ab_als_grounded.authoring.json",
+      "recursive_index": "tools/animgraph_authoring/ab_als_grounded.recursive_audit.index.json"
+    },
+    {
+      "asset": "AB_Als_Standing",
+      "graphs_read": 258,
+      "evidence": "docs/audit/bf144/d245/standing.native.json.gz",
+      "authoring": "tools/animgraph_authoring/ab_als_standing.authoring.json",
+      "recursive_index": "tools/animgraph_authoring/ab_als_standing.recursive_audit.index.json"
+    },
+    {
+      "asset": "AB_Als_Crouching",
+      "graphs_read": 147,
+      "evidence": "docs/audit/bf144/d286/crouching.native.json.gz",
+      "authoring": "tools/animgraph_authoring/ab_als_crouching.authoring.json",
+      "recursive_index": "tools/animgraph_authoring/ab_als_crouching.recursive_audit.index.json"
+    },
+    {
+      "asset": "AB_Als_Head",
+      "graphs_read": 11,
+      "evidence": "docs/audit/bf144/d258/head.native.json",
+      "authoring": "tools/animgraph_authoring/ab_als_head.authoring.json"
+    },
+    {
+      "asset": "AB_Als_Layering",
+      "graphs_read": 5,
+      "evidence": "docs/audit/bf144/d248b2/layering.native.json.gz",
+      "authoring": "tools/animgraph_authoring/ab_als_layering.authoring.json"
+    },
+    {
+      "asset": "AB_Als_Ragdolling",
+      "graphs_read": 5,
+      "evidence": "docs/audit/bf144/d245/blend.native.json.gz",
+      "authoring": "tools/animgraph_authoring/ab_als.authoring.json"
+    }
+  ],
+  "consumer_edges": [
+    "Retained maximum allowed gait -> rotation mode during mantle and other action modes -> root graph rotation-mode tag"
+  ],
+  "static_commands": [
+    "tools/validate_animgraph_authoring.py --check",
+    "tools/validate_animgraph_editor_assets.py",
+    "tools/verify_animgraph_node_positions.py",
+    "tools/import/run_ue_visible_animgraph_audit.py",
+    "tools/import/audit_ue_visible_fsm.py",
+    "tools/validate_runtime_graph_asset_boundary.py"
+  ],
+  "focused_tests": [
+    "desired_aiming_intent_survives_button_release_and_source_mode_branches",
+    "retained_sprint_priority_survives_action_modes_and_aim_changes",
+    "retained_sprint_rotation_reaches_the_loaded_animation_graph"
+  ],
+  "manual_cases": [
+    "startup",
+    "grounded",
+    "sprint",
+    "locomotion"
+  ],
+  "status": "implementation_complete_static_and_runtime_gates_pending",
+  "source_assets": [
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Lean/BS_Als_Lean.BS_Als_Lean",
+      "evidence": "docs/audit/bf144/d286/lean.native.json",
+      "reader_report": "docs/audit/bf144/d286/lean.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean.A_Als_Lean",
+      "evidence": "docs/audit/bf144/d286/sample_center.native.json",
+      "reader_report": "docs/audit/bf144/d286/sample_center.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.A_Als_Lean_Forward",
+      "evidence": "docs/audit/bf144/d286/sample_forward.native.json",
+      "reader_report": "docs/audit/bf144/d286/sample_forward.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.A_Als_Lean_Backward",
+      "evidence": "docs/audit/bf144/d286/sample_backward.native.json",
+      "reader_report": "docs/audit/bf144/d286/sample_backward.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.A_Als_Lean_Left",
+      "evidence": "docs/audit/bf144/d286/sample_left.native.json",
+      "reader_report": "docs/audit/bf144/d286/sample_left.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.A_Als_Lean_Right",
+      "evidence": "docs/audit/bf144/d286/sample_right.native.json",
+      "reader_report": "docs/audit/bf144/d286/sample_right.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.A_Als_Lean_Pose",
+      "evidence": "docs/audit/bf144/d286/sample_reference.native.json",
+      "reader_report": "docs/audit/bf144/d286/sample_reference.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/SK_Als.SK_Als",
+      "evidence": "docs/audit/bf144/d286/skeleton.native.json",
+      "reader_report": "docs/audit/bf144/d286/skeleton.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/SKM_Als.SKM_Als",
+      "evidence": "docs/audit/bf144/d286/mesh.native.json",
+      "reader_report": "docs/audit/bf144/d286/mesh.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/SK_Als.SK_Als",
+      "evidence": "docs/audit/bf144/d279/skeleton.native.json",
+      "reader_report": "docs/audit/bf144/d279/skeleton.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/SKM_Als.SKM_Als",
+      "evidence": "docs/audit/bf144/d279/mesh.native.json",
+      "reader_report": "docs/audit/bf144/d279/mesh.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "evidence": "docs/audit/bf144/d279/rig.native.json.gz",
+      "reader_report": "docs/audit/bf144/d279/rig.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head",
+      "evidence": "docs/audit/bf144/d258/head.native.json",
+      "reader_report": "docs/audit/bf144/d258/head.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/View/BS_Als_Look.BS_Als_Look",
+      "evidence": "docs/audit/bf144/d258/look-blend.native.json",
+      "reader_report": "docs/audit/bf144/d258/look-blend.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+      "evidence": "docs/audit/bf144/d258/look-forward.native.json",
+      "reader_report": "docs/audit/bf144/d258/look-forward.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/View/A_Als_Look_Down.A_Als_Look_Down",
+      "evidence": "docs/audit/bf144/d258/look-down.native.json",
+      "reader_report": "docs/audit/bf144/d258/look-down.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up",
+      "evidence": "docs/audit/bf144/d258/look-up.native.json",
+      "reader_report": "docs/audit/bf144/d258/look-up.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+      "evidence": "docs/audit/bf144/d258/head-settings.native.json",
+      "reader_report": "docs/audit/bf144/d258/head-settings.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right",
+      "evidence": "docs/audit/bf144/d257/right.native.json",
+      "reader_report": "docs/audit/bf144/d257/right.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left",
+      "evidence": "docs/audit/bf144/d257/left.native.json",
+      "reader_report": "docs/audit/bf144/d257/left.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+      "evidence": "docs/audit/bf144/d151/speed.native.json",
+      "reader_report": "docs/audit/bf144/d151/speed.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+      "evidence": "docs/audit/bf144/d256b/mapping.native.json",
+      "reader_report": "docs/audit/bf144/d256b/mapping.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+      "evidence": "docs/audit/bf144/d256c/velocity.native.json",
+      "reader_report": "docs/audit/bf144/d256c/velocity.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+      "evidence": "docs/audit/bf144/d255a/braking.native.json",
+      "reader_report": "docs/audit/bf144/d255a/braking.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+      "evidence": "docs/audit/bf144/d255b/velocity.native.json",
+      "reader_report": "docs/audit/bf144/d255b/velocity.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+      "evidence": "docs/audit/bf144/d254b/character.native.json.gz",
+      "reader_report": "docs/audit/bf144/d254b/character.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+      "evidence": "docs/audit/bf144/d252/birth.native.json.gz",
+      "reader_report": "docs/audit/bf144/d252/birth.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "evidence": "docs/audit/bf144/d251/rig.native.json.gz",
+      "reader_report": "docs/audit/bf144/d251/rig.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+      "evidence": "docs/audit/bf144/d251/rotation.native.json",
+      "reader_report": "docs/audit/bf144/d251/rotation.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AB_Als.AB_Als",
+      "evidence": "docs/audit/bf144/d250/weights-after.native.json.gz",
+      "reader_report": "docs/audit/bf144/d250/weights-after.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "evidence": "docs/audit/bf144/d250/core.native.json.gz",
+      "reader_report": "docs/audit/bf144/d250/core.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "evidence": "docs/audit/bf144/d249a/ik.native.json.gz",
+      "reader_report": "docs/audit/bf144/d249a/ik.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AB_Als.AB_Als",
+      "evidence": "docs/audit/bf144/d249b/foot.native.json.gz",
+      "reader_report": "docs/audit/bf144/d249b/foot.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "evidence": "docs/audit/bf144/d248a/normalize.native.json.gz",
+      "reader_report": "docs/audit/bf144/d248a/normalize.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+      "evidence": "docs/audit/bf144/d248a/publication.native.json",
+      "reader_report": "docs/audit/bf144/d248a/publication.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head",
+      "evidence": "docs/audit/bf144/d248b1/head.native.json.gz",
+      "reader_report": "docs/audit/bf144/d248b1/head.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering",
+      "evidence": "docs/audit/bf144/d248b2/layered.native.json.gz",
+      "reader_report": "docs/audit/bf144/d248b2/layered.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AB_Als.AB_Als",
+      "evidence": "docs/audit/bf144/d247a/trace.native.json.gz",
+      "reader_report": "docs/audit/bf144/d247a/trace.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/CR_Als.CR_Als",
+      "evidence": "docs/audit/bf144/d247b/ik.native.json.gz",
+      "reader_report": "docs/audit/bf144/d247b/ik.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AB_Als.AB_Als",
+      "evidence": "docs/audit/bf144/d246a/box.native.json.gz",
+      "reader_report": "docs/audit/bf144/d246a/box.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Cart.SM_Als_Cart",
+      "evidence": "docs/audit/bf144/d246b1/mesh.native.json",
+      "reader_report": "docs/audit/bf144/d246b1/mesh.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel.SM_Als_Barrel",
+      "evidence": "docs/audit/bf144/d246b2/convex.native.json",
+      "reader_report": "docs/audit/bf144/d246b2/convex.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Ragdolling.AB_Als_Ragdolling",
+      "evidence": "docs/audit/bf144/d245/blend.native.json.gz",
+      "reader_report": "docs/audit/bf144/d245/blend.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+      "evidence": "docs/audit/bf144/d245/standing.native.json.gz",
+      "reader_report": "docs/audit/bf144/d245/standing.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+      "evidence": "docs/audit/bf144/d243/first-tick.native.json.gz",
+      "reader_report": "docs/audit/bf144/d243/first-tick.native.json.reader.report.json"
+    },
+    {
+      "asset": "/ALS/ALS/Data/Character/CS_Als_Default.CS_Als_Default",
+      "evidence": "docs/audit/bf144/d01/settings.native.json",
+      "reader_report": "docs/audit/bf144/d01/settings.native.json.reader.report.json"
+    }
+  ],
+  "closure_state": {
+    "fresh_graphs_read": 554,
+    "changed_dependency_graphs_audited": 0,
+    "last_static_audit": "pending",
+    "open_boundary": "BlendList child update relevance threshold and all execution gates remain separate",
+    "fresh_rig_graphs_read": 10
+  }
+}

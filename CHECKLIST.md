@@ -5672,7 +5672,9 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
   - BF144.304实际Head Base→rig-source扩展：28组原生Base/delta/alpha=1按source local→mesh→full additive（无早normalize）→local→API/node末normalize重建2212骨TQS全double精确。只在mesh组件旋转相乘后提前normalize、其余字段/输入/末尾阶段不变，2198 double旋转行变化、20行改变f32；该消费者仍为已有提前组件归一化阶段，不另编号，含近零分量的精确变化不宣称视觉故障。目标同Base/delta经公共helper精确匹配Apply/HeadRoot，内Root到outer Head及ControlRig输入直接边已核，恢复以.304摘要为准；证据 `target/bf144/304/factors-check.json`、`transport-check.json`。
 
-- [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
+- [x] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
+  - 2026-11-08 12:04 开始：预估结束12:24 +08:00。依据已存72组分支对照及.02实际动作反例，fresh重读角色旋转选择、gait保持与设置资产，修正共享条件并补各视角/动作模式控制；测试及公共Gate依用户顺序暂缓。
+  - 12:07 source/static闭环：fresh设置三项均True，源冲刺判定只读取MaxAllowedGait，非Grounded不刷新该值，Air另有专用分支；目标删除多余mode/stance条件，查询范围不变。已写Custom/None双stance/双视角/aim切换及受控High Mantle→实际动画tag fixture；源设置、角色引用和源码见`docs/audit/bf144/d01/`。实现结束2026-11-08 12:07 +08:00，较预估提前17分钟；测试、消融与真实动作Gate待依赖升级后执行。
   - Source：fresh `AlsCharacter.cpp:675–758` 的 `bSprinting` 只读 CMC MaxAllowedGait；`942–958` 非 Grounded 时不刷新该值，Custom/None 按“Grounded and other locomotion modes”分支继续保留冲刺优先级。fresh CS_Als_Default 确认 SprintHasPriorityOverAiming/RotateToVelocityWhenSprinting 均为 True。
   - Target：`src/als/state/aim.rs:69–71` 额外要求 Grounded+Standing 才认定 sprinting；`character/animation_instances/ab_als_root.rs:184` 与 `ab_als_provider.rs:343` 把错误模式传入动画图和 Turn/Rotate 许可。
   - 反例：实际加载角色前进、冲刺、瞄准，Grounded 下 VelocityDirection 正常；进入活动 High Mantle 的第0帧，Custom/MaxAllowedGait=Sprinting 保持，却变为 Aiming，source 应仍为 VelocityDirection。`bf144_sprint_to_mantle_preserves_source_rotation_mode` 的资产/动作前置通过后语义 FAIL；72组地空对照全通过，72组 Custom/None 有18处不符。影响翻越/布娃娃期间状态及动画输入，尚不宣称所有18组都已走真实动作路径。
