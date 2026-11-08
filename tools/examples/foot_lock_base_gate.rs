@@ -141,21 +141,21 @@ fn setup(mut commands: Commands) {
                 left: AlsFootLockFootState {
                     lock_amount: 1.0,
                     target_location: Vec3::new(0.25, 0.1, -0.4),
-                    target_rotation: Quat::from_rotation_y(0.2),
+                    target_rotation: Quat::from_rotation_y(0.2).as_dquat(),
                     lock_location: Vec3::new(0.25, 0.1, -0.4),
-                    lock_rotation: Quat::from_rotation_y(0.2),
+                    lock_rotation: Quat::from_rotation_y(0.2).as_dquat(),
                     final_location: Vec3::new(0.25, 0.1, -0.4),
-                    final_rotation: Quat::from_rotation_y(0.2),
+                    final_rotation_armature: Quat::from_rotation_y(0.2),
                     ..default()
                 },
                 right: AlsFootLockFootState {
                     lock_amount: 1.0,
                     target_location: Vec3::new(-0.25, 0.1, -0.4),
-                    target_rotation: Quat::from_rotation_y(-0.2),
+                    target_rotation: Quat::from_rotation_y(-0.2).as_dquat(),
                     lock_location: Vec3::new(-0.25, 0.1, -0.4),
-                    lock_rotation: Quat::from_rotation_y(-0.2),
+                    lock_rotation: Quat::from_rotation_y(-0.2).as_dquat(),
                     final_location: Vec3::new(-0.25, 0.1, -0.4),
-                    final_rotation: Quat::from_rotation_y(-0.2),
+                    final_rotation_armature: Quat::from_rotation_y(-0.2),
                     ..default()
                 },
                 ..default()
@@ -203,7 +203,7 @@ fn update_lock_side(
     advance_foot_lock_movement_base(side, current_base);
     capture_foot_lock_movement_base(side, current_base);
     side.final_location = side.lock_location;
-    side.final_rotation = side.lock_rotation;
+    side.final_rotation_armature = side.lock_rotation.as_quat();
 }
 
 fn lock_snapshot(app: &App, character: Entity) -> LockSnapshot {
@@ -211,7 +211,7 @@ fn lock_snapshot(app: &App, character: Entity) -> LockSnapshot {
     LockSnapshot {
         movement_base: state.left.movement_base.map(|base| base.entity),
         world_location: state.left.lock_location,
-        world_rotation: state.left.lock_rotation,
+        world_rotation: state.left.lock_rotation.as_quat(),
         base_location: state.left.lock_location_movement_base,
         base_rotation: state.left.lock_rotation_movement_base,
     }

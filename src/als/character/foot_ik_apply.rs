@@ -5,15 +5,16 @@ use crate::als::foot_ik::{
     AlsFootTargetSelection, FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M, FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
     build_foot_bone_map, capture_foot_lock_movement_base, constrain_foot_lock_rotation,
     foot_lock_location_constraint_rotation, is_relevant_animation_weight, refresh_foot_lock,
-    reset_foot_lock_to_target,
+    reset_foot_lock_to_target, source_foot_final_rotation,
 };
 use crate::als::state::{LocomotionState, Stance};
 use crate::als::transitions::TransitionConfig;
 use crate::extensions::ik_space::{
-    ArmaturePoint, ArmatureRotation, WorldPoint, WorldRotation, armature_point_from_world,
-    armature_rotation_from_world, world_point_from_armature, world_rotation_from_armature,
+    ArmaturePoint, WorldPoint, WorldRotation, armature_point_from_world,
+    armature_rotation_from_world, world_point_from_armature,
 };
 use bevy::prelude::*;
+use bevy::math::DQuat;
 use bevy::animation::AnimationTargetId;
 use avian3d::prelude::{ColliderOf, RigidBody};
 use bevy::transform::{TransformSystems, helper::TransformHelper};
@@ -485,13 +486,11 @@ fn refresh_previous_foot_lock_transform(
     let current_matrix = current_character_transform.to_matrix();
     state.final_location =
         current_matrix.transform_point3(previous_inverse.transform_point3(state.final_location));
-    let rotation_delta =
-        current_character_transform.rotation * previous_character_transform.rotation.conjugate();
-    state.final_rotation = (rotation_delta * state.final_rotation).normalize();
     if rebase_lock {
         state.lock_location =
             current_matrix.transform_point3(previous_inverse.transform_point3(state.lock_location));
-        state.lock_rotation = (rotation_delta * state.lock_rotation_before_foot_limit).normalize();
+        state.lock_rotation = current_character_transform.rotation.as_dquat()
+            * state.lock_rotation_before_foot_limit_armature.as_dquat();
     }
 }
 
@@ -511,7 +510,7 @@ fn source_constrain_foot_lock(
     let mut lock_location_armature =
         armature_point_from_world(armature, WorldPoint(state.lock_location)).0;
     let mut lock_rotation_armature =
-        armature_rotation_from_world(armature, WorldRotation(state.lock_rotation)).0;
+        (armature.rotation().as_dquat().conjugate() * state.lock_rotation).as_quat();
     if let Some(offset_rotation) = foot_lock_location_constraint_rotation(
         thigh_axis_armature,
         lock_location_armature,
@@ -521,10 +520,9 @@ fn source_constrain_foot_lock(
         lock_rotation_armature = (offset_rotation * lock_rotation_armature).normalize();
         state.lock_location =
             world_point_from_armature(armature, ArmaturePoint(lock_location_armature)).0;
-        state.lock_rotation =
-            world_rotation_from_armature(armature, ArmatureRotation(lock_rotation_armature)).0;
+        state.lock_rotation = armature.rotation().as_dquat() * lock_rotation_armature.as_dquat();
         capture_foot_lock_movement_base(state, state.movement_base);
-        state.lock_rotation_before_foot_limit = state.lock_rotation;
+        state.lock_rotation_before_foot_limit_armature = lock_rotation_armature;
     }
     state.lock_rotation = constrain_foot_lock_rotation(
         state.lock_rotation,
@@ -534,10 +532,9 @@ fn source_constrain_foot_lock(
     state.final_location = state
         .target_location
         .lerp(state.lock_location, state.lock_amount);
-    state.final_rotation = state
-        .target_rotation
-        .lerp(state.lock_rotation, state.lock_amount)
-        .normalize();
+    let final_rotation = source_foot_final_rotation(state.target_rotation, state.lock_rotation, state.lock_amount);
+    state.final_rotation_armature =
+        (armature.rotation().as_dquat().conjugate() * final_rotation).as_quat();
 }
 
 fn positive_scale_foot_rotation(
@@ -547,7 +544,7 @@ fn positive_scale_foot_rotation(
     parents: &Query<&ChildOf>,
     local_transforms: &Query<(&Transform, Option<&AnimationTargetId>)>,
     player: Option<&AnimationGraphPlayer>,
-) -> Option<Quat> {
+) -> Option<DQuat> {
     let mut rotations = Vec::new();
     let mut current = target;
     while current != avatar {
@@ -566,8 +563,8 @@ fn positive_scale_foot_rotation(
         if local_transforms.get(entity).ok()?.0.scale.min_element() < 0.0 { return None; }
         ancestor = parents.get(entity).ok().map(ChildOf::parent);
     }
-    if rotations.is_empty() { return Some(armature.rotation()); }
-    let mut prefix = bevy::math::DQuat::IDENTITY;
+    if rotations.is_empty() { return Some(armature.rotation().as_dquat()); }
+    let mut prefix = DQuat::IDENTITY;
     let mut component_rotation = None;
     while let Some((rotation, bone)) = rotations.pop() {
         if let Some(component) = component_rotation {
@@ -579,8 +576,8 @@ fn positive_scale_foot_rotation(
             prefix *= rotation;
         }
     }
-    Some((armature.rotation().as_dquat() * prefix
-        * component_rotation.unwrap_or(bevy::math::DQuat::IDENTITY)).as_quat())
+    Some(armature.rotation().as_dquat() * prefix
+        * component_rotation.unwrap_or(DQuat::IDENTITY))
 }
 
 fn refresh_foot_lock_inputs(
@@ -684,18 +681,19 @@ fn refresh_foot_lock_inputs(
             };
             let target_rotation = positive_scale_foot_rotation(
                 target_entity, assembly.avatar, &armature, &parents, &local_transforms, player,
-            ).unwrap_or_else(|| target.rotation());
+            ).unwrap_or_else(|| target.rotation().as_dquat());
             let (foot_state, ik_amount, lock_amount) = match side {
                 0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),
                 _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),
             };
             if became_valid {
-                reset_foot_lock_to_target(foot_state, target.translation(), target_rotation);
+                reset_foot_lock_to_target(foot_state, target.translation(), target_rotation, armature.rotation());
             }
             refresh_foot_lock(
                 foot_state,
                 target.translation(),
                 target_rotation,
+                armature.rotation(),
                 ik_amount,
                 lock_amount,
                 settings.allow_foot_lock,
@@ -726,9 +724,9 @@ fn refresh_foot_lock_inputs(
         if let Some(input) = rig_input.as_mut() {
             input.foot_transforms_valid = lock_state.valid;
             input.foot_left_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.left.final_location)).0;
-            input.foot_left_rotation_armature = armature_rotation_from_world(&armature, WorldRotation(lock_state.left.final_rotation)).0;
+            input.foot_left_rotation_armature = lock_state.left.final_rotation_armature;
             input.foot_right_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.right.final_location)).0;
-            input.foot_right_rotation_armature = armature_rotation_from_world(&armature, WorldRotation(lock_state.right.final_rotation)).0;
+            input.foot_right_rotation_armature = lock_state.right.final_rotation_armature;
         }
         dynamic_transition.update(
             &lock_state, lock_input.allow_transitions, armature.to_scale_rotation_translation().0.z.abs(),
@@ -791,8 +789,8 @@ mod tests {
                     positive_scale_foot_rotation(root, avatar, &armature, &parents, &locals, Some(player)).unwrap(),
                     positive_scale_foot_rotation(foot, avatar, &armature, &parents, &locals, Some(player)).unwrap())
             }).unwrap();
-            assert_eq!(sampled_root, (mesh_rotation.as_dquat() * root_rotation.as_dquat()).as_quat());
-            assert_eq!(sampled_foot, mesh_rotation);
+            assert_eq!(sampled_root, mesh_rotation.as_dquat() * root_rotation.as_dquat());
+            assert_eq!(sampled_foot, mesh_rotation.as_dquat());
             assert_ne!(sampled_root, sampled_foot);
             app.world_mut().entity_mut(actor).insert((AlsFootTargetSelection { use_ik_bones: use_ik },
                 AlsFootLockState::default(), AlsFootLockInput { left_ik_amount: 1.0, right_ik_amount: 1.0, ..default() }));
@@ -830,7 +828,8 @@ mod tests {
             app.world_mut().run_system_once(refresh_foot_lock_inputs).unwrap();
             let state = app.world().get::<AlsFootLockState>(actor).unwrap();
             assert!(state.valid);
-            assert!(state.left.target_rotation.normalize().dot(expected.normalize()).abs() > 0.999999);
+            assert!(state.left.target_rotation.as_quat().normalize().dot(expected.normalize()).abs() > 0.999999);
+            assert_ne!(state.left.target_rotation, state.left.target_rotation.as_quat().as_dquat());
             assert!(state.left.target_location.distance(affine.translation()) < 1e-5);
             let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
             assert!(rig.foot_transforms_valid);
@@ -842,7 +841,7 @@ mod tests {
             }).unwrap();
             app.world_mut().entity_mut(actor).insert(AlsFootLockState::default());
             app.world_mut().run_system_once(refresh_foot_lock_inputs).unwrap();
-            assert_eq!(app.world().get::<AlsFootLockState>(actor).unwrap().left.target_rotation, negative);
+            assert_eq!(app.world().get::<AlsFootLockState>(actor).unwrap().left.target_rotation, negative.as_dquat());
             app.world_mut().get_mut::<Transform>(parent).unwrap().scale.x *= -1.0;
         }
     }
@@ -871,9 +870,9 @@ mod tests {
             let state = app.world().get::<AlsFootLockState>(actor).unwrap();
             assert!(state.valid);
             assert!(state.left.target_location.distance(mesh.translation()) < 1e-5);
-            assert!(state.left.target_rotation.dot(mesh.rotation()).abs() > 0.99999);
+            assert!(state.left.target_rotation.dot(mesh.rotation().as_dquat()).abs() > 0.99999);
             assert!(state.right.target_location.distance(right_world.translation()) < 1e-5);
-            assert!(state.right.target_rotation.dot(right_world.rotation()).abs() > 0.99999);
+            assert!(state.right.target_rotation.dot(right_world.rotation().as_dquat()).abs() > 0.99999);
             let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
             assert!(rig.foot_transforms_valid && rig.foot_left_location_armature.length() < 1e-5);
             assert!(rig.foot_left_rotation_armature.dot(Quat::IDENTITY).abs() > 0.99999);
@@ -904,18 +903,19 @@ mod tests {
                     assert!(lock.valid && !lock.became_valid);
                     lock.left.lock_amount = 1.0;
                     lock.left.lock_location = mesh.affine().transform_point3(Vec3::new(0.2, -0.8, 0.0));
-                    lock.left.lock_rotation = (delta * target_world.rotation()).normalize();
-                    lock.left.lock_rotation_before_foot_limit = lock.left.lock_rotation;
+                    lock.left.lock_rotation = (delta * target_world.rotation()).normalize().as_dquat();
+                    lock.left.lock_rotation_before_foot_limit_armature =
+                        (mesh.rotation().as_dquat().conjugate() * lock.left.lock_rotation).as_quat();
                     lock.left.movement_base = None;
-                    let actual_delta = lock.left.lock_rotation * target_world.rotation().conjugate();
+                    let actual_delta = (lock.left.lock_rotation * target_world.rotation().as_dquat().conjugate()).as_quat();
                     let mut angle = 2.0 * actual_delta.y.atan2(actual_delta.w);
                     while angle > std::f32::consts::PI { angle -= std::f32::consts::TAU; }
                     while angle < -std::f32::consts::PI { angle += std::f32::consts::TAU; }
                     let degrees = angle.to_degrees();
                     let expected = if degrees.abs() > 40.0 + 1e-4 {
-                        Quat::from_rotation_y((degrees.clamp(-40.0, 40.0) - degrees).to_radians()) * lock.left.lock_rotation
+                        Quat::from_rotation_y((degrees.clamp(-40.0, 40.0) - degrees).to_radians()).as_dquat() * lock.left.lock_rotation
                     } else { lock.left.lock_rotation };
-                    *capture.lock().unwrap() = Some(expected.normalize());
+                    *capture.lock().unwrap() = Some(expected.normalize().as_quat());
                     input.left_ik_amount = 1.0;
                     input.left_lock_amount = 1.0;
                     input.moving_smooth = false;
@@ -957,8 +957,8 @@ mod tests {
                     let recovered = mesh.affine().inverse().transform_point3(lock.left.lock_location);
                     assert!(recovered.distance(source_lock) < 1e-6);
                     if source_lock.z == 0.0 { assert_eq!(recovered.z, 0.0, "Fixture must preserve exact collinear component axes"); }
-                    lock.left.lock_rotation = Quat::IDENTITY;
-                    lock.left.lock_rotation_before_foot_limit = Quat::IDENTITY;
+                    lock.left.lock_rotation = DQuat::IDENTITY;
+                    lock.left.lock_rotation_before_foot_limit_armature = Quat::IDENTITY;
                     lock.left.movement_base = None;
                     input.left_ik_amount = 1.0;
                     input.left_lock_amount = 1.0;
@@ -1150,18 +1150,18 @@ mod tests {
             capture_foot_lock_movement_base(&mut foot, Some(base));
             for angle in [100.0_f32, 90.0] {
                 let current = AlsFootLockMovementBase { rotation:Quat::from_rotation_y(angle.to_radians()), ..base };
-                refresh_foot_lock(&mut foot, Vec3::ZERO, Quat::IDENTITY, 1.0, 1.0, true, false, true, false, 1.0 / 60.0, Some(current));
+                refresh_foot_lock(&mut foot, Vec3::ZERO, DQuat::IDENTITY, armature_rotation, 1.0, 1.0, true, false, true, false, 1.0 / 60.0, Some(current));
                 source_constrain_foot_lock(&mut foot, &armature, &armature, Vec3::X, &settings);
                 let expected = Quat::from_rotation_y(settings.foot_angle_limit_degrees.to_radians());
-                assert!(foot.lock_rotation.angle_between(expected) < 1e-5,
+                assert!(foot.lock_rotation.normalize().angle_between(expected.as_dquat().normalize()) < 1e-5,
                     "Foot clamp changed source base-space history: angle={angle} actual={:?} expected={expected:?}", foot.lock_rotation);
                 assert!(foot.lock_rotation_movement_base.angle_between(Quat::IDENTITY) < 1e-5);
-                assert!(foot.lock_rotation_before_foot_limit.angle_between(current.rotation) < 1e-5);
+                assert!(foot.lock_rotation_before_foot_limit_armature.normalize().angle_between((armature_rotation.conjugate() * current.rotation).normalize()) < 1e-5);
             }
             let current = Transform::from_rotation(Quat::from_rotation_y(-0.3));
             refresh_previous_foot_lock_transform(&mut foot, &armature.compute_transform(), &current, true);
             let expected = current.rotation * armature_rotation.conjugate() * Quat::from_rotation_y(90.0_f32.to_radians());
-            assert!(foot.lock_rotation.angle_between(expected) < 1e-5, "Teleport must use the component lock before the world foot-angle limit");
+            assert!(foot.lock_rotation.normalize().angle_between(expected.as_dquat().normalize()) < 1e-5, "Teleport must use the component lock before the world foot-angle limit");
         }
     }
 
@@ -1172,11 +1172,11 @@ mod tests {
         capture_foot_lock_movement_base(&mut foot, Some(base));
         for (angle, expected_angle) in [(100.0_f32, 90.0_f32), (90.0, 80.0)] {
             let current = AlsFootLockMovementBase { rotation:Quat::from_rotation_y(angle.to_radians()), ..base };
-            refresh_foot_lock(&mut foot, Vec3::X, Quat::IDENTITY, 1.0, 1.0, true, false, true, false, 1.0 / 60.0, Some(current));
+            refresh_foot_lock(&mut foot, Vec3::X, DQuat::IDENTITY, Quat::IDENTITY, 1.0, 1.0, true, false, true, false, 1.0 / 60.0, Some(current));
             source_constrain_foot_lock(&mut foot, &GlobalTransform::IDENTITY, &GlobalTransform::IDENTITY, Vec3::X, &AlsFootLockSettings::default());
             let expected = Quat::from_rotation_y(expected_angle.to_radians());
             assert!(foot.lock_location.distance(expected * Vec3::X) < 1e-5);
-            assert!(foot.lock_rotation_before_foot_limit.angle_between(expected) < 1e-5);
+            assert!(foot.lock_rotation_before_foot_limit_armature.angle_between(expected) < 1e-5);
         }
     }
 
@@ -1385,12 +1385,12 @@ mod tests {
             lock_location: previous_character_transform
                 .to_matrix()
                 .transform_point3(local_location),
-            lock_rotation: previous_character_transform.rotation * local_rotation,
-            lock_rotation_before_foot_limit: previous_character_transform.rotation * local_rotation,
+            lock_rotation: previous_character_transform.rotation.as_dquat() * local_rotation.as_dquat(),
+            lock_rotation_before_foot_limit_armature: local_rotation,
             final_location: previous_character_transform
                 .to_matrix()
                 .transform_point3(local_location),
-            final_rotation: previous_character_transform.rotation * local_rotation,
+            final_rotation_armature: local_rotation,
             ..Default::default()
         };
         refresh_previous_foot_lock_transform(
@@ -1404,15 +1404,15 @@ mod tests {
             .transform_point3(local_location);
         let expected_rotation = current_character_transform.rotation * local_rotation;
         let teleport_location_error = foot_state.lock_location.distance(expected_location);
-        let teleport_rotation_alignment = foot_state.lock_rotation.dot(expected_rotation).abs();
+        let teleport_rotation_alignment = foot_state.lock_rotation.dot(expected_rotation.as_dquat()).abs();
 
         let target_location = Vec3::new(8.0, 0.4, -2.0);
         let target_rotation = Quat::from_rotation_y(60.0_f32.to_radians());
-        reset_foot_lock_to_target(&mut foot_state, target_location, target_rotation);
+        reset_foot_lock_to_target(&mut foot_state, target_location, target_rotation.as_dquat(), current_character_transform.rotation);
         let recovery_fresh = foot_state.lock_amount == 0.0
             && foot_state.lock_location == target_location
             && foot_state.final_location == target_location
-            && foot_state.lock_rotation.dot(target_rotation).abs() > 0.999_99
+            && foot_state.lock_rotation.dot(target_rotation.as_dquat()).abs() > 0.999_99
             && foot_state.movement_base.is_none();
 
         let mut app = App::new();
@@ -1567,14 +1567,14 @@ mod tests {
                 .with_rotation(Quat::from_rotation_y(-0.6)).with_scale(Vec3::splat(1.2));
             let mut state = crate::als::foot_ik::AlsFootLockFootState {
                 final_location: previous.to_matrix().transform_point3(local),
-                final_rotation: previous.rotation * local_rotation,
+                final_rotation_armature: local_rotation,
                 ..default()
             };
             refresh_previous_foot_lock_transform(&mut state, &previous, &current, false);
             let target = current.to_matrix().transform_point3(local + Vec3::X * 0.1);
-            refresh_foot_lock(&mut state, target, current.rotation, 1.0, 1.0, true, false, true, false, 1.0 / 60.0, None);
+            refresh_foot_lock(&mut state, target, current.rotation.as_dquat(), current.rotation, 1.0, 1.0, true, false, true, false, 1.0 / 60.0, None);
             assert!(state.lock_location.distance(current.to_matrix().transform_point3(local)) < 1e-5);
-            assert!(state.lock_rotation.dot(current.rotation * local_rotation).abs() > 0.99999);
+            assert!(state.lock_rotation.dot((current.rotation * local_rotation).as_dquat()).abs() > 0.99999);
         }
     }
 

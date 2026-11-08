@@ -5336,7 +5336,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 07:44 source/static闭环：fresh原生同输入在速度上限保留375cm/s，低速和无输入控制另存；ALS在实际移动前直接使用CalcVelocity的MoveVelocity。目标同帧已保存单步计划速度；仅对无碰撞、有效floor、单步、无基座速度且无时间膨胀的已证路径复用该值，其他分支保留原流程。
   - 07:45实现摘要：已证无碰撞路径复用同帧计划速度，碰撞、基座、多步与时间膨胀保持原处理；已写真实角色无碰撞、墙阻挡及半速控制。实现结束07:45、偏差−47分钟；旧240/280帧原报告仍缺失，测试、消融与真实Gate待静态修复和Bevy/依赖迁移后执行。
 
-- [ ] BF144-D262 / P3 — Foot Lock世界四元数中间乘法提前降为F32，改变限位缓存与实际Rig输入。
+- [x] BF144-D262 / P3 — Foot Lock世界四元数中间乘法提前降为F32，改变限位缓存与实际Rig输入。
   - Source：fresh `AlsFeetState.h:18–28`的TargetRotationWorldSpace/LockRotationWorldSpace为FQuat double，`AlsAnimationInstance.cpp:1562–1574`先double相对乘法再降FQuat4f取twist，末段将FQuat4f offset升double乘原LockWorld。local/FinalRotation降F32发生在各自消费阶段，不能反推世界乘法也应F32。
   - Target：`src/als/state/foot_ik.rs:194–206,580–584`世界字段为Quat F32，relative和最终offset×lock两个乘法直接在F32执行；这是精度阶段差，与D259的Atan、D260的系数、D261的末Normalize分别有独立对照。
   - 原生/同输入：6次实际当前offset与lock完全固定，旧通用native rotation product直接确认double结果，投影后5份不同于当前F32 product；原相同lock/target的native relative投影6份不同。保留目标坐标/算序、只提升runtime运算为F64即6份全投影精确native，排除了轴转换/算序混因。单换relative精度当前轨迹仅1锁缓存差，未声称Final变化；单换末乘精度产生5锁缓存/2Final/2 actual RigInput rotation变化。
@@ -5348,7 +5348,10 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
     - 修复第1轮：开始2026-11-08 07:48 +08:00；预估结束08:38 +08:00。依据：旧6组报告缺失，现有.484真实目标骨骼前态可重采原生；fresh核source逆、FQuat4f边界和末乘，并保留D259–D261各自算子。测试在静态修复及Bevy/依赖迁移后统一执行。
     - 07:50 source/static闭环：由Git封存的23/172两帧双足目标与锁定前态重采7组原生相对/末乘（含受控限位），源双精度结果投F32与目标同输入F64模型一致；使用共享乘法保留两处F64计算，Atan、度数系数和末Normalize仍按D259–D261独立处理。
     - 07:52实现摘要：两处世界乘法复用F64算子，已写实际相对与受控末乘精确用例；完整7组原生/宽窄对照与watchdog已封存。实现结束07:52、偏差−46分钟；世界状态精度仍待D262b，测试、消融及视觉Gate待静态修复和Bevy/依赖迁移后执行。
-  - [ ] BF144-D262b — 足目标与锁定世界四元数贯通F64生命周期。
+  - [x] BF144-D262b — 足目标与锁定世界四元数贯通F64生命周期。
+    - 修复第1轮：开始2026-11-08 07:54 +08:00；预估结束08:49 +08:00。依据：fresh ALS状态区分Target/Lock世界FQuat与movement-base/local FQuat4f；目标约51处状态/测试/工具引用需按源阶段贯通，复用D279骨架/Rig与D262a原生乘法，不提前合并D259–D261。测试在静态修复和依赖迁移后统一执行。
+    - 07:58 source/static闭环：fresh源确认目标/锁定世界为F64，移动基座缓存、限位前组件旋转和最终组件旋转为F32；新锁定和传送分别从当前组件旋转重建世界值。目标当前把最终及限位前旋转保存在世界空间，不能简单把这些缓存延长为F64，否则会跨帧保留源已舍入的精度。修复须同步采样、锁定、基座、组件缓存及Rig真实消费边界；D259–D261角度与限位末Normalize仍独立。
+    - 08:05实现摘要：世界目标/锁定贯通F64，基座、限位前与最终Rig缓存按源阶段投F32；重锁/传送从当前组件重建。fresh UE FastLerp负点积分支对目标端取符号，原glam对锁定端取符号；封存.484第23/172帧右脚前态均为负点积，本项按源顺序混合并保留focused反例。世界字段类型、组件缓存名及两个公开函数签名变更，库外调用者需迁移；目标组件和基座原始输入仍为F32。实现结束08:05、偏差−44分钟；测试、消融和视觉Gate待全部静态修复及Bevy/依赖迁移后执行。
 
 - [ ] BF144-D261 / P3 — Foot Lock限位后额外归一化世界锁旋转，改变源保留的数值状态。
   - Source：fresh `AlsAnimationInstance.cpp:1571`直接写`FQuat{OffsetRotation} * LockRotationWorldSpace`，该位置无Normalize；最终旋转混合在此前1519–1520另有明确Normalize，阶段不能合并。源原生foot_lock_rotation与普通rotation_product保留raw double输出，已用当前相同输入校准。

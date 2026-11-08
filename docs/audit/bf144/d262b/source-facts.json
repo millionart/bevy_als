@@ -1,0 +1,199 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Public/State/AlsFeetState.h",
+      "sha256": "422bedd78a8c8856d91c9ce408f20fdcf4c2c95d82ad09669e4cb541ad52e714",
+      "excerpts": [
+        {
+          "first_line": 15,
+          "last_line": 45,
+          "text": "\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFVector TargetLocationWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFQuat TargetRotationWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFVector LockLocationWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFQuat LockRotationWorldSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFVector3f LockLocationMovementBaseSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFQuat4f LockRotationMovementBaseSpace{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFVector3f LockLocation{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFQuat4f LockRotation{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFVector3f FinalLocation{ForceInit};\n\n\tUPROPERTY(EditAnywhere, BlueprintReadWrite, Category = \"ALS\")\n\tFQuat4f FinalRotation{ForceInit};\n};"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 1270,
+          "last_line": 1300,
+          "text": "\t}\n\telse\n\t{\n\t\tFeetState.bBecameValid = false;\n\t}\n\n\tFeetState.PelvisRotation = FQuat4f{PelvisTransform.GetRotation()};\n\n\tconst auto FootLeftTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootLeftIkBoneName()\n\t\t\t                         : UAlsConstants::FootLeftVirtualBoneName())\n\t};\n\n\tFeetState.Left.TargetLocationWorldSpace = FootLeftTargetTransform.GetLocation();\n\tFeetState.Left.TargetRotationWorldSpace = FootLeftTargetTransform.GetRotation();\n\n\tconst auto FootRightTargetTransform{\n\t\tMesh->GetSocketTransform(Settings->General.bUseFootIkBones\n\t\t\t                         ? UAlsConstants::FootRightIkBoneName()\n\t\t\t                         : UAlsConstants::FootRightVirtualBoneName())\n\t};\n\n\tFeetState.Right.TargetLocationWorldSpace = FootRightTargetTransform.GetLocation();\n\tFeetState.Right.TargetRotationWorldSpace = FootRightTargetTransform.GetRotation();\n}\n\nvoid UAlsAnimationInstance::RefreshFeet(const float DeltaTime)\n{\n\tif (!FeetState.bValid)\n\t{"
+        },
+        {
+          "first_line": 1332,
+          "last_line": 1394,
+          "text": "void UAlsAnimationInstance::ProcessFootLockTeleport(const FAlsFootUpdateContext& Context) const\n{\n\tauto& FootState{*Context.FootState};\n\n\t// Due to network smoothing, we assume that teleportation occurs over a short period of time, not\n\t// in one frame, since after accepting the teleportation event, the character can still be moved for\n\t// some indefinite time, and this must be taken into account in order to avoid foot lock glitches.\n\n\tif (FeetState.bBecameValid || GetWorld()->TimeSince(TeleportedTime) > 0.2f ||\n\t    !FAnimWeight::IsRelevant(Context.IkAmount * FootState.LockAmount))\n\t{\n\t\treturn;\n\t}\n\n\tFootState.LockLocationWorldSpace = Context.ComponentTransform.TransformPosition(FVector{FootState.LockLocation});\n\tFootState.LockRotationWorldSpace = Context.ComponentTransform.TransformRotation(FQuat{FootState.LockRotation});\n\n\tif (MovementBase.bHasRelativeLocation)\n\t{\n\t\tconst auto BaseRotationInverse{MovementBase.Rotation.Inverse()};\n\n\t\tFootState.LockLocationMovementBaseSpace =\n\t\t\tFVector3f{BaseRotationInverse.RotateVector(FootState.LockLocationWorldSpace - MovementBase.Location)};\n\n\t\tFootState.LockRotationMovementBaseSpace = FQuat4f{BaseRotationInverse * FootState.LockRotationWorldSpace};\n\t}\n}\n\nvoid UAlsAnimationInstance::ProcessFootLockBaseChange(const FAlsFootUpdateContext& Context) const\n{\n\tauto& FootState{*Context.FootState};\n\n\tif ((!FeetState.bBecameValid && !MovementBase.bBaseChanged) ||\n\t    !FAnimWeight::IsRelevant(Context.IkAmount * FootState.LockAmount))\n\t{\n\t\treturn;\n\t}\n\n\tif (FeetState.bBecameValid)\n\t{\n\t\tFootState.LockLocationWorldSpace = FootState.TargetLocationWorldSpace;\n\t\tFootState.LockRotationWorldSpace = FootState.TargetRotationWorldSpace;\n\t}\n\n\tif (MovementBase.bHasRelativeLocation)\n\t{\n\t\tconst auto BaseRotationInverse{MovementBase.Rotation.Inverse()};\n\n\t\tFootState.LockLocationMovementBaseSpace =\n\t\t\tFVector3f{BaseRotationInverse.RotateVector(FootState.LockLocationWorldSpace - MovementBase.Location)};\n\n\t\tFootState.LockRotationMovementBaseSpace = FQuat4f{BaseRotationInverse * FootState.LockRotationWorldSpace};\n\t}\n\telse\n\t{\n\t\tFootState.LockLocationMovementBaseSpace = FVector3f::ZeroVector;\n\t\tFootState.LockRotationMovementBaseSpace = FQuat4f::Identity;\n\t}\n\n\tFootState.LockLocation = FVector3f{Context.ComponentTransformInverse.TransformPosition(FootState.LockLocationWorldSpace)};\n\tFootState.LockRotation = FQuat4f{Context.ComponentTransformInverse.TransformRotation(FootState.LockRotationWorldSpace)};\n}\n"
+        },
+        {
+          "first_line": 1428,
+          "last_line": 1434,
+          "text": "\t\t\tFootState.LockLocation = FVector3f::ZeroVector;\n\t\t\tFootState.LockRotation = FQuat4f::Identity;\n\t\t}\n\n\t\tFootState.FinalLocation = FVector3f{Context.ComponentTransformInverse.TransformPosition(FootState.TargetLocationWorldSpace)};\n\t\tFootState.FinalRotation = FQuat4f{Context.ComponentTransformInverse.TransformRotation(FootState.TargetRotationWorldSpace)};\n\t\treturn;"
+        },
+        {
+          "first_line": 1443,
+          "last_line": 1524,
+          "text": "\tif (bNewAmountEqualOne)\n\t{\n\t\tif (bNewAmountGreaterThanPrevious)\n\t\t{\n\t\t\t// If the new foot lock amount is 1 and the previous amount is less than 1, then save the new foot lock location and rotation.\n\n\t\t\tFVector TargetLocation;\n\t\t\tFQuat TargetRotation;\n\n\t\t\tif (FeetState.bBecameValid)\n\t\t\t{\n\t\t\t\tTargetLocation = FootState.TargetLocationWorldSpace;\n\t\t\t\tTargetRotation = FootState.TargetRotationWorldSpace;\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\t// We use the final transform here (the transform of the foot from the previous frame, but\n\t\t\t\t// without the foot IK applied), since using the target transform may cause the foot to teleport.\n\n\t\t\t\tTargetLocation = Context.ComponentTransform.TransformPosition(FVector{FootState.FinalLocation});\n\t\t\t\tTargetRotation = Context.ComponentTransform.TransformRotation(FQuat{FootState.FinalRotation});\n\t\t\t}\n\n\t\t\tif (MovementBase.bHasRelativeLocation)\n\t\t\t{\n\t\t\t\tconst auto BaseRotationInverse{MovementBase.Rotation.Inverse()};\n\n\t\t\t\tFootState.LockLocationMovementBaseSpace =\n\t\t\t\t\tFVector3f{BaseRotationInverse.RotateVector(TargetLocation - MovementBase.Location)};\n\n\t\t\t\tFootState.LockRotationMovementBaseSpace = FQuat4f{BaseRotationInverse * TargetRotation};\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tFootState.LockLocationMovementBaseSpace = FVector3f::ZeroVector;\n\t\t\t\tFootState.LockRotationMovementBaseSpace = FQuat4f::Identity;\n\t\t\t}\n\n\t\t\tif (FootState.LockAmount <= 0.9f)\n\t\t\t{\n\t\t\t\t// Keep the same lock location and rotation when the previous lock\n\t\t\t\t// amount is close to 1 to get rid of the foot \"teleportation\" issue.\n\n\t\t\t\tFootState.LockLocationWorldSpace = TargetLocation;\n\t\t\t\tFootState.LockRotationWorldSpace = TargetRotation;\n\n\t\t\t\tFootState.LockLocation =\n\t\t\t\t\tFVector3f{Context.ComponentTransformInverse.TransformPosition(FootState.LockLocationWorldSpace)};\n\n\t\t\t\tFootState.LockRotation =\n\t\t\t\t\tFQuat4f{Context.ComponentTransformInverse.TransformRotation(FootState.LockRotationWorldSpace)};\n\t\t\t}\n\t\t}\n\n\t\tFootState.LockAmount = 1.0f;\n\t}\n\telse if (!bNewAmountGreaterThanPrevious)\n\t{\n\t\tFootState.LockAmount = NewLockAmount;\n\t}\n\n\tif (MovementBase.bHasRelativeLocation)\n\t{\n\t\tFootState.LockLocationWorldSpace = MovementBase.Location +\n\t\t                                   MovementBase.Rotation.RotateVector(FVector{FootState.LockLocationMovementBaseSpace});\n\n\t\tFootState.LockRotationWorldSpace = MovementBase.Rotation * FQuat{FootState.LockRotationMovementBaseSpace};\n\t}\n\n\tFootState.LockLocation = FVector3f{Context.ComponentTransformInverse.TransformPosition(FootState.LockLocationWorldSpace)};\n\tFootState.LockRotation = FQuat4f{Context.ComponentTransformInverse.TransformRotation(FootState.LockRotationWorldSpace)};\n\n\tConstrainFootLock(FootState);\n\n\tconst auto FinalLocation{FMath::Lerp(FootState.TargetLocationWorldSpace, FootState.LockLocationWorldSpace, FootState.LockAmount)};\n\n\tauto FinalRotation{FQuat::FastLerp(FootState.TargetRotationWorldSpace, FootState.LockRotationWorldSpace, FootState.LockAmount)};\n\tFinalRotation.Normalize();\n\n\tFootState.FinalLocation = FVector3f{Context.ComponentTransformInverse.TransformPosition(FinalLocation)};\n\tFootState.FinalRotation = FQuat4f{Context.ComponentTransformInverse.TransformRotation(FinalRotation)};\n}"
+        },
+        {
+          "first_line": 1530,
+          "last_line": 1572,
+          "text": "\tconst auto ThighAxis{FeetState.PelvisRotation.RotateVector(FootState.ThighAxisPelvisSpace)};\n\tconst auto ThighDeltaAngle{UAlsVector::AngleBetweenSignedXY(ThighAxis, FootState.LockLocation)};\n\n\tif (FMath::Abs(ThighDeltaAngle) > Settings->FootLock.ThighAngleLimit + UE_KINDA_SMALL_NUMBER)\n\t{\n\t\tconst auto ClampedAngle{FMath::Clamp(ThighDeltaAngle, -Settings->FootLock.ThighAngleLimit, Settings->FootLock.ThighAngleLimit)};\n\t\tconst FQuat4f OffsetRotation{FVector3f::UpVector, FMath::DegreesToRadians(ClampedAngle - ThighDeltaAngle)};\n\n\t\tFootState.LockLocation = OffsetRotation.RotateVector(FootState.LockLocation);\n\t\tFootState.LockRotation = OffsetRotation * FootState.LockRotation;\n\t\tFootState.LockRotation.Normalize();\n\n\t\tconst auto& ComponentTransform{GetProxyOnAnyThread<FAnimInstanceProxy>().GetComponentTransform()};\n\n\t\tFootState.LockLocationWorldSpace = ComponentTransform.TransformPosition(FVector{FootState.LockLocation});\n\t\tFootState.LockRotationWorldSpace = ComponentTransform.TransformRotation(FQuat{FootState.LockRotation});\n\n\t\tif (MovementBase.bHasRelativeLocation)\n\t\t{\n\t\t\tconst auto BaseRotationInverse{MovementBase.Rotation.Inverse()};\n\n\t\t\tFootState.LockLocationMovementBaseSpace =\n\t\t\t\tFVector3f{BaseRotationInverse.RotateVector(FootState.LockLocationWorldSpace - MovementBase.Location)};\n\n\t\t\tFootState.LockRotationMovementBaseSpace = FQuat4f{BaseRotationInverse * FootState.LockRotationWorldSpace};\n\t\t}\n\t}\n\n\t// Limit the rotation of the locked foot.\n\n\tconst auto FootDeltaAngle{\n\t\tFMath::RadiansToDegrees(\n\t\t\tFQuat4f{FootState.LockRotationWorldSpace * FootState.TargetRotationWorldSpace.Inverse()}\n\t\t\t.GetTwistAngle(FVector3f::UpVector))\n\t};\n\n\tif (FMath::Abs(FootDeltaAngle) > Settings->FootLock.FootAngleLimit + UE_KINDA_SMALL_NUMBER)\n\t{\n\t\tconst auto ClampedAngle{FMath::Clamp(FootDeltaAngle, -Settings->FootLock.FootAngleLimit, Settings->FootLock.FootAngleLimit)};\n\t\tconst FQuat4f OffsetRotation{FVector3f::UpVector, FMath::DegreesToRadians(ClampedAngle - FootDeltaAngle)};\n\n\t\tFootState.LockRotationWorldSpace = FQuat{OffsetRotation} * FootState.LockRotationWorldSpace;\n\t}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/MathFwd.h",
+      "sha256": "5b00a9627e73c35713a757d5f0e59c3e94f8d6c87486d7f8fe944e5d3abc772d",
+      "excerpts": [
+        {
+          "first_line": 45,
+          "last_line": 55,
+          "text": "\n// Forward declaration of concrete types\t\t\t\t// Macro version - declares all three variants.\nusing FVector \t\t= UE::Math::TVector<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector, 3);\nusing FVector2D \t= UE::Math::TVector2<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector2,, FVector2D);\nusing FVector4 \t\t= UE::Math::TVector4<double>;\t\t// UE_DECLARE_LWC_TYPE(Vector4);\nusing FQuat \t\t= UE::Math::TQuat<double>;\t\t\t// UE_DECLARE_LWC_TYPE(Quat, 4);\nusing FMatrix \t\t= UE::Math::TMatrix<double>;\t\t// UE_DECLARE_LWC_TYPE(Matrix, 44);\nusing FPlane \t\t= UE::Math::TPlane<double>;\t\t\t// UE_DECLARE_LWC_TYPE(Plane, 4);\nusing FTransform \t= UE::Math::TTransform<double>;\t\t// UE_DECLARE_LWC_TYPE(Transform, 3);\nusing FSphere \t\t= UE::Math::TSphere<double>;\t\t// UE_DECLARE_LWC_TYPE(Sphere, 3);\nusing FBox \t\t\t= UE::Math::TBox<double>;\t\t\t// UE_DECLARE_LWC_TYPE(Box, 3);"
+        }
+      ]
+    },
+    {
+      "path": "src/als/state/foot_ik.rs",
+      "revision": "before_D262b",
+      "sha256": "838db3bbcebdb102fbbd18725a5c000e6fca7a0993ee6ddace9ba9b24f756328",
+      "excerpts": [
+        {
+          "first_line": 192,
+          "last_line": 240,
+          "text": "#[derive(Debug, Clone, Copy, PartialEq)]\npub struct AlsFootLockFootState {\n    pub lock_amount: f32,\n    pub target_location: Vec3,\n    pub target_rotation: Quat,\n    pub lock_location: Vec3,\n    pub lock_rotation: Quat,\n    pub lock_rotation_before_foot_limit: Quat,\n    pub movement_base: Option<AlsFootLockMovementBase>,\n    pub lock_location_movement_base: Vec3,\n    pub lock_rotation_movement_base: Quat,\n    pub final_location: Vec3,\n    pub final_rotation: Quat,\n}\n\nimpl Default for AlsFootLockFootState {\n    fn default() -> Self {\n        Self {\n            lock_amount: 0.0,\n            target_location: Vec3::ZERO,\n            target_rotation: Quat::IDENTITY,\n            lock_location: Vec3::ZERO,\n            lock_rotation: Quat::IDENTITY,\n            lock_rotation_before_foot_limit: Quat::IDENTITY,\n            movement_base: None,\n            lock_location_movement_base: Vec3::ZERO,\n            lock_rotation_movement_base: Quat::IDENTITY,\n            final_location: Vec3::ZERO,\n            final_rotation: Quat::IDENTITY,\n        }\n    }\n}\n\npub fn reset_foot_lock_to_target(\n    state: &mut AlsFootLockFootState,\n    target_location: Vec3,\n    target_rotation: Quat,\n) {\n    *state = AlsFootLockFootState {\n        target_location,\n        target_rotation,\n        lock_location: target_location,\n        lock_rotation: target_rotation,\n        lock_rotation_before_foot_limit: target_rotation,\n        final_location: target_location,\n        final_rotation: target_rotation,\n        ..Default::default()\n    };\n}"
+        },
+        {
+          "first_line": 245,
+          "last_line": 280,
+          "text": ") {\n    let Some(saved_base) = state.movement_base else {\n        return;\n    };\n    let base = latest_base\n        .filter(|base| base.entity == saved_base.entity)\n        .unwrap_or(saved_base);\n    state.lock_location = base.translation + base.rotation * state.lock_location_movement_base;\n    state.lock_rotation = (base.rotation * state.lock_rotation_movement_base).normalize();\n    state.movement_base = Some(base);\n}\n\npub fn capture_foot_lock_movement_base(\n    state: &mut AlsFootLockFootState,\n    current_base: Option<AlsFootLockMovementBase>,\n) {\n    if !is_relevant_animation_weight(state.lock_amount) {\n        state.movement_base = None;\n        state.lock_location_movement_base = Vec3::ZERO;\n        state.lock_rotation_movement_base = Quat::IDENTITY;\n        return;\n    }\n    let Some(base) = current_base else {\n        state.movement_base = None;\n        state.lock_location_movement_base = Vec3::ZERO;\n        state.lock_rotation_movement_base = Quat::IDENTITY;\n        return;\n    };\n    let inverse = base.rotation.conjugate();\n    state.lock_location_movement_base = inverse * (state.lock_location - base.translation);\n    state.lock_rotation_movement_base = (inverse * state.lock_rotation).normalize();\n    state.movement_base = Some(base);\n}\n\n#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]\npub struct AlsFootLockState {"
+        },
+        {
+          "first_line": 298,
+          "last_line": 380,
+          "text": "pub fn refresh_foot_lock(\n    state: &mut AlsFootLockFootState,\n    target_location: Vec3,\n    target_rotation: Quat,\n    ik_amount: f32,\n    requested_lock_amount: f32,\n    allow_foot_lock: bool,\n    moving_smooth: bool,\n    grounded: bool,\n    became_valid: bool,\n    delta_seconds: f32,\n    current_base: Option<AlsFootLockMovementBase>,\n) {\n    state.target_location = target_location;\n    state.target_rotation = target_rotation;\n\n    if (became_valid || state.movement_base.map(|base| base.entity) != current_base.map(|base| base.entity))\n        && is_relevant_animation_weight(ik_amount * state.lock_amount)\n    {\n        if became_valid {\n            state.lock_location = target_location;\n            state.lock_rotation = target_rotation;\n        }\n        capture_foot_lock_movement_base(state, current_base);\n    }\n\n    let mut new_lock_amount = requested_lock_amount.clamp(0.0, 1.0);\n    if moving_smooth || !grounded {\n        let decrease_speed = if moving_smooth {\n            FOOT_LOCK_MOVING_DECREASE_PER_SECOND\n        } else {\n            FOOT_LOCK_NOT_GROUNDED_DECREASE_PER_SECOND\n        };\n        new_lock_amount = if became_valid {\n            0.0\n        } else {\n            new_lock_amount\n                .min((state.lock_amount - delta_seconds.max(0.0) * decrease_speed).max(0.0))\n        };\n    }\n\n    if !allow_foot_lock\n        || !is_relevant_animation_weight(ik_amount.clamp(0.0, 1.0) * new_lock_amount)\n    {\n        state.lock_amount = 0.0;\n        state.lock_location = Vec3::ZERO;\n        state.lock_rotation = Quat::IDENTITY;\n        state.lock_rotation_before_foot_limit = Quat::IDENTITY;\n        state.movement_base = None;\n        state.lock_location_movement_base = Vec3::ZERO;\n        state.lock_rotation_movement_base = Quat::IDENTITY;\n        state.final_location = target_location;\n        state.final_rotation = target_rotation;\n        return;\n    }\n\n    let full_weight = is_full_animation_weight(new_lock_amount);\n    let greater_than_previous = new_lock_amount > state.lock_amount;\n    if full_weight {\n        if greater_than_previous && (state.lock_amount <= 0.9 || current_base.is_some()) {\n            let (location, rotation) = if became_valid {\n                (target_location, target_rotation)\n            } else {\n                (state.final_location, state.final_rotation)\n            };\n            state.lock_location = location;\n            state.lock_rotation = rotation;\n        }\n        state.lock_amount = 1.0;\n        if greater_than_previous {\n            capture_foot_lock_movement_base(state, current_base);\n        }\n    } else if !greater_than_previous {\n        state.lock_amount = new_lock_amount;\n    }\n\n    advance_foot_lock_movement_base(state, current_base);\n    state.lock_rotation_before_foot_limit = state.lock_rotation;\n    state.final_location = target_location.lerp(state.lock_location, state.lock_amount);\n    state.final_rotation = target_rotation\n        .lerp(state.lock_rotation, state.lock_amount)\n        .normalize();\n}"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/foot_ik_apply.rs",
+      "revision": "before_D262b",
+      "sha256": "c43a5a4f7822e1f63b0c1a0156a89ced06193dcb14475157a1fb6c3c12aceaf1",
+      "excerpts": [
+        {
+          "first_line": 478,
+          "last_line": 539,
+          "text": "fn refresh_previous_foot_lock_transform(\n    state: &mut crate::als::foot_ik::AlsFootLockFootState,\n    previous_character_transform: &Transform,\n    current_character_transform: &Transform,\n    rebase_lock: bool,\n) {\n    let previous_inverse = previous_character_transform.to_matrix().inverse();\n    let current_matrix = current_character_transform.to_matrix();\n    state.final_location =\n        current_matrix.transform_point3(previous_inverse.transform_point3(state.final_location));\n    let rotation_delta =\n        current_character_transform.rotation * previous_character_transform.rotation.conjugate();\n    state.final_rotation = (rotation_delta * state.final_rotation).normalize();\n    if rebase_lock {\n        state.lock_location =\n            current_matrix.transform_point3(previous_inverse.transform_point3(state.lock_location));\n        state.lock_rotation = (rotation_delta * state.lock_rotation_before_foot_limit).normalize();\n    }\n}\n\nfn source_constrain_foot_lock(\n    state: &mut AlsFootLockFootState,\n    armature: &GlobalTransform,\n    pelvis_world: &GlobalTransform,\n    thigh_axis_pelvis_space: Vec3,\n    settings: &AlsFootLockSettings,\n) {\n    if !is_relevant_animation_weight(state.lock_amount) {\n        return;\n    }\n    let pelvis_rotation_armature =\n        armature_rotation_from_world(armature, WorldRotation(pelvis_world.rotation())).0;\n    let thigh_axis_armature = pelvis_rotation_armature * thigh_axis_pelvis_space;\n    let mut lock_location_armature =\n        armature_point_from_world(armature, WorldPoint(state.lock_location)).0;\n    let mut lock_rotation_armature =\n        armature_rotation_from_world(armature, WorldRotation(state.lock_rotation)).0;\n    if let Some(offset_rotation) = foot_lock_location_constraint_rotation(\n        thigh_axis_armature,\n        lock_location_armature,\n        settings.thigh_angle_limit_degrees,\n    ) {\n        lock_location_armature = offset_rotation * lock_location_armature;\n        lock_rotation_armature = (offset_rotation * lock_rotation_armature).normalize();\n        state.lock_location =\n            world_point_from_armature(armature, ArmaturePoint(lock_location_armature)).0;\n        state.lock_rotation =\n            world_rotation_from_armature(armature, ArmatureRotation(lock_rotation_armature)).0;\n        capture_foot_lock_movement_base(state, state.movement_base);\n        state.lock_rotation_before_foot_limit = state.lock_rotation;\n    }\n    state.lock_rotation = constrain_foot_lock_rotation(\n        state.lock_rotation,\n        state.target_rotation,\n        settings.foot_angle_limit_degrees,\n    );\n    state.final_location = state\n        .target_location\n        .lerp(state.lock_location, state.lock_amount);\n    state.final_rotation = state\n        .target_rotation\n        .lerp(state.lock_rotation, state.lock_amount)"
+        },
+        {
+          "first_line": 543,
+          "last_line": 584,
+          "text": "fn positive_scale_foot_rotation(\n    target: Entity,\n    avatar: Entity,\n    armature: &GlobalTransform,\n    parents: &Query<&ChildOf>,\n    local_transforms: &Query<(&Transform, Option<&AnimationTargetId>)>,\n    player: Option<&AnimationGraphPlayer>,\n) -> Option<Quat> {\n    let mut rotations = Vec::new();\n    let mut current = target;\n    while current != avatar {\n        let (local, target_id) = local_transforms.get(current).ok()?;\n        if local.scale.min_element() < 0.0 { return None; }\n        let bone = player.zip(target_id).is_some_and(|(player, id)| {\n            let id = (*id).into();\n            player.get_default_output_pose().is_some_and(|pose| pose.paths.contains_key(&id))\n                && player.bone_entity(id) == Some(current)\n        });\n        rotations.push((local.rotation.as_dquat(), bone));\n        current = parents.get(current).ok()?.parent();\n    }\n    let mut ancestor = Some(avatar);\n    while let Some(entity) = ancestor {\n        if local_transforms.get(entity).ok()?.0.scale.min_element() < 0.0 { return None; }\n        ancestor = parents.get(entity).ok().map(ChildOf::parent);\n    }\n    if rotations.is_empty() { return Some(armature.rotation()); }\n    let mut prefix = bevy::math::DQuat::IDENTITY;\n    let mut component_rotation = None;\n    while let Some((rotation, bone)) = rotations.pop() {\n        if let Some(component) = component_rotation {\n            let combined = component * rotation;\n            component_rotation = Some(if bone { rig_normalize(combined) } else { combined });\n        } else if bone {\n            component_rotation = Some(rotation);\n        } else {\n            prefix *= rotation;\n        }\n    }\n    Some((armature.rotation().as_dquat() * prefix\n        * component_rotation.unwrap_or(bevy::math::DQuat::IDENTITY)).as_quat())\n}"
+        },
+        {
+          "first_line": 680,
+          "last_line": 731,
+          "text": "        for side in 0..2usize {\n            let target_entity = bones.target(side, use_ik_bones).unwrap_or(assembly.avatar);\n            let Ok(target) = transforms.compute_global_transform(target_entity) else {\n                continue;\n            };\n            let target_rotation = positive_scale_foot_rotation(\n                target_entity, assembly.avatar, &armature, &parents, &local_transforms, player,\n            ).unwrap_or_else(|| target.rotation());\n            let (foot_state, ik_amount, lock_amount) = match side {\n                0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),\n                _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),\n            };\n            if became_valid {\n                reset_foot_lock_to_target(foot_state, target.translation(), target_rotation);\n            }\n            refresh_foot_lock(\n                foot_state,\n                target.translation(),\n                target_rotation,\n                ik_amount,\n                lock_amount,\n                settings.allow_foot_lock,\n                lock_input.moving_smooth,\n                *locomotion == LocomotionState::Grounded,\n                became_valid,\n                dt,\n                current_base,\n            );\n            let chain = bones.chain(side);\n            let thigh_axis_pelvis_space = Vec3::from(if side == 0 {\n                profile.0.target.foot_left_thigh_axis_pelvis_space\n            } else {\n                profile.0.target.foot_right_thigh_axis_pelvis_space\n            });\n            if let Ok(thigh_parent) = parents.get(chain.thigh)\n                && let Ok(pelvis_world) = transforms.compute_global_transform(thigh_parent.0)\n            {\n                source_constrain_foot_lock(\n                    foot_state,\n                    &armature,\n                    &pelvis_world,\n                    thigh_axis_pelvis_space,\n                    settings,\n                );\n            }\n        }\n        if let Some(input) = rig_input.as_mut() {\n            input.foot_transforms_valid = lock_state.valid;\n            input.foot_left_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.left.final_location)).0;\n            input.foot_left_rotation_armature = armature_rotation_from_world(&armature, WorldRotation(lock_state.left.final_rotation)).0;\n            input.foot_right_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.right.final_location)).0;\n            input.foot_right_rotation_armature = armature_rotation_from_world(&armature, WorldRotation(lock_state.right.final_rotation)).0;"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Quat.h",
+      "sha256": "7004f385a524d92a6baba51c545c0460263551526813e4ed06d31ad6edb08300",
+      "excerpts": [
+        {
+          "first_line": 1366,
+          "last_line": 1377,
+          "text": "/**\n * Fast Linear Quaternion Interpolation.\n * Result is NOT normalized.\n */\ntemplate<typename T>\ninline TQuat<T> TQuat<T>::FastLerp(const TQuat<T>& A, const TQuat<T>& B, const T Alpha)\n{\n\t// To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.\n\tconst T DotResult = (A | B);\n\tconst T Bias = FMath::FloatSelect(DotResult, T(1.0f), T(-1.0f));\n\treturn (B * Alpha) + (A * (Bias * (1.f - Alpha)));\n}"
+        }
+      ]
+    },
+    {
+      "path": "glam-0.32.1/src/f64/dquat.rs",
+      "sha256": "a32fa76cef63aa1aa4b7d892984bf0ead4f3a370b4c6f82f2a6b209d9ac4101f",
+      "excerpts": [
+        {
+          "first_line": 680,
+          "last_line": 703,
+          "text": "    fn lerp_impl(self, end: Self, s: f64) -> Self {\n        (self * (1.0 - s) + end * s).normalize()\n    }\n\n    /// Performs a linear interpolation between `self` and `rhs` based on\n    /// the value `s`.\n    ///\n    /// When `s` is `0.0`, the result will be equal to `self`.  When `s`\n    /// is `1.0`, the result will be equal to `rhs`.\n    ///\n    /// # Panics\n    ///\n    /// Will panic if `self` or `end` are not normalized when `glam_assert` is enabled.\n    #[doc(alias = \"mix\")]\n    #[inline]\n    #[must_use]\n    pub fn lerp(self, end: Self, s: f64) -> Self {\n        glam_assert!(self.is_normalized());\n        glam_assert!(end.is_normalized());\n\n        let dot = self.dot(end);\n        let bias = if dot >= 0.0 { 1.0 } else { -1.0 };\n        self.lerp_impl(end * bias, s)\n    }"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d262a/rotation.request.json",
+      "bytes": 2805,
+      "sha256": "4d44beeedaced6785d8e5d163e1290e7954fb4412bec4501e60bc8ed4e3f13d9"
+    },
+    {
+      "path": "docs/audit/bf144/d262a/rotation.native.json",
+      "bytes": 134913,
+      "sha256": "63289d67bae40ba28fd785215724b870bd8af867fca7be87c6f479ec8459f8c6"
+    },
+    {
+      "path": "docs/audit/bf144/d262a/products.json",
+      "bytes": 6809,
+      "sha256": "a4c6098b4fdd24d5429640264e8cf54422571a79897c507a2aa4da16db3b9847"
+    },
+    {
+      "path": "docs/audit/bf144/d262a/native-identities.json",
+      "bytes": 728,
+      "sha256": "a348b707f6c15c69acd7543ee655d6e352cc0d36556d41ea9ae8ed2d61e45aed"
+    },
+    {
+      "path": "docs/audit/bf144/d279/native-identities.json",
+      "bytes": 1903,
+      "sha256": "f814d498d098eb188f083a40bc903857e80e505f4638683ec8e970e2076dfc4d"
+    },
+    {
+      "path": "docs/audit/bf144/484/inputs.json.gz",
+      "bytes": 2187575,
+      "sha256": "f6859459d9b41838a9541563ea94605585d7e75b09f39fdb8f21de7848fdc146"
+    }
+  ],
+  "scope": "Double-precision target and lock world rotations, with movement-base, previous component lock, and final rig rotations rounded at their source FQuat4f boundaries.",
+  "limits": [
+    "Target component and movement-base transforms originate from Bevy F32 rotations.",
+    "Angle operators and world-lock normalization remain separate D259-D261 items.",
+    "Static, ablation, and runtime gates are pending."
+  ],
+  "actual_negative_dot_inputs": [
+    {
+      "query": 23,
+      "side": "right",
+      "target_world_xyzw": [
+        0.38541269302368164,
+        -0.3854115903377533,
+        -0.5928382873535156,
+        0.592838704586029
+      ],
+      "lock_world_xyzw": [
+        -0.33739644289016724,
+        0.33739641308784485,
+        0.6214207410812378,
+        -0.6214206218719482
+      ],
+      "lock_amount": 1.0,
+      "dot": -0.9968775641555139
+    },
+    {
+      "query": 172,
+      "side": "right",
+      "target_world_xyzw": [
+        0.5829389095306396,
+        -0.5829374194145203,
+        -0.4002281725406647,
+        0.4002293348312378
+      ],
+      "lock_world_xyzw": [
+        -0.5656812191009521,
+        0.5787211656570435,
+        0.422161728143692,
+        -0.4084925949573517
+      ],
+      "lock_amount": 1.0,
+      "dot": -0.9995675524081777
+    }
+  ]
+}
