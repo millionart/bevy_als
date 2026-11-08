@@ -156,6 +156,88 @@ pub(crate) fn source_box_convex_gjk(
     })
 }
 
+fn source_capsule_segment_support(first: DVec3, axis: DVec3, length: f64, direction: DVec3) -> (DVec3, usize) {
+    if direction.dot(axis) >= 0.0 { (first + axis * length, 1) } else { (first, 0) }
+}
+
+pub(super) fn source_capsule_convex_gjk(
+    convex_vertices: &[DVec3],
+    convex_scale: DVec3,
+    segment_first: DVec3,
+    segment_axis: DVec3,
+    segment_length: f64,
+    epsilon: f64,
+    iteration_limit: usize,
+    epa_settings: SourceEpaSettings,
+) -> Option<SourceGjkResult> {
+    let vertices = convex_vertices.iter().copied().map(|point| source_position(point).as_vec3()).collect::<Vec<_>>();
+    let scale = source_direction(convex_scale);
+    let first = source_position(segment_first);
+    let axis = source_direction(segment_axis);
+    let length = segment_length * 100.0;
+    let epsilon = epsilon * 100.0;
+    let mut simplex = SourceGjkSimplex::default();
+    let mut direction = DVec3::NEG_X;
+    let mut normal = -direction;
+    let mut distance = f32::MAX as f64;
+    let mut last_vertices = [0; 2];
+    let mut epa_status = None;
+    for _iteration in 1..iteration_limit {
+        let (first_point, first_index) = source_convex_support(&vertices, scale, -direction)?;
+        let (second_point, second_index) = source_capsule_segment_support(first, axis, length, direction);
+        last_vertices = [first_index, second_index];
+        simplex.vertices[simplex.len] = SourceGjkVertex {
+            difference: first_point - second_point, first: first_point, second: second_point,
+        };
+        simplex.len += 1;
+        let projected = simplex.project();
+        let next_distance = projected.length();
+        if next_distance < epsilon {
+            distance = next_distance;
+            let mut epa_vertices = simplex.vertices[..simplex.len].iter().map(|vertex| SourceEpaVertex {
+                first_cm: vertex.first, second_cm: vertex.second,
+            }).collect::<Vec<_>>();
+            let result = run_source_epa(&mut epa_vertices, epa_settings,
+                |direction| source_convex_support(&vertices, scale, direction)
+                    .expect("Source convex support vertices must not be empty"),
+                |direction| source_capsule_segment_support(first, axis, length, direction), &mut last_vertices);
+            epa_status = Some(result.status);
+            match result.status {
+                SourceEpaStatus::Ok | SourceEpaStatus::MaxIterations => {
+                    let witness = result.witness;
+                    return Some(SourceGjkResult { simplex_cm: simplex, last_vertices,
+                        normal_first: source_direction(witness.normal), normal_second: source_direction(witness.normal),
+                        closest_first_m: source_direction(witness.first_cm) * 0.01,
+                        closest_second_m: source_direction(witness.second_cm) * 0.01,
+                        penetration_m: witness.penetration_cm * 0.01, max_support_delta_m: 0.0, epa_status });
+                }
+                SourceEpaStatus::BadInitialSimplex => {
+                    normal = result.witness.normal;
+                    distance = -result.witness.penetration_cm;
+                }
+                SourceEpaStatus::Degenerate => {}
+            }
+            break;
+        }
+        let degenerate = next_distance >= distance;
+        direction = projected / next_distance;
+        normal = -direction;
+        distance = next_distance;
+        if degenerate { break; }
+    }
+    if simplex.len == 0 { return None; }
+    let mut first_point = DVec3::ZERO;
+    let mut second_point = DVec3::ZERO;
+    for index in 0..simplex.len {
+        first_point += simplex.vertices[index].first * simplex.weights[index];
+        second_point += simplex.vertices[index].second * simplex.weights[index];
+    }
+    Some(SourceGjkResult { simplex_cm: simplex, last_vertices,
+        normal_first: source_direction(normal), normal_second: source_direction(normal),
+        closest_first_m: source_direction(first_point) * 0.01, closest_second_m: source_direction(second_point) * 0.01,
+        penetration_m: -distance * 0.01, max_support_delta_m: 0.0, epa_status })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,6 +287,54 @@ mod tests {
         let (point, index) = source_box_support(DVec3::splat(-2.0), DVec3::splat(2.0), 0.5, DVec3::ZERO);
         assert_eq!(point, DVec3::splat(1.5));
         assert_eq!(index, 7);
+    }
+
+    #[test]
+    fn source_capsule_segment_gjk_matches_native_endcap() {
+        let sample: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3e/endcap.native-sample.json")).unwrap();
+        let hull = crate::extensions::source_contact_face::source_convex_topology("SM_Als_Arch_01", 2).unwrap();
+        let vertices = hull.vertices_m.iter().copied().map(DVec3::from_array).collect::<Vec<_>>();
+        let body = &sample["input"]["body_translation_cm"];
+        let body = runtime_point(DVec3::new(body[0].as_f64().unwrap(), body[1].as_f64().unwrap(), body[2].as_f64().unwrap()));
+        let first = body + runtime_point(source_point(&sample["geometry"]["endpoint_0_cm"]));
+        let second = body + runtime_point(source_point(&sample["geometry"]["endpoint_1_cm"]));
+        let direct = std::env::var("ALS_CAPSULE_GJK_NATIVE_REPORT").ok().map(|path| {
+            let report: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+            report["physics_contact_probe"]["samples"].as_array().unwrap().iter()
+                .find(|value| value["input"]["label"] == "arch_head_endcap").unwrap().clone()
+        });
+        let (axis, length) = if let Some(direct) = &direct {
+            (source_direction(source_point(&direct["geometry"]["axis"])),
+                direct["geometry"]["height_cm"].as_f64().unwrap() * 0.01)
+        } else {
+            let length = first.distance(second);
+            ((second - first) / length, length)
+        };
+        let (epsilon, iterations) = include!("../als/settings/contact_gjk.rs");
+        let result = source_capsule_convex_gjk(&vertices, DVec3::ONE, first, axis, length,
+            epsilon, iterations, epa_settings()).unwrap();
+        let points = sample["aggregate_contacts"][1]["points"].as_array().unwrap();
+        let gjk = points.last().unwrap();
+        let normal = source_direction(source_point(&gjk["world_normal"]));
+        let radius = sample["geometry"]["radius_cm"].as_f64().unwrap() * 0.01;
+        let convex_point = runtime_point(source_point(&gjk["shape_point_1_cm"]));
+        let segment_point = body + runtime_point(source_point(&gjk["shape_point_0_cm"])) + normal * radius;
+        assert!(result.normal_first.distance(normal) < 2e-5);
+        assert!(result.closest_first_m.distance(convex_point) < 2e-5);
+        assert!(result.closest_second_m.distance(segment_point) < 2e-5);
+        assert!((result.penetration_m + gjk["phi_cm"].as_f64().unwrap() * 0.01 + radius).abs() < 2e-5);
+        if let Some(direct) = &direct {
+            let native = &direct["capsule_gjk"];
+            assert_eq!(result.last_vertices, [native["vertex_0"].as_u64().unwrap() as usize,
+                native["vertex_1"].as_u64().unwrap() as usize]);
+            assert!(result.normal_first.distance(source_direction(source_point(&native["normal"]))) < 1e-6);
+            assert!(result.closest_first_m.distance(runtime_point(source_point(&native["convex_point_cm"]))) < 1e-7);
+            assert!(result.closest_second_m.distance(runtime_point(source_point(&native["segment_point_cm"]))) < 1e-7);
+            assert!((result.penetration_m - native["penetration_cm"].as_f64().unwrap() * 0.01).abs() < 1e-7);
+        }
+        assert_eq!(source_capsule_segment_support(DVec3::ZERO, DVec3::X, 2.0, DVec3::Y), (DVec3::X * 2.0, 1));
+        assert_eq!(source_capsule_segment_support(DVec3::ZERO, DVec3::X, 2.0, DVec3::NEG_X), (DVec3::ZERO, 0));
     }
 
     #[test]

@@ -1,0 +1,12 @@
+{
+  "request": "docs/audit/bf144/d100b3b3e/endcap.request.json",
+  "request_sha256": "62e201a2c07d9941b55dea87303974d472c4c1577ca219454d7a3260ae41fabf",
+  "native": "docs/audit/bf144/d100b3b3e/endcap.native.json.gz",
+  "raw_bytes": 4766124,
+  "raw_sha256": "ae7081e6d0a76aca7003f97dc23c2d731601830f66c22148eeb807cab62f30f6",
+  "gzip_bytes": 227657,
+  "gzip_sha256": "469ccd837347651b1931b55fc5c9a5cade457ee68aa8efd5b9aa6ffc5c931c7e",
+  "reader_report": "docs/audit/bf144/d100b3b3e/endcap.native.json.reader.report.json",
+  "sample": "docs/audit/bf144/d100b3b3e/endcap.native-sample.json",
+  "sample_sha256": "e536195b39a8f5d925e25dda6c40ea4aa130285a789882595e47cc3cf320159e"
+}

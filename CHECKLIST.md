@@ -6796,6 +6796,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 本轮开始：2026-11-09 03:50 +08:00；预计结束：2026-11-09 04:40 +08:00。源head/Arch原生聚合含胶囊与多个凸包，源圆柱分支先按X1→X2输出，目标segment顶点方向相反，而既有D100a只覆盖capsule/box。fresh重读该shape pair并对照目标feature消费，复用既有端点排序，仅扩展已证实的圆柱分支；端帽辅助点几何仍按D130处理。估时依据：D100a已有同轴与双侧控制，D100b原生报告已有head/Arch双hull样本；测试、消融和Playground留统一Gate。
   - 03:55 source/static摘要：fresh head/Arch中hull 0为两个圆柱点、轴法向点积约0，hull 2为三个端帽点、点积约0.584；源圆柱裁剪保持X1→X2，目标segment顶点方向相反。已复用D100a排序至源标记compound，编写两侧实体顺序及非源/普通body/端帽控制；端帽几何保留D130，编译、测试、消融及Playground待统一Gate。证据`docs/audit/bf144/d100b3b3d/`。实际结束：2026-11-09 03:55 +08:00；偏差：−45分钟；结果：子项静态完成，未再拆分。
 
+- [ ] BF144-D100b3b3e / P3 — 保留胶囊端帽辅助点顺序与末尾GJK点。
+  - 本轮开始：2026-11-09 03:57 +08:00；预计结束：2026-11-09 04:47 +08:00。fresh源端帽分支按X1→X2输出裁剪辅助点，再追加GJK点；目标Parry也在feature点之后追加双UNKNOWN GJK，但segment方向相反。针对已证实的source compound端帽分支保留辅助点顺序和GJK位置，目标几何差异仍归D130。估时依据：D100b3b3d已有相同head/Arch原生三点和轴合同，现需隔离feature/GJK身份并覆盖双侧及缺失点；测试和消融留统一Gate。
+  - 04:00 source/static摘要：fresh源还要求GJK选出源凸包面、法向满足plane条件且轴与该面夹角满足0.707阈值；仅按目标manifold法向或双UNKNOWN字段给所有非圆柱点排序无法证明源实际生成了辅助点。已放弃该未经证明的排序，转而先实现本条的已登记依赖D130源capsule/convex生成，届时自然保留X1→X2及末尾GJK点；新原生请求与结果见`docs/audit/bf144/d100b3b3e/`。父项维持未完成，测试与消融待统一Gate。
+
 
 - [ ] BF144-D100b4 / P3 — 接入mesh源接触生成顺序与分组。
 
@@ -7074,10 +7078,22 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.56补充消费：Crate head的同面GJK点几乎与已有支持点重合，首次位置差异不显著，但速度摩擦仍重复消费；先剔除D140背面后，仍需删除该额外GJK点才能恢复。60/30Hz两因素控制确认两部分各自必要，沿用本项原因，不另计缺陷；见`56/backface_controls/`。
 
 - [ ] BF144-D130 / P2 — 胶囊斜碰凸面时生成位于胶囊内部的辅助接触点。
+  - 04:00 依赖提前：D100b3b3e fresh源证明端帽辅助点的存在和顺序依赖本项源GJK、凸包选面及裁线，不能对目标点直接排序；按源闭包先完成D130后回到D100，避免重复编号。本轮开始：2026-11-09 04:00 +08:00；预计结束：2026-11-09 04:50 +08:00。估时依据：D100b3b3已有源simplex/EPA和凸包拓扑，D130仍需源segment支持、实际选面/裁线及真实碰撞接入；先拆为独立子项，超过单轮的部分分别估时。
   - Source：fresh `CollisionResolution.cpp:690–708`调用专用CapsuleConvex manifold；`CollisionOneShotManifolds.cpp:1200–1267`在端帽对凸面且abs(axis·faceNormal)<0.707时，从轴线减去垂直轴的圆柱法向×radius得到表面线段，裁剪后投影到凸面，再追加原GJK端帽点。native六个斜面样本的圆柱辅助点均处于9cm半径的真实表面；其中一个被裁空，仅保留GJK点。
   - Target：Parry `shape.rs:840–841`将Capsule暴露为Segment加border radius，`polygonal_feature_map.rs:20–24`直接返回轴线特征；`contact_manifolds_pfm_pfm.rs:94–105,143–149`先裁轴线再沿统一GJK法向偏移radius。轴线内部的结果到轴距离为r×sqrt(1−(axis·normal)²)，因此不是圆柱表面；实际内陷0.56–19.09mm。六个源支持面均仅3顶点，独立于D126四点截断和D101近水平专用分支。
   - 反例：实际PA head对Arch01邻接hull，abs(axis·normal)=0.584，目标辅助点内陷约16.94mm。共同零V/W、硬接触、同一惯量和源点序下，首次位置投影的z修正为−0.112751m，源为−0.127132m；y角修正为−0.070712rad，源为+0.322935rad。六姿态×60/30Hz×原始/只恢复圆柱辅助点共24组12PASS/12FAIL；控制保留实际GJK点、法向及其余消费者，全部恢复既有容差。证据`50/capsule_analysis.json`、`50/capsule_control/`、`bf144_side_phase50_capsule_surface_controls`。
   - 漏检/消融：此前水平顶面使axis·normal≈0，沿接触法向偏移恰好落在圆柱表面；仅核对点数或完整聚合会掩盖形体错误。本次逐叶隔离，并验证实际中间点的径向距离符合目标公式、源点处于真实表面；只改变辅助支撑即可改变失败信号。仅登记，生产及依赖未改。
+
+- [x] BF144-D130a / P2 — 移植源凸包与胶囊轴线的同空间GJK。
+  - 本轮开始：2026-11-09 04:01 +08:00；预计结束：2026-11-09 04:51 +08:00。fresh核对源无margin的convex/segment支持、严格平局、double厘米simplex与EPA；复用已有源GJK/EPA能力并扩展reader直接记录末次支持顶点。估时依据：D100b3b3已有源simplex/EPA，D100b3b3d已有原生head双hull；reader重建与所有测试待统一Gate。
+  - 04:09 source/static摘要：fresh源确认convex与segment均无margin、segment平局取X2，GJK/EPA使用同空间double厘米；已写源支持、simplex/EPA和端帽原生见证点/平局测试。两次native请求记录接触、上移和分离；旧reader不含直接GJK/轴/高度，新字段及合同已写、单位缩放限制待重建验证。证据`docs/audit/bf144/d130a/`。实际结束：2026-11-09 04:09 +08:00；偏差：−42分钟；结果：子项静态完成，点生成与生命周期留b/c。
+
+- [ ] BF144-D130b / P2 — 生成源胶囊/凸包面与端帽接触点。
+  - 预计开始：2026-11-09 04:51 +08:00；预计结束：2026-11-09 05:41 +08:00。基于D130a源GJK，移植源凸包选面、圆柱裁线、端帽辅助点及GJK末点；按原生多姿态保留局部点/法向/phi和源顺序。实际开始时按剩余工作更新时点；测试与消融待统一Gate。
+  - 本轮开始：2026-11-09 04:09 +08:00；预计结束：2026-11-09 04:59 +08:00。D130a已提前静态完成；接下来按fresh源码拆解源选面与圆柱/端帽点生成，直接native GJK重采仍留统一Gate。
+
+- [ ] BF144-D130c / P2 — 将源胶囊/凸包接触接入真实生命周期。
+  - 预计开始：2026-11-09 05:41 +08:00；预计结束：2026-11-09 06:31 +08:00。将D130b源点组接到真实Playground碰撞、cull及缓存/事件链，保留非源控制；实际开始时按剩余工作更新时点，测试与Playground留统一Gate。
 
 - [ ] BF144-D131 / P2 — box与凸包的棱边接触遗漏原生专用投影分支。
   - Source：fresh `CollisionOneShotManifolds.cpp:914–969`在两侧支持面均不接近接触法向时标为EdgeEdge；正polygonal margin路径寻找两侧最近棱边，沿接触法向投影到静态棱边，生成单点并提前返回。实际Arch_02样本contact type=2、有效margin=(0.6cm,0)，两个最大面法向对齐值约0.9023/0.9231；源静态碰撞force point使用body侧投影点。

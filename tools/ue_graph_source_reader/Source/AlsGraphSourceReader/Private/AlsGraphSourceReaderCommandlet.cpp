@@ -76,6 +76,7 @@
 #include "Chaos/Convex.h"
 #include "Chaos/GJK.h"
 #include "Chaos/GJKShape.h"
+#include "Chaos/Segment.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Sphere.h"
@@ -1526,6 +1527,8 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             GeometryValue->SetStringField(TEXT("kind"), TEXT("capsule"));
             GeometryValue->SetObjectField(TEXT("endpoint_0_cm"), CaptureVector(FVector(Capsule.GetX1f())));
             GeometryValue->SetObjectField(TEXT("endpoint_1_cm"), CaptureVector(FVector(Capsule.GetX2f())));
+            GeometryValue->SetObjectField(TEXT("axis"), CaptureVector(FVector(Capsule.GetAxisf())));
+            GeometryValue->SetNumberField(TEXT("height_cm"), Capsule.GetHeightf());
             GeometryValue->SetNumberField(TEXT("radius_cm"), Capsule.GetRadiusf());
         }
         else if (Geometry.GetType() == ECollisionShapeType::Sphere)
@@ -1809,6 +1812,41 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                 const Chaos::FRigidTransform3 NextRelative = Chaos::FRigidTransform3(NextBoxWorld).GetRelativeTransformNoScale(NextShapeWorld);
                 Sample->SetObjectField(TEXT("warm_gjk"), CaptureDirectGJK(NextRelative));
             }
+        }
+        bool CaptureCapsuleGJK = false;
+        if (Input->HasField(TEXT("capture_capsule_gjk")) && !Input->TryGetBoolField(TEXT("capture_capsule_gjk"), CaptureCapsuleGJK)) { return nullptr; }
+        if (CaptureCapsuleGJK)
+        {
+            const Chaos::FImplicitCapsule3* Capsule = Implicit->GetObject<Chaos::FImplicitCapsule3>();
+            Chaos::FVec3 CoreScale;
+            Chaos::FReal WrapperMargin;
+            const Chaos::FConvex* Convex = Chaos::UnwrapImplicit<Chaos::FConvex>(*Other, CoreScale, WrapperMargin);
+            const IConsoleVariable* UseGJK2 = IConsoleManager::Get().FindConsoleVariable(TEXT("p.Chaos.Collision.UseGJK2"));
+            const IConsoleVariable* GJKEpsilon = IConsoleManager::Get().FindConsoleVariable(TEXT("p.Chaos.Collision.GJKEpsilon"));
+            const IConsoleVariable* EPAEpsilon = IConsoleManager::Get().FindConsoleVariable(TEXT("p.Chaos.Collision.EPAEpsilon"));
+            if (Capsule == nullptr || Convex == nullptr || CoreScale != Chaos::FVec3(1) || UseGJK2 == nullptr
+                || UseGJK2->GetInt() != 0 || GJKEpsilon == nullptr || EPAEpsilon == nullptr) { return nullptr; }
+            const Chaos::FRigidTransform3 Relative = Chaos::FRigidTransform3(ShapeWorld).GetRelativeTransformNoScale(BoxWorld);
+            const Chaos::TSegment<Chaos::FReal> Segment(Relative.TransformPositionNoScale(Chaos::FVec3(Capsule->GetX1f())),
+                Relative.TransformVectorNoScale(Chaos::FVec3(Capsule->GetAxisf())), Chaos::FReal(Capsule->GetHeightf()));
+            const Chaos::TGJKShape<Chaos::FConvex> ConvexShape(*Convex);
+            const Chaos::TGJKShape<Chaos::TSegment<Chaos::FReal>> SegmentShape(Segment);
+            Chaos::FReal Penetration = 0, SupportDelta = 0;
+            Chaos::FVec3 Point0 = Chaos::FVec3::ZeroVector, Point1 = Chaos::FVec3::ZeroVector, Normal = Chaos::FVec3::ZeroVector;
+            int32 Vertex0 = INDEX_NONE, Vertex1 = INDEX_NONE;
+            const bool Success = Chaos::GJKPenetrationSameSpace(ConvexShape, SegmentShape, Penetration, Point0, Point1,
+                Normal, Vertex0, Vertex1, SupportDelta, Chaos::FVec3(-1, 0, 0),
+                Chaos::FReal(GJKEpsilon->GetFloat()), Chaos::FReal(EPAEpsilon->GetFloat()));
+            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+            Result->SetBoolField(TEXT("success"), Success);
+            Result->SetNumberField(TEXT("vertex_0"), Vertex0);
+            Result->SetNumberField(TEXT("vertex_1"), Vertex1);
+            Result->SetNumberField(TEXT("penetration_cm"), Penetration);
+            Result->SetNumberField(TEXT("support_delta_cm"), SupportDelta);
+            Result->SetObjectField(TEXT("convex_point_cm"), CaptureVector(FVector(Point0)));
+            Result->SetObjectField(TEXT("segment_point_cm"), CaptureVector(FVector(Point1)));
+            Result->SetObjectField(TEXT("normal"), CaptureVector(FVector(Normal)));
+            Sample->SetObjectField(TEXT("capsule_gjk"), Result);
         }
         if (Input->HasField(TEXT("triangle_indices")))
         {
