@@ -1,0 +1,48 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.uasset",
+      "asset_identity": {
+        "bytes": 225488,
+        "sha256": "35348100c5ddd8d9ab20dabaa0b1e2444394db9dc458bba4bc1401d73507ab2f"
+      },
+      "request_asset": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right",
+      "native_output": "docs/audit/bf144/d257/right.native.json",
+      "raw": {
+        "bytes": 1125221,
+        "sha256": "a75d9f7623bf323241f208e1d5bac189e08ff6e1364e110bc959274cabc59720"
+      },
+      "reader_report": "docs/audit/bf144/d257/right.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.uasset",
+      "asset_identity": {
+        "bytes": 225461,
+        "sha256": "2db01b2905956eb6d6aa86b4f697183b37e31da6d8059a3c316ac7b641525148"
+      },
+      "request_asset": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left",
+      "native_output": "docs/audit/bf144/d257/left.native.json",
+      "raw": {
+        "bytes": 1124703,
+        "sha256": "9e05d4c802475a08ba43c16f9ecb11cf05e181b9c9a05dbad574e04fc060acbf"
+      },
+      "reader_report": "docs/audit/bf144/d257/left.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Character/SKM_Als.uasset",
+      "asset_identity": {
+        "bytes": 2606592,
+        "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+      },
+      "request_asset": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right",
+      "native_output": "docs/audit/bf144/d257/right-pose.native.json",
+      "raw": {
+        "bytes": 1195158,
+        "sha256": "ab2b27d1e8d19e84a6f8985f718c9c57c62358d1943f56b1b777669cd1711e31"
+      },
+      "reader_report": "docs/audit/bf144/d257/right-pose.native.json.reader.report.json",
+      "role": "required_bones_mesh",
+      "probe_request": "docs/audit/bf144/d257/pose.request.json"
+    }
+  ]
+}

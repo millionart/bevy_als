@@ -5395,12 +5395,16 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
   - BF144.381实际骨骼consumer：最小public半转frame20源HeadYawAmount=0.5382965207099915、当前错侧=0.46170347929000854；正确SKM compressed Forward叶两时点各自经源BS归一和源Head Apply，固定同一actual source Head Base、mesh/reference/alpha1/所有数学，source正侧输出精确原RigSource。两份whole native Apply共158骨行与独立模型double精确，只切换time使63骨行F32改变（含极小尾数），head/neck_01/spine_03/pelvis本地四元数相对角差分别约10.4054°/6.1324°/1.5605°/0.7661°。去time因素两侧同采样即无差、脚本/数据字节恢复；这关闭该源同输入单元的实际姿态consumer，不宣称所有63骨可见或完整target最终世界姿态已恢复。见`target/bf144/381/d258-native-check.json`、`d258-restore-check.json`。
 
-- [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
+- [x] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
   - Source：fresh `AnimMontage.cpp:2712–2747`在正向到达无后续section末端时置bPlaying=false，并将Position设为`CurrentSectionEndTime - UE_KINDA_SMALL_NUMBER / 2`；本次动态montage为单序列/loop1，ALS `AlsAnimationInstance.cpp:1789–1792`传入触发0及原start/rate，原生末位为2.3332831859588623秒。
   - Target：`stop_link.rs:253–260`把clip_time钳到完整duration2.3333332538604736；`stop_link.rs:626–636`交给`standing_source.rs:53–79`采样，该层仅再按配置时长截为2.3333330154418945，没有source section EndOffset。实际103–108帧均消费该末尾时点。
   - 最小反例/隔离：两端同起点2.2999989986419678、同delta0.03333333507180214、rate1.5与完整length2.3333332538604736，只推进一步，public目标位置仍完整末端，native为length减5e−5；只加源EndOffset后raw位置及保留原配置clamp的采样时点都精确恢复。零delta与普通首步控制保持。此独立于D118多步elapsed反算，也固定了D121/既有配置截断而不把它并入新因；首控制误用通用构造的短配置，改按actual CrouchingStop公开构造并严格断言相同length后验证。
   - 实际consumer：在相同prepared compressed/SKM源数据上，仅切换source末位与actual采样时点，14平移/73旋转骨行的F32值改变，scale与curve相同；固定数据隔离D224。尚未声称完整槽最终Root或默认世界可见幅度已恢复。
   - 漏检/Gate：旧.214仅核前16活动步，未到自然section终点；目标`stop_link.rs:1119–1125`测试把精确duration当终点oracle。当前原样最小测试明确失败，独立native单步/pose双时点与仅EndOffset恢复见`target/bf144/333/focus-check.json`、`check_original_end.report.json`，本项仅登记、生产未修；完整60步、单步控制/消融/同binary恢复及6007身份已封存，见`target/bf144/333/summary.json`。
+  - 修复第1轮：开始2026-11-08 08:28 +08:00；预估结束09:18 +08:00。依据：旧.333/.387原始报告缺失，fresh重采真实Crouch Transition动态montage的末端、零步长与反向控制，并核对共享Transition消费者及既有签名测试；仅修源section终点偏移，不吞并D118时钟增量或D121采样配置。测试在静态修复和Bevy/依赖迁移后执行。
+  - 08:31 source/static闭环：fresh右侧动态montage显示正向越界或恰好到末端均停于2.3332831859588623；初始位于末端的零步长保持完整末端，前向推进后才偏移；反向和零播放速率控制不受影响。共享Transition栈的曲线/pose/event时钟及Playground的停止完成判定均消费该位置，已同步静态修改并写对应反例；左侧原生读数与后续身份封存进行中。
+  - 08:33 source消费闭环：fresh左侧六种时钟控制与右侧相同；右侧compressed/SKM两时点79骨源pose经单精度投影对照，14位移/73旋转骨改变，scale与curve不变，原始请求/响应及watchdog对照已保存。旧.333/.387报告仍缺，目标slot及图验证留统一阶段。
+  - 08:34实现摘要：正向到达section末端后保留源5e−5秒偏移，零步长首次在末端保持原位、反向与零速不改；共享采样位置、现有时钟夹具及Playground停止完成判定已同步。左右原生时钟、压缩姿态与资产身份封存。实现结束08:34、偏差−44分钟；focused测试、消融、图审计和公共视觉Gate待全部静态修复及Bevy/依赖迁移后执行。
 
   - BF144.387原自然Stop双侧扩展：两段相同44步公开Stop构造，源末端2.33328318596与current raw完整duration/实际配置clamp时点保分层；去EndOffset控制丢12个尾部源时点，去increment丢60个前序，二者合并88位置全精确。该实际双侧native时钟输入证明此边，不新增产品D；当前完整Slot骨骼/自然Base仍后继，.333受控14T/73R姿态幅度不直接推广到本自然两叶。源码字节恢复同target重编88输出同，见`target/bf144/387/restore-check.json`。
 

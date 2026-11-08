@@ -1,0 +1,194 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimMontage.cpp",
+      "sha256": "d0f1ef909f861ca34181a5ee9d5de506f65ffc96f781f58c44d6f60ac626ace9",
+      "excerpts": [
+        {
+          "first_line": 44,
+          "last_line": 51,
+          "text": "// CVars\nnamespace MontageCVars\n{\n\tstatic bool bEndSectionRequiresTimeRemaining = false;\n\tstatic FAutoConsoleVariableRef CVarMontageEndSectionRequiresTimeRemaining(\n\t\tTEXT(\"a.Montage.EndSectionRequiresTimeRemaining\"),\n\t\tbEndSectionRequiresTimeRemaining,\n\t\tTEXT(\"Montage EndOfSection is only checked if there is remaining time (default false).\"));"
+        },
+        {
+          "first_line": 2708,
+          "last_line": 2748,
+          "text": "\t\t\t\t// Note that we have to check this even if there is no time remaining, in order to correctly handle loops\n\t\t\t\t// CVar allows reverting to old behavior, in case a project relies on it\n\t\t\t\tif (MontageCVars::bEndSectionRequiresTimeRemaining == false || MontageSubStepper.HasTimeRemaining())\n\t\t\t\t{\n\t\t\t\t\t// if we reached end of section, and we were not processing a branching point, and no events has messed with out current position..\n\t\t\t\t\t// .. Move to next section.\n\t\t\t\t\t// (this also handles looping, the same as jumping to a different section).\n\t\t\t\t\tif (MontageSubStepper.HasReachedEndOfSection() && !BranchingPointMarker && (PositionBeforeFiringEvents == Position))\n\t\t\t\t\t{\n\t\t\t\t\t\t// Get recent NextSectionIndex in case it's been changed by previous events.\n\t\t\t\t\t\tconst int32 CurrentSectionIndex = MontageSubStepper.GetCurrentSectionIndex();\n\t\t\t\t\t\tconst int32 RecentNextSectionIndex = bPlayingForward ? NextSections[CurrentSectionIndex] : PrevSections[CurrentSectionIndex];\n\t\t\t\t\t\tconst float EndOffset = UE_KINDA_SMALL_NUMBER / 2.f; //KINDA_SMALL_NUMBER/2 because we use KINDA_SMALL_NUMBER to offset notifies for triggering and SMALL_NUMBER is too small\n\n\t\t\t\t\t\tif (RecentNextSectionIndex != INDEX_NONE)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tfloat LatestNextSectionStartTime, LatestNextSectionEndTime;\n\t\t\t\t\t\t\tMontage->GetSectionStartAndEndTime(RecentNextSectionIndex, LatestNextSectionStartTime, LatestNextSectionEndTime);\n\n\t\t\t\t\t\t\t// Jump to next section's appropriate starting point (start or end).\n\t\t\t\t\t\t\tPosition = bPlayingForward ? LatestNextSectionStartTime : (LatestNextSectionEndTime - EndOffset);\n\t\t\t\t\t\t\tSubStepResult = EMontageSubStepResult::Moved;\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\tconst bool bLooped = CurrentSectionIndex == RecentNextSectionIndex;\n\t\t\t\t\t\t\tAnimInstance->QueueMontageSectionChangedEvent(FQueuedMontageSectionChangedEvent(Montage, InstanceID, Montage->GetSectionName(RecentNextSectionIndex), bLooped, OnMontageSectionChanged));\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\t// If there is no next section and we've reached the end of this one, exit\n\n\t\t\t\t\t\t\t// Stop playing and clamp position to prevent playing animation data past the end of the current section\n\t\t\t\t\t\t\t// We already called Stop above if needed, like if bEnableAutoBlendOut is true\n\t\t\t\t\t\t\tbPlaying = false;\n\n\t\t\t\t\t\t\tfloat CurrentSectionStartTime, CurrentSectionEndTime;\n\t\t\t\t\t\t\tMontage->GetSectionStartAndEndTime(CurrentSectionIndex, CurrentSectionStartTime, CurrentSectionEndTime);\n\n\t\t\t\t\t\t\tPosition = bPlayingForward ? (CurrentSectionEndTime - EndOffset) : CurrentSectionStartTime;\n\t\t\t\t\t\t\tSubStepResult = EMontageSubStepResult::Moved;\n\n\t\t\t\t\t\t\tbreak;"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+      "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+      "excerpts": [
+        {
+          "first_line": 126,
+          "last_line": 132,
+          "text": "\n#undef UE_INCLUDETOOL_IGNORE_INCONSISTENT_STATE\n\n#define UE_PI \t\t\t\t\t(3.1415926535897932f)\t/* Extra digits if needed: 3.1415926535897932384626433832795f */\n#define UE_SMALL_NUMBER\t\t\t(1.e-8f)\n#define UE_KINDA_SMALL_NUMBER\t(1.e-4f)\n#define UE_BIG_NUMBER\t\t\t(3.4e+38f)"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 1780,
+          "last_line": 1797,
+          "text": "void UAlsAnimationInstance::PlayQueuedTransitionAnimation()\n{\n\tcheck(IsInGameThread())\n\n\tif (TransitionsState.bStopTransitionsQueued || !IsValid(TransitionsState.QueuedTransitionSequence))\n\t{\n\t\treturn;\n\t}\n\n\tPlaySlotAnimationAsDynamicMontage(TransitionsState.QueuedTransitionSequence, UAlsConstants::TransitionSlotName(),\n\t                                  TransitionsState.QueuedTransitionBlendInDuration, TransitionsState.QueuedTransitionBlendOutDuration,\n\t                                  TransitionsState.QueuedTransitionPlayRate, 1, 0.0f, TransitionsState.QueuedTransitionStartTime);\n\n\tTransitionsState.QueuedTransitionSequence = nullptr;\n\tTransitionsState.QueuedTransitionBlendInDuration = 0.0f;\n\tTransitionsState.QueuedTransitionBlendOutDuration = 0.0f;\n\tTransitionsState.QueuedTransitionPlayRate = 1.0f;\n\tTransitionsState.QueuedTransitionStartTime = 0.0f;"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Public/Utility/AlsConstants.h",
+      "sha256": "4f0c4a6a5b34d9c4409711f7faad25b108f31436fcf4eb2496362dfd43fea846",
+      "excerpts": [
+        {
+          "first_line": 25,
+          "last_line": 30,
+          "text": "\tinline static FName FootRightVirtualBone{ANSITEXTVIEW(\"VB foot_r\")};\n\n\t// Animation Slots\n\n\tinline static FName TransitionSlot{ANSITEXTVIEW(\"Transition\")};\n\tinline static FName TurnInPlaceStandingSlot{ANSITEXTVIEW(\"TurnInPlaceStanding\")};"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/actions/stop_link.rs",
+      "revision": "before_D257",
+      "sha256": "b01c4ea30cfe55a143aa23778c887a2fdf37253ae52e885fe88495545ef0c521",
+      "excerpts": [
+        {
+          "first_line": 253,
+          "last_line": 284,
+          "text": "    pub fn advance(&mut self, delta_seconds: f32) {\n        if !self.active {\n            return;\n        }\n        self.previous_clip_time = self.clip_time;\n        self.elapsed += delta_seconds.max(0.0);\n        let play_rate = if self.play_rate.abs() <= 1e-8 { 0.0 } else { self.play_rate };\n        self.clip_time = (self.start_time + self.elapsed * play_rate).clamp(0.0, self.duration);\n        let playback_duration = if play_rate == 0.0 {\n            f32::INFINITY\n        } else if play_rate < 0.0 {\n            self.start_time.max(0.0) / -play_rate\n        } else {\n            (self.duration - self.start_time).max(0.0) / play_rate\n        };\n        if let Some(stop_elapsed) = &mut self.stop_elapsed {\n            *stop_elapsed += delta_seconds.max(0.0);\n        } else {\n            self.weight = transition_blend_amount(self.elapsed, self.blend_in);\n            if playback_duration - self.elapsed > 1e-4 {\n                return;\n            }\n            self.stop_with_duration(self.blend_out, false);\n            return;\n        }\n        let stop_elapsed = self.stop_elapsed.unwrap();\n        self.weight = self.stop_start_weight * (1.0 - transition_blend_amount(stop_elapsed, self.stop_duration));\n        if stop_elapsed >= self.stop_duration {\n            self.active = false;\n            self.weight = 0.0;\n        }\n    }"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/actions/stop_link.rs",
+      "revision": "before_D257",
+      "sha256": "b01c4ea30cfe55a143aa23778c887a2fdf37253ae52e885fe88495545ef0c521",
+      "excerpts": [
+        {
+          "first_line": 489,
+          "last_line": 518,
+          "text": "pub(crate) fn source_transition_sequence(playback: &AlsTransitionPlayback) -> Option<&'static str> {\n    let left = playback.index <= 0.5;\n    match playback.kind {\n        AlsTransitionKind::Stop => Some(if left {\n            \"A_Als_Stop_Left\"\n        } else {\n            \"A_Als_Stop_Right\"\n        }),\n        AlsTransitionKind::QuickStop => Some(if left {\n            \"A_Als_Stand_Transition_Left\"\n        } else {\n            \"A_Als_Stand_Transition_Right\"\n        }),\n        AlsTransitionKind::StandingDynamic => Some(if left {\n            \"A_Als_Stand_DynamicTransition_Left\"\n        } else {\n            \"A_Als_Stand_DynamicTransition_Right\"\n        }),\n        AlsTransitionKind::StandingTransition => Some(if left { \"A_Als_Stand_Transition_Left\" } else { \"A_Als_Stand_Transition_Right\" }),\n        AlsTransitionKind::CrouchingDynamic => Some(if left {\n            \"A_Als_Crouch_DynamicTransition_Left\"\n        } else {\n            \"A_Als_Crouch_DynamicTransition_Right\"\n        }),\n        AlsTransitionKind::CrouchingStop | AlsTransitionKind::CrouchingQuickStop => Some(if left {\n            \"A_Als_Crouch_Transition_Left\"\n        } else {\n            \"A_Als_Crouch_Transition_Right\"\n        }),\n    }"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/animation_instances/standing_source.rs",
+      "revision": "before_D257",
+      "sha256": "e252a39c9e80b0c6ab65650b2f72663e4a44e06a78ae841bbc21fc0dcbec2f8f",
+      "excerpts": [
+        {
+          "first_line": 53,
+          "last_line": 80,
+          "text": "pub(crate) fn sample_source_montage(\n    name: &str,\n    time: f32,\n    assets: &SourceMontageAssets,\n    clips: &Assets<bevy_animation_graph::core::animation_clip::GraphClip>,\n    skeletons: &Assets<bevy_animation_graph::core::skeleton::Skeleton>,\n) -> Option<(\n    bevy_animation_graph::core::pose::Pose,\n    AnimationContextState,\n)> {\n    let settings = MONTAGES.get(name)?;\n    let (clip, reference) = assets.0.get(name)?;\n    let time = time.min(settings.duration);\n    let mut pose = crate::extensions::source_sequence_player::sample_pose(clips.get(clip)?, time);\n    if let Some(reference) = reference {\n        let reference = crate::extensions::source_sequence_player::sample_pose(clips.get(reference)?, 0.0);\n        pose = crate::extensions::mesh_space_difference::make_mesh_space_difference(\n            &reference,\n            &pose,\n            skeletons.get(&pose.skeleton)?,\n        );\n        pose.timestamp = time;\n    }\n    let mut context = crate::get_up::sampled_curve_context(&settings.curves, time);\n    context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {\n        identity: name.to_owned(), clip: clip.clone(), montage: true,\n        clock: crate::extensions::SourceRelevantAsset { duration: settings.duration, position: time, weight: 1.0, ..default() },\n        ..default()"
+        }
+      ]
+    },
+    {
+      "path": "tools/manual_playground_integration/mod.rs",
+      "revision": "before_D257",
+      "sha256": "07d6d2353541cead4a683c411763387c48cf749f015884ce1ecd5470459e7650",
+      "excerpts": [
+        {
+          "first_line": 386,
+          "last_line": 395,
+          "text": "fn standing_stop_completed(\n    branch_seen: bool,\n    previous: Option<&AlsTransitionPlayback>,\n    current: Option<&AlsTransitionPlayback>,\n    idle: bool,\n) -> bool {\n    branch_seen && previous.is_some_and(|playback| playback.clip_time > 0.8)\n        && current.is_some_and(|playback| !playback.active && playback.clip_time == playback.duration)\n        && idle\n}"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d257/clock.request.json",
+      "bytes": 1110,
+      "sha256": "12f6387b125e8d5d34729e18d12a51d895130021f1a2f215ebd3c07ccbb5e8cc"
+    },
+    {
+      "path": "docs/audit/bf144/d257/right.native.json",
+      "bytes": 1125221,
+      "sha256": "a75d9f7623bf323241f208e1d5bac189e08ff6e1364e110bc959274cabc59720"
+    },
+    {
+      "path": "docs/audit/bf144/d257/right.native.json.reader.report.json",
+      "bytes": 422,
+      "sha256": "64ad40415db0175a5216b6beb9d5f980b5a72e87c389812fbf859cf6b08a3edf"
+    },
+    {
+      "path": "docs/audit/bf144/d257/left.native.json",
+      "bytes": 1124703,
+      "sha256": "9e05d4c802475a08ba43c16f9ecb11cf05e181b9c9a05dbad574e04fc060acbf"
+    },
+    {
+      "path": "docs/audit/bf144/d257/left.native.json.reader.report.json",
+      "bytes": 421,
+      "sha256": "795ee0e4e6281f16a7a39fef1aac09504a20610cc5474839d288cb75a15adaf3"
+    },
+    {
+      "path": "docs/audit/bf144/d257/pose.request.json",
+      "bytes": 166,
+      "sha256": "149a699f91286ab3d09bb45f198efcb8cdf4ff5ef7b7b299285dbfe973e36eeb"
+    },
+    {
+      "path": "docs/audit/bf144/d257/right-pose.native.json",
+      "bytes": 1195158,
+      "sha256": "ab2b27d1e8d19e84a6f8985f718c9c57c62358d1943f56b1b777669cd1711e31"
+    },
+    {
+      "path": "docs/audit/bf144/d257/right-pose.native.json.reader.report.json",
+      "bytes": 428,
+      "sha256": "e969b9784df95f9d7d6a5747ef9bb8cf48ff900351944c39aa35b3a8791f6a03"
+    },
+    {
+      "path": "docs/audit/bf144/d257/pose-comparison.json",
+      "bytes": 2069,
+      "sha256": "c16dd86b3e0c07498270efd9c5f4d78dcc2cc4100521d04ab6a7b5de4cd531f9"
+    },
+    {
+      "path": "docs/audit/bf144/d257/compare.watchdog.json",
+      "bytes": 405,
+      "sha256": "427e6b51ee0295929638bc44ace1b796a257dfc83a96d40b0fa211e4f159c88e"
+    },
+    {
+      "path": "docs/audit/bf144/d257/native-identities.json",
+      "bytes": 2048,
+      "sha256": "7c18dd405d3f61a3d16e4651b605b4977bc20b0d45102f452a687d4a12a9d8fa"
+    },
+    {
+      "path": "docs/audit/bf144/d258/head-settings.native.json",
+      "bytes": 106177,
+      "sha256": "66e8b8750ba314881a66ee0a93470d18586adeed99e725813995e61ec23658fa"
+    },
+    {
+      "path": "docs/audit/bf144/d258/head-settings.native.json.reader.report.json",
+      "bytes": 430,
+      "sha256": "ec75ec5105f846956b54dcd67e022dad34194ce593120d00d80c6236e7f192a3"
+    },
+    {
+      "path": "docs/audit/bf144/d279/native-identities.json",
+      "bytes": 1903,
+      "sha256": "f814d498d098eb188f083a40bc903857e80e505f4638683ec8e970e2076dfc4d"
+    }
+  ],
+  "native_pose_comparison": {
+    "times": [
+      2.3332831859588623,
+      2.3333330154418945
+    ],
+    "bones": 79,
+    "changed_counts": {
+      "translation": 14,
+      "rotation": 73,
+      "scale": 0
+    },
+    "curves_changed": []
+  },
+  "missing_previous_evidence": [
+    "target/bf144/333/focus-check.json",
+    "target/bf144/333/check_original_end.report.json",
+    "target/bf144/333/summary.json",
+    "target/bf144/387/restore-check.json"
+  ],
+  "scope": "Forward terminal section offset for dynamic Transition montages; incremental time and configured duration precision remain D118 and D121.",
+  "status": "implementation_complete_static_and_runtime_gates_pending"
+}

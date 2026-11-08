@@ -257,7 +257,13 @@ impl AlsTransitionPlayback {
         self.previous_clip_time = self.clip_time;
         self.elapsed += delta_seconds.max(0.0);
         let play_rate = if self.play_rate.abs() <= 1e-8 { 0.0 } else { self.play_rate };
-        self.clip_time = (self.start_time + self.elapsed * play_rate).clamp(0.0, self.duration);
+        let position = self.start_time + self.elapsed * play_rate;
+        self.clip_time = if play_rate > 0.0 && position >= self.duration
+            && (delta_seconds > 0.0 || self.previous_clip_time < self.duration) {
+            self.duration - TRANSITION_SECTION_END_OFFSET
+        } else {
+            position.clamp(0.0, self.duration)
+        };
         let playback_duration = if play_rate == 0.0 {
             f32::INFINITY
         } else if play_rate < 0.0 {
@@ -369,6 +375,7 @@ pub const STOP_TRANSITION_BLEND_OUT: f32 = 0.2;
 pub const STOP_TRANSITION_PLAY_RATE: f32 = 1.5;
 pub const STOP_TRANSITION_START_TIME: f32 = 0.4;
 pub const RIGHT_TRANSITION_START_TIME: f32 = 0.2;
+pub(crate) const TRANSITION_SECTION_END_OFFSET: f32 = 0.000_05;
 pub const TRANSITION_SEQUENCE_DURATION: f32 = 2.3333333;
 pub const CROUCH_DYNAMIC_TRANSITION_DURATION: f32 = 1.5333333;
 pub const DYNAMIC_TRANSITION_BLEND: f32 = 0.2;
@@ -1111,6 +1118,33 @@ mod tests {
     }
 
     #[test]
+    fn transition_forward_end_keeps_source_section_offset() {
+        let mut playback = AlsTransitionPlayback::crouching_stop_right();
+        playback.start_time = 2.299_999;
+        playback.clip_time = playback.start_time;
+        playback.previous_clip_time = playback.start_time;
+        playback.advance(0.0);
+        assert_eq!(playback.clip_time, 2.299_999);
+        playback.advance(1.0 / 30.0);
+        assert_eq!(playback.clip_time, 2.333_283_2);
+        assert!(playback.clip_time < crate::standing_source::MONTAGES["A_Als_Crouch_Transition_Right"].duration);
+        playback.advance(0.0);
+        assert_eq!(playback.clip_time, 2.333_283_2);
+
+        let mut at_end = AlsTransitionPlayback::new(AlsTransitionKind::CrouchingStop, 1.0,
+            0.2, 0.2, 1.0, TRANSITION_SEQUENCE_DURATION, TRANSITION_SEQUENCE_DURATION);
+        at_end.advance(0.0);
+        assert_eq!(at_end.clip_time, TRANSITION_SEQUENCE_DURATION);
+        at_end.advance(1.0 / 60.0);
+        assert_eq!(at_end.clip_time, 2.333_283_2);
+
+        let mut reverse = AlsTransitionPlayback::new(AlsTransitionKind::CrouchingStop, 1.0,
+            0.2, 0.2, -1.0, TRANSITION_SEQUENCE_DURATION, TRANSITION_SEQUENCE_DURATION);
+        reverse.advance(0.1);
+        assert_eq!(reverse.clip_time, 2.233_333_3);
+    }
+
+    #[test]
     fn transition_signed_playback_preserves_direction_and_boundary_lifetime() {
         for rate in [-2.0_f32, -1.0, -0.5, 0.5, 1.0, 2.0] {
             for start in [0.0_f32, 0.5, 1.0] {
@@ -1120,9 +1154,14 @@ mod tests {
                 let lifetime = if rate < 0.0 { start / -rate } else { (1.0 - start) / rate };
                 let dt = lifetime.min(0.1);
                 playback.advance(dt);
-                assert!((playback.clip_time - (start + dt * rate).clamp(0.0, 1.0)).abs() < 1e-6, "Signed time failed: rate={rate}, start={start}, actual={}", playback.clip_time);
+                let expected = if rate > 0.0 && dt > 0.0 && start + dt * rate >= 1.0 {
+                    1.0 - TRANSITION_SECTION_END_OFFSET
+                } else { (start + dt * rate).clamp(0.0, 1.0) };
+                assert!((playback.clip_time - expected).abs() < 1e-6, "Signed time failed: rate={rate}, start={start}, actual={}", playback.clip_time);
                 playback.advance((lifetime - dt).max(0.0));
-                assert!((playback.clip_time - if rate < 0.0 { 0.0 } else { 1.0 }).abs() < 1e-6);
+                let expected = if rate < 0.0 { 0.0 } else if lifetime == 0.0 { 1.0 }
+                    else { 1.0 - TRANSITION_SECTION_END_OFFSET };
+                assert!((playback.clip_time - expected).abs() < 1e-6);
                 assert!(playback.active && playback.stop_elapsed.is_some());
                 playback.advance(0.1);
                 assert!((playback.weight - 0.5).abs() < 1e-5);
@@ -1248,7 +1287,7 @@ mod tests {
         stack.advance(end);
         assert_eq!(stack.latest().unwrap().weight, 1.0);
         assert!(!stack.latest().unwrap().interrupted);
-        assert_eq!(stack.latest().unwrap().clip_time, stack.latest().unwrap().duration);
+        assert_eq!(stack.latest().unwrap().clip_time, stack.latest().unwrap().duration - TRANSITION_SECTION_END_OFFSET);
         stack.advance(0.05);
         assert!((stack.latest().unwrap().weight - 0.84375).abs() < 1e-6);
         stack.advance(0.15);
