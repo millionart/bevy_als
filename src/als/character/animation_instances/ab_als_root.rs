@@ -141,7 +141,7 @@ fn root_graph_writer(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    mut players: Query<&mut AnimationGraphPlayer>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
 ) {
     for (
         entity,
@@ -160,7 +160,7 @@ fn root_graph_writer(
             if parent.parent() != entity {
                 continue;
             }
-            let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+            let Ok((mut player, initial)) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
             source_inputs.get_mut(instance.player_entity()).unwrap().set_linked_graph_input(OVERLAY_LAYER_BINDING,
@@ -184,7 +184,7 @@ fn root_graph_writer(
             source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("rotation_mode",
                 rotation_mode_tag(*rotation_mode),);
             for (key, value) in [
-                ("als_animation_delta_seconds", time.delta_secs()),
+                ("als_animation_delta_seconds", if initial.is_some() { 0.0 } else { time.delta_secs() }),
             ] {
                 player.set_global_input_data(key, value);
             }

@@ -99,7 +99,67 @@ impl Plugin for AlsCharacterRuntimePlugin {
         .configure_sets(PostUpdate, crate::als_camera::AlsCameraSet
             .after(crate::control_rig_apply::AlsControlRigPropagationSet))
         .add_systems(PostUpdate, mark_character_animation_phase
-            .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics));
+            .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics))
+        .add_systems(PostUpdate, mark_birth_animation_players
+            .after(mark_character_animation_phase)
+            .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics))
+        .add_systems(PostUpdate, release_birth_animation_players
+            .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
+    }
+}
+
+fn mark_birth_animation_players(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    library_handle: Res<crate::overlay_object::OverlayLibraryHandle>,
+    libraries: Res<Assets<crate::overlay_object::OverlayLibrary>>,
+    avatars: Query<(Entity, &crate::character_assembly::AlsCharacterAvatar,
+        &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
+    characters: Query<(&crate::character_assembly::AlsCharacterAssembly, &crate::als::state::OverlayState),
+        With<crate::als::character::AlsBirthAnimationPending>>,
+    players: Query<(&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+        Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
+) {
+    use bevy_animation_graph::core::animation_graph_player::AnimationSource;
+    for (avatar_entity, avatar, instance) in &avatars {
+        let Ok((assembly, overlay)) = characters.get(avatar.character) else { continue; };
+        if assembly.avatar != avatar_entity { continue; }
+        let Ok((player, initial)) = players.get(instance.player_entity()) else { continue; };
+        let graph_ready = match player.get_animation_source() {
+            AnimationSource::Graph(graph) => assets.is_loaded_with_dependencies(graph.id()),
+            _ => false,
+        };
+        let overlay_ready = libraries.get(&library_handle.0).is_some_and(|library|
+            library.0.get(overlay).is_none_or(|definition| assets.is_loaded_with_dependencies(definition.graph_handle.id())));
+        let ready = graph_ready && assets.is_loaded_with_dependencies(player.skeleton().id()) && overlay_ready;
+        if initial.is_none_or(|initial| initial.ready != ready) {
+            commands.entity(instance.player_entity()).insert(crate::extensions::post_physics_animation::InitialAnimation { ready });
+        }
+    }
+}
+
+fn release_birth_animation_players(
+    mut commands: Commands,
+    avatars: Query<(Entity, &crate::character_assembly::AlsCharacterAvatar,
+        &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
+    characters: Query<(&crate::character_assembly::AlsCharacterAssembly, Option<&bevy_tnua::TnuaToggle>),
+        With<crate::als::character::AlsBirthAnimationPending>>,
+    players: Query<(&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+        &crate::extensions::post_physics_animation::InitialAnimation)>,
+) {
+    for (avatar_entity, avatar, instance) in &avatars {
+        let Ok((assembly, toggle)) = characters.get(avatar.character) else { continue; };
+        if assembly.avatar != avatar_entity { continue; }
+        let Ok((player, initial)) = players.get(instance.player_entity()) else { continue; };
+        if !initial.ready || player.get_error().is_some() || player.get_default_output_pose().is_none() { continue; }
+        commands.entity(avatar.character).remove::<(
+            crate::als::character::AlsBirthAnimationPending,
+            avian3d::prelude::RigidBodyDisabled,
+        )>();
+        if toggle == Some(&bevy_tnua::TnuaToggle::Disabled) {
+            commands.entity(avatar.character).remove::<bevy_tnua::TnuaToggle>();
+        }
+        commands.entity(instance.player_entity()).remove::<crate::extensions::post_physics_animation::InitialAnimation>();
     }
 }
 
@@ -144,6 +204,97 @@ mod tests {
     use crate::als::foot_ik::{AlsFootBones, AlsFootLockState};
     use bevy_animation_graph::core::animation_clip::EntityPath;
     use bevy_gameplay_tag::{GameplayTag, GameplayTagsSettings};
+
+    #[test]
+    fn birth_pose_and_curves_precede_first_character_physics() {
+        use avian3d::prelude::{Collider, CollisionLayers, LayerMask, LinearVelocity, RigidBody, RigidBodyDisabled};
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::{animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance},
+            animation_graph::AnimationGraph, animation_graph_player::{AnimationGraphPlayer, AnimationSource}};
+        use crate::{animation_context_projection::root_pose_source_node,
+            character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, AlsCharacterBlueprint, spawn_als_character},
+            extensions::{SourceCurveName, player_animation_context_state, post_physics_animation::{InitialAnimation, PostPhysicsAnimationSet}},
+            als::{character::{AlsBirthAnimationPending, AlsCollisionLayer}, state::{Gait, LocomotionState}}};
+
+        #[derive(Resource, Default)]
+        struct Capture {
+            initial: Option<(Vec3, LocomotionState, u64, [f32; 6], [f32; 3])>,
+            ordinary: Option<(Vec3, LocomotionState, u64)>,
+        }
+        fn capture(
+            mut output: ResMut<Capture>,
+            actors: Query<(&Transform, &LocomotionState, &Gait, Has<AlsBirthAnimationPending>, Has<RigidBodyDisabled>), With<AlsCharacter>>,
+            avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+            players: Query<(&AnimationGraphPlayer, Option<&InitialAnimation>)>,
+            graphs: Res<Assets<AnimationGraph>>,
+        ) {
+            for (avatar, instance) in &avatars {
+                let Ok((transform, mode, gait, pending, disabled)) = actors.get(avatar.character) else { continue; };
+                if pending {
+                    assert!(disabled);
+                    assert_eq!(*mode, LocomotionState::Grounded);
+                    assert_eq!(*gait, Gait::Running);
+                    assert!((transform.translation.y - 1.5).abs() < 1e-6);
+                }
+                let Ok((player, initial)) = players.get(instance.player_entity()) else { continue; };
+                if player.get_default_output_pose().is_none() { continue; }
+                let frame = player.get_context_arena().unwrap().frame_index();
+                if initial.is_some_and(|initial| initial.ready) && output.initial.is_none() {
+                    assert_eq!(player.get_global_input_data("animation.pending_update").and_then(|value| value.as_bool().ok()), Some(true));
+                    let AnimationSource::Graph(graph) = player.get_animation_source() else { panic!("Birth graph is absent"); };
+                    let node = root_pose_source_node(graphs.get(graph).unwrap()).unwrap();
+                    let context = player_animation_context_state(player, node).unwrap();
+                    let curves = ["PoseGrounded", "PoseStanding", "FootLeftIk", "FootRightIk", "FootLeftLock", "FootRightLock"]
+                        .map(|name| context.curves.get(&SourceCurveName::from(name)).copied().unwrap_or(0.0));
+                    let deltas = ["animation.delta_seconds", "animation.delta_seconds_without_time_dilation", "als_animation_delta_seconds"]
+                        .map(|name| player.get_global_input_data(name).and_then(|value| value.as_f32().ok()).unwrap());
+                    output.initial = Some((transform.translation, *mode, frame, curves, deltas));
+                } else if initial.is_none() && output.initial.is_some() && output.ordinary.is_none() {
+                    output.ordinary = Some((transform.translation, *mode, frame));
+                }
+            }
+        }
+
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 30.0)))
+            .init_resource::<Capture>()
+            .add_systems(PostUpdate, capture.after(PostPhysicsAnimationSet::Evaluate).before(release_birth_animation_players));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 1.0, 100.0),
+            Transform::from_xyz(0.0, -0.5, 0.0), CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL)));
+        let actor = app.world_mut().run_system_once(|mut commands: Commands, assets: Res<AssetServer>,
+            mut params: ResMut<Assets<crate::als::params::AlsMovementParams>>,
+            mut configs: ResMut<Assets<crate::als::control_scheme::AlsControlSchemeConfig>>| {
+            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                AlsCharacterBlueprint { spawn_input: false, spawn_camera: false,
+                    ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 1.5, 0.0)) })
+        }).unwrap();
+        let avatar = app.world().get::<AlsCharacterAssembly>(actor).unwrap().avatar;
+        let scene = app.world().get::<AnimatedSceneHandle>(avatar).unwrap().handle.clone();
+        app.world_mut().get_mut::<AnimatedSceneHandle>(avatar).unwrap().handle = default();
+        app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::X;
+        for _ in 0..2 {
+            app.update();
+            assert!(app.world().get::<AlsBirthAnimationPending>(actor).is_some());
+            assert_eq!(*app.world().get::<Gait>(actor).unwrap(), Gait::Running);
+            assert!(app.world().get::<Transform>(actor).unwrap().translation.abs_diff_eq(Vec3::new(0.0, 1.5, 0.0), 1e-6));
+        }
+        app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::ZERO;
+        app.world_mut().entity_mut(actor).remove::<crate::actual_motion::AlsActualMotion>();
+        app.world_mut().get_mut::<AnimatedSceneHandle>(avatar).unwrap().handle = scene;
+        crate::roll_drive::tests::ready_roll_player(&mut app, avatar);
+        if app.world().resource::<Capture>().ordinary.is_none() { app.update(); }
+        let output = app.world().resource::<Capture>();
+        let (position, mode, frame, curves, deltas) = output.initial.unwrap();
+        assert!((position.y - 1.5).abs() < 1e-6);
+        assert_eq!(mode, LocomotionState::Grounded);
+        assert_eq!(frame, 1);
+        assert_eq!(curves, [1.0; 6]);
+        assert_eq!(deltas, [0.0; 3]);
+        let (position, mode, frame) = output.ordinary.unwrap();
+        assert!(position.y < 1.5);
+        assert_eq!(mode, LocomotionState::Air);
+        assert_eq!(frame, 2);
+    }
 
     #[test]
     fn animation_phase_follows_rebuilt_scene_on_retained_avatar() {

@@ -419,7 +419,7 @@ fn rotation_response_system(
             Option<&crate::als::roll::AlsRollState>,
             &mut AlsAimingYawConstraint,
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
 ) {
     for (
@@ -2877,7 +2877,8 @@ fn accepted_jump_state_system(
     mut transitions: MessageWriter<StateTransitionEvent>,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut characters: Query<(Entity, &TnuaController<AlsControlScheme>, &mut LocomotionState,
-        &mut crate::als::dynamics::AlsMovementBase, &AlsMovementParamsHandle, &mut bevy_tnua::TnuaMotor), With<AlsCharacter>>,
+        &mut crate::als::dynamics::AlsMovementBase, &AlsMovementParamsHandle, &mut bevy_tnua::TnuaMotor),
+        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>)>,
 ) {
     for (entity, controller, mut mode, mut base, handle, mut motor) in &mut characters {
         if *mode != LocomotionState::Grounded || controller.action_flow_status().just_starting()
@@ -3312,7 +3313,8 @@ fn follow_movement_base_system(
     time: Res<Time<avian3d::prelude::Physics>>,
     mut characters: Query<(Entity, &LocomotionState, &mut crate::als::dynamics::AlsMovementBase,
         Option<&AlsMantleState>, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,
-        &mut AlsCmcAdapterRuntime, &Collider, Has<avian3d::prelude::CustomPositionIntegration>), With<AlsCharacter>>,
+        &mut AlsCmcAdapterRuntime, &Collider, Has<avian3d::prelude::CustomPositionIntegration>),
+        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>)>,
     mut space: ParamSet<(bevy::transform::helper::TransformHelper, SpatialQuery,
         Query<(&mut Position, &mut Transform), With<AlsCharacter>>)>,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
@@ -3386,7 +3388,8 @@ pub(crate) fn initialize_spawn_movement_mode(
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut characters: Query<(Entity, &RigidBody, &mut LocomotionState, &Stance, &AlsMovementParamsHandle,
         Option<&ChildOf>, &Position, &mut LinearVelocity, &mut crate::als::dynamics::AlsMovementBase),
-        (With<AlsCharacter>, With<Collider>, With<crate::als::character::AlsInitialMovementModePending>)>,
+        (With<AlsCharacter>, With<Collider>, With<crate::als::character::AlsInitialMovementModePending>,
+            Without<crate::als::character::AlsBirthAnimationPending>)>,
 ) {
     for (entity, body, mut locomotion, stance, handle, parent, position, mut velocity, mut base) in &mut characters {
         if *body != RigidBody::Dynamic || *locomotion != LocomotionState::Grounded {
@@ -3591,7 +3594,7 @@ pub(crate) fn locomotion_drive_system(
     rolls: Query<&crate::als::roll::AlsRollState, With<AlsCharacter>>,
     actions: Query<&crate::als::state::AlsNotifyLocomotionAction>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
-    mut q: Query<DriveQueryItem, With<AlsCharacter>>,
+    mut q: Query<DriveQueryItem, (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>)>,
 ) {
     for (
         entity,
@@ -4334,7 +4337,7 @@ pub(crate) fn cmc_movement_transaction_system(
                 Option<&crate::als::dynamics::AlsLandingBrakingFriction>,
                 Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>),
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
 ) {
     let (bases, owners, mut movement_bases, shapes) = base_queries;
@@ -4799,7 +4802,7 @@ pub(crate) fn locomotion_state_sync_system(
             Option<&ChildOf>,
             &mut AlsCmcAdapterRuntime,
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
 ) {
     if time.is_paused() { return; }

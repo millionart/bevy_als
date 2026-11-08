@@ -35,7 +35,7 @@ pub fn aim_rotation_mode_system(
             &mut RotationMode,
             Option<&mut AlsLastFreeRotationMode>,
         ),
-        With<crate::als::character::AlsCharacter>,
+        (With<crate::als::character::AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
     mut commands: Commands,
 ) {

@@ -51,6 +51,9 @@ pub struct AlsCharacter;
 #[derive(Component, Debug, Default)]
 pub(crate) struct AlsInitialMovementModePending;
 
+#[derive(Component, Debug, Default)]
+pub struct AlsBirthAnimationPending;
+
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
 pub const ALS_CHARACTER_CAPSULE_RADIUS: f32 = 0.3;
 pub const ALS_CHARACTER_FLOOR_CLEARANCE: f32 = 0.019;
@@ -301,7 +304,7 @@ fn character_crush_recovery_system(
             &Collider,
             &mut AlsCrushRecovery,
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, Without<AlsBirthAnimationPending>),
     >,
 ) {
     for (entity, mut position, mut transform, mut velocity, capsule, mut recovery) in

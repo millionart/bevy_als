@@ -173,7 +173,7 @@ fn head_layer_writer(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
 ) {
     for (parent, instance) in &avatars {
         let Ok((
@@ -187,17 +187,17 @@ fn head_layer_writer(
             continue;
         };
         let Ok(transform) = transforms.compute_global_transform(parent.parent()) else { continue; };
-        let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
+        let Ok((mut player, context, initial)) = players.get_mut(instance.player_entity()) else {
             continue;
         };
         let mut previous_dilation =
             player_scalar(&player, "animation.previous_global_time_dilation", 1.0);
         let custom_dilation = custom_dilation.map_or(1.0, |value| value.0);
-        let scaled_delta = virtual_time.delta_secs() * custom_dilation;
+        let scaled_delta = if initial.is_some() { 0.0 } else { virtual_time.delta_secs() * custom_dilation };
         let unscaled = unscaled_delta_seconds(
             &mut previous_dilation,
             scaled_delta,
-            real_time.delta_secs(),
+            if initial.is_some() { 0.0 } else { real_time.delta_secs() },
             virtual_time.effective_speed(),
             custom_dilation,
         );

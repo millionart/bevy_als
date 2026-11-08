@@ -334,7 +334,7 @@ pub fn state_transition_system(
         &mut OverlayState,
         Option<&mut AlsNotifyLocomotionAction>,
         Option<&crate::als::mantle::AlsMantleState>,
-    )>,
+    ), Without<crate::als::character::AlsBirthAnimationPending>>,
 ) {
     for (
         entity,

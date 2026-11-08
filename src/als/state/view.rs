@@ -51,7 +51,7 @@ pub fn apply_view_input_system(
             &AlsInputCommand,
             Option<&AlsInputOverride>,
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
 ) {
     if virtual_time.is_paused() { return; }

@@ -5638,7 +5638,11 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 最小消费者/控制：默认出生与仅将出生mode固定为源Air两组，各保持全部88步actor位置/速度/stance/gait/motion不变，首零query之后只再调用一次原公开evaluate_players normal路径；两组各10个实际Fall elapsed、20个同GUID叶时钟全部逐值恢复native。控制前后pending发布值及gate均保持，首零query的InAir种子未改，不把D149/D244视为已修。实际最终Pose两组各88帧变化、6192/6191骨行变化，仅证明真实消费者受影响，不宣称完整source姿态恢复或可见故障。
   - 漏检/有限复开：.251撤销时只验证初始GFrameCounter=0；此值同时命中TickTaskManager visited/queued和mesh LastPoseTickFrame的零sentinel，首world物理/动画均空，不能代表正常出生帧。tick后递增顺序仍正确，不能由此推断首world应空。BF144.297补真实移动状态并核1/17后有限取消勾选复开.251，原撤销反例保留为特殊零域；早先case层错参控制已标INVALID、实际回显合同拒绝。消融/字节恢复与最终身份以.298完成摘要为准，生产未修；证据 `target/bf144/297/nonzero-check.json`、`frame1-check.json`、`target/bf144/298/delta-check.json`。
 
-- [ ] BF144-D244 / P3 — 首次零步长动画求值延后到物理步后，丢失源注册阶段的出生状态与曲线种子。
+- [x] BF144-D244 / P3 — 首次零步长动画求值延后到物理步后，丢失源注册阶段的出生状态与曲线种子。
+  - 2026-11-08 11:29 开始：预估结束12:14 +08:00。依据.252已有出生种子因子和D243 fresh 11帧/source注册事实，当前需覆盖角色异步场景装配、实际输入提供和首物理步顺序，按45分钟先完成最小静态闭环；完整测试、消融与公共Gate待用户指定阶段。
+  - 11:41 source/static闭环：fresh注册pose为Grounded、pending且六个站立/地面/双足曲线为1，首world才进入Fall；目标scene由PreUpdate异步准备、角色物理先创建，必须让该角色等待真实图与overlay依赖就绪。现已接入出生等待、真实出生输入和零delta初始化，成功后放行原首物理步及下一次普通图更新；等待期间阻止项目运动事务直接改写角色。正在检查完整依赖、focused fixture与卸载/错误边界；尚无执行验证。
+  - 11:45 输入闭包补充：原生注册Gait为Running；目标刷新gait会在异步等待期间按静止速度改为Walking，aim/view也可能先改变输入。上述首次状态与视图更新现同样等待出生pose，测试代码固定Grounded/Running、原高度、零delta、六曲线和首普通Air步。RigidBodyDisabled仍允许碰撞检测/查询，等待期间其他物体互动及图错误报告须在统一runtime Gate验证，不声称已通过。
+  - 11:47实现摘要：角色异步装配期间保持出生运动/视图状态并停用该角色物理；图、骨架与当前overlay就绪后复用实际输入链进行一次零delta pose/curve求值，再在后续帧恢复源出生支撑、首物理步和普通图时钟。已写显式延迟资源及非零速度等待反例、Grounded/Running与六曲线fixture，证据与scope见`docs/audit/bf144/d244/`；D149和加载/错误/其他对象交互边界未归并。实现结束2026-11-08 11:47 +08:00，较预估提前27分钟；focused测试、消融、图审计和公共Gate均待依赖升级后执行。
   - Source：fresh真实B_Als_Character在150cm空中出生时，mesh注册的InitAnim按原AnimationSettings执行TickAnimation(0)/RefreshBoneTransforms；world0、Grounded/elapsed0、pending=True，PoseGrounded、FootLeft/RightIk与Lock均1。源54帧完整实例当次重读精确复现；角色移动之前已有初始pose/curve，后续输入以其反馈。
   - Target：`src/als/character/character.rs:408`出生状态同为Grounded，但`post_physics_animation.rs:48–52,190–198`在PhysicsSystems::Last之后才首次初始化求值。被动预图记录显示首query前角色已从1.5m降至1.4936416m、velocity=-0.32699996m/s，tag已为InAir；零求值输出PoseInAir=1、FootLeft/RightIk=0，未保持源出生种子。
   - 最小控制/影响：只临时把第一次零query的locomotion tag置为原出生Grounded，随后立即恢复SourceAnimationInputs；其余11帧tag、physics位置/速度、query时间/计数及pending=False均保持，PoseGrounded/PoseInAir/左右Ik/Lock六字段恢复source种子，下一普通帧pelvis输入0→1。完整240步同声明输入有90帧最终float Rig姿态改变、622个骨样本变化、2帧curve差。未补normal delta、未修复pending，因此与D149和撤销的D243分离；不宣称全部骨数值与完整反馈已等价。

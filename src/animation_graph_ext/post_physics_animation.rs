@@ -26,6 +26,11 @@ pub struct PostPhysicsAnimation;
 pub struct ManualAnimationPlayer;
 
 #[derive(Component, Clone, Copy, Debug)]
+pub struct InitialAnimation {
+    pub ready: bool,
+}
+
+#[derive(Component, Clone, Copy, Debug)]
 pub struct AnimationPoseUpdateGate {
     pub update_graph: bool,
     pub refresh_bones: bool,
@@ -181,13 +186,13 @@ fn apply_readback_pose(
 
 pub fn evaluate_players<F: QueryFilter>(
     time: Res<Time>,
-    mut players: Query<(Entity, &mut AnimationGraphPlayer, &mut crate::extensions::SourceAnimationInputs, Option<&mut AnimationPoseUpdateGate>), (F, Without<ManualAnimationPlayer>)>,
+    mut players: Query<(Entity, &mut AnimationGraphPlayer, &mut crate::extensions::SourceAnimationInputs, Option<&mut AnimationPoseUpdateGate>, Option<&InitialAnimation>), (F, Without<ManualAnimationPlayer>)>,
     resources: SystemResources,
 ) {
-    players.par_iter_mut().for_each(|(entity, mut player, inputs, mut gate)| {
-        if gate.as_ref().is_some_and(|gate| !gate.update_graph) { return; }
+    players.par_iter_mut().for_each(|(entity, mut player, inputs, mut gate, initial)| {
+        if gate.as_ref().is_some_and(|gate| !gate.update_graph) || initial.is_some_and(|initial| !initial.ready) { return; }
         let playing = !player.is_paused();
-        let initialize = gate.is_some() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);
+        let initialize = initial.is_some() || gate.is_some() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);
         player.set_global_input_data("animation.evaluate_pose", initialize || gate.as_ref().is_none_or(|gate| gate.refresh_bones));
         if initialize {
             let delta = player.get_global_input_data("animation.delta_seconds").cloned();
@@ -195,7 +200,7 @@ pub fn evaluate_players<F: QueryFilter>(
             inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &Time::default(), &resources));
             if let Some(delta) = delta { player.set_global_input_data("animation.delta_seconds", delta); }
         }
-        if !initialize || (playing && !player.is_paused() && player.get_error().is_none() && player.get_default_output_pose().is_some()) {
+        if !initialize || (initial.is_none() && playing && !player.is_paused() && player.get_error().is_none() && player.get_default_output_pose().is_some()) {
             player.set_global_input_data("animation.evaluate_pose", gate.as_ref().is_none_or(|gate| gate.refresh_bones));
             let delta = player.get_global_input_data("animation.delta_seconds")
                 .and_then(|value| value.as_f32().ok()).map_or(time.delta_secs(), |value| value);
@@ -206,7 +211,7 @@ pub fn evaluate_players<F: QueryFilter>(
         if playing && player.get_error().is_none() && player.get_default_output_pose().is_some()
             && let Some(gate) = gate.as_mut() { gate.pending_update = false; }
     });
-    players.par_iter_mut().for_each(|(_, player, mut inputs, _)| {
+    players.par_iter_mut().for_each(|(_, player, mut inputs, _, _)| {
         debug_draw_animation_players(player, &resources);
         inputs.set_rig_query_context(None);
     });
@@ -270,7 +275,7 @@ mod tests {
             SourceSequencePlayerNode, animation_context::node_context_state};
         for linked in [false, true] {
             for configured in [false, true] {
-                for gated in [false, true] {
+                for (gated, birth) in [(false, false), (false, true), (true, false), (true, true)] {
                     let mut world = World::new();
                     world.init_resource::<Assets<AnimationGraph>>();
                     world.init_resource::<Assets<GraphClip>>();
@@ -323,6 +328,19 @@ mod tests {
                         assert!(player.get_default_output_pose().is_none());
                         world.get_mut::<AnimationPoseUpdateGate>(entity).unwrap().update_graph = true;
                     }
+                    if birth {
+                        world.entity_mut(entity).insert(InitialAnimation { ready: false });
+                        world.run_system_once(evaluate_players::<()>).unwrap();
+                        assert!(world.get::<AnimationGraphPlayer>(entity).unwrap().get_default_output_pose().is_none());
+                        world.get_mut::<InitialAnimation>(entity).unwrap().ready = true;
+                        world.run_system_once(evaluate_players::<()>).unwrap();
+                        let player = world.get::<AnimationGraphPlayer>(entity).unwrap();
+                        assert!(player.get_error().is_none(), "{:?}", player.get_error());
+                        assert_eq!(player.get_context_arena().unwrap().frame_index(), 1);
+                        assert!(player.get_default_output_pose().unwrap().get_bone(bone).unwrap().translation.unwrap()
+                            .abs_diff_eq(Vec3::ZERO, 1e-6));
+                        world.entity_mut(entity).remove::<InitialAnimation>();
+                    }
                     world.run_system_once(evaluate_players::<()>).unwrap();
                     let mut position = if configured { 0.02 } else { 0.05 };
                     let player = world.get::<AnimationGraphPlayer>(entity).unwrap();
@@ -332,7 +350,7 @@ mod tests {
                         &arena.get_context(id).unwrap().node_states, StateKey::Default, sequence.id)).unwrap();
                     let state = context.relevant_asset.as_ref().unwrap();
                     assert!((state.position - position).abs() < 1e-6,
-                        "First sequence update: linked={linked} configured={configured} gated={gated} position={} expected={position}", state.position);
+                        "First sequence update: linked={linked} configured={configured} gated={gated} birth={birth} position={} expected={position}", state.position);
                     assert!(player.get_default_output_pose().unwrap().get_bone(bone).unwrap().translation.unwrap()
                         .abs_diff_eq(Vec3::X * (2.0 * position), 1e-6));
                     let event = TimedEvent { id: "clock crossing".into(), kind: TimedEventKind::Point,

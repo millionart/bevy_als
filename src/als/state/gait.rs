@@ -288,7 +288,7 @@ pub fn refresh_gait_system(
             &AlsActualVelocity,
             &AlsMovementParamsHandle,
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut transitions: MessageWriter<StateTransitionEvent>,

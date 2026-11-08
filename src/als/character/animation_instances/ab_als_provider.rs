@@ -228,7 +228,7 @@ fn ab_als_input_writer(
         With<AlsCharacter>,
     >,
     avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>)>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
     parents: Query<&ChildOf>,
@@ -261,7 +261,7 @@ fn ab_als_input_writer(
                 continue;
             }
             let Ok(avatar_transform) = transforms.compute_global_transform(avatar) else { continue; };
-            let Ok((mut player, context, tick)) = players.get_mut(instance.player_entity()) else {
+            let Ok((mut player, context, tick, initial)) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
             if let Some(skeleton) = skeletons.get(player.skeleton()) {
@@ -276,7 +276,7 @@ fn ab_als_input_writer(
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
                 standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
             let has_input = motion.has_input;
-            let delta_seconds = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);
+            let delta_seconds = if initial.is_some() { 0.0 } else { time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0) };
             let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
             let previous_view = player
                 .get_global_input_data("view_state.rotation_yaw")

@@ -2254,9 +2254,8 @@ fn standing_layer_writer(
     animation_curves: Res<Assets<AlsAnimCurves>>,
     mut curve_handles: ResMut<StandingCurveHandles>,
     skeletons: Res<Assets<Skeleton>>,
-    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
 ) {
-    let delta_seconds = time.delta_secs();
     update_stop_leg_masks(&mut curve_handles, &skeletons);
     for (entity, parent, avatar_transform, instance, current_runtime, turn, turn_stack) in
         &mut avatars
@@ -2291,9 +2290,10 @@ fn standing_layer_writer(
         let Some(movement_params) = params.get(handle.id()) else {
             continue;
         };
-        let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
+        let Ok((mut player, context, initial)) = players.get_mut(instance.player_entity()) else {
             continue;
         };
+        let delta_seconds = if initial.is_some() { 0.0 } else { time.delta_secs() };
         let hips_direction_lock_amount = context
             .and_then(|state| state.f32("HipsDirectionLock"))
             .unwrap_or(0.0)
