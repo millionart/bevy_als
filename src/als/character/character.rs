@@ -286,7 +286,7 @@ impl Plugin for AlsCharacterPlugin {
             .add_systems(PhysicsSchedule, crate::extensions::source_contact_order::order_source_compound_groups
                 .in_set(avian3d::collision::narrow_phase::NarrowPhaseSystems::Last))
             .add_systems(PhysicsSchedule, (character_contact_friction_system,
-                crate::extensions::source_contact_order::order_source_capsule_box_contacts)
+                crate::extensions::source_contact_order::order_source_capsule_contacts)
                 .chain().after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
             .add_systems(PhysicsSchedule, sync_child_collider_poses
                 .in_set(PhysicsStepSystems::Finalize));

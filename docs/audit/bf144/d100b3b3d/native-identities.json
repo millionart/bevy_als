@@ -1,0 +1,14 @@
+{
+  "request": "docs/audit/bf144/d100b3b3d/head.request.json",
+  "request_sha256": "851f9e76515a1a6c165a90e96a4eac13d5a16734caede03be94fc8ccee434789",
+  "native": "docs/audit/bf144/d100b3b3d/head.native.json.gz",
+  "raw_bytes": 4766146,
+  "raw_sha256": "6298026216fd80f9a8ac76b1e4e5d7bf00450536b124cffaa566a6200fc15e84",
+  "gzip_bytes": 227663,
+  "gzip_sha256": "447bf7efeef94f1885b6e95478e9dc86a1671f74b7bd15d0066fcd43f1c880eb",
+  "reader_report": "docs/audit/bf144/d100b3b3d/head.native.json.reader.report.json",
+  "sample": "docs/audit/bf144/d100b3b3d/head.native-sample.json",
+  "sample_sha256": "36450fc75b4af3449d838a32e9376fe20bcee700c2210952bdadb407753e176f",
+  "axis_evidence": "docs/audit/bf144/d100a/axis-evidence.json",
+  "axis_evidence_sha256": "a79c289236958b017a7fb1951a0a25e3d7e582398ab4b87d3b049c90bf6bbc03"
+}

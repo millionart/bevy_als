@@ -1,0 +1,42 @@
+[
+  {
+    "source_file": "src/collision/collider/parry/mod.rs",
+    "sha256": "2a04ce7d6913b008e654905c96ead648efd840ddf102863532bc38bd187e3945",
+    "start_line": 787,
+    "end_line": 797,
+    "text": "\n    /// Creates a collider with a capsule shape defined by its radius\n    /// and its height along the `Y` axis, excluding the hemispheres.\n    pub fn capsule(radius: Scalar, length: Scalar) -> Self {\n        SharedShape::capsule(\n            Vector::Y * length * 0.5,\n            Vector::NEG_Y * length * 0.5,\n            radius,\n        )\n        .into()\n    }\n",
+    "dependency": "avian3d-0.7.0"
+  },
+  {
+    "source_file": "src/shape/polygonal_feature_map.rs",
+    "sha256": "0f7b4c1d2f00ef3261e250a69ae4c61e85cca190632407ac7bdc288bdde3059d",
+    "start_line": 20,
+    "end_line": 24,
+    "text": "impl PolygonalFeatureMap for Segment {\n    fn local_support_feature(&self, _: Vector, out_feature: &mut PolygonalFeature) {\n        *out_feature = PolygonalFeature::from(*self);\n    }\n}\n",
+    "dependency": "parry3d-0.27.0"
+  },
+  {
+    "source_file": "src/shape/polygonal_feature3d.rs",
+    "sha256": "c0a9e0d5353cf47dfefa2f7f3725167fac989831055de464c997eaa6f82247c0",
+    "start_line": 51,
+    "end_line": 62,
+    "text": "impl From<Segment> for PolygonalFeature {\n    fn from(seg: Segment) -> Self {\n        Self {\n            vertices: [seg.a, seg.b, seg.b, seg.b],\n            vids: PackedFeatureId::vertices([0, 1, 1, 1]),\n            eids: PackedFeatureId::edges([0, 0, 0, 0]),\n            fid: PackedFeatureId::face(0),\n            num_vertices: 2,\n        }\n    }\n}\n\n",
+    "dependency": "parry3d-0.27.0"
+  },
+  {
+    "source_file": "src/shape/polygonal_feature3d.rs",
+    "sha256": "c0a9e0d5353cf47dfefa2f7f3725167fac989831055de464c997eaa6f82247c0",
+    "start_line": 241,
+    "end_line": 286,
+    "text": "            Vector2::new(vertices2_1[3].dot(basis[0]), vertices2_1[3].dot(basis[1])),\n        ];\n\n        // Also find all the vertices located inside of the other projected face.\n        if face2.num_vertices > 2 {\n            let normal2_1 =\n                (vertices2_1[2] - vertices2_1[1]).cross(vertices2_1[0] - vertices2_1[1]);\n            let denom = normal2_1.dot(sep_axis1);\n\n            if !relative_eq!(denom, 0.0) {\n                let last_index2 = face2.num_vertices - 1;\n\n                #[allow(clippy::needless_range_loop)] // Would make it much more verbose.\n                'point_loop1: for i in 0..face1.num_vertices {\n                    let p1 = projected_face1[i];\n\n                    let mut sign = (projected_face2[0] - projected_face2[last_index2])\n                        .perp_dot(p1 - projected_face2[last_index2]);\n                    for j in 0..last_index2 {\n                        let new_sign = (projected_face2[j + 1] - projected_face2[j])\n                            .perp_dot(p1 - projected_face2[j]);\n\n                        if sign == 0.0 {\n                            sign = new_sign;\n                        } else if sign * new_sign < 0.0 {\n                            // The point lies outside.\n                            continue 'point_loop1;\n                        }\n                    }\n\n                    // All the perp had the same sign: the point is inside of the other shapes projection.\n                    // Output the contact.\n                    let dist = (vertices2_1[0] - face1.vertices[i]).dot(normal2_1) / denom;\n                    let local_p1 = face1.vertices[i];\n                    let local_p2_1 = face1.vertices[i] + dist * sep_axis1;\n\n                    manifold.points.push(TrackedContact::flipped(\n                        local_p1,\n                        pos12.inverse_transform_point(local_p2_1),\n                        face1.vids[i],\n                        face2.fid,\n                        dist,\n                        flipped,\n                    ));\n                }\n            }\n",
+    "dependency": "parry3d-0.27.0"
+  },
+  {
+    "source_file": "src/shape/polygonal_feature3d.rs",
+    "sha256": "c0a9e0d5353cf47dfefa2f7f3725167fac989831055de464c997eaa6f82247c0",
+    "start_line": 288,
+    "end_line": 326,
+    "text": "\n        if face1.num_vertices > 2 {\n            let normal1 = (face1.vertices[2] - face1.vertices[1])\n                .cross(face1.vertices[0] - face1.vertices[1]);\n\n            let denom = -normal1.dot(sep_axis1);\n            if !relative_eq!(denom, 0.0) {\n                let last_index1 = face1.num_vertices - 1;\n                'point_loop2: for i in 0..face2.num_vertices {\n                    let p2 = projected_face2[i];\n\n                    let mut sign = (projected_face1[0] - projected_face1[last_index1])\n                        .perp_dot(p2 - projected_face1[last_index1]);\n                    for j in 0..last_index1 {\n                        let new_sign = (projected_face1[j + 1] - projected_face1[j])\n                            .perp_dot(p2 - projected_face1[j]);\n\n                        if sign == 0.0 {\n                            sign = new_sign;\n                        } else if sign * new_sign < 0.0 {\n                            // The point lies outside.\n                            continue 'point_loop2;\n                        }\n                    }\n\n                    // All the perp had the same sign: the point is inside of the other shapes projection.\n                    // Output the contact.\n                    let dist = (face1.vertices[0] - vertices2_1[i]).dot(normal1) / denom;\n                    let local_p2_1 = vertices2_1[i];\n                    let local_p1 = vertices2_1[i] - dist * sep_axis1;\n\n                    manifold.points.push(TrackedContact::flipped(\n                        local_p1,\n                        pos12.inverse_transform_point(local_p2_1),\n                        face1.fid,\n                        face2.vids[i],\n                        dist,\n                        flipped,\n                    ));\n",
+    "dependency": "parry3d-0.27.0"
+  }
+]

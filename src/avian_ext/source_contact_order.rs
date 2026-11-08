@@ -370,9 +370,10 @@ fn order_source_capsule_points(points: &mut [ContactPoint], axis: Vec3, capsule_
     });
 }
 
-pub(crate) fn order_source_capsule_box_contacts(
+pub(crate) fn order_source_capsule_contacts(
     ragdolls: Query<(), With<RagdollActiveMode>>,
     colliders: Query<(&Collider, &Rotation)>,
+    sources: Query<(), With<SourceCompoundOrder>>,
     mut graph: ResMut<ContactGraph>,
 ) {
     for pair in graph.iter_active_mut() {
@@ -382,9 +383,13 @@ pub(crate) fn order_source_capsule_box_contacts(
             (colliders.get(pair.collider1), colliders.get(pair.collider2)) else { continue; };
         let first_shape = first.shape_scaled();
         let second_shape = second.shape_scaled();
-        let (axis, capsule_first) = if let Some(capsule) = first_shape.as_capsule().filter(|_| second_shape.as_cuboid().is_some()) {
+        let first_surface = first_shape.as_cuboid().is_some()
+            || (sources.contains(pair.collider1) && first_shape.as_compound().is_some());
+        let second_surface = second_shape.as_cuboid().is_some()
+            || (sources.contains(pair.collider2) && second_shape.as_compound().is_some());
+        let (axis, capsule_first) = if let Some(capsule) = first_shape.as_capsule().filter(|_| second_surface) {
             (first_rotation.0 * (capsule.segment.b - capsule.segment.a).normalize_or_zero(), true)
-        } else if let Some(capsule) = second_shape.as_capsule().filter(|_| first_shape.as_cuboid().is_some()) {
+        } else if let Some(capsule) = second_shape.as_capsule().filter(|_| first_surface) {
             (second_rotation.0 * (capsule.segment.b - capsule.segment.a).normalize_or_zero(), false)
         } else { continue; };
         for manifold in &mut pair.manifolds {
@@ -900,6 +905,108 @@ mod tests {
         let unchanged = manifolds.clone();
         order_compound_groups(&mut manifolds, &ids, &handles[..2], 1);
         assert_eq!(manifolds, unchanged);
+    }
+
+    #[test]
+    fn source_capsule_compound_cylinder_preserves_native_endpoint_order() {
+        use avian3d::collision::narrow_phase::NarrowPhaseSystems;
+        use avian3d::prelude::{Gravity, LockedAxes, PhysicsSchedule, PhysicsStepSystems, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3d/head.native-sample.json")).unwrap();
+        let definitions: HashMap<String, Vec<Vec<[f32; 3]>>> = serde_json::from_str(include_str!(
+            "../../assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json")).unwrap();
+        let vector = |value: &serde_json::Value| Vec3::new(value["x"].as_f64().unwrap() as f32,
+            value["z"].as_f64().unwrap() as f32, value["y"].as_f64().unwrap() as f32);
+        let geometry = &fixture["geometry"];
+        let first = vector(&geometry["endpoint_0_cm"]) * 0.01;
+        let second = vector(&geometry["endpoint_1_cm"]) * 0.01;
+        let axis = (first - second).normalize();
+        let rotation = Quat::from_rotation_arc(Vec3::Y, -axis);
+        let body = &fixture["input"]["body_translation_cm"];
+        let body = Vec3::new(body[0].as_f64().unwrap() as f32, body[2].as_f64().unwrap() as f32,
+            body[1].as_f64().unwrap() as f32) * 0.01;
+        let position = body + (first + second) * 0.5;
+        let native = &fixture["aggregate_contacts"][0]["points"];
+        let native_axis_delta = (vector(&native[0]["world_point_0_cm"]) - vector(&native[1]["world_point_0_cm"]))
+            .dot(axis);
+        assert!(native_axis_delta > 0.0);
+        let native_normal = vector(&native[0]["world_normal"]);
+        let angled_normal = vector(&fixture["aggregate_contacts"][1]["points"][0]["world_normal"]);
+        assert!(source_capsule_cylinder_contact(axis, native_normal));
+        assert!(!source_capsule_cylinder_contact(axis, angled_normal));
+        for capsule_first in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin));
+            crate::extensions::source_contact_narrow::add_source_physics(&mut app);
+            app.insert_resource(Gravity(Vec3::ZERO))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
+                .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last))
+                .add_systems(PhysicsSchedule, order_source_capsule_contacts
+                    .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver));
+            app.finish();
+            app.cleanup();
+            let compound = Collider::compound(definitions["SM_Als_Arch_01"].iter().map(|hull| (
+                Vec3::ZERO, Quat::IDENTITY,
+                Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
+            )).collect());
+            let capsule = Collider::capsule(geometry["radius_cm"].as_f64().unwrap() as f32 * 0.01, first.distance(second));
+            let spawn_ground = |app: &mut App| app.world_mut().spawn((RigidBody::Static, compound.clone(),
+                SourceCompoundOrder("SM_Als_Arch_01".into()), Transform::IDENTITY)).id();
+            let spawn_capsule = |app: &mut App| app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED,
+                SleepingDisabled, capsule.clone(), Transform::from_translation(position).with_rotation(rotation),
+                RagdollActiveMode(BodyMode::Dynamic))).id();
+            let (ground, head) = if capsule_first {
+                let head = spawn_capsule(&mut app); (spawn_ground(&mut app), head)
+            } else {
+                let ground = spawn_ground(&mut app); (ground, spawn_capsule(&mut app))
+            };
+            app.update();
+            app.update();
+            let pair = app.world().resource::<ContactGraph>().get(ground, head).unwrap().1;
+            let manifold = pair.manifolds.iter().find(|manifold| {
+                let normal = manifold.normal * if pair.collider1 == head { -1.0 } else { 1.0 };
+                normal.dot(native_normal) > 0.99 && manifold.points.len() >= 2
+            }).expect("The native capsule cylinder group was not generated");
+            let capsule_anchor = |point: &ContactPoint| if pair.collider1 == head { point.anchor1 } else { point.anchor2 };
+            assert!(capsule_anchor(&manifold.points[0]).dot(axis)
+                > capsule_anchor(manifold.points.last().unwrap()).dot(axis));
+        }
+    }
+
+    #[test]
+    fn source_capsule_compound_order_leaves_other_contacts_unchanged() {
+        use avian3d::collision::contact_types::ContactEdge;
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+        for marked in [false, true] {
+            for ragdoll in [false, true] {
+                for cylinder in [false, true] {
+                    let mut world = World::new();
+                    let body = world.spawn_empty().id();
+                    if ragdoll { world.entity_mut(body).insert(RagdollActiveMode(BodyMode::Dynamic)); }
+                    let capsule = world.spawn((Collider::capsule(0.2, 0.5), Rotation::IDENTITY)).id();
+                    let surface = world.spawn((Collider::compound(vec![(Vec3::ZERO, Quat::IDENTITY,
+                        Collider::cuboid(1.0, 1.0, 1.0))]), Rotation::IDENTITY)).id();
+                    if marked { world.entity_mut(surface).insert(SourceCompoundOrder("SM_Als_Arch_01".into())); }
+                    let points = [Vec3::Y, Vec3::NEG_Y].map(|value| ContactPoint::new(value, Vec3::ZERO, value, 0.0));
+                    let normal = if cylinder { Vec3::X } else { Vec3::Y };
+                    let mut edge = ContactEdge::new(capsule, surface);
+                    edge.body1 = Some(body);
+                    let mut graph = ContactGraph::default();
+                    graph.add_edge_with(edge, |pair| {
+                        pair.body1 = Some(body);
+                        pair.manifolds.push(ContactManifold::new(points, normal));
+                    }).unwrap();
+                    world.insert_resource(graph);
+                    world.run_system_once(order_source_capsule_contacts).unwrap();
+                    let points = &world.resource::<ContactGraph>().get(capsule, surface).unwrap().1.manifolds[0].points;
+                    let expected = if marked && ragdoll && cylinder { [Vec3::NEG_Y, Vec3::Y] } else { [Vec3::Y, Vec3::NEG_Y] };
+                    assert_eq!([points[0].anchor1, points[1].anchor1], expected);
+                }
+            }
+        }
     }
 
     #[test]
