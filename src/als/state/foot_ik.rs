@@ -589,13 +589,34 @@ fn source_foot_rotation_product(left: DQuat, right: DQuat) -> DQuat {
     left * right
 }
 
+fn source_foot_atan2(y: f32, x: f32) -> f32 {
+    let abs_x = x.abs();
+    let abs_y = y.abs();
+    let y_abs_bigger = abs_y > abs_x;
+    let maximum = if y_abs_bigger { abs_y } else { abs_x };
+    let minimum = if y_abs_bigger { abs_x } else { abs_y };
+    if maximum == 0.0 { return 0.0; }
+    let ratio = minimum / maximum;
+    let square = ratio * ratio;
+    let mut angle = 0.007_212_885;
+    angle = angle * square - 0.035_059_68;
+    angle = angle * square + 0.081_675_88;
+    angle = angle * square - 0.133_746_58;
+    angle = angle * square + 0.198_565_63;
+    angle = angle * square - 0.333_249_99;
+    angle = (angle * square + 1.0) * ratio;
+    if y_abs_bigger { angle = std::f32::consts::FRAC_PI_2 - angle; }
+    if x < 0.0 { angle = std::f32::consts::PI - angle; }
+    if y < 0.0 { -angle } else { angle }
+}
+
 pub fn constrain_foot_lock_rotation(
     lock_rotation: DQuat,
     target_rotation: DQuat,
     foot_angle_limit_degrees: f32,
 ) -> DQuat {
     let delta = source_foot_rotation_product(lock_rotation, target_rotation.conjugate()).as_quat();
-    let twist_angle = wrap_foot_yaw(2.0 * delta.y.atan2(delta.w)) * (180.0_f32 / std::f32::consts::PI);
+    let twist_angle = wrap_foot_yaw(2.0 * source_foot_atan2(delta.y, delta.w)) * (180.0_f32 / std::f32::consts::PI);
     let limit = foot_angle_limit_degrees;
     if twist_angle.abs() <= limit + 1e-4 { return lock_rotation; }
     source_foot_rotation_product(
@@ -1246,6 +1267,20 @@ mod tests {
     fn foot_limit_uses_source_radians_to_degrees_at_threshold() {
         let lock = Quat::from_xyzw(-0.337_396_44, 0.337_396_4, 0.621_420_74, -0.621_420_6).as_dquat();
         let limit = 56.998_836_517_333_984_f32;
+        assert_eq!(constrain_foot_lock_rotation(lock, DQuat::IDENTITY, limit), lock);
+    }
+
+    #[test]
+    fn foot_twist_atan2_matches_native_float_samples() {
+        assert_eq!(source_foot_atan2(0.055_680_238, 0.998_448_55), 0.055_709_07);
+        assert_eq!(source_foot_atan2(0.642_787_64, 0.766_044_44), 0.698_131_5);
+        assert_eq!(source_foot_atan2(0.0, 0.0), 0.0);
+    }
+
+    #[test]
+    fn foot_limit_uses_source_atan2_at_threshold() {
+        let lock = Quat::from_xyzw(0.0, 0.642_787_64, 0.0, 0.766_044_44).as_dquat();
+        let limit = 79.999_870_300_292_97_f32;
         assert_eq!(constrain_foot_lock_rotation(lock, DQuat::IDENTITY, limit), lock);
     }
 

@@ -5370,11 +5370,13 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 修复第1轮：开始2026-11-08 08:09 +08:00；预估结束08:34 +08:00。依据：D262a已fresh原生记录实际前态衍生的角度和系数，源/目标相同Atan的受控限位可隔离单个F32系数；只改足限位消费处，不推广到未经证明的其他角度。测试留待全部静态修复和Bevy/依赖迁移后。
   - 08:11 source/static与实现摘要：fresh源UE_PI为float，原生同弧度得到56.99893569946289°，旧系数得到56.998939514160156°；真实前态的受控阈值将两者分到不同限位分支。足限位改用源float系数并写端到端阈值反例。旧.420四份原始报告缺失，现引用新原生请求/结果；实现结束08:11、偏差−23分钟。测试、消融和视觉Gate待静态修复及Bevy/依赖迁移后执行。
 
-- [ ] BF144-D259 / P3 — Foot Lock旋转限位使用系统Atan2，遗漏源float minimax角度算法。
+- [x] BF144-D259 / P3 — Foot Lock旋转限位使用系统Atan2，遗漏源float minimax角度算法。
   - Source：fresh `AlsAnimationInstance.cpp:1560–1574`先double锁定×目标逆再降FQuat4f，`GetTwistAngle`经`FGenericPlatformMath::Atan2(float)`；本地`GenericPlatformMath.cpp:33–76`明确使用7系数minimax，随后源float Unwind/角限位与轴角写回锁世界旋转。
   - Target：`src/als/state/foot_ik.rs:581`使用f32.atan2系统函数。固定目标自身当前F32相对四元数、角度系数、偏移构造、末乘和Normalize后，仅换源minimax即可改变同一次限位；与D163的Rig Euler半转分支、D260的角度系数不同。
   - 实际consumer：当前自然记录298个active-lock侧样本中6次限位实际触发；用原相同目标前态只替换Atan，6份LockRotation/FinalRotation及6份actual组件空间RigInput rotation改变。首frame23/right 当前Rig输入z=−0.10808248072862625，单Atan为−0.10808239132165909；全部位置、锁量、目标pose和前态保持。原生相同current delta6样本确认源twist，与源模型逐值一致，未把敏感性单独当根因，也未宣称全Root/可见故障恢复。
   - 证据/漏检：`target/bf144/420/native-limit-check.json`、`delta.native.json`、`findings-check.json`、`consumer-atan.json`与两个端点全匹配矩阵。旧rotation-limit单元仅用目标自身90°/40°端点和宽容差，没有原生float Atan中间值；源reader缺该字段的失败先证明，再新增最小optional probe并完成旧输出兼容、非法输入、同arm64包删除/恢复Gate。单因消费者移除控制退回当前，源码字节恢复同target重编输出恢复；生产未修，完整连续反馈影响/其它数值因素仍未闭。
+  - 修复第1轮：开始2026-11-08 08:12 +08:00；预估结束08:42 +08:00。依据：fresh UE `GetTwistAngle`调用float minimax Atan2，D262a已有实际前态与受控原生twist读数；局部引入源算子、保留D260系数并补原生值与限位反例。测试留待全部静态修复和Bevy/依赖迁移后。
+  - 08:14 source/static与实现摘要：fresh源确认float minimax的七系数、零输入与象限恢复及Unwind阶段；足限位调用该算子，保留D260系数。已写两个新原生twist、零输入和实际前态衍生阈值反例；旧.420原始报告缺失，引用D262a新原生请求/结果。实现结束08:14、偏差−28分钟；测试、消融与视觉Gate待静态修复及Bevy/依赖迁移后执行。
 
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
