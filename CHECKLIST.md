@@ -6520,12 +6520,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 21:52 source/static摘要：源位置冲量与速度冲量共用摩擦锥，且初始切向误差来自预测后接触速度；目标原切向warm-start/求解必须在本链停用以免重复施加。接入限定当前Ragdoll硬材质和首帧/零历史锚点；历史锚点D96、速度采样先后D137及复杂多点迭代仍为各自边界。
   - 22:01 source/static摘要：fresh PA/PhysicsSettings确认当前迭代、刚度与双轴模式；已将D94a接到目标速度积分、位置修正和速度松弛之间，并把位置累计冲量交给速度摩擦锥。已写加载head原生惯量、双帧长、零摩擦及非rig接触控制；测试、消融、历史锚点及复杂耦合待统一Gate/后续条目。证据`docs/audit/bf144/d94b/`。实际结束：2026-11-08 22:01 +08:00；偏差：−41分钟；结果：子项及父项静态实现完成，拆分为a/b。
 
-- [ ] BF144-D95 / P3 — 法向速度阶段仍按正间距预测，未保留源独立速度解算。
+- [x] BF144-D95 / P3 — 法向速度阶段仍按正间距预测，未保留源独立速度解算。
+  - 本轮开始：2026-11-08 22:03 +08:00；预计结束：2026-11-08 22:48 +08:00。重读源速度阶段与目标Relax分支，只在已确认的源实体接触上去除位置间距预测，并保留未接触的目标路径；补摩擦旋转与零摩擦控制。估时依据：BF144.29与.55完整接触审计分别约27分钟，本项复用D94接触准备和加载head夹具；执行与消融待统一Gate。
   - Source：fresh sphere/box采用one-shot manifold，源`PBDCollisionSolver.h:868–945`用cached力臂的线性DP/DQ计算位置误差，随后velocity solve沿该法线解算；中心接触的r×normal=0，切向摩擦旋转不应制造新的法向间距。
   - Target：Avian `contact/mod.rs:287–293`在Relax时用delta_rotation旋转r再计算separation；`normal_part.rs:129–131`对新出现的正间距进入预测接触分支，允许法向速度变成−separation/dt。
   - 反例：完整角色head原生惯量、法向恢复已统一、切速0/0.1/1m/s；60/30Hz×目标quat/源Euler quat/仅法向使用线性控制共18组10PASS/8FAIL。切速1时默认目标重新产生−0.0185323/−0.0370038m/s法向速度，源应0；换源quat仍为−0.0185108/−0.0368518，故不是D84的自由积分差异。只在Relax期间令法向使用原固定力臂、随后恢复原quat，全部恢复；零切速控制通过。证据`bf144_pa_friction_rotation_preserves_source_cached_normal_separation`、`target/bf144/29/`。
   - 漏检：旧接触验证未在切向摩擦导致旋转后复核法向速度，最终非穿透位置不能证明速度阶段一致。只登记，不更改接触缓存或生产求解器。
   - BF144.55补充边界：fresh `PBDCollisionSolver.h:978–992,1178–1236`在速度阶段只用V/W和目标法向速度，不再读取当前位置残差；Avian `normal_part.rs:129–132`在`use_bias=false`时仍对正间距加入separation/dt。共同原生Cart head、零摩擦、源8次线性位置投影后，actual wZ=−0.204293、source=−0.207578；只去掉该预测项即恢复，跳过零pushout点没有影响。Stairs_01 foot先隔离D139后，actual wZ=0.462137、source=0.403496，同样需要去掉预测项。60/30Hz分离控制均复现；两侧间距已统一为源线性DP/DQ，证明该边界不需要非线性旋转重算。旧BF144.29的中心球控制保持有效，但不能将“改用线性间距”推广为一般速度阶段修复。与本项共用同一预测分支，合并登记而不新增编号；证据`55/common_geometry/`、`55/final/`、`55/analysis.json`。
+  - 22:06 source/static摘要：fresh PA与源法向速度阶段、Avian正间距分支已固化；最初已重叠的rig接触仅在Relax期间屏蔽新正间距并随后恢复输入。已写真实head摩擦法向速度及正间距、预测接触、非rig和恢复控制；测试、消融及Playground待统一Gate，预测接触与零pushout资格归D98/D139。证据`docs/audit/bf144/d95/`。实际结束：2026-11-08 22:06 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D96 / P3 — Ragdoll接触缓存丢失源静摩擦锚点历史。
   - Source：fresh `PBDCollisionConstraint.h:804–838`在static ratio≈1时保留旧ShapeAnchorPoints、0<ratio<1时插值旧锚点与当前点、ratio≈0时单接触改用当前点；cpp:1129–1185,1250–1292按quadratic本地接触点匹配后恢复锚点。native恢复开关True，exact=2mm、near=10mm。`PBDCollisionContainerSolver.cpp:142–158`随后从两侧保存锚点的世界差计算切向误差，即使当前切向速度为零也会恢复。

@@ -1,0 +1,11 @@
+{
+  "bone": "head",
+  "shapes": [
+    "capsule"
+  ],
+  "material": {
+    "Friction": "0.700000",
+    "Restitution": "0.300000",
+    "SoftCollisionMode": "None"
+  }
+}

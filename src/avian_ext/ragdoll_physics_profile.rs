@@ -34,6 +34,8 @@ use crate::extensions::{
     ragdoll_angular_drive::RagdollAngularDriveSet,
     source_contact_friction::{SourceContactFrictionFrame, SourceContactFrictionSettings,
         capture_source_friction_contacts, solve_source_position_contacts},
+    source_contact_normal::{SourceContactSeparationRestore, restore_source_velocity_separation,
+        suppress_source_velocity_separation},
     source_physics_joint::{
         SourceAngularLimit, SourceAngularMotor, SourceAngularSpring, SourceJointSolverSettings, SourceLinearMotor,
         SourcePhysicsJoint,
@@ -810,7 +812,8 @@ pub struct RagdollPhysicsProfilePlugin;
 
 impl Plugin for RagdollPhysicsProfilePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SourceContactFrictionFrame>().configure_sets(
+        app.init_resource::<SourceContactFrictionFrame>()
+        .init_resource::<SourceContactSeparationRestore>().configure_sets(
             PostUpdate,
             (
                 RagdollPhysicsProfileSet
@@ -855,6 +858,12 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .after(condition_profile_solver_inertia)
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax)
             .run_if(resource_exists::<SourceContactFrictionSettings>))
+        .add_systems(avian3d::prelude::SubstepSchedule, suppress_source_velocity_separation
+            .after(solve_source_position_contacts)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
+        .add_systems(avian3d::prelude::SubstepSchedule, restore_source_velocity_separation
+            .after(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Damping))
         .add_systems(avian3d::prelude::SubstepSchedule, solve_profile_dof
             .after(avian3d::dynamics::solver::xpbd::XpbdSolverSystems::VelocityProjection)
             .after(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Damping)
@@ -2272,6 +2281,9 @@ mod tests {
                 let actual = app.world().get::<Position>(head).unwrap().x - position.x;
                 assert!((actual - expected).abs() < 0.001,
                     "dt={dt} friction={friction} actual={actual} source={expected}");
+                let normal_speed = app.world().get::<LinearVelocity>(head).unwrap().y;
+                assert!(normal_speed.abs() < 1e-4,
+                    "dt={dt} friction={friction} source normal speed=0 actual={normal_speed}");
             }
         }
     }

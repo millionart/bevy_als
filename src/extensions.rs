@@ -117,6 +117,8 @@ pub use query_collision::ComplexCollider;
 pub(crate) mod source_capsule_sweep;
 #[path = "avian_ext/source_contact_friction.rs"]
 pub(crate) mod source_contact_friction;
+#[path = "avian_ext/source_contact_normal.rs"]
+pub(crate) mod source_contact_normal;
 #[path = "avian_ext/ragdoll_physics_profile.rs"]
 pub mod ragdoll_physics_profile;
 #[path = "als/nodes/ragdolling_tag_blend.rs"]
