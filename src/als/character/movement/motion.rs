@@ -4894,7 +4894,7 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
         }
         if result.is_some() && line_distance > 0.0
             && let Some(ray) = spatial.cast_ray_predicate(at, Dir3::NEG_Y,
-                line_distance + half, false, filter, &accepts)
+                line_distance + half, true, filter, &accepts)
             && ray.distance > 0.0 && ray.normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos() {
             let floor_distance = (ray.distance - half).max(-MAX_FLOOR_DISTANCE.max(radius));
             if floor_distance <= line_distance {
@@ -5519,6 +5519,27 @@ mod tests {
         app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
         let position = app.world().get::<Position>(actor).unwrap().0;
         assert!(position.x <= 0.1301 && position.z >= -0.1801, "position={position:?}");
+    }
+
+    #[test]
+    fn ground_line_rejects_a_ray_starting_inside_the_floor() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let (inside, normal, missing, solid, exit) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            let filter = SpatialQueryFilter::from_excluded_entities([actor]);
+            let cmc = crate::als::params::CmcAdapterParams::default();
+            let floor = |origin| find_ground_floor_with_penetration(&spatial, origin, 0.9, 0.3, &cmc,
+                LocomotionState::Grounded, &filter, actor, &candidates, None);
+            let origin = Vec3::NEG_Y * 0.2;
+            let solid = spatial.cast_ray(origin, Dir3::NEG_Y, 2.0, true, &filter).unwrap();
+            let exit = spatial.cast_ray(origin, Dir3::NEG_Y, 2.0, false, &filter).unwrap();
+            (floor(origin), floor(Vec3::Y * 0.9215), floor(Vec3::new(200.0, 0.9215, 0.0)), solid, exit)
+        }).unwrap();
+        assert_eq!(solid.distance, 0.0);
+        assert!(exit.distance > 0.0 && exit.normal.y > 0.99);
+        assert!(inside.is_none(), "An exit surface cannot be a source floor: {inside:?}");
+        assert!(normal.is_some() && missing.is_none());
     }
 
     #[test]

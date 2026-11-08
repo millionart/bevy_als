@@ -1,0 +1,33 @@
+{
+  "inside": {
+    "hit": true,
+    "distance_cm": 0,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": -20
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "above": {
+    "hit": true,
+    "distance_cm": 100,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "miss": {
+    "hit": false
+  }
+}

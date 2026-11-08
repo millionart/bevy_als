@@ -5819,7 +5819,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧slide测试关注跨步内部已经sweep的剩余路径，或在单物理帧内让Avian处理第二墙；没有组合跨步早退、多CMC子步和第二阻挡面。记录的墙界限来自胶囊几何，未把“子步后的切向速度恒定”当作source oracle。仅登记，不补循环或改solver参数。
   - 542 单步实证：高处陡坡使两端都撤销 StepUp。UE 在余量上先扫掠至斜坡，再执行 TwoWallAdjust 和第二次扫掠，保持 Walking。Bevy 将余量交给 Tnua/Avian，斜坡与凸台接触使 solver 结束时竖直速度约2.76 m/s，地面查询丢失支撑后转 Air。仅截断水平请求至同胶囊首个扫掠停点，保留竖直请求，目标保住凸台支撑；关闭干预恢复 Air。原始记录、接触和干预复跑见 `docs/audit/bf144/542/`。
 
-- [ ] BF144-D16 / P2 — 地面射线从实体内部出发时，误把出口底面当成可行走地面。
+- [x] BF144-D16 / P2 — 地面射线从实体内部出发时，误把出口底面当成可行走地面；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:04 +08:00；预估结束14:29 +08:00；实际结束14:06 +08:00，提前23分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh Chaos内部/外部/未命中原生探针及ALS line过滤源保存在`docs/audit/bf144/d16/`；floor射线使用solid语义，已写加载角色内部、普通地面和无地面对照，目标测试与真实Gate尚未执行。
   - Source：fresh `ChaosCore/AABB.cpp:114–116`调用`Raycasts.cpp:12–86,175`，起点在box内部时LatestStartTime保持0；ALS `ComputeFloorDist:763–769`只接受Time>0的line hit，保留原sweep穿透供PhysWalking后续恢复，不把实体出口设成walkable floor。
   - Target：`src/als/character/movement/motion.rs:3899–3909`使用`solid=false`的ray cast，内部起点会得到正距离出口，当前返回normal又朝上，因此通过floor过滤并进入height adjustment/base支持路径。
   - 反例：完整角色被外部置入厚1m的平地内部；consumer前中心y=−0.20159m，retry sweep仍穿透。相同目标几何上的solid=true对照返回距离0，符合fresh源公式；生产non-solid ray距离0.79841m、normal.y=1，返回impact_y=−1m的假floor。`bf144_walk_inside_floor_ray_does_not_accept_the_exit_surface`语义FAIL；正常贴地与移除实体的两个对照PASS。证据`target/bf144/05/inside_ray/`。
