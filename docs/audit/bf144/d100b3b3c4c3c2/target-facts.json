@@ -1,0 +1,50 @@
+[
+  {
+    "source_file": "src/collision/collider/mod.rs",
+    "sha256": "ca5bb9f61dfc7660c62dc29f09ae251c62a366a405904fbb3bff2a418dd30d6f",
+    "start_line": 90,
+    "end_line": 110,
+    "text": "/// Context necessary to calculate [`ContactManifold`]s for a set of [`AnyCollider`]\n#[derive(Deref)]\npub struct ContactManifoldContext<'a, 'w, 's, T: ReadOnlySystemParam> {\n    /// The first collider entity involved in the contact.\n    pub entity1: Entity,\n    /// The second collider entity involved in the contact.\n    pub entity2: Entity,\n    #[deref]\n    item: &'a SystemParamItem<'w, 's, T>,\n}\n\nimpl<'a, 'w, 's, T: ReadOnlySystemParam> ContactManifoldContext<'a, 'w, 's, T> {\n    /// Construct a [`ContactManifoldContext`]\n    pub fn new(\n        entity1: Entity,\n        entity2: Entity,\n        item: &'a <T as SystemParam>::Item<'w, 's>,\n    ) -> Self {\n        Self {\n            entity1,\n            entity2,\n",
+    "dependency": "avian3d-0.7.0"
+  },
+  {
+    "source_file": "src/collision/collider/mod.rs",
+    "sha256": "ca5bb9f61dfc7660c62dc29f09ae251c62a366a405904fbb3bff2a418dd30d6f",
+    "start_line": 205,
+    "end_line": 257,
+    "text": "\n    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider\n    /// with the given position and rotation.\n    ///\n    /// See [`SimpleCollider::aabb`] for collider types with empty [`AnyCollider::Context`]\n    #[cfg_attr(\n        feature = \"2d\",\n        doc = \"\\n\\nThe rotation is counterclockwise and in radians.\"\n    )]\n    fn aabb_with_context(\n        &self,\n        position: Vector,\n        rotation: impl Into<Rotation>,\n        context: AabbContext<Self::Context>,\n    ) -> ColliderAabb;\n\n    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.\n    /// This corresponds to the space the shape would occupy if it moved from the given\n    /// start position to the given end position.\n    ///\n    /// See [`SimpleCollider::swept_aabb`] for collider types with empty [`AnyCollider::Context`]\n    #[cfg_attr(\n        feature = \"2d\",\n        doc = \"\\n\\nThe rotation is counterclockwise and in radians.\"\n    )]\n    fn swept_aabb_with_context(\n        &self,\n        start_position: Vector,\n        start_rotation: impl Into<Rotation>,\n        end_position: Vector,\n        end_rotation: impl Into<Rotation>,\n        context: AabbContext<Self::Context>,\n    ) -> ColliderAabb {\n        self.aabb_with_context(start_position, start_rotation, context.clone())\n            .merged(self.aabb_with_context(end_position, end_rotation, context))\n    }\n\n    /// Computes all [`ContactManifold`]s between two colliders.\n    ///\n    /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`\n    /// or if the given shapes are invalid.\n    ///\n    /// See [`SimpleCollider::contact_manifolds`] for collider types with empty [`AnyCollider::Context`]\n    fn contact_manifolds_with_context(\n        &self,\n        other: &Self,\n        position1: Vector,\n        rotation1: impl Into<Rotation>,\n        position2: Vector,\n        rotation2: impl Into<Rotation>,\n        prediction_distance: Scalar,\n        manifolds: &mut Vec<ContactManifold>,\n        context: ContactManifoldContext<Self::Context>,\n",
+    "dependency": "avian3d-0.7.0"
+  },
+  {
+    "source_file": "src/collision/narrow_phase/system_param.rs",
+    "sha256": "5bb1f6ad4868e297079694602fb091f9e113f949c767993e5728a9173c342ef6",
+    "start_line": 693,
+    "end_line": 718,
+    "text": "                let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);\n\n                // Save the old manifolds for warm starting.\n                let old_manifolds = contacts.manifolds.clone();\n\n                // TODO: It'd be good to persist the manifolds and let Parry match contacts.\n                //       This isn't currently done because it requires using Parry's contact manifold type.\n                // Compute the contact manifolds using the effective speculative margin.\n                let context = ContactManifoldContext::new(\n                    collider1.entity,\n                    collider2.entity,\n                    collider_context,\n                );\n                collider1.shape.contact_manifolds_with_context(\n                    collider2.shape,\n                    collider1.position.0,\n                    *collider1.rotation,\n                    collider2.position.0,\n                    *collider2.rotation,\n                    max_contact_distance,\n                    &mut contacts.manifolds,\n                    context,\n                );\n\n                // Transform and prune contact data.\n                contacts.manifolds.retain_mut(|manifold| {\n",
+    "dependency": "avian3d-0.7.0"
+  },
+  {
+    "source_file": "src/collision/narrow_phase/system_param.rs",
+    "sha256": "5bb1f6ad4868e297079694602fb091f9e113f949c767993e5728a9173c342ef6",
+    "start_line": 750,
+    "end_line": 783,
+    "text": "                            - ang_vel1.cross(point.anchor1);\n                        let normal_speed = relative_velocity.dot(normal);\n                        point.normal_speed = normal_speed;\n\n                        // Keep the contact if (1) the separation distance is below the required threshold,\n                        // or if (2) the bodies are expected to come into contact within the next time step.\n                        -point.penetration < effective_speculative_margin || {\n                            let delta_distance = normal_speed * delta_secs;\n                            delta_distance - point.penetration < effective_speculative_margin\n                        }\n                    });\n\n                    // Prune extra contact points.\n                    #[cfg(feature = \"3d\")]\n                    if manifold.points.len() > 4 {\n                        manifold.prune_points();\n                    }\n\n                    !manifold.points.is_empty()\n                });\n\n                // Check if the colliders are now touching.\n                let mut touching = !contacts.manifolds.is_empty();\n\n                if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {\n                    par_commands.command_scope(|mut commands| {\n                        touching = hooks.modify_contacts(contacts, &mut commands);\n                    });\n                    if !touching {\n                        contacts.manifolds.clear();\n                    }\n                }\n\n                contacts.flags.set(ContactPairFlags::TOUCHING, touching);\n",
+    "dependency": "avian3d-0.7.0"
+  },
+  {
+    "source_file": "src/lib.rs",
+    "sha256": "0ea68b072e300d13c001c092aa3945eb303c56d84e96a2fee7a56573891d409e",
+    "start_line": 760,
+    "end_line": 779,
+    "text": "            .add(PhysicsSchedulePlugin::new(self.schedule))\n            .add(MassPropertyPlugin::new(self.schedule))\n            .add(ForcePlugin)\n            .add(ColliderHierarchyPlugin)\n            .add(ColliderTransformPlugin::new(self.schedule));\n\n        #[cfg(all(feature = \"collider-from-mesh\", feature = \"default-collider\"))]\n        let builder = builder.add(ColliderCachePlugin);\n\n        #[cfg(all(\n            feature = \"default-collider\",\n            any(feature = \"parry-f32\", feature = \"parry-f64\")\n        ))]\n        let builder = builder\n            .add(ColliderBackendPlugin::<Collider>::new(self.schedule))\n            .add(ColliderTreePlugin::<Collider>::default())\n            .add(NarrowPhasePlugin::<Collider>::default());\n\n        // Add solver plugins.\n        let builder = builder.add_group(SolverPlugins::new_with_length_unit(self.length_unit));\n",
+    "dependency": "avian3d-0.7.0"
+  },
+  {
+    "source_file": "src/lib.rs",
+    "sha256": "0ea68b072e300d13c001c092aa3945eb303c56d84e96a2fee7a56573891d409e",
+    "start_line": 836,
+    "end_line": 850,
+    "text": "        let builder = self\n            .plugins\n            .build()\n            .disable::<BvhBroadPhasePlugin>()\n            .add(BvhBroadPhasePlugin::<H>::default());\n\n        #[cfg(all(\n            feature = \"default-collider\",\n            any(feature = \"parry-f32\", feature = \"parry-f64\")\n        ))]\n        let builder = builder\n            .disable::<NarrowPhasePlugin<Collider>>()\n            .add(NarrowPhasePlugin::<Collider, H>::default());\n\n        builder\n",
+    "dependency": "avian3d-0.7.0"
+  }
+]

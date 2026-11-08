@@ -129,6 +129,8 @@ pub(crate) mod source_contact_epa;
 pub(crate) mod source_contact_history;
 #[path = "avian_ext/source_contact_margin.rs"]
 pub(crate) mod source_contact_margin;
+#[path = "avian_ext/source_contact_narrow.rs"]
+pub(crate) mod source_contact_narrow;
 #[path = "avian_ext/source_contact_normal.rs"]
 pub(crate) mod source_contact_normal;
 #[path = "avian_ext/source_contact_order.rs"]
