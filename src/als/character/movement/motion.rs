@@ -4543,6 +4543,14 @@ fn walking_slide_sweep(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3,
     Some(progress)
 }
 
+fn record_ground_impact(context: &mut Option<(&mut Messages<SourceCharacterImpact>, Vec3, Vec3, f32)>,
+    hit: &ShapeHitData, normal: Vec3) {
+    if let Some((writer, acceleration, velocity, max_speed)) = context.as_mut() {
+        writer.write(SourceCharacterImpact { collider: hit.entity, point: hit.point1,
+            normal, acceleration: *acceleration, velocity: *velocity, max_speed: *max_speed });
+    }
+}
+
 fn grounded_movement_transaction(
     spatial_query: &SpatialQuery, capsule: &Collider, center: Vec3, rotation: Quat,
     half: f32, radius: f32, delta: Vec3, cmc: &crate::als::params::CmcAdapterParams,
@@ -4551,6 +4559,8 @@ fn grounded_movement_transaction(
     step_permissions: &Query<&AlsMantleTargetPermission>,
     mut impact_context: Option<(&mut Messages<SourceCharacterImpact>, Vec3, Vec3, f32)>,
 ) -> Option<(Vec3, Option<Vec3>, Option<f32>, bool, bool, bool)> {
+    let mut pending_step_impact = None;
+    let outcome = (|| {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
     let can_step_up = |candidate| {
@@ -4625,12 +4635,10 @@ fn grounded_movement_transaction(
                 .unwrap_or(Vec3::ZERO));
             result.5 = true;
             if !can_step_up(hit.entity) {
-                if let Some((writer, acceleration, velocity, max_speed)) = impact_context.as_mut() {
-                    writer.write(SourceCharacterImpact { collider: hit.entity, point: hit.point1,
-                        normal: impact_normal, acceleration: *acceleration, velocity: *velocity, max_speed: *max_speed });
-                }
+                record_ground_impact(&mut impact_context, &hit, impact_normal);
                 return Some(result);
             }
+            pending_step_impact = Some((hit, impact_normal));
             if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
                 return Some(result);
             }
@@ -4641,8 +4649,9 @@ fn grounded_movement_transaction(
                 ignore_origin_penetration: true,
                 ..ShapeCastConfig::from_max_distance((MAX_STEP_HEIGHT - (center.y - floor_center).max(0.0)).max(0.0))
             };
-            let lift = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter, &accepts)
-                .map_or(up_config.max_distance, |hit| movement_sweep_travel(up_config.max_distance, hit.distance));
+            let up_origin = raised;
+            let up_hit = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter, &accepts);
+            let lift = up_hit.map_or(up_config.max_distance, |hit| movement_sweep_travel(up_config.max_distance, hit.distance));
             raised.y += lift;
             let step_direction = Dir3::new(remaining_delta).unwrap_or(direction);
             if let Some(hit) = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY,
@@ -4652,6 +4661,14 @@ fn grounded_movement_transaction(
                 let advance = *step_direction * forward_travel;
                 let impact_normal = source_sweep_impact_normal(spatial_query, &hit, *step_direction * forward_config.max_distance,
                     raised, Quat::IDENTITY, capsule);
+                if !up_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) {
+                    if let Some(up_hit) = up_hit {
+                        let normal = source_sweep_impact_normal(spatial_query, &up_hit, Vec3::Y * up_config.max_distance,
+                            up_origin, Quat::IDENTITY, capsule);
+                        record_ground_impact(&mut impact_context, &up_hit, normal);
+                    }
+                    record_ground_impact(&mut impact_context, &hit, impact_normal);
+                }
                 let normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
                 let Some(slide) = walking_slide_sweep(spatial_query, capsule, raised + advance,
                     remaining_delta - advance, normal, floor_distance, &filter, &accepts) else { return Some(result) };
@@ -4694,6 +4711,12 @@ fn grounded_movement_transaction(
     result.2 = Some(next_y);
     result.4 = initial_floor_y.is_some();
     Some(result)
+    })();
+    if let Some((hit, normal)) = pending_step_impact
+        && !outcome.as_ref().is_some_and(|result| result.4) {
+        record_ground_impact(&mut impact_context, &hit, normal);
+    }
+    outcome
 }
 
 fn character_floor_scale(local: &Transform, parented: bool, world: &GlobalTransform) -> Vec3 {
@@ -5700,6 +5723,75 @@ mod tests {
         app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
         let actual = app.world().get::<VelocityIntegrationData>(wall).unwrap().linear_increment.x;
         assert!((actual - 1.5).abs() < 1e-4, "Walking impact must push the wall: {actual}");
+    }
+
+    #[test]
+    fn step_success_does_not_push_the_initial_blocker_but_failure_does() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        for (height, center_y, stepped, expected) in [(0.2, 0.1, true, 0.0), (0.1, 1.7, false, 1.5)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<SourceCharacterImpact>();
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, -0.1, 0.0)));
+            let blocker = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(0.2, height, 2.0),
+                Transform::from_xyz(0.47, center_y, 0.0), GravityScale(0.0), Mass(100.0), NoAutoMass,
+                LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO)).id();
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let outcome = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
+                    Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.5, &crate::als::params::CmcAdapterParams::default(),
+                    LocomotionState::Grounded, actor, &candidates, &permissions,
+                    Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75)))
+            }).unwrap().unwrap();
+            assert_eq!(outcome.4, stepped, "height={height} outcome={outcome:?}");
+            app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
+            let actual = app.world().get::<VelocityIntegrationData>(blocker).unwrap().linear_increment.x;
+            assert!((actual - expected).abs() < 1e-4,
+                "Step impact differs: height={height} actual={actual} expected={expected}");
+        }
+    }
+
+    #[test]
+    fn blocked_step_reports_both_ceiling_and_forward_impacts() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .add_message::<SourceCharacterImpact>();
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+            Transform::from_xyz(0.0, -0.1, 0.0)));
+        let wall = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(0.1, 1.0, 2.0),
+            Transform::from_xyz(0.42, 0.5, 0.0), GravityScale(0.0), Mass(100.0), NoAutoMass,
+            LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO)).id();
+        let ceiling = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(4.0, 0.1, 2.0),
+            Transform::from_xyz(0.0, 1.95, 0.0), GravityScale(0.0), Mass(100.0), NoAutoMass,
+            LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO)).id();
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+            permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
+            grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
+                Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.5, &crate::als::params::CmcAdapterParams::default(),
+                LocomotionState::Grounded, actor, &candidates, &permissions,
+                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75)))
+        }).unwrap();
+        app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
+        let wall_acceleration = app.world().get::<VelocityIntegrationData>(wall).unwrap().linear_increment;
+        let ceiling_acceleration = app.world().get::<VelocityIntegrationData>(ceiling).unwrap().linear_increment;
+        assert!(wall_acceleration.x > 0.0, "Forward step impact must push the wall: {wall_acceleration:?}");
+        assert!(ceiling_acceleration.y > 0.0, "Blocked lift must push the ceiling: {ceiling_acceleration:?}");
     }
 
     #[test]

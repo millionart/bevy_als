@@ -6025,7 +6025,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
     - 子项拆分：D38c1处理禁止跨步的地面阻挡；D38c2处理跨步尝试及回退；D38c3处理滑移后续命中与初始穿透。
     - [x] BF144-D38c1 — 禁止跨步的地面阻挡施加源撞击力。开始2026-11-08 16:08 +08:00；预估结束16:53 +08:00；实际结束16:11 +08:00，提前42分钟；静态实现完成，测试/消融/Gate暂缓。
       - 闭环：fresh UE禁止跨步阻挡通知与原生推力参数保存在`docs/audit/bf144/d38c1/`；单步、多步及落地后续Walking传递实际撞击，已写动态墙/静态墙和加载角色对照。源端动态墙未重跑，试算滑移与允许跨步分支分别留给后续子项。
-    - [ ] BF144-D38c2 — 跨步尝试及失败回退施加源撞击力。
+    - [x] BF144-D38c2 — 跨步尝试及失败回退施加源撞击力。开始2026-11-08 16:11 +08:00；预估结束17:06 +08:00；实际结束16:14 +08:00，提前52分钟；静态实现完成，测试/消融/Gate暂缓。
+      - 闭环：fresh UE StepUp向上/向前通知及失败回退顺序保存在`docs/audit/bf144/d38c2/`；原始阻挡仅跨步失败时提交，已写成功/失败和墙顶双撞击对照。源端动态跨步未重跑，滑移及初始穿透留给D38c3。
     - [ ] BF144-D38c3 — 滑移后续命中和初始穿透施加源撞击力。
   - Source：fresh UE `HandleImpact:7783–7811`进入`ApplyImpactPhysicsForces:7814–7930`；native InitialPushForce500、PushForce750000、PushScaledToMass=False、UsingZOffset=False。本机CVar `p.ApplyCharacterCollisionForceAsImpulse=False`，静止阈值1cm/s内用500×30 kg·cm/s²，移动body用750000 kg·cm/s²，均AddForceAtLocation，不能按旧版本把500当一次冲量。
   - Target：`src/als/character/movement/motion.rs`空中/地面sweep和slide只调整角色位移/速度，未把命中的simulated body与源力参数提交给物理；实际air blocking命中后目标body保持原速度。
