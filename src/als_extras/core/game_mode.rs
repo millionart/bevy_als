@@ -90,6 +90,7 @@ impl Plugin for AlsGameModePlugin {
         app.init_resource::<AlsGameModeRandom>()
             .init_resource::<AlsPlayerStartSettings>()
             .add_systems(Update, admit_pending_players.after(crate::als::player_start::AlsPlayerStartPrepared)
+                .before(crate::als::motion::initialize_spawn_movement_mode)
                 .before(crate::als::motion::locomotion_drive_system));
     }
 }

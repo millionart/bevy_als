@@ -342,6 +342,49 @@ mod tests {
     }
 
     #[test]
+    fn spawn_first_physics_step_uses_initial_floor_mode() {
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use crate::als::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use crate::als::params::AlsMovementParams;
+        use crate::als::transition::AlsStateTransitionPlugin;
+        use bevy::asset::AssetPlugin;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            TnuaAvian3dPlugin::new(Update), TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin, SourcePhysicsTimingPlugin))
+            .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .insert_resource(SubstepCount(6))
+            .insert_resource(avian3d::prelude::Gravity(Vec3::NEG_Y * 9.81))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 30.0)));
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 0.2, 100.0),
+            Transform::from_xyz(0.0, -0.1, 0.0)));
+        app.update();
+        app.update();
+        let values = AlsMovementParams::default();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(values.clone());
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
+            .add(initial_als_control_scheme_config(&values));
+        let mut supported_bundle = AlsCharacterBundle::new(params.clone(), config.clone());
+        supported_bundle.transform = Transform::from_xyz(-2.0, 0.9215, 0.0);
+        let supported = app.world_mut().spawn(supported_bundle).id();
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform = Transform::from_xyz(2.0, 1.5, 0.0);
+        let actor = app.world_mut().spawn(bundle).id();
+        app.update();
+        assert_eq!(*app.world().get::<LocomotionState>(supported).unwrap(), LocomotionState::Grounded);
+        assert!((app.world().get::<Position>(supported).unwrap().y - 0.9215).abs() < 1e-4);
+        assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Air);
+        assert!((app.world().get::<Position>(actor).unwrap().y - 1.494_55).abs() < 1e-6);
+        assert!((app.world().get::<LinearVelocity>(actor).unwrap().y + 0.327).abs() < 1e-6);
+    }
+
+    #[test]
     fn source_physics_delta_is_a_per_frame_cap_not_a_fixed_timestep() {
         assert_eq!(
             source_physics_delta(Duration::from_millis(12)),

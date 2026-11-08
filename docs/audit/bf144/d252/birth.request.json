@@ -1,0 +1,10 @@
+{
+  "gravity_cm_s2": -981,
+  "initial_engine_frame": 17,
+  "cases": [
+    {"name": "supported", "dynamic_base": false, "local_controller": false, "spawn_height_cm": 92.15,
+      "frames": [{"delta_seconds": 0.03333333507180214, "rendered": true}, {"delta_seconds": 0.03333333507180214, "rendered": true}, {"delta_seconds": 0.03333333507180214, "rendered": true}, {"delta_seconds": 0.03333333507180214, "rendered": true}]},
+    {"name": "unsupported", "dynamic_base": false, "local_controller": false, "spawn_height_cm": 150,
+      "frames": [{"delta_seconds": 0.03333333507180214, "rendered": true}, {"delta_seconds": 0.03333333507180214, "rendered": true}, {"delta_seconds": 0.03333333507180214, "rendered": true}, {"delta_seconds": 0.03333333507180214, "rendered": true}]}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "asset": "Content/ALS/Character/B_Als_Character.uasset",
+  "asset_identity": {
+    "bytes": 261358,
+    "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+  },
+  "request": "docs/audit/bf144/d252/birth.request.json",
+  "native_output": "docs/audit/bf144/d252/birth.native.json.gz",
+  "raw": {
+    "bytes": 12630656,
+    "sha256": "7a5f3aaeb61ae183d18647eb34bd51fac8fe8c877ddf71615de637297bae15a8"
+  },
+  "compressed": {
+    "bytes": 559175,
+    "sha256": "008a0df5b1ce74e98d2b01118e99d162fb9c323a627e2bb6bbafbee062a7cd08"
+  },
+  "reader_report": "docs/audit/bf144/d252/birth.native.json.reader.report.json"
+}

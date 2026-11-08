@@ -1077,6 +1077,69 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    fn spawn_movement_mode_sees_same_frame_floor() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .insert_resource(Assets::<AlsMovementParams>::default())
+            .add_message::<StateTransitionEvent>();
+        app.finish();
+        let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 0.2, 100.0),
+            Transform::from_xyz(0.0, -0.1, 0.0))).id();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let character = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, als_character_capsule(0.9, 0.3),
+            Transform::from_xyz(0.0, 0.9215, 0.0), LocomotionState::Grounded,
+            Stance::Standing, AlsMovementParamsHandle(params))).id();
+        app.world_mut().run_system_once(initialize_spawn_movement_mode).unwrap();
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+        assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().entity, Some(floor));
+    }
+
+    #[test]
+    fn spawn_movement_mode_uses_registered_floor_before_physics() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .insert_resource(Assets::<AlsMovementParams>::default())
+            .add_message::<StateTransitionEvent>();
+        app.finish();
+        let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 0.2, 100.0),
+            Transform::from_xyz(0.0, -0.1, 0.0))).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.0, 0.1, 1.0), Sensor,
+            Transform::from_xyz(3.0, 0.55, 0.0)));
+        app.update();
+        app.update();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let supported = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, als_character_capsule(0.9, 0.3),
+            Transform::from_xyz(0.0, 0.9215, 0.0), LinearVelocity(Vec3::Y * 2.0),
+            LocomotionState::Grounded, Stance::Standing, AlsMovementParamsHandle(params.clone()))).id();
+        let unsupported = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, als_character_capsule(0.9, 0.3),
+            Transform::from_xyz(3.0, 1.5, 0.0), LinearVelocity(Vec3::Y * 2.0),
+            LocomotionState::Grounded, Stance::Standing, AlsMovementParamsHandle(params.clone()))).id();
+        let explicit_air = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, als_character_capsule(0.9, 0.3),
+            Transform::from_xyz(-3.0, 0.9215, 0.0), LocomotionState::Air,
+            Stance::Standing, AlsMovementParamsHandle(params.clone()))).id();
+        let pending = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, als_character_capsule(0.9, 0.3),
+            Transform::from_xyz(6.0, 1.5, 0.0), LocomotionState::Grounded,
+            Stance::Standing, AlsMovementParamsHandle::default())).id();
+        app.world_mut().run_system_once(initialize_spawn_movement_mode).unwrap();
+        assert_eq!(*app.world().get::<LocomotionState>(supported).unwrap(), LocomotionState::Grounded);
+        assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(supported).unwrap().entity, Some(floor));
+        assert_eq!(app.world().get::<LinearVelocity>(supported).unwrap().y, 0.0);
+        assert_eq!(*app.world().get::<LocomotionState>(unsupported).unwrap(), LocomotionState::Air);
+        assert_eq!(app.world().get::<LinearVelocity>(unsupported).unwrap().y, 2.0);
+        assert_eq!(app.world().get::<Position>(unsupported).unwrap().y, 1.5);
+        assert_eq!(*app.world().get::<LocomotionState>(explicit_air).unwrap(), LocomotionState::Air);
+        assert!(app.world().get::<crate::als::character::AlsInitialMovementModePending>(supported).is_none());
+        assert!(app.world().get::<crate::als::character::AlsInitialMovementModePending>(pending).is_some());
+        app.world_mut().entity_mut(pending).insert(AlsMovementParamsHandle(params));
+        app.world_mut().get_mut::<Transform>(supported).unwrap().translation.y = 1.5;
+        app.world_mut().run_system_once(initialize_spawn_movement_mode).unwrap();
+        assert_eq!(*app.world().get::<LocomotionState>(supported).unwrap(), LocomotionState::Grounded);
+        assert_eq!(*app.world().get::<LocomotionState>(pending).unwrap(), LocomotionState::Air);
+    }
+
+    #[test]
     fn free_walking_snapshot_preserves_plan_at_nonzero_world_origin() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
@@ -2698,6 +2761,9 @@ impl Plugin for AlsMotionPlugin {
             .add_systems(
                 Update,
                 (
+                    initialize_spawn_movement_mode
+                        .before(locomotion_drive_system)
+                        .before(TnuaPipelineSystems::Sensors),
                     tnua_config_sync_system
                         .after(crate::als::transition::state_transition_system)
                         .after(capsule_reshape_system)
@@ -3309,6 +3375,65 @@ fn bind_walking_base(
     base.entity = Some(floor);
     base.location = current.translation();
     base.rotation = current.rotation();
+}
+
+pub(crate) fn initialize_spawn_movement_mode(
+    mut commands: Commands,
+    spatial: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    mut transforms: ParamSet<(bevy::transform::helper::TransformHelper, Query<&mut Transform>)>,
+    mut transitions: MessageWriter<StateTransitionEvent>,
+    mut characters: Query<(Entity, &RigidBody, &mut LocomotionState, &Stance, &AlsMovementParamsHandle,
+        Option<&ChildOf>, &Position, &mut LinearVelocity, &mut crate::als::dynamics::AlsMovementBase),
+        (With<AlsCharacter>, With<Collider>, With<crate::als::character::AlsInitialMovementModePending>)>,
+) {
+    for (entity, body, mut locomotion, stance, handle, parent, position, mut velocity, mut base) in &mut characters {
+        if *body != RigidBody::Dynamic || *locomotion != LocomotionState::Grounded {
+            commands.entity(entity).remove::<crate::als::character::AlsInitialMovementModePending>();
+            continue;
+        }
+        let Some(params) = params_assets.get(handle.id()) else { continue };
+        let (world, parent_world) = {
+            let helper = transforms.p0();
+            let Ok(world) = helper.compute_global_transform(entity) else { continue };
+            let Ok(parent_world) = parent.map(|parent| helper.compute_global_transform(parent.parent())).transpose() else { continue };
+            (world, parent_world)
+        };
+        let local = {
+            let query = transforms.p1();
+            let Ok(local) = query.get(entity) else { continue };
+            *local
+        };
+        let scale = character_floor_scale(&local, parent.is_some(), &world);
+        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
+            else { params.crouch.standing_capsule_half_height } * scale.y;
+        let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
+        let capsule = als_character_capsule(half, radius);
+        let mut source_world = world.compute_transform();
+        if position.0 != Position::PLACEHOLDER.0 { source_world.translation = position.0; }
+        let floor = adjust_walking_floor_height(&spatial, &capsule, &mut source_world, half, radius,
+            &params.cmc, entity, &candidates);
+        commands.entity(entity).insert(Position(source_world.translation));
+        {
+            let mut query = transforms.p1();
+            if let Ok(mut transform) = query.get_mut(entity) {
+                transform.translation = parent_world.map_or(source_world.translation,
+                    |parent| parent.affine().inverse().transform_point3(source_world.translation));
+            }
+        }
+        if let Some(floor) = floor {
+            velocity.y = 0.0;
+            bind_walking_base(Some(floor), &mut base, &transforms.p0());
+        } else {
+            *base = default();
+            *locomotion = LocomotionState::Air;
+            transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
+                from: StateValue::LocomotionState(LocomotionState::Grounded),
+                to: StateValue::LocomotionState(LocomotionState::Air) });
+        }
+        commands.entity(entity).remove::<crate::als::character::AlsInitialMovementModePending>();
+    }
 }
 
 fn sync_effective_gravity_system(

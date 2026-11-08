@@ -1,0 +1,181 @@
+{
+  "source": "docs/audit/bf144/d252/birth.native.json.gz",
+  "cases": [
+    {
+      "name": "supported",
+      "initial_engine_frame": 17,
+      "initial_movement": {
+        "movement_mode": 1,
+        "movement_mode_name": "MOVE_Walking",
+        "custom_movement_mode": 0,
+        "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.Grounded\")",
+        "registered": true,
+        "begun_play": true,
+        "tick_registered": true,
+        "tick_enabled": true,
+        "velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "pending_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "acceleration_cm_s2": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max_acceleration_cm_s2": 2000,
+        "last_update_location_cm": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_update_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "walkable_floor": true,
+        "floor_distance_cm": 2.1500000953674316
+      },
+      "initial_actor_transform": {
+        "translation": {
+          "x": 0,
+          "y": 0,
+          "z": 92.15
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      },
+      "first_actor_transform": {
+        "translation": {
+          "x": 0,
+          "y": 0,
+          "z": 92.15
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      },
+      "first_actor_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "name": "unsupported",
+      "initial_engine_frame": 17,
+      "initial_movement": {
+        "movement_mode": 3,
+        "movement_mode_name": "MOVE_Falling",
+        "custom_movement_mode": 0,
+        "character_locomotion_mode": "(TagName=\"Als.LocomotionMode.InAir\")",
+        "registered": true,
+        "begun_play": true,
+        "tick_registered": true,
+        "tick_enabled": true,
+        "velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "pending_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_input_world": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "acceleration_cm_s2": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max_acceleration_cm_s2": 2000,
+        "last_update_location_cm": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "last_update_velocity_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "walkable_floor": false,
+        "floor_distance_cm": 0
+      },
+      "initial_actor_transform": {
+        "translation": {
+          "x": 0,
+          "y": 0,
+          "z": 150
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      },
+      "first_actor_transform": {
+        "translation": {
+          "x": 0,
+          "y": 0,
+          "z": 149.45499994315207
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      },
+      "first_actor_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -32.7000017054379
+      }
+    }
+  ]
+}

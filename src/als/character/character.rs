@@ -27,6 +27,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 }
 
 #[derive(Component, Debug, Default, Clone, Copy)]
+#[require(AlsInitialMovementModePending)]
 #[require(crate::als::motion::AlsViewYaw)]
 #[require(AlsCrushRecovery)]
 #[require(crate::als::gait::AlsDesiredGait)]
@@ -46,6 +47,9 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(AlsCollisionLayerOwnership)]
 #[require(AlsEffectiveGravity)]
 pub struct AlsCharacter;
+
+#[derive(Component, Debug, Default)]
+pub(crate) struct AlsInitialMovementModePending;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
 pub const ALS_CHARACTER_CAPSULE_RADIUS: f32 = 0.3;
