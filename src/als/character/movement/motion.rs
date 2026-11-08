@@ -3065,7 +3065,8 @@ impl Plugin for AlsMotionPlugin {
                 .after(locomotion_state_sync_system).before(snapshot_actual_velocity_system).in_set(AlsActualVelocitySet))
             .add_systems(PhysicsSchedule, apply_character_repulsion
                 .after(PhysicsStepSystems::NarrowPhase)
-                .before(avian3d::dynamics::integrator::IntegrationSystems::UpdateVelocityIncrements))
+                .before(avian3d::prelude::SolverSystems::PrepareSolverBodies)
+                .before(crate::extensions::ragdoll_physics_profile::capture_source_sleep_wakes))
             .add_systems(PostUpdate, (
                 prepare_subminimum_custom_physics
                     .after(crate::roll_drive::AlsRollDriveSet)
@@ -5503,9 +5504,13 @@ fn apply_character_repulsion(
 fn apply_character_overlap_impulses(
     mut starts: MessageReader<CollisionStart>,
     colliders: Query<(&Position, Has<Sensor>)>,
+    last_physics_tick: Res<avian3d::schedule::LastPhysicsTick>,
+    tick: bevy::ecs::system::SystemChangeTick,
     mut access: ParamSet<(
         Query<(&Position, &LinearVelocity), With<AlsCharacter>>,
-        Query<(&RigidBody, &ComputedMass, Forces, Has<RigidBodyDisabled>)>,
+        Query<(&RigidBody, &ComputedMass, Forces, Has<RigidBodyDisabled>,
+            Option<&mut crate::extensions::ragdoll_physics_profile::SourceBodySleep>)>,
+        Query<(Ref<LinearVelocity>, &crate::extensions::ragdoll_physics_profile::SourceBodySleep)>,
     )>,
 ) {
     use crate::als::movement_constants::{CHARACTER_GENERATES_OVERLAP_EVENTS, ENABLE_PHYSICS_INTERACTION};
@@ -5523,9 +5528,18 @@ fn apply_character_overlap_impulses(
             if !other_sensor && !actor_sensor { continue; }
             let body = body.unwrap_or(other);
             if body == actor { continue; }
+            let had_velocity_write = {
+                let sleep_bodies = access.p2();
+                sleep_bodies.get(body).is_ok_and(|(linear, sleep)|
+                    sleep.has_external_linear_write(linear.last_changed(), last_physics_tick.0, tick.this_run()))
+            };
             let mut bodies = access.p1();
-            if let Ok((RigidBody::Dynamic, mass, mut forces, false)) = bodies.get_mut(body) {
+            if let Ok((RigidBody::Dynamic, mass, mut forces, false, sleep)) = bodies.get_mut(body) {
+                let previous = forces.linear_velocity();
                 forces.apply_linear_impulse(source_touch_impulse(actor_position, other_position.0, velocity, mass.value()));
+                if let Some(mut sleep) = sleep {
+                    sleep.record_linear_impulse(forces.linear_velocity() - previous, tick.this_run(), had_velocity_write);
+                }
             }
         }
     }
@@ -6294,6 +6308,45 @@ mod tests {
             app.world_mut().run_system(system).unwrap();
             assert_eq!(app.world().get::<LinearVelocity>(other).unwrap().0, first,
                 "A retained overlap must not apply the initial impulse again");
+        }
+    }
+
+    #[test]
+    fn overlap_impulse_keeps_source_sleep_input_distinct_from_velocity_writes() {
+        use avian3d::prelude::{Gravity, Mass, NoAutoMass, Sleeping, SubstepCount};
+        use crate::extensions::ragdoll_physics_profile::{RagdollPhysicsProfilePlugin, SourceBodySleep};
+        use bevy::time::TimeUpdateStrategy;
+        for write_order in [0, 1, 2] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin))
+                .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(1))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish(); app.cleanup();
+            let actor = app.world_mut().spawn((AlsCharacter, Position(Vec3::ZERO), LinearVelocity(Vec3::X * 0.002))).id();
+            let sleep: SourceBodySleep = crate::pa_als::parse_pa_als_profile().bodies.iter()
+                .find(|body| body.label == "hand_l").unwrap().sleep;
+            let body = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.2), Sensor,
+                Transform::from_xyz(0.45, 0.0, 0.0), GravityScale(0.0), Mass(1.0), NoAutoMass,
+                LinearVelocity::ZERO, sleep, avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+            app.update();
+            for _ in 0..3 { app.update(); }
+            if write_order == 1 { app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::X * 0.003)); }
+            app.world_mut().resource_mut::<Messages<CollisionStart>>().write(CollisionStart {
+                collider1: actor, collider2: body, body1: None, body2: Some(body),
+            });
+            let system = app.world_mut().register_system(apply_character_overlap_impulses);
+            app.world_mut().run_system(system).unwrap();
+            if write_order == 2 { app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::X * 0.003)); }
+            let steps_until_sleep = if write_order == 0 { 2 } else { 5 };
+            for step in 1..=steps_until_sleep {
+                app.update();
+                if step == 1 && write_order == 2 {
+                    assert!(app.world().get::<LinearVelocity>(body).unwrap().x > 0.003);
+                }
+                assert_eq!(app.world().get::<Sleeping>(body).is_some(), step == steps_until_sleep,
+                    "write_order={write_order} step={step}");
+            }
         }
     }
 

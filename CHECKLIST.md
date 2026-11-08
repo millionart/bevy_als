@@ -6455,12 +6455,18 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际角色启动Ragdoll，选hand_l两端body，native sleep阈值/质量保持原值，隔离其他joint/contact，统一单步；先静止3帧，第4帧把两body的LinearVelocity显式写为0.005m/s。60/30Hz与孤立/连接岛四组全部在第5帧休眠，source应分别到第8/9帧。共同sleep输入的受控版本与移除该覆盖后的真实body积分版本均复现；全部24组16PASS/8FAIL，静止和线/角超阈值控制通过。证据`bf144_pa_sleep_isolated_and_connected_counters_and_explicit_velocity_wake`与`target/bf144/27/`。
   - 漏检：旧wake测试先让body已经Sleeping再移除Sleeping，恰好命中此前休眠时清零的计数；没有覆盖“仍清醒且已有累计进度”的外部低速写入。本项只声明该边界提前3/4个物理帧休眠，不声称普通大冲量也会触发；仅登记。
   - 21:09 source/static摘要：fresh PA确认手臂材质阈值及非partial岛模式，源速度dirty、分量近零、平滑值和岛唤醒闭包已固化；复用Avian物理结束tick排除自身回写，按孤立/连接岛重置进度。已写加载hand、不同步长、线/角速度、重复同值写入和阈值控制；测试、消融及Playground待统一Gate，外力平滑归D89。证据`docs/audit/bf144/d88/`。实际结束：2026-11-08 21:09 +08:00；偏差：−43分钟；结果：静态实现完成，未拆分。
+  - 21:11 有限复开：fresh源`AddImpulse`经Dynamics而非设速传入，目标角色接触冲量却通过`Forces`直接改写`LinearVelocity`，被D88仅按组件tick的实现误判为显式设速；旧focused对照漏掉该真实consumer。D89同一闭包内区分项目冲量与设速，并补共同输入及顺序控制，测试仍留统一Gate。
+  - 21:19 补充source/static摘要：fresh CMC repulsion另有`SetLinearVelocity(0)`，目标在NarrowPhase后才执行该写入，原D88捕获点过早；将该直接consumer与设速捕获共同排在solver body准备之前，补同帧写入控制。
+  - 21:22 静态重闭：项目接触冲量携带来源及累计值，设速发生在冲量前后均按源分离，repulsion后设速进入同一帧捕获；已补实际入口顺序与NarrowPhase后写入夹具。测试、消融及Playground仍待统一Gate。
 
-- [ ] BF144-D89 / P3 — Ragdoll外力遗漏源睡眠平滑速度的预置。
+- [x] BF144-D89 / P3 — Ragdoll外力遗漏源睡眠平滑速度的预置。
+  - 本轮开始：2026-11-08 21:09 +08:00；预计结束：2026-11-08 22:04 +08:00。重读源Dynamics推送和线/角预测平滑闭包，核对世界/本地力与冲量的目标输入阶段，并补真实力输入及零力控制；统一验证留待升级后。估时依据：BF144.27完整睡眠闭包实耗约30分钟，D88补足速度变更识别，本项还需分离重力、持久力和冲量的生命周期。
+  - 21:11 source/static摘要：同一源函数也预置角速度；项目接触冲量的Avian立即写回与源Dynamics消费不同，已有限复开D88并纳入此直接consumer，后续分别比较设速、力和冲量。
   - Source：fresh `SingleParticlePhysicsProxy.cpp:163–168`将外部Dynamics更新交给`PBDRigidsEvolutionGBF.cpp:1885–1890`；其`ResetVSmoothFromForces`在同名header `281–301`先以固定1/30秒预测V+Acceleration/30+Impulse，再用0.3混合进VSmooth。连接岛随后还会按实际位移再平滑一次，避免刚受力的body立即重新休眠。
   - Target：`ragdoll_physics_profile.rs:785–796`仅在求解结束后用当前位移更新smooth_linear，没有消费外部力/冲量的预置；Avian的force变更唤醒只维护自身睡眠状态，不能补齐该source平滑变量。
   - 反例：完整角色hand_l两body保留native mass、COM与sleep阈值，先静止3帧，第4帧按各自质量施加一次产生1m/s²的等向推力，第5帧撤去；不覆盖solver位移或速度。60Hz连接岛在第5帧休眠；source第4帧VSmooth≈0.011999m/s，超过0.01阈值，按独立公式连续检查12帧都不应休眠。第4帧实际速度约0.016667m/s已核验。30Hz连接岛及两种dt的孤立body控制通过，共4组3PASS/1FAIL；移除推力的静止控制按第5帧休眠。证据`bf144_pa_sleep_external_force_seeds_source_smoothed_velocity`。
   - 漏检：旧sleep夹具固定body速度或直接给solver位移，没有通过真实外力预处理阶段；本项与D88的显式速度写入计数重置不同，缺失的是force输入对平滑状态的更新。只声明这类轻推力边界，未声称普通大力同样失败；仅登记。
+  - 21:22 source/static摘要：fresh PA确认平滑率，源线/角Dynamics预置、固定预测时间和CMC冲量链已固化；目标在外力累积后、重力前预置，并处理项目接触冲量和D88同帧设速。已写加载hand、连接岛、世界/本地线角力、零力/重力及冲量顺序对照；测试、消融及Playground待统一Gate，项目外直接使用Avian冲量API不属于已识别consumer。证据`docs/audit/bf144/d89/`。实际结束：2026-11-08 21:22 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D90 / P3 — 新物理岛错误继承孤立body的睡眠计数。
   - Source：fresh `IslandManager.cpp:1855–1903`在两个无岛节点新建连接时调用CreateIsland；`IslandManager.h:399`初始化SleepCounter=0，`IslandManager.cpp:2418–2444`将新岛从初始sleeping切为awake时再次清零。反方向销毁无约束岛时，`1731–1739`明确把岛计数复制给孤立body；这两种拓扑转换不对称。

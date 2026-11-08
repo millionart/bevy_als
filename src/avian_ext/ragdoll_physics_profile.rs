@@ -12,6 +12,7 @@ use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
 use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
 use avian3d::collider_tree::{ColliderTreeProxyKey, ColliderTrees, MovedProxies};
 use avian3d::schedule::LastPhysicsTick;
+use bevy::ecs::component::Tick;
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::ecs::system::{SystemChangeTick, SystemParam};
 use bevy::math::Isometry3d;
@@ -72,6 +73,26 @@ pub struct SourceBodySleep {
     smooth_angular: Vec3,
     #[serde(skip)]
     explicit_wake: bool,
+    #[serde(skip)]
+    pending_linear_impulse: Vec3,
+    #[serde(skip)]
+    last_impulse_tick: Option<Tick>,
+    #[serde(skip)]
+    linear_write_before_impulse: bool,
+}
+
+impl SourceBodySleep {
+    pub(crate) fn has_external_linear_write(&self, changed: Tick, physics: Tick, current: Tick) -> bool {
+        changed.is_newer_than(physics, current) && Some(changed) != self.last_impulse_tick
+    }
+
+    pub(crate) fn record_linear_impulse(&mut self, delta: Vec3, tick: Tick, had_velocity_write: bool) {
+        if delta != Vec3::ZERO {
+            self.pending_linear_impulse += delta;
+            self.last_impulse_tick = Some(tick);
+            self.linear_write_before_impulse |= had_velocity_write;
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -835,6 +856,10 @@ impl Plugin for RagdollPhysicsProfilePlugin {
         .add_systems(PhysicsSchedule, apply_source_linear_damping
             .in_set(IntegrationSystems::UpdateVelocityIncrements)
             .after(pre_process_velocity_increments))
+        .add_systems(PhysicsSchedule, seed_source_sleep_from_forces
+            .in_set(IntegrationSystems::UpdateVelocityIncrements)
+            .after(avian3d::dynamics::rigid_body::forces::ForceSystems::ApplyConstantForces)
+            .before(pre_process_velocity_increments))
         .add_systems(PhysicsSchedule, (enable_source_ragdoll_rotation, ApplyDeferred)
             .chain().in_set(SolverSystems::PreSubstep))
         .add_systems(avian3d::prelude::SubstepSchedule, integrate_source_ragdoll_rotation
@@ -847,7 +872,8 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .after(SolverSystems::Restitution)
             .run_if(resource_exists::<PhysicsIslands>))
         .add_systems(PhysicsSchedule, capture_source_sleep_wakes
-            .in_set(avian3d::prelude::PhysicsStepSystems::First))
+            .after(avian3d::prelude::PhysicsStepSystems::NarrowPhase)
+            .before(SolverSystems::PrepareSolverBodies))
         .add_systems(PhysicsSchedule, update_profile_sleep
             .after(avian3d::prelude::PhysicsStepSystems::Sleeping)
             .before(avian3d::prelude::PhysicsStepSystems::Finalize)
@@ -855,23 +881,55 @@ impl Plugin for RagdollPhysicsProfilePlugin {
     }
 }
 
-fn capture_source_sleep_wakes(
+pub(crate) fn capture_source_sleep_wakes(
     last_physics_tick: Res<LastPhysicsTick>,
     tick: SystemChangeTick,
-    mut bodies: Query<(&RigidBody, Ref<LinearVelocity>, Ref<AngularVelocity>, &mut SourceBodySleep)>,
+    mut bodies: Query<(&RigidBody, &mut LinearVelocity, Ref<AngularVelocity>, &mut SourceBodySleep)>,
 ) {
     let [linear_tolerance, angular_tolerance]: [f32; 2] = include!("sleep_velocity_tolerance.rs");
-    for (body, linear, angular, mut sleep) in &mut bodies {
+    for (body, mut linear, angular, mut sleep) in &mut bodies {
         sleep.explicit_wake = false;
-        let changed = (linear.is_changed() && linear.last_changed().is_newer_than(last_physics_tick.0, tick.this_run()))
+        let external_linear = linear.is_changed()
+            && sleep.has_external_linear_write(linear.last_changed(), last_physics_tick.0, tick.this_run());
+        let changed = sleep.linear_write_before_impulse || external_linear
             || (angular.is_changed() && angular.last_changed().is_newer_than(last_physics_tick.0, tick.this_run()));
         if body.is_dynamic() && changed {
-            sleep.smooth_linear = linear.0;
+            let source_linear = if sleep.last_impulse_tick == Some(linear.last_changed()) {
+                linear.0 - sleep.pending_linear_impulse
+            } else { linear.0 };
+            if external_linear && sleep.last_impulse_tick.is_some() {
+                linear.0 += sleep.pending_linear_impulse;
+            }
+            sleep.smooth_linear = source_linear;
             sleep.smooth_angular = angular.0;
-            sleep.explicit_wake = linear.0.abs().max_element() > linear_tolerance
+            sleep.explicit_wake = source_linear.abs().max_element() > linear_tolerance
                 || angular.0.abs().max_element() > angular_tolerance;
             if sleep.explicit_wake { sleep.counter = 0; }
         }
+    }
+}
+
+fn seed_source_sleep_from_forces(
+    mut bodies: Query<(&RigidBody, &LinearVelocity, &AngularVelocity, &Rotation, &VelocityIntegrationData,
+        Option<&avian3d::dynamics::rigid_body::forces::AccumulatedLocalAcceleration>, &mut SourceBodySleep)>,
+) {
+    let [linear_tolerance, angular_tolerance]: [f32; 2] = include!("sleep_velocity_tolerance.rs");
+    let [prediction_time, rate]: [f32; 2] = include!("sleep_force_parameters.rs");
+    for (body, linear, angular, rotation, integration, local, mut sleep) in &mut bodies {
+        if body.is_dynamic() {
+            let linear_acceleration = integration.linear_increment + local.map_or(Vec3::ZERO, |local| rotation.0 * local.linear);
+            let angular_acceleration = integration.angular_increment + local.map_or(Vec3::ZERO, |local| rotation.0 * local.angular);
+            if linear_acceleration.abs().max_element() > linear_tolerance
+                || sleep.pending_linear_impulse.abs().max_element() > linear_tolerance {
+                sleep.smooth_linear = sleep.smooth_linear.lerp(linear.0 + linear_acceleration * prediction_time, rate);
+            }
+            if angular_acceleration.abs().max_element() > angular_tolerance {
+                sleep.smooth_angular = sleep.smooth_angular.lerp(angular.0 + angular_acceleration * prediction_time, rate);
+            }
+        }
+        sleep.pending_linear_impulse = Vec3::ZERO;
+        sleep.last_impulse_tick = None;
+        sleep.linear_write_before_impulse = false;
     }
 }
 
@@ -946,6 +1004,7 @@ fn update_profile_sleep(
     other_bodies: Query<(&BodyIslandNode, &avian3d::prelude::SleepTimer,
         Has<avian3d::prelude::SleepingDisabled>), Without<SourceBodySleep>>,
 ) {
+    let [_, smooth_rate]: [f32; 2] = include!("sleep_force_parameters.rs");
     let mut groups = bevy::platform::collections::HashMap::<u32, (i32, i32, bool, bool)>::default();
     for (node, mode, solver, rotation, center, mut sleep, disabled, sleeping) in &mut bodies {
         if !mode.is_dynamic() {
@@ -964,11 +1023,11 @@ fn update_profile_sleep(
             } else {
                 let world_center = rotation.0 * center.0;
                 let origin_delta = solver.delta_position + (solver.delta_rotation.0.conjugate() * world_center - world_center);
-                sleep.smooth_linear = sleep.smooth_linear.lerp(origin_delta / time.delta_secs(), 0.3);
+                sleep.smooth_linear = sleep.smooth_linear.lerp(origin_delta / time.delta_secs(), smooth_rate);
                 let delta = solver.delta_rotation.0;
                 let delta = if delta.w < 0.0 { -delta } else { delta };
                 let angular = Vec3::new(delta.x, delta.y, delta.z) * (2.0 / time.delta_secs());
-                sleep.smooth_angular = sleep.smooth_angular.lerp(angular, 0.3);
+                sleep.smooth_angular = sleep.smooth_angular.lerp(angular, smooth_rate);
             }
         }
         let within = !disabled
@@ -2436,6 +2495,110 @@ mod tests {
         app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::X * 0.005));
         app.update();
         assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 1);
+    }
+
+    #[test]
+    fn source_sleep_captures_velocity_writes_after_narrow_phase() {
+        use avian3d::prelude::{AngularVelocity, LinearVelocity, PhysicsStepSystems};
+        #[derive(Resource, Default)]
+        struct WriteVelocity(bool);
+        let (mut app, body) = source_sleep_fixture(1.0 / 60.0, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+        app.world_mut().entity_mut(body).insert(AngularVelocity(Vec3::X * 0.005));
+        app.init_resource::<WriteVelocity>();
+        app.add_systems(PhysicsSchedule, (move |mut write: ResMut<WriteVelocity>, mut velocities: Query<&mut LinearVelocity>| {
+            if write.0 {
+                velocities.get_mut(body).unwrap().0 = Vec3::ZERO;
+                write.0 = false;
+            }
+        }).after(PhysicsStepSystems::NarrowPhase).before(capture_source_sleep_wakes));
+        for _ in 0..3 { app.update(); }
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 3);
+        app.world_mut().resource_mut::<WriteVelocity>().0 = true;
+        app.update();
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 1);
+    }
+
+    #[test]
+    fn source_sleep_seeds_connected_island_from_external_acceleration() {
+        use avian3d::prelude::{AngularVelocity, ConstantAngularAcceleration, ConstantLinearAcceleration,
+            ConstantLocalAngularAcceleration, ConstantLocalLinearAcceleration, LinearVelocity, Sleeping};
+        for dt in [1.0_f32 / 60.0, 1.0 / 30.0] {
+            for (world_linear, local_linear, world_angular, local_angular) in [
+                (Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO),
+                (Vec3::X, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO),
+                (Vec3::ZERO, Vec3::X, Vec3::ZERO, Vec3::ZERO),
+                (Vec3::ZERO, Vec3::ZERO, Vec3::X * 6.0, Vec3::ZERO),
+                (Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, Vec3::X * 6.0),
+            ] {
+                let (mut app, first) = source_sleep_fixture(dt, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+                app.world_mut().entity_mut(first).insert((CenterOfMass(Vec3::ZERO), NoAutoCenterOfMass));
+                let settings = *app.world().get::<SourceBodySleep>(first).unwrap();
+                let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+                    LinearVelocity::ZERO, AngularVelocity::ZERO, settings,
+                    avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+                app.world_mut().spawn(SphericalJoint::new(first, second));
+                for _ in 0..3 { app.update(); }
+                for entity in [first, second] {
+                    app.world_mut().entity_mut(entity).insert((ConstantLinearAcceleration(world_linear),
+                        ConstantLocalLinearAcceleration(local_linear), ConstantAngularAcceleration(world_angular),
+                        ConstantLocalAngularAcceleration(local_angular)));
+                }
+                app.update();
+                let solver = app.world().get::<SolverBody>(first).unwrap();
+                let delta = solver.delta_rotation.0;
+                let angular_step = Vec3::new(delta.x, delta.y, delta.z) * (2.0 / dt);
+                let expected_linear = ((world_linear + local_linear) * (0.3 / 30.0)).lerp(solver.delta_position / dt, 0.3);
+                let expected_angular = ((world_angular + local_angular) * (0.3 / 30.0)).lerp(angular_step, 0.3);
+                let sleep = app.world().get::<SourceBodySleep>(first).unwrap();
+                assert!(sleep.smooth_linear.abs_diff_eq(expected_linear, 1e-5),
+                    "dt={dt} linear={:?} source={expected_linear:?}", sleep.smooth_linear);
+                assert!(sleep.smooth_angular.abs_diff_eq(expected_angular, 1e-5),
+                    "dt={dt} angular={:?} source={expected_angular:?}", sleep.smooth_angular);
+                if world_linear == Vec3::ZERO && local_linear == Vec3::ZERO
+                    && world_angular == Vec3::ZERO && local_angular == Vec3::ZERO {
+                    assert_eq!(sleep.counter, 4);
+                    app.update();
+                    assert!(app.world().get::<Sleeping>(first).is_some());
+                } else {
+                    assert_eq!(sleep.counter, 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn source_sleep_loaded_ragdoll_seeds_force_before_gravity() {
+        use avian3d::prelude::{AngularVelocity, ColliderDisabled, ComputedMass, ConstantForce, Gravity, JointDisabled,
+            LinearVelocity, Sleeping, SleepingDisabled};
+        #[derive(Resource, Default)]
+        struct ObservedSleepVelocity(Vec3);
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..12 { app.update(); }
+        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+        let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+        let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+        for entity in colliders { app.world_mut().entity_mut(entity).insert(ColliderDisabled); }
+        for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+        let body = bodies.iter().find(|(label, _)| label == "hand_l").unwrap().1;
+        let mass = app.world().get::<ComputedMass>(body).unwrap().value();
+        app.world_mut().entity_mut(body).insert(SleepingDisabled).remove::<Sleeping>();
+        app.init_resource::<ObservedSleepVelocity>();
+        app.add_systems(PhysicsSchedule, (move |bodies: Query<&SourceBodySleep>, mut observed: ResMut<ObservedSleepVelocity>| {
+            observed.0 = bodies.get(body).unwrap().smooth_linear;
+        }).in_set(IntegrationSystems::UpdateVelocityIncrements)
+            .after(seed_source_sleep_from_forces).before(pre_process_velocity_increments));
+        app.world_mut().insert_resource(Gravity(Vec3::NEG_Y * 9.81));
+        for acceleration in [Vec3::ZERO, Vec3::X] {
+            app.world_mut().entity_mut(body).insert((LinearVelocity::ZERO, AngularVelocity::ZERO,
+                ConstantForce(acceleration * mass)));
+            app.world_mut().get_mut::<SourceBodySleep>(body).unwrap().smooth_linear = Vec3::ZERO;
+            app.update();
+            let actual = app.world().resource::<ObservedSleepVelocity>().0;
+            let expected = acceleration * (0.3 / 30.0);
+            assert!(actual.abs_diff_eq(expected, 1e-5), "actual={actual:?} source={expected:?}");
+        }
     }
 
     #[test]
