@@ -6329,11 +6329,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：活动Ragdoll在world pause后将已detach的player/mesh scale设为0，下一完整App帧仍有20个Dynamic，源应为0；scale=1对照保留20个。`bf144_pa_zero_mesh_scale_stops_source_body_simulation`2组1PASS/1FAIL。只登记停用分支，恢复非零的source重建路径未在本反例中宣称已验收。
   - 19:54 source/static摘要：fresh relative-scale阈值、逐body停用和物理混合源码及PA原生身份已持久化；目标在物理交接前按rig身份追踪相对scale过零，将body切为Kinematic并关闭动态/回读输入。已写暂停、阈值及非均匀scale对照；D116重建、动画回读、测试、消融和真实入口待统一Gate。证据`docs/audit/bf144/d74/`。实际结束：2026-11-08 19:54 +08:00；偏差：−43分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D75 / P2 — Ragdoll角驱动在启动限速之后采样pelvis速度，过早降低关节刚度。
+- [x] BF144-D75 / P2 — Ragdoll角驱动在启动限速之后采样pelvis速度，过早降低关节刚度。
+  - 本轮开始：2026-11-08 19:54 +08:00；预计结束：2026-11-08 20:29 +08:00。重新核对ALS采样/驱动/限速顺序与native角驱动系数，调整现有系统顺序并写实际关节对照；统一执行留到升级后。
   - Source：fresh `AlsCharacter_Actions.cpp:883–885,946–958`先保存pelvis当前linear velocity，以其完整长度/1000cm/s截到[0,1]后乘25000设motor刚度，再递减启动期计数并调用`ConstraintRagdollSpeed`。`PhysInterface_Chaos.cpp:485–489`再应用本机native角drive stiffness scale=1.5，阻尼/最大torque均为0；加速度drive不做厘米平方转换。
   - Target：`ragdoll_link.rs:207–214`把`limit_initial_ragdoll_speed`排在`ragdoll_joint_drive_adapter_system`前；后者`578–584`回读已被截短的pelvis速度，再由`ragdoll_angular_drive.rs:82–88`写入19个活动joint的57个motor通道。
   - 反例：实际加载角色由静止启动Ragdoll，下一帧限速仍为2m/s；输入(3,4,0)m/s时目标基础刚度5000，源应12500，实际各motor为7500而源应18750；输入竖直−12m/s时目标仍5000，源应25000。零速、1m/s及限速期结束后同四种输入均PASS，8组6PASS/2FAIL。只证明真实关节刚度输入差异，不把未运行的完整布娃娃轨迹纳入证据。
   - 漏检：`joint_drive_uses_source_constraint_drive_values`只对纯speed→stiffness函数传0/5/10，未把启动限速和实际ECS消费者组合。反例/对照见`bf144_pa_joint_drive_reads_velocity_before_initial_speed_limit`与`target/bf144/22/`；未修改移植实现或转换器。
+  - 19:57 source/static摘要：fresh ALS读取、角驱动写入和后续限速顺序已核对，fresh PA原生刚度系数1.5与受跟踪数据一致。现有交接链将adapter排在限速前；已写加载角色8组速度/限速状态及57个motor对照。旧反例缓存缺失，测试、顺序消融、完整轨迹和真实入口待统一Gate。证据`docs/audit/bf144/d75/`。实际结束：2026-11-08 19:57 +08:00；偏差：−32分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D76 / P2 — Ragdoll硬角锁使用非线性角校正，偏离源cached四元数约束。
   - Source：fresh `PBDJointCachedSolverGaussSeidel.cpp:1459–1483,1566–1597`按初始frame的四元数Jacobian和相对quat分量锁轴，锁定路径没有角容差；`PBDJointConstraintUtilities.cpp:346–371`给出Jacobian，最终由`ChaosCore/Private/Rotation.cpp:158–168`将累计DQ以一阶quat增量归一化。该源算法的有限角误差也须保留。

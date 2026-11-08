@@ -1,0 +1,23 @@
+[
+  {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 868,
+    "end_line": 889,
+    "text": "void AAlsCharacter::RefreshRagdolling(const float DeltaTime)\n{\n\tif (LocomotionAction != AlsLocomotionActionTags::Ragdolling)\n\t{\n\t\treturn;\n\t}\n\n\t// Since we are dealing with physics here, we should not use functions such as USkinnedMeshComponent::GetSocketTransform() as\n\t// they may return an incorrect result in situations like when the animation blueprint is not ticking or when URO is enabled.\n\n\tconst auto* PelvisBody{GetMesh()->GetBodyInstance(UAlsConstants::PelvisBoneName())};\n\tFVector PelvisLocation;\n\n\tFPhysicsCommand::ExecuteRead(PelvisBody->ActorHandle, [this, &PelvisLocation](const FPhysicsActorHandle& ActorHandle)\n\t{\n\t\tPelvisLocation = FPhysicsInterface::GetTransform_AssumesLocked(ActorHandle, true).GetLocation();\n\t\tRagdollingState.Velocity = FPhysicsInterface::GetLinearVelocity_AssumesLocked(ActorHandle);\n\t});\n\n\tconst auto bLocallyControlled{IsLocallyControlled() || (GetLocalRole() >= ROLE_Authority && !IsValid(GetController()))};\n\n\tif (bLocallyControlled)"
+  },
+  {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 944,
+    "end_line": 962,
+    "text": "\t// Use the speed to scale ragdoll joint strength for physical animation.\n\n\tstatic constexpr auto ReferenceSpeed{1000.0f};\n\tstatic constexpr auto Stiffness{25000.0f};\n\n\tconst auto SpeedAmount{UAlsMath::Clamp01(UE_REAL_TO_FLOAT(RagdollingState.Velocity.Size() / ReferenceSpeed))};\n\n\tGetMesh()->SetAllMotorsAngularDriveParams(SpeedAmount * Stiffness, 0.0f, 0.0f);\n\n\t// Limit the speed of ragdoll bodies.\n\n\tif (RagdollingState.SpeedLimitFrameTimeRemaining > 0)\n\t{\n\t\tRagdollingState.SpeedLimitFrameTimeRemaining -= 1;\n\n\t\tConstraintRagdollSpeed();\n\t}\n}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/PhysicsEngine/Experimental/PhysInterface_Chaos.cpp",
+    "sha256": "1fdafb0be6dcb9b669b6fca6c3beff0e5e392b0e05f45b7c9677b75234aaa0c8",
+    "start_line": 483,
+    "end_line": 495,
+    "text": "\n\t\t\tConstraint->SetAngularDriveForceMode(InDriveParams.bAccelerationMode ? Chaos::EJointForceMode::Acceleration : Chaos::EJointForceMode::Force);\n\t\t\tif (InDriveParams.AngularDriveMode == EAngularDriveMode::TwistAndSwing)\n\t\t\t{\n\t\t\t\tConstraint->SetAngularDriveStiffness(Chaos::ConstraintSettings::AngularDriveStiffnessScale() * Chaos::FVec3(InDriveParams.TwistDrive.Stiffness, InDriveParams.SwingDrive.Stiffness, InDriveParams.SwingDrive.Stiffness));\n\t\t\t\tConstraint->SetAngularDriveDamping(Chaos::ConstraintSettings::AngularDriveDampingScale() * Chaos::FVec3(InDriveParams.TwistDrive.Damping, InDriveParams.SwingDrive.Damping, InDriveParams.SwingDrive.Damping));\n\t\t\t\tConstraint->SetAngularDriveMaxTorque(Chaos::FVec3(InDriveParams.TwistDrive.MaxForce, InDriveParams.SwingDrive.MaxForce, InDriveParams.SwingDrive.MaxForce));\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tConstraint->SetAngularDriveStiffness(Chaos::ConstraintSettings::AngularDriveStiffnessScale() * Chaos::FVec3(InDriveParams.SlerpDrive.Stiffness));\n\t\t\t\tConstraint->SetAngularDriveDamping(Chaos::ConstraintSettings::AngularDriveDampingScale() * Chaos::FVec3(InDriveParams.SlerpDrive.Damping));\n\t\t\t\tConstraint->SetAngularDriveMaxTorque(Chaos::FVec3(InDriveParams.SlerpDrive.MaxForce, InDriveParams.SlerpDrive.MaxForce, InDriveParams.SlerpDrive.MaxForce));"
+  }
+]

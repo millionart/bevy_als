@@ -231,8 +231,8 @@ impl Plugin for AlsRagdollLinkPlugin {
             PostUpdate,
             (
                 sync_ragdoll_body_modes,
-                limit_initial_ragdoll_speed,
                 ragdoll_joint_drive_adapter_system,
+                limit_initial_ragdoll_speed,
                 ApplyDeferred,
             )
                 .chain()
@@ -1326,6 +1326,60 @@ fn ragdoll_link_system(
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[test]
+    fn ragdoll_drive_reads_pelvis_speed_before_startup_limit() {
+        use crate::extensions::source_physics_joint::SourcePhysicsJoint;
+        use avian3d::prelude::JointDisabled;
+        #[derive(Resource)]
+        struct SeedVelocity(Vec3);
+        #[derive(Resource, Default)]
+        struct LimitedSpeed(f32);
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..4 { app.update(); }
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+        let pelvis = bodies.iter().find(|(label, _)| label == "pelvis").unwrap().1;
+        let joints = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
+            .joints.values().copied().collect::<Vec<_>>();
+        app.insert_resource(SeedVelocity(Vec3::ZERO)).init_resource::<LimitedSpeed>();
+        app.add_systems(PostUpdate, (
+            (move |seed: Res<SeedVelocity>, mut velocities: Query<&mut LinearVelocity>| {
+                velocities.get_mut(pelvis).unwrap().0 = seed.0;
+            }).before(ragdoll_joint_drive_adapter_system).before(limit_initial_ragdoll_speed),
+            (move |velocities: Query<&LinearVelocity>, mut result: ResMut<LimitedSpeed>| {
+                result.0 = velocities.get(pelvis).unwrap().0.length();
+            }).after(limit_initial_ragdoll_speed).before(RagdollAngularDriveSet),
+        ));
+        for limiting in [false, true] {
+            for velocity in [Vec3::ZERO, Vec3::X, Vec3::new(3.0, 4.0, 0.0), Vec3::NEG_Y * 12.0] {
+                app.world_mut().resource_mut::<SeedVelocity>().0 = velocity;
+                let mut limit = app.world_mut().get_mut::<AlsRagdollInitialSpeedLimit>(actor).unwrap();
+                limit.speed = 2.0;
+                limit.remaining_updates = u8::from(limiting);
+                app.update();
+                let expected_speed = if limiting { velocity.length().min(2.0) } else { velocity.length() };
+                assert!((app.world().resource::<LimitedSpeed>().0 - expected_speed).abs() < 1e-5);
+                let expected_stiffness = (velocity.length() / 10.0).min(1.0) * 25_000.0;
+                assert!((app.world().get::<RagdollAngularDrive>(player).unwrap().stiffness - expected_stiffness).abs() < 0.01);
+                let mut motor_count = 0;
+                for joint in &joints {
+                    if app.world().get::<JointDisabled>(*joint).is_some() { continue; }
+                    let joint = app.world().get::<SourcePhysicsJoint>(*joint).unwrap();
+                    assert_eq!(joint.motor_stiffness_scale, 1.5);
+                    for motor in &joint.motors {
+                        assert!((motor.spring.stiffness - expected_stiffness * 1.5).abs() < 0.02,
+                            "limiting={limiting} velocity={velocity:?} stiffness={}", motor.spring.stiffness);
+                        assert_eq!(motor.spring.damping, 0.0);
+                        motor_count += 1;
+                    }
+                }
+                assert_eq!(motor_count, 57);
+            }
+        }
+    }
+
     #[test]
     fn ragdoll_scale_stop_follows_relative_zero_crossings() {
         for (scale, stopped) in [(Vec3::ZERO, true), (Vec3::splat(0.00005), true),
