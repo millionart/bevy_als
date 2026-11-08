@@ -1,0 +1,51 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/AABBVectorized.h",
+    "sha256": "376258bd2c475708e2c543165ccd7b3a7ac6f0a5590cfd99555818fc16511eb1",
+    "start_line": 18,
+    "end_line": 38,
+    "text": "\t\tFORCEINLINE_DEBUGGABLE FAABBVectorized()\n\t\t{\n\t\t\tMin = GlobalVectorConstants::BigNumber;\n\t\t\tMax = VectorNegate(GlobalVectorConstants::BigNumber);\n\t\t}\n\n\t\tFORCEINLINE_DEBUGGABLE FAABBVectorized(const VectorRegister4Float& InMin, const VectorRegister4Float& InMax)\n\t\t\t: Min(InMin)\n\t\t\t, Max(InMax)\n\t\t{\n\t\t}\n\t\ttemplate<typename T>\n\t\tFORCEINLINE_DEBUGGABLE explicit FAABBVectorized(const TAABB<T, 3>& AABB)\n\t\t{\n\t\t\tconst VectorRegister4Float MinSmid = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(AABB.Min().X, AABB.Min().Y, AABB.Min().Z, 0.0));\n\t\t\tconst VectorRegister4Float MaxSmid = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(AABB.Max().X, AABB.Max().Y, AABB.Max().Z, 0.0));\n\t\t\tMin = MinSmid;\n\t\t\tMax = MaxSmid;\n\t\t}\n\n\t\tFORCEINLINE_DEBUGGABLE const VectorRegister4Float& GetMin() const { return Min; }\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/AABBVectorized.h",
+    "sha256": "376258bd2c475708e2c543165ccd7b3a7ac6f0a5590cfd99555818fc16511eb1",
+    "start_line": 80,
+    "end_line": 86,
+    "text": "\t\tFORCEINLINE_DEBUGGABLE bool Intersects(const FAABBVectorized& Other) const\n\t\t{\n\t\t\tVectorRegister4Float IsFalse = VectorBitwiseOr(VectorCompareGT(Min, Other.GetMax()), VectorCompareGT(Other.GetMin(), Max));\n\n\t\t\treturn !static_cast<bool>(::VectorMaskBits(IsFalse));\n\t\t}\n\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/TriangleMeshImplicitObject.h",
+    "sha256": "d9254f3434215d7e1ae4352b6aac6c890d72c3b557168b1370a1bcc3024b911f",
+    "start_line": 189,
+    "end_line": 205,
+    "text": "\t\tFORCEINLINE_DEBUGGABLE void Overlap(const FAABBVectorized& AABB, SQVisitor& Visitor) const\n\t\t{\n\t\t\tconst auto BoundsFilter = [&AABB](const FAABBVectorized& Bounds) -> EFilterResult\n\t\t\t{\n\t\t\t\tconst bool bHit = Bounds.Intersects(AABB);\n\t\t\t\treturn bHit ? EFilterResult::Keep : EFilterResult::Skip;\n\t\t\t};\n\n\t\t\tconst auto FaceVisitor = [&Visitor](int32 FaceIndex)\n\t\t\t{\n\t\t\t\tconst bool bContinueVisiting = Visitor.VisitOverlap(FaceIndex);\n\t\t\t\treturn bContinueVisiting ? EVisitorResult::Continue : EVisitorResult::Stop;\n\t\t\t};\n\n\t\t\tVisitTree(BoundsFilter, FaceVisitor);\n\t\t}\n\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/TriangleMeshImplicitObject.h",
+    "sha256": "d9254f3434215d7e1ae4352b6aac6c890d72c3b557168b1370a1bcc3024b911f",
+    "start_line": 232,
+    "end_line": 245,
+    "text": "\t\tFORCEINLINE_DEBUGGABLE EVisitorResult VisitFaces(int32 StartIndex, int32 IndexCount, BoundsFilterType& BoundsFilter, FaceVisitorType& FaceVisitor) const\n\t\t{\n\t\t\tconst int32 EndIndex = (StartIndex + IndexCount);  \n\t\t\tfor (int32 FaceIndex = StartIndex; FaceIndex < EndIndex; ++FaceIndex)\n\t\t\t{\n\t\t\t\tif (BoundsFilter(FaceBounds[FaceIndex]) == EFilterResult::Keep)\n\t\t\t\t{\n\t\t\t\t\tif (FaceVisitor(FaceIndex) == EVisitorResult::Stop)\n\t\t\t\t\t{\n\t\t\t\t\t\treturn EVisitorResult::Stop;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\treturn EVisitorResult::Continue;\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/TriangleMeshImplicitObject.h",
+    "sha256": "d9254f3434215d7e1ae4352b6aac6c890d72c3b557168b1370a1bcc3024b911f",
+    "start_line": 249,
+    "end_line": 309,
+    "text": "\t\tFORCEINLINE_DEBUGGABLE void VisitTree(BoundsFilterType& BoundsFilter, FaceVisitorType& FaceVisitor) const\n\t\t{\n\t\t\tif (Nodes.Num() == 0)\n\t\t\t{\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (!FaceBounds.IsEmpty())\n\t\t\t{\n\t\t\t\tVisitTreeImpl<BoundsFilterType, FaceVisitorType, false>(BoundsFilter, FaceVisitor);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tVisitTreeImpl<BoundsFilterType, FaceVisitorType, true>(BoundsFilter, FaceVisitor);\n\t\t\t}\n\t\t}\nprivate:\n\t\ttemplate <typename BoundsFilterType, typename FaceVisitorType, bool bUseQuantizedBounds>\n\t\tFORCEINLINE_DEBUGGABLE void VisitTreeImpl(BoundsFilterType& BoundsFilter, FaceVisitorType& FaceVisitor) const\n\t\t{\n\t\t\tTArray<int32, TInlineAllocator<16>> NodeIndexStack;\n\t\t\tNodeIndexStack.Push(0);\n\t\t\twhile (NodeIndexStack.Num())\n\t\t\t{\n\t\t\t\tconst int32 NodeIndex = NodeIndexStack.Pop(EAllowShrinking::No);\n\t\t\t\tcheck(Nodes.IsValidIndex(NodeIndex));\n\t\t\t\tconst FNode& Node = Nodes[NodeIndex];\n\n\t\t\t\tfor (int32 ChildIndex = 0; ChildIndex < 2; ++ChildIndex)\n\t\t\t\t{\n\t\t\t\t\tconst FChildData& ChildData = Node.Children; \n\t\t\t\t\tconst int32 FaceIndex = ChildData.GetChildOrFaceIndex(ChildIndex);\n\t\t\t\t\tif (FaceIndex != INDEX_NONE)\n\t\t\t\t\t{\n\t\t\t\t\t\tif (BoundsFilter(ChildData.GetBounds(ChildIndex)) == EFilterResult::Keep)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tconst uint32 FaceCount = ChildData.GetFaceCount(ChildIndex);\n\t\t\t\t\t\t\tif (FaceCount > 0)\n\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\tif constexpr (!bUseQuantizedBounds)\n\t\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\t\tif (EVisitorResult::Stop == VisitFaces(FaceIndex, FaceCount, BoundsFilter, FaceVisitor))\n\t\t\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\t\tif (EVisitorResult::Stop == VisitFacesQuantized(ChildData.GetBounds(ChildIndex), FaceIndex, FaceCount, BoundsFilter, FaceVisitor))\n\t\t\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\tNodeIndexStack.Push(FaceIndex);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/TriangleMeshImplicitObject.h",
+    "sha256": "d9254f3434215d7e1ae4352b6aac6c890d72c3b557168b1370a1bcc3024b911f",
+    "start_line": 340,
+    "end_line": 365,
+    "text": "\t\tFORCEINLINE_DEBUGGABLE EVisitorResult VisitFacesQuantized(const FAABBVectorized& NodeBounds, int32 StartIndex, int32 IndexCount, BoundsFilterType& BoundsFilter, FaceVisitorType& FaceVisitor) const\n\t\t{\n\t\t\t// compute the scale factor to convert quantized uint8 values to relative positions within the node\n\t\t\tconstexpr VectorRegister4Float DeQuantFracScale = MakeVectorRegisterFloatConstant(1.f / 255.f, 1.f / 255.f, 1.f / 255.f, 1.f);\n\t\t\tconst VectorRegister4Float DeQuantScale = VectorMultiply(VectorSubtract(NodeBounds.GetMax(), NodeBounds.GetMin()), DeQuantFracScale);\n\n\t\t\tconst int32 EndIndex = (StartIndex + IndexCount);\n\t\t\tint32 FaceIndex = StartIndex;\n\t\t\t// Note EndIndex*6 is 1 element *past* the actual quantized bounds data, but should still be valid because we store an extra buffer byte to allow VectorLoadByte4 to be safely used\n\t\t\tcheckSlow(IndexCount > 0 && (QuantizedFaceBoundData.IsValidIndex(FaceIndex * 6) && QuantizedFaceBoundData.IsValidIndex(EndIndex * 6)));\n\t\t\tfor (const uint8* QBoundPtr = QuantizedFaceBoundData.GetData() + StartIndex * 6; FaceIndex < EndIndex; ++FaceIndex, QBoundPtr += 6)\n\t\t\t{\n\t\t\t\tif (BoundsFilter(FAABBVectorized(\n\t\t\t\t\tVectorMultiplyAdd(DeQuantScale, VectorLoadByte4(&QBoundPtr[0]), NodeBounds.GetMin()),\n\t\t\t\t\tVectorMultiplyAdd(DeQuantScale, VectorLoadByte4(&QBoundPtr[3]), NodeBounds.GetMin()))) == EFilterResult::Keep)\n\t\t\t\t{\n\t\t\t\t\tif (FaceVisitor(FaceIndex) == EVisitorResult::Stop)\n\t\t\t\t\t{\n\t\t\t\t\t\treturn EVisitorResult::Stop;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\treturn EVisitorResult::Continue;\n\t\t}\n\t\t\n\t\t// Private helper to set quantized bound data\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/TriangleMeshImplicitObject.cpp",
+    "sha256": "99a818cd596fc3f159e5214a724210826cd59e2e4e1caa2cd64cae5506e8f407",
+    "start_line": 351,
+    "end_line": 366,
+    "text": "struct FTriangleMeshOverlapVisitor\n{\n\tFTriangleMeshOverlapVisitor(TArray<int32>& InResults) : CollectedResults(InResults) {}\n\tbool VisitOverlap(int32 Instance)\n\t{\n\t\tCollectedResults.Add(Instance);\n\t\treturn true;\n\t}\n\tbool VisitSweep(int32 Instance, FRealSingle& CurDataLength)\n\t{\n\t\tcheck(false);\n\t\treturn true;\n\t}\n\tbool VisitRaycast(int32 Instance, FRealSingle& CurDataLength)\n\t{\n\t\tcheck(false);\n"
+  }
+]

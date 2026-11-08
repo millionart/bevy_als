@@ -1749,6 +1749,25 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                 OtherGeometryValue->SetArrayField(TEXT("trimesh_core_bvh_face_order"), FaceOrder);
                 OtherGeometryValue->SetArrayField(TEXT("trimesh_core_bvh_face_bounds_cm"), FaceBounds);
                 OtherGeometryValue->SetArrayField(TEXT("trimesh_core_bvh_nodes"), Nodes);
+                if (Input->HasField(TEXT("mesh_bvh_query_bounds_cm")))
+                {
+                    const TSharedPtr<FJsonObject>* Query = nullptr;
+                    FVector Minimum, Maximum;
+                    if (!Input->TryGetObjectField(TEXT("mesh_bvh_query_bounds_cm"), Query)
+                        || !ReadVector(*Query, TEXT("min"), Minimum) || !ReadVector(*Query, TEXT("max"), Maximum)
+                        || Minimum.X > Maximum.X || Minimum.Y > Maximum.Y || Minimum.Z > Maximum.Z) { return nullptr; }
+                    TArray<int32> QueryFaces;
+                    Core->FindOverlappingTriangles(Chaos::FAABB3(Chaos::FVec3(Minimum), Chaos::FVec3(Maximum)), QueryFaces);
+                    TArray<TSharedPtr<FJsonValue>> QueryOrder;
+                    TSet<int32> QuerySeen;
+                    for (int32 Face : QueryFaces)
+                    {
+                        if (Face < 0 || Face >= Triangles.Num() || QuerySeen.Contains(Face)) { return nullptr; }
+                        QuerySeen.Add(Face);
+                        QueryOrder.Add(MakeShared<FJsonValueNumber>(Face));
+                    }
+                    OtherGeometryValue->SetArrayField(TEXT("trimesh_core_bvh_query_order"), QueryOrder);
+                }
             }
         }
         FChaosSolversModule* Module = FChaosSolversModule::GetModule();
