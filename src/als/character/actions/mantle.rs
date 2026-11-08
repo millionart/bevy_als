@@ -553,6 +553,8 @@ pub fn detect_mantle(
     };
     trace.forward_hit = Some(forward_hit.point1);
     trace.forward_hit_center = Some(forward_start + forward * forward_hit.distance);
+    let impact_normal = crate::als::motion::source_sweep_impact_normal(spatial, &forward_hit,
+        forward_end - forward_start, forward_start, Quat::IDENTITY, &forward_shape);
     let body = colliders.get(forward_hit.entity).map_or(forward_hit.entity, |collider| collider.body);
     let target_allows_step_up = target_permissions
         .get(forward_hit.entity)
@@ -562,7 +564,7 @@ pub fn detect_mantle(
         .map(|permission| permission.allows_step_up)
         .unwrap_or(true);
     if (forward_hit.distance == 0.0 && (forward_hit.point2 - forward_hit.point1).dot(forward_hit.normal1) < 0.0)
-        || forward_hit.normal1.y >= MANTLE_WALKABLE_FLOOR_COS
+        || impact_normal.y >= MANTLE_WALKABLE_FLOOR_COS
         || !target_allows_step_up
         || velocities
             .get(forward_hit.entity)
@@ -581,7 +583,7 @@ pub fn detect_mantle(
         };
     }
     let target_direction =
-        Vec3::new(-forward_hit.normal1.x, 0.0, -forward_hit.normal1.z).normalize_or_zero();
+        Vec3::new(-impact_normal.x, 0.0, -impact_normal.z).normalize_or_zero();
     if target_direction.length_squared() <= 1e-6 {
         return MantleDetection {
             intent: None,
@@ -1052,6 +1054,21 @@ mod tests {
             let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
             assert_eq!(detection.intent.is_some(), allowed,
                 "physical={physical} component={component} trace={:?}", detection.trace);
+        }
+    }
+
+    #[test]
+    fn mantle_corner_targets_follow_the_geometric_face() {
+        let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
+        for lateral in [-1.3, -1.1, 0.0, 1.1, 1.3] {
+            app.world_mut().get_mut::<Transform>(actor).unwrap().translation.x = lateral;
+            let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
+            let intent = detection.intent.unwrap_or_else(|| panic!("lateral={lateral} trace={:?}", detection.trace));
+            assert_eq!(intent.target_entity, ledge);
+            let impact = detection.trace.forward_hit.unwrap();
+            assert!((intent.target.x - impact.x).abs() < 0.0001,
+                "lateral={lateral} impact={impact:?} target={:?}", intent.target);
+            assert!(intent.yaw_target.abs() < 0.0001, "lateral={lateral} yaw={}", intent.yaw_target);
         }
     }
 

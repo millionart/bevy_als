@@ -1,0 +1,121 @@
+{
+  "als_mantle": {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 230,
+    "end_line": 270,
+    "text": "\tFHitResult ForwardTraceHit;\n\tGetWorld()->SweepSingleByChannel(ForwardTraceHit, ForwardTraceStart, ForwardTraceEnd,\n\t                                 FQuat::Identity, Settings->Mantling.MantlingTraceChannel,\n\t                                 FCollisionShape::MakeCapsule(TraceCapsuleRadius, ForwardTraceCapsuleHalfHeight),\n\t                                 {ForwardTraceTag, false, this}, Settings->Mantling.MantlingTraceResponses);\n\n\tauto* TargetPrimitive{ForwardTraceHit.GetComponent()};\n\n\tif (!ForwardTraceHit.IsValidBlockingHit() ||\n\t    !IsValid(TargetPrimitive) ||\n\t    TargetPrimitive->GetComponentVelocity().SizeSquared() > FMath::Square(Settings->Mantling.TargetPrimitiveSpeedThreshold) ||\n\t    !TargetPrimitive->CanCharacterStepUp(this) ||\n\t    GetCharacterMovement()->IsWalkable(ForwardTraceHit))\n\t{\n#if ENABLE_DRAW_DEBUG\n\t\tif (bDisplayDebug)\n\t\t{\n\t\t\tUAlsDebugUtility::DrawSweepSingleCapsuleAlternative(GetWorld(), ForwardTraceStart, ForwardTraceEnd, TraceCapsuleRadius,\n\t\t\t                                                    ForwardTraceCapsuleHalfHeight, false, ForwardTraceHit, {0.0f, 0.25f, 1.0f},\n\t\t\t                                                    {0.0f, 0.75f, 1.0f}, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);\n\t\t}\n#endif\n\n\t\treturn false;\n\t}\n\n\tconst auto TargetDirection{-ForwardTraceHit.ImpactNormal.GetSafeNormal2D()};\n\n\t// Trace downward from the first trace's impact point and determine if the hit location is walkable.\n\n\tstatic const FName DownwardTraceTag{TStringView{FAnsiString::Printf(\"%s (Downward Trace)\", __FUNCTION__)}};\n\n\tconst FVector2D TargetLocationOffset{TargetDirection * (TraceSettings.TargetLocationOffset * CapsuleScale)};\n\n\tconst FVector DownwardTraceStart{\n\t\tForwardTraceHit.ImpactPoint.X + TargetLocationOffset.X,\n\t\tForwardTraceHit.ImpactPoint.Y + TargetLocationOffset.Y,\n\t\tCapsuleBottomLocation.Z + LedgeHeightDelta + 2.5f * TraceCapsuleRadius + UCharacterMovementComponent::MIN_FLOOR_DIST\n\t};\n\n\tconst FVector DownwardTraceEnd{"
+  },
+  "als_rotation": {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 400,
+    "end_line": 407,
+    "text": "#endif\n\n\tconst auto TargetRotation{TargetDirection.ToOrientationQuat()};\n\n\tFAlsMantlingParameters Parameters;\n\n\tParameters.TargetPrimitive = TargetPrimitive;\n\tParameters.MantlingHeight = UE_REAL_TO_FLOAT((TargetLocation.Z - CapsuleBottomLocation.Z) / CapsuleScale);"
+  },
+  "ue_conversion": {
+    "source_file": "Engine/Source/Runtime/Engine/Private/Collision/CollisionConversions.cpp",
+    "sha256": "a512d8cf4f9ddadfcaad82a4ea5326b07da57c515d3370801d8c3b8b3264baca",
+    "start_line": 111,
+    "end_line": 140,
+    "text": " * @param InNormal - default value in case no new normal is computed.\n * @return New normal we compute for geometry.\n */\ntemplate <typename THitLocation>\nstatic FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const THitLocation& Hit, const FVector& TraceDirectionDenorm, const FVector InNormal)\n{\n\t// TODO: can we support other shapes here as well?\n\tif (QueryGeomType == ECollisionShapeType::Capsule || QueryGeomType == ECollisionShapeType::Sphere)\n\t{\n\t\tif (const FPhysicsShape* Shape = GetShape(Hit))\n\t\t{\n\t\t\tconst Chaos::EImplicitObjectType ShapeType = Shape->GetGeometry()->GetNestedType();\n\t\t\tif (ShapeType == Chaos::ImplicitObjectType::Union && !Hit.FaceNormal.IsNearlyZero())\n\t\t\t{\n\t\t\t\treturn Hit.FaceNormal;\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tconst FTransform ActorTM(Hit.Actor->GetR(), Hit.Actor->GetX());\n\t\t\t\tconst FVector LocalInNormal = ActorTM.InverseTransformVectorNoScale(InNormal);\n\t\t\t\tconst FVector LocalTraceDirectionDenorm = ActorTM.InverseTransformVectorNoScale(TraceDirectionDenorm);\n\t\t\t\tconst FVector LocalNormal = Shape->GetGeometry()->FindGeometryOpposingNormal(LocalTraceDirectionDenorm, Hit.FaceIndex, LocalInNormal);\n\t\t\t\treturn ActorTM.TransformVectorNoScale(LocalNormal);\n\t\t\t}\n\t\t}\n\t}\n\n\treturn InNormal;\n}\n"
+  },
+  "ue_walkable": {
+    "source_file": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "start_line": 6983,
+    "end_line": 7025,
+    "text": "bool UCharacterMovementComponent::IsWalkable(const FHitResult& Hit) const\n{\n\tif (!Hit.IsValidBlockingHit())\n\t{\n\t\t// No hit, or starting in penetration\n\t\treturn false;\n\t}\n\n\t// Never walk up vertical surfaces.\n\tconst FVector::FReal ImpactNormalZ = GetGravitySpaceZ(Hit.ImpactNormal);\n\tif (ImpactNormalZ < UE_KINDA_SMALL_NUMBER)\n\t{\n\t\treturn false;\n\t}\n\n\tfloat TestWalkableZ = WalkableFloorZ;\n\n\t// See if this component overrides the walkable floor z.\n\tconst UPrimitiveComponent* HitComponent = Hit.Component.Get();\n\tif (HitComponent)\n\t{\n\t\tconst FWalkableSlopeOverride& SlopeOverride = HitComponent->GetWalkableSlopeOverride();\n\t\tTestWalkableZ = SlopeOverride.ModifyWalkableFloorZ(TestWalkableZ);\n\t}\n\telse\n\t{\n\t\tFMovementBaseInterfaceData MovementBaseData = MovementBaseUtility::GetMovementBaseDataFromHitResult(&Hit);\n\t\tif (MovementBaseData.IsValid())\n\t\t{\n\t\t\tconst FWalkableSlopeOverride& SlopeOverride = MovementBaseData.GetBodyInstanceOwner()->GetWalkableSlopeOverride();\n\t\t\tTestWalkableZ = SlopeOverride.ModifyWalkableFloorZ(TestWalkableZ);\n\t\t}\n\t}\n\n\t// Can't walk on this surface if it is too steep.\n\tif (ImpactNormalZ < TestWalkableZ)\n\t{\n\t\treturn false;\n\t}\n\n\treturn true;\n}\n"
+  },
+  "chaos_box": {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Box.h",
+    "sha256": "8deef2bc40af77117752fc65726ac148bca7891ec05fcda75378149ec64d88b6",
+    "start_line": 195,
+    "end_line": 200,
+    "text": "\n\t\tvirtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const override\n\t\t{\n\t\t\treturn AABB.FindGeometryOpposingNormal(DenormDir, FaceIndex, OriginalNormal);\n\t\t}\n"
+  },
+  "chaos_aabb": {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Public/Chaos/AABB.h",
+    "sha256": "f8fcf0fdcedea886b4b8088083738cdad20f9619d2b7471f95bb2ee77fc0116a",
+    "start_line": 249,
+    "end_line": 283,
+    "text": "\t\tFORCEINLINE TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const \n\t\t{\n\t\t\t// Find which faces were included in the contact normal, and for multiple faces, use the one most opposing the sweep direction.\n\t\t\tTVector<T, d> BestNormal(OriginalNormal);\n\t\t\tT BestOpposingDot = TNumericLimits<T>::Max();\n\n\t\t\tfor (int32 Axis = 0; Axis < d; Axis++)\n\t\t\t{\n\t\t\t\t// Select axis of face to compare to, based on normal.\n\t\t\t\tif (OriginalNormal[Axis] > UE_KINDA_SMALL_NUMBER)\n\t\t\t\t{\n\t\t\t\t\tconst T TraceDotFaceNormal = DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)\n\t\t\t\t\tif (TraceDotFaceNormal < BestOpposingDot)\n\t\t\t\t\t{\n\t\t\t\t\t\tBestOpposingDot = TraceDotFaceNormal;\n\t\t\t\t\t\tBestNormal = TVector<T, d>(0);\n\t\t\t\t\t\tBestNormal[Axis] = 1;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\telse if (OriginalNormal[Axis] < -UE_KINDA_SMALL_NUMBER)\n\t\t\t\t{\n\t\t\t\t\tconst T TraceDotFaceNormal = -DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)\n\t\t\t\t\tif (TraceDotFaceNormal < BestOpposingDot)\n\t\t\t\t\t{\n\t\t\t\t\t\tBestOpposingDot = TraceDotFaceNormal;\n\t\t\t\t\t\tBestNormal = FVector(0.f);\n\t\t\t\t\t\tBestNormal[Axis] = -1.f;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\treturn BestNormal;\n\t\t}\n\t\t\n\t\tFORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness, int32& OutVertexIndex) const"
+  },
+  "native_geometry_witness": [
+    {
+      "name": "lateral_-130",
+      "contact_normal": {
+        "x": 0.9370432377565703,
+        "y": -0.34482746880267107,
+        "z": 0.0551723421093058
+      },
+      "source_selected_axis": "x",
+      "source_selected_sign": 1,
+      "impact_point_cm": {
+        "x": -80,
+        "y": -120,
+        "z": 80
+      }
+    },
+    {
+      "name": "lateral_-110",
+      "contact_normal": {
+        "x": 0.9984768459123283,
+        "y": -1.027666051132272e-08,
+        "z": 0.05517234975029158
+      },
+      "source_selected_axis": "x",
+      "source_selected_sign": 1,
+      "impact_point_cm": {
+        "x": -80.00001525878906,
+        "y": -110,
+        "z": 80
+      }
+    },
+    {
+      "name": "lateral_0",
+      "contact_normal": {
+        "x": 0.998479138323746,
+        "y": 0,
+        "z": 0.05513084737485357
+      },
+      "source_selected_axis": "x",
+      "source_selected_sign": 1,
+      "impact_point_cm": {
+        "x": -80.00007629394531,
+        "y": 0,
+        "z": 80.00120544433594
+      }
+    },
+    {
+      "name": "lateral_110",
+      "contact_normal": {
+        "x": 0.9984768459123148,
+        "y": 1.644265681811613e-07,
+        "z": 0.05517234975029083
+      },
+      "source_selected_axis": "x",
+      "source_selected_sign": 1,
+      "impact_point_cm": {
+        "x": -80,
+        "y": 109.99999237060547,
+        "z": 80
+      }
+    },
+    {
+      "name": "lateral_130",
+      "contact_normal": {
+        "x": 0.9371708718568736,
+        "y": 0.3444891007951532,
+        "z": 0.055118203675136625
+      },
+      "source_selected_axis": "x",
+      "source_selected_sign": 1,
+      "impact_point_cm": {
+        "x": -80.00369262695312,
+        "y": 120.00981903076172,
+        "z": 80.00157165527344
+      }
+    }
+  ]
+}

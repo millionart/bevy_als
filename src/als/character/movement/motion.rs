@@ -10824,6 +10824,35 @@ mod tests {
     }
 
     #[test]
+    fn loaded_mantle_corner_keeps_the_wall_face_direction() {
+        use avian3d::prelude::{CollisionLayers, LayerMask};
+        use crate::als::character::AlsCollisionLayer;
+        for lateral in [-1.3, 0.0, 1.3] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.4, 0.8, 1.2),
+                Transform::from_xyz(0.0, 0.4, -1.4),
+                CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL)));
+            let position = app.world().get::<Position>(character).unwrap().0.with_x(lateral);
+            app.world_mut().entity_mut(character).insert((Position(position), Transform::from_translation(position),
+                LinearVelocity::ZERO, AlsCharacterDebug::default()));
+            app.update();
+            app.update();
+            {
+                let mut input = app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+                input.move_dir = Vec2::Y;
+                input.jump_pressed = true;
+            }
+            app.update();
+            let state = app.world().get::<AlsMantleState>(character).unwrap();
+            let trace = app.world().get::<AlsCharacterDebug>(character).unwrap().0.mantle_probe.unwrap();
+            assert!(state.active, "lateral={lateral} trace={trace:?}");
+            assert!((state.target.x - trace.forward_hit.unwrap().x).abs() < 0.0001,
+                "lateral={lateral} target={:?} trace={trace:?}", state.target);
+            assert!(state.yaw_target.abs() < 0.0001, "lateral={lateral} yaw={}", state.yaw_target);
+        }
+    }
+
+    #[test]
     fn transform_base_follow_only_sweeps_character_blocking_shapes() {
         use bevy::ecs::system::RunSystemOnce;
         use crate::als::character::AlsCollisionLayer;

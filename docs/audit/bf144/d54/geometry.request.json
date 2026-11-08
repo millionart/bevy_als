@@ -1,0 +1,174 @@
+{
+  "samples": [
+    {
+      "name": "lateral_-130",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -140,
+          0,
+          40
+        ],
+        "box_half_extents_cm": [
+          60,
+          120,
+          40
+        ],
+        "start_cm": [
+          30,
+          -130,
+          140.1
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "length_cm": 106,
+        "radius_cm": 29,
+        "half_height_cm": 87.5
+      }
+    },
+    {
+      "name": "lateral_-110",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -140,
+          0,
+          40
+        ],
+        "box_half_extents_cm": [
+          60,
+          120,
+          40
+        ],
+        "start_cm": [
+          30,
+          -110,
+          140.1
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "length_cm": 106,
+        "radius_cm": 29,
+        "half_height_cm": 87.5
+      }
+    },
+    {
+      "name": "lateral_0",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -140,
+          0,
+          40
+        ],
+        "box_half_extents_cm": [
+          60,
+          120,
+          40
+        ],
+        "start_cm": [
+          30,
+          0,
+          140.1
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "length_cm": 106,
+        "radius_cm": 29,
+        "half_height_cm": 87.5
+      }
+    },
+    {
+      "name": "lateral_110",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -140,
+          0,
+          40
+        ],
+        "box_half_extents_cm": [
+          60,
+          120,
+          40
+        ],
+        "start_cm": [
+          30,
+          110,
+          140.1
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "length_cm": 106,
+        "radius_cm": 29,
+        "half_height_cm": 87.5
+      }
+    },
+    {
+      "name": "lateral_130",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -140,
+          0,
+          40
+        ],
+        "box_half_extents_cm": [
+          60,
+          120,
+          40
+        ],
+        "start_cm": [
+          30,
+          130,
+          140.1
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "length_cm": 106,
+        "radius_cm": 29,
+        "half_height_cm": 87.5
+      }
+    }
+  ]
+}

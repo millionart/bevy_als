@@ -6164,7 +6164,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色面对同一0.8m ledge，父Kinematic component速度0、命中child component速度0.2m/s时，source应拒绝，target probe Success且实际开始Mantle；父0.2、child0时反向误拒绝。`bf144_mantle_hit_component_velocity_keeps_component_identity`6组4PASS/2FAIL，独立组件及父子速度相同的4个对照PASS；证据`target/bf144/16/initial/`。
   - 漏检：旧compound-body测试把AlsComponentVelocity统一插在body，并将body值作为oracle；没有为命中child提供不同的合法组件速度。本项只确认已提供组件速度时的消费者身份，不假定所有移动平台都有非零ComponentVelocity；独立于D33基座继承消费者，仅登记。
 
-- [ ] BF144-D54 / P2 — Mantle在箱体边角用接触法线偏转目标与朝向。
+- [x] BF144-D54 / P2 — Mantle在箱体边角用接触法线偏转目标与朝向；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:44 +08:00；预估结束18:14 +08:00；实际结束17:47 +08:00，提前27分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS/UE前向几何面选择和五组原生接触法线保存在`docs/audit/bf144/d54/`；目标复用已有面法线函数，已写边角、面内与加载角色对照。旧target报告缺失，下扫消费阶段未扩展，动画Gate待执行。
   - Source：fresh `CollisionConversions.cpp:115–137`对capsule/sphere sweep构建ImpactNormal；Chaos `Box.h:196–198`→`ChaosCore/AABB.h:249–283`从接触涉及的面选择最反向trace的几何面，正向扫箱体角应取前墙面。ALS `AlsCharacter_Actions.cpp:256–270,402`用该ImpactNormal生成TargetDirection、目标XY偏移和目标朝向。
   - Target：`src/als/character/actions/mantle.rs:557,582–588`直接把Avian normal1的水平接触法线当ImpactNormal；实际MantleIntent及已开始状态消费这个倾斜方向。
   - 反例：2.4m宽、0.8m高箱体前，actor x=±1.3m以−Z正向探测；命中侧边x=±1.2m。source目标x应保持命中x、yaw0，target目标横移约5.2cm、yaw约±20°；完整角色实际开始Mantle且保存同方向偏差。`bf144_mantle_corner_uses_geometric_wall_normal`4组2PASS/2FAIL，x=0/1.1m面内对照PASS；证据`target/bf144/16/initial/`。
