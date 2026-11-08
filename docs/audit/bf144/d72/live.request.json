@@ -1,0 +1,10 @@
+{
+  "scales": [
+    [
+      0.01,
+      0.01,
+      0.01
+    ]
+  ],
+  "rescale_from_unit": true
+}

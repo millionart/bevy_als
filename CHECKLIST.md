@@ -6304,12 +6304,16 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整rig scale=0.2的head源Ixz=4.0892246e-6，target为0；以Ix x列量级的局部X角冲量复算，源角速度响应含z=−0.22336152，target z=0。10组native frame对照5PASS/5FAIL，只将实际body的principal/frame改用native转换后全部恢复。默认head另有同一分解入口的约1.43e-6矩阵误差，记录为数值偏差，不冒称已比较整段布娃娃轨迹。既有PA测试只测少数主轴或较大尺寸，未覆盖SI量级触发的绝对门槛。
   - 19:33 source/static摘要：fresh原生body principal/frame与目标坐标基及惯量单位离线转换已持久化；十组分解前输入最大相对差约2.2e-7。源绝对均值/相对非对角门槛及归一化分解已接入实际rig，已写尺度阈值、native body和角冲量对照；近重本征值数值差、测试、消融和真实入口均待统一验证。证据`docs/audit/bf144/d71/`。实际结束：2026-11-08 19:33 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D72 / P3 — 初始极小uniform rig的质量属性绕过最终形状尺寸下限。
+- [x] BF144-D72 / P3 — 初始极小uniform rig的质量属性绕过最终形状尺寸下限。
+  - 本轮开始：2026-11-08 19:34 +08:00；预计结束：2026-11-08 20:29 +08:00。重新提取初始化尺寸下限与质量属性链路、采集极小scale原生body数据，修复初始化质量计算并补单体及多shape对照；执行验证留到升级后。
+  - 19:36 source/static摘要：fresh `GetFinalScaled`及Chaos形状创建确认初始化capsule圆柱全长最小0.1cm；fresh六档PA原生body读取完成，0.01 pelvis与spine_03分别覆盖单shape和多shape。由于运行中缩放使用不同下限，质量计算需保留rig创建/已缩放生命周期，D73几何实现仍独立待办；live原生控制采集中。
   - Source：fresh `FKSphylElem::GetFinalScaled`对半高/半径及圆柱长度施加源下限，再由实际Chaos形状计算质量、质心与惯量；原生InitBody+UpdateMassProperties验证scale=0.01的pelvis Ixx=1.2151629e-9kg·m²。
   - Target：`scaled_ragdoll_mass_properties:1297–1301`对uniform scale直接缩放未截断的原始质心/惯量，虽然`scaled_collider:123–126`已经将实际capsule圆柱长度截到1mm。目标pelvis Ixx=1.0713182e-9，约低11.8%；spine_03因各shape体积占比改变还保留了错误质心。
   - 反例：全新scale=0.01角色的21 body中18组不符，包含D71的分解影响；pelvis是无旋转单shape，独立证明本项，质量1g与实际shape下限均正确。从实际clamped Collider重新计算的Ixx与native相等，误差5.55e-17。source六种scale共126组102PASS/24FAIL，常规尺寸与无下限触发的root/foot提供对照。未将source自身在4个极小body上的数值分解偏差“修正”为理想公式。
+  - 19:41 source/static摘要：六档初始化及0.01 live原生body输出、坐标单位转换和身份已持久化；初始尺寸被截断时按实际shape重算质量、质心和惯量，生命周期记录区分live更新与rig重建。已写单/多shape、普通尺度、profile重应用及live/重建对照；多shape live质心边界转D73，测试、状态消融及真实入口均待统一Gate。证据`docs/audit/bf144/d72/`。实际结束：2026-11-08 19:41 +08:00；偏差：−48分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D73 / P3 — 已创建rig的小尺寸缩放错误复用初始化capsule轴长下限。
+  - 19:40 D72依赖控制发现的同链路边界：fresh `UpdateBodyScale`对live capsule半径也有限制，0.01的多shape spine_03原生质心X约0.00019486m，而target均匀缩放原质心约0.00007826m；此前“质量/惯量相符”仅为pelvis单shape对照。D73处理live几何时须按更新后的实际shape复算多shape质量属性，保留pelvis对照，不将这一源差异归给D72初始化。
   - Source：fresh `BodyInstance::UpdateBodyScale:2402–2422`的live分支将capsule半轴下限设为FCollisionShape::MinCapsuleAxisHalfHeight，即1e-4cm；与初始化GetFinalScaled的圆柱长度0.1cm下限不同。原生live probe确认pelvis在scale=0.01时按半轴0.35mm计算惯量。
   - Target：`scaled_collider:123–126`在创建与更新两条路径都将圆柱全长截到1mm；live pelvis实际半轴0.5mm，比源0.35mm多0.15mm。该case的目标质量/惯量反而与native live相符，证明是形状更新边界，独立于D72的初始化质量属性。
   - 反例：完整角色的player/mesh从unit scale改为1/0.75/1.5/0.01，4组3PASS/1FAIL；源与target半径均1.4mm，最后一组只有实际几何轴长不等。`bf144_pa_live_scale_matches_source_body_geometry_and_mass`保留native质量控制与当前Collider取样，没有改尺寸阈值。
