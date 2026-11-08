@@ -5595,6 +5595,11 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - BF144.366新后缀实际secondary1消费者：完整490有效腿/326新尾的同输入源厘米unit重算中，ordinal101/site91左thigh pre-weight quat Z的F32为0.5763874053955078，当前同厘米长度适配solver为0.576387345790863；其余分量同。固定原source输入/长度/其他全部算子，只回退vector rotate或normalizer各自重现同一F32反例，其他乘法/dot/向量除法单因素不重现。共同扩展D247/D248既证算子消费域，source模型全490实际与primary-only对照1960 quat native double精确；旧.286前164 actual-secondary1无F32差的限定保留。未宣称原current最终local thigh已归因，证据`target/bf144/366/witness-check.json`与`factors-check.json`。
 
 - [ ] BF144-D246 / P3 — Rig世界射线过早降为F32并重建命中点，丢失源世界坐标精度。
+  - 按目标实际碰撞形状拆分：D246a先修已有原生反例的盒体，保留其余形状旧路径；D246b处理Playground复杂三角网格及其他已用形状，统一覆盖最近命中、过滤、单位和资源生命周期后关闭父项。每项单独记录和提交，全部静态修复及Bevy/依赖迁移后统一验证。
+  - [x] BF144-D246a — 世界空间F64盒体射线。开始2026-11-08 10:47 +08:00；预估结束11:37 +08:00。依据：.462/.463有两脚真实盒体ray及636历史，需核Avian公开shape与已安装Parry F64 API、正常/起点内/最近命中边界及源双精度点；复杂形状与缓存另拆。
+    - 10:50 source/static闭环：UE足射线的原生box端点与命中为double厘米；目标Avian `Collider`公开scaled shape，现成Parry 0.27双精度Cuboid提供同一solid射线接口。盒体可在局部F64计算参数并按原始F64世界segment重建命中；保持过滤、最近hit、起点内及终点边界。旧F32路径暂服务三角网格等其余形状，D246b不得因此关闭。已写原生水平面及内部起点fixture，fresh源ray复采中。
+    - 10:54实现摘要：盒体使用F64局部射线与原始世界segment，混合球体仍用旧路径并参与最近命中；已写源水平面、内起点和混合过滤fixture。fresh source ray与.463记录逐值一致，证据在`docs/audit/bf144/d246a/`。新增直接Parry F64依赖及锁文件入口尚未解析/编译；三角网格和其他形状留D246b。实际实现结束2026-11-08 10:54 +08:00，较预估提前43分钟；目标测试、消融及公共Gate仍待执行。
+  - [ ] BF144-D246b — Playground三角网格和其他碰撞形状的F64射线及生命周期，依赖D246a；开始时根据实际形状闭包重新估时。
   - BF144.463同源world ray的当前边界：保持原公开F32 query/两Floor，636完整hit与源API world hit仍不同，但垂直值全同；1272目标水平分量精确f32(native world ray origin)。源hit水平坐标少量还与自身origin的F64值不同，该求交/单位算序边界独立保留，不把它也归F32量化。目标588 offset差在不改query F32路径/几何的D247控制中已全恢复，不能将本批scalar残差归本项；未称两Box/单Box或整个查询等价。`docs/audit/bf144/463/check.json`与source-hit-origin-boundary.json，无新D/修复。
   - Source：fresh `AlsRigUnit_FootOffsetTrace.cpp:24–29,48–57`在FVector/double厘米世界空间调用LineTraceSingleByChannel，再用FHitResult.ImpactPoint逆转回Rig。真实同segment/同floor box原生query的runtime point为(−0.1390749849522201,−1.4210854715202004e−16,0.12767334008114312)；geometry、channel、复杂模式与输入均来自原warm-6的实际调用。
   - Target：`src/control_rig/control_rig_query.rs:33–53`把start/end差与origin先降为Vec3，经float方向/长度查询后用float origin+direction*length重建点，再升DVec3。实际point为(−0.13907498121261597,5.960464477539063e−8,0.12767334282398224)，公开query重放逐值精确。

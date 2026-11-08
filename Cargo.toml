@@ -27,6 +27,7 @@ bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_gra
 bevy_enhanced_input = "0.26"
 bevy_gameplay_tag = { git = "https://github.com/SuitedRioter/bevy_gameplay_tag", rev = "1ed503fdd60de3456a96ecce7ade33f0a06bfde1" }
 avian3d = { version = "0.7", default-features = false, features = ["3d", "debug-plugin", "parallel"] }
+parry3d-f64 = { version = "0.27", default-features = false, features = ["alloc", "std", "required-features"] }
 bevy-tnua = { git = "https://github.com/millionart/bevy-tnua", branch = "main" }
 bevy-tnua-avian3d = { git = "https://github.com/millionart/bevy-tnua", branch = "main" }
 serde = { version = "1.0", features = ["derive"] }

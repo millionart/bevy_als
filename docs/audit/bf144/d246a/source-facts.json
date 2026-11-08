@@ -1,0 +1,114 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/Nodes/AlsRigUnit_FootOffsetTrace.cpp",
+      "sha256": "bbf32d04017c02acbd012a7d79f691c2d020fa4972d0a998705421b8714258f9",
+      "excerpts": [
+        {
+          "first_line": 17,
+          "last_line": 26,
+          "text": "\t}\r\n\r\n\t// Trace downward from the foot location to find the geometry. If the surface is walkable, save the impact location and normal.\r\n\r\n\tconst FVector TraceStart{FootTargetLocation.X, FootTargetLocation.Y, TraceDistanceUpward};\r\n\tconst FVector TraceEnd{FootTargetLocation.X, FootTargetLocation.Y, -TraceDistanceDownward};\r\n\r\n\tFHitResult Hit;\r\n\tExecuteContext.GetWorld()->LineTraceSingleByChannel(Hit, ExecuteContext.ToWorldSpace(TraceStart), ExecuteContext.ToWorldSpace(TraceEnd),\r\n\t                                                    TraceChannel, {__FUNCTION__, true, ExecuteContext.GetOwningActor()});\r\n"
+        },
+        {
+          "first_line": 39,
+          "last_line": 48,
+          "text": "\tconst auto HitNormal{ExecuteContext.GetToWorldSpaceTransform().InverseTransformVector(Hit.ImpactNormal)};\r\n\r\n\tif (!Hit.bBlockingHit || HitNormal.Z < FMath::Cos(FMath::DegreesToRadians(WalkableFloorAngle)))\r\n\t{\r\n\t\tOffsetLocationZ = 0.0f;\r\n\t\tOffsetNormal = FVector::UpVector;\r\n\t\treturn;\r\n\t}\r\n\r\n\tconst auto HitLocation{ExecuteContext.ToVMSpace(Hit.ImpactPoint)};\r\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Box.h",
+      "sha256": "8deef2bc40af77117752fc65726ac148bca7891ec05fcda75378149ec64d88b6",
+      "excerpts": [
+        {
+          "first_line": 172,
+          "last_line": 185,
+          "text": "\t\tstatic FORCEINLINE bool RaycastFast(const TVector<T,d>& InMin, const TVector<T,d>& InMax, const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition)\n\t\t{\n\t\t\treturn TAABB<T, d>(InMin, InMax).RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvLength, OutTime, OutPosition);\n\t\t}\n\n\t\tvirtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override\n\t\t{\n\t\t\tif (AABB.Raycast(StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex))\n\t\t\t{\n\t\t\t\treturn true;\n\t\t\t}\n\t\t\treturn false;\n\t\t}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "avian3d-0.7.0/src/collision/collider/parry/mod.rs",
+      "sha256": "2a04ce7d6913b008e654905c96ead648efd840ddf102863532bc38bd187e3945",
+      "excerpts": [
+        {
+          "first_line": 366,
+          "last_line": 377,
+          "text": "pub struct Collider {\n    /// The raw unscaled collider shape.\n    shape: SharedShape,\n    /// The scaled version of the collider shape.\n    ///\n    /// If the scale is `Vector::ONE`, this will be `None` and `unscaled_shape`\n    /// will be used instead.\n    scaled_shape: SharedShape,\n    /// The global scale used for the collider shape.\n    scale: Vector,\n}\n\n"
+        },
+        {
+          "first_line": 534,
+          "last_line": 551,
+          "text": "impl Collider {\n    /// Returns the raw unscaled shape of the collider.\n    pub fn shape(&self) -> &SharedShape {\n        &self.shape\n    }\n\n    /// Returns a mutable reference to the raw unscaled shape of the collider.\n    pub fn shape_mut(&mut self) -> &mut SharedShape {\n        &mut self.shape\n    }\n\n    /// Returns the shape of the collider with the scale from its `GlobalTransform` applied.\n    pub fn shape_scaled(&self) -> &SharedShape {\n        &self.scaled_shape\n    }\n\n    /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.\n    pub fn set_shape(&mut self, shape: SharedShape) {\n"
+        },
+        {
+          "first_line": 651,
+          "last_line": 669,
+          "text": "    pub fn cast_ray(\n        &self,\n        translation: impl Into<Position>,\n        rotation: impl Into<Rotation>,\n        ray_origin: Vector,\n        ray_direction: Vector,\n        max_distance: Scalar,\n        solid: bool,\n    ) -> Option<(Scalar, Vector)> {\n        let hit = self.shape_scaled().cast_ray_and_get_normal(\n            &make_pose(translation, rotation),\n            &parry::query::Ray::new(ray_origin, ray_direction),\n            max_distance,\n            solid,\n        );\n        hit.map(|hit| (hit.time_of_impact, hit.normal))\n    }\n\n    /// Tests whether the given ray intersects `self` transformed by `translation` and `rotation`.\n"
+        }
+      ]
+    },
+    {
+      "path": "parry3d-f64-0.27.0/src/query/ray/ray.rs",
+      "sha256": "8140d4085c472095ead53265dd35bad12366a2914982feeaf31008ca936784af",
+      "excerpts": [
+        {
+          "first_line": 355,
+          "last_line": 395,
+          "text": "pub trait RayCast {\n    /// Computes the time of impact between this transform shape and a ray.\n    fn cast_local_ray(&self, ray: &Ray, max_time_of_impact: Real, solid: bool) -> Option<Real> {\n        self.cast_local_ray_and_get_normal(ray, max_time_of_impact, solid)\n            .map(|inter| inter.time_of_impact)\n    }\n\n    /// Computes the time of impact, and normal between this transformed shape and a ray.\n    fn cast_local_ray_and_get_normal(\n        &self,\n        ray: &Ray,\n        max_time_of_impact: Real,\n        solid: bool,\n    ) -> Option<RayIntersection>;\n\n    /// Tests whether a ray intersects this transformed shape.\n    #[inline]\n    fn intersects_local_ray(&self, ray: &Ray, max_time_of_impact: Real) -> bool {\n        self.cast_local_ray(ray, max_time_of_impact, true).is_some()\n    }\n\n    /// Computes the time of impact between this transform shape and a ray.\n    fn cast_ray(&self, m: &Pose, ray: &Ray, max_time_of_impact: Real, solid: bool) -> Option<Real> {\n        let ls_ray = ray.inverse_transform_by(m);\n        self.cast_local_ray(&ls_ray, max_time_of_impact, solid)\n    }\n\n    /// Computes the time of impact, and normal between this transformed shape and a ray.\n    fn cast_ray_and_get_normal(\n        &self,\n        m: &Pose,\n        ray: &Ray,\n        max_time_of_impact: Real,\n        solid: bool,\n    ) -> Option<RayIntersection> {\n        let ls_ray = ray.inverse_transform_by(m);\n        self.cast_local_ray_and_get_normal(&ls_ray, max_time_of_impact, solid)\n            .map(|inter| inter.transform_by(m))\n    }\n\n    /// Tests whether a ray intersects this transformed shape.\n"
+        }
+      ]
+    },
+    {
+      "path": "parry3d-f64-0.27.0/src/query/ray/ray_cuboid.rs",
+      "sha256": "30310b8efb25da98f4aacbb84aa1d6501c81101e56ad589b91092391fc651dfb",
+      "excerpts": [
+        {
+          "first_line": 1,
+          "last_line": 24,
+          "text": "use crate::bounding_volume::Aabb;\nuse crate::math::Real;\nuse crate::query::{Ray, RayCast, RayIntersection};\nuse crate::shape::Cuboid;\n\nimpl RayCast for Cuboid {\n    #[inline]\n    fn cast_local_ray(&self, ray: &Ray, max_time_of_impact: Real, solid: bool) -> Option<Real> {\n        let dl = -self.half_extents;\n        let ur = self.half_extents;\n        Aabb::new(dl, ur).cast_local_ray(ray, max_time_of_impact, solid)\n    }\n\n    #[inline]\n    fn cast_local_ray_and_get_normal(\n        &self,\n        ray: &Ray,\n        max_time_of_impact: Real,\n        solid: bool,\n    ) -> Option<RayIntersection> {\n        let dl = -self.half_extents;\n        let ur = self.half_extents;\n        Aabb::new(dl, ur).cast_local_ray_and_get_normal(ray, max_time_of_impact, solid)\n    }\n"
+        }
+      ]
+    },
+    {
+      "path": "parry3d-f64-0.27.0/src/query/ray/ray_aabb.rs",
+      "sha256": "535a1e5565f6bfc54deaf0cba780dca1fbd44767ea3dd326b41e4bba74efc252",
+      "excerpts": [
+        {
+          "first_line": 50,
+          "last_line": 82,
+          "text": "    fn cast_local_ray_and_get_normal(\n        &self,\n        ray: &Ray,\n        max_time_of_impact: Real,\n        solid: bool,\n    ) -> Option<RayIntersection> {\n        ray_aabb(self, ray, max_time_of_impact, solid).map(|(t, n, i)| {\n            let feature = if i < 0 {\n                FeatureId::Face((-i) as u32 - 1 + 3)\n            } else {\n                FeatureId::Face(i as u32 - 1)\n            };\n\n            RayIntersection::new(t, n, feature)\n        })\n    }\n}\n\nfn ray_aabb(\n    aabb: &Aabb,\n    ray: &Ray,\n    max_time_of_impact: Real,\n    solid: bool,\n) -> Option<(Real, Vector, isize)> {\n    use crate::query::clip;\n    clip::clip_aabb_line(aabb, ray.origin, ray.dir).and_then(|(near, far)| {\n        if near.0 < 0.0 {\n            if solid {\n                Some((0.0, Vector::ZERO, far.2))\n            } else if far.0 <= max_time_of_impact {\n                Some(far)\n            } else {\n                None\n"
+        }
+      ]
+    },
+    {
+      "path": "src/control_rig/control_rig_query.rs",
+      "sha256": "66b0ed16e1a58e5dae54df8fa4c934228a54068d17edf8f15d9ad247a463c0bd",
+      "excerpts": [
+        {
+          "first_line": 9,
+          "last_line": 55,
+          "text": "pub struct RigQueryWorld {\n    pub colliders: HashMap<Entity, (Position, Rotation, Collider, CollisionLayers)>,\n}\n\n#[derive(Clone)]\npub struct RigQueryContext {\n    pub world: Arc<RigQueryWorld>,\n    pub to_world: RigTransform,\n    pub channel: String,\n    pub filter: SpatialQueryFilter,\n}\n\nimpl RigQueryContext {\n    pub fn trace(\n        &self,\n        start: DVec3,\n        end: DVec3,\n        channel: &str,\n        complex: bool,\n    ) -> Result<Option<(DVec3, DVec3)>, String> {\n        if channel != self.channel || !complex {\n            return Err(\"rig collision query mode is unsupported\".to_owned());\n        }\n        let delta = (end - start).as_vec3();\n        let Ok(direction) = Dir3::new(delta) else {\n            return Ok(None);\n        };\n        let origin = start.as_vec3();\n        let mut distance = delta.length();\n        let mut hit = None;\n        for (entity, (position, rotation, collider, layers)) in &self.world.colliders {\n            if !self.filter.test(*entity, *layers) {\n                continue;\n            }\n            let Some((length, normal)) = collider.cast_ray(\n                position.0, *rotation, origin, direction.as_vec3(), distance, true,\n            ) else {\n                continue;\n            };\n            if length < distance {\n                distance = length;\n                hit = Some(((origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()));\n            }\n        }\n        Ok(hit)\n    }\n}\n"
+        }
+      ],
+      "revision": "before_D246a"
+    },
+    {
+      "path": "src/als/character/control_rig_apply.rs",
+      "sha256": "edc0216c5c4edaffce760df3d92268fb98f174066e593de6996454591a2bae65",
+      "excerpts": [
+        {
+          "first_line": 390,
+          "last_line": 395,
+          "text": "    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,\n    mut players: Query<&mut AnimationGraphPlayer>,\n    transforms: TransformHelper,\n    trees: Option<Res<ColliderTrees>>,\n    colliders: Query<(Entity, &Position, &Rotation, &Collider, Option<&CollisionLayers>, Option<&crate::extensions::ComplexCollider>, Option<&RagdollShapeCollisionMode>)>,\n    capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,\n"
+        },
+        {
+          "first_line": 429,
+          "last_line": 445,
+          "text": "        let context = if input.foot_transforms_valid {\n            trees.as_ref().and_then(|_| transforms.compute_global_transform(avatar).ok().map(|transform| {\n                let world = world.get_or_insert_with(|| Arc::new(RigQueryWorld {\n                    colliders: colliders.iter()\n                        .filter(|(_, _, _, _, _, _, mode)| mode.is_none_or(|mode| mode.has_query()))\n                        .map(|(entity, position, rotation, collider, layers, complex, _)| {\n                            let mut surface = complex.map_or(collider, |value| &value.0).clone();\n                            surface.set_scale(collider.scale(), 10);\n                            (entity, (*position, *rotation, surface, layers.copied().unwrap_or_default()))\n                        }).collect(),\n                })).clone();\n                let transform = transform.compute_transform();\n                RigQueryContext { world, filter, channel: \"ECC_Visibility\".to_owned(),\n                    to_world: RigTransform { translation: transform.translation.as_dvec3(), rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }\n            }))\n        } else { None };\n        source_inputs.get_mut(root).unwrap().set_rig_query_context(context);\n"
+        }
+      ],
+      "revision": "before_D246a"
+    }
+  ]
+}

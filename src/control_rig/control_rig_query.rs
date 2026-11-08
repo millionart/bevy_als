@@ -3,8 +3,9 @@ use std::sync::Arc;
 use avian3d::prelude::*;
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::{math::DVec3, platform::collections::HashMap, prelude::*};
+use parry3d_f64::{query::{Ray, RayCast}, shape::Cuboid};
 
-use crate::extensions::control_rig_hierarchy::RigTransform;
+use crate::extensions::control_rig_hierarchy::{RigTransform, source_rotate_vector};
 
 pub struct RigQueryWorld {
     pub colliders: HashMap<Entity, (Position, Rotation, Collider, CollisionLayers)>,
@@ -29,25 +30,40 @@ impl RigQueryContext {
         if channel != self.channel || !complex {
             return Err("rig collision query mode is unsupported".to_owned());
         }
-        let delta = (end - start).as_vec3();
-        let Ok(direction) = Dir3::new(delta) else {
+        let delta = end - start;
+        if !delta.is_finite() || delta == DVec3::ZERO {
             return Ok(None);
-        };
+        }
+        let delta_f32 = delta.as_vec3();
+        let fallback = Dir3::new(delta_f32).ok().map(|direction| (direction, delta_f32.length()));
         let origin = start.as_vec3();
-        let mut distance = delta.length();
+        let mut nearest = 1.0;
         let mut hit = None;
         for (entity, (position, rotation, collider, layers)) in &self.world.colliders {
             if !self.filter.test(*entity, *layers) {
                 continue;
             }
-            let Some((length, normal)) = collider.cast_ray(
-                position.0, *rotation, origin, direction.as_vec3(), distance, true,
-            ) else {
+            let candidate = if let Some(cuboid) = collider.shape_scaled().as_cuboid() {
+                let rotation = rotation.0.as_dquat();
+                let local_origin = source_rotate_vector(rotation.conjugate(), start - position.0.as_dvec3());
+                let local_delta = source_rotate_vector(rotation.conjugate(), delta);
+                Cuboid::new(cuboid.half_extents.as_dvec3())
+                    .cast_local_ray_and_get_normal(&Ray::new(local_origin, local_delta), nearest, true)
+                    .map(|impact| (impact.time_of_impact, start + delta * impact.time_of_impact,
+                        source_rotate_vector(rotation, impact.normal)))
+            } else if let Some((direction, distance)) = fallback {
+                collider.cast_ray(position.0, *rotation, origin, direction.as_vec3(), distance, true)
+                    .map(|(length, normal)| (f64::from(length) / f64::from(distance),
+                        (origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()))
+            } else {
+                None
+            };
+            let Some((fraction, point, normal)) = candidate else {
                 continue;
             };
-            if length < distance {
-                distance = length;
-                hit = Some(((origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()));
+            if fraction < nearest {
+                nearest = fraction;
+                hit = Some((point, normal));
             }
         }
         Ok(hit)
@@ -61,6 +77,49 @@ mod tests {
         control_rig_hierarchy::RigHierarchy, control_rig_ik::RigGeometry,
         control_rig_math::RigValue, control_rig_units::RigUnitContext,
     };
+
+    #[test]
+    fn rig_query_preserves_double_precision_on_source_box_ray() {
+        let mut entities = World::new();
+        let floor = entities.spawn_empty().id();
+        let query = RigQueryContext {
+            world: Arc::new(RigQueryWorld { colliders: [(
+                floor,
+                (Position(Vec3::new(-10.0, -0.25, -20.0)), Rotation::default(),
+                    Collider::cuboid(40.0, 0.5, 20.0), CollisionLayers::ALL),
+            )].into_iter().collect() }),
+            to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+        };
+        let start = DVec3::new(-1515.661_365_680_93 * 0.01, 49.999_994_039_535_52 * 0.01,
+            -1508.488_173_045_665_7 * 0.01);
+        let end = start.with_y(-80.000_005_960_464_48 * 0.01);
+        let hit = query.trace(start, end, "Visibility", true).unwrap().unwrap();
+        assert_eq!(hit, (DVec3::new(start.x, 0.0, start.z), DVec3::Y));
+        let inside = DVec3::new(-10.0, -0.25, -20.0);
+        assert_eq!(query.trace(inside, inside + DVec3::Y, "Visibility", true).unwrap(),
+            Some((inside, DVec3::ZERO)));
+    }
+
+    #[test]
+    fn rig_query_selects_nearest_mixed_precision_collider() {
+        let mut entities = World::new();
+        let floor = entities.spawn_empty().id();
+        let sphere = entities.spawn_empty().id();
+        let mut query = RigQueryContext {
+            world: Arc::new(RigQueryWorld { colliders: [
+                (floor, (Position(Vec3::new(0.0, -0.25, 0.0)), Rotation::default(),
+                    Collider::cuboid(10.0, 0.5, 10.0), CollisionLayers::ALL)),
+                (sphere, (Position(Vec3::Y), Rotation::default(),
+                    Collider::sphere(0.5), CollisionLayers::ALL)),
+            ].into_iter().collect() }),
+            to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+        };
+        let start = DVec3::Y * 3.0;
+        let end = DVec3::NEG_Y * 3.0;
+        assert_eq!(query.trace(start, end, "Visibility", true).unwrap().unwrap().0.y, 1.5);
+        query.filter.excluded_entities.insert(sphere);
+        assert_eq!(query.trace(start, end, "Visibility", true).unwrap().unwrap().0.y, 0.0);
+    }
 
     #[test]
     fn control_rig_query_uses_avian_geometry_filters_and_world_transforms() {

@@ -1,0 +1,50 @@
+{
+  "case": "actual319-reference-0",
+  "frame": "actual-query-001",
+  "native_reference": {
+    "blocking_hit": true,
+    "impact_point_cm": {
+      "x": -1515.66136568093,
+      "y": -1508.4881730456657,
+      "z": 0
+    },
+    "impact_normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    },
+    "world_start_cm": {
+      "x": -1515.66136568093,
+      "y": -1508.4881730456657,
+      "z": 49.99999403953552
+    },
+    "world_end_cm": {
+      "x": -1515.66136568093,
+      "y": -1508.4881730456657,
+      "z": -80.00000596046448
+    },
+    "vm_impact_point_cm": {
+      "x": 17.076305998450138,
+      "y": -5.072213533232677,
+      "z": 5.9604644775390625e-06
+    },
+    "vm_impact_normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "historical_source_record": "docs/audit/bf144/463/inputs.json row 0",
+  "fresh_matches_historical": true,
+  "runtime_box_center_m": [
+    -10.0,
+    -0.25,
+    -20.0
+  ],
+  "runtime_box_half_extents_m": [
+    20.0,
+    0.25,
+    10.0
+  ],
+  "target_geometry_note": "Collider vertices and transform remain F32 even when ray math uses F64"
+}

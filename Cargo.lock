@@ -616,6 +616,7 @@ dependencies = [
  "bevy_enhanced_input",
  "bevy_gameplay_tag",
  "bevy_gltf",
+ "parry3d-f64",
  "ron 0.10.1",
  "serde",
  "serde_json",
