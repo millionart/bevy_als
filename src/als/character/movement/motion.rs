@@ -3222,6 +3222,7 @@ pub(crate) struct FallingImpactBodies<'w, 's> {
     bodies: Query<'w, 's, (&'static RigidBody, &'static Position, &'static LinearVelocity,
         Option<&'static AngularVelocity>, Has<avian3d::prelude::RigidBodyDisabled>)>,
     owners: Query<'w, 's, &'static ColliderOf>,
+    pawns: Query<'w, 's, (), With<AlsCharacter>>,
 }
 
 impl FallingImpactBodies<'_, '_> {
@@ -3232,6 +3233,23 @@ impl FallingImpactBodies<'_, '_> {
         Some(crate::als::dynamics::support_point_velocity(position.0, linear.0,
             angular.map_or(Vec3::ZERO, |velocity| velocity.0), point))
     }
+
+    fn is_pawn(&self, collider: Entity) -> bool {
+        let entity = self.owners.get(collider).map_or(collider, |owner| owner.body);
+        self.pawns.contains(entity)
+    }
+}
+
+fn falling_penetration_adjustment(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3, rotation: Quat,
+    hit: &ShapeHitData, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool,
+    impact_bodies: &FallingImpactBodies) -> Option<Vec3> {
+    let depth = (hit.point1 - hit.point2).dot(hit.normal1);
+    if hit.distance != 0.0 || depth <= 0.0 { return None; }
+    let maximum = if impact_bodies.is_pawn(hit.entity) { MAX_DEPENETRATION_WITH_PAWN } else { MAX_DEPENETRATION_WITH_GEOMETRY };
+    let adjustment = (hit.normal1 * (depth + PENETRATION_PULLBACK_DISTANCE)).clamp_length_max(maximum);
+    let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
+    let inflated = als_character_capsule(extent.y + PENETRATION_OVERLAP_INFLATION, extent.x + PENETRATION_OVERLAP_INFLATION);
+    (!spatial.shape_intersections(&inflated, origin + adjustment, rotation, filter).into_iter().any(accepts)).then_some(adjustment)
 }
 
 pub(crate) fn falling_movement_sweep(
@@ -3253,14 +3271,26 @@ pub(crate) fn falling_movement_sweep(
     let mut applied = Vec3::ZERO;
     let mut contact = false;
     let mut collision_mode = None;
+    let mut teleported = false;
     for sweep in 0..3 {
         let third_delta = remaining;
         let mut motion = Dir3::new_and_length(remaining).ok();
         let mut hit = motion.as_ref().and_then(|(direction, distance)| {
-            let config = ShapeCastConfig { ignore_origin_penetration: true,
-                ..ShapeCastConfig::from_max_distance(*distance) };
-            spatial.cast_shape_predicate(capsule, start + applied, rotation,
-                *direction, &config, &filter, &accepts)
+            let config = ShapeCastConfig::from_max_distance(*distance);
+            let origin = start + applied;
+            let hit = spatial.cast_shape_predicate(capsule, origin, rotation, *direction, &config, &filter, &accepts);
+            if let Some(initial) = hit.as_ref() && initial.distance == 0.0
+                && (initial.point1 - initial.point2).dot(initial.normal1) > 0.0 {
+                if let Some(adjustment) = falling_penetration_adjustment(spatial, capsule, origin, rotation,
+                    initial, &filter, &accepts, impact_bodies) {
+                    applied += adjustment;
+                    teleported = true;
+                    return spatial.cast_shape_predicate(capsule, start + applied, rotation, *direction, &config, &filter, &accepts);
+                }
+                let retry = ShapeCastConfig { ignore_origin_penetration: true, ..config };
+                return spatial.cast_shape_predicate(capsule, origin, rotation, *direction, &retry, &filter, &accepts);
+            }
+            hit
         });
         let mut sidestepped = false;
         if sweep == 2 && let Some(first) = first_impact_normal
@@ -3391,7 +3421,7 @@ pub(crate) fn falling_movement_sweep(
         if sweep == 0 && velocity.abs().max_element() > 1e-6
             && let Some(contact_velocity) = impact_bodies.contact_velocity(hit.entity, hit.point1) {
             velocity -= impact_normal * (velocity - contact_velocity).dot(impact_normal);
-        } else if remaining_time > f32::EPSILON {
+        } else if remaining_time > f32::EPSILON && !teleported {
             velocity = slide / remaining_time;
         }
         if sweep == 0 && slide.dot(budget) <= 0.0 { break; }
@@ -6777,6 +6807,73 @@ mod tests {
             app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
             let actual = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
             assert!((actual.x - expected).abs() < 0.002, "kind={kind:?} speed={speed} actual={actual:?}");
+        }
+    }
+
+    #[test]
+    fn falling_initial_overlap_resolves_before_retrying_original_motion() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (inside, blocked, direction) in [(true, false, 1.0_f32), (true, false, -1.0),
+            (false, false, 1.0), (false, false, -1.0), (true, true, 1.0)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 4.0, 4.0), Transform::IDENTITY));
+            if blocked {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 4.0, 4.0), Transform::from_xyz(-0.7, 0.0, 0.0)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let start = Vec3::X * if inside { -0.15 } else { -0.6 };
+            let (result, adjustment) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                impact_bodies: FallingImpactBodies,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                shapes: Query<(&Collider, &Position, &Rotation)>| {
+                let capsule = als_character_capsule(0.9, 0.3);
+                let filter = SpatialQueryFilter::from_excluded_entities([actor]);
+                let accepts = |candidate| character_blocks_collider(actor, candidate, &candidates);
+                let cast_direction = if direction > 0.0 { Dir3::X } else { Dir3::NEG_X };
+                let hit = spatial.cast_shape_predicate(&capsule, start, Quat::IDENTITY, cast_direction,
+                    &ShapeCastConfig::from_max_distance(1.0 / 60.0), &filter, &accepts);
+                let adjustment = hit.as_ref().and_then(|hit| falling_penetration_adjustment(&spatial, &capsule,
+                    start, Quat::IDENTITY, hit, &filter, &accepts, &impact_bodies));
+                let result = falling_movement_sweep(&spatial, &capsule, start, Quat::IDENTITY,
+                    Vec3::X * (direction / 60.0), Vec3::X * direction, 1.0 / 60.0,
+                    None, None, actor, &candidates, &shapes, &impact_bodies);
+                (result, adjustment)
+            }).unwrap();
+            if inside && !blocked {
+                assert!((adjustment.unwrap().x + 0.20125).abs() < 1e-4, "adjustment={adjustment:?}");
+                let end = start + result.0;
+                assert!(end.x <= -0.35, "direction={direction} end={end:?}");
+                if direction < 0.0 { assert!(end.x < -0.366, "end={end:?}"); }
+                assert_eq!(result.1.x, direction);
+            } else if blocked {
+                assert!(adjustment.is_none(), "A blocked adjustment must not teleport into the other wall");
+            } else {
+                assert!(adjustment.is_none());
+                assert!((result.0.x - direction / 60.0).abs() < 1e-5);
+            }
+        }
+    }
+
+    #[test]
+    fn loaded_falling_character_resolves_wall_overlap_before_motion() {
+        use bevy::ecs::system::RunSystemOnce;
+        for direction in [-1.0_f32, 1.0] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 4.0, 4.0), Transform::from_xyz(0.0, 10.0, 0.0)));
+            app.update();
+            let start = Vec3::new(-0.15, 10.0, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LocomotionState::Air, LinearVelocity(Vec3::X * direction), TnuaMotor::default(),
+                crate::als::character::AlsEffectiveGravity::default(), AlsCmcAdapterRuntime::default()));
+            app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            assert!(position.x <= -0.35, "direction={direction} position={position:?}");
         }
     }
 

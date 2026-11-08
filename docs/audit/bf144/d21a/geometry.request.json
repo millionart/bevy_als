@@ -1,0 +1,106 @@
+{
+  "samples": [
+    {
+      "name": "inside_in",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "box_half_extents_cm": [
+          5,
+          200,
+          200
+        ],
+        "start_cm": [
+          -15,
+          0,
+          0
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "length_cm": 100,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    },
+    {
+      "name": "inside_out",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "box_half_extents_cm": [
+          5,
+          200,
+          200
+        ],
+        "start_cm": [
+          -15,
+          0,
+          0
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "length_cm": 100,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    },
+    {
+      "name": "outside_in",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "box_half_extents_cm": [
+          5,
+          200,
+          200
+        ],
+        "start_cm": [
+          -100,
+          0,
+          0
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "length_cm": 100,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    }
+  ]
+}

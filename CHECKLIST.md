@@ -5860,6 +5860,10 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧Air碰撞夹具以静态几何为主，移动平台回归核对的是站立/落地后的支持速度，未覆盖空中首次impact的simulated-body分支。本项不扩展平台携带或场景物件行为，未改生产实现。
 
 - [ ] BF144-D21 / P2 — 空中移动缺少源SafeMove的初始穿透恢复与重试。
+  - 子项拆分：D21a恢复初始MTD调整、膨胀后可放置的直接脱离及原位移重试；D21b处理调整目标受阻时的源扫出、组合MTD和重试，并覆盖侧移/补扫入口。两项分别静态实现并提交，统一运行验证仍延后。
+  - [x] BF144-D21a — 空中sweep先解除可直接脱离的初始穿透并重试完整原位移。开始2026-11-08 14:29 +08:00；预估结束15:14 +08:00；实际结束14:32 +08:00，提前42分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 闭环：fresh UE MTD/重试源码、CDO上限及原生朝内/朝外重叠探针保存在`docs/audit/bf144/d21a/`；可直接脱离时先恢复再重试，并保留teleport速度条件，已写基础与加载角色对照。目标受阻及侧移/补扫回退仍由D21b处理，目标测试与真实Gate尚未执行。
+  - [ ] BF144-D21b — 调整目标受阻时按源ResolvePenetration次序尝试扫出、组合调整及剩余恢复入口。
   - Source：fresh `MovementComponent.cpp:547–584`默认MoveIgnoreFirstBlockingOverlap=0，SafeMove收到初始穿透时先GetPenetrationAdjustment/ResolvePenetration再重试原位移；`608–658`加入0.125cm pullback并以膨胀形体检查恢复位置。fresh CDO的MaxDepenetrationWithGeometry=500cm足以处理本例。
   - Target：`src/als/character/movement/motion.rs:2721–2749`空中仅cast并投影slide，未执行MTD恢复；现有`4031–4060`的类似恢复只在Grounded floor consumer中运行。后置Avian解穿透不能补齐source先恢复再移动的顺序。
   - 反例：角色空中被外部置为侧壁穿透0.2m，向内/向外速度各1m/s。源MTD恢复后的膨胀胶囊查询无阻挡，正常移动后中心必须x≤−0.2m；target CMC阶段仍x=0/−0.01667m，完整角色最终仅到−0.06607/−0.08044m，仍穿透约0.12–0.13m。`bf144_air_safe_move_resolves_initial_penetration_before_motion`共8组4PASS/4FAIL，墙外两方向对照通过；证据`target/bf144/06/penetration/`。
