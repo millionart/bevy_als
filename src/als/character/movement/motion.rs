@@ -4278,75 +4278,104 @@ fn grounded_movement_transaction(
         spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts)
     } else { raw_hit };
     let mut result = (center, ramp_movement.then_some(ramp_delta), None, penetrating, false, ramp_movement);
-    if let Some(hit) = forward_hit {
-        let forward_travel = movement_sweep_travel(distance, hit.distance);
+    if let Some(first) = forward_hit {
+        let forward_travel = movement_sweep_travel(distance, first.distance);
         let advance = *direction * forward_travel;
         raised += advance;
         remaining_delta = if ramp_movement { delta * (1.0 - forward_travel / distance) } else { delta - advance };
         step_delta = remaining_delta;
-        forward_config.max_distance = remaining_delta.length();
         result.0 = raised;
         result.5 = false;
-        let slide_normal = Vec3::new(hit.normal1.x, 0.0, hit.normal1.z).normalize_or_zero();
-        let slide = remaining_delta - slide_normal * remaining_delta.dot(slide_normal);
-        result.1 = Some(slide);
-        if !can_step_up(hit.entity) {
-            return Some(result);
-        }
-        if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
-            return Some(result);
-        }
-        let Some(floor) = floor else { return Some(result) };
-        let floor_center = floor.center_y;
-        let floor_normal = floor.hit.normal1;
-        let floor_distance = floor.sweep_distance;
-        initial_floor_y = Some(floor.hit.point1.y);
-        let up_config = ShapeCastConfig {
-            ignore_origin_penetration: true,
-            ..ShapeCastConfig::from_max_distance((MAX_STEP_HEIGHT - (center.y - floor_center).max(0.0)).max(0.0))
-        };
-        let lift = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter, &accepts)
-            .map_or(up_config.max_distance, |hit| movement_sweep_travel(up_config.max_distance, hit.distance));
-        raised.y += lift;
-        let step_direction = Dir3::new(remaining_delta).unwrap_or(direction);
-        if let Some(hit) = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY,
-            step_direction, &forward_config, &filter, &accepts) {
-            if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 { return Some(result); }
-            let forward_travel = movement_sweep_travel(forward_config.max_distance, hit.distance);
-            let advance = *step_direction * forward_travel;
-            let impact_normal = source_sweep_impact_normal(spatial_query, &hit, *step_direction * forward_config.max_distance,
-                raised, Quat::IDENTITY, capsule);
-            let normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
-            let tail = remaining_delta - advance;
-            let slide = tail - normal * tail.dot(normal);
-            let mut progressed = advance;
-            let mut had_progress = forward_travel > 0.0;
-            if slide.dot(remaining_delta) > 0.0 && let Ok((slide_direction, slide_distance)) = Dir3::new_and_length(slide) {
-                let slide_config = ShapeCastConfig { max_distance: slide_distance, ..forward_config };
-                let slide_hit = spatial_query.cast_shape_predicate(capsule, raised + advance, Quat::IDENTITY,
-                    slide_direction, &slide_config, &filter, &accepts);
-                if slide_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { return Some(result); }
-                let slide_travel = slide_hit.map_or(slide_distance,
-                    |hit| movement_sweep_travel(slide_distance, hit.distance));
-                progressed += *slide_direction * slide_travel;
-                had_progress |= slide_travel > 0.0;
-                if let Some(second) = slide_hit {
-                    let adjusted = walking_two_wall_adjust(slide, second.normal1, normal,
-                        1.0 - slide_travel / slide_distance, floor_distance);
-                    if adjusted.abs().max_element() > 1e-5 && adjusted.dot(remaining_delta) > 0.0
-                        && let Ok((next_direction, next_distance)) = Dir3::new_and_length(adjusted) {
-                        let next_config = ShapeCastConfig { max_distance: next_distance, ..forward_config };
-                        let next_hit = spatial_query.cast_shape_predicate(capsule, raised + progressed, Quat::IDENTITY,
-                            next_direction, &next_config, &filter, &accepts);
-                        let next_travel = next_hit.map_or(next_distance,
-                            |hit| movement_sweep_travel(next_distance, hit.distance));
-                        progressed += *next_direction * next_travel;
-                        had_progress |= next_travel > 0.0;
+        let impact = (first.distance > 0.0 && first.normal1.y > 1e-4).then(||
+            source_sweep_impact_normal(spatial_query, &first, ramp_delta, center, Quat::IDENTITY, capsule));
+        let hit = if let Some(impact) = impact.filter(|normal| normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) {
+            let projected = ground_ramp_movement(remaining_delta, first.normal1, impact, false);
+            let second = Dir3::new_and_length(projected).ok().and_then(|(direction, distance)| {
+                spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, direction,
+                    &ShapeCastConfig { max_distance: distance, ..forward_config }, &filter, &accepts)
+                    .map(|hit| (hit, direction, distance))
+            });
+            if let Some((hit, direction, distance)) = second {
+                if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 {
+                    result.1 = Some(Vec3::ZERO);
+                    return Some(result);
+                }
+                let travel = movement_sweep_travel(distance, hit.distance);
+                raised += *direction * travel;
+                remaining_delta *= 1.0 - travel / distance;
+                step_delta = remaining_delta;
+                result.0 = raised;
+                Some(hit)
+            } else {
+                remaining_delta = projected;
+                result.1 = Some(projected);
+                result.5 = true;
+                None
+            }
+        } else { Some(first) };
+        if let Some(hit) = hit {
+            forward_config.max_distance = remaining_delta.length();
+            let slide_normal = Vec3::new(hit.normal1.x, 0.0, hit.normal1.z).normalize_or_zero();
+            let slide = remaining_delta - slide_normal * remaining_delta.dot(slide_normal);
+            result.1 = Some(slide);
+            if !can_step_up(hit.entity) {
+                return Some(result);
+            }
+            if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
+                return Some(result);
+            }
+            let Some(floor) = floor else { return Some(result) };
+            let floor_center = floor.center_y;
+            let floor_normal = floor.hit.normal1;
+            let floor_distance = floor.sweep_distance;
+            initial_floor_y = Some(floor.hit.point1.y);
+            let up_config = ShapeCastConfig {
+                ignore_origin_penetration: true,
+                ..ShapeCastConfig::from_max_distance((MAX_STEP_HEIGHT - (center.y - floor_center).max(0.0)).max(0.0))
+            };
+            let lift = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter, &accepts)
+                .map_or(up_config.max_distance, |hit| movement_sweep_travel(up_config.max_distance, hit.distance));
+            raised.y += lift;
+            let step_direction = Dir3::new(remaining_delta).unwrap_or(direction);
+            if let Some(hit) = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY,
+                step_direction, &forward_config, &filter, &accepts) {
+                if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 { return Some(result); }
+                let forward_travel = movement_sweep_travel(forward_config.max_distance, hit.distance);
+                let advance = *step_direction * forward_travel;
+                let impact_normal = source_sweep_impact_normal(spatial_query, &hit, *step_direction * forward_config.max_distance,
+                    raised, Quat::IDENTITY, capsule);
+                let normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
+                let tail = remaining_delta - advance;
+                let slide = tail - normal * tail.dot(normal);
+                let mut progressed = advance;
+                let mut had_progress = forward_travel > 0.0;
+                if slide.dot(remaining_delta) > 0.0 && let Ok((slide_direction, slide_distance)) = Dir3::new_and_length(slide) {
+                    let slide_config = ShapeCastConfig { max_distance: slide_distance, ..forward_config };
+                    let slide_hit = spatial_query.cast_shape_predicate(capsule, raised + advance, Quat::IDENTITY,
+                        slide_direction, &slide_config, &filter, &accepts);
+                    if slide_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { return Some(result); }
+                    let slide_travel = slide_hit.map_or(slide_distance,
+                        |hit| movement_sweep_travel(slide_distance, hit.distance));
+                    progressed += *slide_direction * slide_travel;
+                    had_progress |= slide_travel > 0.0;
+                    if let Some(second) = slide_hit {
+                        let adjusted = walking_two_wall_adjust(slide, second.normal1, normal,
+                            1.0 - slide_travel / slide_distance, floor_distance);
+                        if adjusted.abs().max_element() > 1e-5 && adjusted.dot(remaining_delta) > 0.0
+                            && let Ok((next_direction, next_distance)) = Dir3::new_and_length(adjusted) {
+                            let next_config = ShapeCastConfig { max_distance: next_distance, ..forward_config };
+                            let next_hit = spatial_query.cast_shape_predicate(capsule, raised + progressed, Quat::IDENTITY,
+                                next_direction, &next_config, &filter, &accepts);
+                            let next_travel = next_hit.map_or(next_distance,
+                                |hit| movement_sweep_travel(next_distance, hit.distance));
+                            progressed += *next_direction * next_travel;
+                            had_progress |= next_travel > 0.0;
+                        }
                     }
                 }
+                if !had_progress { return Some(result); }
+                remaining_delta = progressed;
             }
-            if !had_progress { return Some(result); }
-            remaining_delta = progressed;
         }
     }
     let destination = raised + remaining_delta;
@@ -5299,6 +5328,85 @@ mod tests {
         assert!((actual.y - start.y - 0.25 * angle.tan()).abs() < 0.005,
             "start={start:?} actual={actual:?}");
         assert!((app.world().get::<TnuaMotor>(actor).unwrap().lin.boost.x + 5.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn walking_sweeps_the_remaining_time_on_a_new_walkable_ramp() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (angle, allows_step, wall) in [(40.0_f32, false, true), (40.0, true, true),
+            (40.0, false, false), (60.0, false, true)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(-15.0, 1.9, -15.0)));
+            let rotation = Quat::from_rotation_z(angle.to_radians());
+            let toe = Vec3::new(-13.8, 2.0, -15.0);
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.2, 0.1, 2.0),
+                Transform::from_translation(toe + rotation * Vec3::new(0.6, -0.05, 0.0)).with_rotation(rotation),
+                AlsMantleTargetPermission { allows_step_up: allows_step }));
+            if wall {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 3.0, 2.0),
+                    Transform::from_xyz(-13.35, 3.5, -15.0), AlsMantleTargetPermission { allows_step_up: false }));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let start = Vec3::new(-13.98, 2.9215, -15.0);
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), start,
+                    Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                    actor, &candidates, &permissions).unwrap()
+            }).unwrap();
+            if angle == 60.0 {
+                assert!((result.0.x - -13.9711046).abs() < 0.004, "result={result:?}");
+                assert!(!result.5);
+            } else if wall {
+                assert!((result.0.x - -13.7078868).abs() < 0.004,
+                    "allows_step={allows_step} result={result:?}");
+                assert!((result.0.y - 3.0775676).abs() < 0.006,
+                    "allows_step={allows_step} result={result:?}");
+            } else {
+                let remaining = result.1.expect("Source second sweep must retain the remaining ramp movement");
+                assert!(result.5 && !result.4, "result={result:?}");
+                assert!((result.0.x + remaining.x - (start.x + 0.3125)).abs() < 0.001, "result={result:?}");
+                assert!(remaining.y > 0.1, "result={result:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn loaded_walking_reaches_the_witness_wall_after_the_new_ramp() {
+        use bevy::ecs::system::RunSystemOnce;
+        for allows_step in [false, true] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(-15.0, 1.9, -15.0)));
+            let rotation = Quat::from_rotation_z(40.0_f32.to_radians());
+            let toe = Vec3::new(-13.8, 2.0, -15.0);
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.2, 0.1, 2.0),
+                Transform::from_translation(toe + rotation * Vec3::new(0.6, -0.05, 0.0)).with_rotation(rotation),
+                AlsMantleTargetPermission { allows_step_up: allows_step }));
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 3.0, 2.0),
+                Transform::from_xyz(-13.35, 3.5, -15.0), AlsMantleTargetPermission { allows_step_up: false }));
+            app.update();
+            let start = Vec3::new(-13.98, 2.9215, -15.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LocomotionState::Grounded, LinearVelocity(Vec3::X * 6.25), TnuaMotor::default(),
+                AlsCmcAdapterRuntime { simulation_delta_seconds: 0.05, simulation_substeps: 1,
+                    grounded_movement_delta: Some(Vec3::X * 0.3125), ..default() }));
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            assert!((position.x - -13.7078868).abs() < 0.004, "allows_step={allows_step} position={position:?}");
+            assert!((position.y - 3.0775676).abs() < 0.006, "allows_step={allows_step} position={position:?}");
+            app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+            let adjusted = app.world().get::<Position>(actor).unwrap().0;
+            assert!((adjusted.y - 3.0904143).abs() < 0.006, "allows_step={allows_step} position={adjusted:?}");
+        }
     }
 
     #[test]

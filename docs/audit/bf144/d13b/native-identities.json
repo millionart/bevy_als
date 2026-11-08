@@ -1,0 +1,25 @@
+{
+  "asset": "Content/ALS/Character/B_Als_Character.uasset",
+  "asset_identity": {
+    "bytes": 261358,
+    "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+  },
+  "request": "docs/audit/bf144/d13b/ramp.request.json",
+  "native_output": "docs/audit/bf144/d13b/ramp.native.json.gz",
+  "raw": {
+    "bytes": 35437092,
+    "sha256": "7e29e9ff9c5e622844310a799366f923a25657accbd0c5cf8e5d453870493c3b"
+  },
+  "compressed": {
+    "bytes": 2447092,
+    "sha256": "6cd353a1da33a4b2ce68dd28527ee88ac0fcd1f66618a98d3d9cd196a1ed89ec"
+  },
+  "reader_report": "docs/audit/bf144/d13b/ramp.native.json.reader.report.json",
+  "no_step_case": "docs/audit/bf144/d13a/native-identities.json",
+  "diagnostic_reader": {
+    "source_sha256": "cbf914e851c4c4e3dfc2ea81fa9e8d760d8be5bbbd3f7cc4283cb7101ea61f89",
+    "package_sha256": "d5074189c96081b6b3815d777e5fe926ee81801f9e0430e76cf6ac4bc09e53a8",
+    "build_instructions": "docs/audit/bf144/543/README.md",
+    "source_identity": "docs/audit/bf144/543/reader-source.json"
+  }
+}
