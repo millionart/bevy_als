@@ -1,0 +1,85 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+      "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+      "excerpts": [
+        {
+          "first_line": 127,
+          "last_line": 130,
+          "text": "#undef UE_INCLUDETOOL_IGNORE_INCONSISTENT_STATE\n\n#define UE_PI \t\t\t\t\t(3.1415926535897932f)\t/* Extra digits if needed: 3.1415926535897932384626433832795f */\n#define UE_SMALL_NUMBER\t\t\t(1.e-8f)"
+        },
+        {
+          "first_line": 861,
+          "last_line": 870,
+          "text": "\t * @return\t\t\t\t\tValue in degrees.\n\t */\n\ttemplate<class T>\n\t[[nodiscard]] static constexpr UE_FORCEINLINE_HINT auto RadiansToDegrees(T const& RadVal) -> decltype(RadVal * (180.f / UE_PI))\n\t{\n\t\treturn RadVal * (180.f / UE_PI);\n\t}\n\n\tstatic constexpr UE_FORCEINLINE_HINT float RadiansToDegrees(float const& RadVal) { return RadVal * (180.f / UE_PI); }\n\tstatic constexpr UE_FORCEINLINE_HINT double RadiansToDegrees(double const& RadVal) { return RadVal * (180.0 / UE_DOUBLE_PI); }"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 1557,
+          "last_line": 1574,
+          "text": "\n\t// Limit the rotation of the locked foot.\n\n\tconst auto FootDeltaAngle{\n\t\tFMath::RadiansToDegrees(\n\t\t\tFQuat4f{FootState.LockRotationWorldSpace * FootState.TargetRotationWorldSpace.Inverse()}\n\t\t\t.GetTwistAngle(FVector3f::UpVector))\n\t};\n\n\tif (FMath::Abs(FootDeltaAngle) > Settings->FootLock.FootAngleLimit + UE_KINDA_SMALL_NUMBER)\n\t{\n\t\tconst auto ClampedAngle{FMath::Clamp(FootDeltaAngle, -Settings->FootLock.FootAngleLimit, Settings->FootLock.FootAngleLimit)};\n\t\tconst FQuat4f OffsetRotation{FVector3f::UpVector, FMath::DegreesToRadians(ClampedAngle - FootDeltaAngle)};\n\n\t\tFootState.LockRotationWorldSpace = FQuat{OffsetRotation} * FootState.LockRotationWorldSpace;\n\t}\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "src/als/state/foot_ik.rs",
+      "revision": "before_D260",
+      "sha256": "83776f213e8fb7b518868ecd78492222da7e18a32e355d82ea2a0af85c321328",
+      "excerpts": [
+        {
+          "first_line": 592,
+          "last_line": 606,
+          "text": "pub fn constrain_foot_lock_rotation(\n    lock_rotation: DQuat,\n    target_rotation: DQuat,\n    foot_angle_limit_degrees: f32,\n) -> DQuat {\n    let delta = source_foot_rotation_product(lock_rotation, target_rotation.conjugate()).as_quat();\n    let twist_angle = wrap_foot_yaw(2.0 * delta.y.atan2(delta.w)).to_degrees();\n    let limit = foot_angle_limit_degrees;\n    if twist_angle.abs() <= limit + 1e-4 { return lock_rotation; }\n    source_foot_rotation_product(\n        Quat::from_rotation_y((twist_angle.clamp(-limit, limit) - twist_angle).to_radians()).as_dquat(),\n        lock_rotation,\n    )\n}\n"
+        }
+      ]
+    }
+  ],
+  "native": {
+    "path": "docs/audit/bf144/d262a/rotation.native.json",
+    "sha256": "63289d67bae40ba28fd785215724b870bd8af867fca7be87c6f479ec8459f8c6",
+    "bytes": 134913,
+    "request": "docs/audit/bf144/d262a/rotation.request.json",
+    "reader_report": "docs/audit/bf144/d262a/rotation.native.json.reader.report.json",
+    "input": {
+      "name": "controlled-limit-1",
+      "rotation_xyzw": [
+        0.33739644289016724,
+        -0.6214207410812378,
+        -0.33739641308784485,
+        -0.6214206218719482
+      ],
+      "foot_lock_rotation": {
+        "target_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "limit_degrees": 40
+      }
+    },
+    "twist_radians": 0.994819164276123,
+    "twist_degrees": 56.99893569946289
+  },
+  "derived": {
+    "source_factor_f32": 57.2957763671875,
+    "rust_factor_f32": 57.295780181884766,
+    "source_degrees_f32": 56.99893569946289,
+    "old_degrees_f32": 56.998939514160156,
+    "threshold_limit_f32": 56.998836517333984
+  },
+  "missing_previous_evidence": [
+    "target/bf144/420/findings-check.json",
+    "target/bf144/420/delta.native.json",
+    "target/bf144/420/matrix.json",
+    "target/bf144/420/consumer-coefficient.json"
+  ],
+  "scope": "F32 radians-to-degrees coefficient for foot lock twist only; the atan2 algorithm remains D259.",
+  "status": "implementation_complete_static_and_runtime_gates_pending"
+}

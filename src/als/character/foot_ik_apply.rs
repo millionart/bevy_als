@@ -911,7 +911,7 @@ mod tests {
                     let mut angle = 2.0 * actual_delta.y.atan2(actual_delta.w);
                     while angle > std::f32::consts::PI { angle -= std::f32::consts::TAU; }
                     while angle < -std::f32::consts::PI { angle += std::f32::consts::TAU; }
-                    let degrees = angle.to_degrees();
+                    let degrees = angle * (180.0_f32 / std::f32::consts::PI);
                     let expected = if degrees.abs() > 40.0 + 1e-4 {
                         Quat::from_rotation_y((degrees.clamp(-40.0, 40.0) - degrees).to_radians()).as_dquat() * lock.left.lock_rotation
                     } else { lock.left.lock_rotation };

@@ -595,7 +595,7 @@ pub fn constrain_foot_lock_rotation(
     foot_angle_limit_degrees: f32,
 ) -> DQuat {
     let delta = source_foot_rotation_product(lock_rotation, target_rotation.conjugate()).as_quat();
-    let twist_angle = wrap_foot_yaw(2.0 * delta.y.atan2(delta.w)).to_degrees();
+    let twist_angle = wrap_foot_yaw(2.0 * delta.y.atan2(delta.w)) * (180.0_f32 / std::f32::consts::PI);
     let limit = foot_angle_limit_degrees;
     if twist_angle.abs() <= limit + 1e-4 { return lock_rotation; }
     source_foot_rotation_product(
@@ -1240,6 +1240,13 @@ mod tests {
         let limited = source_foot_rotation_product(offset.as_dquat(), lock.as_dquat()).as_quat();
         assert_eq!(limited, Quat::from_xyzw(0.24184492230415344, 0.24184492230415344,
             0.6644629240036011, 0.6644629240036011));
+    }
+
+    #[test]
+    fn foot_limit_uses_source_radians_to_degrees_at_threshold() {
+        let lock = Quat::from_xyzw(-0.337_396_44, 0.337_396_4, 0.621_420_74, -0.621_420_6).as_dquat();
+        let limit = 56.998_836_517_333_984_f32;
+        assert_eq!(constrain_foot_lock_rotation(lock, DQuat::IDENTITY, limit), lock);
     }
 
     #[test]
