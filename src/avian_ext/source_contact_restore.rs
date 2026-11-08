@@ -12,6 +12,8 @@ use std::sync::LazyLock;
 
 use super::source_contact_polygon::{SOURCE_SMALL_NUMBER, source_direction, source_position};
 use super::ragdoll_physics_profile::RagdollActiveMode;
+use super::source_contact_convex::SourceConvexContactPoint;
+use super::source_gjk_simplex::SourceGjkSimplex;
 
 #[derive(Resource, Clone, Copy)]
 pub(crate) struct SourceRestoreSettings {
@@ -98,7 +100,22 @@ pub(super) struct SourceBoxContact {
 pub(crate) struct SourceBoxContactHistory {
     entries: HashMap<u32, SourceBoxContact>,
     pub(super) compounds: HashMap<(u32, u32, Tick), SourceBoxContact>,
+    pub(super) convex_gjk: HashMap<(u32, u32, Tick), SourceConvexGjkHistory>,
     meshes: HashMap<u32, SourceMeshHistory>,
+}
+
+#[derive(Clone)]
+pub(super) struct SourceConvexGjkHistory {
+    pub colliders: [Entity; 2],
+    pub bodies: [Entity; 2],
+    pub shape_ticks: [Tick; 2],
+    pub simplex: SourceGjkSimplex,
+}
+
+impl SourceConvexGjkHistory {
+    pub(super) fn matches(&self, context: &SourceContactContext) -> bool {
+        self.colliders == context.colliders && self.bodies == context.bodies && self.shape_ticks == context.shape_ticks
+    }
 }
 
 #[derive(Component)]
@@ -173,6 +190,43 @@ pub(super) fn capture_source_contact(manifold: &ContactManifold, context: &Sourc
             second_m: second, phi_m: -f64::from(point.penetration - skin), disabled: false }
     }).collect();
     SourceBoxContact { colliders, bodies, shape_ticks, last: frames, points, templates: manifold.points.clone() }
+}
+
+pub(super) fn source_generated_manifold(
+    template: &ContactManifold,
+    points: &[SourceConvexContactPoint],
+    context: &SourceContactContext,
+) -> ContactManifold {
+    let mut manifold = template.clone();
+    let normal = context.frames[1].rotation * points[0].normal_second;
+    manifold.normal = (normal * if context.box_first { -1.0 } else { 1.0 }).as_vec3();
+    let normal = manifold.normal;
+    manifold.points = points.iter().enumerate().map(|(index, point)| {
+        let first = context.frames[0].position_m + context.frames[0].rotation * point.first_m;
+        let second = context.frames[1].position_m + context.frames[1].rotation * point.second_m;
+        let midpoint = ((first + second) * 0.5).as_vec3();
+        let mut result = template.points.get(index).copied().unwrap_or_else(||
+            ContactPoint::new(Vec3::ZERO, Vec3::ZERO, midpoint, 0.0));
+        result.point = midpoint;
+        result.anchor1 = midpoint - context.centers[0];
+        result.anchor2 = midpoint - context.centers[1];
+        result.penetration = (-point.phi_m) as f32 + context.skin;
+        result.normal_speed = contact_normal_speed(context.linear, context.angular, [result.anchor1, result.anchor2], normal);
+        result
+    }).collect();
+    manifold
+}
+
+pub(super) fn capture_source_exact_contact(
+    manifold: &ContactManifold,
+    points: &[SourceConvexContactPoint],
+    context: &SourceContactContext,
+) -> SourceBoxContact {
+    let points = points.iter().map(|point| SourceRestorePoint { initial_first_m: point.first_m,
+        initial_second_m: point.second_m, normal_second: point.normal_second, second_m: point.second_m,
+        phi_m: point.phi_m, disabled: false }).collect();
+    SourceBoxContact { colliders: context.colliders, bodies: context.bodies, shape_ticks: context.shape_ticks,
+        last: context.frames, points, templates: manifold.points.clone() }
 }
 
 pub(super) fn restore_source_contact(
@@ -339,7 +393,7 @@ pub(crate) fn restore_source_box_contacts(
     history.entries = next;
 }
 
-fn source_solver_slots(handles: &[ContactConstraintHandle]) -> Vec<usize> {
+pub(super) fn source_solver_slots(handles: &[ContactConstraintHandle]) -> Vec<usize> {
     let mut slots = (0..handles.len()).collect::<Vec<_>>();
     slots.sort_by_key(|index| {
         let handle = handles[*index];
@@ -349,7 +403,7 @@ fn source_solver_slots(handles: &[ContactConstraintHandle]) -> Vec<usize> {
     slots
 }
 
-fn write_source_mesh_solver_groups(
+pub(super) fn write_source_solver_groups(
     graph: &mut ContactGraph,
     constraints: &mut ConstraintGraph,
     id: ContactId,
@@ -450,7 +504,7 @@ pub(crate) fn restore_source_mesh_manifolds(
         }
     }
     for (id, manifolds) in updates {
-        write_source_mesh_solver_groups(&mut graph, &mut constraints, id, manifolds);
+        write_source_solver_groups(&mut graph, &mut constraints, id, manifolds);
     }
     history.meshes = next;
 }
@@ -642,6 +696,43 @@ mod tests {
     }
 
     #[test]
+    fn source_generated_contacts_keep_both_native_surfaces_for_restore() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3c2a/classification.native-samples.json")).unwrap();
+        let sample = &fixture["samples"][1];
+        let position = array_vector(&sample["input"]["body_translation_cm"]) * 0.01;
+        let box_pose = SourceRestorePose { position_m: position, rotation: DQuat::IDENTITY };
+        let mesh_pose = SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY };
+        let entity = |index| Entity::from_raw_u32(index).unwrap();
+        let points = sample["points"].as_array().unwrap().iter().map(|point| SourceConvexContactPoint {
+            first_m: object_vector(&point["shape_point_0_cm"]) * 0.01,
+            second_m: object_vector(&point["shape_point_1_cm"]) * 0.01,
+            normal_second: object_vector(&point["world_normal"]), phi_m: point["phi_cm"].as_f64().unwrap() * 0.01,
+        }).collect::<Vec<_>>();
+        for box_first in [false, true] {
+            let mut context = SourceContactContext { colliders: [entity(1), entity(2)], bodies: [entity(3), entity(4)],
+                shape_ticks: [Tick::new(1), Tick::new(2)], frames: [box_pose, mesh_pose], tolerance: 0.028,
+                skin: 0.0, box_first, surface_normal: Vec3::ZERO,
+                centers: if box_first { [position.as_vec3(), Vec3::ZERO] } else { [Vec3::ZERO, position.as_vec3()] },
+                linear: [Vec3::ZERO; 2], angular: [Vec3::ZERO; 2] };
+            let template = ContactManifold::new([ContactPoint::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, 0.0)], Vec3::Y);
+            let mut manifold = source_generated_manifold(&template, &points, &context);
+            for (actual, native) in manifold.points.iter().zip(&points) {
+                let midpoint = ((position + native.first_m + native.second_m) * 0.5).as_vec3();
+                assert!(actual.point.abs_diff_eq(midpoint, 1e-6));
+                assert!((actual.penetration + native.phi_m as f32).abs() < 1e-6);
+            }
+            let cached = capture_source_exact_contact(&manifold, &points, &context);
+            context.frames[0].position_m.x += 0.002;
+            let cached = restore_source_contact(&mut manifold, Some(&cached), &context, settings()).unwrap();
+            for (saved, native) in cached.points.iter().zip(&points) {
+                assert_eq!(saved.initial_first_m, native.first_m);
+                assert_eq!(saved.initial_second_m, native.second_m);
+            }
+        }
+    }
+
+    #[test]
     fn source_mesh_restores_points_using_one_cross_group_threshold() {
         let entity = |index| Entity::from_raw_u32(index).unwrap();
         let pose = SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY };
@@ -802,7 +893,7 @@ mod tests {
                     .contacts.contacts[0].points[0].initial_first_m, initial);
                 app.world_mut().resource_scope(|world, mut graph: Mut<ContactGraph>| {
                     let mut constraints = world.resource_mut::<ConstraintGraph>();
-                    write_source_mesh_solver_groups(&mut graph, &mut constraints, id, vec![remaining]);
+                    write_source_solver_groups(&mut graph, &mut constraints, id, vec![remaining]);
                 });
                 let (edge, pair) = app.world().resource::<ContactGraph>().get(ground, foot).unwrap();
                 assert_eq!(edge.constraint_handles.len(), 1);

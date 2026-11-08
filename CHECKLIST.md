@@ -6731,7 +6731,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 本轮开始：2026-11-09 02:19 +08:00；预计结束：2026-11-09 03:09 +08:00。fresh读取PhysicsSettings和PA CVar，以动态刚体整体边界实现源cull尺度并保存热启动开关，写世界覆盖/多形体尺度与边界控制。估时依据：D81已有世界SolverOptions和原生配置，D100b3b3b3a已有热GJK，fresh midphase仅依赖尺寸公式；测试和消融待统一Gate。
   - 02:27 source/static摘要：fresh世界cull=3cm、solver覆盖−1、GJK热启动=true；已导入配置并按同一刚体全部局部形体bounds计算源尺度。fresh Bench聚合证实源激活phi约2.4cm的hull 2而目标静止查询仅0.5cm，已写真实solver缺组控制并有限复开D100b3a；旧reader未直接记录尺度CVar及约束cull，已补采集待重建。真实接入、缺组修复、测试、消融及Playground待后续。证据`docs/audit/bf144/d100b3b3c4c1/`。实际结束：2026-11-09 02:27 +08:00；偏差：−42分钟；结果：子项静态实现完成，未再拆分。
 
-- [ ] BF144-D100b3b3c4c2 / P3 — 将源凸包接触与热缓存接入真实solver。
+- [x] BF144-D100b3b3c4c2 / P3 — 将源凸包接触与热缓存接入真实solver。
+  - 本轮开始：2026-11-09 02:28 +08:00；预计结束：2026-11-09 03:18 +08:00。对目标已识别的hull组接入源GJK/面边几何、整体body cull和逐hull热simplex，复用成功跳过GJK，按源活动资格同步solver槽；写冷/热帧及普通body对照。估时依据：c4a/b与c4c1已完成数值合同及世界参数，D104b2b已有目标hull身份和复用生命周期；缺失候选留c4c3，测试与消融待统一Gate。
+  - 02:36 source/static摘要：已有唯一身份hull已接入源GJK、面/边局部点、源活动cull和逐hull simplex；几何复用成功跳过GJK，失败重建使用旧simplex，独立保存两侧源表面点并同步solver槽。已写Arch02原生边边实际入口、普通body、simplex保留及源两侧点复用控制；目标缺失hull留c4c3，测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d100b3b3c4c2/`。实际结束：2026-11-09 02:36 +08:00；偏差：−42分钟；结果：子项静态实现完成，未再拆分。
 
 - [ ] BF144-D100b3b3c4c3 / P3 — 恢复源激活但目标缺失的凸包约束组。
 

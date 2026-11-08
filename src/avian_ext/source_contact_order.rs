@@ -1,8 +1,8 @@
 use avian3d::collision::contact_types::{ContactGraph, ContactId, ContactManifold, ContactPoint};
 use avian3d::collision::narrow_phase::NarrowPhaseConfig;
-use avian3d::dynamics::solver::{constraint_graph::{ContactConstraintHandle, COLOR_OVERFLOW_INDEX}, PhysicsLengthUnit};
+use avian3d::dynamics::solver::{constraint_graph::{ConstraintGraph, ContactConstraintHandle, COLOR_OVERFLOW_INDEX}, PhysicsLengthUnit};
 use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
-use avian3d::prelude::{AngularVelocity, Collider, ColliderTransform, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
+use avian3d::prelude::{AngularVelocity, Collider, ColliderOf, ColliderTransform, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
     Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
 #[cfg(test)]
 use bevy::math::DVec3;
@@ -12,11 +12,13 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 
 use super::ragdoll_physics_profile::RagdollActiveMode;
+use super::source_contact_convex::{SourceConvexLifecycleSettings, source_body_local_max_extent,
+    source_box_convex_manifold, source_convex_cull_distance};
 use super::source_contact_face::source_convex_topology;
-use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin};
-use super::source_contact_restore::{SourceBoxContactHistory, SourceContactContext, SourceRestorePose,
-    SourceRestoreSettings, capture_source_contact, restore_source_contact, source_box_shape_pose,
-    source_scaled_bounds_max_extent_cm};
+use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin, source_polygon_margins};
+use super::source_contact_restore::{SourceBoxContactHistory, SourceContactContext, SourceConvexGjkHistory, SourceRestorePose,
+    SourceRestoreSettings, capture_source_contact, capture_source_exact_contact, restore_source_contact,
+    source_box_shape_pose, source_generated_manifold, source_scaled_bounds_max_extent_cm, write_source_solver_groups};
 
 const SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD: f32 = include!("capsule_contact_axis_threshold.rs");
 
@@ -110,19 +112,24 @@ pub(crate) fn order_source_compound_groups(
     config: Res<NarrowPhaseConfig>,
     length: Res<PhysicsLengthUnit>,
     margin_settings: Option<Res<SourceConvexMarginSettings>>,
+    lifecycle_settings: Option<Res<SourceConvexLifecycleSettings>>,
     restore_settings: Option<Res<SourceRestoreSettings>>,
     ragdolls: Query<(), With<RagdollActiveMode>>,
     sources: Query<Ref<SourceCompoundOrder>>,
     colliders: Query<(&Collider, &Position, &Rotation, Option<&CollisionMargin>, Option<&SpeculativeMargin>)>,
     collider_details: Query<(Ref<Collider>, Option<&ColliderTransform>)>,
+    ownership: Query<(Entity, &Collider, Option<&ColliderOf>, Option<&ColliderTransform>)>,
     bodies: Query<(&RigidBody, &Position, &Rotation, &ComputedCenterOfMass, &LinearVelocity, &AngularVelocity,
         Option<&CollisionMargin>, Option<&SpeculativeMargin>), Without<RigidBodyDisabled>>,
     mut contact_history: Option<ResMut<SourceBoxContactHistory>>,
     mut graph: ResMut<ContactGraph>,
+    mut constraints: ResMut<ConstraintGraph>,
 ) {
     let delta = time.delta_secs();
     let mut updates = Vec::new();
+    let mut source_updates = Vec::new();
     let mut next_compounds = EntityMap::default();
+    let mut next_gjk = EntityMap::default();
     for pair in graph.iter_active() {
         if !pair.body1.is_some_and(|body| ragdolls.contains(body))
             && !pair.body2.is_some_and(|body| ragdolls.contains(body)) { continue; }
@@ -187,7 +194,13 @@ pub(crate) fn order_source_compound_groups(
         } else { None };
         let box_pose = Pose::from_parts(box_shape.1.0, box_shape.2.0);
         let compound_pose = Pose::from_parts(compound_shape.1.0, compound_shape.2.0);
-        for (manifold, shape_ids) in manifolds.iter_mut().zip(&ids) {
+        let generation = if let (Some(lifecycle), Some(margins), Some((_, _, context, _))) =
+            (lifecycle_settings.as_deref(), margin_settings.as_deref(), restore_base) {
+            source_body_local_max_extent(context.bodies[0], ownership.iter())
+                .map(|extent| (lifecycle, margins, source_convex_cull_distance(extent, *lifecycle)))
+        } else { None };
+        let mut retained = vec![true; manifolds.len()];
+        for (index, (manifold, shape_ids)) in manifolds.iter_mut().zip(&ids).enumerate() {
             let shape = shape_ids[source_side];
             let mut entry = None;
             if let Some((settings, history, mut context, box_size_cm)) = restore_base
@@ -199,20 +212,62 @@ pub(crate) fn order_source_compound_groups(
                 entry = Some((key, saved, context));
             }
             let restored = entry.as_ref().is_some_and(|(_, saved, _)| saved.is_some());
-            if !restored && let Some(settings) = core_settings
+            if restored && let (Some((key, _, context)), Some((_, history, _, _))) = (entry.as_ref(), restore_base)
+                && let Some(saved) = history.convex_gjk.get(key).filter(|saved| saved.matches(context)) {
+                next_gjk.insert(*key, saved.clone());
+            }
+            let mut generated = false;
+            if !restored && let (Some((lifecycle, margin_settings, cull)), Some((key, saved, context)), Some((_, history, _, _))) =
+                (generation, entry.as_mut(), restore_base)
+                && let (Some(hull), Some(shape)) = (source_convex_topology(&source.0, shape), box_shape.0.shape_scaled().as_cuboid())
+            {
+                let inverse = context.frames[0].rotation.inverse();
+                let center = inverse * (box_shape.1.0.as_dvec3() - context.frames[0].position_m);
+                let half = shape.half_extents.as_dvec3();
+                let translation = inverse * (context.frames[1].position_m - context.frames[0].position_m);
+                let rotation = inverse * context.frames[1].rotation;
+                let margin = source_box_margin(shape.half_extents, *margin_settings);
+                let [margin, _] = source_polygon_margins(margin, true, 0.0, false, margin_settings.minimum);
+                let previous = history.convex_gjk.get(key).filter(|prior| prior.matches(context))
+                    .and_then(|prior| lifecycle.warm_start.then(|| prior.simplex.clone()));
+                if let Some(result) = source_box_convex_manifold(center - half, center + half, hull,
+                    compound_shape.0.scale().as_dvec3(), translation, rotation, f64::from(margin), cull, previous) {
+                    next_gjk.insert(*key, SourceConvexGjkHistory { colliders: context.colliders, bodies: context.bodies,
+                        shape_ticks: context.shape_ticks, simplex: result.gjk.simplex_cm });
+                    generated = true;
+                    if result.contacts.iter().any(|point| point.phi_m <= cull) {
+                        *manifold = source_generated_manifold(manifold, &result.contacts, context);
+                        *saved = Some(capture_source_exact_contact(manifold, &result.contacts, context));
+                    } else {
+                        retained[index] = false;
+                    }
+                }
+            }
+            if !restored && !generated && let Some(settings) = core_settings
                 && let Some(normal) = source_box_convex_core_normal(box_shape.0, box_pose, compound_shape.0,
                     compound_pose, shape, *settings) {
                 manifold.normal = if source_side == 0 { -normal } else { normal };
             }
-            if let Some((key, saved, context)) = entry {
+            if retained[index] && let Some((key, saved, context)) = entry {
                 next_compounds.insert(key, saved.unwrap_or_else(|| capture_source_contact(manifold, &context)));
             }
         }
-        order_compound_groups(&mut manifolds, &ids, &edge.constraint_handles, source_side);
-        updates.push((pair.contact_id, manifolds));
+        if generation.is_some() {
+            let mut ordered = manifolds.into_iter().zip(&ids).zip(retained).filter_map(|((manifold, ids), retain)| {
+                retain.then_some((ids[source_side], manifold))
+            }).collect::<Vec<_>>();
+            ordered.sort_by_key(|(shape, _)| *shape);
+            source_updates.push((pair.contact_id, ordered.into_iter().map(|(_, manifold)| manifold).collect()));
+        } else {
+            order_compound_groups(&mut manifolds, &ids, &edge.constraint_handles, source_side);
+            updates.push((pair.contact_id, manifolds));
+        }
     }
     for (id, manifolds) in updates {
         if let Some((_, pair)) = graph.get_mut_by_id(id) { pair.manifolds = manifolds; }
+    }
+    for (id, manifolds) in source_updates {
+        write_source_solver_groups(&mut graph, &mut constraints, id, manifolds);
     }
     if let Some(history) = contact_history.as_deref_mut() {
         if restore_settings.is_some() {
@@ -223,6 +278,23 @@ pub(crate) fn order_source_compound_groups(
             }
         }
         history.compounds = next_compounds;
+        if lifecycle_settings.is_some() {
+            for (&key, saved) in &history.convex_gjk {
+                let same_pair = graph.get_by_id(ContactId(key.0)).is_some_and(|(_, pair)| {
+                    (pair.collider1 == saved.colliders[0] && pair.collider2 == saved.colliders[1]
+                        && pair.body1 == Some(saved.bodies[0]) && pair.body2 == Some(saved.bodies[1]))
+                        || (pair.collider2 == saved.colliders[0] && pair.collider1 == saved.colliders[1]
+                            && pair.body2 == Some(saved.bodies[0]) && pair.body1 == Some(saved.bodies[1]))
+                });
+                if same_pair && sources.get(saved.colliders[1]).is_ok_and(|source| source.last_changed() == key.2)
+                    && let (Ok((first, _)), Ok((second, _))) =
+                        (collider_details.get(saved.colliders[0]), collider_details.get(saved.colliders[1]))
+                    && [first.last_changed(), second.last_changed()] == saved.shape_ticks {
+                    next_gjk.entry(key).or_insert_with(|| saved.clone());
+                }
+            }
+        }
+        history.convex_gjk = next_gjk;
     }
 }
 
@@ -404,10 +476,14 @@ mod tests {
         let mut app = App::new();
         let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
         let ([cull_cm, inverse_size_cm, minimum_scale], warm_start) = include!("../als/settings/contact_lifecycle.rs");
+        let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
+            collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
         app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
             .insert_resource(Gravity(Vec3::ZERO))
             .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
             .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, warm_start })
+            .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
+                empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
             .init_resource::<SourceBoxContactHistory>()
             .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
             .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
@@ -442,6 +518,93 @@ mod tests {
             for (actual, expected) in manifold.points.iter().zip(expected) {
                 let midpoint = (vector(&expected["world_point_0_cm"]) + vector(&expected["world_point_1_cm"])) * 0.005;
                 assert!(actual.point.abs_diff_eq(midpoint, 2e-5));
+            }
+        }
+    }
+
+    #[test]
+    fn source_arch_edge_manifold_and_simplex_reach_actual_solver() {
+        use avian3d::collision::narrow_phase::NarrowPhaseSystems;
+        use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3c2a/classification.native-samples.json")).unwrap();
+        let sample = &fixture["samples"][2];
+        let definitions: HashMap<String, Vec<Vec<[f32; 3]>>> = serde_json::from_str(include_str!(
+            "../../assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json")).unwrap();
+        let vector = |value: &serde_json::Value| Vec3::new(value["x"].as_f64().unwrap() as f32,
+            value["z"].as_f64().unwrap() as f32, value["y"].as_f64().unwrap() as f32);
+        let lower = vector(&sample["geometry"]["minimum_cm"]);
+        let upper = vector(&sample["geometry"]["maximum_cm"]);
+        let body = &sample["input"]["body_translation_cm"];
+        let body = Vec3::new(body[0].as_f64().unwrap() as f32, body[2].as_f64().unwrap() as f32,
+            body[1].as_f64().unwrap() as f32);
+        let size = (upper - lower) * 0.01;
+        let center = (body + (lower + upper) * 0.5) * 0.01;
+        for source_body in [false, true] {
+            let mut app = App::new();
+            let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
+            let ([cull_cm, inverse_size_cm, minimum_scale], warm_start) = include!("../als/settings/contact_lifecycle.rs");
+            let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
+                collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
+            app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
+                .insert_resource(Gravity(Vec3::ZERO))
+                .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
+                .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, warm_start })
+                .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
+                    empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
+                .init_resource::<SourceBoxContactHistory>()
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
+                .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
+            app.finish();
+            app.cleanup();
+            let compound = Collider::compound(definitions["SM_Als_Arch_02"].iter().map(|hull| (
+                Vec3::ZERO, Quat::IDENTITY,
+                Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
+            )).collect());
+            let ground = app.world_mut().spawn((RigidBody::Static, compound,
+                SourceCompoundOrder("SM_Als_Arch_02".into()), Transform::IDENTITY)).id();
+            let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
+                Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center))).id();
+            if source_body { app.world_mut().entity_mut(foot).insert(RagdollActiveMode(BodyMode::Dynamic)); }
+            app.update();
+            app.update();
+            let graph = app.world().resource::<ContactGraph>();
+            let (edge, pair) = graph.get(ground, foot).unwrap();
+            let history = app.world().resource::<SourceBoxContactHistory>();
+            if source_body {
+                let mut shapes = history.compounds.keys().filter(|key| key.0 == pair.contact_id.0)
+                    .map(|key| key.1).collect::<Vec<_>>();
+                shapes.sort_unstable();
+                let position = shapes.iter().position(|index| *index == 2).unwrap();
+                let slot = super::super::source_contact_restore::source_solver_slots(&edge.constraint_handles)[position];
+                let manifold = &pair.manifolds[slot];
+                let native = &sample["points"][0];
+                assert_eq!(manifold.points.len(), 1);
+                let normal = manifold.normal * if pair.collider1 == foot { -1.0 } else { 1.0 };
+                assert!(normal.abs_diff_eq(vector(&native["world_normal"]), 2e-5));
+                let midpoint = (vector(&native["world_point_0_cm"]) + vector(&native["world_point_1_cm"])) * 0.005;
+                assert!(manifold.points[0].point.abs_diff_eq(midpoint, 2e-5));
+                let contact_id = pair.contact_id.0;
+                let previous = history.convex_gjk.iter().find(|(key, _)| key.0 == contact_id && key.1 == 2)
+                    .unwrap().1.simplex.clone();
+                app.update();
+                let current = &app.world().resource::<SourceBoxContactHistory>().convex_gjk.iter()
+                    .find(|(key, _)| key.0 == contact_id && key.1 == 2).unwrap().1.simplex;
+                assert_eq!(current.len, previous.len);
+                assert_eq!(current.weights, previous.weights);
+            } else {
+                assert!(history.compounds.is_empty() && history.convex_gjk.is_empty());
+                let first = (app.world().get::<Collider>(pair.collider1).unwrap(),
+                    *app.world().get::<Position>(pair.collider1).unwrap(), *app.world().get::<Rotation>(pair.collider1).unwrap());
+                let second = (app.world().get::<Collider>(pair.collider2).unwrap(),
+                    *app.world().get::<Position>(pair.collider2).unwrap(), *app.world().get::<Rotation>(pair.collider2).unwrap());
+                let source_side = usize::from(pair.collider2 == ground);
+                let ids = contact_subshape_ids(first.0, first.1, first.2, second.0, second.1, second.2,
+                    0.005, &pair.manifolds).unwrap();
+                let index = ids.iter().position(|value| value[source_side] == 2).unwrap();
+                assert!(pair.manifolds[index].points.len() > 1);
             }
         }
     }
