@@ -479,6 +479,27 @@ mod tests {
     }
 
     #[test]
+    fn source_epa_preserves_limit_and_degenerate_status() {
+        let support = |direction: DVec3| {
+            let point = DVec3::new(if direction.x < 0.0 { -1.0 } else { 1.0 },
+                if direction.y < 0.0 { -1.0 } else { 1.0 }, if direction.z < 0.0 { -1.0 } else { 1.0 });
+            (point, 0)
+        };
+        let initial = [DVec3::ONE, DVec3::new(-1.0, -1.0, 1.0),
+            DVec3::new(-1.0, 1.0, -1.0), DVec3::new(1.0, -1.0, -1.0)];
+        let mut limited = settings();
+        limited.max_iterations = 0;
+        let mut vertices = initial.into_iter().map(vertex).collect::<Vec<_>>();
+        let result = run_source_epa(&mut vertices, limited, support, |_| (DVec3::ZERO, 0), &mut [0, 0]);
+        assert_eq!(result.status, SourceEpaStatus::MaxIterations);
+        let mut stalled = settings();
+        stalled.max_flood = 0;
+        let mut vertices = initial.into_iter().map(vertex).collect::<Vec<_>>();
+        let result = run_source_epa(&mut vertices, stalled, support, |_| (DVec3::ZERO, 0), &mut [0, 0]);
+        assert_eq!(result.status, SourceEpaStatus::Degenerate);
+    }
+
+    #[test]
     fn source_epa_core_overlap_reaches_native_bench_normal() {
         use crate::extensions::source_contact_gjk::{source_box_support, source_convex_support};
         let fixture: serde_json::Value = serde_json::from_str(include_str!(

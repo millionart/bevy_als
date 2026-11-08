@@ -1,10 +1,11 @@
 use bevy::math::{DQuat, DVec3, Vec3};
 
+use super::source_contact_epa::{SourceEpaSettings, SourceEpaStatus, SourceEpaVertex, run_source_epa};
 use super::source_contact_polygon::{source_direction, source_position};
 use super::source_gjk_simplex::{SourceGjkSimplex, SourceGjkVertex};
 
 #[derive(Clone)]
-pub(crate) struct SourceGjkSeparation {
+pub(crate) struct SourceGjkResult {
     pub simplex_cm: SourceGjkSimplex,
     pub last_vertices: [usize; 2],
     pub normal_first: DVec3,
@@ -12,12 +13,7 @@ pub(crate) struct SourceGjkSeparation {
     pub closest_first_m: DVec3,
     pub closest_second_m: DVec3,
     pub penetration_m: f64,
-}
-
-#[derive(Clone)]
-pub(crate) enum SourceGjkResult {
-    Separated(SourceGjkSeparation),
-    NeedsEpa { simplex_cm: SourceGjkSimplex, last_vertices: [usize; 2] },
+    pub epa_status: Option<SourceEpaStatus>,
 }
 
 pub(super) fn source_box_support(minimum: DVec3, maximum: DVec3, margin: f64, direction: DVec3) -> (DVec3, usize) {
@@ -52,6 +48,7 @@ pub(crate) fn source_box_convex_gjk(
     epsilon: f64,
     iteration_limit: usize,
     previous: Option<SourceGjkSimplex>,
+    epa_settings: SourceEpaSettings,
 ) -> Option<SourceGjkResult> {
     let minimum = source_position(box_minimum);
     let maximum = source_position(box_maximum);
@@ -80,6 +77,7 @@ pub(crate) fn source_box_convex_gjk(
     }
     let mut normal = -direction;
     let mut last_vertices = [0; 2];
+    let mut epa_status = None;
     for _iteration in 1..iteration_limit {
         let (first, first_index) = source_box_support(minimum, maximum, margin, -direction);
         let (second, second_index) = source_convex_support(&vertices, scale, inverse * direction)?;
@@ -89,7 +87,41 @@ pub(crate) fn source_box_convex_gjk(
         simplex.len += 1;
         let projected = simplex.project();
         let next_distance = projected.length();
-        if next_distance < epsilon { return Some(SourceGjkResult::NeedsEpa { simplex_cm: simplex, last_vertices }); }
+        if next_distance < epsilon {
+            distance = next_distance;
+            let mut epa_vertices = simplex.vertices[..simplex.len].iter().map(|vertex| SourceEpaVertex {
+                first_cm: vertex.first, second_cm: rotation * vertex.second + translation,
+            }).collect::<Vec<_>>();
+            let result = run_source_epa(&mut epa_vertices, epa_settings,
+                |direction| source_box_support(minimum, maximum, margin, direction),
+                |direction| {
+                    let (point, index) = source_convex_support(&vertices, scale, inverse * direction)
+                        .expect("Source convex support vertices must not be empty");
+                    (rotation * point + translation, index)
+                }, &mut last_vertices);
+            epa_status = Some(result.status);
+            match result.status {
+                SourceEpaStatus::Ok | SourceEpaStatus::MaxIterations => {
+                    let witness = result.witness;
+                    return Some(SourceGjkResult {
+                        simplex_cm: simplex,
+                        last_vertices,
+                        normal_first: source_direction(witness.normal),
+                        normal_second: source_direction(inverse * witness.normal),
+                        closest_first_m: source_direction(witness.first_cm + witness.normal * margin) * 0.01,
+                        closest_second_m: source_direction(inverse * (witness.second_cm - translation)) * 0.01,
+                        penetration_m: (witness.penetration_cm + margin) * 0.01,
+                        epa_status,
+                    });
+                }
+                SourceEpaStatus::BadInitialSimplex => {
+                    normal = result.witness.normal;
+                    distance = -result.witness.penetration_cm;
+                }
+                SourceEpaStatus::Degenerate => {}
+            }
+            break;
+        }
         let degenerate = next_distance >= distance;
         direction = projected / next_distance;
         normal = -direction;
@@ -104,7 +136,7 @@ pub(crate) fn source_box_convex_gjk(
         second += simplex.vertices[index].second * simplex.weights[index];
     }
     first += normal * margin;
-    Some(SourceGjkResult::Separated(SourceGjkSeparation {
+    Some(SourceGjkResult {
         simplex_cm: simplex,
         last_vertices,
         normal_first: source_direction(normal),
@@ -112,7 +144,8 @@ pub(crate) fn source_box_convex_gjk(
         closest_first_m: source_direction(first) * 0.01,
         closest_second_m: source_direction(second) * 0.01,
         penetration_m: (margin - distance) * 0.01,
-    }))
+        epa_status,
+    })
 }
 
 #[cfg(test)]
@@ -139,7 +172,13 @@ mod tests {
         }
     }
 
-    fn assert_native_result(actual: &SourceGjkSeparation, expected: &serde_json::Value) {
+    fn epa_settings() -> SourceEpaSettings {
+        let (face_area_m4, initial_edge_m2, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon) =
+            include!("../als/settings/contact_epa.rs");
+        SourceEpaSettings { face_area_m4, initial_edge_m2, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon }
+    }
+
+    fn assert_native_result(actual: &SourceGjkResult, expected: &serde_json::Value) {
         assert_eq!(actual.last_vertices, [expected["vertex_0"].as_u64().unwrap() as usize,
             expected["vertex_1"].as_u64().unwrap() as usize]);
         assert!(actual.normal_first.distance(source_direction(source_point(&expected["shape_normal_0"]))) < 1e-6);
@@ -176,23 +215,14 @@ mod tests {
             let body = DVec3::new(translation[0].as_f64().unwrap(), translation[1].as_f64().unwrap(),
                 translation[2].as_f64().unwrap());
             let result = source_box_convex_gjk(minimum, maximum, margin, &vertices, DVec3::ONE,
-                -runtime_point(body), DQuat::IDENTITY, epsilon, iterations, None).unwrap();
+                -runtime_point(body), DQuat::IDENTITY, epsilon, iterations, None, epa_settings()).unwrap();
             let native = sample["gjk_simplex"].as_array().unwrap();
-            let simplex = match &result {
-                SourceGjkResult::Separated(result) => {
-                    assert_ne!(input["label"], "bench_foot_core_overlap");
-                    let normal = source_direction(source_point(&sample["points"][0]["world_normal"]));
-                    assert!(result.normal_first.distance(-normal) < 1e-6);
-                    assert!(result.last_vertices[0] < 8 && result.last_vertices[1] < vertices.len());
-                    if direct { assert_native_result(result, &sample["cold_gjk"]); }
-                    &result.simplex_cm
-                }
-                SourceGjkResult::NeedsEpa { simplex_cm, last_vertices } => {
-                    assert_eq!(input["label"], "bench_foot_core_overlap");
-                    assert!(last_vertices[0] < 8 && last_vertices[1] < vertices.len());
-                    simplex_cm
-                }
-            };
+            assert_eq!(result.epa_status.is_some(), input["label"] == "bench_foot_core_overlap");
+            let normal = source_direction(source_point(&sample["points"][0]["world_normal"]));
+            assert!(result.normal_first.distance(-normal) < 1e-6);
+            assert!(result.last_vertices[0] < 8 && result.last_vertices[1] < vertices.len());
+            if direct { assert_native_result(&result, &sample["cold_gjk"]); }
+            let simplex = &result.simplex_cm;
             assert_eq!(simplex.len, native.len());
             for (index, expected) in native.iter().enumerate() {
                 assert!((simplex.weights[index] - expected["weight"].as_f64().unwrap()).abs() < 1e-7);
@@ -231,16 +261,14 @@ mod tests {
             let input = &sample["input"];
             let (translation, rotation) = relative(input);
             let initial = source_box_convex_gjk(minimum, maximum, margin, &vertices, DVec3::ONE,
-                translation, rotation, epsilon, iterations, None).unwrap();
-            let SourceGjkResult::Separated(initial) = initial else { panic!("The source initial cores must be separated"); };
+                translation, rotation, epsilon, iterations, None, epa_settings()).unwrap();
+            assert!(initial.epa_status.is_none());
             let (translation, rotation) = relative(&input["next"]);
             let result = source_box_convex_gjk(minimum, maximum, margin, &vertices, DVec3::ONE,
-                translation, rotation, epsilon, iterations, Some(initial.simplex_cm)).unwrap();
-            if direct && let SourceGjkResult::Separated(value) = &result {
-                assert_native_result(value, &sample["warm_gjk"]);
-            }
+                translation, rotation, epsilon, iterations, Some(initial.simplex_cm), epa_settings()).unwrap();
+            if direct { assert_native_result(&result, &sample["warm_gjk"]); }
             if !sample["restored"].as_bool().unwrap() {
-                let SourceGjkResult::Separated(result) = &result else { panic!("The source next cores must be separated"); };
+                assert!(result.epa_status.is_none());
                 let expected = sample["next_gjk_simplex"].as_array().unwrap();
                 assert_eq!(result.simplex_cm.len, expected.len());
                 for (index, value) in expected.iter().enumerate() {
@@ -261,15 +289,25 @@ mod tests {
         let translation = DVec3::X * 2.0;
         let (epsilon, iterations) = include!("../als/settings/contact_gjk.rs");
         let cold = source_box_convex_gjk(minimum, maximum, 0.01, &vertices, DVec3::ONE, translation,
-            DQuat::IDENTITY, epsilon, iterations, None).unwrap();
+            DQuat::IDENTITY, epsilon, iterations, None, epa_settings()).unwrap();
         let mut previous = SourceGjkSimplex { len: 1, ..Default::default() };
         previous.vertices[0].first = source_position(translation);
         let warm = source_box_convex_gjk(minimum, maximum, 0.01, &vertices, DVec3::ONE, translation,
-            DQuat::IDENTITY, epsilon, iterations, Some(previous)).unwrap();
-        let (SourceGjkResult::Separated(cold), SourceGjkResult::Separated(warm)) = (cold, warm)
-            else { panic!("The source cores must be separated"); };
+            DQuat::IDENTITY, epsilon, iterations, Some(previous), epa_settings()).unwrap();
+        assert!(cold.epa_status.is_none() && warm.epa_status.is_none());
         assert_eq!(cold.last_vertices, warm.last_vertices);
         assert_eq!(cold.normal_first, warm.normal_first);
         assert_eq!(cold.penetration_m, warm.penetration_m);
+    }
+
+    #[test]
+    fn source_gjk_uses_epa_bad_simplex_fallback_normal() {
+        let (epsilon, iterations) = include!("../als/settings/contact_gjk.rs");
+        let result = source_box_convex_gjk(DVec3::ZERO, DVec3::ZERO, 0.0, &[DVec3::ZERO], DVec3::ONE,
+            DVec3::ZERO, DQuat::IDENTITY, epsilon, iterations, None, epa_settings()).unwrap();
+        assert_eq!(result.epa_status, Some(SourceEpaStatus::BadInitialSimplex));
+        assert_eq!(result.normal_first, DVec3::Y);
+        assert_eq!(result.penetration_m, 0.0);
+        assert_eq!(result.last_vertices, [3, 0]);
     }
 }
