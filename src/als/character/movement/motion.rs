@@ -3213,7 +3213,7 @@ fn falling_movement_transaction(
             cmc.max_simulation_iterations = cmc.max_simulation_iterations.saturating_sub(iterations);
             let (moved, next_velocity, steps, next_remaining, lost_floor, _, last_base) = walking_movement_transaction(
                 spatial, capsule, transform, extent.y, extent.x.min(extent.z), velocity, desired_motion,
-                speed, dynamics, &cmc, landing.0, remaining, entity, candidates, step_permissions, current_base);
+                speed, dynamics, &cmc, landing.0, remaining, entity, candidates, step_permissions, bases, owners, current_base);
             transform = moved;
             velocity = next_velocity;
             current_base = last_base;
@@ -4132,7 +4132,9 @@ fn walking_movement_transaction(
     velocity: Vec3, desired_motion: Vec3, max_speed: f32, dynamics: crate::als::params::GroundedDynamics,
     cmc: &crate::als::params::CmcAdapterParams, friction: f32, delta: f32, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
-    step_permissions: &Query<&AlsMantleTargetPermission>, mut last_base: Option<Entity>,
+    step_permissions: &Query<&AlsMantleTargetPermission>,
+    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+    owners: &Query<&ColliderOf>, mut last_base: Option<Entity>,
 ) -> (Transform, Vec3, u32, f32, bool, Vec3, Option<Entity>) {
     let mut last_input = velocity;
     let mut lost_floor = false;
@@ -4150,7 +4152,18 @@ fn walking_movement_transaction(
             lost_floor = floor.is_none();
             if floor.is_some() { last_base = floor; }
             let applied = transform.translation - center;
-            (if penetrating { step_velocity } else { applied.with_y(0.0) / step_seconds }, applied, !lost_floor)
+            let actual_velocity = if penetrating {
+                step_velocity
+            } else if remaining.is_none() && !stepped_up && floor.is_some()
+                && crate::als::dynamics::support_velocity_from_base(floor,
+                    transform.translation - Vec3::Y * half, bases, owners).1 == Vec3::ZERO {
+                let origin_cm = center.as_dvec3() * 100.0;
+                let destination_cm = origin_cm + requested.as_dvec3() * 100.0;
+                ((destination_cm - origin_cm) / f64::from(step_seconds) / 100.0).as_vec3().with_y(0.0)
+            } else {
+                applied.with_y(0.0) / step_seconds
+            };
+            (actual_velocity, applied, !lost_floor)
         });
     (transform, velocity, steps, remaining_time, lost_floor, last_input, last_base)
 }
@@ -4298,7 +4311,7 @@ pub(crate) fn cmc_movement_transaction_system(
             let (moved, mut final_velocity, iterations, remaining_time, lost_floor, last_input, mut floor) = walking_movement_transaction(
                 &spatial_query, capsule, current_transform, half, radius, base.relative_velocity,
                 controller.basis.desired_motion, max_speed, dynamics.0, &params.cmc, factor, delta_seconds, entity,
-                &candidates, &step_permissions, initial_base);
+                &candidates, &step_permissions, &bases, &owners, initial_base);
             current_transform = moved;
             if lost_floor {
                 *loco = LocomotionState::Air;
@@ -5860,6 +5873,57 @@ mod tests {
     }
 
     #[test]
+    fn walking_substep_keeps_unobstructed_velocity_at_landing_origins() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 0.2, 100.0),
+            Transform::from_xyz(0.0, -0.1, 0.0))).id();
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        for (start, velocity, delta) in [
+            (Vec3::new(-7.866_695, 0.921_545_5, -15.298_997), Vec3::new(6.499_999_5, 0.0, 0.001_433_724_1), 0.019_570_196),
+            (Vec3::new(-7.867_078_3, 0.921_545_27, -15.301_003), Vec3::new(6.499_999_5, 0.0, -0.001_433_586_1), 0.019_629_141),
+        ] {
+            app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>| {
+                let capsule = als_character_capsule(0.9, 0.3);
+                let dynamics = crate::als::params::GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
+                let (_, actual, steps, _, lost_floor, _, _) = walking_movement_transaction(&spatial, &capsule,
+                    Transform::from_translation(start), 0.9, 0.3, velocity, Vec3::ZERO, 6.5, dynamics,
+                    &crate::als::params::CmcAdapterParams::default(), 0.0, delta, actor,
+                    &candidates, &permissions, &bases, &owners, None);
+                assert_eq!(steps, 1);
+                assert!(!lost_floor);
+                assert_eq!(actual, velocity);
+            }).unwrap();
+        }
+        app.world_mut().entity_mut(floor).insert(LinearVelocity(Vec3::X));
+        app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+            permissions: Query<&AlsMantleTargetPermission>,
+            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+            owners: Query<&ColliderOf>| {
+            let start = Vec3::new(-7.866_695, 0.921_545_5, -15.298_997);
+            let velocity = Vec3::new(6.499_999_5, 0.0, 0.001_433_724_1);
+            let delta = 0.019_570_196;
+            let capsule = als_character_capsule(0.9, 0.3);
+            let dynamics = crate::als::params::GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
+            let (_, actual, _, _, _, _, _) = walking_movement_transaction(&spatial, &capsule,
+                Transform::from_translation(start), 0.9, 0.3, velocity, Vec3::ZERO, 6.5, dynamics,
+                &crate::als::params::CmcAdapterParams::default(), 0.0, delta, actor,
+                &candidates, &permissions, &bases, &owners, Some(floor));
+            assert_eq!(actual, ((start + velocity * delta) - start).with_y(0.0) / delta);
+            assert_ne!(actual.z, velocity.z);
+        }).unwrap();
+    }
+
+    #[test]
     fn walking_initial_penetration_preserves_the_planned_step_velocity() {
         use bevy::ecs::system::RunSystemOnce;
         for (gap, left_wall, seconds, expected_penetration) in [
@@ -5885,7 +5949,9 @@ mod tests {
             app.update();
             app.world_mut().run_system_once(move |spatial: SpatialQuery,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
-                permissions: Query<&AlsMantleTargetPermission>| {
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>| {
                 let capsule = als_character_capsule(0.9, 0.3);
                 let cmc = crate::als::params::CmcAdapterParams::default();
                 let start = Transform::from_xyz(0.0, 0.9215, 0.0);
@@ -5894,7 +5960,7 @@ mod tests {
                 assert_eq!(outcome.3, expected_penetration, "gap={gap:?} left={left_wall}");
                 let dynamics = crate::als::params::GroundedDynamics { acceleration: 0.0, braking_deceleration: 5.0, ground_friction: 0.0 };
                 let (_, velocity, _, _, _, _, _) = walking_movement_transaction(&spatial, &capsule, start, 0.9, 0.3,
-                    Vec3::X * 6.5, Vec3::ZERO, 6.5, dynamics, &cmc, 0.0, seconds, actor, &candidates, &permissions, None);
+                    Vec3::X * 6.5, Vec3::ZERO, 6.5, dynamics, &cmc, 0.0, seconds, actor, &candidates, &permissions, &bases, &owners, None);
                 if expected_penetration {
                     assert!((velocity.x - 6.25).abs() < 1e-4, "gap={gap:?} velocity={velocity:?}");
                 } else if gap.is_some() {
