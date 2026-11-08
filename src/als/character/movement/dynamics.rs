@@ -558,14 +558,15 @@ pub fn grounded_dynamics_motor_system(
                 if let Some(previous) = base.entity {
                     let (_, support) = support_velocity_from_base(Some(previous),
                         contact_point, &bases, &colliders);
-                    let inherited = support - base.support_velocity;
+                    let inherited = (support - base.support_velocity).with_y(support.y);
                     *base = default();
-                    inherited.with_y(0.0)
+                    inherited
                 } else { Vec3::ZERO }
             } else { Vec3::ZERO };
             motor.lin.acceleration.x = 0.0;
             motor.lin.acceleration.z = 0.0;
             motor.lin.boost.x = inherited.x;
+            motor.lin.boost.y += inherited.y;
             motor.lin.boost.z = inherited.z;
             continue;
         }
@@ -1998,6 +1999,38 @@ mod tests {
         world.entity_mut(character).insert(LocomotionState::Grounded);
         world.run_system_once(grounded_dynamics_motor_system).unwrap();
         assert!((world.get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_max_speed - 3.75).abs() < 1e-5);
+    }
+
+    #[test]
+    fn jump_inherits_signed_vertical_base_velocity_once() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (linear_y, angular_z) in [(2.0, 0.0), (-2.0, 0.0), (0.0, 0.0), (0.0, -0.2)] {
+            let mut world = World::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(0.05));
+            world.insert_resource(time);
+            let mut assets = Assets::<AlsMovementParams>::default();
+            let handle = assets.add(AlsMovementParams::default());
+            world.insert_resource(assets);
+            let base = world.spawn((RigidBody::Dynamic, Position::default(), LinearVelocity(Vec3::Y * linear_y),
+                AngularVelocity(Vec3::Z * angular_z))).id();
+            let mut motor = TnuaMotor::default();
+            motor.lin.boost.y = 4.2;
+            let support_y = linear_y + angular_z;
+            let character = world.spawn((AlsCharacter, LocomotionState::Air, Stance::Standing,
+                RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
+                AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::new(1.0, 1.0, 0.0)),
+                LinearVelocity::ZERO, AlsMovementParamsHandle(handle),
+                TnuaController::<AlsControlScheme>::default(), motor, AlsCmcAdapterRuntime::default(),
+                AlsMovementBaseDynamicsState { entity: Some(base), support_velocity: Vec3::Y * support_y, ..default() })).id();
+            world.run_system_once(grounded_dynamics_motor_system).unwrap();
+            let actual = world.get::<TnuaMotor>(character).unwrap().lin.boost.y;
+            assert!((actual - (4.2 + support_y)).abs() < 1e-5,
+                "Jump must inherit the signed base velocity: {linear_y} {angular_z} {actual}");
+            world.run_system_once(grounded_dynamics_motor_system).unwrap();
+            assert_eq!(world.get::<TnuaMotor>(character).unwrap().lin.boost.y, actual,
+                "Airborne updates must not repeat base velocity inheritance");
+        }
     }
 
     #[test]

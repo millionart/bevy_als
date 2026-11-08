@@ -1,0 +1,22 @@
+{
+  "asset": "Content/ALS/Character/B_Als_Character.uasset",
+  "asset_identity": {
+    "bytes": 261358,
+    "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+  },
+  "request": "docs/audit/bf144/d34a/character.request.json",
+  "native_output": "docs/audit/bf144/d34a/character.native.json.gz",
+  "raw": {
+    "bytes": 9918890,
+    "sha256": "63713a509fc3c5ca878ca7d01f6621ad8776ca3b061a427cf34228c45272e184"
+  },
+  "compressed": {
+    "bytes": 327456,
+    "sha256": "8d0030329aabf477c2ea0ba06ab031bbd9e602694897779f5fa30c7d52a7e36b"
+  },
+  "reader_report": "docs/audit/bf144/d34a/character.native.json.reader.report.json",
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  }
+}

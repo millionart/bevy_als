@@ -8074,6 +8074,39 @@ mod tests {
     }
 
     #[test]
+    fn loaded_jump_inherits_signed_vertical_platform_velocity() {
+        #[derive(Resource, Default)]
+        struct TakeoffVelocity(Option<f32>);
+        for speed in [-2.0, 0.0, 2.0] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            app.init_resource::<TakeoffVelocity>().add_systems(Update,
+                (move |mut sample: ResMut<TakeoffVelocity>, actors: Query<(&LinearVelocity, &TnuaMotor,
+                    &TnuaController<AlsControlScheme>)>| {
+                    let (velocity, motor, controller) = actors.get(character).unwrap();
+                    if controller.action_flow_status().just_starting() == Some(AlsControlSchemeActionDiscriminant::Jump) {
+                        sample.0 = Some(velocity.y + motor.lin.boost.y);
+                    }
+                }).after(crate::als::dynamics::grounded_dynamics_motor_system)
+                    .before(cmc_movement_transaction_system));
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.4, 4.0),
+                Transform::from_xyz(0.0, 0.0, 1.0), GravityScale(0.0))).id();
+            let start = Vec3::new(0.0, 1.124, 1.0);
+            app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start), LinearVelocity::ZERO));
+            for _ in 0..30 { app.update(); }
+            assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character).unwrap().entity,
+                Some(platform), "The character must stand on the test platform");
+            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().y = speed;
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            let actual = app.world().resource::<TakeoffVelocity>().0.expect("The jump must start");
+            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap();
+            let expected = app.world().resource::<Assets<AlsMovementParams>>().get(handle.id()).unwrap().jump.jump_z_velocity + speed;
+            assert!((actual - expected).abs() < 1e-4,
+                "Jump must add signed platform velocity: speed={speed} actual={actual} expected={expected}");
+        }
+    }
+
+    #[test]
     fn browser_review_scaled_capsule_keeps_the_source_jump_velocity() {
         use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin};
         use crate::als::transition::AlsStateTransitionPlugin;
