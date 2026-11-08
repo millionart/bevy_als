@@ -3478,6 +3478,25 @@ fn falling_apex_step(old_velocity: Vec3, new_velocity: Vec3, step: f32, attempts
         .then(|| (apex_time, (old_velocity + acceleration * apex_time).with_y(0.0)))
 }
 
+fn pawn_rejects_character_base(
+    floor: Entity, pawns: &Query<(), With<AlsCharacter>>, permissions: &Query<&AlsMantleTargetPermission>,
+    owners: &Query<&ColliderOf>,
+) -> bool {
+    let owner = owners.get(floor).map_or(floor, |collider| collider.body);
+    pawns.contains(owner) && permissions.get(owner).is_ok_and(|permission| !permission.allows_step_up)
+}
+
+fn jump_off_velocity(velocity: Vec3, max_speed: f32, jump_z: f32, factor: f32, seed: &mut u32) -> Vec3 {
+    *seed = seed.wrapping_mul(196314165).wrapping_add(907633515);
+    let angle = (f32::from_bits(0x3f800000 | (*seed >> 9)) - 1.0) * std::f32::consts::TAU;
+    let direction = Vec3::new(angle.cos(), 0.5, angle.sin()).normalize();
+    let limit = max_speed * 0.85;
+    let mut velocity = velocity + direction * limit;
+    if velocity.with_y(0.0).length() > limit { velocity = velocity.normalize_or_zero() * limit; }
+    velocity.y = factor * jump_z;
+    velocity
+}
+
 fn falling_movement_transaction(
     spatial: &SpatialQuery, capsule: &Collider, mut transform: Transform, mut velocity: Vec3,
     desired_motion: Vec3, mut max_speed: f32, params: &AlsMovementParams, gravity: Vec3,
@@ -3541,6 +3560,18 @@ fn falling_movement_transaction(
                 transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
                     from: StateValue::LocomotionState(LocomotionState::Grounded), to: StateValue::LocomotionState(mode) });
                 break;
+            }
+            if current_base.is_some_and(|floor| pawn_rejects_character_base(
+                floor, &impact_bodies.pawns, step_permissions, owners)) {
+                velocity = jump_off_velocity(velocity, max_speed, params.jump.jump_z_velocity,
+                    params.cmc.jump_off_jump_z_factor, random_seed);
+                mode = LocomotionState::Air;
+                current_base = None;
+                collision_mode = Some(LocomotionState::Air);
+                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
+                    from: StateValue::LocomotionState(LocomotionState::Grounded), to: StateValue::LocomotionState(mode) });
+                acceleration = falling_input_acceleration(params, desired_motion, velocity.with_y(0.0).length(), cached_input_max);
+                continue;
             }
             let (stance, rotation, gait, yaw) = grounded;
             let thresholds = params.gait_speed_thresholds(stance, rotation, velocity, yaw);
@@ -5335,6 +5366,75 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn jump_off_rejects_only_forbidden_pawn_bases() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let forbidden = world.spawn(AlsCharacter).id();
+        let allowed = world.spawn((AlsCharacter, AlsMantleTargetPermission { allows_step_up: true })).id();
+        let prop = world.spawn(AlsMantleTargetPermission { allows_step_up: false }).id();
+        let child = world.spawn(ColliderOf { body: forbidden }).id();
+        world.run_system_once(move |pawns: Query<(), With<AlsCharacter>>,
+            permissions: Query<&AlsMantleTargetPermission>, owners: Query<&ColliderOf>| {
+            assert!(pawn_rejects_character_base(forbidden, &pawns, &permissions, &owners));
+            assert!(pawn_rejects_character_base(child, &pawns, &permissions, &owners));
+            assert!(!pawn_rejects_character_base(allowed, &pawns, &permissions, &owners));
+            assert!(!pawn_rejects_character_base(prop, &pawns, &permissions, &owners));
+        }).unwrap();
+    }
+
+    #[test]
+    fn jump_off_uses_source_speed_and_configured_vertical_velocity() {
+        let mut seed = 123;
+        let stationary = jump_off_velocity(Vec3::ZERO, 4.0, 4.2, 0.0, &mut seed);
+        assert!((stationary.with_y(0.0).length() - 3.4 / 1.25_f32.sqrt()).abs() < 1e-5);
+        assert_eq!(stationary.y, 0.0);
+        let limited = jump_off_velocity(Vec3::X * 50.0, 4.0, 4.2, 0.5, &mut seed);
+        assert!(limited.with_y(0.0).length() <= 3.4 + 1e-5);
+        assert!((limited.y - 2.1).abs() < 1e-5);
+    }
+
+    #[test]
+    fn falling_landing_jumps_off_forbidden_pawns() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (pawn, allowed) in [(true, false), (true, true), (false, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<StateTransitionEvent>();
+            app.finish();
+            let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, 1.9, 0.0), AlsMantleTargetPermission { allows_step_up: allowed })).id();
+            if pawn { app.world_mut().entity_mut(floor).insert(AlsCharacter); }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
+                mut transitions: MessageWriter<StateTransitionEvent>| {
+                let mut params = AlsMovementParams::default();
+                params.cmc.max_simulation_iterations = 1;
+                let mut seed = 123;
+                falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Transform::from_xyz(0.0, 2.925, 0.0), Vec3::NEG_Y, Vec3::ZERO,
+                    3.75, &params, Vec3::NEG_Y * 9.81,
+                    (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
+                    (0.0, false, false), 40.0, 0.05, 0, actor, &mut seed,
+                    &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None)
+            }).unwrap();
+            if pawn && !allowed {
+                assert_eq!(result.4, LocomotionState::Air, "The forbidden pawn must trigger JumpOff: {result:?}");
+                assert!(result.1.with_y(0.0).length() > 0.0 && result.1.y == 0.0);
+                assert!(result.5.is_none());
+            } else {
+                assert_eq!(result.4, LocomotionState::Grounded, "The permitted base must remain grounded: {result:?}");
+                assert_eq!(result.5, Some(floor));
+            }
+        }
+    }
+
     #[test]
     fn root_floor_dimensions_use_the_stored_scale() {
         let local = Transform::from_rotation(Quat::from_xyzw(0.0, -0.6227078437805176, 0.0, 0.7824543714523315));

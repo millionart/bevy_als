@@ -1,0 +1,58 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "excerpts": [
+        {
+          "first_line": 1256,
+          "last_line": 1266,
+          "text": "\t\t\t{\n\t\t\t\tUE_LOGF(LogCharacter, Verbose, \"Setting base on Client for '%ls' to '%ls'\", *GetName(), *GetFullNameSafe(MovementBaseSourceObject));\n\t\t\t}\n\n\t\t}\n\n\t\t// Notify this actor of its new floor.\n\t\tif ( bNotifyPawn )\n\t\t{\n\t\t\tBaseChange();\n\t\t}\n"
+        },
+        {
+          "first_line": 1452,
+          "last_line": 1463,
+          "text": "void ACharacter::BaseChange()\n{\n\tif (CharacterMovement && CharacterMovement->MovementMode != MOVE_None)\n\t{\n\t\tAActor* ActualMovementBase = GetMovementBaseActor(this);\n\t\tif ((ActualMovementBase != nullptr) && !ActualMovementBase->CanBeBaseForCharacter(this))\n\t\t{\n\t\t\tCharacterMovement->JumpOff(ActualMovementBase);\n\t\t}\n\t}\n}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Pawn.cpp",
+      "sha256": "c3e036835d105482d7703099b7bdc3ae6a42aacab6ac73be36b1c4dfe20b9570",
+      "excerpts": [
+        {
+          "first_line": 241,
+          "last_line": 250,
+          "text": "bool APawn::CanBeBaseForCharacter(class APawn* APawn) const\n{\n\tUPrimitiveComponent* RootPrimitive = Cast<UPrimitiveComponent>(GetRootComponent());\n\tif (RootPrimitive && RootPrimitive->CanCharacterStepUpOn != ECB_Owner)\n\t{\n\t\treturn RootPrimitive->CanCharacterStepUpOn == ECB_Yes;\n\t}\n\n\treturn Super::CanBeBaseForCharacter(APawn);\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 1251,
+          "last_line": 1287,
+          "text": "void UCharacterMovementComponent::JumpOff(AActor* MovementBaseActor)\n{\n\tif ( !bPerformingJumpOff )\n\t{\n\t\tbPerformingJumpOff = true;\n\t\tif ( CharacterOwner )\n\t\t{\n\t\t\tconst float MaxSpeed = GetMaxSpeed() * 0.85f;\n\t\t\tVelocity += MaxSpeed * GetBestDirectionOffActor(MovementBaseActor);\n\t\t\tif (ProjectToGravityFloor(Velocity).Size() > MaxSpeed)\n\t\t\t{\n\t\t\t\tVelocity = MaxSpeed * Velocity.GetSafeNormal();\n\t\t\t}\n\n\t\t\tif (HasCustomGravity())\n\t\t\t{\n\t\t\t\tSetGravitySpaceZ(Velocity, JumpOffJumpZFactor * JumpZVelocity);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tVelocity.Z = JumpOffJumpZFactor * JumpZVelocity;\n\t\t\t}\n\t\t\t\n\t\t\tSetMovementMode(MOVE_Falling);\n\t\t}\n\t\tbPerformingJumpOff = false;\n\t}\n}\n\nFVector UCharacterMovementComponent::GetBestDirectionOffActor(AActor* BaseActor) const\n{\n\t// By default, just pick a random direction.  Derived character classes can choose to do more complex calculations,\n\t// such as finding the shortest distance to move in based on the BaseActor's Bounding Volume.\n\tconst float RandAngle = FMath::DegreesToRadians(GetNetworkSafeRandomAngleDegrees());\n\treturn RotateWorldToGravity(FVector(FMath::Cos(RandAngle), FMath::Sin(RandAngle), 0.5f).GetSafeNormal());\n}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/RandomStream.h",
+      "sha256": "7f6a6608c9a20405f64f9a374d870d2d71c46d2e05412ae6dde7d6b02c4da113",
+      "excerpts": [
+        {
+          "first_line": 115,
+          "last_line": 125,
+          "text": "\tfloat GetFraction() const\n\t{\n\t\tMutateSeed();\n\n\t\tfloat Result;\n\n\t\t*(uint32*)&Result = 0x3F800000U | (Seed >> 9);\n\n\t\treturn Result - 1.0f; \n\t}\n\n"
+        }
+      ]
+    }
+  ],
+  "native_cdo": {
+    "CollisionCylinder.CanCharacterStepUpOn": "ECB_No",
+    "CharMoveComp.JumpOffJumpZFactor": "0.000000",
+    "CharMoveComp.JumpZVelocity": "420.000000"
+  }
+}

@@ -5985,6 +5985,10 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧平台跳离回归覆盖水平速度改变，直接Tnua默认起跳测试与scale测试都没有竖直移动基座。仅登记该轴和阶段遗漏，不改JumpZ或重力。
 
 - [ ] BF144-D35 / P2 — 允许站在禁止作为基座的Pawn上，未执行源JumpOff。
+  - 子项拆分：D35a实现Pawn基座许可、JumpOff算法及下落落地事务；D35b接入出生、步行换基座和帧末同步。两项分别静态实现并提交，父项待两者完成后标记，统一运行验证延后。
+  - [x] BF144-D35a — 下落落到禁止站立的Pawn时立即执行源JumpOff。开始2026-11-08 15:31 +08:00；预估结束16:26 +08:00；实际结束15:34 +08:00，提前52分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 闭环：fresh UE基座许可与JumpOff算法、角色胶囊原生No及起跳因子0保存在`docs/audit/bf144/d35a/`；落地事务已写许可、速度结构和Pawn/普通物体对照。旧target报告缺失，本次原生未运行角色叠落，其他入口留给D35b。
+  - [ ] BF144-D35b — 其他基座绑定入口应用同一Pawn许可及JumpOff。
   - Source：fresh `Character.cpp:1263–1265,1452–1461`在SetBase时通知BaseChange；`Pawn.cpp:241–249`按根primitive的CanCharacterStepUpOn判断是否可作为基座，No时拒绝。`CharacterMovementComponent.cpp:1251–1285`随后JumpOff提供侧向脱离并切Falling；ALS原生角色胶囊为ECB_No，JumpOffJumpZFactor=0只去掉上弹，不取消侧向脱离。
   - Target：`src/als/character/movement/motion.rs:2784–2801,4125–4132`落地及保存基座直接接受floor实体，未调用Pawn基座许可/JumpOff；现有allows_step_up仅用于步阶和Mantle，params中的jump_off_jump_z_factor没有运行时消费者。
   - 反例：完整角色落到另一角色胶囊顶部，目标已显式提供allows_step_up=false以排除D14默认metadata遗漏。源应拒绝作为基座并侧向离开、保持Air；target为Grounded、base=该角色、velocity全零。`bf144_inherit_forbidden_pawn_base_runs_source_jump_off`共3组2PASS/1FAIL；同形普通prop即使NoStep仍可站立（AActor默认许可），显式Yes的Pawn也可站立，两对照通过，证据`target/bf144/11/jump_and_permissions/`。
