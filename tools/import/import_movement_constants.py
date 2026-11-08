@@ -31,6 +31,10 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
     if len(components) != 1:
         raise ValueError('Character movement component is missing or ambiguous')
     properties = components[0]['properties']
+    capsules = [obj for obj in actor['blueprint_cdo_subobjects']
+                if obj.get('object_path', '').endswith(':CollisionCylinder')]
+    if len(capsules) != 1:
+        raise ValueError('Character capsule is missing or ambiguous')
 
     def property_number(name):
         values = [float(prop['exported_text']) for prop in properties if prop['name'] == name]
@@ -44,8 +48,8 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
             raise ValueError(f'Character property is invalid: {name}')
         return values[0]
 
-    def property_bool(name):
-        values = [prop['exported_text'] for prop in properties if prop['name'] == name]
+    def property_bool(name, source_properties=properties):
+        values = [prop['exported_text'] for prop in source_properties if prop['name'] == name]
         if len(values) != 1 or values[0] not in ('True', 'False'):
             raise ValueError(f'Character property is invalid: {name}')
         return values[0] == 'True'
@@ -73,6 +77,12 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
         'PUSH_FORCE_NEAR_ZERO_VELOCITY': small * scale,
         'PUSH_FORCE_ZERO_VELOCITY_TOLERANCE': literal(character_cpp, rf'ZeroVelocityTolerance\s*=\s*{NUMBER}f?\s*;', 'push zero velocity tolerance') * scale,
         'INITIAL_PUSH_FORCE_RATE': literal(character_cpp, rf'ExtraForceFactor\s*=\s*{NUMBER}f?\s*;', 'initial push force rate'),
+        'CHARACTER_GENERATES_OVERLAP_EVENTS': property_bool('bGenerateOverlapEvents', capsules[0]['properties']),
+        'TOUCH_FORCE_FACTOR': property_scalar('TouchForceFactor'),
+        'TOUCH_FORCE_SCALED_TO_MASS': property_bool('bTouchForceScaledToMass'),
+        'MIN_TOUCH_IMPULSE': property_scalar('MinTouchForce') * scale,
+        'MAX_TOUCH_IMPULSE': property_scalar('MaxTouchForce') * scale,
+        'TOUCH_DIRECTION_VERTICAL_OFFSET': literal(character_cpp, rf'SetGravitySpaceZ\(ImpulseDir,\s*{NUMBER}f?\s*\)', 'touch vertical offset') * scale,
         'MAX_STEP_HEIGHT': property_number('MaxStepHeight') * scale,
         'MAX_SLOPE_DEGREES': property_number('WalkableFloorAngle'),
         'MIN_FLOOR_DISTANCE': literal(character_cpp, rf'MIN_FLOOR_DIST\s*=\s*{NUMBER}f?\s*;', 'minimum floor distance') * scale,
@@ -114,8 +124,14 @@ def self_test():
                        {'name': 'bEnablePhysicsInteraction', 'exported_text': 'True'},
                        {'name': 'InitialPushForceFactor', 'exported_text': '500.000000'},
                        {'name': 'PushForceFactor', 'exported_text': '750000.000000'},
-                       {'name': 'bScalePushForceToVelocity', 'exported_text': 'True'}]}]}
-    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; BRAKE_TO_STOP_VELOCITY = 10.f; MIN_TICK_TIME = 1e-6f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f; const float ZeroVelocityTolerance = 1.0f; const float ExtraForceFactor = 30.f;'
+                       {'name': 'bScalePushForceToVelocity', 'exported_text': 'True'},
+                       {'name': 'TouchForceFactor', 'exported_text': '1.0'},
+                       {'name': 'bTouchForceScaledToMass', 'exported_text': 'True'},
+                       {'name': 'MinTouchForce', 'exported_text': '-1.0'},
+                       {'name': 'MaxTouchForce', 'exported_text': '250.0'}]},
+                       {'object_path': '/Character:CollisionCylinder', 'class_path': '/Script/Engine.CapsuleComponent',
+                        'properties': [{'name': 'bGenerateOverlapEvents', 'exported_text': 'True'}]}]}
+    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; BRAKE_TO_STOP_VELOCITY = 10.f; MIN_TICK_TIME = 1e-6f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f; const float ZeroVelocityTolerance = 1.0f; const float ExtraForceFactor = 30.f; SetGravitySpaceZ(ImpulseDir, 0.25f);'
     primitive = 'const float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;'
     movement = 'const float OverVelocityPercent = 1.01f; float PenetrationPullbackDistance = 0.125f; float PenetrationOverlapCheckInflation = 0.100f;'
     header = '#define UE_KINDA_SMALL_NUMBER (1.e-4f)'
@@ -129,6 +145,12 @@ def self_test():
     assert values['PUSH_FORCE_NEAR_ZERO_VELOCITY'] == 1e-6
     assert values['INITIAL_PUSH_FORCE_RATE'] == 30.0
     assert values['SCALE_PUSH_FORCE_TO_VELOCITY'] is True
+    assert values['CHARACTER_GENERATES_OVERLAP_EVENTS'] is True
+    assert values['TOUCH_FORCE_FACTOR'] == 1.0
+    assert values['TOUCH_FORCE_SCALED_TO_MASS'] is True
+    assert values['MIN_TOUCH_IMPULSE'] == -0.01
+    assert values['MAX_TOUCH_IMPULSE'] == 2.5
+    assert values['TOUCH_DIRECTION_VERTICAL_OFFSET'] == 0.0025
     changed_actor = json.loads(json.dumps(actor))
     changed_properties = changed_actor['blueprint_cdo_subobjects'][0]['properties']
     next(prop for prop in changed_properties if prop['name'] == 'StandingDownwardForceScale')['exported_text'] = '0.0'
@@ -188,7 +210,7 @@ def self_test():
             raise AssertionError('Invalid terminal source must block generation')
     assert literal('TEXT("p.EncroachEpsilon"), 0.15f,', rf'\"p\.EncroachEpsilon\"\s*\)\s*,\s*{NUMBER}f?\s*,', 'spawn epsilon') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0015
     assert literal('PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius', rf'PawnRadius - GetPerchRadiusThreshold\(\),\s*{NUMBER}f?\s*,\s*PawnRadius', 'perch minimum') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0011
-    assert len(render(values).splitlines()) == 31
+    assert len(render(values).splitlines()) == 37
     print('Movement constants self-test PASS')
 
 

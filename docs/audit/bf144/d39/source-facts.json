@@ -1,0 +1,71 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 1037,
+          "last_line": 1044,
+          "text": "\tconst bool bValidUpdatedPrimitive = IsValid(UpdatedPrimitive);\n\n\tif (bValidUpdatedPrimitive && bEnablePhysicsInteraction)\n\t{\n\t\tUpdatedPrimitive->OnComponentBeginOverlap.AddUniqueDynamic(this, &UCharacterMovementComponent::CapsuleTouched);\n\t}\n\n\tif (bNeedsSweepWhileWalkingUpdate)\n"
+        },
+        {
+          "first_line": 11674,
+          "last_line": 11719,
+          "text": "void UCharacterMovementComponent::CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult )\n{\n\tif (!bEnablePhysicsInteraction)\n\t{\n\t\treturn;\n\t}\n\n\tif (OtherComp != NULL && OtherComp->IsAnySimulatingPhysics())\n\t{\n\t\tconst FVector OtherLoc = OtherComp->GetComponentLocation();\n\t\tconst FVector Loc = UpdatedComponent->GetComponentLocation();\n\t\t\n\t\tFVector ImpulseDir = OtherLoc - Loc;\n\t\tSetGravitySpaceZ(ImpulseDir, 0.25f);\n\t\tImpulseDir = (ImpulseDir.GetSafeNormal() + ProjectToGravityFloor(Velocity).GetSafeNormal()) * 0.5f;\n\t\tImpulseDir.Normalize();\n\n\t\tFName BoneName = NAME_None;\n\t\tif (OtherBodyIndex != INDEX_NONE)\n\t\t{\n\t\t\tBoneName = ((USkinnedMeshComponent*)OtherComp)->GetBoneName(OtherBodyIndex);\n\t\t}\n\n\t\tfloat TouchForceFactorModified = TouchForceFactor;\n\n\t\tif ( bTouchForceScaledToMass )\n\t\t{\n\t\t\tFBodyInstance* BI = OtherComp->GetBodyInstance(BoneName);\n\t\t\tTouchForceFactorModified *= BI ? BI->GetBodyMass() : 1.0f;\n\t\t}\n\n\t\tfloat ImpulseStrength = FMath::Clamp<FVector::FReal>(ProjectToGravityFloor(Velocity).Size() * TouchForceFactorModified, \n\t\t\tMinTouchForce > 0.0f ? MinTouchForce : -FLT_MAX, \n\t\t\tMaxTouchForce > 0.0f ? MaxTouchForce : FLT_MAX);\n\n\t\tFVector Impulse = ImpulseDir * ImpulseStrength;\n\n\t\tOtherComp->AddImpulse(Impulse, BoneName);\n\t}\n}\n\nFVector UCharacterMovementComponent::GetLastUpdateRequestedVelocity() const\n{\n\treturn LastUpdateRequestedVelocity;\n}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/PrimitiveComponent.cpp",
+      "sha256": "5ef63e4b1ce58c83e4dd3a8f8b6ea579e78811052bf3c4556db03743ebdae19c",
+      "excerpts": [
+        {
+          "first_line": 224,
+          "last_line": 230,
+          "text": "FORCEINLINE_DEBUGGABLE static bool CanComponentsGenerateOverlap(const UPrimitiveComponent* MyComponent, /*const*/ UPrimitiveComponent* OtherComp)\n{\n\treturn OtherComp\n\t\t&& OtherComp->GetGenerateOverlapEvents()\n\t\t&& MyComponent\n\t\t&& MyComponent->GetGenerateOverlapEvents()\n\t\t&& MyComponent->GetCollisionResponseToComponent(OtherComp) == ECR_Overlap;\n"
+        },
+        {
+          "first_line": 4096,
+          "last_line": 4138,
+          "text": "\t}\n}\n\n\nvoid UPrimitiveComponent::BeginComponentOverlap(const FOverlapInfo& OtherOverlap, bool bDoNotifies)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_BeginComponentOverlap);\n\n\t// If pending kill, we should not generate any new overlaps\n\tPRAGMA_DISABLE_DEPRECATION_WARNINGS\n\tif (!IsThisNotNull(this, \"UPrimitiveComponent::BeginComponentOverlap\") || !IsValidChecked(this))\n\tPRAGMA_ENABLE_DEPRECATION_WARNINGS\n\t{\n\t\treturn;\n\t}\n\n\tconst bool bComponentsAlreadyTouching = (IndexOfOverlapFast(OverlappingComponents, OtherOverlap) != INDEX_NONE);\n\tif (!bComponentsAlreadyTouching)\n\t{\n\t\tUPrimitiveComponent* OtherComp = OtherOverlap.OverlapInfo.Component.Get();\n\t\tif (CanComponentsGenerateOverlap(this, OtherComp))\n\t\t{\n\t\t\t//UE_LOGF(LogActor, Log, \"BEGIN OVERLAP! Self=%ls SelfComp=%ls, Other=%ls, OtherComp=%ls\", *GetNameSafe(this), *GetNameSafe(MyComp), *GetNameSafe(OtherComp->GetOwner()), *GetNameSafe(OtherComp));\n\t\t\tGlobalOverlapEventsCounter++;\t\t\t\n\t\t\tAActor* const OtherActor = OtherComp->GetOwner();\n\t\t\tAActor* const MyActor = GetOwner();\n\n\t\t\tconst bool bSameActor = (MyActor == OtherActor);\n\t\t\tconst bool bNotifyActorTouch = bDoNotifies && !bSameActor && !AreActorsOverlapping(*MyActor, *OtherActor);\n\n\t\t\t// Perform reflexive touch.\n\t\t\tOverlappingComponents.Add(OtherOverlap);\t\t\t\t\t\t\t\t\t\t\t\t// already verified uniqueness above\n\t\t\tAddUniqueOverlapFast(OtherComp->OverlappingComponents, FOverlapInfo(this, OtherOverlap.OverlapInfo.MyItem));\t// uniqueness unverified, so addunique\n\t\t\t\n\t\t\tconst UWorld* World = GetWorld();\n\t\t\tconst bool bLevelStreamingOverlap = (bDoNotifies && MyActor->bGenerateOverlapEventsDuringLevelStreaming && MyActor->IsActorBeginningPlayFromLevelStreaming());\n\t\t\tif (bDoNotifies && ((World && World->HasBegunPlay()) || bLevelStreamingOverlap))\n\t\t\t{\n\t\t\t\t// first execute component delegates\n\t\t\t\tOnComponentBeginOverlap.Broadcast(this, OtherActor, OtherComp, OtherOverlap.GetBodyIndex(), OtherOverlap.bFromSweep, OtherOverlap.OverlapInfo);\n\n\t\t\t\tif (IsValid(OtherComp))\n\t\t\t\t{\n"
+        }
+      ]
+    },
+    {
+      "path": "avian3d-0.7.0/src/collision/collision_events.rs",
+      "sha256": "1755e4e5df6258d82db6c7285e68e447c6a1b63f0801c469423e6d203d40a308",
+      "excerpts": [
+        {
+          "first_line": 35,
+          "last_line": 48,
+          "text": "//! The [`CollisionStart`] and [`CollisionEnd`] events will now be both written as a [`Message`]\n//! and triggered as an [`Event`] when the entity starts or stops touching another collider.\n//! It is up to you to decide which event processing method is best suited for your use case.\n//!\n//! ## Collision `Message`\n//!\n//! Reading collision events as [`Message`]s with a [`MessageReader`] can be very efficient\n//! for processing large numbers of collisions between pairs of entities, such as for detecting\n//! bullet hits or playing impact sounds when two objects collide.\n//!\n//! The events are only written if one of the entities has the [`CollisionEventsEnabled`] component.\n//!\n//! ```\n#![cfg_attr(feature = \"2d\", doc = \"# use avian2d::prelude::*;\")]\n"
+        },
+        {
+          "first_line": 155,
+          "last_line": 185,
+          "text": "/// #\n/// fn print_started_collisions(mut collision_reader: MessageReader<CollisionStart>) {\n///     for event in collision_reader.read() {\n///         println!(\"{} and {} started colliding\", event.collider1, event.collider2);\n///     }\n/// }\n/// ```\n///\n/// # Scheduling\n///\n/// The [`CollisionStart`] event is triggered after the physics step in the [`CollisionEventSystems`]\n/// system set. At this point, the solver has already run and contact impulses have been updated.\n///\n/// [`CollisionEventSystems`]: super::narrow_phase::CollisionEventSystems\n#[derive(EntityEvent, Message, Clone, Copy, Debug, PartialEq)]\n#[cfg_attr(feature = \"serialize\", derive(serde::Serialize, serde::Deserialize))]\npub struct CollisionStart {\n    /// The entity of the collider that started colliding with [`collider2`](Self::collider2).\n    ///\n    /// For observers watching this event as an [`EntityEvent`], this is the target entity.\n    #[event_target]\n    pub collider1: Entity,\n    /// The entity of the collider that started colliding with [`collider1`](Self::collider1).\n    pub collider2: Entity,\n    /// The rigid body that [`collider1`](Self::collider1) is attached to.\n    ///\n    /// If the collider is not attached to a rigid body, this will be `None`.\n    pub body1: Option<Entity>,\n    /// The rigid body that [`collider2`](Self::collider2) is attached to.\n    ///\n    /// If the collider is not attached to a rigid body, this will be `None`.\n"
+        }
+      ]
+    },
+    {
+      "path": "avian3d-0.7.0/src/dynamics/rigid_body/forces/query_data.rs",
+      "sha256": "54998ead4e850612d0962fadb87067b3c3da4cd20c82cc3ee45242ccbda42b96",
+      "excerpts": [
+        {
+          "first_line": 376,
+          "last_line": 396,
+          "text": "            let acceleration = self.inverse_angular_inertia() * torque;\n            self.accumulated_local_acceleration_mut().angular += acceleration;\n        }\n    }\n\n    /// Applies a linear impulse at the center of mass in world space. The unit is typically N\u22c5s or kg\u22c5m/s.\n    ///\n    /// The impulse modifies the [`LinearVelocity`] of the body immediately.\n    ///\n    /// By default, a non-zero impulse will wake up the body if it is sleeping. This can be prevented\n    /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].\n    #[inline]\n    fn apply_linear_impulse(&mut self, impulse: Vector) {\n        if impulse != Vector::ZERO && self.try_wake_up() {\n            let effective_inverse_mass = self\n                .locked_axes()\n                .apply_to_vec(Vector::splat(self.inverse_mass()));\n            let delta_vel = effective_inverse_mass * impulse;\n            *self.linear_velocity_mut() += delta_vel;\n        }\n    }\n"
+        }
+      ]
+    }
+  ],
+  "native_cdo": {
+    "bEnablePhysicsInteraction": "True",
+    "TouchForceFactor": "1.000000",
+    "bTouchForceScaledToMass": "True",
+    "MinTouchForce": "-1.000000",
+    "MaxTouchForce": "250.000000",
+    "bGenerateOverlapEvents": "True"
+  }
+}

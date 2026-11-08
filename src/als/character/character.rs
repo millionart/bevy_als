@@ -28,6 +28,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 #[require(AlsInitialMovementModePending)]
+#[require(avian3d::prelude::CollisionEventsEnabled)]
 #[require(crate::als::motion::AlsViewYaw)]
 #[require(AlsCrushRecovery)]
 #[require(crate::als::gait::AlsDesiredGait)]

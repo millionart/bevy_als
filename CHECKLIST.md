@@ -6040,7 +6040,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧动态墙测试只检查角色slide及被撞物体的输入速度，未核对HandleImpact向body输出的force。D20是角色保留动态接触速度的独立消费者；补齐其中一条不能作为另一条证据。本批仅登记，不修改生产实现。
   - 落地入口补证：UE SetPostLandedPhysics在切Walking后调用同一个ApplyImpactPhysicsForces。站立下压力设0，三个原生场景落地命中相同，仅开启交互的100kg动态台竖直速度变为−0.049983m/s。Playground实测Air→Grounded、绑定同类动态台、无物理接触冲量，台速保持0。D37单独覆盖站立下压力。证据 `docs/audit/bf144/570/`。
 
-- [ ] BF144-D39 / P2 — simulated overlap物体首次触碰时缺少CapsuleTouched冲量。
+- [x] BF144-D39 / P2 — simulated overlap物体首次触碰时缺少CapsuleTouched冲量；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 16:24 +08:00；预估结束17:19 +08:00；实际结束16:29 +08:00，提前50分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE BeginOverlap与CapsuleTouched、原生参数和Avian首次接触信号保存在`docs/audit/bf144/d39/`；已生成源冲量参数并接入Sensor首次接触，写质量、持续重叠及加载角色对照。旧target报告缺失；另一组件禁用源事件的独立映射和瞬时穿越尚无本项反例，测试与Gate待执行。
   - Source：fresh native胶囊GenerateOverlapEvents=True，CMC PhysicsInteraction=True、TouchForceFactor1、TouchScaledToMass=True、Min−1/Max250；UE `SetUpdatedComponent:1037–1042`绑定BeginOverlap，`CapsuleTouched:11674–11717`以角色水平速度×body mass后夹到MaxTouchForce，按几何与运动方向混合得到方向并AddImpulse。`PrimitiveComponent.cpp:224–230,4100–4140`要求双方生成事件且pair response=Overlap。
   - Target：完整角色没有对应overlap事件施力消费者；动态Sensor提供了实际重叠但仅作为query pair，没有转成源Touch impulse。
   - 反例：完整角色以3.75m/s横移，与相侧0.45m处的半径0.2m模拟物体开始重叠；fixture明确使用Overlap语义，COM始终在0.36m排斥半径外，分离D40。质量100/10/0.001kg时源冲量产生速度0.025/0.25/3.75m/s，target均0。`bf144_force_overlap_touch_keeps_source_impulse`5组2PASS/3FAIL；静止角色和Kinematic物体对照通过，ContactGraph确认实际重叠且无接触约束；证据`target/bf144/12/overlap/`。

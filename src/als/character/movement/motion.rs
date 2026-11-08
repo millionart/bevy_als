@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    AngularVelocity, Collider, ColliderOf, CollisionLayers, Collisions, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
+    AngularVelocity, Collider, ColliderOf, CollisionLayers, CollisionStart, Collisions, ComputedMass, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
     Forces, RigidBody, RigidBodyDisabled, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter, SpeculativeMargin,
     ReadRigidBodyForces, WriteRigidBodyForces,
 };
@@ -2975,6 +2975,8 @@ impl Plugin for AlsMotionPlugin {
                 ((|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system), locomotion_state_sync_system, snapshot_actual_velocity_system)
                     .chain().in_set(AlsActualVelocitySet),
             )
+            .add_systems(PostUpdate, apply_character_overlap_impulses
+                .after(locomotion_state_sync_system).before(snapshot_actual_velocity_system).in_set(AlsActualVelocitySet))
             .add_systems(PostUpdate, (
                 prepare_subminimum_custom_physics
                     .after(crate::roll_drive::AlsRollDriveSet)
@@ -5257,6 +5259,49 @@ fn source_character_impact_force(impact: &SourceCharacterImpact, body_velocity: 
     -impact.normal * (magnitude * modifier)
 }
 
+fn source_touch_impulse(character: Vec3, other: Vec3, velocity: Vec3, mass: f32) -> Vec3 {
+    use crate::als::movement_constants::{MAX_TOUCH_IMPULSE, MIN_TOUCH_IMPULSE, TOUCH_DIRECTION_VERTICAL_OFFSET,
+        TOUCH_FORCE_FACTOR, TOUCH_FORCE_SCALED_TO_MASS};
+    let horizontal = velocity.with_y(0.0);
+    let direction = ((other - character).with_y(TOUCH_DIRECTION_VERTICAL_OFFSET).normalize_or_zero()
+        + horizontal.normalize_or_zero()).normalize_or_zero();
+    let mut strength = horizontal.length() * TOUCH_FORCE_FACTOR * if TOUCH_FORCE_SCALED_TO_MASS { mass } else { 1.0 };
+    if MIN_TOUCH_IMPULSE > 0.0 { strength = strength.max(MIN_TOUCH_IMPULSE); }
+    if MAX_TOUCH_IMPULSE > 0.0 { strength = strength.min(MAX_TOUCH_IMPULSE); }
+    direction * strength
+}
+
+fn apply_character_overlap_impulses(
+    mut starts: MessageReader<CollisionStart>,
+    colliders: Query<(&Position, Has<Sensor>)>,
+    mut access: ParamSet<(
+        Query<(&Position, &LinearVelocity), With<AlsCharacter>>,
+        Query<(&RigidBody, &ComputedMass, Forces, Has<RigidBodyDisabled>)>,
+    )>,
+) {
+    use crate::als::movement_constants::{CHARACTER_GENERATES_OVERLAP_EVENTS, ENABLE_PHYSICS_INTERACTION};
+    if !CHARACTER_GENERATES_OVERLAP_EVENTS || !ENABLE_PHYSICS_INTERACTION { return; }
+    for start in starts.read() {
+        for (actor, other, body) in [(start.collider1, start.collider2, start.body2),
+            (start.collider2, start.collider1, start.body1)] {
+            let actor_motion = {
+                let characters = access.p0();
+                characters.get(actor).ok().map(|(position, velocity)| (position.0, velocity.0))
+            };
+            let Some((actor_position, velocity)) = actor_motion else { continue };
+            let Ok((other_position, other_sensor)) = colliders.get(other) else { continue };
+            let actor_sensor = colliders.get(actor).is_ok_and(|(_, sensor)| sensor);
+            if !other_sensor && !actor_sensor { continue; }
+            let body = body.unwrap_or(other);
+            if body == actor { continue; }
+            let mut bodies = access.p1();
+            if let Ok((RigidBody::Dynamic, mass, mut forces, false)) = bodies.get_mut(body) {
+                forces.apply_linear_impulse(source_touch_impulse(actor_position, other_position.0, velocity, mass.value()));
+            }
+        }
+    }
+}
+
 fn apply_character_impact_forces(
     mut impacts: MessageReader<SourceCharacterImpact>,
     owners: Query<&ColliderOf>,
@@ -5636,6 +5681,68 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn source_touch_impulse_scales_and_clamps_by_body_mass() {
+        for (mass, expected_speed) in [(100.0, 0.025), (10.0, 0.25), (0.001, 3.75)] {
+            let impulse = source_touch_impulse(Vec3::ZERO, Vec3::X * 0.45, Vec3::X * 3.75, mass);
+            assert!((impulse.length() / mass - expected_speed).abs() < 1e-5);
+            assert!(impulse.x > 0.0 && impulse.y > 0.0);
+        }
+        assert_eq!(source_touch_impulse(Vec3::ZERO, Vec3::X, Vec3::ZERO, 100.0), Vec3::ZERO);
+    }
+
+    #[test]
+    fn overlap_impulse_only_runs_for_new_dynamic_sensor_contacts() {
+        use avian3d::prelude::{Mass, NoAutoMass};
+        for (body, sensor, actor_speed, expected) in [(RigidBody::Dynamic, true, 3.75, 0.025),
+            (RigidBody::Dynamic, false, 3.75, 0.0), (RigidBody::Kinematic, true, 3.75, 0.0),
+            (RigidBody::Dynamic, true, 0.0, 0.0)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            let actor = app.world_mut().spawn((AlsCharacter, Position(Vec3::ZERO), LinearVelocity(Vec3::X * actor_speed))).id();
+            let other = app.world_mut().spawn((body, Collider::sphere(0.2), Transform::from_xyz(0.45, 0.0, 0.0),
+                GravityScale(0.0), Mass(100.0), NoAutoMass, LinearVelocity::ZERO)).id();
+            if sensor { app.world_mut().entity_mut(other).insert(Sensor); }
+            app.update();
+            app.update();
+            app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::X * actor_speed;
+            app.world_mut().resource_mut::<Messages<CollisionStart>>().write(CollisionStart {
+                collider1: actor, collider2: other, body1: None, body2: Some(other),
+            });
+            let system = app.world_mut().register_system(apply_character_overlap_impulses);
+            app.world_mut().run_system(system).unwrap();
+            let first = app.world().get::<LinearVelocity>(other).unwrap().0;
+            assert!((first.x - expected).abs() < 1e-4,
+                "Overlap impulse differs: body={body:?} sensor={sensor} speed={actor_speed} actual={first:?}");
+            app.world_mut().run_system(system).unwrap();
+            assert_eq!(app.world().get::<LinearVelocity>(other).unwrap().0, first,
+                "A retained overlap must not apply the initial impulse again");
+        }
+    }
+
+    #[test]
+    fn loaded_character_first_overlap_applies_the_source_impulse() {
+        use avian3d::prelude::{Mass, NoAutoMass};
+        for (mass, expected) in [(100.0, 0.025), (10.0, 0.25), (0.001, 3.75)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let start = app.world().get::<Position>(actor).unwrap().0;
+            let other = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.2), Sensor,
+                Transform::from_translation(start + Vec3::X * 0.45), GravityScale(0.0),
+                Mass(mass), NoAutoMass, LinearVelocity::ZERO)).id();
+            app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::X * 3.75;
+            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().move_dir = Vec2::X;
+            app.update();
+            let actual = app.world().get::<LinearVelocity>(other).unwrap().x;
+            assert!((actual - expected).abs() < 0.01,
+                "First overlap impulse differs: mass={mass} actual={actual} expected={expected}");
+            app.update();
+            let repeated = app.world().get::<LinearVelocity>(other).unwrap().x;
+            assert!((repeated - actual).abs() < 0.01,
+                "A continuing overlap repeated its initial impulse: first={actual} second={repeated}");
+        }
+    }
+
     #[test]
     fn impact_force_uses_source_speed_branches_and_velocity_scaling() {
         let impact = SourceCharacterImpact { collider: Entity::PLACEHOLDER, point: Vec3::ZERO,
