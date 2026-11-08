@@ -16,10 +16,12 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 
 use super::ragdoll_physics_profile::RagdollActiveMode;
+use super::source_contact_capsule::{SourceCapsuleGeometry, source_capsule_convex_manifold, source_capsule_hull_candidate};
 use super::source_contact_convex::{SourceConvexLifecycleSettings, source_body_local_max_extent,
     source_box_convex_manifold, source_convex_cull_distance, source_convex_hull_candidate};
 use super::source_contact_face::{SourceConvexTopology, source_convex_hulls, source_convex_scale, source_convex_topology};
 use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin, source_polygon_margins};
+use super::source_contact_narrow::{SourceCompoundInputs, SourceCompoundShape};
 use super::source_contact_restore::{SourceBoxContact, SourceBoxContactHistory, SourceContactContext, SourceConvexGjkHistory, SourceRestorePose,
     SourceRestoreSettings, capture_source_contact, capture_source_exact_contact, restore_source_contact,
     source_box_shape_pose, source_generated_manifold, source_scaled_bounds_max_extent_cm, source_solver_slots, write_source_solver_groups};
@@ -173,6 +175,37 @@ pub(super) fn generate_source_compound_groups(
                 result.contacts.insert(key, capture_source_exact_contact(&manifold, &generated.contacts, &context));
                 result.manifolds.push(manifold);
             }
+        }
+    }
+    result
+}
+
+pub(super) fn generate_source_capsule_groups(
+    identity: (ContactId, Tick),
+    template: &ContactManifold,
+    geometry: (SourceCapsuleGeometry, &Collider, &[SourceConvexTopology]),
+    context: SourceContactContext,
+    cull: f64,
+    history: &SourceBoxContactHistory,
+) -> SourceCompoundGroups {
+    let (capsule, compound, hulls) = geometry;
+    let scale = source_convex_scale(compound.scale().as_dvec3());
+    let inverse = context.frames[1].rotation.inverse();
+    let translation = inverse * (context.frames[0].position_m - context.frames[1].position_m);
+    let rotation = inverse * context.frames[0].rotation;
+    let mut template = template.clone();
+    template.points.clear();
+    let mut result = SourceCompoundGroups { manifolds: Vec::new(), contacts: EntityMap::default(), gjk: EntityMap::default() };
+    for (index, hull) in hulls.iter().enumerate() {
+        let key = (identity.0.0, index as u32, identity.1);
+        let active = history.compounds.get(&key).is_some_and(|saved| saved.matches(&context));
+        if !source_capsule_hull_candidate(capsule, hull, scale, context.frames, cull, active,
+            include!("../als/settings/contact_bounds_checks.rs")) { continue; }
+        let Some(points) = source_capsule_convex_manifold(hull, scale, capsule, translation, rotation, cull) else { continue; };
+        if points.iter().any(|point| point.phi_m <= cull) {
+            let manifold = source_generated_manifold(&template, &points, &context);
+            result.contacts.insert(key, capture_source_exact_contact(&manifold, &points, &context));
+            result.manifolds.push(manifold);
         }
     }
     result
@@ -374,11 +407,14 @@ pub(crate) fn order_source_capsule_contacts(
     ragdolls: Query<(), With<RagdollActiveMode>>,
     colliders: Query<(&Collider, &Rotation)>,
     sources: Query<(), With<SourceCompoundOrder>>,
+    source_inputs: SourceCompoundInputs,
     mut graph: ResMut<ContactGraph>,
 ) {
     for pair in graph.iter_active_mut() {
         if !pair.body1.is_some_and(|body| ragdolls.contains(body))
             && !pair.body2.is_some_and(|body| ragdolls.contains(body)) { continue; }
+        if source_inputs.input(pair.collider1, pair.collider2)
+            .is_some_and(|input| matches!(input.shape, SourceCompoundShape::Capsule(_))) { continue; }
         let (Ok((first, first_rotation)), Ok((second, second_rotation))) =
             (colliders.get(pair.collider1), colliders.get(pair.collider2)) else { continue; };
         let first_shape = first.shape_scaled();
@@ -795,6 +831,139 @@ mod tests {
     fn source_barrel_positive_gap_reaches_solver() {
         check_source_convex_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-inside.native-sample.json"),
             include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-outside.native-sample.json")]);
+    }
+
+    fn assert_source_capsule_groups(world: &World, ground: Entity, capsule: Entity, fixture: &serde_json::Value) {
+        let native = fixture["aggregate_contacts"].as_array().unwrap();
+        let pair = world.resource::<ContactGraph>().get(ground, capsule);
+        if native.is_empty() && pair.is_none() { return; }
+        let (edge, pair) = pair.expect("The source capsule contact pair was not discovered");
+        assert_eq!(pair.is_touching(), !native.is_empty());
+        assert_eq!(pair.manifolds.len(), native.len());
+        assert_eq!(edge.constraint_handles.len(), native.len());
+        let mut shapes = world.resource::<SourceBoxContactHistory>().compounds.keys()
+            .filter(|key| key.0 == pair.contact_id.0).map(|key| key.1).collect::<Vec<_>>();
+        shapes.sort_unstable();
+        assert_eq!(shapes, native.iter().map(|group| group["mesh_shape_index"].as_u64().unwrap() as u32).collect::<Vec<_>>());
+        assert!(!world.resource::<SourceBoxContactHistory>().convex_gjk.keys().any(|key| key.0 == pair.contact_id.0));
+        let vector = |value: &serde_json::Value| Vec3::new(value["x"].as_f64().unwrap() as f32,
+            value["z"].as_f64().unwrap() as f32, value["y"].as_f64().unwrap() as f32);
+        for (slot, group) in source_solver_slots(&edge.constraint_handles).into_iter().zip(native) {
+            let manifold = &pair.manifolds[slot];
+            let expected = group["points"].as_array().unwrap();
+            assert_eq!(manifold.points.len(), expected.len());
+            let normal = manifold.normal * if pair.collider1 == capsule { -1.0 } else { 1.0 };
+            let shape = group["mesh_shape_index"].as_u64().unwrap() as u32;
+            let history = world.resource::<SourceBoxContactHistory>();
+            let saved = history.compounds.iter().find(|(key, _)| key.0 == pair.contact_id.0 && key.1 == shape).unwrap().1;
+            for (saved_normal, expected) in saved.point_normals().zip(expected) {
+                assert!(saved_normal.as_vec3().abs_diff_eq(vector(&expected["world_normal"]), 1e-7));
+            }
+            for (surfaces, expected) in saved.point_surfaces().zip(expected) {
+                assert!(surfaces[0].as_vec3().abs_diff_eq(vector(&expected["shape_point_0_cm"]) * 0.01, 1e-6));
+                assert!(surfaces[1].as_vec3().abs_diff_eq(vector(&expected["shape_point_1_cm"]) * 0.01, 1e-6));
+            }
+            for (actual, expected) in manifold.points.iter().zip(expected) {
+                let midpoint = (vector(&expected["world_point_0_cm"]) + vector(&expected["world_point_1_cm"])) * 0.005;
+                assert!(actual.point.abs_diff_eq(midpoint, 2e-5));
+                assert!(normal.abs_diff_eq(vector(&expected["world_normal"]), 2e-5));
+                assert!((actual.penetration + expected["phi_cm"].as_f64().unwrap() as f32 * 0.01).abs() < 2e-5);
+            }
+        }
+    }
+
+    fn check_source_capsule_transition(initial: &str, next: &str) {
+        use avian3d::collision::narrow_phase::NarrowPhaseSystems;
+        use avian3d::prelude::{CollisionEventsEnabled, Gravity, LockedAxes, PhysicsSchedule, PhysicsStepSystems, SleepingDisabled, TimeToSleep};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+        let initial: serde_json::Value = serde_json::from_str(initial).unwrap();
+        let next: serde_json::Value = serde_json::from_str(next).unwrap();
+        let definitions: HashMap<String, Vec<Vec<[f32; 3]>>> = serde_json::from_str(include_str!(
+            "../../assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json")).unwrap();
+        let vector = |value: &serde_json::Value| Vec3::new(value["x"].as_f64().unwrap() as f32,
+            value["z"].as_f64().unwrap() as f32, value["y"].as_f64().unwrap() as f32);
+        let translation = |value: &serde_json::Value| Vec3::new(value[0].as_f64().unwrap() as f32,
+            value[2].as_f64().unwrap() as f32, value[1].as_f64().unwrap() as f32) * 0.01;
+        let first = vector(&initial["geometry"]["endpoint_0_cm"]) * 0.01;
+        let second = vector(&initial["geometry"]["endpoint_1_cm"]) * 0.01;
+        let axis = (second - first).normalize();
+        let radius = initial["geometry"]["radius_cm"].as_f64().unwrap() as f32 * 0.01;
+        let name = initial["input"]["mesh_asset_path"].as_str().unwrap().rsplit('/').next().unwrap();
+        let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
+        let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) =
+            include!("../als/settings/contact_lifecycle.rs");
+        let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
+            collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin));
+        crate::extensions::source_contact_narrow::add_source_physics(&mut app);
+        app.insert_resource(Gravity(Vec3::ZERO)).init_resource::<ObservedContactEvents>()
+            .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
+            .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale,
+                velocity_multiplier, max_velocity_expansion_cm, warm_start })
+            .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
+                empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
+            .init_resource::<SourceBoxContactHistory>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
+            .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last))
+            .add_systems(PhysicsSchedule, order_source_capsule_contacts
+                .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
+            .add_systems(PhysicsSchedule, record_contact_events.after(NarrowPhaseSystems::Update));
+        app.finish();
+        app.cleanup();
+        let compound = Collider::compound(definitions[name].iter().map(|hull| (Vec3::ZERO, Quat::IDENTITY,
+            Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap())).collect());
+        let ground = app.world_mut().spawn((RigidBody::Static, compound, SourceCompoundOrder(name.into()), Transform::IDENTITY)).id();
+        let body = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
+            RagdollActiveMode(BodyMode::Dynamic), Transform::from_translation(translation(&initial["input"]["body_translation_cm"])))).id();
+        let capsule = app.world_mut().spawn((Collider::capsule(radius, first.distance(second)), CollisionEventsEnabled,
+            Transform::from_translation((first + second) * 0.5).with_rotation(Quat::from_rotation_arc(Vec3::Y, axis)),
+            ChildOf(body))).id();
+        app.update();
+        app.update();
+        assert_source_capsule_groups(app.world(), ground, capsule, &initial);
+        assert_eq!(app.world().resource::<ObservedContactEvents>().starts, 1);
+        let next_position = translation(&next["input"]["body_translation_cm"]);
+        app.world_mut().get_mut::<Position>(body).unwrap().0 = next_position;
+        app.world_mut().get_mut::<Transform>(body).unwrap().translation = next_position;
+        app.update();
+        assert_source_capsule_groups(app.world(), ground, capsule, &next);
+        let ended = next["aggregate_contacts"].as_array().unwrap().is_empty();
+        assert_eq!(app.world().resource::<ObservedContactEvents>().ends, usize::from(ended));
+        if !ended {
+            let id = app.world().resource::<ContactGraph>().get(ground, capsule).unwrap().1.contact_id;
+            let keys = app.world().resource::<SourceBoxContactHistory>().compounds.keys()
+                .filter(|key| key.0 == id.0).copied().collect::<Vec<_>>();
+            app.world_mut().entity_mut(body).remove::<SleepingDisabled>();
+            app.world_mut().insert_resource(TimeToSleep(0.05));
+            let slept = (0..30).any(|_| {
+                app.update();
+                app.world().resource::<ContactGraph>().get(ground, capsule).is_some_and(|(edge, _)| edge.is_sleeping())
+            });
+            assert!(slept, "The source capsule contact did not sleep within 30 physics frames");
+            app.update();
+            assert!(keys.iter().all(|key| app.world().resource::<SourceBoxContactHistory>().compounds.contains_key(key)));
+            app.world_mut().get_mut::<Position>(body).unwrap().0.x += 0.001;
+            app.world_mut().get_mut::<Transform>(body).unwrap().translation.x += 0.001;
+            let woke = (0..5).any(|_| {
+                app.update();
+                app.world().resource::<ContactGraph>().get(ground, capsule).is_some_and(|(edge, _)| !edge.is_sleeping())
+            });
+            assert!(woke, "The source capsule contact did not wake within five physics frames");
+        }
+    }
+
+    #[test]
+    fn source_capsule_positive_gap_uses_native_activation_and_events() {
+        check_source_capsule_transition(include_str!("../../docs/audit/bf144/d130c2/head-barrel-inside.native-sample.json"),
+            include_str!("../../docs/audit/bf144/d130c2/head-barrel-outside.native-sample.json"));
+    }
+
+    #[test]
+    fn source_capsule_small_motion_rebuilds_native_hull_contacts() {
+        check_source_capsule_transition(include_str!("../../docs/audit/bf144/d130c2/head-arch-initial.native-sample.json"),
+            include_str!("../../docs/audit/bf144/d130c2/head-arch-shifted.native-sample.json"));
     }
 
     #[test]

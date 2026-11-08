@@ -1,0 +1,17 @@
+[
+  {
+    "label": "head_barrel_inside_cull",
+    "groups": [
+      {
+        "hull": 0,
+        "point_count": 2,
+        "min_phi_cm": 2.4000015258789062,
+        "max_normal_delta": 0.0
+      }
+    ]
+  },
+  {
+    "label": "head_barrel_outside_cull",
+    "groups": []
+  }
+]

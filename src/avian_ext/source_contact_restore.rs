@@ -104,6 +104,16 @@ impl SourceBoxContact {
     pub(super) fn is_within_cull(&self, cull: f64) -> bool {
         self.points.iter().any(|point| !point.disabled && point.phi_m <= cull)
     }
+
+    #[cfg(test)]
+    pub(super) fn point_normals(&self) -> impl Iterator<Item = DVec3> + '_ {
+        self.points.iter().filter(|point| !point.disabled).map(|point| point.normal_second)
+    }
+
+    #[cfg(test)]
+    pub(super) fn point_surfaces(&self) -> impl Iterator<Item = [DVec3; 2]> + '_ {
+        self.points.iter().filter(|point| !point.disabled).map(|point| [point.initial_first_m, point.second_m])
+    }
 }
 
 #[derive(Resource, Default)]

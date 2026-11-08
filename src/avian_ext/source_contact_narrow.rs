@@ -10,6 +10,7 @@ use bevy::ecs::{component::Tick, system::SystemParam};
 use bevy::prelude::*;
 
 use super::ragdoll_physics_profile::{RagdollActiveMode, RagdollCollisionHooks};
+use super::source_contact_capsule::{SourceCapsuleGeometry, source_capsule_body_geometry};
 use super::source_contact_convex::{SourceConvexLifecycleSettings, source_body_local_max_extent, source_convex_cull_distance};
 use super::source_contact_face::{SourceConvexTopology, source_convex_hulls};
 use super::source_contact_margin::SourceConvexMarginSettings;
@@ -38,12 +39,16 @@ pub(crate) struct SourceCompoundInputs<'w, 's> {
 
 pub(super) struct SourceCompoundInput {
     pub source_tick: Tick,
-    pub box_collider: Collider,
-    pub box_position: Position,
+    pub shape: SourceCompoundShape,
     pub compound: Collider,
     pub hulls: &'static [SourceConvexTopology],
     pub context: SourceContactContext,
     pub settings: SourceCompoundSettings,
+}
+
+pub(super) enum SourceCompoundShape {
+    Box { collider: Collider, position: Position },
+    Capsule(SourceCapsuleGeometry),
 }
 
 impl SourceCompoundInputs<'_, '_> {
@@ -77,9 +82,12 @@ impl SourceCompoundInputs<'_, '_> {
         let (box_entity, box_body, box_shape, box_data, compound_entity, compound_body, compound_shape, compound_data) =
             if source_side == 0 { (second_entity, second_body, second, second_data, first_entity, first_body, first, first_data) }
             else { (first_entity, first_body, first, first_data, second_entity, second_body, second, second_data) };
-        if !box_data.0.is_dynamic() || !box_data.8 || !compound_data.0.is_static()
-            || box_shape.0.shape_scaled().as_cuboid().is_none() { return None; }
-        let frame = source_box_shape_pose(box_shape.1, box_shape.2, box_shape.5, box_data.1, box_data.2);
+        if !box_data.0.is_dynamic() || !box_data.8 || !compound_data.0.is_static() { return None; }
+        let capsule = source_capsule_body_geometry(&box_shape.0, box_shape.5);
+        if capsule.is_none() && box_shape.0.shape_scaled().as_cuboid().is_none() { return None; }
+        let frame = if capsule.is_some() {
+            SourceRestorePose { position_m: box_data.1.0.as_dvec3(), rotation: box_data.2.0.as_dquat() }
+        } else { source_box_shape_pose(box_shape.1, box_shape.2, box_shape.5, box_data.1, box_data.2) };
         let frames = [frame, SourceRestorePose { position_m: compound_shape.1.0.as_dvec3(),
             rotation: compound_shape.2.0.as_dquat() }];
         let bounds = box_shape.0.shape_scaled().compute_local_aabb();
@@ -97,8 +105,10 @@ impl SourceCompoundInputs<'_, '_> {
             centers, linear: [velocity1, velocity2], angular };
         let extent = source_body_local_max_extent(box_body, self.ownership.iter())?;
         let cull = source_convex_cull_distance(extent, [box_data.4.0, Vec3::ZERO], delta, lifecycle);
-        Some(SourceCompoundInput { source_tick: source.last_changed(), box_collider: (*box_shape.0).clone(),
-            box_position: *box_shape.1, compound: (*compound_shape.0).clone(), hulls, context,
+        let shape = if let Some(capsule) = capsule { SourceCompoundShape::Capsule(capsule) }
+            else { SourceCompoundShape::Box { collider: (*box_shape.0).clone(), position: *box_shape.1 } };
+        Some(SourceCompoundInput { source_tick: source.last_changed(), shape,
+            compound: (*compound_shape.0).clone(), hulls, context,
             settings: SourceCompoundSettings { restore, lifecycle, margins, cull, box_size_cm } })
     }
 }

@@ -1,0 +1,88 @@
+{
+  "samples": [
+    {
+      "label": "arch_head_initial",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -70.341919,
+        -2.506819,
+        101.97644700000001
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1,
+      "aggregate_mesh": true,
+      "expected_contact_shapes": [
+        0,
+        2
+      ]
+    },
+    {
+      "label": "arch_head_shifted",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -70.341919,
+        -2.406819,
+        101.97644700000001
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1,
+      "aggregate_mesh": true,
+      "expected_contact_shapes": [
+        0,
+        2
+      ]
+    }
+  ]
+}

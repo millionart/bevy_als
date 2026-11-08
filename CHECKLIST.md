@@ -7112,9 +7112,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 本轮开始：2026-11-09 04:27 +08:00；预计结束：2026-11-09 04:52 +08:00。以fresh源胶囊构造和变换bounds为准，从目标shape及body关系重建端点/轴/半径，区分世界和双向局部筛选；写原生head姿态、缩放和边界控制。估时依据：D130b2已有7组原生几何，D100b3b3c4c3a已有凸包bounds；直接原生axis字段待reader重建。
   - 04:31 source/static摘要：fresh源确认胶囊body局部烘焙端点、float轴长和世界端点bounds，上帧活跃只跳过局部检查；已从目标shape/body变换重建并接入独立bounds合同，写原生head、七组环境姿态及活跃/关闭检查控制。reader新增body_scale请求和验证合同，单位/非均匀/反射的直接axis与长度待重建重采，不能宣称逐值验证；测试、消融及Playground待统一Gate。证据`docs/audit/bf144/d130c1/`。实际结束：2026-11-09 04:31 +08:00；偏差：−21分钟；结果：子项静态完成，真实入口留c2。
 
-- [ ] BF144-D130c2 / P2 — 在真实碰撞生命周期激活源胶囊/凸包点组。
+- [x] BF144-D130c2 / P2 — 在真实碰撞生命周期激活源胶囊/凸包点组。
   - 预计开始：2026-11-09 04:52 +08:00；预计结束：2026-11-09 05:42 +08:00。复用现有真实窄相位入口，按源bounds和逐hull活动身份重建胶囊点组，不复用旧manifold；保留cull、事件、睡眠及非源控制。实际开始时按剩余工作更新时点；测试、消融与Playground待统一Gate。
   - 本轮开始：2026-11-09 04:31 +08:00；预计结束：2026-11-09 05:21 +08:00。D130c1已提前静态完成；接入capsule逐hull生成与活动身份，并核对Avian共享manifold法向及求解组消费。估时依据：D100b3b3c4c3c已完成同一hook、事件与约束槽接入，D130b2/c1分别提供纯几何与bounds；测试、消融和Playground待统一Gate。
+  - 04:44 source/static摘要：fresh head/Barrel在2.4cm激活2点、3.5cm无组，head/Arch的1mm位移原生仍按两hull生成；源capsule禁用manifold复用。真实窄相位现逐hull执行源bounds、GJK/裁线与cull，保存活动身份和原始点，不复用旧几何；已写正间隙、位移重建、事件和睡眠控制。源每点法向与目标共享法向存在表示差异，当前native最大差约5.97e−8、未证明消费失败；逐点值已保存，统一Gate及D137须复核。编译、测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d130c2/`。实际结束：2026-11-09 04:44 +08:00；偏差：−37分钟；结果：子项静态完成，法向消费边界待统一验证。
 
 - [ ] BF144-D131 / P2 — box与凸包的棱边接触遗漏原生专用投影分支。
   - Source：fresh `CollisionOneShotManifolds.cpp:914–969`在两侧支持面均不接近接触法向时标为EdgeEdge；正polygonal margin路径寻找两侧最近棱边，沿接触法向投影到静态棱边，生成单点并提前返回。实际Arch_02样本contact type=2、有效margin=(0.6cm,0)，两个最大面法向对齐值约0.9023/0.9231；源静态碰撞force point使用body侧投影点。

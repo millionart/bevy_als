@@ -656,10 +656,18 @@ impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
         let Some(input) = self.source_compound.input(contacts.collider1, contacts.collider2) else { return true; };
         let Some(history) = self.source_compound.history.as_deref() else { return true; };
         let Some(template) = contacts.manifolds.first() else { return false; };
-        let Some(cuboid) = input.box_collider.shape_scaled().as_cuboid() else { return true; };
-        let result = super::source_contact_order::generate_source_compound_groups(
-            (contacts.contact_id, input.source_tick), template, (cuboid, &input.box_position),
-            (&input.compound, input.hulls), input.context, input.settings, history);
+        let identity = (contacts.contact_id, input.source_tick);
+        let result = match input.shape {
+            super::source_contact_narrow::SourceCompoundShape::Box { collider, position } => {
+                let Some(cuboid) = collider.shape_scaled().as_cuboid() else { return false; };
+                super::source_contact_order::generate_source_compound_groups(identity, template, (cuboid, &position),
+                    (&input.compound, input.hulls), input.context, input.settings, history)
+            }
+            super::source_contact_narrow::SourceCompoundShape::Capsule(capsule) => {
+                super::source_contact_order::generate_source_capsule_groups(identity, template,
+                    (capsule, &input.compound, input.hulls), input.context, input.settings.cull, history)
+            }
+        };
         let id = contacts.contact_id.0;
         contacts.manifolds = result.manifolds;
         commands.queue(move |world: &mut World| {

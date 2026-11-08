@@ -1,0 +1,36 @@
+[
+  {
+    "label": "arch_head_initial",
+    "groups": [
+      {
+        "hull": 0,
+        "point_count": 2,
+        "min_phi_cm": -0.09999954700469971,
+        "max_normal_delta": 0.0
+      },
+      {
+        "hull": 2,
+        "point_count": 3,
+        "min_phi_cm": -11.537934303283691,
+        "max_normal_delta": 5.974998672435225e-08
+      }
+    ]
+  },
+  {
+    "label": "arch_head_shifted",
+    "groups": [
+      {
+        "hull": 0,
+        "point_count": 2,
+        "min_phi_cm": -0.10033304244279861,
+        "max_normal_delta": 0.0
+      },
+      {
+        "hull": 2,
+        "point_count": 3,
+        "min_phi_cm": -11.637895584106445,
+        "max_normal_delta": 5.974998672435225e-08
+      }
+    ]
+  }
+]

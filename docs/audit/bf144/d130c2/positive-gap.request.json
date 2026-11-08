@@ -1,0 +1,80 @@
+{
+  "samples": [
+    {
+      "label": "head_barrel_inside_cull",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -5.0,
+        -3.0,
+        107.5
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1,
+      "aggregate_mesh": true
+    },
+    {
+      "label": "head_barrel_outside_cull",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -5.0,
+        -3.0,
+        108.6
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1,
+      "aggregate_mesh": true
+    }
+  ]
+}

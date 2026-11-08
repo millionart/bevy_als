@@ -1,0 +1,10 @@
+[
+  {
+    "dependency": "avian3d-0.7.0",
+    "source_file": "src/dynamics/solver/contact/mod.rs",
+    "sha256": "425a095c46fac096b45e14cd58afa83d0ece39e026c9f4966756f30ae6c319b2",
+    "start_line": 94,
+    "end_line": 108,
+    "text": "    /// The first world-space tangent direction shared by all points in the contact manifold.\n    #[cfg(feature = \"3d\")]\n    pub tangent1: Vector,\n    /// The contact points in the manifold. Each point shares the same `normal`.\n    // TODO: Use a `SmallVec`\n    pub points: Vec<ContactConstraintPoint>,\n    /// The stable identifier of the [`ContactEdge`] in the [`ContactGraph`].\n    ///\n    /// [`ContactEdge`]: crate::collision::contact_types::ContactEdge\n    pub contact_id: ContactId,\n    /// The index of the contact manifold in the [`ContactPair`].\n    pub manifold_index: usize,\n}\n\nimpl ContactConstraint {\n"
+  }
+]
