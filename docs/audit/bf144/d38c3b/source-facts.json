@@ -1,0 +1,48 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/MovementComponent.cpp",
+      "sha256": "86a3a43b4bfa0dede657294303f126893e8518d474db217c282a9b4bf6a6f3ba",
+      "excerpts": [
+        {
+          "first_line": 558,
+          "last_line": 589,
+          "text": "bool UMovementComponent::SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, ETeleportType Teleport)\n{\n\tif (UpdatedComponent == NULL)\n\t{\n\t\tOutHit.Reset(1.f);\n\t\treturn false;\n\t}\n\n\tbool bMoveResult = false;\n\n\t// Scope for move flags\n\t{\n\t\t// Conditionally ignore blocking overlaps (based on CVar)\n\t\tconst EMoveComponentFlags IncludeBlockingOverlapsWithoutEvents = (MOVECOMP_NeverIgnoreBlockingOverlaps | MOVECOMP_DisableBlockingOverlapDispatch);\n\t\tTGuardValue<EMoveComponentFlags> ScopedFlagRestore(MoveComponentFlags, MovementComponentCVars::MoveIgnoreFirstBlockingOverlap ? MoveComponentFlags : (MoveComponentFlags | IncludeBlockingOverlapsWithoutEvents));\n\t\tbMoveResult = MoveUpdatedComponent(Delta, NewRotation, bSweep, &OutHit, Teleport);\n\t}\n\n\t// Handle initial penetrations\n\tif (OutHit.bStartPenetrating && UpdatedComponent)\n\t{\n\t\tconst FVector RequestedAdjustment = GetPenetrationAdjustment(OutHit);\n\t\tif (ResolvePenetration(RequestedAdjustment, OutHit, NewRotation))\n\t\t{\n\t\t\t// Retry original move\n\t\t\tbMoveResult = MoveUpdatedComponent(Delta, NewRotation, bSweep, &OutHit, Teleport);\n\t\t}\n\t}\n\n\treturn bMoveResult;\n}\n\n"
+        },
+        {
+          "first_line": 611,
+          "last_line": 710,
+          "text": "\t{\n\t\treturn FVector::ZeroVector;\n\t}\n\n\tFVector Result;\n\tconst float PullBackDistance = FMath::Abs(MovementComponentCVars::PenetrationPullbackDistance);\n\tconst float PenetrationDepth = (Hit.PenetrationDepth > 0.f ? Hit.PenetrationDepth : 0.125f);\n\n\tResult = Hit.Normal * (PenetrationDepth + PullBackDistance);\n\n\treturn ConstrainDirectionToPlane(Result);\n}\n\nbool UMovementComponent::ResolvePenetrationImpl(const FVector& ProposedAdjustment, const FHitResult& Hit, const FQuat& NewRotationQuat)\n{\n\t// SceneComponent can't be in penetration, so this function really only applies to PrimitiveComponent.\n\tconst FVector Adjustment = ConstrainDirectionToPlane(ProposedAdjustment);\n\tif (!Adjustment.IsZero() && UpdatedPrimitive)\n\t{\n\t\tQUICK_SCOPE_CYCLE_COUNTER(STAT_MovementComponent_ResolvePenetration);\n\t\t// See if we can fit at the adjusted location without overlapping anything.\n\t\tAActor* ActorOwner = UpdatedComponent->GetOwner();\n\t\tif (!ActorOwner)\n\t\t{\n\t\t\treturn false;\n\t\t}\n\n\t\tUE_LOGF(LogMovement, Verbose, \"ResolvePenetration: %ls.%ls at location %ls inside %ls.%ls at location %ls by %.3f (netmode: %d)\",\n\t\t\t   *ActorOwner->GetName(),\n\t\t\t   *UpdatedComponent->GetName(),\n\t\t\t   *UpdatedComponent->GetComponentLocation().ToString(),\n\t\t\t   *Hit.GetHitObjectHandle().GetName(),\n\t\t\t   *GetNameSafe(Hit.GetComponent()),\n\t\t\t   Hit.Component.IsValid() ? *Hit.GetComponent()->GetComponentLocation().ToString() : TEXT(\"<unknown>\"),\n\t\t\t   Hit.PenetrationDepth,\n\t\t\t   (uint32)GetNetMode());\n\n\t\t// We really want to make sure that precision differences or differences between the overlap test and sweep tests don't put us into another overlap,\n\t\t// so make the overlap test a bit more restrictive.\n\t\tconst float OverlapInflation = MovementComponentCVars::PenetrationOverlapCheckInflation;\n\t\tbool bEncroached = OverlapTest(Hit.TraceStart + Adjustment, NewRotationQuat, UpdatedPrimitive->GetCollisionObjectType(), UpdatedPrimitive->GetCollisionShape(OverlapInflation), ActorOwner);\n\t\tif (!bEncroached)\n\t\t{\n\t\t\t// Move without sweeping.\n\t\t\tMoveUpdatedComponent(Adjustment, NewRotationQuat, false, nullptr, ETeleportType::TeleportPhysics);\n\t\t\tUE_LOGF(LogMovement, Verbose, \"ResolvePenetration:   teleport by %ls\", *Adjustment.ToString());\n\t\t\treturn true;\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Disable MOVECOMP_NeverIgnoreBlockingOverlaps if it is enabled, otherwise we wouldn't be able to sweep out of the object to fix the penetration.\n\t\t\tTGuardValue<EMoveComponentFlags> ScopedFlagRestore(MoveComponentFlags, EMoveComponentFlags(MoveComponentFlags & (~MOVECOMP_NeverIgnoreBlockingOverlaps)));\n\n\t\t\t// Try sweeping as far as possible...\n\t\t\tFHitResult SweepOutHit(1.f);\n\t\t\tbool bMoved = MoveUpdatedComponent(Adjustment, NewRotationQuat, true, &SweepOutHit, ETeleportType::TeleportPhysics);\n\t\t\tUE_LOGF(LogMovement, Verbose, \"ResolvePenetration:   sweep by %ls (success = %d)\", *Adjustment.ToString(), bMoved);\n\t\t\t\n\t\t\t// Still stuck?\n\t\t\tif (!bMoved && SweepOutHit.bStartPenetrating)\n\t\t\t{\n\t\t\t\t// Combine two MTD results to get a new direction that gets out of multiple surfaces.\n\t\t\t\tconst FVector SecondMTD = GetPenetrationAdjustment(SweepOutHit);\n\t\t\t\tconst FVector CombinedMTD = Adjustment + SecondMTD;\n\t\t\t\tif (SecondMTD != Adjustment && !CombinedMTD.IsZero())\n\t\t\t\t{\n\t\t\t\t\tbMoved = MoveUpdatedComponent(CombinedMTD, NewRotationQuat, true, nullptr, ETeleportType::TeleportPhysics);\n\t\t\t\t\tUE_LOGF(LogMovement, Verbose, \"ResolvePenetration:   sweep by %ls (MTD combo success = %d)\", *CombinedMTD.ToString(), bMoved);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Still stuck?\n\t\t\tif (!bMoved)\n\t\t\t{\n\t\t\t\t// Try moving the proposed adjustment plus the attempted move direction. This can sometimes get out of penetrations with multiple objects\n\t\t\t\tconst FVector MoveDelta = ConstrainDirectionToPlane(Hit.TraceEnd - Hit.TraceStart);\n\t\t\t\tif (!MoveDelta.IsZero())\n\t\t\t\t{\n\t\t\t\t\tbMoved = MoveUpdatedComponent(Adjustment + MoveDelta, NewRotationQuat, true, nullptr, ETeleportType::TeleportPhysics);\n\t\t\t\t\tUE_LOGF(LogMovement, Verbose, \"ResolvePenetration:   sweep by %ls (adjusted attempt success = %d)\", *(Adjustment + MoveDelta).ToString(), bMoved);\n\n\t\t\t\t\t// Finally, try the original move without MTD adjustments, but allowing depenetration along the MTD normal.\n\t\t\t\t\t// This was blocked because MOVECOMP_NeverIgnoreBlockingOverlaps was true for the original move to try a better depenetration normal, but we might be running in to other geometry in the attempt.\n\t\t\t\t\t// This won't necessarily get us all the way out of penetration, but can in some cases and does make progress in exiting the penetration.\n\t\t\t\t\tif (!bMoved && FVector::DotProduct(MoveDelta, Adjustment) > 0.f)\n\t\t\t\t\t{\n\t\t\t\t\t\tbMoved = MoveUpdatedComponent(MoveDelta, NewRotationQuat, true, nullptr, ETeleportType::TeleportPhysics);\n\t\t\t\t\t\tUE_LOGF(LogMovement, Verbose, \"ResolvePenetration:   sweep by %ls (Original move, attempt success = %d)\", *(MoveDelta).ToString(), bMoved);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\treturn bMoved;\n\t\t}\n\t}\n\n\treturn false;\n}\n\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 5550,
+          "last_line": 5580,
+          "text": "}\n\nvoid UCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult)\n{\n\tif (!CurrentFloor.IsWalkableFloor())\n\t{\n\t\treturn;\n\t}\n\n\t// Move along the current floor\n\tconst FVector Delta = ProjectToGravityFloor(InVelocity) * DeltaSeconds;\n\tFHitResult Hit(1.f);\n\tFVector RampVector = ComputeGroundMovementDelta(Delta, CurrentFloor.HitResult, CurrentFloor.bLineTrace);\n\tSafeMoveUpdatedComponent(RampVector, UpdatedComponent->GetComponentQuat(), true, Hit);\n\tfloat LastMoveTimeSlice = DeltaSeconds;\n\t\n\tif (Hit.bStartPenetrating)\n\t{\n\t\t// Allow this hit to be used as an impact we can deflect off, otherwise we do nothing the rest of the update and appear to hitch.\n\t\tHandleImpact(Hit);\n\t\tSlideAlongSurface(Delta, 1.f, Hit.Normal, Hit, true);\n\n\t\tif (Hit.bStartPenetrating)\n\t\t{\n\t\t\tOnCharacterStuckInGeometry(&Hit);\n\t\t}\n\t}\n\telse if (Hit.IsValidBlockingHit())\n\t{\n\t\t// We impacted something (most likely another ramp, but possibly a barrier).\n\t\tfloat PercentTimeApplied = Hit.Time;\n"
+        },
+        {
+          "first_line": 7783,
+          "last_line": 7811,
+          "text": "\nvoid UCharacterMovementComponent::HandleImpact(const FHitResult& Impact, float TimeSlice, const FVector& MoveDelta)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_CharHandleImpact);\n\n\tif (CharacterOwner)\n\t{\n\t\tCharacterOwner->MoveBlockedBy(Impact);\n\t}\n\n\tIPathFollowingAgentInterface* PFAgent = GetPathFollowingAgent();\n\tif (PFAgent)\n\t{\n\t\t// Also notify path following!\n\t\tPFAgent->OnMoveBlockedBy(Impact);\n\t}\n\n\tif (Impact.HitObjectHandle.DoesRepresentClass(APawn::StaticClass()))\n\t{\n\t\tAPawn* OtherPawn = Impact.HitObjectHandle.FetchActor<APawn>();\n\t\tNotifyBumpedPawn(OtherPawn);\n\t}\n\n\tif (bEnablePhysicsInteraction)\n\t{\n\t\tconst FVector FallingAcceleration = -GetGravityDirection() * GetGravityZ();\n\t\tconst FVector ForceAccel = Acceleration + (IsFalling() ? FallingAcceleration : FVector::ZeroVector);\n\t\tApplyImpactPhysicsForces(Impact, ForceAccel, Velocity);\n\t}\n"
+        }
+      ]
+    }
+  ],
+  "native_cdo": {
+    "bEnablePhysicsInteraction": "True",
+    "InitialPushForceFactor": "500.000000",
+    "PushForceFactor": "750000.000000",
+    "bPushForceUsingZOffset": "False",
+    "bPushForceScaledToMass": "False",
+    "bScalePushForceToVelocity": "True"
+  },
+  "related_native_geometry": [
+    "docs/audit/bf144/d21a/",
+    "docs/audit/bf144/d21b/"
+  ]
+}

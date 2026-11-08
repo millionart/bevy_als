@@ -3643,7 +3643,7 @@ fn falling_movement_transaction(
                 spatial, capsule, transform, extent.y, extent.x.min(extent.z), velocity, desired_motion,
                 speed, input_dynamics, &cmc, landing.0, remaining, entity, candidates, step_permissions, bases, owners,
                 &impact_bodies.pawns, current_base,
-                impacts.as_deref_mut().map(|writer| (writer, impact_acceleration - gravity, speed)));
+                impacts.as_deref_mut().map(|writer| (writer, impact_acceleration - gravity, speed, impact_bodies)));
             transform = moved;
             velocity = next_velocity;
             current_base = last_base;
@@ -4549,9 +4549,9 @@ fn walking_slide_sweep(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3,
     Some(progress)
 }
 
-fn record_ground_impact(context: &mut Option<(&mut Messages<SourceCharacterImpact>, Vec3, Vec3, f32)>,
+fn record_ground_impact(context: &mut Option<(&mut Messages<SourceCharacterImpact>, Vec3, Vec3, f32, &FallingImpactBodies)>,
     hit: &ShapeHitData, normal: Vec3) {
-    if let Some((writer, acceleration, velocity, max_speed)) = context.as_mut() {
+    if let Some((writer, acceleration, velocity, max_speed, _)) = context.as_mut() {
         writer.write(SourceCharacterImpact { collider: hit.entity, point: hit.point1,
             normal, acceleration: *acceleration, velocity: *velocity, max_speed: *max_speed });
     }
@@ -4563,7 +4563,7 @@ fn grounded_movement_transaction(
     mode: LocomotionState, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     step_permissions: &Query<&AlsMantleTargetPermission>,
-    mut impact_context: Option<(&mut Messages<SourceCharacterImpact>, Vec3, Vec3, f32)>,
+    mut impact_context: Option<(&mut Messages<SourceCharacterImpact>, Vec3, Vec3, f32, &FallingImpactBodies)>,
 ) -> Option<(Vec3, Option<Vec3>, Option<f32>, bool, bool, bool)> {
     let mut pending_step_impact = None;
     let mut pending_fallback_impacts = Vec::new();
@@ -4592,6 +4592,15 @@ fn grounded_movement_transaction(
     let raw_hit = spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &raw_config, &filter, &accepts);
     let penetrating = raw_hit.as_ref().is_some_and(|hit| hit.distance == 0.0
         && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0);
+    let unresolved = penetrating && impact_context.as_ref().is_some_and(|(_, _, _, _, bodies)| {
+        falling_resolve_penetration(spatial_query, capsule, center, Quat::IDENTITY,
+            raw_hit.as_ref().unwrap(), ramp_delta, &filter, &accepts, bodies).is_none()
+    });
+    if unresolved {
+        let hit = raw_hit.as_ref().unwrap();
+        record_ground_impact(&mut impact_context, hit, hit.normal1);
+        impact_context = None;
+    }
     let forward_hit = if raw_hit.as_ref().is_some_and(|hit| hit.distance == 0.0) {
         spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts)
     } else { raw_hit };
@@ -4772,7 +4781,7 @@ fn walking_movement_transaction(
     step_permissions: &Query<&AlsMantleTargetPermission>,
     bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     owners: &Query<&ColliderOf>, pawns: &Query<(), With<AlsCharacter>>, mut last_base: Option<Entity>,
-    mut impacts: Option<(&mut Messages<SourceCharacterImpact>, Vec3, f32)>,
+    mut impacts: Option<(&mut Messages<SourceCharacterImpact>, Vec3, f32, &FallingImpactBodies)>,
 ) -> (Transform, Vec3, u32, f32, bool, Vec3, Option<Entity>, bool) {
     let mut last_input = velocity;
     let mut lost_floor = false;
@@ -4784,7 +4793,7 @@ fn walking_movement_transaction(
             let requested = step_velocity * step_seconds;
             let Some((advanced, remaining, next_y, penetrating, stepped_up, _)) = grounded_movement_transaction(spatial, capsule, center,
                 transform.rotation, half, radius, requested, cmc, LocomotionState::Grounded, entity, candidates, step_permissions,
-                impacts.as_mut().map(|(writer, acceleration, speed)| (&mut **writer, *acceleration, step_velocity, *speed)))
+                impacts.as_mut().map(|(writer, acceleration, speed, bodies)| (&mut **writer, *acceleration, step_velocity, *speed, *bodies)))
                 else { return (step_velocity, Vec3::ZERO, true) };
             transform.translation = advanced + remaining.unwrap_or(requested);
             if let Some(next_y) = next_y && (stepped_up || next_y > center.y) { transform.translation.y = next_y; }
@@ -4958,7 +4967,7 @@ pub(crate) fn cmc_movement_transaction_system(
                 controller.basis.desired_motion, max_speed, input_dynamics, &params.cmc, factor, delta_seconds, entity,
                 &candidates, &step_permissions, &bases, &owners, &impact_bodies.pawns, initial_base,
                 impacts.as_deref_mut().map(|writer| (writer,
-                    controller.basis.desired_motion.clamp_length_max(1.0) * input_dynamics.acceleration, max_speed)));
+                    controller.basis.desired_motion.clamp_length_max(1.0) * input_dynamics.acceleration, max_speed, &impact_bodies)));
             current_transform = moved;
             if lost_floor || rejected_base {
                 *loco = LocomotionState::Air;
@@ -5028,7 +5037,7 @@ pub(crate) fn cmc_movement_transaction_system(
             * cached_input_max.unwrap_or_else(|| dynamics.as_deref().map_or(params.acceleration.max_acceleration, |value| value.0.acceleration));
         let Some((advanced, remaining, next_y, penetrating, stepped_up, swept_movement)) = grounded_movement_transaction(&spatial_query, capsule,
             center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions,
-            impacts.as_deref_mut().map(|writer| (writer, impact_acceleration, impact_velocity, runtime.grounded_max_speed))) else { continue };
+            impacts.as_deref_mut().map(|writer| (writer, impact_acceleration, impact_velocity, runtime.grounded_max_speed, &impact_bodies))) else { continue };
         runtime.grounded_move_start = (!penetrating).then_some(center);
         if penetrating { runtime.grounded_collision_velocity = Some(next_velocity.with_y(0.0)); }
         let consumed = stepped_up || swept_movement;
@@ -5695,13 +5704,13 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
                     Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.1, &crate::als::params::CmcAdapterParams::default(),
                     LocomotionState::Grounded, actor, &candidates, &permissions,
-                    Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75)))
+                    Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75, &impact_bodies)))
             }).unwrap();
             app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
             let actual = app.world().get::<VelocityIntegrationData>(wall).map_or(0.0, |value| value.linear_increment.x);
@@ -5761,13 +5770,13 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let outcome = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let outcome = app.world_mut().run_system_once(move |spatia impact_bodies: FallingImpactBodies,l: SpatialQuery,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
                     Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.5, &crate::als::params::CmcAdapterParams::default(),
                     LocomotionState::Grounded, actor, &candidates, &permissions,
-                    Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75)))
+                    Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75, &impact_bodies)))
             }).unwrap().unwrap();
             assert_eq!(outcome.4, stepped, "height={height} outcome={outcome:?}");
             app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
@@ -5797,13 +5806,13 @@ mod tests {
         let actor = app.world_mut().spawn_empty().id();
         app.update();
         app.update();
-        app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        app.world_mut().run_system_o impact_bodies: FallingImpactBodies,nce(move |spatial: SpatialQuery,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
             grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
                 Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.5, &crate::als::params::CmcAdapterParams::default(),
                 LocomotionState::Grounded, actor, &candidates, &permissions,
-                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75)))
+                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75, &impact_bodies)))
         }).unwrap();
         app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
         let wall_acceleration = app.world().get::<VelocityIntegrationData>(wall).unwrap().linear_increment;
@@ -5857,7 +5866,7 @@ mod tests {
         let actor = app.world_mut().spawn_empty().id();
         app.update();
         app.update();
-        let (witnessed, outcome) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        let (witnessed, outcome) = app.world_mu impact_bodies: FallingImpactBodies,t().run_system_once(move |spatial: SpatialQuery,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
             let capsule = als_character_capsule(0.9, 0.3);
@@ -5868,7 +5877,7 @@ mod tests {
             let outcome = grounded_movement_transaction(&spatial, &capsule, Vec3::Y * 0.9215,
                 Quat::IDENTITY, 0.9, 0.3, Vec3::new(0.5, 0.0, 0.5), &crate::als::params::CmcAdapterParams::default(),
                 LocomotionState::Grounded, actor, &candidates, &permissions,
-                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75))).unwrap();
+                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75, &impact_bodies))).unwrap();
             (preview.iter().any(|(hit, _)| hit.entity == witness), outcome)
         }).unwrap();
         assert!(witnessed, "The discarded slide must actually hit its witness");
@@ -5896,17 +5905,63 @@ mod tests {
         let actor = app.world_mut().spawn_empty().id();
         app.update();
         app.update();
-        app.world_mut().run_system_once(move |spatial: SpatialQuery,
+     impact_bodies: FallingImpactBodies,    app.world_mut().run_system_once(move |spatial: SpatialQuery,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
             grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
                 Quat::IDENTITY, 0.9, 0.3, Vec3::new(0.5, 0.0, 0.5), &crate::als::params::CmcAdapterParams::default(),
                 LocomotionState::Grounded, actor, &candidates, &permissions,
-                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75)))
+                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75, &impact_bodies)))
         }).unwrap();
         app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
         let acceleration = app.world().get::<VelocityIntegrationData>(witness).unwrap().linear_increment;
         assert!(acceleration.z > 0.0, "The committed slide must push its blocking witness: {acceleration:?}");
+    }
+
+    #[test]
+    fn unresolved_ground_penetration_reports_an_impact_once() {
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        for blocked in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<SourceCharacterImpact>();
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+            let wall = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(0.5, 2.0, 2.0),
+                Transform::from_xyz(0.525, 1.7, 0.0), GravityScale(0.0), Mass(100.0), NoAutoMass,
+                LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO,
+                AlsMantleTargetPermission { allows_step_up: false })).id();
+            if blocked {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.5, 2.0, 2.0),
+                    Transform::from_xyz(-0.5501, 1.7, 0.0)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let (initial, recovered) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                impact_bodies: FallingImpactBodies,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
+                let capsule = als_character_capsule(0.9, 0.3);
+                let center = Vec3::Y * 0.9215;
+                let delta = Vec3::NEG_X * 0.3125;
+                let filter = SpatialQueryFilter::from_excluded_entities([actor]);
+                let accepts = |candidate| character_blocks_collider(actor, candidate, &candidates);
+                let raw = spatial.cast_shape_predicate(&capsule, center, Quat::IDENTITY, Dir3::NEG_X,
+                    &ShapeCastConfig::from_max_distance(delta.length()), &filter, &accepts).unwrap();
+                let recovered = falling_resolve_penetration(&spatial, &capsule, center, Quat::IDENTITY,
+                    &raw, delta, &filter, &accepts, &impact_bodies).is_some();
+                grounded_movement_transaction(&spatial, &capsule, center, Quat::IDENTITY, 0.9, 0.3, delta,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                    actor, &candidates, &permissions, Some((&mut impacts, Vec3::NEG_X * 20.0,
+                        Vec3::NEG_X * 5.0, 3.75, &impact_bodies))).unwrap();
+                (raw.entity, recovered)
+            }).unwrap();
+            assert_eq!(initial, wall, "The dynamic wall must be the initial overlapping shape");
+            assert_eq!(recovered, !blocked, "The opposing wall must prevent penetration recovery");
+            assert_eq!(app.world().resource::<Messages<SourceCharacterImpact>>().len(), usize::from(blocked));
+        }
     }
 
     #[test]
