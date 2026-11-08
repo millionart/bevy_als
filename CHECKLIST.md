@@ -6312,11 +6312,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：全新scale=0.01角色的21 body中18组不符，包含D71的分解影响；pelvis是无旋转单shape，独立证明本项，质量1g与实际shape下限均正确。从实际clamped Collider重新计算的Ixx与native相等，误差5.55e-17。source六种scale共126组102PASS/24FAIL，常规尺寸与无下限触发的root/foot提供对照。未将source自身在4个极小body上的数值分解偏差“修正”为理想公式。
   - 19:41 source/static摘要：六档初始化及0.01 live原生body输出、坐标单位转换和身份已持久化；初始尺寸被截断时按实际shape重算质量、质心和惯量，生命周期记录区分live更新与rig重建。已写单/多shape、普通尺度、profile重应用及live/重建对照；多shape live质心边界转D73，测试、状态消融及真实入口均待统一Gate。证据`docs/audit/bf144/d72/`。实际结束：2026-11-08 19:41 +08:00；偏差：−48分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D73 / P3 — 已创建rig的小尺寸缩放错误复用初始化capsule轴长下限。
+- [x] BF144-D73 / P3 — 已创建rig的小尺寸缩放错误复用初始化capsule轴长下限。
+  - 本轮开始：2026-11-08 19:41 +08:00；预计结束：2026-11-08 20:36 +08:00。fresh读取live尺寸和质量链路及多档body原生结果，按创建/更新阶段分别构造胶囊，并按实际更新形状复算触发截断的多shape质量；验证留到升级后。
+  - 19:45 source/static摘要：fresh `UpdateBodyScale`及`FCollisionShape`确认live半轴最小1e-4cm，半径先应用0.1cm再受半高限制；1/0.75/1.5/0.01原生body读数已获取。额外0.001控制触发UE `CombineWorldSpace`质量ensure，失败请求、输出、报告及隐私处理后的错误摘要已保留，不计有效样本；几何尺寸按源公式和PA原始形状离线计算，未冒称原生直接读到shape。
   - 19:40 D72依赖控制发现的同链路边界：fresh `UpdateBodyScale`对live capsule半径也有限制，0.01的多shape spine_03原生质心X约0.00019486m，而target均匀缩放原质心约0.00007826m；此前“质量/惯量相符”仅为pelvis单shape对照。D73处理live几何时须按更新后的实际shape复算多shape质量属性，保留pelvis对照，不将这一源差异归给D72初始化。
   - Source：fresh `BodyInstance::UpdateBodyScale:2402–2422`的live分支将capsule半轴下限设为FCollisionShape::MinCapsuleAxisHalfHeight，即1e-4cm；与初始化GetFinalScaled的圆柱长度0.1cm下限不同。原生live probe确认pelvis在scale=0.01时按半轴0.35mm计算惯量。
   - Target：`scaled_collider:123–126`在创建与更新两条路径都将圆柱全长截到1mm；live pelvis实际半轴0.5mm，比源0.35mm多0.15mm。该case的目标质量/惯量反而与native live相符，证明是形状更新边界，独立于D72的初始化质量属性。
   - 反例：完整角色的player/mesh从unit scale改为1/0.75/1.5/0.01，4组3PASS/1FAIL；源与target半径均1.4mm，最后一组只有实际几何轴长不等。`bf144_pa_live_scale_matches_source_body_geometry_and_mass`保留native质量控制与当前Collider取样，没有改尺寸阈值。
+  - 19:46 source/static摘要：live和初始化按各自源下限构造capsule，live发生尺寸截断时按更新形状复算多shape质量；已写四档全部capsule几何与pelvis/spine等原生质量、质心对照。有效原生body、源公式推导几何及0.001失败reader证据均已持久化；测试、消融、物理轨迹和Playground待统一Gate。证据`docs/audit/bf144/d73/`。实际结束：2026-11-08 19:46 +08:00；偏差：−50分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D74 / P3 — mesh缩放到零后Ragdoll仍保持刚体模拟。
   - Source：fresh `SkeletalMeshComponentPhysics.cpp:1946–1949,3533–3544`在OnUpdateTransform调用UpdateRigidBodyScaling；relative scale跨到零时立即SetAllBodiesSimulatePhysics(false)，独立于world tick。p.UpdateRigidBodyScaling默认开启，当前项目/源配置没有覆盖。

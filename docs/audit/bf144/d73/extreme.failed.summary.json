@@ -1,0 +1,20 @@
+{
+  "result": "failed_engine_ensure",
+  "reader_exit_code": 1,
+  "failed_scale": 0.001,
+  "message_lines": [
+    "Ensure condition failed: NewMP.Mass > (1.e-8f)  [File:./Runtime/Experimental/Chaos/Private/Chaos/MassProperties.cpp] [Line: 301]",
+    "CombineWorldSpace: zero total mass detected"
+  ],
+  "stdout_sha256": "116486d9072f4a7e810d7d7fc3b62ba45ecf9be9ed0d963a17e95c4638b0b876",
+  "stdout_note": "Original log included local paths and was not retained",
+  "raw_output": {
+    "path": "docs/audit/bf144/d73/extreme.failed.native.json.gz",
+    "bytes": 4823345,
+    "sha256": "8ef6110065257fe6c817496528f41e41691d55c72bc8f895344ab15ad9380869"
+  },
+  "compressed": {
+    "bytes": 229985,
+    "sha256": "7137121ca060b1f615fc5c544590f47e39167f5b94367b242c30873381b08bea"
+  }
+}

@@ -112,7 +112,7 @@ pub struct RagdollColliderPhysicsProfile {
 }
 
 impl RagdollColliderPhysicsProfile {
-    fn scaled_collider(&self, scale: Vec3) -> Collider {
+    fn scaled_collider(&self, scale: Vec3, initial_shape: bool) -> Collider {
         match &self.shape {
             ColliderShape::Sphere(sphere) => Collider::sphere(sphere.radius * scale.min_element()),
             ColliderShape::Cuboid(cuboid) => {
@@ -120,9 +120,16 @@ impl RagdollColliderPhysicsProfile {
                 Collider::cuboid(size.x, size.y, size.z)
             }
             ColliderShape::Capsule(capsule) => {
-                let half_height = ((capsule.half_length + capsule.radius) * scale.y).max(0.001);
-                let radius = (capsule.radius * scale.x.max(scale.z)).clamp(0.001, half_height);
-                Collider::capsule(radius, ((half_height - radius) * 2.0).max(0.001))
+                let half_height = (capsule.half_length + capsule.radius) * scale.y;
+                if initial_shape {
+                    let half_height = half_height.max(0.001);
+                    let radius = (capsule.radius * scale.x.max(scale.z)).clamp(0.001, half_height);
+                    Collider::capsule(radius, ((half_height - radius) * 2.0).max(0.001))
+                } else {
+                    let radius = (capsule.radius * scale.x.max(scale.z)).max(0.001).min(half_height).max(0.000001);
+                    let half_length = (half_height - radius).max(0.000001);
+                    Collider::capsule(radius, half_length * 2.0)
+                }
             }
         }
     }
@@ -1384,11 +1391,13 @@ fn scaled_ragdoll_mass_properties(
     profile: &RagdollPhysicsProfile, body: &RagdollBodyPhysicsProfile, mass: RagdollMassProperties, scale: Vec3,
     initial_shape: bool,
 ) -> (f32, Vec3, Mat3) {
-    let clamped_capsule = initial_shape && profile.colliders.iter()
+    let clamped_capsule = profile.colliders.iter()
         .filter(|shape| shape.source_body_index == body.source_index)
         .any(|shape| match &shape.shape {
-            ColliderShape::Capsule(capsule) => (capsule.half_length + capsule.radius) * scale.y < 0.001
+            ColliderShape::Capsule(capsule) if initial_shape => (capsule.half_length + capsule.radius) * scale.y < 0.001
                 || capsule.radius * scale.x < 0.001 || capsule.half_length * scale.y * 2.0 < 0.001,
+            ColliderShape::Capsule(capsule) => capsule.radius * scale.x < 0.001
+                || capsule.half_length * scale.y < 0.000001,
             _ => false,
         });
     if scale.x == scale.y && scale.y == scale.z && !clamped_capsule {
@@ -1400,7 +1409,7 @@ fn scaled_ragdoll_mass_properties(
     let mut combined = avian3d::parry::mass_properties::MassProperties::default();
     for shape in profile.colliders.iter().filter(|shape| shape.source_body_index == body.source_index) {
         base_volume += shape.shape.avian_collider().shape().mass_properties(1.0).mass();
-        let scaled = shape.scaled_collider(scale);
+        let scaled = shape.scaled_collider(scale, initial_shape);
         let pose = avian3d::parry::math::Pose3::from_parts(shape.local_transform.translation * scale, shape.local_transform.rotation);
         combined += scaled.shape().mass_properties(1.0).transform_by(&pose);
     }
@@ -1562,7 +1571,7 @@ fn apply_profile_to_spawned_ragdoll(
             (transforms.get(*collider_entity), colliders.get_mut(*collider_entity)) {
             let mut transform = *local;
             if let Some(collider) = collider {
-                *shape = collider.scaled_collider(scale);
+                *shape = collider.scaled_collider(scale, initial_shape);
                 transform = collider.local_transform;
                 transform.translation *= scale;
             } else {
@@ -1833,6 +1842,60 @@ fn joint_anchor_distance(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn live_ragdoll_scale_matches_source_capsules_and_body_mass() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy_animation_graph::core::ragdoll::{definition::Ragdoll, spawning::spawn_ragdoll_avian};
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../docs/audit/bf144/d73/live.runtime.json")).unwrap();
+        let ragdoll: Ragdoll = ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate), crate::extensions::SourcePhysicsJointPlugin));
+        app.finish(); app.cleanup();
+        let world = app.world_mut();
+        let player = world.spawn((AnimationGraphPlayer::new(Handle::default()),
+            crate::pa_als::parse_pa_als_profile(), Transform::IDENTITY)).id();
+        let spawned = world.run_system_once(move |mut commands: Commands| {
+            spawn_ragdoll_avian(player, &ragdoll, Isometry3d::IDENTITY, None, &mut commands)
+        }).unwrap();
+        let bodies = spawned.bodies.values().map(|entity| (world.get::<BodyLabel>(*entity).unwrap().0.clone(), *entity))
+            .collect::<Vec<_>>();
+        let colliders = spawned.colliders.values().map(|entity| (world.get::<ColliderLabel>(*entity).unwrap().0.clone(), *entity))
+            .collect::<Vec<_>>();
+        let mut graph = world.get_mut::<AnimationGraphPlayer>(player).unwrap();
+        let ReflectMut::Struct(fields) = graph.reflect_mut() else { panic!("player must be a struct") };
+        *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+        for sample in fixture["samples"].as_array().unwrap() {
+            let scale = sample["scale"][0].as_f64().unwrap() as f32;
+            world.get_mut::<Transform>(player).unwrap().scale = Vec3::splat(scale);
+            world.run_system_once(apply_ragdoll_physics_profiles).unwrap();
+            for expected in sample["capsules"].as_array().unwrap() {
+                let label = expected["label"].as_str().unwrap();
+                let entity = colliders.iter().find(|(name, _)| name == label).unwrap().1;
+                let shape = world.get::<Collider>(entity).unwrap().shape_scaled();
+                let capsule = shape.as_capsule().unwrap();
+                let radius = expected["radius_m"].as_f64().unwrap() as f32;
+                let half_length = expected["half_length_m"].as_f64().unwrap() as f32;
+                assert!((capsule.radius - radius).abs() < 1e-7, "scale={scale} collider={label} radius={}", capsule.radius);
+                assert!((capsule.segment.a.distance(capsule.segment.b) * 0.5 - half_length).abs() < 1e-7,
+                    "scale={scale} collider={label} half_length={}", capsule.segment.a.distance(capsule.segment.b) * 0.5);
+            }
+            for label in ["pelvis", "spine_03", "foot_l", "root"] {
+                let expected = sample["bodies"].as_array().unwrap().iter().find(|body| body["bone_name"] == label).unwrap();
+                let entity = bodies.iter().find(|(name, _)| name == label).unwrap().1;
+                let expected_mass = expected["mass_kg"].as_f64().unwrap() as f32;
+                let mass = world.get::<Mass>(entity).unwrap().0;
+                let center = Vec3::new(expected["center_m"][0].as_f64().unwrap() as f32,
+                    expected["center_m"][1].as_f64().unwrap() as f32, expected["center_m"][2].as_f64().unwrap() as f32);
+                assert!((mass - expected_mass).abs() < expected_mass * 1e-4, "scale={scale} body={label} mass={mass}");
+                assert!(world.get::<CenterOfMass>(entity).unwrap().0.abs_diff_eq(center, 1e-7),
+                    "scale={scale} body={label} center={:?} native={center:?}", world.get::<CenterOfMass>(entity).unwrap().0);
+            }
+        }
+        assert!(world.get::<RagdollPhysicsProfileApplied>(player).unwrap().live_scale_applied);
+    }
+
     #[test]
     fn tiny_initial_ragdoll_mass_uses_clamped_shapes_and_preserves_live_updates() {
         use bevy::ecs::system::RunSystemOnce;
