@@ -1,0 +1,7 @@
+{
+  "native_source": "docs/audit/bf144/d100b3b3b1/gjk.native.json.gz",
+  "native_identity": "docs/audit/bf144/d100b3b3b1/native-identity.json",
+  "fixture": "docs/audit/bf144/d100b3b3b2a/simplex.native-samples.json",
+  "fixture_bytes": 8784,
+  "fixture_sha256": "6e61f8a87c365a082e9e1b18aa4ba3886d6509404ea60d814fdf78707bfe395d"
+}

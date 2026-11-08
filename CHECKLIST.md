@@ -6640,6 +6640,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 00:04 source/static摘要：reader已增加按原始box/convex、有效margin、相对变换和实际epsilon执行冷GJK并记录末次顶点及simplex的可选探针；旧版reader fresh读取五个请求，四个核心分离、一个核心重叠，完整原始结果已保存。旧二进制忽略新请求字段，末次顶点尚未观察；已写新旧simplex、法向和索引合同，reader重建、测试、消融与Playground待统一Gate。证据`docs/audit/bf144/d100b3b3b1/`。实际结束：2026-11-09 00:04 +08:00；偏差：−38分钟；结果：子项静态实现完成，未再拆分。
 
 - [ ] BF144-D100b3b3b2 / P3 — 移植冷启动、核心分离的源GJK支持顶点。
+  - 00:05 source/static摘要：fresh `GJK.h`使用双精度厘米与`SimplexFindClosestToOrigin`的Cramer/符号分支，现有capsule sweep使用不同的单精度路径，不能直接复用。拆为源simplex归约D100b3b3b2a和核心支持/GJK循环D100b3b3b2b；核心重叠后的EPA及热启动仍属b3b3b3。
+
+- [x] BF144-D100b3b3b2a / P3 — 移植源双精度GJK simplex归约。
+  - 本轮开始：2026-11-09 00:05 +08:00；预计结束：2026-11-09 00:55 +08:00。按源线段、三角形Cramer投影、四面体符号及索引重排实现独立合同，写五组fresh原生simplex和退化边界；测试与消融留待统一Gate。估时依据：本轮已有四组三点、一组四点原始simplex，源函数递归闭包明确。
+  - 00:07 source/static摘要：已按源双精度线段、Cramer三角投影、符号严格比较、四面体子面选择和索引重排实现simplex合同；五组原生simplex摘录与线段退化、四面体内部测试已写。该合同尚未接入GJK循环，测试、消融和Playground待后续条目与统一Gate。证据`docs/audit/bf144/d100b3b3b2a/`。实际结束：2026-11-09 00:07 +08:00；偏差：−48分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D100b3b3b2b / P3 — 接入源核心支持查询与冷GJK循环。
 
 - [ ] BF144-D100b3b3b3 / P3 — 移植源GJK热启动与EPA支持顶点。
 
