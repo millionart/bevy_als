@@ -1,0 +1,65 @@
+{
+  "cases": [
+    {
+      "name": "yaw-0",
+      "world_seconds": 0,
+      "actor_rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "input_yaw_degrees": 0,
+      "velocity_yaw_degrees": 0,
+      "target_yaw_degrees": 0,
+      "update_counter": 0,
+      "evaluation_counter": 0
+    },
+    {
+      "name": "yaw-45",
+      "world_seconds": 0,
+      "actor_rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0.38268343233304725,
+        "w": 0.9238795325245592
+      },
+      "input_yaw_degrees": 45,
+      "velocity_yaw_degrees": 45,
+      "target_yaw_degrees": 45,
+      "update_counter": 0,
+      "evaluation_counter": 0
+    },
+    {
+      "name": "yaw--90",
+      "world_seconds": 0,
+      "actor_rotation": {
+        "x": 0,
+        "y": 0,
+        "z": -0.7071067811518649,
+        "w": 0.7071067812212302
+      },
+      "input_yaw_degrees": -90,
+      "velocity_yaw_degrees": -90,
+      "target_yaw_degrees": -90,
+      "update_counter": 0,
+      "evaluation_counter": 0
+    },
+    {
+      "name": "yaw-170",
+      "world_seconds": 0,
+      "actor_rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0.9961946980910033,
+        "w": 0.08715574275614268
+      },
+      "input_yaw_degrees": 170,
+      "velocity_yaw_degrees": 170,
+      "target_yaw_degrees": 170,
+      "update_counter": 0,
+      "evaluation_counter": 0
+    }
+  ],
+  "source_to_runtime_yaw_sign": -1
+}

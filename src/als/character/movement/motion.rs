@@ -474,6 +474,7 @@ fn rotation_response_system(
             continue;
         };
         let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
+        if !runtime.initialized { runtime.target_yaw = current_yaw; }
         let view_yaw_speed = if runtime.initialized && delta_seconds > f32::EPSILON {
             (crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees())
                 - crate::als::turn_in_place::wrap_angle_degrees(runtime.previous_view_yaw.to_degrees()))
@@ -639,6 +640,54 @@ mod rotation_cap_tests {
     use bevy::asset::{AssetEvent, AssetPlugin};
     use bevy::transform::TransformPlugin;
     use bevy_tnua::TnuaControllerPlugin;
+
+    #[test]
+    fn velocity_direction_initializes_target_from_birth_world_yaw_once() {
+        for parent_yaw in [0.0_f32, 30.0] {
+            for world_yaw in [0.0_f32, 45.0, -90.0, 170.0] {
+                for already_initialized in [false, true] {
+                    let mut app = App::new();
+                    let mut time = Time::<()>::default();
+                    time.advance_by(std::time::Duration::from_secs_f32(1.0 / 30.0));
+                    app.insert_resource(time).init_resource::<Assets<AlsMovementParams>>()
+                        .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
+                        .add_systems(Update, rotation_response_system);
+                    let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+                    let parent_rotation = Quat::from_rotation_y(parent_yaw.to_radians());
+                    let parent = app.world_mut().spawn(Transform::from_rotation(parent_rotation)).id();
+                    let world_rotation = Quat::from_rotation_y(world_yaw.to_radians());
+                    let actor = app.world_mut().spawn((AlsCharacter, ChildOf(parent),
+                        Transform::from_rotation(parent_rotation.inverse() * world_rotation), Rotation(world_rotation),
+                        Stance::Standing, Gait::Running, LocomotionState::Grounded, RotationMode::VelocityDirection,
+                        AlsViewYaw(world_yaw.to_radians()), AlsMovementParamsHandle(params), LinearVelocity::ZERO,
+                        AlsInputCommand::default())).id();
+                    let target = if already_initialized { wrap_yaw_radians(world_yaw.to_radians() + 0.4) }
+                        else { world_yaw.to_radians() };
+                    if already_initialized {
+                        app.world_mut().entity_mut(actor).insert(AlsRotationResponseState {
+                            initialized: true, target_yaw: target, smooth_target_yaw: target,
+                            previous_view_yaw: world_yaw.to_radians(),
+                            previous_rotation_mode: Some(RotationMode::VelocityDirection), ..default()
+                        });
+                    }
+                    app.update();
+                    let state = app.world().get::<AlsRotationResponseState>(actor).unwrap();
+                    assert!(wrap_yaw_radians(state.target_yaw - target).abs() < 1e-6,
+                        "parent={parent_yaw} world={world_yaw} initialized={already_initialized} target={}", state.target_yaw);
+                    if !already_initialized {
+                        let rotation = app.world().get::<Rotation>(actor).unwrap().0;
+                        assert!(rotation.abs_diff_eq(world_rotation, 1e-6) || rotation.abs_diff_eq(-world_rotation, 1e-6));
+                        let changed = Quat::from_rotation_y(world_yaw.to_radians() + 0.2);
+                        app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = parent_rotation.inverse() * changed;
+                        app.world_mut().get_mut::<Rotation>(actor).unwrap().0 = changed;
+                        app.update();
+                        let state = app.world().get::<AlsRotationResponseState>(actor).unwrap();
+                        assert!(wrap_yaw_radians(state.target_yaw - target).abs() < 1e-6);
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn ordinary_rotation_keeps_current_parent_world_and_physics_aligned() {

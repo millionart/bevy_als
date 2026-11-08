@@ -5680,7 +5680,9 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 反例：实际加载角色前进、冲刺、瞄准，Grounded 下 VelocityDirection 正常；进入活动 High Mantle 的第0帧，Custom/MaxAllowedGait=Sprinting 保持，却变为 Aiming，source 应仍为 VelocityDirection。`bf144_sprint_to_mantle_preserves_source_rotation_mode` 的资产/动作前置通过后语义 FAIL；72组地空对照全通过，72组 Custom/None 有18处不符。影响翻越/布娃娃期间状态及动画输入，尚不宣称所有18组都已走真实动作路径。
   - 漏检：`desired_aiming_intent_survives_button_release_and_source_mode_branches` 只枚举 Grounded/Air；旧 Custom 测试验证 actor 不旋转，却没有调用并核对 `RefreshRotationMode`。最小复现源/日志保留在 `target/bf144/probe.rs`、`target/bf144/02/initial/`。本项未修改实现、未复开相邻已完成项。
 
-- [ ] BF144-D02 / P2 — VelocityDirection 首次更新没有从出生朝向初始化目标。
+- [x] BF144-D02 / P2 — VelocityDirection 首次更新没有从出生朝向初始化目标。
+  - 2026-11-08 12:08 开始：预估结束12:28 +08:00。依据.02四出生角反例和现有rotation-response调用闭包，fresh读取源注册初始化与多角真实角色，修复一次性目标种子并覆盖父空间和已有已初始化状态；测试、消融及公共Gate暂缓。
+  - 12:11 source/static闭环：fresh非零frame17的0°/45°/−90°/170°注册快照，输入、速度和目标yaw均等于源出生世界角；源setter同步初始化平滑目标。目标首次有效旋转响应以当前世界yaw填目标，原平滑初始化不变，已有initialized状态不覆盖；已写父空间、四角及后续目标保留fixture。源读数/哈希在`docs/audit/bf144/d02/`；实现结束2026-11-08 12:11 +08:00，较预估提前17分钟。测试、消融、图审计与公共Gate待依赖升级后执行，整体资源未就绪时的更早初始化边界仍待后续证据。
   - Source：fresh `AlsCharacter.cpp:92–116` 的 PreRegisterAllComponents 先以 actor yaw 调用 SetTargetYawAngle，并初始化 InputYawAngle/VelocityYawAngle；静止且 blocked 的 VelocityDirection 分支继续使用这个初始目标。
   - Target：`src/als/character/movement/motion.rs:2313–2325` 默认 target_yaw=0、blocked=true；`489–502` 首次只初始化 smooth_target_yaw，随后仍选择零 target。`AlsCharacterBundle` 没有其他目标初始化消费者。
   - 反例：用实际运动插件新建静止角色，出生模式 VelocityDirection，yaw分别0°/45°/−90°/170°。零度对照通过；其余三组首帧实际 yaw为43.542°/−88.542°/168.542°，target均为0，source应保持出生角度。`bf144_spawn_velocity_direction_initializes_target_from_actor` 语义FAIL，证据 `target/bf144/02/spawn/`。该触发依赖初始速度朝向配置，当前默认 ViewDirection 出生不受此分支影响。

@@ -1,0 +1,58 @@
+{
+  "gravity_cm_s2": -981,
+  "initial_engine_frame": 17,
+  "cases": [
+    {
+      "name": "yaw-0",
+      "dynamic_base": false,
+      "local_controller": false,
+      "spawn_height_cm": 92.15,
+      "spawn_yaw_degrees": 0,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true
+        }
+      ]
+    },
+    {
+      "name": "yaw-45",
+      "dynamic_base": false,
+      "local_controller": false,
+      "spawn_height_cm": 92.15,
+      "spawn_yaw_degrees": 45,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true
+        }
+      ]
+    },
+    {
+      "name": "yaw--90",
+      "dynamic_base": false,
+      "local_controller": false,
+      "spawn_height_cm": 92.15,
+      "spawn_yaw_degrees": -90,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true
+        }
+      ]
+    },
+    {
+      "name": "yaw-170",
+      "dynamic_base": false,
+      "local_controller": false,
+      "spawn_height_cm": 92.15,
+      "spawn_yaw_degrees": 170,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true
+        }
+      ]
+    }
+  ]
+}
