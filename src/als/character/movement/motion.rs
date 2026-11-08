@@ -4148,8 +4148,6 @@ pub(crate) fn locomotion_drive_system(
                 }
                 JumpChain::Mantle => {
                     if let (Some(m), Some((i, target_base))) = (mantle.as_deref_mut(), intent) {
-                        let origin = gtf.translation();
-                        let yaw_start = yaw_from_direction(gtf.forward().as_vec3());
                         let start_time = configured_mantle_start_time(
                             mantle_start_time_settings,
                             i.kind,
@@ -4157,10 +4155,9 @@ pub(crate) fn locomotion_drive_system(
                         );
                         m.begin_with_target_base_and_start_time(
                             i.kind,
-                            origin,
+                            gtf.compute_transform(),
                             i.target,
                             start_time,
-                            yaw_start,
                             i.yaw_target,
                             target_base,
                         );
@@ -4235,8 +4232,8 @@ fn auto_mantle_after_movement(
             continue;
         };
         let start_time = configured_mantle_start_time(start_settings, intent.kind, intent.mantling_height);
-        mantle.begin_with_target_base_and_start_time(intent.kind, world.translation(), intent.target, start_time,
-            yaw_from_direction(world.forward().as_vec3()), intent.yaw_target, base);
+        mantle.begin_with_target_base_and_start_time(intent.kind, world.compute_transform(), intent.target, start_time,
+            intent.yaw_target, base);
     }
 }
 
@@ -10867,6 +10864,33 @@ mod tests {
             assert!((state.target.x - trace.forward_hit.unwrap().x).abs() < 0.0001,
                 "lateral={lateral} target={:?} trace={trace:?}", state.target);
             assert!(state.yaw_target.abs() < 0.0001, "lateral={lateral} yaw={}", state.yaw_target);
+        }
+    }
+
+    #[test]
+    fn loaded_mantle_captures_the_actor_world_transform() {
+        use avian3d::prelude::{CollisionLayers, LayerMask};
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::character::AlsCollisionLayer;
+        for (scale, pitch, roll) in [(0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.5, 0.0, 0.0),
+            (1.0, 0.2, 0.0), (1.0, 0.0, 0.2), (1.0, 0.2, -0.2)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.4 * scale, 0.8 * scale, 1.2 * scale),
+                Transform::from_xyz(0.0, 0.4 * scale, -1.4 * scale),
+                CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL)));
+            app.update();
+            app.update();
+            let transform = Transform::from_xyz(0.0, 0.95 * scale, 0.0)
+                .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.0, pitch, roll)).with_scale(Vec3::splat(scale));
+            app.world_mut().entity_mut(actor).insert((transform, GlobalTransform::from(transform), Position(transform.translation),
+                Rotation(transform.rotation), LocomotionState::Grounded, AlsMantleState::default(), AlsJumpPrev(false),
+                AlsInputCommand { jump_pressed: true, ..default() }, crate::als::state::AlsNotifyLocomotionAction::None));
+            app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+            let mantle = app.world().get::<AlsMantleState>(actor).unwrap();
+            assert!(mantle.active, "scale={scale} pitch={pitch} roll={roll}");
+            assert!(mantle.warp_start.translation.abs_diff_eq(transform.translation, 1e-5));
+            assert!(mantle.warp_start.scale.abs_diff_eq(transform.scale, 1e-5));
+            assert!(mantle.warp_start.rotation.angle_between(transform.rotation) < 1e-4);
         }
     }
 

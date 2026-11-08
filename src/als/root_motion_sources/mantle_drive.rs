@@ -708,8 +708,6 @@ fn mantle_drive_system(
             *vel = LinearVelocity(Vec3::ZERO);
             continue;
         }
-        m.refresh_target_base(target_base);
-
         let Some(clip) = clips.get(assets.clip(m.kind)) else {
             continue;
         };
@@ -725,6 +723,7 @@ fn mantle_drive_system(
             };
             m.prepare_root_motion(start_root, end_root);
         }
+        m.refresh_target_base(target_base);
         if auto_pending {
             commands.entity(entity).remove::<crate::als::motion::AlsAutoMantlePending>();
             continue;
@@ -2038,6 +2037,39 @@ pub(crate) mod tests {
             }
             app.world_mut().despawn(parent);
         }
+    }
+
+    #[test]
+    fn mantle_initial_root_is_prepared_before_the_base_refresh() {
+        let mut app = mantle_clip_test_app();
+        let initial_base = AlsMantleTargetBase { entity: Entity::PLACEHOLDER, translation: Vec3::new(0.0, 1.0, -1.0),
+            rotation: Quat::IDENTITY, scale: Vec3::ONE, relative_location: true };
+        let target_entity = app.world_mut().spawn((Transform::from_translation(initial_base.translation),
+            GlobalTransform::from_translation(initial_base.translation))).id();
+        let initial_base = AlsMantleTargetBase { entity: target_entity, ..initial_base };
+        let moved = AlsMantleTargetBase { translation: initial_base.translation + Vec3::X * 0.2,
+            rotation: Quat::from_rotation_y(0.3), scale: Vec3::new(1.2, 0.8, 1.1), ..initial_base };
+        let actor_start = Transform::from_xyz(0.0, 1.0, 0.0)
+            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.1, 0.2, -0.2)).with_scale(Vec3::splat(1.5));
+        let mut mantle = AlsMantleState::default();
+        mantle.begin_with_target_base_and_start_time(MantleKind::High, actor_start, Vec3::new(0.0, 2.0, -1.0),
+            0.5, 0.0, initial_base);
+        let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
+        let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+        let mut expected = mantle;
+        expected.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+            sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+        expected.refresh_target_base(Some(moved));
+        let target_transform = Transform::from_translation(moved.translation).with_rotation(moved.rotation).with_scale(moved.scale);
+        app.world_mut().entity_mut(target_entity).insert((target_transform, GlobalTransform::from(target_transform)));
+        let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom, LinearVelocity::ZERO,
+            actor_start, GlobalTransform::from(actor_start), Position(actor_start.translation), Rotation(actor_start.rotation))).id();
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut().run_system_once(mantle_drive_system).unwrap();
+        let actual = app.world().get::<AlsMantleState>(actor).unwrap();
+        assert!(actual.warp_start.translation.abs_diff_eq(expected.warp_start.translation, 1e-5));
+        assert!(actual.warp_start.rotation.angle_between(expected.warp_start.rotation) < 1e-4);
+        assert!(actual.warp_target.translation.abs_diff_eq(expected.warp_target.translation, 1e-5));
     }
 
     #[test]

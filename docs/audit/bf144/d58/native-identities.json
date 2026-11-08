@@ -1,0 +1,22 @@
+{
+  "asset": "Content/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.uasset",
+  "asset_identity": {
+    "bytes": 155450,
+    "sha256": "8dc70df4131753a37e19f6ed82b012f9db24845dd6afbde31f008b953af7f7e5"
+  },
+  "request": "docs/audit/bf144/d58/root.request.json",
+  "native_output": "docs/audit/bf144/d58/root.native.json.gz",
+  "raw": {
+    "bytes": 1051440,
+    "sha256": "06d22677f87659c8fd179ca4e7348c1c0b3d735e6214df41be7fb49d3a37bf7c"
+  },
+  "compressed": {
+    "bytes": 111972,
+    "sha256": "53a61d85556d28144af4b0e3da14065b2df0b5f91bf39ed3aaabe512e350a53d"
+  },
+  "reader_report": "docs/audit/bf144/d58/root.native.json.reader.report.json",
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  }
+}

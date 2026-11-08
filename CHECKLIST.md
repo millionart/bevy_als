@@ -6196,7 +6196,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整low/high Mantle自然退出后，在原生early notify有效区按aim；该帧结束已为Aiming，但发布的Montage sample仍interrupted=false。再过0.1s，low/high实际权重0.856927/0.887876，source应0.801749/0.843750。`bf144_mantle_lifecycle_early_blend_conditions_and_duration_controls`12组10PASS/2FAIL；夹具在该帧开始前提供Aiming状态的两组恢复正确权重，其他input/crouch/air/idle共8组通过，证据`target/bf144/17/final/`。
   - 漏检：旧early条件测试直接传入已经更新的枚举/Tag，未跨真实aim producer与Montage consumer阶段核对同帧变化。这里限定为一个帧的淡出延迟，记P3；不据此推测其他图/通知均有相同问题，生产未改。
 
-- [ ] BF144-D58 / P2 — Mantle初始化丢失actor scale及完整rotation，起始root消除结果错误。
+- [x] BF144-D58 / P2 — Mantle初始化丢失actor scale及完整rotation，起始root消除结果错误；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 18:09 +08:00；预估结束18:54 +08:00；实际结束18:13 +08:00，提前41分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS完整ActorTransform、UE VQS及根轨道证据保存在`docs/audit/bf144/d58/`；手动/自动入口保留完整变换，已写缩放、倾斜、基座变化与加载角色对照。旧target报告缺失，负缩放与动画Gate待验证。
   - Source：fresh `AlsCharacter_Actions.cpp:521–527`把初始root inverse与完整`GetActorTransform()`相乘；UE `Transform.cpp:98–113`及VQS乘法保留actor scale和完整quat对初始位移的影响。RMS随后只保存start location/rotation，并在`AlsRootMotionSource_Mantling.cpp:97–118`混合后取twist；不能提前丢掉初始pitch/roll或scale。
   - Target：`movement/motion.rs:3191–3205,3232–3243`仅传origin与yaw；`actions/mantle.rs:810–813`以单位scale、纯yaw重建初始Transform，`855–867`再据此消除root。数据在进入root driver前已经丢失。
   - 反例：完整角色手动Mantle到0.6m按比例缩放的ledge，actor scale0.75/1.5首帧位置相对独立source公式偏离约11.4/22.1cm；单位scale对照通过。同一0.6m台阶，初始pitch或roll为0.2rad及组合倾斜偏离约8.7–12.5cm，组合yaw另差约1.15°。入口前实际global rotation已取样确认仍保留倾斜。两个focused共12组7PASS/5语义FAIL，夹具只补回初始scale偏移或完整quat的5组恢复源结果；证据`target/bf144/18/initial_controls/`。

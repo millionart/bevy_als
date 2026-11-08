@@ -702,7 +702,7 @@ impl AlsMantleTargetBase {
         Transform {
             translation: self.translation + self.rotation * (self.scale * local.translation),
             rotation: (self.rotation * local.rotation).normalize(),
-            ..default()
+            scale: self.scale * local.scale,
         }
     }
 
@@ -721,7 +721,7 @@ impl AlsMantleTargetBase {
             translation: reciprocal
                 * (self.rotation.conjugate() * (world.translation - self.translation)),
             rotation: (self.rotation.conjugate() * world.rotation).normalize(),
-            ..default()
+            scale: reciprocal * world.scale,
         }
     }
 }
@@ -839,14 +839,15 @@ impl AlsMantleState {
     pub fn begin_with_target_base_and_start_time(
         &mut self,
         kind: MantleKind,
-        start: Vec3,
+        start: Transform,
         target: Vec3,
         start_time: f32,
-        yaw_start: f32,
         yaw_target: f32,
         target_base: AlsMantleTargetBase,
     ) {
-        self.begin_with_start_time(kind, start, target, start_time, yaw_start, yaw_target);
+        self.begin_with_start_time(kind, start.translation, target, start_time,
+            yaw_from_direction(start.rotation * Vec3::NEG_Z), yaw_target);
+        self.warp_start = start;
         self.capture_target_base(target_base);
     }
 
@@ -865,7 +866,7 @@ impl AlsMantleState {
             let world = self.target_base.map_or(*warp, |base| base.to_world(*warp));
             let rotation = (world.rotation * root.rotation.conjugate()).normalize();
             let world = Transform {
-                translation: world.translation - rotation * root.translation,
+                translation: world.translation - world.rotation * (world.scale * (root.rotation.conjugate() * root.translation)),
                 rotation,
                 ..default()
             };
@@ -1436,6 +1437,39 @@ mod tests {
             "[BF102.46][VERDICT] translation_error={translation_error:.6} rotation_alignment={rotation_alignment:.6} legacy_error={legacy_error:.6} -> {verdict}"
         );
         assert!(passed);
+    }
+
+    #[test]
+    fn mantle_initial_root_inverse_uses_the_full_actor_transform() {
+        let root = Transform::from_xyz(0.4, 0.8, -0.3)
+            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.25, -0.1, 0.2));
+        let target = Vec3::new(1.0, 2.0, -3.0);
+        for relative_location in [false, true] {
+            let base = AlsMantleTargetBase { entity: Entity::from_raw_u32(2).unwrap(),
+                translation: Vec3::new(0.5, -0.2, 0.3), rotation: Quat::from_rotation_y(0.4),
+                scale: Vec3::new(2.0, 0.5, 1.5), relative_location };
+            for scale in [Vec3::splat(0.75), Vec3::ONE, Vec3::splat(1.5), Vec3::new(0.8, 1.2, 1.6)] {
+                for (pitch, roll) in [(0.0, 0.0), (0.2, 0.0), (0.0, 0.2), (0.2, -0.2)] {
+                    let start = Transform::from_xyz(0.2, 1.3, 0.7)
+                        .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.3, pitch, roll)).with_scale(scale);
+                    let mut state = AlsMantleState::default();
+                    state.begin_with_target_base_and_start_time(MantleKind::LowRight, start, target, 0.0, 0.1, base);
+                    state.prepare_root_motion(root, Transform::IDENTITY);
+                    let warp = base.to_world(state.warp_start);
+                    let expected_rotation = (start.rotation * root.rotation.conjugate()).normalize();
+                    let expected_position = start.translation
+                        - start.rotation * (start.scale * (root.rotation.conjugate() * root.translation));
+                    assert!(warp.translation.abs_diff_eq(expected_position, 1e-5),
+                        "relative={relative_location} scale={scale:?} pitch={pitch} roll={roll} actual={:?} expected={expected_position:?}", warp.translation);
+                    assert!(warp.rotation.angle_between(expected_rotation) < 1e-4);
+                    let twist = Quat::from_xyzw(0.0, expected_rotation.y, 0.0, expected_rotation.w).normalize();
+                    let expected_actor = expected_position + twist * root.translation;
+                    let actor = state.target_actor_transform_at(0.0, root);
+                    assert!(actor.translation.abs_diff_eq(expected_actor, 1e-5));
+                    assert!(actor.rotation.angle_between(twist * root.rotation) < 1e-4);
+                }
+            }
+        }
     }
 
     #[test]
