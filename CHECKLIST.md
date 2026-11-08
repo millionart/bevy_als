@@ -6348,11 +6348,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.25补充：fresh同一GetLockedRotationAxes/InitLockedRotationConstraint也用于swing锁与混合硬锁。全部15个native Locked轴×parent dynamic/static×0/0.5rad共60组40PASS/20FAIL，source固定quat Jacobian与target当前角度求解的差异覆盖twist及swing。lowerarm的两组mixed旋转×dynamic/static加identity控制共6组2PASS/4FAIL，最大角校正差0.104148rad；仍是D76的同一硬锁非cached根因，不重复编号。证据`bf144_pa_angular_native_locked_axes_use_source_cached_jacobian`与`bf144_pa_angular_mixed_hard_locks_use_source_linearized_corrections`，源参考独立复算，无native Chaos仿真声明。
   - 20:03 source/static摘要：fresh硬锁初始化、quaternion Jacobian、逐轮DQ和一阶旋转更新已闭合，PA原生身份与受跟踪记录一致；cached Locked三轴已接入固定源Jacobian和无角容差的增量路径。已写15个源锁轴、混合有限差分及真实物理调度对照；接近180度、极小分母、测试、消融及完整角色/Playground仍待统一Gate。证据`docs/audit/bf144/d76/`。实际结束：2026-11-08 20:03 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D77 / P3 — Ragdoll角drive与soft limit容差没有按实际dt缩放。
+- [x] BF144-D77 / P3 — Ragdoll角drive与soft limit容差没有按实际dt缩放。
+  - 本轮开始：2026-11-08 20:03 +08:00；预计结束：2026-11-08 20:38 +08:00。复核cached子步dt与源drive/limit比较边界，调整现有阈值并补不同帧率和实际物理调度对照；统一执行留待升级后。
   - Source：fresh cached solver `Init:190–192`用`min(1,3600×dt²)`缩放AngleTolerance；该值同时控制`InitSwingTwistDrives:2612–2614`和soft limit的scalar/SIMD判断。native配置为0.001rad，120Hz实际阈值应为0.00025rad。
   - Target：`source_physics_joint.rs:296–300`直接以固定配置决定drive是否启用，`232,531–533`也把同一固定容差用于soft修正；没有dt缩放。
   - 反例：两Dynamic等惯量body、native spine_01、motor目标误差0.0005rad，120Hz源每body应动约0.000180636rad，target保持不动；soft twist超限0.0005rad时源每body应动0.000222639rad，target仍保持。完整角色60Hz两对照PASS、120Hz两反例FAIL；直接drive/soft共21组17PASS/4FAIL，240Hz同样失败。该项影响微小角修正，不冒充大幅姿态异常。
   - 漏检：旧solver用固定60Hz及远大于容差的角度；没有改变dt同时保持误差落在新旧阈值之间的反例。证据`bf144_pa_angle_motor_tolerance_uses_actual_time_step`、`bf144_pa_angle_soft_tolerance_uses_actual_time_step`及完整角色对照。
+  - 20:06 source/static摘要：fresh cached solver的dt²缩放、drive启用及limit比较已核对，PA原生角容差0.001与受跟踪数据一致；目标按实际子步缩放cached角容差并保留硬锁无容差。已写30/60/120/240Hz、阻尼及真实PhysicsSchedule对照；D78 SIMD、测试、消融和真实入口待统一Gate。证据`docs/audit/bf144/d77/`。实际结束：2026-11-08 20:06 +08:00；偏差：−32分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D78 / P2 — 全Limited软角约束逐轴立即写回，偏离源SIMD同时计算。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:1388`把当前UseSimd=True传给linear solver；native spine等三轴Limited且soft时，cached solver `1115–1130,1600–1678`用同一个迭代起点计算三轴DeltaLambda，再合计各body的DQ。不是普通逐轴Gauss-Seidel写回。

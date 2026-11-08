@@ -196,6 +196,9 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
         let inertias = [&conditioned[0], &conditioned[1]];
         let mut limit_lambdas = data.limit_lambdas;
         let mut motor_lambdas = data.motor_lambdas;
+        let angle_tolerance = self.settings.angle_tolerance_radians * if self.use_linear_solver {
+            (60.0 * 60.0 * dt * dt).min(1.0)
+        } else { 1.0 };
         for index in 0..3 {
             let cached_limit = self.use_linear_solver && matches!(self.angular_limits[index],SourceAngularLimit::Limited(_));
             let cached_locked = self.use_linear_solver && self.angular_limits[index] == SourceAngularLimit::Locked;
@@ -218,6 +221,9 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
             } else {
                 angular_limit_correction(current_frames(parent,child,data),self.angular_limits,index,self.use_linear_solver)
             };
+            let correction = if cached_limit && correction.is_some_and(|(_, error)| error.abs() <= angle_tolerance) {
+                None
+            } else { correction };
             let spring = match self.angular_limits[index] {
                 SourceAngularLimit::Limited(_) if index == 0 => self.twist_spring,
                 SourceAngularLimit::Limited(_) => self.swing_spring,
@@ -239,7 +245,7 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
                 &mut limit_lambdas[index],
                 false,
                 cached_limit || cached_locked,
-                if cached_locked { 0.0 } else { self.settings.angle_tolerance_radians },
+                if cached_locked { 0.0 } else { angle_tolerance },
                 dt,
             );
         }
@@ -301,7 +307,7 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
             let errors = Vec3::new(2.0 * error.x, -twist_direction.z, twist_direction.y);
             if self.use_linear_solver
                 && spring.damping == 0.0
-                && errors[index].abs() <= self.settings.angle_tolerance_radians
+                && errors[index].abs() <= angle_tolerance
             {
                 continue;
             }
@@ -922,6 +928,87 @@ mod tests {
             0,
             true,
         )
+    }
+
+    #[test]
+    fn cached_drive_and_soft_limit_use_substep_scaled_tolerance() {
+        for dt in [1.0_f32 / 30.0, 1.0 / 60.0, 1.0 / 120.0, 1.0 / 240.0] {
+            for soft_limit in [false, true] {
+                let mut definition = joint();
+                definition.use_linear_solver = true;
+                let spring = SourceAngularSpring { stiffness: 25_000.0, damping: 0.0, acceleration_mode: true };
+                let angle = if soft_limit {
+                    definition.angular_limits[0] = SourceAngularLimit::Limited(0.1);
+                    definition.twist_spring = Some(spring);
+                    0.1005
+                } else {
+                    definition.motors[0] = SourceAngularMotor { spring, position_enabled: true, velocity_enabled: false };
+                    0.0005
+                };
+                let mut parent = SolverBody::default();
+                let mut child = SolverBody::default();
+                let mut data = SourcePhysicsJointSolverData {
+                    frames: [Quat::IDENTITY, Quat::from_rotation_x(angle)], ..default()
+                };
+                let mass = inertia(1.0, Vec3::ONE);
+                definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, dt);
+                let moved = child.delta_rotation.0.x.abs() > 1e-6;
+                assert_eq!(moved, dt < 1.0 / 60.0, "dt={dt} soft_limit={soft_limit} rotation={:?}", child.delta_rotation.0);
+            }
+        }
+        let mut definition = joint();
+        definition.use_linear_solver = true;
+        definition.motors[0] = SourceAngularMotor {
+            spring: SourceAngularSpring { stiffness: 0.0, damping: 100.0, acceleration_mode: true },
+            position_enabled: false, velocity_enabled: true,
+        };
+        definition.motor_velocity_target = Vec3::X;
+        let mut parent = SolverBody::default();
+        let mut child = SolverBody::default();
+        let mut data = SourcePhysicsJointSolverData::default();
+        let mass = inertia(1.0, Vec3::ONE);
+        definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, 1.0 / 60.0);
+        assert!(child.delta_rotation.0.x.abs() > 1e-6, "Velocity damping must remain active at zero angle");
+    }
+
+    #[test]
+    fn cached_tolerance_uses_the_real_physics_substep() {
+        use avian3d::prelude::{AngularVelocity, Gravity, Mass, PhysicsPlugins, RigidBody, Rotation, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        for hz in [60.0_f32, 120.0] {
+            for soft_limit in [false, true] {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                    PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin))
+                    .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(1))
+                    .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / hz)));
+                app.finish(); app.cleanup();
+                let parent = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
+                let angle = if soft_limit { 0.1005 } else { 0.0005 };
+                let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0), AngularInertia::new(Vec3::ONE),
+                    Transform::from_rotation(Quat::from_rotation_x(angle)))).id();
+                let mut definition = joint();
+                definition.parent = parent; definition.child = child; definition.use_linear_solver = true;
+                definition.settings.position_iterations = 1; definition.settings.velocity_iterations = 0;
+                let spring = SourceAngularSpring { stiffness: 25_000.0, damping: 0.0, acceleration_mode: true };
+                if soft_limit {
+                    definition.angular_limits[0] = SourceAngularLimit::Limited(0.1);
+                    definition.twist_spring = Some(spring);
+                } else {
+                    definition.motors[0] = SourceAngularMotor { spring, position_enabled: true, velocity_enabled: false };
+                }
+                app.world_mut().spawn(definition);
+                app.update();
+                let initial = Quat::from_rotation_x(angle);
+                app.world_mut().get_mut::<Rotation>(child).unwrap().0 = initial;
+                app.world_mut().get_mut::<Transform>(child).unwrap().rotation = initial;
+                app.world_mut().get_mut::<AngularVelocity>(child).unwrap().0 = Vec3::ZERO;
+                app.update();
+                let actual = app.world().get::<Rotation>(child).unwrap().0;
+                assert_eq!((actual.x - initial.x).abs() > 1e-6, hz > 60.0,
+                    "hz={hz} soft_limit={soft_limit} actual={actual:?}");
+            }
+        }
     }
 
     #[test]
