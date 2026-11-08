@@ -6356,11 +6356,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧solver用固定60Hz及远大于容差的角度；没有改变dt同时保持误差落在新旧阈值之间的反例。证据`bf144_pa_angle_motor_tolerance_uses_actual_time_step`、`bf144_pa_angle_soft_tolerance_uses_actual_time_step`及完整角色对照。
   - 20:06 source/static摘要：fresh cached solver的dt²缩放、drive启用及limit比较已核对，PA原生角容差0.001与受跟踪数据一致；目标按实际子步缩放cached角容差并保留硬锁无容差。已写30/60/120/240Hz、阻尼及真实PhysicsSchedule对照；D78 SIMD、测试、消融和真实入口待统一Gate。证据`docs/audit/bf144/d77/`。实际结束：2026-11-08 20:06 +08:00；偏差：−32分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D78 / P2 — 全Limited软角约束逐轴立即写回，偏离源SIMD同时计算。
+- [x] BF144-D78 / P2 — 全Limited软角约束逐轴立即写回，偏离源SIMD同时计算。
+  - 本轮开始：2026-11-08 20:06 +08:00；预计结束：2026-11-08 21:01 +08:00。核对native SIMD选择条件、三轴同起点与约束响应，复用现有角修正计算并补耦合惯量/单轴/物理调度对照；统一验证留到升级后。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:1388`把当前UseSimd=True传给linear solver；native spine等三轴Limited且soft时，cached solver `1115–1130,1600–1678`用同一个迭代起点计算三轴DeltaLambda，再合计各body的DQ。不是普通逐轴Gauss-Seidel写回。
   - Target：`source_physics_joint.rs:199–238`按X/Y/Z循环；每个轴的`apply_angular_correction`立即更新body delta_rotation，后轴看到前轴的新校正，非对角惯量耦合时改变了输入。
   - 反例：native spine_01限位和soft参数，正定耦合惯量、三轴初始旋转(0.9,0.7,0.5)rad；独立源同时计算与target在1/6次迭代后均差0.072376rad，完整角色相同输入差0.0723763rad。8组6PASS/2FAIL，去掉多轴或去掉耦合即PASS；完整角色单轴对照PASS。mass conditioning保持启用，所选等质量/惯量比使源conditioning不修改输入；这里只验证受控角求解，不宣称全rig自然摔倒轨迹。
   - 漏检：旧cached参考按target同样的逐轴顺序复算，且实际PA drive测试每次只激活一个角轴；未覆盖源SIMD soft与惯量耦合的组合。
+  - 20:11 source/static摘要：fresh solver选择条件、SIMD共享起点与合计DQ已核对，PA原生UseSimd=True；目标复用各轴修正计算，仅全soft limited cached分支累计后写回。已写spine参数、耦合/单轴、1/6迭代及PhysicsSchedule对照；D85初速阻尼、测试、消融与完整角色/Playground待统一Gate。证据`docs/audit/bf144/d78/`。实际结束：2026-11-08 20:11 +08:00；偏差：−50分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D79 / P3 — 混合Locked/Limited角约束遗漏源接近180°的退化保护。
   - Source：fresh cached solver `1157–1168,1183–1188`在两frame的Twist轴dot<−0.998时跳过不可分解的Limited twist及单Limited swing，仍处理Locked轴。native neck_01为Twist/Swing1 Limited、Swing2 Locked，纯Swing1接近π时Locked误差为0，源这一轮不修正。

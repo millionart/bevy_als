@@ -199,6 +199,10 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
         let angle_tolerance = self.settings.angle_tolerance_radians * if self.use_linear_solver {
             (60.0 * 60.0 * dt * dt).min(1.0)
         } else { 1.0 };
+        let simultaneous_limits = self.use_linear_solver
+            && self.angular_limits.iter().all(|limit| matches!(limit, SourceAngularLimit::Limited(_)))
+            && self.twist_spring.is_some() && self.swing_spring.is_some();
+        let mut accumulated_rotation = [Vec3::ZERO; 2];
         for index in 0..3 {
             let cached_limit = self.use_linear_solver && matches!(self.angular_limits[index],SourceAngularLimit::Limited(_));
             let cached_locked = self.use_linear_solver && self.angular_limits[index] == SourceAngularLimit::Locked;
@@ -245,9 +249,21 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
                 &mut limit_lambdas[index],
                 false,
                 cached_limit || cached_locked,
+                if simultaneous_limits { Some(&mut accumulated_rotation) } else { None },
                 if cached_locked { 0.0 } else { angle_tolerance },
                 dt,
             );
+        }
+        if simultaneous_limits && accumulated_rotation.iter().any(|delta| *delta != Vec3::ZERO) {
+            for (body, previous, delta) in [
+                (&mut *parent, data.pre_solve_rotation[0], accumulated_rotation[0]),
+                (&mut *child, data.pre_solve_rotation[1], accumulated_rotation[1]),
+            ] {
+                if delta == Vec3::ZERO { continue; }
+                let value = cached_rotation_delta(body.delta_rotation.0 * previous.conjugate()) + delta;
+                body.delta_rotation.0 = (Quat::from_xyzw(value.x * 0.5, value.y * 0.5, value.z * 0.5, 1.0).normalize()
+                    * previous).normalize();
+            }
         }
         if self.linear_locked {
             data.point
@@ -335,6 +351,7 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
                 &mut motor_lambdas[index],
                 true,
                 self.use_linear_solver,
+                None,
                 0.0,
                 dt,
             );
@@ -558,6 +575,7 @@ fn apply_angular_correction(
     lambda: &mut f32,
     axis_only: bool,
     cached_rotation: bool,
+    accumulated_rotation: Option<&mut [Vec3; 2]>,
     tolerance: f32,
     dt: f32,
 ) {
@@ -605,7 +623,10 @@ fn apply_angular_correction(
     } else {
         (response_parent * delta, -response_child * delta)
     };
-    if cached_rotation {
+    if let Some(accumulated) = accumulated_rotation {
+        accumulated[0] += parent_delta;
+        accumulated[1] += child_delta;
+    } else if cached_rotation {
         for (body, previous, delta) in [
             (parent, data.pre_solve_rotation[0], parent_delta),
             (child, data.pre_solve_rotation[1], child_delta),
@@ -928,6 +949,123 @@ mod tests {
             0,
             true,
         )
+    }
+
+    fn simultaneous_soft_reference(joint: &SourcePhysicsJoint, frame: Quat, inverse: Mat3,
+        iterations: u32, dt: f32) -> [Quat; 2] {
+        let twist = Quat::from_xyzw(frame.x, 0.0, 0.0, frame.w).normalize();
+        let swing = (frame * twist.conjugate()).normalize();
+        let mut angles = [2.0 * twist.x.atan2(twist.w), 4.0 * swing.y.atan2(1.0 + swing.w),
+            4.0 * swing.z.atan2(1.0 + swing.w)];
+        let mut axes = [frame * Vec3::X, swing * Vec3::Y, swing * Vec3::Z];
+        for index in 0..3 {
+            if angles[index] < 0.0 { angles[index] = -angles[index]; axes[index] = -axes[index]; }
+        }
+        let mut rotations = [Vec3::ZERO; 2];
+        let mut lambdas = [0.0_f32; 3];
+        let tolerance = joint.settings.angle_tolerance_radians * (60.0 * 60.0 * dt * dt).min(1.0);
+        for _ in 0..iterations {
+            let previous = rotations;
+            let mut correction = [Vec3::ZERO; 2];
+            for index in 0..3 {
+                let SourceAngularLimit::Limited(limit) = joint.angular_limits[index] else { unreachable!() };
+                let angle = angles[index] + axes[index].dot(previous[1] - previous[0]);
+                let error = if angle > limit { angle - limit } else if angle < -limit { angle + limit } else { continue; };
+                if error.abs() <= tolerance { continue; }
+                let response = inverse * axes[index];
+                let inverse_mass = 2.0 * axes[index].dot(response);
+                let spring = if index == 0 { joint.twist_spring.unwrap() } else { joint.swing_spring.unwrap() };
+                let scale = if spring.acceleration_mode { inverse_mass.recip() } else { 1.0 };
+                let stiffness = scale * spring.stiffness * dt * dt;
+                let damping = scale * spring.damping * dt;
+                let velocity = axes[index].dot(previous[1] - previous[0]);
+                let delta = (stiffness * error + damping * velocity - lambdas[index])
+                    / (1.0 + (stiffness + damping) * inverse_mass);
+                lambdas[index] += delta;
+                correction[0] += response * delta;
+                correction[1] -= response * delta;
+            }
+            rotations[0] += correction[0];
+            rotations[1] += correction[1];
+        }
+        rotations.map(|value| Quat::from_xyzw(value.x * 0.5, value.y * 0.5, value.z * 0.5, 1.0).normalize())
+    }
+
+    #[test]
+    fn cached_soft_limits_solve_all_axes_from_the_same_rotation() {
+        let profile = crate::pa_als::parse_pa_als_profile();
+        let source = profile.joints.iter().find(|joint| joint.label == "spine_01").unwrap();
+        for coupled in [false, true] {
+            for mixed in [false, true] {
+                for iterations in [1, 6] {
+                    let inverse = if coupled { Mat3::from_cols(Vec3::new(1.0, 0.3, -0.2),
+                        Vec3::new(0.3, 1.2, 0.25), Vec3::new(-0.2, 0.25, 0.9)) } else { Mat3::IDENTITY };
+                    let frame = if mixed { Quat::from_euler(EulerRot::XYZ, 0.9, 0.7, 0.5) }
+                        else { Quat::from_rotation_x(0.9) };
+                    let mut definition = source.definition.clone();
+                    definition.linear_locked = false;
+                    definition.motors = [SourceAngularMotor::default(); 3];
+                    assert!(definition.mass_conditioning && definition.use_linear_solver);
+                    let expected = simultaneous_soft_reference(&definition, frame, inverse, iterations, 1.0 / 60.0);
+                    let mass = SolverBodyInertia::new(1.0, SymmetricMatrix::from_mat3_unchecked(inverse), LockedAxes::default(), 0, true);
+                    let mut parent = SolverBody::default();
+                    let mut child = SolverBody::default();
+                    let mut data = SourcePhysicsJointSolverData { frames: [Quat::IDENTITY, frame], ..default() };
+                    for _ in 0..iterations {
+                        definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, 1.0 / 60.0);
+                    }
+                    for (actual, source) in [(parent.delta_rotation.0, expected[0]), (child.delta_rotation.0, expected[1])] {
+                        assert!(actual.abs_diff_eq(source, 5e-4),
+                            "coupled={coupled} mixed={mixed} iterations={iterations} actual={actual:?} source={source:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn simultaneous_soft_limits_reach_the_physics_schedule() {
+        use avian3d::prelude::{AngularVelocity, Gravity, Mass, PhysicsPlugins, RigidBody, Rotation, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        for iterations in [1, 6] {
+            let inverse = Mat3::from_cols(Vec3::new(1.0, 0.3, -0.2), Vec3::new(0.3, 1.2, 0.25),
+                Vec3::new(-0.2, 0.25, 0.9));
+            let frame = Quat::from_euler(EulerRot::XYZ, 0.9, 0.7, 0.5);
+            let mut definition = crate::pa_als::parse_pa_als_profile().joints.into_iter()
+                .find(|joint| joint.label == "spine_01").unwrap().definition;
+            definition.linear_locked = false;
+            definition.parent_frame = Isometry3d::IDENTITY;
+            definition.child_frame = Isometry3d::IDENTITY;
+            definition.motors = [SourceAngularMotor::default(); 3];
+            definition.settings.position_iterations = iterations;
+            definition.settings.velocity_iterations = 0;
+            let expected = simultaneous_soft_reference(&definition, frame, inverse, iterations, 1.0 / 60.0);
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin))
+                .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(1))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish(); app.cleanup();
+            let parent = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+                AngularInertia::from_mat3_unchecked(inverse.inverse()), Transform::IDENTITY)).id();
+            let basis = Mat3::from_quat(frame);
+            let child_inverse = basis.transpose() * inverse * basis;
+            let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+                AngularInertia::from_mat3_unchecked(child_inverse.inverse()), Transform::from_rotation(frame))).id();
+            definition.parent = parent; definition.child = child;
+            app.world_mut().spawn(definition);
+            app.update();
+            for (entity, rotation) in [(parent, Quat::IDENTITY), (child, frame)] {
+                app.world_mut().get_mut::<Rotation>(entity).unwrap().0 = rotation;
+                app.world_mut().get_mut::<Transform>(entity).unwrap().rotation = rotation;
+                app.world_mut().get_mut::<AngularVelocity>(entity).unwrap().0 = Vec3::ZERO;
+            }
+            app.update();
+            for (entity, source) in [(parent, expected[0]), (child, expected[1] * frame)] {
+                let actual = app.world().get::<Rotation>(entity).unwrap().0;
+                assert!(actual.abs_diff_eq(source, 1e-3), "iterations={iterations} actual={actual:?} source={source:?}");
+            }
+        }
     }
 
     #[test]
