@@ -67,6 +67,12 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
         'CHARACTER_MOVEMENT_MASS': property_number('Mass'),
         'STANDING_DOWNWARD_FORCE_SCALE': property_scalar('StandingDownwardForceScale'),
         'ENABLE_PHYSICS_INTERACTION': property_bool('bEnablePhysicsInteraction'),
+        'INITIAL_PUSH_FORCE': property_scalar('InitialPushForceFactor') * scale,
+        'MOVING_PUSH_FORCE': property_scalar('PushForceFactor') * scale,
+        'SCALE_PUSH_FORCE_TO_VELOCITY': property_bool('bScalePushForceToVelocity'),
+        'PUSH_FORCE_NEAR_ZERO_VELOCITY': small * scale,
+        'PUSH_FORCE_ZERO_VELOCITY_TOLERANCE': literal(character_cpp, rf'ZeroVelocityTolerance\s*=\s*{NUMBER}f?\s*;', 'push zero velocity tolerance') * scale,
+        'INITIAL_PUSH_FORCE_RATE': literal(character_cpp, rf'ExtraForceFactor\s*=\s*{NUMBER}f?\s*;', 'initial push force rate'),
         'MAX_STEP_HEIGHT': property_number('MaxStepHeight') * scale,
         'MAX_SLOPE_DEGREES': property_number('WalkableFloorAngle'),
         'MIN_FLOOR_DISTANCE': literal(character_cpp, rf'MIN_FLOOR_DIST\s*=\s*{NUMBER}f?\s*;', 'minimum floor distance') * scale,
@@ -105,8 +111,11 @@ def self_test():
                        {'name': 'MaxDepenetrationWithPawn', 'exported_text': '100.000000'},
                        {'name': 'Mass', 'exported_text': '100.000000'},
                        {'name': 'StandingDownwardForceScale', 'exported_text': '1.000000'},
-                       {'name': 'bEnablePhysicsInteraction', 'exported_text': 'True'}]}]}
-    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; BRAKE_TO_STOP_VELOCITY = 10.f; MIN_TICK_TIME = 1e-6f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;'
+                       {'name': 'bEnablePhysicsInteraction', 'exported_text': 'True'},
+                       {'name': 'InitialPushForceFactor', 'exported_text': '500.000000'},
+                       {'name': 'PushForceFactor', 'exported_text': '750000.000000'},
+                       {'name': 'bScalePushForceToVelocity', 'exported_text': 'True'}]}]}
+    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; BRAKE_TO_STOP_VELOCITY = 10.f; MIN_TICK_TIME = 1e-6f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f; const float ZeroVelocityTolerance = 1.0f; const float ExtraForceFactor = 30.f;'
     primitive = 'const float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;'
     movement = 'const float OverVelocityPercent = 1.01f; float PenetrationPullbackDistance = 0.125f; float PenetrationOverlapCheckInflation = 0.100f;'
     header = '#define UE_KINDA_SMALL_NUMBER (1.e-4f)'
@@ -114,6 +123,12 @@ def self_test():
     assert values['CHARACTER_MOVEMENT_MASS'] == 100.0
     assert values['STANDING_DOWNWARD_FORCE_SCALE'] == 1.0
     assert values['ENABLE_PHYSICS_INTERACTION'] is True
+    assert values['INITIAL_PUSH_FORCE'] == 5.0
+    assert values['MOVING_PUSH_FORCE'] == 7500.0
+    assert values['PUSH_FORCE_ZERO_VELOCITY_TOLERANCE'] == 0.01
+    assert values['PUSH_FORCE_NEAR_ZERO_VELOCITY'] == 1e-6
+    assert values['INITIAL_PUSH_FORCE_RATE'] == 30.0
+    assert values['SCALE_PUSH_FORCE_TO_VELOCITY'] is True
     changed_actor = json.loads(json.dumps(actor))
     changed_properties = changed_actor['blueprint_cdo_subobjects'][0]['properties']
     next(prop for prop in changed_properties if prop['name'] == 'StandingDownwardForceScale')['exported_text'] = '0.0'
@@ -173,7 +188,7 @@ def self_test():
             raise AssertionError('Invalid terminal source must block generation')
     assert literal('TEXT("p.EncroachEpsilon"), 0.15f,', rf'\"p\.EncroachEpsilon\"\s*\)\s*,\s*{NUMBER}f?\s*,', 'spawn epsilon') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0015
     assert literal('PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius', rf'PawnRadius - GetPerchRadiusThreshold\(\),\s*{NUMBER}f?\s*,\s*PawnRadius', 'perch minimum') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0011
-    assert len(render(values).splitlines()) == 25
+    assert len(render(values).splitlines()) == 31
     print('Movement constants self-test PASS')
 
 

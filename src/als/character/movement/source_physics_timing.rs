@@ -239,7 +239,7 @@ fn integrate_character_position(
         let start = position.0 + body.delta_position;
         if *locomotion == LocomotionState::Air {
             let (applied, velocity, contact, _, _) = crate::als::motion::falling_movement_sweep(&spatial, collider,
-                start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, None, entity, &candidates, &shapes, &impact_bodies);
+                start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, None, entity, &candidates, &shapes, &impact_bodies, None);
             body.delta_position += applied;
             body.linear_velocity = velocity;
             runtime.airborne_sweep_contact |= contact;

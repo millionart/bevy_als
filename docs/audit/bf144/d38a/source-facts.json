@@ -1,0 +1,69 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 379,
+          "last_line": 384,
+          "text": "\tstatic bool bApplyCharacterCollisionForceAsImpulse = false;\n\tFAutoConsoleVariableRef CVarApplyCharacterCollisionForceAsImpulse(\n\t\tTEXT(\"p.ApplyCharacterCollisionForceAsImpulse\"),\n\t\tbApplyCharacterCollisionForceAsImpulse,\n\t\tTEXT(\"Whether to apply character impact physics force as impulse when the object hit is not moving.\"),\n\t\tECVF_Default);\n"
+        },
+        {
+          "first_line": 770,
+          "last_line": 777,
+          "text": "\tbEnablePhysicsInteraction = true;\n\tStandingDownwardForceScale = 1.0f;\n\tInitialPushForceFactor = 500.0f;\n\tPushForceFactor = 750000.0f;\n\tPushForcePointZOffsetFactor = -0.75f;\n\tbPushForceUsingZOffset = false;\n\tbPushForceScaledToMass = false;\n\tbScalePushForceToVelocity = true;\n"
+        },
+        {
+          "first_line": 5035,
+          "last_line": 5082,
+          "text": "\t\t{\n\t\t\treturn;\n\t\t}\n\t\t\n\t\tfloat LastMoveTimeSlice = timeTick;\n\t\tfloat subTimeTickRemaining = timeTick * (1.f - Hit.Time);\n\t\t\n\t\tif ( IsSwimming() ) //just entered water\n\t\t{\n\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\tStartSwimming(OldLocation, OldVelocity, timeTick, remainingTime, Iterations);\n\t\t\treturn;\n\t\t}\n\t\telse if ( Hit.bBlockingHit )\n\t\t{\n\t\t\tif (IsValidLandingSpot(UpdatedComponent->GetComponentLocation(), Hit))\n\t\t\t{\n\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\tProcessLanded(Hit, remainingTime, Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\t// Compute impact deflection based on final velocity, not integration step.\n\t\t\t\t// This allows us to compute a new velocity from the deflected vector, and ensures the full gravity effect is included in the slide result.\n\t\t\t\tAdjusted = Velocity * timeTick;\n\n\t\t\t\t// See if we can convert a normally invalid landing spot (based on the hit result) to a usable one.\n\t\t\t\tif (!Hit.bStartPenetrating && ShouldCheckForValidLandingSpot(timeTick, Adjusted, Hit))\n\t\t\t\t{\n\t\t\t\t\tconst FVector PawnLocation = UpdatedComponent->GetComponentLocation();\n\t\t\t\t\tFFindFloorResult FloorResult;\n\t\t\t\t\tFindFloor(PawnLocation, FloorResult, false);\n\n\t\t\t\t\t// Note that we only care about capsule sweep floor results, since the line trace may detect a lower walkable surface that our falling capsule wouldn't actually reach yet.\n\t\t\t\t\tif (!FloorResult.bLineTrace && FloorResult.IsWalkableFloor() && IsValidLandingSpot(PawnLocation, FloorResult.HitResult))\n\t\t\t\t\t{\n\t\t\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\t\t\tProcessLanded(FloorResult.HitResult, remainingTime, Iterations);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tHandleImpact(Hit, LastMoveTimeSlice, Adjusted);\n\t\t\t\t\n\t\t\t\t// If we've changed physics mode, abort.\n\t\t\t\tif (!HasValidData() || !IsFalling())\n\t\t\t\t{\n"
+        },
+        {
+          "first_line": 5138,
+          "last_line": 5161,
+          "text": "\n\t\t\t\tif (subTimeTickRemaining > UE_KINDA_SMALL_NUMBER && (Delta | Adjusted) > 0.f)\n\t\t\t\t{\n\t\t\t\t\t// Move in deflected direction.\n\t\t\t\t\tSafeMoveUpdatedComponent( Delta, PawnRotation, true, Hit);\n\t\t\t\t\t\n\t\t\t\t\tif (Hit.bBlockingHit)\n\t\t\t\t\t{\n\t\t\t\t\t\t// hit second wall\n\t\t\t\t\t\tLastMoveTimeSlice = subTimeTickRemaining;\n\t\t\t\t\t\tsubTimeTickRemaining = subTimeTickRemaining * (1.f - Hit.Time);\n\n\t\t\t\t\t\tif (IsValidLandingSpot(UpdatedComponent->GetComponentLocation(), Hit))\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\t\t\t\tProcessLanded(Hit, remainingTime, Iterations);\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tHandleImpact(Hit, LastMoveTimeSlice, Delta);\n\n\t\t\t\t\t\t// If we've changed physics mode, abort.\n\t\t\t\t\t\tif (!HasValidData() || !IsFalling())\n\t\t\t\t\t\t{\n"
+        },
+        {
+          "first_line": 7783,
+          "last_line": 7811,
+          "text": "\nvoid UCharacterMovementComponent::HandleImpact(const FHitResult& Impact, float TimeSlice, const FVector& MoveDelta)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_CharHandleImpact);\n\n\tif (CharacterOwner)\n\t{\n\t\tCharacterOwner->MoveBlockedBy(Impact);\n\t}\n\n\tIPathFollowingAgentInterface* PFAgent = GetPathFollowingAgent();\n\tif (PFAgent)\n\t{\n\t\t// Also notify path following!\n\t\tPFAgent->OnMoveBlockedBy(Impact);\n\t}\n\n\tif (Impact.HitObjectHandle.DoesRepresentClass(APawn::StaticClass()))\n\t{\n\t\tAPawn* OtherPawn = Impact.HitObjectHandle.FetchActor<APawn>();\n\t\tNotifyBumpedPawn(OtherPawn);\n\t}\n\n\tif (bEnablePhysicsInteraction)\n\t{\n\t\tconst FVector FallingAcceleration = -GetGravityDirection() * GetGravityZ();\n\t\tconst FVector ForceAccel = Acceleration + (IsFalling() ? FallingAcceleration : FVector::ZeroVector);\n\t\tApplyImpactPhysicsForces(Impact, ForceAccel, Velocity);\n\t}\n"
+        },
+        {
+          "first_line": 7814,
+          "last_line": 7933,
+          "text": "void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity)\n{\n\tif (bEnablePhysicsInteraction && Impact.bBlockingHit )\n\t{\n\t\tif (UPrimitiveComponent* ImpactComponent = Impact.GetComponent())\n\t\t{\n\t\t\tFVector ForcePoint = Impact.ImpactPoint;\n\t\t\tfloat BodyMass = 1.0f; // set to 1 as this is used as a multiplier\n\n\t\t\tbool bCanBePushed = false;\n\t\t\tFBodyInstance* BI = ImpactComponent->GetBodyInstance(Impact.BoneName);\n\t\t\tif(BI != nullptr && BI->IsInstanceSimulatingPhysics())\n\t\t\t{\n\t\t\t\tBodyMass = FMath::Max(BI->GetBodyMass(), 1.0f);\n\n\t\t\t\tif(bPushForceUsingZOffset)\n\t\t\t\t{\n\t\t\t\t\tFBox Bounds = BI->GetBodyBounds();\n\n\t\t\t\t\tFVector Center, Extents;\n\t\t\t\t\tBounds.GetCenterAndExtents(Center, Extents);\n\n\t\t\t\t\tif (!Extents.IsNearlyZero())\n\t\t\t\t\t{\n\t\t\t\t\t\tSetGravitySpaceZ(ForcePoint, GetGravitySpaceZ(Center) + GetGravitySpaceZ(Extents) * PushForcePointZOffsetFactor);\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tbCanBePushed = true;\n\t\t\t}\n\t\t\telse if (CharacterMovementCVars::bGeometryCollectionImpulseWorkAround)\n\t\t\t{\n\t\t\t\tconst FName ClassName = ImpactComponent->GetClass()->GetFName();\n\t\t\t\tconst FName GeometryCollectionClassName(\"GeometryCollectionComponent\");\n\t\t\t\tif (ClassName == GeometryCollectionClassName && ImpactComponent->BodyInstance.bSimulatePhysics)\n\t\t\t\t{\n\t\t\t\t\t// in some case GetBodyInstance can return null while the BodyInstance still exists ( geometry collection component for example )\n\t\t\t\t\t// but we cannot check for its component directly here because of modules cyclic dependencies\n\t\t\t\t\t// todo(chaos): change this logic to be more driven at the primitive component level to avoid the high level classes to have to be aware of the different component\n\n\t\t\t\t\t// because of the above limititation we have to ignore bPushForceUsingZOffset\n\n\t\t\t\t\tbCanBePushed = true;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tif (bCanBePushed)\n\t\t\t{\n\t\t\t\tFVector Force = Impact.ImpactNormal * -1.0f;\n\n\t\t\t\tfloat PushForceModificator = 1.0f;\n\n\t\t\t\tconst FVector ComponentVelocity = ImpactComponent->GetPhysicsLinearVelocity(Impact.BoneName);\n\t\t\t\tconst FVector VirtualVelocity = ImpactAcceleration.IsZero() ? ImpactVelocity : ImpactAcceleration.GetSafeNormal() * GetMaxSpeed();\n\n\t\t\t\tfloat Dot = 0.0f;\n\n\t\t\t\tif (bScalePushForceToVelocity && !ComponentVelocity.IsNearlyZero())\n\t\t\t\t{\n\t\t\t\t\tDot = ComponentVelocity | VirtualVelocity;\n\n\t\t\t\t\tif (Dot > 0.0f && Dot < 1.0f)\n\t\t\t\t\t{\n\t\t\t\t\t\tPushForceModificator *= Dot;\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tif (bPushForceScaledToMass)\n\t\t\t\t{\n\t\t\t\t\tPushForceModificator *= BodyMass;\n\t\t\t\t}\n\t\t\t\tconst bool bClientAuthScheduledPushForces = CharacterMovementCVars::bEnableClientAuthScheduledPushForces && Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled();\n\t\n#if UE_WITH_REMOTE_OBJECT_HANDLE\n\t\t\t\tPushForceModificator *= PhysicsForceSubsteppingFactor;\n#endif\n\n\t\t\t\tForce *= PushForceModificator;\n\t\t\t\tconst float ZeroVelocityTolerance = 1.0f;\n\t\t\t\tif (ComponentVelocity.IsNearlyZero(ZeroVelocityTolerance))\n\t\t\t\t{\n\t\t\t\t\tForce *= InitialPushForceFactor;\n\n\t\t\t\t\tif (CharacterMovementCVars::bApplyCharacterCollisionForceAsImpulse)\n\t\t\t\t\t{\n\t\t\t\t\t\tif (!bClientAuthScheduledPushForces)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tImpactComponent->AddImpulseAtLocation(Force, ForcePoint, Impact.BoneName);\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tApplyAsyncPhysicsStateAction(ImpactComponent, Impact.BoneName, EPhysicsStateAction::AddImpulseAtPosition, Force, ForcePoint);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\t//Originally the force is applied as impulse, which was inaccurate. The extra scaling is applied so that the force is calibrated to match the old behavior at 30fps. \n\t\t\t\t\t\tconst float ExtraForceFactor = 30.f;\n\t\t\t\t\t\tForce *= ExtraForceFactor;\n\n\t\t\t\t\t\tif (!bClientAuthScheduledPushForces)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tImpactComponent->AddForceAtLocation(Force, ForcePoint, Impact.BoneName);\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tApplyAsyncPhysicsStateAction(ImpactComponent, Impact.BoneName, EPhysicsStateAction::AddForceAtPosition, Force, ForcePoint);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tForce *= PushForceFactor;\n\t\t\t\t\tif (!bClientAuthScheduledPushForces)\n\t\t\t\t\t{\n\t\t\t\t\t\tImpactComponent->AddForceAtLocation(Force, ForcePoint, Impact.BoneName);\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\tApplyAsyncPhysicsStateAction(ImpactComponent, Impact.BoneName, EPhysicsStateAction::AddForceAtPosition, Force, ForcePoint);\n"
+        }
+      ]
+    },
+    {
+      "path": "avian3d-0.7.0/src/dynamics/rigid_body/forces/query_data.rs",
+      "sha256": "54998ead4e850612d0962fadb87067b3c3da4cd20c82cc3ee45242ccbda42b96",
+      "excerpts": [
+        {
+          "first_line": 191,
+          "last_line": 208,
+          "text": "pub trait ReadRigidBodyForces: ReadRigidBodyForcesInternal {\n    /// Returns the [`Position`] of the body.\n    #[inline]\n    fn position(&self) -> &Position {\n        self.pos()\n    }\n\n    /// Returns the [`Rotation`] of the body.\n    #[inline]\n    fn rotation(&self) -> &Rotation {\n        self.rot()\n    }\n\n    /// Returns the [`LinearVelocity`] of the body in world space.\n    #[inline]\n    fn linear_velocity(&self) -> Vector {\n        self.lin_vel()\n    }\n"
+        },
+        {
+          "first_line": 292,
+          "last_line": 306,
+          "text": "pub trait WriteRigidBodyForces: ReadRigidBodyForces + WriteRigidBodyForcesInternal {\n    /// Applies a force at the center of mass in world space. The unit is typically N or kg\u22c5m/s\u00b2.\n    ///\n    /// The force is applied continuously over the physics step and cleared afterwards.\n    ///\n    /// By default, a non-zero force will wake up the body if it is sleeping. This can be prevented\n    /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].\n    #[inline]\n    fn apply_force(&mut self, force: Vector) {\n        if force != Vector::ZERO && self.try_wake_up() {\n            let acceleration = self.inverse_mass() * force;\n            self.integration_data_mut()\n                .apply_linear_acceleration(acceleration);\n        }\n    }\n"
+        },
+        {
+          "first_line": 311,
+          "last_line": 335,
+          "text": "    ///\n    /// The force is applied continuously over the physics step and cleared afterwards.\n    ///\n    /// By default, a non-zero force will wake up the body if it is sleeping. This can be prevented\n    /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].\n    ///\n    /// # Note\n    ///\n    /// If the [`Transform`] of the body is modified before applying the force,\n    /// the torque will be computed using an outdated global center of mass.\n    /// This may cause problems when applying a force right after teleporting\n    /// an entity, as the torque could grow very large if the distance between the point\n    /// and old center of mass is large.\n    ///\n    /// In case this is causing problems, consider using the [`PhysicsTransformHelper`]\n    /// to update the global physics transform after modifying [`Transform`].\n    ///\n    /// [`Transform`]: bevy::transform::components::Transform\n    #[inline]\n    fn apply_force_at_point(&mut self, force: Vector, world_point: Vector) {\n        // Note: This does not consider the rotation of the body during substeps,\n        //       so the torque may not be accurate if the body is rotating quickly.\n        self.apply_force(force);\n        self.apply_torque(cross(world_point - self.global_center_of_mass(), force));\n    }\n"
+        }
+      ]
+    }
+  ],
+  "native_cdo": {
+    "bEnablePhysicsInteraction": "True",
+    "InitialPushForceFactor": "500.000000",
+    "PushForceFactor": "750000.000000",
+    "bPushForceUsingZOffset": "False",
+    "bPushForceScaledToMass": "False",
+    "bScalePushForceToVelocity": "True"
+  }
+}

@@ -1,6 +1,12 @@
 pub(crate) const CHARACTER_MOVEMENT_MASS: f32 = 100.0;
 pub(crate) const STANDING_DOWNWARD_FORCE_SCALE: f32 = 1.0;
 pub(crate) const ENABLE_PHYSICS_INTERACTION: bool = true;
+pub(crate) const INITIAL_PUSH_FORCE: f32 = 5.0;
+pub(crate) const MOVING_PUSH_FORCE: f32 = 7500.0;
+pub(crate) const SCALE_PUSH_FORCE_TO_VELOCITY: bool = true;
+pub(crate) const PUSH_FORCE_NEAR_ZERO_VELOCITY: f32 = 1.0000000000000002e-06;
+pub(crate) const PUSH_FORCE_ZERO_VELOCITY_TOLERANCE: f32 = 0.01;
+pub(crate) const INITIAL_PUSH_FORCE_RATE: f32 = 30.0;
 pub(crate) const MAX_STEP_HEIGHT: f32 = 0.45;
 pub(crate) const MAX_SLOPE_DEGREES: f32 = 44.765083;
 pub(crate) const MIN_FLOOR_DISTANCE: f32 = 0.019;
