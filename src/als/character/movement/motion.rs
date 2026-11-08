@@ -54,10 +54,18 @@ pub struct AlsActualVelocity {
     pub horizontal_speed: f32,
 }
 
+pub(crate) fn source_horizontal_speed_centimeters(world_velocity: Vec3) -> f32 {
+    (Vec2::new(world_velocity.x, world_velocity.z).as_dvec2() * 100.0).length() as f32
+}
+
+pub(crate) fn source_horizontal_speed_meters(world_velocity: Vec3) -> f32 {
+    (f64::from(source_horizontal_speed_centimeters(world_velocity)) / 100.0) as f32
+}
+
 impl AlsActualVelocity {
     fn from_physics_velocity(world_velocity: Vec3) -> Self {
         Self {
-            horizontal_speed: Vec2::new(world_velocity.x, world_velocity.z).length(),
+            horizontal_speed: source_horizontal_speed_meters(world_velocity),
             world_velocity,
         }
     }
@@ -476,7 +484,7 @@ fn rotation_response_system(
         let has_input = motion.has_input;
         let input_yaw = has_input.then(|| motion.input_yaw_degrees.to_radians());
         let velocity = LinearVelocity(crate::als::dynamics::locomotion_velocity(velocity.0, *locomotion, base.as_deref()));
-        let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
+        let horizontal_speed = source_horizontal_speed_meters(velocity.0);
         let (has_velocity, moving) = locomotion_movement_flags(has_input, horizontal_speed);
         let velocity_yaw = has_velocity.then(|| world_forward_to_yaw(velocity.0));
         let desired_velocity_yaw = pre_collision_velocity
@@ -1055,6 +1063,20 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    fn actual_velocity_preserves_source_centimeter_speed_rounding() {
+        for (velocity, centimeters, meters) in [
+            (Vec3::new(1.333_333_4, 7.0, 0.0), 133.333_34, 1.333_333_5),
+            (Vec3::new(1.485_657_6, -4.0, 0.0), 148.565_75, 1.485_657_5),
+            (Vec3::ZERO, 0.0, 0.0),
+        ] {
+            let actual = AlsActualVelocity::from_physics_velocity(velocity);
+            assert_eq!(source_horizontal_speed_centimeters(velocity), centimeters);
+            assert_eq!(actual.horizontal_speed, meters);
+            assert_eq!(actual.world_velocity, velocity);
+        }
+    }
+
+    #[test]
     fn actual_velocity_snapshot_retains_full_velocity_and_horizontal_speed() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
@@ -1080,6 +1102,10 @@ mod rotation_cap_tests {
         assert!((motion.horizontal_speed - 5.0).abs() < 1e-6);
         assert!(app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(entity)
             .unwrap().pre_collision_velocity.is_none());
+
+        app.world_mut().entity_mut(entity).insert(LinearVelocity(Vec3::new(1.333_333_4, 7.0, 0.0)));
+        app.world_mut().run_schedule(FixedPostUpdate);
+        assert_eq!(app.world().get::<AlsActualVelocity>(entity).unwrap().horizontal_speed, 1.333_333_5);
 
         app.world_mut()
             .entity_mut(entity)
