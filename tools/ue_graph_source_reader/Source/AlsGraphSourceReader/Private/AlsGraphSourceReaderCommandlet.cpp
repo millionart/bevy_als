@@ -74,6 +74,8 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
+#include "Chaos/GJK.h"
+#include "Chaos/GJKShape.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Sphere.h"
@@ -1747,6 +1749,52 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             return Vertices;
         };
         Sample->SetArrayField(TEXT("gjk_simplex"), CaptureSimplex(*Constraint, ShapeWorld, BoxWorld));
+        bool CaptureColdGJK = false;
+        if (Input->HasField(TEXT("capture_cold_gjk")) && !Input->TryGetBoolField(TEXT("capture_cold_gjk"), CaptureColdGJK)) { return nullptr; }
+        if (CaptureColdGJK)
+        {
+            const Chaos::FImplicitBox3* Box = Implicit->GetObject<Chaos::FImplicitBox3>();
+            Chaos::FVec3 CoreScale;
+            Chaos::FReal WrapperMargin;
+            const Chaos::FConvex* Convex = Chaos::UnwrapImplicit<Chaos::FConvex>(*Other, CoreScale, WrapperMargin);
+            const IConsoleVariable* UseGJK2 = IConsoleManager::Get().FindConsoleVariable(TEXT("p.Chaos.Collision.UseGJK2"));
+            const IConsoleVariable* GJKEpsilon = IConsoleManager::Get().FindConsoleVariable(TEXT("p.Chaos.Collision.GJKEpsilon"));
+            const IConsoleVariable* EPAEpsilon = IConsoleManager::Get().FindConsoleVariable(TEXT("p.Chaos.Collision.EPAEpsilon"));
+            if (Box == nullptr || Convex == nullptr || CoreScale != Chaos::FVec3(1) || UseGJK2 == nullptr
+                || UseGJK2->GetInt() != 0 || GJKEpsilon == nullptr || EPAEpsilon == nullptr) { return nullptr; }
+            const Chaos::TGJKCoreShape<Chaos::FImplicitBox3> CoreBox(*Box, Constraint->GetCollisionMargin0());
+            const Chaos::TGJKCoreShape<Chaos::FConvex> CoreConvex(*Convex, Constraint->GetCollisionMargin1());
+            const Chaos::FRigidTransform3 Relative = Chaos::FRigidTransform3(BoxWorld).GetRelativeTransformNoScale(ShapeWorld);
+            Chaos::FGJKSimplexData Simplex;
+            Chaos::FReal Penetration = 0, SupportDelta = 0;
+            Chaos::FVec3 Point0 = Chaos::FVec3::ZeroVector, Point1 = Chaos::FVec3::ZeroVector;
+            Chaos::FVec3 Normal0 = Chaos::FVec3::ZeroVector, Normal1 = Chaos::FVec3::ZeroVector;
+            int32 Vertex0 = INDEX_NONE, Vertex1 = INDEX_NONE;
+            const bool Success = Chaos::GJKPenetrationWarmStartable(CoreBox, CoreConvex, Relative, Penetration,
+                Point0, Point1, Normal0, Normal1, Vertex0, Vertex1, Simplex, SupportDelta,
+                Chaos::FReal(GJKEpsilon->GetFloat()), Chaos::FReal(EPAEpsilon->GetFloat()));
+            TSharedRef<FJsonObject> Cold = MakeShared<FJsonObject>();
+            Cold->SetBoolField(TEXT("success"), Success);
+            Cold->SetNumberField(TEXT("vertex_0"), Vertex0);
+            Cold->SetNumberField(TEXT("vertex_1"), Vertex1);
+            Cold->SetNumberField(TEXT("penetration_cm"), Penetration);
+            Cold->SetNumberField(TEXT("support_delta_cm"), SupportDelta);
+            Cold->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Point0)));
+            Cold->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Point1)));
+            Cold->SetObjectField(TEXT("shape_normal_0"), CaptureVector(FVector(Normal0)));
+            Cold->SetObjectField(TEXT("shape_normal_1"), CaptureVector(FVector(Normal1)));
+            TArray<TSharedPtr<FJsonValue>> Vertices;
+            for (int32 Index = 0; Index < Simplex.NumVerts; ++Index)
+            {
+                TSharedRef<FJsonObject> Vertex = MakeShared<FJsonObject>();
+                Vertex->SetNumberField(TEXT("weight"), Simplex.Barycentric[Index]);
+                Vertex->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Simplex.As[Index])));
+                Vertex->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Simplex.Bs[Index])));
+                Vertices.Add(MakeShared<FJsonValueObject>(Vertex));
+            }
+            Cold->SetArrayField(TEXT("simplex"), Vertices);
+            Sample->SetObjectField(TEXT("cold_gjk"), Cold);
+        }
         if (Input->HasField(TEXT("triangle_indices")))
         {
             const TArray<TSharedPtr<FJsonValue>>* Indices = nullptr;

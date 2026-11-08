@@ -6633,6 +6633,15 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 23:59 source/static摘要：已实现源候选邻接顺序、超过三面时全量遍历、距离与法向资格、box平局/convex回退及缩放凸包float分支，并由源box面序生成八顶点邻接。已写Bench原生simplex、候选平局、负缩放及回退控制；其simplex保留的凸包顶点10与源顶点相同，但末次支持顶点尚未直接观察。搜索距离CVar暂用源码默认，reader已加直接字段；GJK身份、测试、消融和Playground待后续条目与统一Gate。证据`docs/audit/bf144/d100b3b3a/`。实际结束：2026-11-08 23:59 +08:00；偏差：−45分钟；结果：子项静态实现完成，未再拆分。
 
 - [ ] BF144-D100b3b3b / P3 — 恢复源GJK末次支持顶点身份。
+  - 00:02 source/static摘要：源`GJKPenetrationWarmStartable`每次支持查询都会覆盖末次顶点，最终simplex并不保证包含该顶点；热启动先复原上一simplex，接触时另走EPA。现有reader只保存simplex，不能直接证明末次索引。拆为native冷查询读取D100b3b3b1、冷分离GJK D100b3b3b2、EPA与热启动D100b3b3b3，不能以simplex某个顶点猜测末次索引。
+
+- [x] BF144-D100b3b3b1 / P3 — 提取原生冷GJK的末次支持顶点。
+  - 本轮开始：2026-11-09 00:02 +08:00；预计结束：2026-11-09 00:42 +08:00。扩展项目native reader，以原形体、有效margin和相对变换直接调用源公开GJK，记录末次顶点与simplex；准备不同分离和接触请求及focused合同。reader重建及新字段原生验证按用户顺序留待统一Gate。估时依据：D143已保留实际box/convex GJK及native simplex，现有reader已能取得完整源形体。
+  - 00:04 source/static摘要：reader已增加按原始box/convex、有效margin、相对变换和实际epsilon执行冷GJK并记录末次顶点及simplex的可选探针；旧版reader fresh读取五个请求，四个核心分离、一个核心重叠，完整原始结果已保存。旧二进制忽略新请求字段，末次顶点尚未观察；已写新旧simplex、法向和索引合同，reader重建、测试、消融与Playground待统一Gate。证据`docs/audit/bf144/d100b3b3b1/`。实际结束：2026-11-09 00:04 +08:00；偏差：−38分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D100b3b3b2 / P3 — 移植冷启动、核心分离的源GJK支持顶点。
+
+- [ ] BF144-D100b3b3b3 / P3 — 移植源GJK热启动与EPA支持顶点。
 
 - [ ] BF144-D100b3b3c / P3 — 接入源选面和凸包点序。
 

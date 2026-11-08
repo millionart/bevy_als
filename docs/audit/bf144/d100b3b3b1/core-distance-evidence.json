@@ -1,0 +1,32 @@
+[
+  {
+    "label": "bench_foot_penetrating",
+    "simplex_count": 3,
+    "weighted_core_distance_cm": 0.5000002943496682,
+    "source_cold_vertex_field_present": false
+  },
+  {
+    "label": "bench_foot_near",
+    "simplex_count": 3,
+    "weighted_core_distance_cm": 0.9000002943496668,
+    "source_cold_vertex_field_present": false
+  },
+  {
+    "label": "bench_foot_separated",
+    "simplex_count": 3,
+    "weighted_core_distance_cm": 1.5000002943496682,
+    "source_cold_vertex_field_present": false
+  },
+  {
+    "label": "bench_foot_cull_edge",
+    "simplex_count": 3,
+    "weighted_core_distance_cm": 3.000000294349668,
+    "source_cold_vertex_field_present": false
+  },
+  {
+    "label": "bench_foot_core_overlap",
+    "simplex_count": 4,
+    "weighted_core_distance_cm": 1.9860758090011314e-15,
+    "source_cold_vertex_field_present": false
+  }
+]
