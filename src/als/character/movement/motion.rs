@@ -3156,6 +3156,16 @@ fn shape_impact_normal(
     selected.map_or(normal, |face| pose.transform_vector(face))
 }
 
+pub(crate) fn source_sweep_impact_normal(
+    spatial: &SpatialQuery, hit: &ShapeHitData, trace: Vec3,
+    sweep_start: Vec3, sweep_rotation: Quat, capsule: &Collider,
+) -> Vec3 {
+    if hit.distance <= 0.0 { return hit.normal1; }
+    let Some((position, rotation, shape)) = spatial.collider_geometry(hit.entity) else { return hit.normal1; };
+    shape_impact_normal(shape.shape_scaled().as_ref(), avian3d::parry::math::Pose3::from_parts(position.0, rotation.0),
+        hit.point1, hit.normal1, trace, sweep_start, sweep_rotation, capsule)
+}
+
 fn landing_hit_qualification(
     normal: Vec3, impact_normal: Vec3, point: Vec3, hit_location: Vec3, position: Vec3,
     half: f32, radius: f32, penetrating: bool,
@@ -3177,7 +3187,6 @@ fn landing_hit_qualification(
 fn edge_floor_landing(
     spatial: &SpatialQuery, position: Vec3, half: f32, radius: f32, cmc: &crate::als::params::CmcAdapterParams,
     entity: Entity, candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
-    shapes: &Query<(&Collider, &Position, &Rotation)>,
 ) -> bool {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let Some(floor) = find_ground_floor_with_penetration(spatial, position, half, radius, cmc,
@@ -3185,11 +3194,7 @@ fn edge_floor_landing(
     if floor.origin != GroundFloorOrigin::Sweep { return false; }
     let trace = floor.trace;
     let hit_location = trace.origin - Vec3::Y * floor.hit.distance;
-    let floor_capsule = als_character_capsule(trace.half, trace.radius);
-    let impact_normal = shapes.get(floor.hit.entity).ok().map_or(floor.hit.normal1, |(shape, shape_position, shape_rotation)| {
-        shape_impact_normal(shape.shape_scaled().as_ref(), avian3d::parry::math::Pose3::from_parts(shape_position.0, shape_rotation.0),
-            floor.hit.point1, floor.hit.normal1, Vec3::NEG_Y * trace.distance, trace.origin, Quat::IDENTITY, &floor_capsule)
-    });
+    let impact_normal = floor.impact_normal;
     let penetrating = floor.hit.distance == 0.0 && (floor.hit.point1 - floor.hit.point2).dot(floor.hit.normal1) > 0.0;
     if !landing_hit_qualification(floor.hit.normal1, impact_normal, floor.hit.point1, hit_location, position,
         half, radius, penetrating).0 { return false; }
@@ -3306,7 +3311,7 @@ pub(crate) fn falling_movement_sweep(
         }
         if sweep == 0 && qualification.is_some_and(|(_, edge)| edge)
             && remaining.dot(normal) < 0.0 && let Some((cmc, ..)) = landing.as_ref() {
-            if edge_floor_landing(spatial, position, extent.y, extent.x.min(extent.z), cmc, entity, candidates, shapes) {
+            if edge_floor_landing(spatial, position, extent.y, extent.x.min(extent.z), cmc, entity, candidates) {
                 return (applied, velocity, contact, Some((remaining_time, false)), None);
             }
             contact = false;
@@ -4332,7 +4337,7 @@ fn grounded_movement_transaction(
     }
     let destination = raised + remaining_delta;
     let down_distance = MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE * 2.0;
-    let Some(floor) = floor_sweep_hit(&spatial_query, capsule, radius, destination,
+    let Some((floor, impact_normal)) = floor_sweep_hit(&spatial_query, capsule, radius, destination,
         down_distance, &filter, &accepts) else {
         if initial_floor_y.is_some() && spatial_query.cast_shape_predicate(capsule, destination, Quat::IDENTITY,
             Dir3::NEG_Y, &ShapeCastConfig::from_max_distance(down_distance), &filter, &accepts).is_none() {
@@ -4344,7 +4349,7 @@ fn grounded_movement_transaction(
     };
     if floor.distance == 0.0 && (floor.point1 - floor.point2).dot(floor.normal1) > 0.0 { return Some(result); }
     let down_travel = movement_sweep_travel(down_distance, floor.distance);
-    if floor.normal1.y < deg_to_rad(MAX_SLOPE_DEGREES).cos()
+    if impact_normal.y < deg_to_rad(MAX_SLOPE_DEGREES).cos()
         && (initial_floor_y.is_none() || step_delta.dot(floor.normal1) < 0.0
             || destination.y - down_travel > center.y) {
         return Some(result);
@@ -4745,23 +4750,15 @@ pub fn character_blocks_collider(character: Entity, candidate: Entity,
 }
 
 fn floor_sweep_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, origin: Vec3,
-    distance: f32, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool) -> Option<ShapeHitData> {
-    let mut hit = spatial.cast_shape_predicate(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+    distance: f32, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool) -> Option<(ShapeHitData, Vec3)> {
+    let hit = spatial.cast_shape_predicate(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
         &ShapeCastConfig::from_max_distance(distance), filter, accepts)?;
     let reduced_radius = (radius - EDGE_REJECT_DISTANCE).max(SWEEP_EDGE_MIN_RADIUS);
     if Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared() >= reduced_radius * reduced_radius {
         return None;
     }
-    let mut normal = hit.normal1;
-    if normal.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
-        let ray_origin = hit.point1 + (Vec3::Y - Vec3::new(normal.x, 0.0, normal.z)) * EDGE_REJECT_DISTANCE;
-        if let Some(surface) = spatial.cast_ray_predicate(ray_origin, Dir3::NEG_Y, EDGE_REJECT_DISTANCE * 2.0, false, filter, accepts)
-            .filter(|surface| surface.entity == hit.entity) {
-            normal = surface.normal;
-        }
-    }
-    hit.normal1 = normal;
-    Some(hit)
+    let impact = source_sweep_impact_normal(spatial, &hit, Vec3::NEG_Y * distance, origin, Quat::IDENTITY, capsule);
+    Some((hit, impact))
 }
 
 fn walking_floor_penetrates(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32, character: Entity,
@@ -4776,7 +4773,7 @@ fn walking_floor_penetrates(spatial: &SpatialQuery, origin: Vec3, half: f32, rad
         let shrink_height = (half - radius) * shrink;
         let sweep_radius = (radius - reduction).max(SWEEP_EDGE_MIN_RADIUS);
         let capsule = als_character_capsule((half - shrink_height).max(sweep_radius), sweep_radius);
-        if let Some(hit) = floor_sweep_hit(spatial, &capsule, sweep_radius, origin,
+        if let Some((hit, _)) = floor_sweep_hit(spatial, &capsule, sweep_radius, origin,
             distance + shrink_height, &filter, &accepts) {
             penetrating = hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0;
             if hit.distance != 0.0 { break; }
@@ -4795,8 +4792,6 @@ enum GroundFloorOrigin {
 #[derive(Clone, Copy, Debug)]
 struct GroundFloorTrace {
     origin: Vec3,
-    half: f32,
-    radius: f32,
     distance: f32,
 }
 
@@ -4804,6 +4799,7 @@ struct GroundFloorTrace {
 struct GroundFloorResult {
     center_y: f32,
     hit: ShapeHitData,
+    impact_normal: Vec3,
     penetration: Option<ShapeHitData>,
     sweep_distance: f32,
     line_distance: Option<f32>,
@@ -4830,7 +4826,7 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
     supplied: Option<(ShapeHitData, GroundFloorTrace)>)
     -> Option<GroundFloorResult> {
     let accepts = |candidate| character_blocks_collider(character, candidate, candidates);
-    let walkable = |hit: &ShapeHitData| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
+    let walkable = |hit: &ShapeHitData, impact_normal: Vec3| impact_normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
         && !(hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0);
     let compute = |at: Vec3, test_radius: f32, line_distance: f32, sweep_distance: f32| {
         let mut result = None;
@@ -4840,12 +4836,12 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
             let sweep_radius = (test_radius - radius_reduction).max(SWEEP_EDGE_MIN_RADIUS);
             let capsule_half = (half - shrink_height).max(sweep_radius);
             let capsule = als_character_capsule(capsule_half, sweep_radius);
-            let trace = GroundFloorTrace { origin: at, half: capsule_half, radius: sweep_radius, distance: sweep_distance + shrink_height };
-            if let Some(hit) = floor_sweep_hit(spatial, &capsule, sweep_radius, at,
+            let trace = GroundFloorTrace { origin: at, distance: sweep_distance + shrink_height };
+            if let Some((hit, impact_normal)) = floor_sweep_hit(spatial, &capsule, sweep_radius, at,
                 sweep_distance + shrink_height, filter, &accepts) {
                 let floor_distance = (hit.distance - shrink_height).max(-MAX_FLOOR_DISTANCE.max(radius));
-                let valid = walkable(&hit) && floor_distance <= sweep_distance;
-                result = Some((hit, floor_distance, valid, false, None, floor_distance, trace));
+                let valid = walkable(&hit, impact_normal) && floor_distance <= sweep_distance;
+                result = Some((hit, floor_distance, valid, false, None, floor_distance, trace, impact_normal));
                 if valid { return result; }
                 if hit.distance != 0.0 { break; }
             }
@@ -4856,10 +4852,10 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
             && ray.distance > 0.0 && ray.normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos() {
             let floor_distance = (ray.distance - half).max(-MAX_FLOOR_DISTANCE.max(radius));
             if floor_distance <= line_distance {
-                let (sweep, sweep_floor_distance, _, _, _, _, trace) = result.unwrap();
+                let (sweep, sweep_floor_distance, _, _, _, _, trace, _) = result.unwrap();
                 let retained = (sweep.distance == 0.0 && (sweep.point1 - sweep.point2).dot(sweep.normal1) > 0.0).then_some(sweep);
                 let hit = ShapeHitData { entity: ray.entity, normal1: ray.normal, normal2: -ray.normal, ..sweep };
-                return Some((hit, floor_distance, true, true, retained, sweep_floor_distance, trace));
+                return Some((hit, floor_distance, true, true, retained, sweep_floor_distance, trace, ray.normal));
             }
         }
         result
@@ -4872,13 +4868,13 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
         let location = trace.origin - Vec3::Y * hit.distance;
         let offset = hit.point1 - location;
         let reduced = (radius - EDGE_REJECT_DISTANCE).max(SWEEP_EDGE_MIN_RADIUS);
-        if trace.distance > 0.0 && walkable(&hit)
+        if trace.distance > 0.0 && walkable(&hit, hit.normal1)
             && Vec2::new(offset.x, offset.z).length_squared() < reduced * reduced {
             let distance = origin.y - location.y;
-            Some((hit, distance, true, false, None, distance, trace))
+            Some((hit, distance, true, false, None, distance, trace, hit.normal1))
         } else { None }
     });
-    let (mut hit, mut floor_distance, valid, line, retained_penetration, sweep_floor_distance, trace) =
+    let (mut hit, mut floor_distance, valid, line, retained_penetration, sweep_floor_distance, trace, mut impact_normal) =
         supplied.or_else(|| compute(origin, radius, max_floor, max_floor))?;
     let mut floor_origin = if line { GroundFloorOrigin::Line } else { GroundFloorOrigin::Sweep };
     let threshold = cmc.perch_radius_threshold.max(0.0);
@@ -4889,13 +4885,14 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
         let at = origin - Vec3::Y * hit.distance;
         let above_base = (hit.point1.y - at.y + half).max(0.0);
         let max_perch = max_floor + if mode == LocomotionState::Grounded { cmc.perch_additional_height.max(0.0) } else { 0.0 };
-        let (perch, perch_distance, perch_valid, _, _, _, _) = compute(at, perch_radius,
+        let (perch, perch_distance, perch_valid, _, _, _, _, perch_impact) = compute(at, perch_radius,
             (max_perch - above_base).max(0.0), max_perch + radius)?;
         if !perch_valid || above_base + perch_distance > max_perch { return None; }
         let average = (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5;
         if average - floor_distance + perch_distance >= max_perch { floor_distance = average; }
         if !valid {
             hit = ShapeHitData { entity: perch.entity, normal1: perch.normal1, normal2: perch.normal2, ..hit };
+            impact_normal = perch_impact;
             floor_origin = GroundFloorOrigin::PerchLine;
         }
     } else if !valid { return None; }
@@ -4905,7 +4902,7 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
         GroundFloorOrigin::Line => Some(floor_distance),
         GroundFloorOrigin::PerchLine => Some(floor_distance.max(MIN_FLOOR_DISTANCE)),
     };
-    Some(GroundFloorResult { center_y: origin.y - line_distance.unwrap_or(floor_distance), hit,
+    Some(GroundFloorResult { center_y: origin.y - line_distance.unwrap_or(floor_distance), hit, impact_normal,
         penetration: retained_penetration, sweep_distance: source_floor_distance, line_distance, origin: floor_origin, trace })
 }
 
@@ -5486,6 +5483,46 @@ mod tests {
         let sphere = Collider::sphere(0.5);
         assert_eq!(shape_impact_normal(sphere.shape_scaled().as_ref(), avian3d::parry::math::Pose3::IDENTITY,
             Vec3::NEG_X * 0.5, normal, Vec3::X, Vec3::NEG_X * 2.0, Quat::IDENTITY, &capsule), normal);
+    }
+
+    #[test]
+    fn floor_sweep_uses_convex_impact_face_at_a_steep_edge() {
+        use bevy::ecs::system::RunSystemOnce;
+        for angle in [30.0_f32, 60.0] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            let slope = angle.to_radians().tan();
+            let mut points = Vec::new();
+            for z in [-1.0_f32, 1.0] {
+                points.extend([Vec3::new(-1.0, 0.08 - slope, z), Vec3::new(0.0, 0.08, z),
+                    Vec3::new(-1.0, -3.0, z), Vec3::new(0.0, -3.0, z)]);
+            }
+            app.world_mut().spawn((RigidBody::Static, Collider::convex_hull(points).unwrap(), Transform::IDENTITY));
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let (hit, impact, overlap_impact, floor, line_hit) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                let origin = Vec3::new(0.1, 1.02, 0.0);
+                let filter = SpatialQueryFilter::from_excluded_entities([actor]);
+                let shrink = (0.9 - 0.3) * FLOOR_SWEEP_SHRINK_FRACTION;
+                let capsule = als_character_capsule(0.9 - shrink, 0.3);
+                let (hit, impact) = floor_sweep_hit(&spatial, &capsule, 0.3, origin, 1.0, &filter, &|_| true).unwrap();
+                let overlap = ShapeHitData { distance: 0.0, ..hit };
+                let overlap_impact = source_sweep_impact_normal(&spatial, &overlap, Vec3::NEG_Y, origin, Quat::IDENTITY, &capsule);
+                let floor = find_ground_floor_with_penetration(&spatial, origin, 0.9, 0.3,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                    &filter, actor, &candidates, None);
+                let line_hit = spatial.cast_ray(origin, Dir3::NEG_Y, 2.0, false, &filter).is_some();
+                (hit, impact, overlap_impact, floor, line_hit)
+            }).unwrap();
+            assert!(!line_hit);
+            assert!(hit.distance > 0.0 && hit.normal1.y > deg_to_rad(MAX_SLOPE_DEGREES).cos());
+            assert!((impact.y - angle.to_radians().cos()).abs() < 1e-5, "angle={angle} impact={impact:?}");
+            assert_eq!(overlap_impact, hit.normal1);
+            assert_eq!(floor.is_some(), angle == 30.0, "angle={angle} hit={hit:?} impact={impact:?}");
+        }
     }
 
     #[test]

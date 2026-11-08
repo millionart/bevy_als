@@ -5757,6 +5757,11 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧`actual_walkable_line_floor_keeps_source_side_penetration_recovery`仅验证X方向脱离，初始Y已在源贴地带内，因此没有触发错误高度调整。当前反例读取真实consumer前的query，排除了将Avian较早阶段位移误归本guard的可能；仅登记，不改生产实现。
 
 - [ ] BF144-D10 / P2 — 陡边的接触法线被误当成源几何面法线，建立错误地面支撑。
+  - 子项拆分：D10a复用源几何面算法并修地面资格；D10b接入空中GroundPrediction；D10c接入StepUp首滑面资格。依次静态实现并分别提交，父项在三者完成后标记；运行Gate仍统一延后。
+  - [x] BF144-D10a — 保留接触Normal并以源最反向几何ImpactNormal判定地面sweep。开始2026-11-08 13:06 +08:00；预估结束13:46 +08:00；实际结束13:16 +08:00，提前30分钟；静态实现完成，拆分为D10a/b/c，测试/消融/Gate暂缓。
+    - 闭环：fresh ALS/UE地面、结果转换与Chaos面选择源，以及原生盒体前向/向下控制已保存在`docs/audit/bf144/d10a/`；新增30°/60°凸体和初始重叠focused fixture，复用已有多形体/穿透测试。尚未运行目标测试，GroundPrediction和StepUp分别由后续子项覆盖。
+  - [ ] BF144-D10b — GroundPrediction按相同几何ImpactNormal判可行走。
+  - [ ] BF144-D10c — StepUp首次滑动按同一ImpactNormal判可行走。
   - Source：fresh UE `IsWalkable:6987–7032`检查ImpactNormal；`CollisionConversions:499–540,445`、`PhysicsInterfaceUtilsCore:32–37`对正距离sweep取最反向几何面，`Chaos Convex.h:552–564`返回该面法线，不能直接使用胶囊接触Normal。凸体60°上表面的竖直法线分量0.5小于源WalkableFloorZ≈0.71，相邻侧面为竖直面，同样不可行走。
   - Target：`src/als/character/movement/motion.rs:3854–3862`仅在原始接触normal1已不可行走时尝试短射线重建；若凸体边缘的接触normal1较竖直，就直接交给`3880`判断walkable。实际floor consumer随后据此保持Grounded并调整高度。
   - 反例：60°凸体斜面以竖直侧面收边，边缘距角色中心0.1m、顶高0.08m。实际加载角色从中心高1.02m检查地面，consumer前sweep非穿透、距离0.1161m、接触normal1.y=0.9449，中心射线无命中，impact在默认0.15m有效perch半径内；source应无可行走floor并进入Air，target保持Grounded并拉到0.98437m。`bf144_floor_steep_edge_does_not_create_ground_support`语义FAIL，30°同形体对照PASS；独立query的0.1/0.14m边缘同样仅60°两组失败。证据`target/bf144/04/normal_loaded/`、`normal_query/`。

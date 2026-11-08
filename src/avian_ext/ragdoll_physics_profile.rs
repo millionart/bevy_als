@@ -597,6 +597,10 @@ pub struct RagdollSpatialQuery<'w, 's> {
 }
 
 impl RagdollSpatialQuery<'_, '_> {
+    pub fn collider_geometry(&self, entity: Entity) -> Option<(&Position, &Rotation, &Collider)> {
+        self.colliders.get(entity).ok()
+    }
+
     fn queryable(&self, entity: Entity) -> bool {
         self.modes.get(entity).map_or(true, |mode| mode.has_query())
     }
