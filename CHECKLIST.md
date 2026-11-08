@@ -6440,11 +6440,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧physics timing测试验证了整帧cap与末速度，sleep测试只要求不同子步数保持同一整帧计数，没有比较source单步位移；不能由“都采用约33.33ms上限”推导调度等价。关节在不同dt下求解的整体自然轨迹尚未实测，本项不据此扩大数字结论；仅登记。
   - 20:56 source/static摘要：fresh PhysicsSettings及PA身份、同步单步调用链和独立目标配置生成已记录；世界物理调度使用源生效的一个子步，游戏帧时钟保持独立。已写加载rig的步数、物理时间、速度和位移对照，并有限复开D84补六步扩展反例；测试、消融和真实Playground待统一Gate。证据`docs/audit/bf144/d86/`。实际结束：2026-11-08 20:56 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D87 / P3 — Ragdoll线性阻尼公式及施加顺序与源不同。
+- [x] BF144-D87 / P3 — Ragdoll线性阻尼公式及施加顺序与源不同。
+  - 本轮开始：2026-11-08 20:57 +08:00；预计结束：2026-11-08 21:47 +08:00。重读源外力、冲量和阻尼顺序及Avian积分调度，基于真实rig保留非ragdoll控制与零阻尼对照；统一测试和消融留待升级后。估时依据：BF144.26单步线性源码与完整角色夹具实耗8分钟，本项需修改共享积分阶段并核对额外力、冲量及普通刚体，按独立闭包预留。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:915–931`先加Acceleration×dt和LinearImpulseVelocity，再乘max(0,1−LinearDamping×dt)。21个native PA body的LinearDamping=0.01；`PerParticleEtherDrag.cpp:9–10`的全局覆盖本次读取为−1，未改写该公式。
   - Target：`ragdoll_physics_profile.rs:1361`把源系数直接交给Avian LinearDamping；Avian `integrator/mod.rs:248–249,362–368`先对旧速度乘1/(1+damping×dt)，随后加本步加速度增量，既改变系数公式也漏掉本步重力/外力的阻尼。
   - 反例：完整角色spine_01保留native mass，双方统一单步以隔离D86；60/30Hz×原生/零阻尼×静止、5/60m/s恒速、静止/移动重力及50N外力共24组17PASS/7FAIL。零阻尼12组全部PASS；native阻尼时两种步长的重力/外力6组FAIL，30Hz重力末速度应−0.326891m/s、实际−0.327m/s，差0.000108987m/s；30Hz无加速度60m/s另显现纯公式差。原生六子步+阻尼的6组3PASS/3FAIL证明真实默认消费者也受影响。证据`bf144_pa_linear_damping_uses_source_formula_and_update_order`、`bf144_pa_linear_native_default_free_fall_consumes_both_differences`。
   - 漏检：旧profile测试只核对阻尼字段，动力学夹具常显式把LinearDamping设为0，没有验证其执行阶段。本项是小量数值差异，未据此声称大幅视觉异常；仅登记。
+  - 21:01 source/static摘要：fresh PA证实21个native系数与全局覆盖，源和Avian积分链已固化；动态rig只调整已有速度增量及阻尼乘数，覆盖重力、世界/本地力和先施加的冲量，保留普通刚体及自定义积分所有者。已写加载角色及两类控制的focused对照；测试、消融和真实Playground待统一Gate。证据`docs/audit/bf144/d87/`。实际结束：2026-11-08 21:01 +08:00；偏差：−46分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D88 / P3 — Ragdoll显式低速唤醒保留了旧睡眠计数。
   - Source：fresh `ChaosEngineInterface.cpp:626–640`写入外部速度，`SingleParticlePhysicsProxy.cpp:127–132`把该更新送到`PBDRigidsEvolutionGBF.cpp:2031–2057`；只要非零速度就调用WakeParticle，即使刚体已经清醒。`PBDRigidsEvolution.cpp:1258–1272`和`IslandManager.cpp:860–902`重置计数，连接岛还禁止当前步睡眠；后续按native counter=4重新累计。

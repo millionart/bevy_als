@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, ColliderOf, CollisionLayers, CustomPositionIntegration,
+    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, ColliderOf, CollisionLayers, CustomPositionIntegration, CustomVelocityIntegration,
     CoefficientCombine, CollisionHooks, ComputedCenterOfMass, Friction, GravityScale, JointCollisionDisabled, JointDamping, JointDisabled,
     LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, Physics, PhysicsSchedule,
     PhysicsSystems, RayHitData, ShapeCastConfig, ShapeHitData, SimpleCollider, SolverSystems, SpatialQuery, SpatialQueryFilter,
-    Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SphericalJoint,
+    Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SphericalJoint, Substeps,
 };
+use avian3d::dynamics::integrator::{IntegrationSystems, VelocityIntegrationData, pre_process_velocity_increments};
 use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
 use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
 use avian3d::collider_tree::{ColliderTreeProxyKey, ColliderTrees, MovedProxies};
@@ -828,6 +829,9 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
         .add_systems(PhysicsSchedule, disable_ragdoll_gyroscopic_torque
             .in_set(SolverSystems::PreSubstep))
+        .add_systems(PhysicsSchedule, apply_source_linear_damping
+            .in_set(IntegrationSystems::UpdateVelocityIncrements)
+            .after(pre_process_velocity_increments))
         .add_systems(PhysicsSchedule, (enable_source_ragdoll_rotation, ApplyDeferred)
             .chain().in_set(SolverSystems::PreSubstep))
         .add_systems(avian3d::prelude::SubstepSchedule, integrate_source_ragdoll_rotation
@@ -843,6 +847,21 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .after(avian3d::prelude::PhysicsStepSystems::Sleeping)
             .before(avian3d::prelude::PhysicsStepSystems::Finalize)
             .run_if(resource_exists::<PhysicsIslands>));
+    }
+}
+
+fn apply_source_linear_damping(
+    time: Res<Time<Substeps>>,
+    mut bodies: Query<(&RigidBody, &LinearDamping, &mut VelocityIntegrationData),
+        (With<RagdollActiveMode>, Without<CustomVelocityIntegration>)>,
+) {
+    let dt = time.delta_secs();
+    for (body, damping, mut integration) in &mut bodies {
+        if body.is_dynamic() {
+            let multiplier = (1.0 - damping.0 * dt).max(0.0);
+            integration.linear_increment *= multiplier;
+            integration.linear_damping_rhs = multiplier;
+        }
     }
 }
 
@@ -1890,6 +1909,82 @@ fn joint_anchor_distance(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn source_ragdoll_linear_damping_follows_acceleration_and_impulse() {
+        use avian3d::prelude::{AngularVelocity, ColliderDisabled, ComputedMass, ConstantForce, ConstantLocalForce,
+            Forces, Gravity, JointDisabled, LinearVelocity, Sleeping, SleepingDisabled, WriteRigidBodyForces};
+        use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..12 { app.update(); }
+        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+        let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+        let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+        for entity in colliders { app.world_mut().entity_mut(entity).insert(ColliderDisabled); }
+        for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+        let body = bodies.iter().find(|(label, _)| label == "spine_01").unwrap().1;
+        let native_damping = app.world().get::<LinearDamping>(body).unwrap().0;
+        assert!((native_damping - 0.01).abs() < 1e-7);
+        app.world_mut().entity_mut(body).insert(SleepingDisabled).remove::<Sleeping>();
+        let cases = [
+            (Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO),
+            (Vec3::X * 60.0, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO),
+            (Vec3::X * 5.0, Vec3::NEG_Y * 9.81, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO),
+            (Vec3::ZERO, Vec3::ZERO, Vec3::X * 50.0, Vec3::ZERO, Vec3::ZERO),
+            (Vec3::ZERO, Vec3::NEG_Y * 9.81, Vec3::ZERO, Vec3::Z * 50.0, Vec3::X),
+        ];
+        for frame_dt in [1.0_f32 / 60.0, 1.0 / 30.0, 0.1] {
+            for damping in [0.0, native_damping, 100.0] {
+                for (initial, gravity, force, local_force, impulse) in cases {
+                    app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(frame_dt)));
+                    app.world_mut().insert_resource(Gravity(gravity));
+                    app.world_mut().entity_mut(body).insert((LinearVelocity(initial), AngularVelocity::ZERO,
+                        LinearDamping(damping), ConstantForce(force), ConstantLocalForce(local_force))).remove::<Sleeping>();
+                    let inverse_mass = app.world().get::<ComputedMass>(body).unwrap().inverse();
+                    let rotation = app.world().get::<Rotation>(body).unwrap().0;
+                    let before = app.world().get::<Position>(body).unwrap().0;
+                    app.world_mut().run_system_once(move |mut forces: Query<Forces>| {
+                        forces.get_mut(body).unwrap().apply_linear_impulse(impulse);
+                    }).unwrap();
+                    app.update();
+                    let dt = frame_dt.min(crate::source_physics_timing::SOURCE_MAX_PHYSICS_DELTA.as_secs_f32());
+                    let expected = (initial + impulse * inverse_mass + (gravity + (force + rotation * local_force) * inverse_mass) * dt)
+                        * (1.0 - damping * dt).max(0.0);
+                    let actual = app.world().get::<LinearVelocity>(body).unwrap().0;
+                    let displacement = app.world().get::<Position>(body).unwrap().0 - before;
+                    assert!(actual.abs_diff_eq(expected, 1e-5),
+                        "frame_dt={frame_dt} damping={damping} actual={actual:?} source={expected:?}");
+                    assert!(displacement.abs_diff_eq(expected * dt, 2e-5));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn source_ragdoll_damping_preserves_other_integrators() {
+        use avian3d::prelude::{CustomVelocityIntegration, Gravity, LinearVelocity, PhysicsPlugins, RigidBody, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin))
+            .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(1))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 30.0)));
+        app.finish(); app.cleanup();
+        let free = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY,
+            LinearVelocity(Vec3::X * 5.0), LinearDamping(0.5))).id();
+        let owned = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY,
+            LinearVelocity(Vec3::X * 5.0), LinearDamping(0.5), RagdollActiveMode(BodyMode::Dynamic), CustomVelocityIntegration)).id();
+        app.update();
+        for entity in [free, owned] { app.world_mut().entity_mut(entity).insert(LinearVelocity(Vec3::X * 5.0)); }
+        app.update();
+        let implicit = 5.0 / (1.0 + 0.5 / 30.0);
+        assert!((app.world().get::<LinearVelocity>(free).unwrap().x - implicit).abs() < 1e-5);
+        assert_eq!(app.world().get::<LinearVelocity>(owned).unwrap().0, Vec3::X * 5.0);
+    }
+
     #[test]
     fn source_ragdoll_free_rotation_uses_one_physics_frame() {
         use avian3d::prelude::{AngularVelocity, ColliderDisabled, Gravity, JointDisabled, Physics, Rotation, Sleeping, SleepingDisabled};

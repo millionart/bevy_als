@@ -1,0 +1,44 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDRigidsEvolutionGBF.cpp",
+    "sha256": "733d0d1c075eb559319e9e8e4364923b8090652e6997738d6eebbec066b06712",
+    "start_line": 906,
+    "end_line": 935,
+    "text": "\n\t\t\t\t\t//save off previous velocities\n\t\t\t\t\tParticle.SetPreV(V);\n\t\t\t\t\tParticle.SetPreW(W);\n\n\t\t\t\t\tfor (FForceRule ForceRule : ForceRules)\n\t\t\t\t\t{\n\t\t\t\t\t\tForceRule(Particle, Dt);\n\t\t\t\t\t}\n\n\t\t\t\t\t//EulerStepVelocityRule.Apply(Particle, Dt);\n\t\t\t\t\tV += Particle.Acceleration() * Dt;\n\t\t\t\t\tW += Particle.AngularAcceleration() * Dt;\n\n\t\t\t\t\t//AddImpulsesRule.Apply(Particle, Dt);\n\t\t\t\t\tV += Particle.LinearImpulseVelocity();\n\t\t\t\t\tW += Particle.AngularImpulseVelocity();\n\t\t\t\t\tParticle.LinearImpulseVelocity() = FVec3(0);\n\t\t\t\t\tParticle.AngularImpulseVelocity() = FVec3(0);\n\n\t\t\t\t\t//EtherDragRule.Apply(Particle, Dt);\n\n\t\t\t\t\tconst FReal LinearDrag = LinearEtherDragOverride >= 0 ? LinearEtherDragOverride : Particle.LinearEtherDrag() * Dt;\n\t\t\t\t\tconst FReal LinearMultiplier = FMath::Max(FReal(0), FReal(1) - LinearDrag);\n\t\t\t\t\tV *= LinearMultiplier;\n\n\t\t\t\t\tconst FReal AngularDrag = AngularEtherDragOverride >= 0 ? AngularEtherDragOverride : Particle.AngularEtherDrag() * Dt;\n\t\t\t\t\tconst FReal AngularMultiplier = FMath::Max(FReal(0), FReal(1) - AngularDrag);\n\t\t\t\t\tW *= AngularMultiplier;\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PerParticleEtherDrag.cpp",
+    "sha256": "0ad30004bdcf99e9d81aa4049bb39c6344c969bdb2615c638989f61250abc571",
+    "start_line": 3,
+    "end_line": 13,
+    "text": "#include \"Chaos/PerParticleEtherDrag.h\"\n#include \"HAL/IConsoleManager.h\"\n\nnamespace Chaos\n{\n\nFRealSingle LinearEtherDragOverride = -1.f;\nFAutoConsoleVariableRef CVarLinearEtherDragOverride(TEXT(\"p.LinearEtherDragOverride\"), LinearEtherDragOverride, TEXT(\"Set an override linear ether drag value. -1.f to disable\"));\n\nFRealSingle AngularEtherDragOverride = -1.f;\nFAutoConsoleVariableRef CVarAngularEtherDragOverride(TEXT(\"p.AngularEtherDragOverride\"), AngularEtherDragOverride, TEXT(\"Set an override angular ether drag value. -1.f to disable\"));"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/integrator/mod.rs",
+    "sha256": "87166e91ce8070de271d42fe92a62eb9038197c72aaa58b2cb556fe0f12ec187",
+    "start_line": 268,
+    "end_line": 315,
+    "text": "    )>,\n    gravity: Res<Gravity>,\n    time: Res<Time<Substeps>>,\n    mut diagnostics: ResMut<SolverDiagnostics>,\n) {\n    let start = crate::utils::Instant::now();\n\n    let delta_secs = time.delta_secs_f64() as Scalar;\n\n    // TODO: Do we want to skip kinematic bodies here?\n    bodies.par_iter_mut().for_each(\n        |(rb, mut integration, lin_damping, ang_damping, gravity_scale, locked_axes)| {\n            if !rb.is_dynamic() {\n                // Skip non-dynamic bodies.\n                return;\n            }\n\n            let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);\n\n            // Update the cached right-hand side of the velocity damping equation,\n            // `1 / (1 + dt * c)`, where `c` is the damping coefficient.\n            let lin_damping = lin_damping.map_or(0.0, |damping| damping.0);\n            let ang_damping = ang_damping.map_or(0.0, |damping| damping.0);\n            integration.update_linear_damping_rhs(lin_damping, delta_secs);\n            integration.update_angular_damping_rhs(ang_damping, delta_secs);\n\n            // NOTE: The `ForcePlugin` handles the application of external forces and torques.\n            // NOTE: The velocity increments are treated as accelerations at this point.\n\n            // Apply gravity.\n            integration.linear_increment += gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0);\n\n            // Apply locked axes.\n            integration.linear_increment = locked_axes.apply_to_vec(integration.linear_increment);\n            integration.angular_increment =\n                locked_axes.apply_to_angular_velocity(integration.angular_increment);\n\n            // The velocity increments are treated as accelerations until this point.\n            // Multiply by the time step to get the final velocity increments.\n            integration.linear_increment *= delta_secs;\n            integration.angular_increment *= delta_secs;\n        },\n    );\n\n    diagnostics.update_velocity_increments += start.elapsed();\n}\n\n/// Clears the velocity increments of bodies after the substepping loop."
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/integrator/mod.rs",
+    "sha256": "87166e91ce8070de271d42fe92a62eb9038197c72aaa58b2cb556fe0f12ec187",
+    "start_line": 350,
+    "end_line": 378,
+    "text": ") {\n    let start = crate::utils::Instant::now();\n\n    #[cfg(feature = \"3d\")]\n    let delta_secs = time.delta_secs_f64() as Scalar;\n\n    bodies.par_iter_mut().for_each(|mut body| {\n        if body.solver_body.flags.is_kinematic() {\n            // Skip kinematic bodies.\n            return;\n        }\n\n        // Apply velocity damping.\n        body.solver_body.linear_velocity *= body.integration.linear_damping_rhs;\n        body.solver_body.angular_velocity *= body.integration.angular_damping_rhs;\n\n        // Apply velocity increments.\n        body.solver_body.linear_velocity += body.integration.linear_increment;\n        body.solver_body.angular_velocity += body.integration.angular_increment;\n\n        #[cfg(feature = \"3d\")]\n        {\n            if body.solver_body.is_gyroscopic() {\n                // TODO: Should this be opt-in with a `GyroscopicMotion` component?\n                // TODO: It's a bit unfortunate that this has to run in the substepping loop\n                //       rather than pre-computing the velocity increments once per time step.\n                //       This needs to be done because the gyroscopic torque relies on up-to-date rotations\n                //       and world-space angular inertia tensors. Omitting the change in orientation would\n                //       lead to worse accuracy and angular momentum not being conserved."
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/rigid_body/forces/plugin.rs",
+    "sha256": "dfe7e9e406d2bb6254922bece7453e0ab32f50851615d7f00f1a91dc778ce85b",
+    "start_line": 207,
+    "end_line": 240,
+    "text": "fn apply_local_acceleration(\n    mut bodies: Query<\n        (&mut SolverBody, &AccumulatedLocalAcceleration, &Rotation),\n        Without<CustomVelocityIntegration>,\n    >,\n    mut diagnostics: ResMut<SolverDiagnostics>,\n    time: Res<Time<Substeps>>,\n) {\n    let start = crate::utils::Instant::now();\n\n    let delta_secs = time.delta_secs_f64() as Scalar;\n\n    bodies\n        .iter_mut()\n        .for_each(|(mut body, acceleration, rotation)| {\n            let rotation = body.delta_rotation * *rotation;\n            let locked_axes = body.flags.locked_axes();\n\n            // Compute the world space velocity increments with locked axes applied.\n            let world_linear_acceleration =\n                locked_axes.apply_to_vec(rotation * acceleration.linear);\n            #[cfg(feature = \"3d\")]\n            let world_angular_acceleration =\n                locked_axes.apply_to_vec(rotation * acceleration.angular);\n\n            // Apply acceleration.\n            body.linear_velocity += world_linear_acceleration * delta_secs;\n            #[cfg(feature = \"3d\")]\n            {\n                body.angular_velocity += world_angular_acceleration * delta_secs;\n            }\n        });\n\n    diagnostics.integrate_velocities += start.elapsed();"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/rigid_body/forces/query_data.rs",
+    "sha256": "54998ead4e850612d0962fadb87067b3c3da4cd20c82cc3ee45242ccbda42b96",
+    "start_line": 382,
+    "end_line": 395,
+    "text": "    ///\n    /// The impulse modifies the [`LinearVelocity`] of the body immediately.\n    ///\n    /// By default, a non-zero impulse will wake up the body if it is sleeping. This can be prevented\n    /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].\n    #[inline]\n    fn apply_linear_impulse(&mut self, impulse: Vector) {\n        if impulse != Vector::ZERO && self.try_wake_up() {\n            let effective_inverse_mass = self\n                .locked_axes()\n                .apply_to_vec(Vector::splat(self.inverse_mass()));\n            let delta_vel = effective_inverse_mass * impulse;\n            *self.linear_velocity_mut() += delta_vel;\n        }"
+  }
+]
