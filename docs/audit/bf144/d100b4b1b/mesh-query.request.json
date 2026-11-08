@@ -1,0 +1,232 @@
+{
+  "samples": [
+    {
+      "label": "crate_box",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "capture_mesh_triangle_query": true
+    },
+    {
+      "label": "stairs_box",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "capture_mesh_triangle_query": true
+    },
+    {
+      "label": "crate_head",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "capture_mesh_triangle_query": true
+    },
+    {
+      "label": "crate_box_rotated_reflected",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        5,
+        -3,
+        2
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0.34289780745545134,
+        0.9393727128473789
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        -1,
+        1.5,
+        0.5
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        -0.21822962308086932,
+        0,
+        0.9758974493306055
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "capture_mesh_triangle_query": true
+    },
+    {
+      "label": "stairs_head_rotated_reflected",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        1,
+        -2,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        -0.21822962308086932,
+        0,
+        0.9758974493306055
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        -0.5,
+        1.5
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0.34289780745545134,
+        0.9393727128473789
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "capture_mesh_triangle_query": true
+    },
+    {
+      "label": "crate_box_outside",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        100000,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 0,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "capture_mesh_triangle_query": true
+    }
+  ]
+}

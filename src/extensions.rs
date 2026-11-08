@@ -143,6 +143,8 @@ pub(crate) mod source_contact_polygon;
 pub(crate) mod source_contact_restore;
 #[path = "avian_ext/source_mesh_bvh.rs"]
 pub(crate) mod source_mesh_bvh;
+#[path = "avian_ext/source_mesh_query.rs"]
+pub(crate) mod source_mesh_query;
 #[path = "avian_ext/source_gjk_simplex.rs"]
 pub(crate) mod source_gjk_simplex;
 #[path = "avian_ext/ragdoll_physics_profile.rs"]

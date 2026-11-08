@@ -1,0 +1,72 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifoldsMeshShapes.cpp",
+    "sha256": "1cae601094bf8a634d5b76d97dcbd9c8f773e65fa947da56d6e83f18513c34d3",
+    "start_line": 294,
+    "end_line": 320,
+    "text": "\n\t\t\t// @todo(chaos): add Convex.CalculateInverseTransformed bounds with scale support (to optimize sphere and capsule)\n\t\t\tconst FAABB3 ConvexBounds = FAABB3(Convex.BoundingBox()).Thicken(CullDistance);\n\t\t\tconst FAABB3 MeshQueryBounds = ConvexBounds.InverseTransformedAABB(MeshToConvexTransform);\n\n\t\t\t// Generate the contact manifold between Convex and a Triangle\n\t\t\tconst auto& GenerateConvexTriangleContacts =\n\t\t\t\t[&Convex, &ConvexTransform, CullDistance](Private::FMeshContactGenerator& ContactGenerator, const int32 TriangleIndex)\n\t\t\t{\n\t\t\t\tFContactPointManifold Contacts;\n\t\t\t\tGenerateConvexTriangleOneShotManifold(Convex, ConvexTransform, ContactGenerator, TriangleIndex, CullDistance, Contacts);\n\n\t\t\t\tContactGenerator.AddTriangleContacts(TriangleIndex, MakeArrayView(Contacts));\n\t\t\t};\n\n\t\t\t// Collect all the triangles that overlap our convex. Triangles will be in Convex space\n\t\t\tMesh.CollectTriangles(MeshQueryBounds, MeshToConvexTransform, ConvexBounds, ContactGenerator);\n\n\t\t\t// Generate a set of contact points for all triangles\n\t\t\tContactGenerator.GenerateMeshContacts(GenerateConvexTriangleContacts);\n\n\t\t\t// Process the contacts to minimize manifold etc\n\t\t\tContactGenerator.ProcessGeneratedContacts(ConvexTransform, MeshToConvexTransform);\n\t\t}\n\n\t\t// Original MACD algorithm that uses mesh information to fix manifold point normals after the manifold is built.\n\t\t// @todo(chaos): remove this when the new version is well tested.\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Private/Chaos/AABB.cpp",
+    "sha256": "8e951549cb0469b39e1ab67d6261b5f3521695d5062e88f5b071b77682e9d2f5",
+    "start_line": 164,
+    "end_line": 205,
+    "text": "inline TAABB<T, 3> InverseTransformedAABBHelper2(const TAABB<T, 3>& AABB, const TRigidTransform<U, 3>& SpaceTransform)\n{\n\t// Full and empty bounds do not transform\n\tif (AABB.IsFull() || AABB.IsEmpty())\n\t{\n\t\treturn AABB;\n\t}\n\n\t// NOTE: This is required for TAABB3<float> and TAABB3<double> with either float or double transform\n\tconst TVec3<T> InvTranslation = -TVec3<T>(SpaceTransform.GetTranslation());\n\tconst TRotation3<T> InvRotation = TRotation3<T>(SpaceTransform.GetRotation()).Inverse();\n\tconst TVec3<T> InvScale = TVec3<T>(1) / TVec3<T>(SpaceTransform.GetScale3D());\n\n\t// Center-relative scaled verts\n\tconst TVec3<T> Extent = T(0.5) * (AABB.Max() - AABB.Min());\n\tconst TVec3<T> Vert0 = TVec3<T>(Extent.X, Extent.Y, Extent.Z);\n\tconst TVec3<T> Vert1 = TVec3<T>(Extent.X, Extent.Y, -Extent.Z);\n\tconst TVec3<T> Vert2 = TVec3<T>(Extent.X, -Extent.Y, Extent.Z);\n\tconst TVec3<T> Vert3 = TVec3<T>(Extent.X, -Extent.Y, -Extent.Z);\n\n\t// Rotated center-relative scaled verts\n\t// Note: Scale may be negative but it does not affect the bounds calculation\n\tconst TVec3<T> RVert0 = InvScale * (InvRotation * Vert0);\n\tconst TVec3<T> RVert1 = InvScale * (InvRotation * Vert1);\n\tconst TVec3<T> RVert2 = InvScale * (InvRotation * Vert2);\n\tconst TVec3<T> RVert3 = InvScale * (InvRotation * Vert3);\n\n\t// Max rotated scaled center-relative extent\n\tTVec3<T> RExtent = TVec3<T>(0);\n\tRExtent = TVec3<T>::Max(RExtent, RVert0.GetAbs());\n\tRExtent = TVec3<T>::Max(RExtent, RVert1.GetAbs());\n\tRExtent = TVec3<T>::Max(RExtent, RVert2.GetAbs());\n\tRExtent = TVec3<T>::Max(RExtent, RVert3.GetAbs());\n\n\t// Transformed center\n\t// NOTE: This is where positive/negative scales matters\n\tconst TVec3<T> Center = T(0.5) * (AABB.Min() + AABB.Max());\n\tconst TVec3<T> TCenter =  InvScale * (InvRotation * (InvTranslation + Center));\n\n\t// Transformed bounds\n\treturn TAABB<T, 3>(TCenter - RExtent, TCenter + RExtent);\n}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Public/Chaos/AABB.h",
+    "sha256": "f8fcf0fdcedea886b4b8088083738cdad20f9619d2b7471f95bb2ee77fc0116a",
+    "start_line": 112,
+    "end_line": 120,
+    "text": "\t\tFORCEINLINE bool Intersects(const TAABB<TReal, d>& Other) const\n\t\t{\n\t\t\tfor (int32 i = 0; i < d; ++i)\n\t\t\t{\n\t\t\t\tif (Other.Max()[i] < MMin[i] || Other.Min()[i] > MMax[i])\n\t\t\t\t\treturn false;\n\t\t\t}\n\t\t\treturn true;\n\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Public/Chaos/AABB.h",
+    "sha256": "f8fcf0fdcedea886b4b8088083738cdad20f9619d2b7471f95bb2ee77fc0116a",
+    "start_line": 411,
+    "end_line": 416,
+    "text": "\t\tFORCEINLINE TAABB<T, d>& Thicken(const T Thickness)\n\t\t{\n\t\t\tMMin -= TVector<T, d>(Thickness);\n\t\t\tMMax += TVector<T, d>(Thickness);\n\t\t\treturn *this;\n\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/TriangleMeshImplicitObject.cpp",
+    "sha256": "99a818cd596fc3f159e5214a724210826cd59e2e4e1caa2cd64cae5506e8f407",
+    "start_line": 974,
+    "end_line": 1004,
+    "text": "void FTriangleMeshImplicitObject::CollectTriangles(const FAABB3& MeshQueryBounds, const FRigidTransform3& MeshToObjectTransform, const FAABB3& ObjectBounds, Private::FMeshContactGenerator& Collector) const\n{\n\tTArray<int32> OverlapIndices;\n\tFindOverlappingTriangles(MeshQueryBounds, OverlapIndices);\n\n\tconst bool bStandardWinding = ((MeshToObjectTransform.GetScale3D().X * MeshToObjectTransform.GetScale3D().Y * MeshToObjectTransform.GetScale3D().Z) >= FReal(0));\n\n\tCollector.BeginCollect(OverlapIndices.Num());\n\n\tfor (int32 OverlapIndex = 0; OverlapIndex < OverlapIndices.Num(); ++OverlapIndex)\n\t{\n\t\tconst int32 TriangleIndex = OverlapIndices[OverlapIndex];\n\t\tFTriangle Triangle;\n\t\tint32 VertexIndex0, VertexIndex1, VertexIndex2;\n\t\tGetTransformedTriangle(TriangleIndex, MeshToObjectTransform, Triangle, VertexIndex0, VertexIndex1, VertexIndex2);\n\n\t\tif (!bStandardWinding)\n\t\t{\n\t\t\tTriangle.ReverseWinding();\n\t\t\tSwap(VertexIndex1, VertexIndex2);\n\t\t}\n\n\t\tconst FAABB3 TriBounds = FAABB3::FromPoints(Triangle.GetVertex(0), Triangle.GetVertex(1), Triangle.GetVertex(2));\n\t\tif (TriBounds.Intersects(ObjectBounds))\n\t\t{\n\t\t\tCollector.AddTriangle(Triangle, TriangleIndex, VertexIndex0, VertexIndex1, VertexIndex2);\n\t\t}\n\t}\n\n\tCollector.EndCollect();\n}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/TriangleMeshImplicitObject.h",
+    "sha256": "d9254f3434215d7e1ae4352b6aac6c890d72c3b557168b1370a1bcc3024b911f",
+    "start_line": 552,
+    "end_line": 567,
+    "text": "\ttemplate <typename IdxType, typename ParticlesType>\n\tinline void TriangleMeshTransformVertsHelper(const FRigidTransform3& Transform, int32 TriIdx, const ParticlesType& Particles,\n\t\tconst TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC,\n\t\tint32& OutVertexIndexA, int32& OutVertexIndexB, int32& OutVertexIndexC)\n\t{\n\t\tconst int32 VertexIndexA = Elements[TriIdx][0];\n\t\tconst int32 VertexIndexB = Elements[TriIdx][1];\n\t\tconst int32 VertexIndexC = Elements[TriIdx][2];\n\t\t// Note: deliberately using scaled transform here. See VisitTriangles\n\t\tOutA = Transform.TransformPosition(FVector(Particles.GetX(VertexIndexA)));\n\t\tOutB = Transform.TransformPosition(FVector(Particles.GetX(VertexIndexB)));\n\t\tOutC = Transform.TransformPosition(FVector(Particles.GetX(VertexIndexC)));\n\t\tOutVertexIndexA = VertexIndexA;\n\t\tOutVertexIndexB = VertexIndexB;\n\t\tOutVertexIndexC = VertexIndexC;\n\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/TriangleMeshImplicitObject.h",
+    "sha256": "d9254f3434215d7e1ae4352b6aac6c890d72c3b557168b1370a1bcc3024b911f",
+    "start_line": 884,
+    "end_line": 906,
+    "text": "\t\ttemplate<typename TriangleVisitor>\n\t\tvoid VisitTriangles(const FAABB3& QueryBounds, const FRigidTransform3& QueryTransform, const TriangleVisitor& Visitor) const\n\t\t{\n\t\t\tTArray<int32> OverlapIndices;\n\t\t\tFindOverlappingTriangles(QueryBounds, OverlapIndices);\n\n\t\t\tconst bool bStandardWinding = ((QueryTransform.GetScale3D().X * QueryTransform.GetScale3D().Y * QueryTransform.GetScale3D().Z) >= FReal(0));\n\n\t\t\tfor (int32 OverlapIndex = 0; OverlapIndex < OverlapIndices.Num(); ++OverlapIndex)\n\t\t\t{\n\t\t\t\tconst int32 TriangleIndex = OverlapIndices[OverlapIndex];\n\t\t\t\tFTriangle Triangle;\n\t\t\t\tint32 VertexIndex0, VertexIndex1, VertexIndex2;\n\t\t\t\tGetTransformedTriangle(TriangleIndex, QueryTransform, Triangle, VertexIndex0, VertexIndex1, VertexIndex2);\n\n\t\t\t\tif (!bStandardWinding)\n\t\t\t\t{\n\t\t\t\t\tTriangle.ReverseWinding();\n\t\t\t\t\tSwap(VertexIndex1, VertexIndex2);\n\t\t\t\t}\n\n\t\t\t\tVisitor(Triangle, TriangleIndex, VertexIndex0, VertexIndex1, VertexIndex2);\n\t\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Triangle.h",
+    "sha256": "811b1138fab9c61d67b4aa8a651d5e6a66c9abcf793977542511fe3b6f223b04",
+    "start_line": 191,
+    "end_line": 200,
+    "text": "\t\t{\n\t\t\treturn 3;\n\t\t}\n\n\t\t// Change the winding order of this triangle by flipping the last two vertices\n\t\tFTriangle& ReverseWinding()\n\t\t{\n\t\t\tSwap(ABC[1], ABC[2]);\n\t\t\treturn *this;\n\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ImplicitObjectScaled.h",
+    "sha256": "f5c4bd7ee327ca7e51308aaac02765cca881b864eb0fa3bc6d74787b36ef2694",
+    "start_line": 1026,
+    "end_line": 1039,
+    "text": "\tvoid SetScale(const FVec3f& Scale)\n\t{\n\t\tconstexpr FRealSingle MinMagnitude = 1e-6f;\n\t\tfor (int Axis = 0; Axis < 3; ++Axis)\n\t\t{\n\t\t\tif (!CHAOS_ENSURE(FMath::Abs(Scale[Axis]) >= MinMagnitude))\n\t\t\t{\n\t\t\t\tMScale[Axis] = MinMagnitude;\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tMScale[Axis] = Scale[Axis];\n\t\t\t}\n\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ImplicitObjectScaled.h",
+    "sha256": "f5c4bd7ee327ca7e51308aaac02765cca881b864eb0fa3bc6d74787b36ef2694",
+    "start_line": 1219,
+    "end_line": 1243,
+    "text": "const T* UnwrapImplicit(const FImplicitObject& Implicit, FVec3& OutScale, FReal &OutMargin)\n{\n\tOutScale = FVec3(1);\n\tOutMargin = FReal(0);\n\n\tif (const TImplicitObjectScaled<T>* ScaledImplicit = Implicit.template GetObject<TImplicitObjectScaled<T>>())\n\t{\n\t\tOutScale = ScaledImplicit->GetScale();\n\t\tOutMargin = FReal(ScaledImplicit->GetMarginf());\n\t\treturn ScaledImplicit->GetUnscaledObject();\n\t}\n\telse if (const TImplicitObjectInstanced<T>* InstancedImplicit = Implicit.template GetObject<TImplicitObjectInstanced<T>>())\n\t{\n\t\tOutMargin = FReal(InstancedImplicit->GetMarginf());\n\t\treturn InstancedImplicit->GetInstancedObject();\n\t}\n\telse if (const T* RawImplicit = Implicit.template GetObject<T>())\n\t{\n\t\tOutMargin = FReal(RawImplicit->GetMarginf());\n\t\treturn RawImplicit;\n\t}\n\telse\n\t{\n\t\treturn nullptr;\n\t}\n"
+  }
+]
