@@ -5895,7 +5895,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色站姿倾斜60°/90°，实际胶囊底部距地2.15cm，请求蹲下。源缩短形体的向下sweep在0.34m请求量之前命中地面；target在物理前中心却到y=0.28150/−0.01850m，低于蹲姿实际形体不穿地所需0.43/0.30m。`bf144_crouch_base_shift_keeps_source_swept_move`共6组4PASS/2FAIL，无倾斜和无地面4组对照通过；证据`target/bf144/08/tilted_initial/`。
   - 漏检：旧父空间/尺度蹲起测试核对世界位置与脚底偏移，但角色仍直立，缩短+下移扫过的体积包含在原形体中，不能触发阻挡。只记录倾斜角色边界，不宣称默认直立蹲下必然穿地；没有扩大为通用物理修复。
 
-- [ ] BF144-D25 / P2 — 倾斜角色站起净空误用actor姿态。
+- [x] BF144-D25 / P2 — 倾斜角色站起净空误用actor姿态；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:49 +08:00；预估结束15:24 +08:00；实际结束14:52 +08:00，提前32分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE净空/重力quat源及四组原生几何保存在`docs/audit/bf144/d25/`；两次净空查询采用默认重力方向，实际组件姿态保留，已写侧墙、顶板、父级、无障碍及Grounded重试对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `CharacterMovementComponent.cpp:3377–3396,3440–3457`按scaled尺寸构造站起query shape，并用`GetWorldToGravityTransform()`做OverlapBlockingTest；默认竖直重力时查询胶囊直立，与actor倾斜独立。站起后的实际组件移动仍保留actor quat，这两个空间不能混用。
   - Target：`src/als/character/movement/motion.rs:3356,3382–3394`所有站起shape-intersection都传`world.rotation()`，把actor姿态套入源gravity-space净空查询。
   - 反例：完整角色空中、蹲姿、pitch60°；距离中心z=0.65m的侧墙让target拒绝站起而source直立query无阻挡；相对蹲姿中心y=1.1m的顶板让target允许站起而source直立query应阻挡。同一目标几何上的source姿态查询确认阴阳边界，`bf144_crouch_stand_clearance_uses_source_gravity_orientation`共6组4PASS/2FAIL，直立3组与倾斜无障碍对照通过；证据`target/bf144/08/tilted_initial/`。

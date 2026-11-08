@@ -1,0 +1,36 @@
+{
+  "side-upright": {
+    "hit": false
+  },
+  "side-tilted": {
+    "hit": true,
+    "distance_cm": -21.961524963378906,
+    "position_cm": {
+      "x": 4.019237886466843,
+      "y": 0,
+      "z": 66.96152422706632
+    },
+    "normal": {
+      "x": -0.5000000000000001,
+      "y": 0,
+      "z": -0.8660254037844388
+    }
+  },
+  "ceiling-upright": {
+    "hit": true,
+    "distance_cm": -14,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 76
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": -1
+    }
+  },
+  "ceiling-tilted": {
+    "hit": false
+  }
+}

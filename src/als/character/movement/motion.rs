@@ -4205,7 +4205,7 @@ fn apply_capsule_for_stance(
                 radius * scale.x.min(scale.z));
             target_center.y += STAND_UP_SWEEP_INFLATION;
             let mut blocked = spatial_query
-                .shape_intersections(&standing_capsule, target_center, rotation, &filter)
+                .shape_intersections(&standing_capsule, target_center, Quat::IDENTITY, &filter)
                 .into_iter().any(|candidate| character_blocks_collider(entity, candidate, candidates));
             if blocked && locomotion == LocomotionState::Grounded {
                 let (half, radius) = capsule_dimensions(params, *stance);
@@ -4215,7 +4215,7 @@ fn apply_capsule_for_stance(
                     if floor_distance > STAND_UP_MIN_FLOOR_DISTANCE {
                         target_center.y -= floor_distance - STAND_UP_MIN_FLOOR_DISTANCE;
                         blocked = spatial_query
-                            .shape_intersections(&standing_capsule, target_center, rotation, &filter)
+                            .shape_intersections(&standing_capsule, target_center, Quat::IDENTITY, &filter)
                             .into_iter().any(|candidate| character_blocks_collider(entity, candidate, candidates));
                     }
                 }
@@ -5407,6 +5407,65 @@ mod tests {
             assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
             assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, local.rotation);
         }
+    }
+
+    #[test]
+    fn uncrouch_clearance_uses_gravity_orientation_instead_of_actor_rotation() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (angle, parented, obstacle) in [(60.0_f32, false, "side"), (60.0, false, "ceiling"),
+            (60.0, true, "side"), (60.0, true, "ceiling"), (0.0, false, "side"), (60.0, false, "none")] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            if obstacle == "side" {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 0.1), Transform::from_xyz(0.0, 10.34, 0.65)));
+            } else if obstacle == "ceiling" {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0), Transform::from_xyz(0.0, 11.15, 0.0)));
+            }
+            app.update();
+            let rotation = Quat::from_rotation_x(angle.to_radians());
+            let start = Vec3::Y * 10.0;
+            let local = if parented {
+                let parent = app.world_mut().spawn(Transform::from_rotation(rotation)).id();
+                app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+                Transform::from_translation(rotation.inverse() * start)
+            } else { Transform::from_translation(start).with_rotation(rotation) };
+            app.world_mut().entity_mut(actor).insert((Position(start), local, Stance::Crouching,
+                AlsDesiredStance(Stance::Standing), LocomotionState::Air, AlsCrouchTransaction::default(),
+                als_character_capsule(0.56, 0.3)));
+            let (upright_blocked, actor_blocked) = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+                let capsule = als_character_capsule(0.9 + STAND_UP_SWEEP_INFLATION, 0.3);
+                let center = start + Vec3::Y * (0.34 + STAND_UP_SWEEP_INFLATION);
+                let filter = SpatialQueryFilter::from_excluded_entities([actor]);
+                (!spatial.shape_intersections(&capsule, center, Quat::IDENTITY, &filter).is_empty(),
+                    !spatial.shape_intersections(&capsule, center, rotation, &filter).is_empty())
+            }).unwrap();
+            let blocked = obstacle == "ceiling";
+            assert_eq!(upright_blocked, blocked, "angle={angle} obstacle={obstacle}");
+            if angle == 60.0 && obstacle != "none" { assert_ne!(actor_blocked, upright_blocked); }
+            app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+            assert_eq!(*app.world().get::<Stance>(actor).unwrap(), if blocked { Stance::Crouching } else { Stance::Standing },
+                "angle={angle} parented={parented} obstacle={obstacle}");
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            assert!((position.y - if blocked { start.y } else { start.y + 0.34 + STAND_UP_SWEEP_INFLATION }).abs() < 1e-5);
+            assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, local.rotation);
+        }
+    }
+
+    #[test]
+    fn grounded_uncrouch_retry_uses_gravity_orientation() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0), Transform::from_xyz(0.0, 1.86, 0.0)));
+        app.update();
+        let start = Vec3::Y * 0.5815;
+        let rotation = Quat::from_rotation_x(60.0_f32.to_radians());
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start).with_rotation(rotation),
+            Stance::Crouching, AlsDesiredStance(Stance::Standing), LocomotionState::Grounded,
+            AlsCrouchTransaction::default(), als_character_capsule(0.56, 0.3)));
+        app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+        let position = app.world().get::<Position>(actor).unwrap().0;
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Standing);
+        assert!((position.y - 0.90002).abs() < 1e-4, "position={position:?}");
+        assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, rotation);
     }
 
     #[test]

@@ -1,0 +1,140 @@
+{
+  "samples": [
+    {
+      "name": "side-upright",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          65,
+          0,
+          0
+        ],
+        "box_half_extents_cm": [
+          5,
+          200,
+          200
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "length_cm": 1,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    },
+    {
+      "name": "side-tilted",
+      "rotation_xyzw": [
+        0,
+        -0.5,
+        0,
+        0.8660254037844386
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          32.5,
+          0,
+          56.29165124598851
+        ],
+        "box_half_extents_cm": [
+          5,
+          200,
+          200
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0.5,
+          0,
+          0.8660254037844386
+        ],
+        "length_cm": 1,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    },
+    {
+      "name": "ceiling-upright",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          81
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          5
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "length_cm": 1,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    },
+    {
+      "name": "ceiling-tilted",
+      "rotation_xyzw": [
+        0,
+        -0.5,
+        0,
+        0.8660254037844386
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -70.14805770653953,
+          0,
+          40.5
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          5
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          -0.8660254037844386,
+          0,
+          0.5
+        ],
+        "length_cm": 1,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    }
+  ]
+}
