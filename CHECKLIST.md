@@ -6067,7 +6067,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色Grounded、静止，中心y=100m，墙面x=0.1m，脚下无近地面；retry胶囊实际产生distance0、深度0.198499m、normal≈−X。源应本迭代脱离穿透并保持Grounded，target仅由solver侧推至x=−0.066073m，仍重叠却转Air、vy=−0.1635。`bf144_recovery_invalid_floor_keeps_source_penetration_result`4组3PASS/1FAIL；有walkable地面、无墙和完全无floor对照分别按源保持/落空，证据`target/bf144/13/penetration/`。
   - 漏检：旧恢复测试提供可站立的line floor，只覆盖目标保留penetration的分支。D16是inside ray错误接受exit面，D21是Air SafeMove入口；本项限定Grounded无walkable floor时的数据丢失，不以修复相邻入口代替。
 
-- [ ] BF144-D42 / P2 — 静止角色失去支撑时提前积分空中重力。
+- [x] BF144-D42 / P2 — 静止角色失去支撑时提前积分空中重力；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 16:44 +08:00；预估结束17:29 +08:00；实际结束16:47 +08:00，提前42分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS零位移剩余预算、UE切Falling和原生姿态开关保存在`docs/audit/bf144/d42/`；静止无floor在物理前切Air并保留本帧高度，已写站/蹲、不同帧长与下一帧重力对照。旧target报告缺失，源端删除平台未复测；非零动态基座支持不在本分支改写，测试和Gate待执行。
   - Source：fresh ALS `PhysWalking:430–438`在本步MoveDelta≈0时将remainingTime置0，再FindFloor；UE `CheckFall/StartFalling:5401–5456`对零DesiredDist同样保留remainingTime0，切Falling但`StartNewPhysics`不执行空中积分。没有动态基座继承时，当前帧vy及高度保持，下一帧才积分gravity。
   - Target：`src/als/character/movement/motion.rs:3507,3635–3645`对零水平位移提前跳过FindFloor，常规Tnua/Avian仍先执行重力，`4070–4108`物理后才发布Air；缺少源的零剩余时间约束。
   - 反例：完整角色静止在高处静态平台，下一帧删除该平台。站立/蹲伏×16.667/50ms下源首帧vy应0且高度不变，target分别vy=−0.1635/−0.4905m/s、下降约1.59/14.31mm；各模式都正确切Air，差异在积分阶段。`bf144_recovery_stationary_floor_loss_defers_falling_integration`8组4PASS/4FAIL，保留平台的4组对照均Grounded、vy0；证据`target/bf144/13/stationary_loss/`。
