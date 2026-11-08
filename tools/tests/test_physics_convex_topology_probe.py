@@ -16,8 +16,14 @@ for sample in samples:
         continue
     vertices = geometry["convex_core_vertices_cm"]
     planes = geometry["convex_core_planes"]
+    vertex_planes = geometry["convex_core_vertex_planes"]
     scale = geometry["convex_core_scale"]
     assert len(vertices) >= 4 and len(planes) >= 4
+    assert len(vertex_planes) == len(vertices)
+    for vertex, adjacency in enumerate(vertex_planes):
+        assert 0 <= adjacency["count"] <= len(planes)
+        assert len(adjacency["planes"]) == min(adjacency["count"], 3)
+        assert all(0 <= index < len(planes) and vertex in planes[index]["vertex_indices"] for index in adjacency["planes"])
     for plane in planes:
         indices = plane["vertex_indices"]
         assert len(indices) >= 3 and len(indices) == len(set(indices))
@@ -30,13 +36,13 @@ for sample in samples:
         assert abs(min(values) - geometry["bounds_min_cm"][axis]) < 1e-3
         assert abs(max(values) - geometry["bounds_max_cm"][axis]) < 1e-3
     key = geometry["asset_path"], geometry["shape_index"]
-    core = vertices, planes
+    core = vertices, planes, vertex_planes
     if key in geometries:
         assert geometries[key] == core
     geometries[key] = core
     scales.add(tuple(scale[axis] for axis in "xyz"))
 assert len(geometries) == 15
 assert (1, 1, 1) in scales and (1.5, 1.5, 1.5) in scales
-barrels = [planes for (asset, _), (_, planes) in geometries.items() if "Barrel" in asset]
+barrels = [planes for (asset, _), (_, planes, _) in geometries.items() if "Barrel" in asset]
 assert len(barrels) == 2 and all(max(len(plane["vertex_indices"]) for plane in planes) == 8 for planes in barrels)
 print("physics convex topology probe PASS: fifteen hulls and scaled core identity")

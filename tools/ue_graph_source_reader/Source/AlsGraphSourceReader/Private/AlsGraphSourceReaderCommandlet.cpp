@@ -1620,8 +1620,27 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                     Plane->SetArrayField(TEXT("vertex_indices"), Indices);
                     Planes.Add(MakeShared<FJsonValueObject>(Plane));
                 }
+                TArray<TSharedPtr<FJsonValue>> VertexPlanes;
+                for (int32 VertexIndex = 0; VertexIndex < Convex.NumVertices(); ++VertexIndex)
+                {
+                    int32 Plane0 = INDEX_NONE, Plane1 = INDEX_NONE, Plane2 = INDEX_NONE;
+                    const int32 Count = Convex.GetVertexPlanes3(VertexIndex, Plane0, Plane1, Plane2);
+                    if (Count < 0) { return nullptr; }
+                    const int32 Indices[] = {Plane0, Plane1, Plane2};
+                    TArray<TSharedPtr<FJsonValue>> Values;
+                    for (int32 Index = 0; Index < FMath::Min(Count, 3); ++Index)
+                    {
+                        if (Indices[Index] < 0 || Indices[Index] >= Convex.NumPlanes()) { return nullptr; }
+                        Values.Add(MakeShared<FJsonValueNumber>(Indices[Index]));
+                    }
+                    TSharedRef<FJsonObject> Vertex = MakeShared<FJsonObject>();
+                    Vertex->SetNumberField(TEXT("count"), Count);
+                    Vertex->SetArrayField(TEXT("planes"), Values);
+                    VertexPlanes.Add(MakeShared<FJsonValueObject>(Vertex));
+                }
                 OtherGeometryValue->SetArrayField(TEXT("convex_core_vertices_cm"), Vertices);
                 OtherGeometryValue->SetArrayField(TEXT("convex_core_planes"), Planes);
+                OtherGeometryValue->SetArrayField(TEXT("convex_core_vertex_planes"), VertexPlanes);
             }
             else
             {

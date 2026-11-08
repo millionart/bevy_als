@@ -14,6 +14,44 @@ def vector(value):
     return result
 
 
+def vertex_planes(faces, vertex_count):
+    edges = []
+    first = [None] * vertex_count
+    for plane, vertices in enumerate(faces):
+        start = len(edges)
+        for index, vertex in enumerate(vertices):
+            if first[vertex] is None:
+                first[vertex] = start + index
+            edges.append((plane, vertex, vertices[(index + 1) % len(vertices)],
+                          start + (index + 1) % len(vertices)))
+    twins = [None] * len(edges)
+    twinned = [False] * len(edges)
+    for index, (_, a, b, _) in enumerate(edges):
+        for candidate, (_, c, d, _) in enumerate(edges):
+            if c == b and d == a:
+                if not twinned[candidate]:
+                    twins[index] = candidate
+                    twinned[candidate] = True
+                break
+    result = []
+    for initial in first:
+        planes = []
+        current = initial
+        while current is not None:
+            planes.append(edges[current][0])
+            if len(planes) > len(faces):
+                planes = []
+                break
+            twin = twins[current]
+            if twin is None:
+                break
+            current = edges[twin][3]
+            if current == initial:
+                break
+        result.append({"count": len(planes), "planes": planes[:3]})
+    return result
+
+
 def compile_topology(native, collision):
     groups = {}
     for sample in native["physics_contact_probe"]["samples"]:
@@ -39,13 +77,17 @@ def compile_topology(native, collision):
             faces.append({"normal": source_direction_to_runtime(vector(plane["normal"])),
                           "origin_m": source_point_to_runtime(vector(plane["origin_cm"])),
                           "vertices": indices})
+        adjacency = vertex_planes([face["vertices"] for face in faces], len(vertices))
+        if "convex_core_vertex_planes" in geometry and geometry["convex_core_vertex_planes"] != adjacency:
+            raise ValueError("Reconstructed vertex planes differ from the native convex")
         margin = float(geometry["margin_cm"]) * 0.01
         if not faces or not math.isfinite(margin) or margin < 0:
             raise ValueError("Source convex planes or margin are invalid")
         group = groups.setdefault(name, {})
         if index in group:
             raise ValueError("Source convex shape index is duplicated")
-        group[index] = {"vertices_m": vertices, "faces": faces, "margin_m": margin, "winding": -1}
+        group[index] = {"vertices_m": vertices, "faces": faces, "vertex_planes": adjacency,
+                        "margin_m": margin, "winding": -1}
     if set(groups) != set(collision):
         raise ValueError("Source and target convex assets differ")
     result = {}

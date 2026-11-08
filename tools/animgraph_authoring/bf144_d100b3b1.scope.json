@@ -62,7 +62,8 @@
     "tools/validate_runtime_graph_asset_boundary.py"
   ],
   "focused_tests": [
-    "test_import_compound_contact_topology"
+    "test_import_compound_contact_topology",
+    "test_physics_convex_topology_probe"
   ],
   "manual_cases": [
     "startup",
@@ -847,7 +848,7 @@
     "fresh_graphs_read": 554,
     "changed_dependency_graphs_audited": 0,
     "last_static_audit": "pending",
-    "open_boundary": "Topology is generated but not consumed; clipping, source point order, ablation, tests and runtime gates remain pending",
+    "open_boundary": "Vertex-plane adjacency was reconstructed from ordered source half edges; direct native comparison, tests, full graph conversion and runtime gates remain pending",
     "fresh_rig_graphs_read": 10
   }
 }
