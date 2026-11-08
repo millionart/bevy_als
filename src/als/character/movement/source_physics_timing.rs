@@ -11,6 +11,7 @@ use avian3d::prelude::{
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use crate::extensions::source_contact_friction::SourceContactFrictionSettings;
 use crate::extensions::source_contact_margin::SourceConvexMarginSettings;
+use crate::extensions::source_contact_restore::SourceRestoreSettings;
 use bevy::prelude::*;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
@@ -46,11 +47,15 @@ impl Plugin for SourcePhysicsTimingPlugin {
         let [history_exact_distance, history_near_distance, history_ratio_tolerance] =
             include!("../../settings/contact_history.rs");
         let [fraction, maximum, minimum] = include!("../../settings/convex_margin.rs");
+        let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
+            collision_tolerance_scale, minimum_points) = include!("../../settings/contact_restore.rs");
         app.insert_resource(SourceContactFrictionSettings {
                 position_iterations, position_stiffness, tangent_velocity_squared, tangent_geometry_squared,
                 history_exact_distance, history_near_distance, history_ratio_tolerance,
             })
             .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
+            .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
+                empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
             .insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
             .init_resource::<SourcePhysicsClockRestore>()
             .configure_sets(

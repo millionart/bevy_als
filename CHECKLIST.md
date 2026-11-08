@@ -6730,6 +6730,16 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 00:46 source/static摘要：fresh保存8组box与8组convex/mesh两帧原生结果；已按源相对位置逐分量、相对四元数点积、初始surface点、切向误差及最少有效点实现复用，写回前按源float厘米量化。已写16组原生结果及空manifold、旋转、禁用点控制；身份缓存与实际消费留D104b，测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d104a/`。实际结束：2026-11-09 00:46 +08:00；偏差：−39分钟；结果：子项静态实现完成，未再拆分。
 
 - [ ] BF144-D104b / P3 — 将源接触复用接入真实物理生命周期。
+  - 00:49 source/static摘要：原生box/box是单一manifold；compound每个源hull有独立约束，trimesh则把多个target manifold映射到一个源shape。它们的缓存身份和目标重组不同，拆为D104b1 box/box、D104b2 compound和D104b3 trimesh；已读source唤醒约束需保留睡眠历史。
+
+- [x] BF144-D104b1 / P3 — 在真实box/box接触中复用源几何。
+  - 本轮开始：2026-11-09 00:49 +08:00；预计结束：2026-11-09 01:39 +08:00。对Ragdoll box与静态box按接触、身体及形体身份保存初始两侧表面点和上次重建姿态，按D104a复用/失效并写回Avian实际manifold；保留睡眠缓存及普通body控制。估时依据：BF144.36两帧box反例与D104a原生8样本已覆盖阈值，compound/mesh单独后续处理；测试、消融和Playground待统一Gate。
+  - 00:52 source/static摘要：fresh源`ChaosInterfaceUtils.cpp:146–167`证明无局部旋转box把中心编码在AABB内部，源shape原点是body原点；有局部旋转时才使用居中box与形体变换。目标box始终居中，因此相对位移容差必须先恢复源shape原点，不能直接使用目标collider中心；手/脚原生样本分别覆盖两条分支。
+  - 01:01 source/static摘要：复用、重建和睡眠历史已接入真实窄相位；按源形体身份及变更tick隔离缓存，成功时更新目标接触点、质心锚点和法向速度。已写原生几何、小位移、大位移后再复用、源旋转容差及普通body控制；compound/trimesh另项，统一测试、消融与Playground待执行。证据`docs/audit/bf144/d104b1/`。实际结束：2026-11-09 01:01 +08:00；偏差：−38分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D104b2 / P3 — 在真实compound接触中复用源几何。
+
+- [ ] BF144-D104b3 / P3 — 在真实trimesh接触中复用源几何。
 
 - [ ] BF144-D105 / P2 — 启动帧先按旧Kinematic图配置重算速度，覆盖应保留的刚体初速。
   - Source：fresh `AlsCharacter_Actions.cpp:792–807`在Start中立即SetSimulatePhysics/ResetAllBodies，再读取pelvis速度；`ChaosEngineInterface.cpp:494–542`转Dynamic保留V/W，`SingleParticlePhysicsProxy.h:1246–1269`亦只在离开Dynamic时清速度。`PhysAnim.cpp:653–655,697–701`普通骨骼更新仅向仍为kinematic的body写新动画目标。
