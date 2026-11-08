@@ -6403,11 +6403,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧约束速度测试只验证误差降低或没有帧内旋转，未分辨本帧预测几何与prepare时几何。只登记，不改变solver执行顺序。
   - 20:35 source/static摘要：fresh预测connector初始化与速度消费已核对，PA原生身份与既有记录一致；cached线性速度约束使用已捕获的pre-solve旋转生成parent轴和双力臂，非cached不变。已写native spine几何、0/0.5/1rad及世界两次迭代对照；测试、消融和完整角色/Playground待统一Gate。证据`docs/audit/bf144/d82/`。实际结束：2026-11-08 20:35 +08:00；偏差：−34分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D83 / P2 — 硬角约束速度阶段使用过大的未对标冲量阈值。
+- [x] BF144-D83 / P2 — 硬角约束速度阶段使用过大的未对标冲量阈值。
+  - 本轮开始：2026-11-08 20:36 +08:00；预计结束：2026-11-08 21:11 +08:00。核对源lambda和轴的物理单位，按cached硬约束的源阈值修正激活并补边界及缩放rig对照；统一执行留待升级后。
   - Source：fresh cached solver `1681–1702,1732–1754`仅对已激活的非soft约束做速度修正；以源单位的累计lambda绝对值>UE_SMALL_NUMBER(1e−8)为条件。角约束lambda含惯量单位，厘米到米会带来平方缩放，且cached quaternion Jacobian另有轴长度；不能直接复用任意无量纲epsilon。
   - Target：`source_physics_joint.rs:775–777`对所有角限位统一用lambda<=1e−6跳过。即使位置阶段已经成功校正Locked twist，缩放后的较小惯量仍使其lambda落入该区间，速度阶段不再消除锁定轴转速。
   - 反例：完整角色保留正常PA质量、形状与body/joint conditioning；scale=1/0.75/0.5，clavicle_l/hand_l，初始twist=0/0.0011/0.01rad，隔离point/contact和drive。位置阶段有校正后，速度阶段给双方同一参考输入(parent w=0、child w=X)，源应消除相对twist；0.75手腕、0.5锁骨/手腕的0.0011rad共3FAIL，仍保留1rad/s相对转速，18组其余15PASS。三个实际target lambda分别8.7300e−7、8.1427e−7、2.3375e−7；它们对应的源lambda远高于1e−8。恢复unit scale或增大到0.01rad时激活正确；0角度本来就不应激活。证据`bf144_pa_point_hard_angular_velocity_uses_source_impulse_activation`及`target/bf144/24/hard_scaled/`。
   - 漏检：旧硬角速度测试只用0.5rad和unit inertia，位置lambda远离阈值；没有覆盖较小角误差与合法角色缩放。本项只判定锁定轴速度约束的激活，不宣称次轴向量的所有数值都已等价；仅登记。
+  - 20:38 source/static摘要：fresh源lambda严格比较与cm²→m²换算已记录，独立工具生成cached目标阈值1e−12；非cached路径不变。已写阈值正负边界及clavicle/hand三档scale、小角度的实际solver对照；测试、消融、其他角速度轴向及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d83/`。实际结束：2026-11-08 20:38 +08:00；偏差：−33分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D84 / P2 — Ragdoll自由角积分使用指数旋转，偏离源一阶quat积分。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:870–978`实际动态body路径先更新/阻尼/clamp W，再调用`Rotation.cpp:158–173`，公式为normalize(Q + 0.5×dt×PureQuat(W)×Q)。当前native未启用物理substepping，gyro=False、角阻尼0；最大角速度使用项目3600度/秒，native全局Hack上限1000rad/s不影响该值。

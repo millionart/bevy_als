@@ -26,6 +26,7 @@ use bevy::{
 use serde::Deserialize;
 
 const JOINT_DEGENERATE_ROTATION_LIMIT: f32 = include!("joint_degenerate_rotation_limit.rs");
+const CACHED_ANGULAR_IMPULSE_THRESHOLD: f32 = include!("angular_impulse_threshold.rs");
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 pub enum SourceAngularLimit {
@@ -892,8 +893,9 @@ fn apply_source_joint_angular_velocity(
     let conditioned = conditioned_inertias(inertias, joint.mass_conditioning, joint.settings);
     let inverse = [conditioned[0].effective_inv_angular_inertia(),
         conditioned[1].effective_inv_angular_inertia()];
+    let impulse_threshold = if joint.use_linear_solver { CACHED_ANGULAR_IMPULSE_THRESHOLD } else { 1e-6 };
     for index in 0..3 {
-        if data.limit_lambdas[index].abs() <= 1e-6 { continue; }
+        if data.limit_lambdas[index].abs() <= impulse_threshold { continue; }
         let Some(axis) = data.limit_axes[index].try_normalize() else { continue; };
         let responses = [inverse[0] * axis, inverse[1] * axis];
         let denominator = axis.dot(responses[0] + responses[1]);
@@ -1099,6 +1101,66 @@ mod tests {
             0,
             true,
         )
+    }
+
+    #[test]
+    fn cached_hard_angular_velocity_uses_source_impulse_units() {
+        for lambda in [0.0_f32, 0.99e-12, 1e-12, 1.01e-12, 1e-7, -1.01e-12] {
+            let mut definition = joint();
+            definition.use_linear_solver = true;
+            definition.angular_limits[0] = SourceAngularLimit::Locked;
+            let mut data = SourcePhysicsJointSolverData::default();
+            data.limit_lambdas[0] = lambda;
+            data.limit_axes[0] = Vec3::X * 0.5;
+            let mass = inertia(1.0, Vec3::ONE);
+            let mut parent = SolverBody::default();
+            let mut child = SolverBody { angular_velocity: Vec3::X, ..default() };
+            apply_source_joint_angular_velocity(&definition, &mut parent, &mut child, [&mass, &mass], &data);
+            let relative = (child.angular_velocity - parent.angular_velocity).x;
+            let expected = if lambda.abs() > 1e-12 { 0.0 } else { 1.0 };
+            assert!((relative - expected).abs() < 1e-6, "lambda={lambda} relative={relative}");
+        }
+    }
+
+    #[test]
+    fn scaled_native_hard_locks_activate_angular_velocity_correction() {
+        let profile = crate::pa_als::parse_pa_als_profile();
+        for (name, parent_name) in [("clavicle_l", "spine_03"), ("hand_l", "lowerarm_l")] {
+            for scale in [1.0_f32, 0.75, 0.5] {
+                for angle in [0.0_f32, 0.0011, 0.01] {
+                    let mut definition = profile.joints.iter().find(|joint| joint.label == name).unwrap().definition.clone();
+                    definition.linear_locked = false;
+                    definition.motors = [SourceAngularMotor::default(); 3];
+                    let frame = definition.parent_frame.rotation;
+                    let child_rotation = frame * Quat::from_rotation_x(angle) * definition.child_frame.rotation.conjugate();
+                    let masses = [parent_name, name].map(|label| profile.bodies.iter().find(|body| body.label == label)
+                        .unwrap().mass_properties.unwrap());
+                    let rotations = [Quat::IDENTITY, child_rotation];
+                    let inertias = std::array::from_fn::<_, 2, _>(|index| {
+                        let mass = masses[index];
+                        let scaled_mass = (mass.unclamped_mass_kg * scale.powf(mass.scale_exponent)).max(0.001);
+                        let factor = scale * scale * scaled_mass / mass.mass_kg;
+                        let basis = Mat3::from_quat(rotations[index]);
+                        SolverBodyInertia::new(scaled_mass.recip(), SymmetricMatrix::from_mat3_unchecked(
+                            basis * (mass.inertia_tensor_kg_m2 * factor).inverse() * basis.transpose()), LockedAxes::default(), 0, true)
+                    });
+                    let mut data = SourcePhysicsJointSolverData {
+                        frames: [frame, frame * Quat::from_rotation_x(angle)], ..default()
+                    };
+                    let mut parent = SolverBody::default();
+                    let mut child = SolverBody::default();
+                    definition.solve([&mut parent, &mut child], [&inertias[0], &inertias[1]], &mut data, 1.0 / 60.0);
+                    let lambda = data.limit_lambdas[0];
+                    if angle > 0.0 { assert!(lambda.abs() * 10_000.0 > 1e-8, "joint={name} scale={scale} lambda={lambda}"); }
+                    parent.angular_velocity = Vec3::ZERO;
+                    child.angular_velocity = frame * Vec3::X;
+                    apply_source_joint_angular_velocity(&definition, &mut parent, &mut child, [&inertias[0], &inertias[1]], &data);
+                    let relative = (child.angular_velocity - parent.angular_velocity).dot(frame * Vec3::X);
+                    let expected = if angle == 0.0 { 1.0 } else { 0.0 };
+                    assert!((relative - expected).abs() < 1e-4, "joint={name} scale={scale} angle={angle} lambda={lambda} relative={relative}");
+                }
+            }
+        }
     }
 
     #[test]
