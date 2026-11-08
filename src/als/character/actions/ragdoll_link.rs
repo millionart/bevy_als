@@ -150,6 +150,7 @@ impl Plugin for AlsRagdollLinkPlugin {
                 )
                     .chain()
                     .after(crate::als::input_request::input_state_request_system)
+                    .after(crate::als::motion::locomotion_drive_system)
                     .before(crate::als::transition::state_transition_system),
                 capture_ragdoll_player_world_transform
                     .after(crate::als::transition::state_transition_system),
@@ -1362,6 +1363,65 @@ pub(crate) mod tests {
             }
             assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::None), "fault={fault}");
             assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+        }
+    }
+
+    #[test]
+    fn ragdoll_exit_is_scheduled_after_jump_request_production() {
+        use bevy::ecs::schedule::NodeId;
+        let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.update();
+        app.world_mut().schedule_scope(Update, |_, schedule| {
+            let graph = schedule.graph();
+            let dependencies = graph.dependency().graph();
+            let find = |needle: &str| schedule.systems().unwrap()
+                .find(|(_, system)| system.name().contains(needle))
+                .map(|(key, _)| NodeId::System(key)).unwrap_or_else(|| panic!("Missing system: {needle}"));
+            let source = find("locomotion_drive_system");
+            let target = find("ragdoll_exit_route_system");
+            let mut pending = vec![source];
+            let mut visited = std::collections::HashSet::new();
+            let mut reached = false;
+            while let Some(node) = pending.pop() {
+                if node == target { reached = true; break; }
+                if visited.insert(node) { pending.extend(dependencies.neighbors(node)); }
+            }
+            assert!(reached, "Jump request production must precede ragdoll exit routing");
+        });
+    }
+
+    #[test]
+    fn ragdoll_exit_inputs_start_get_up_in_the_same_frame() {
+        for input in ["request", "ragdoll", "jump"] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
+            let clips = [false, true].map(|facing| app.world().resource::<AssetServer>()
+                .load::<bevy_animation_graph::core::animation_clip::GraphClip>(&crate::get_up::get_up_settings(facing).clip));
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            let mut ready = false;
+            for _ in 0..600 {
+                app.update();
+                if app.world().get::<AlsNotifyLocomotionAction>(actor) == Some(&AlsNotifyLocomotionAction::Ragdolling)
+                    && app.world().get::<AlsRagdollGroundFollow>(actor).is_some_and(|follow| follow.grounded)
+                    && clips.iter().all(|clip| app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>().contains(clip)) {
+                    ready = true;
+                    break;
+                }
+            }
+            assert!(ready, "Ragdoll did not reach its grounded exit fixture within 600 frames");
+            app.world_mut().entity_mut(actor).insert(crate::als::motion::AlsJumpPrev(false));
+            if input == "request" {
+                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+            } else {
+                let mut command = app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap();
+                command.ragdoll_pressed = input == "ragdoll";
+                command.jump_pressed = input == "jump";
+            }
+            app.update();
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::GettingUp), "input={input}");
+            assert!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(actor).is_some(), "input={input}");
+            assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit);
+            assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_error().is_none());
         }
     }
 

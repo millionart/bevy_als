@@ -6265,7 +6265,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_exit_route_system:671–704`仅在枚举自身碰撞体时可选读取player；player缺失仍清action、改Grounded/Air和velocity。之后restore parent/start_get_up虽然会因player缺失退出，但前面的物理/action提交已发生。
   - 反例：完整Ragdoll落地后令AnimationGraphPlayer不可用，再请求退出；source应保持Ragdolling，target已为None/Grounded、恢复capsule碰撞，却没有GetUp。`bf144_ragdoll_lifecycle_exit_requires_live_animation_instance`2组1PASS/1FAIL，正常player退出并成功GettingUp的对照通过。旧恢复测试始终保留可用动画实例；此项只登记退出前置条件，不把后续pose数值列为已审计。
 
-- [ ] BF144-D67 / P3 — Jump恢复Ragdoll的请求与退出消费者未定序，可能晚一帧。
+- [x] BF144-D67 / P3 — Jump恢复Ragdoll的请求与退出消费者未定序，可能晚一帧；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 18:59 +08:00；预估结束19:29 +08:00；实际结束19:01 +08:00，提前28分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALSExtras同步输入、StopRagdolling/GetUp和角色native证据保存在`docs/audit/bf144/d67/`；退出链排在Jump生产后，已写调度图依赖和三种加载角色入口的同帧对照。旧target报告缺失，测试及动画Gate待执行。
   - Source：fresh `AlsCharacterExample.cpp:156–163,189–194`的Jump与Ragdoll输入都同步调用StopRagdolling；有效落地恢复在该次调用内完成GettingUp和输入阻塞。
   - Target：Jump由`movement/motion.rs:3185–3187`写ragdoll_exit，而`ragdoll_exit_route_system`只排在input_state_request之后；两者都在state_transition之前，却没有彼此的依赖。Ragdoll键在更早的input_state_request写请求，因此没有同一缺口。
   - 反例：未调整调度的完整App曾同帧通过、后续又复现Jump仍Ragdolling/未阻塞且request pending，下一帧才GettingUp。固定当前合法的两种顺序后，direct/Ragdoll/Jump×顺序共6组5PASS/1FAIL，只有退出消费者先于Jump producer时延迟。`bf144_ragdoll_lifecycle_jump_and_ragdoll_input_exit_in_current_frame`，证据`20/jump_order/`；记录可复现的单帧调度差异，不靠增加等待帧让Gate通过。
