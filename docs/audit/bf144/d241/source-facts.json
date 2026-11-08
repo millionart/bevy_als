@@ -1,0 +1,57 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimationRuntime.cpp",
+      "sha256": "cc1c1ab4a70fd3607deae8792cb48709eb5948c58a07eac704e6dcb264d8d159",
+      "excerpts": [
+        {
+          "first_line": 1170,
+          "last_line": 1210,
+          "text": "\t{\n\t\tfor (FCompactPoseBoneIndex BoneIndex(1); BoneIndex < LocalPose.GetNumBones(); ++BoneIndex)\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = LocalPose.GetParentBoneIndex(BoneIndex);\n\t\n\t\t\tconst FQuat MeshSpaceRotation = LocalPose[ParentIndex].GetRotation() * LocalPose[BoneIndex].GetRotation();\n\t\t\tLocalPose[BoneIndex].SetRotation(MeshSpaceRotation);\n\t\t}\n\t}\n}\n\nvoid FAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(FCompactPose& Pose)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_ConvertMeshRotPoseToLocalSpace);\n\n#if INTEL_ISPC\n\tif (bAnim_ConvertMeshRotationPoseToLocalSpace_ISPC_Enabled)\n\t{\n\t\tUE_AUTORTFM_OPEN_NO_VALIDATION // Open writes are recorded\n\t\t{\n\t\t\tAutoRTFM::RecordOpenWrite(\n\t\t\t\tPose.GetMutableBones().GetData(),\n\t\t\t\tPose.GetNumBones() * sizeof(FTransform));\n\t\t\tispc::ConvertMeshRotationPoseToLocalSpace(\n\t\t\t\treinterpret_cast<ispc::FTransform*>(Pose.GetMutableBones().GetData()),\n\t\t\t\treinterpret_cast<const int32*>(Pose.GetBoneContainer().GetCompactPoseParentBoneArray().GetData()),\n\t\t\t\tPose.GetNumBones());\n\t\t};\n\t}\n\telse\n#endif\n\t{\n\t\tfor (FCompactPoseBoneIndex BoneIndex(Pose.GetNumBones() - 1); BoneIndex > 0; --BoneIndex)\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = Pose.GetParentBoneIndex(BoneIndex);\n\n\t\t\tFQuat LocalSpaceRotation = Pose[ParentIndex].GetRotation().Inverse() * Pose[BoneIndex].GetRotation();\n\t\t\tPose[BoneIndex].SetRotation(LocalSpaceRotation);\n\t\t}\n\t}\n}\n"
+        },
+        {
+          "first_line": 1263,
+          "last_line": 1283,
+          "text": "void FAnimationRuntime::AccumulateAdditivePose(FAnimationPoseData& BaseAnimationPoseData, const FAnimationPoseData& AdditiveAnimationPoseData, float Weight, enum EAdditiveAnimationType AdditiveType)\n{\n\tif (AdditiveType == AAT_RotationOffsetMeshSpace)\n\t{\n\t\tAccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(BaseAnimationPoseData.GetPose(), AdditiveAnimationPoseData.GetPose(), Weight);\n\t}\n\telse\n\t{\n\t\tAccumulateLocalSpaceAdditivePoseInternal(BaseAnimationPoseData.GetPose(), AdditiveAnimationPoseData.GetPose(), Weight);\n\t}\n\n\t// if curve exists, accumulate with the weight, \n\tBaseAnimationPoseData.GetCurve().Accumulate(AdditiveAnimationPoseData.GetCurve(), Weight);\n\n\tUE::Anim::Attributes::AccumulateAttributes(AdditiveAnimationPoseData.GetAttributes(), BaseAnimationPoseData.GetAttributes(), Weight, AdditiveType);\n\t\n\t// normalize\n\tBaseAnimationPoseData.GetPose().NormalizeRotations();\n}\n\nvoid FAnimationRuntime::AccumulateLocalSpaceAdditivePoseInternal(FCompactPose& BasePose, const FCompactPose& AdditivePose, float Weight)\n"
+        },
+        {
+          "first_line": 1285,
+          "last_line": 1325,
+          "text": "\tif (FAnimWeight::IsRelevant(Weight))\n\t{\n\t\tconst ScalarRegister VBlendWeight(Weight);\n\t\tif (FAnimWeight::IsFullWeight(Weight))\n\t\t{\n#if INTEL_ISPC\n\t\t\tif (bAnim_AccumulateLocalSpaceAdditivePose_ISPC_Enabled)\n\t\t\t{\n\t\t\t\tUE_AUTORTFM_OPEN_NO_VALIDATION // Open writes are recorded\n\t\t\t\t{\n\t\t\t\t\tAutoRTFM::RecordOpenWrite(\n\t\t\t\t\t\tBasePose.GetMutableBones().GetData(),\n\t\t\t\t\t\tBasePose.GetNumBones() * sizeof(FTransform));\n\t\t\t\t\tispc::AccumulateWithAdditiveScale(\n\t\t\t\t\t\treinterpret_cast<ispc::FTransform*>(BasePose.GetMutableBones().GetData()),\n\t\t\t\t\t\treinterpret_cast<const ispc::FTransform*>(AdditivePose.GetBones().GetData()),\n\t\t\t\t\t\tWeight,\n\t\t\t\t\t\tBasePose.GetNumBones());\n\t\t\t\t};\n\t\t\t}\n\t\t\telse\n#endif\n\t\t\t{\n\t\t\t\t// fast path, no need to weight additive.\n\t\t\t\tfor (FCompactPoseBoneIndex BoneIndex : BasePose.ForEachBoneIndex())\n\t\t\t\t{\n\t\t\t\t\tBasePose[BoneIndex].AccumulateWithAdditiveScale(AdditivePose[BoneIndex], VBlendWeight);\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Slower path w/ weighting\n\t\t\tfor (FCompactPoseBoneIndex BoneIndex : BasePose.ForEachBoneIndex())\n\t\t\t{\n\t\t\t\t// copy additive, because BlendFromIdentityAndAccumulate modifies it.\n\t\t\t\tFTransform Additive = AdditivePose[BoneIndex];\n\t\t\t\tFTransform::BlendFromIdentityAndAccumulate(BasePose[BoneIndex], Additive, VBlendWeight);\n\t\t\t}\n\t\t}\n\t}\n"
+        },
+        {
+          "first_line": 1328,
+          "last_line": 1343,
+          "text": "void FAnimationRuntime::AccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(FCompactPose& BasePose, const FCompactPose& MeshSpaceRotationAdditive, float Weight)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_AccumulateMeshSpaceRotAdditiveToLocalPose);\n\n\tif (FAnimWeight::IsRelevant(Weight))\n\t{\n\t\t// Convert base pose from local space to mesh space rotation.\n\t\tFAnimationRuntime::ConvertPoseToMeshRotation(BasePose);\n\n\t\t// Add MeshSpaceRotAdditive to it\n\t\tFAnimationRuntime::AccumulateLocalSpaceAdditivePoseInternal(BasePose, MeshSpaceRotationAdditive, Weight);\n\n\t\t// Convert back to local space\n\t\tFAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(BasePose);\n\t}\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimNode_ApplyMeshSpaceAdditive.cpp",
+      "sha256": "ffbcb21bdb39852b80e8d19d38569f0a021c4e5a7a09c18f63376ed7f738670a",
+      "excerpts": [
+        {
+          "first_line": 86,
+          "last_line": 110,
+          "text": "\t\tconst bool bExpectsAdditivePose=true;\n\t\tFPoseContext AdditiveEvalContext(Output, bExpectsAdditivePose);\n\n\t\tBase.Evaluate(Output);\n\t\tAdditive.Evaluate(AdditiveEvalContext);\n\n\t\tFAnimationPoseData BaseAnimationPoseData(Output);\n\t\tconst FAnimationPoseData AdditiveAnimationPoseData(AdditiveEvalContext);\n\n\t\t\n\t\tif (bRootSpaceAdditive)\n\t\t{\n\t\t\tFAnimationRuntime::AccumulateRootSpaceRotationAdditiveToLocalPose(BaseAnimationPoseData, AdditiveAnimationPoseData, ActualAlpha);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tFAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, ActualAlpha, AAT_RotationOffsetMeshSpace);\n\t\t}\n\n\t\tOutput.Pose.NormalizeRotations();\n\t}\n\telse\n\t{\n\t\tBase.Evaluate(Output);\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/TransformVectorized.h",
+      "sha256": "2b66f3643050202f8d503457a03a79b3524b1b25bb8e4ed2e05b31907dfbdf08",
+      "excerpts": [
+        {
+          "first_line": 1091,
+          "last_line": 1110,
+          "text": "\tinline void AccumulateWithAdditiveScale(const TTransform<T>& Atom, const ScalarRegister& BlendWeightScalar)\n\t{\n\t\tconst TransformVectorRegister BlendWeight(BlendWeightScalar.Value);\n\t\tconst TransformVectorRegister DefaultScale = GlobalVectorConstants::Float1110;\n\n\t\t// SourceAtom = Atom * BlendWeight;\n\t\tconst TransformVectorRegister BlendedRotation = VectorMultiply(Atom.Rotation, BlendWeight);\n\n\t\t// Rotation = SourceAtom.Rotation * Rotation;\n\t\tRotation = VectorQuaternionMultiply2(BlendedRotation, Rotation);\n\n\t\t// Translation += SourceAtom.Translation;\n\t\t// Scale *= SourceAtom.Scale;\n\t\tTranslation = VectorMultiplyAdd(Atom.Translation, BlendWeight, Translation);\n\t\tScale3D = VectorMultiply(Scale3D, VectorMultiplyAdd(Atom.Scale3D, BlendWeight, DefaultScale));\n\n\n\t\tDiagnosticCheckNaN_All();\n\t}\n\n"
+        },
+        {
+          "first_line": 1163,
+          "last_line": 1198,
+          "text": "\tinline static void BlendFromIdentityAndAccumulate(TTransform<T>& FinalAtom, const TTransform<T>& SourceAtom, const ScalarRegister& BlendWeightScalar)\n\t{\n\t\tconst TransformVectorRegister BlendWeight(BlendWeightScalar.Value);\n\t\tconst TransformVectorRegister Const0001 = GlobalVectorConstants::Float0001;\n\t\tconst TransformVectorRegister ConstNegative0001 = VectorSubtract(VectorZero(), Const0001);\n\t\tconst TransformVectorRegister VOneMinusAlpha = VectorSubtract(VectorOne(), BlendWeight);\n\t\tconst TransformVectorRegister DefaultScale = GlobalVectorConstants::Float1110;\n\n\t\t// Blend rotation\n\t\t//     To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.\n\t\t//     const float Bias = (|A.B| >= 0 ? 1 : -1)\n\t\t//     BlendedAtom.Rotation = (B * Alpha) + (A * (Bias * (1.f - Alpha)));\n\t\t//     BlendedAtom.Rotation.QuaternionNormalize();\n\t\t//  Note: A = (0,0,0,1), which simplifies things a lot; only care about sign of B.W now, instead of doing a dot product\n\t\tconst TransformVectorRegister RotationB = SourceAtom.Rotation;\n\n\t\tconst TransformVectorRegister QuatRotationDirMask = VectorCompareGE(RotationB, VectorZero());\n\t\tconst TransformVectorRegister BiasTimesA = VectorSelect(QuatRotationDirMask, Const0001, ConstNegative0001);\n\t\tconst TransformVectorRegister RotateBTimesWeight = VectorMultiply(RotationB, BlendWeight);\n\t\tconst TransformVectorRegister UnnormalizedRotation = VectorMultiplyAdd(BiasTimesA, VOneMinusAlpha, RotateBTimesWeight);\n\n\t\t// Normalize blended rotation ( result = (Q.Q >= 1e-8) ? (Q / |Q|) : (0,0,0,1) )\n\t\tconst TransformVectorRegister BlendedRotation = VectorNormalizeSafe(UnnormalizedRotation, Const0001);\n\n\t\t// FinalAtom.Rotation = BlendedAtom.Rotation * FinalAtom.Rotation;\n\t\tFinalAtom.Rotation = VectorQuaternionMultiply2(BlendedRotation, FinalAtom.Rotation);\n\n\t\t// Blend translation and scale\n\t\t//    BlendedAtom.Translation = Lerp(Zero, SourceAtom.Translation, Alpha);\n\t\t//    BlendedAtom.Scale = Lerp(0, SourceAtom.Scale, Alpha);\n\t\tconst TransformVectorRegister Zero = VectorZero();\n\t\tconst TransformVectorRegister BlendedTranslation = FMath::Lerp<TransformVectorRegister>(Zero, SourceAtom.Translation, BlendWeight);\n\t\tconst TransformVectorRegister BlendedScale3D = FMath::Lerp<TransformVectorRegister>(Zero, SourceAtom.Scale3D, BlendWeight);\n\n\t\t// Apply translation and scale to final atom\n\t\t//     FinalAtom.Translation += BlendedAtom.Translation\n"
+        }
+      ]
+    }
+  ]
+}

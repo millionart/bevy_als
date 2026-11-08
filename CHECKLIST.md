@@ -5659,7 +5659,10 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 独立最小见证：右脚pc128、受控post-IK半转与PoseMoving=0，保持当前calf/foot/target、法线与限位；使用全部同一UE乘法/Rotator/float clamp/Quaternion/末normalize，只换初始全局数据，输出约179.9999985°分叉。两套native输出分别精确匹配对应公共路径的float，因此不是仅以D163算法/表示差解释。SetRotation权重1的current局部quat为[-0.9128028750419617,-0.028048932552337646,-0.407103031873703,-0.016472483053803444]，source数据为[-0.03199128061532974,0.9969915151596069,0.0058857714757323265,-0.07035475224256516]；权重0不改变，受控可达不等于默认动作自然触发。
   - 骨长与边界：5个正scale近1的同source厘米算法舍入边界，旧/源数据得到不同float骨长；CDF米制往返控制全保持，隔离D165。相同原生IK核及其余输入固定后13/15组关节位置float投影改变。9828个脚部数据控制中12个float输出改变；56个常规骨长控制保持。证据`target/bf144/245/native-foot-effects.json`、`writeback.jsonl`、`length-native-check.json`与`ik-effect-check.json`，source/消融恢复Gate以.245完成摘要为准。仅登记，未修生产或转换器。
 
-- [ ] BF144-D241 / P3 — Mesh加性在还原局部空间前单位化组件旋转，改变源运算阶段。
+- [x] BF144-D241 / P3 — Mesh加性在还原局部空间前单位化组件旋转，改变源运算阶段。
+  - 2026-11-08 11:55 开始：预估结束12:25 +08:00。依据.452a/b已分离组件product归一化，fresh重读Head实际节点和UE累积/局部还原顺序，限定mesh组件积并保留local、组合和root-motion既有路径；写最小分量反例，测试及消融待用户指定阶段。
+  - 12:02 source/static闭环：fresh Head节点以实际两域及alpha0/0.5补充4个79骨原生控制，alpha0完整保留输入；UE满/部分权重均不归一化组件积，先还原local再做后续归一化。目标现把累积乘积与原局部路径的末归一化拆开，仅mesh路径消费前者；保留D248历史三阶段方法对照并新增实际Head骨链和非单位积反例。源F64/目标F32其它因素及D170/D231仍未归并，测试、消融未执行。
+  - 12:03实现摘要：组件积不再提前normalize，原非mesh caller保持原行为；已保留原生4控制、源源码、11骨实际Head反例与历史reciprocal方法对照，详见`docs/audit/bf144/d241/`。实现结束2026-11-08 12:03 +08:00，较预估提前22分钟；测试、消融、图审计和公共Gate按用户顺序待依赖升级后执行。
   - BF144.452当前整包消费者：同318真实输入/current public阶段模型全25440旋转行精确，仅去product-N改变18834个source骨行；保源全F64/ARM64其它阶段/输入，只加入product-N，CC25122骨行中24752个double/594个F32投影改变。源四域总100488旋转全native精确，两个精度域的因素不相加，见`docs/audit/bf144/452a/summary.json`、`.452b/analysis-primitive-restored.json`；因素删除丢信号、源码bytes恢复同target输出byte同，未改生产。
   - Source：fresh `AnimNode_ApplyMeshSpaceAdditive.cpp:105–110`调用`AnimationRuntime.cpp:1328–1343`，父链转mesh后按整权重累积，直接倒序还原local；`TransformVectorized.h:1091–1110`明确累积不单位化。仅在`AccumulateAdditivePose`与node末尾对local各normalize一次。
   - Target：`src/animation_graph_ext/mesh_space_additive.rs:231–238`复用`blend_additive_rotation`，在组件product上先normalize，再在242–253还原local。这独立于D170的weighted delta预处理、D231末尾阶段及D238的Layered整端点Lerp。
