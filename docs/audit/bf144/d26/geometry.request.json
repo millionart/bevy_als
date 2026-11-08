@@ -1,0 +1,174 @@
+{
+  "samples": [
+    {
+      "name": "half-20",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          100
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 100,
+        "radius_cm": 30,
+        "half_height_cm": 20
+      }
+    },
+    {
+      "name": "half-30",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          100
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 100,
+        "radius_cm": 30,
+        "half_height_cm": 30
+      }
+    },
+    {
+      "name": "half-56",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          100
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 100,
+        "radius_cm": 30,
+        "half_height_cm": 56
+      }
+    },
+    {
+      "name": "half-90",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          100
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 100,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    },
+    {
+      "name": "half-110",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          100
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 100,
+        "radius_cm": 30,
+        "half_height_cm": 110
+      }
+    }
+  ]
+}

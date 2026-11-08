@@ -109,7 +109,7 @@ pub fn gait_max_speed_for_velocity(
 }
 
 fn capsule_for(params: &AlsMovementParams, stance: Stance) -> Collider {
-    let total_half = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
+    let total_half = if stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height };
     let radius = params.crouch.standing_capsule_radius;
     als_character_capsule(total_half, radius)
 }
@@ -175,7 +175,7 @@ pub fn apply_als_control_scheme_config(
     config.basis.free_fall_extra_gravity = 0.0;
     config.basis.headroom = Some(TnuaBuiltinWalkHeadroom {
         distance_to_collider_top: if capsule_crouched {
-            params.crouch.crouched_capsule_half_height * capsule_scale
+            params.crouch.actual_crouched_half_height() * capsule_scale
         } else {
             params.crouch.standing_capsule_half_height * capsule_scale
         },
@@ -197,7 +197,7 @@ pub fn apply_als_control_scheme_config(
     config.jump.peak_prevention_extra_gravity = 0.0;
     config.jump.input_buffer_time = params.jump.jump_buffer_time;
     config.crouch.float_offset =
-        -(params.crouch.standing_capsule_half_height - params.crouch.crouched_capsule_half_height) * capsule_scale;
+        -(params.crouch.standing_capsule_half_height - params.crouch.actual_crouched_half_height()) * capsule_scale;
 }
 
 pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsControlSchemeConfig {
@@ -3668,7 +3668,7 @@ pub(crate) fn initialize_spawn_movement_mode(
             *local
         };
         let scale = character_floor_scale(&local, parent.is_some(), &world);
-        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
+        let half = if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() }
             else { params.crouch.standing_capsule_half_height } * scale.y;
         let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
         let capsule = als_character_capsule(half, radius);
@@ -3937,7 +3937,7 @@ pub(crate) fn locomotion_drive_system(
                 .get(params_handle.id())
                 .map(|params| {
                     (
-                        if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height },
+                        if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height },
                         params.crouch.standing_capsule_radius,
                     )
                 })
@@ -4248,7 +4248,7 @@ fn apply_capsule_for_stance(
 }
 
 fn capsule_dimensions(params: &AlsMovementParams, stance: Stance) -> (f32, f32) {
-    let half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
+    let half_height = if stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height };
     (half_height, params.crouch.standing_capsule_radius)
 }
 
@@ -4728,7 +4728,7 @@ pub(crate) fn cmc_movement_transaction_system(
             || controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump) {
             continue;
         }
-        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * scale.y;
+        let half = if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height } * scale.y;
         let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
         if root_motion_active { runtime.simulation_delta_seconds = time.delta_secs(); }
         let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * delta_seconds;
@@ -5153,7 +5153,7 @@ pub(crate) fn locomotion_state_sync_system(
         let scale = character_floor_scale(transform, parent.is_some(), &world);
         let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue };
         let floor_result = params_assets.get(handle.id()).and_then(|params| {
-            let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
+            let half = if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() }
                 else { params.crouch.standing_capsule_half_height } * scale.y;
             let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
             find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc, *current,
@@ -5241,7 +5241,7 @@ pub(crate) fn locomotion_state_sync_system(
         let landed_on_capsule = airborne && !landed_on_contact && !floor_supported
             && (capsule_contact || sweep_contact) && capsule_floor_is_sweep
             && params_assets.get(handle.id()).is_some_and(|params| {
-                let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * scale.y;
+                let half = if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height } * scale.y;
                 let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
                 validated_floor.is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
                         && impact < position.y - half + radius)
@@ -5466,6 +5466,49 @@ mod tests {
         assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Standing);
         assert!((position.y - 0.90002).abs() < 1e-4, "position={position:?}");
         assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, rotation);
+    }
+
+    #[test]
+    fn crouch_dimensions_clamp_only_the_applied_height() {
+        for (configured, actual) in [(0.2_f32, 0.3_f32), (0.3, 0.3), (0.56, 0.56), (0.9, 0.9), (1.1, 1.1)] {
+            let mut params = AlsMovementParams::default();
+            params.crouch.crouched_capsule_half_height = configured;
+            assert!((params.crouch.actual_crouched_half_height() - actual).abs() < 1e-6);
+            assert_eq!(params.crouch.crouched_capsule_half_height, configured);
+            assert!((capsule_for(&params, Stance::Crouching).shape_scaled().compute_local_aabb().half_extents().y - actual).abs() < 1e-6);
+            assert!((capsule_center_for_stance(&params, Vec3::Y * 100.0, Stance::Standing, Stance::Crouching, 1.0).y
+                - (100.0 - 0.9 + actual)).abs() < 1e-5);
+            let mut config = AlsControlSchemeConfig::default();
+            apply_als_control_scheme_config(&mut config, &params, Gait::Running, Stance::Crouching,
+                RotationMode::ViewDirection, true, Vec3::ZERO, 0.0, 9.81, 1.0);
+            assert!((config.basis.headroom.unwrap().distance_to_collider_top - actual).abs() < 1e-6);
+            assert!((config.crouch.float_offset - (actual - 0.9)).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn loaded_crouch_uses_the_clamped_height_for_center_mesh_and_transaction() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let handle = app.world().get::<AlsMovementParamsHandle>(actor).unwrap().0.clone();
+        for (configured, actual) in [(0.2_f32, 0.3_f32), (0.3, 0.3), (0.56, 0.56), (0.9, 0.9), (1.1, 1.1)] {
+            app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap()
+                .crouch.crouched_capsule_half_height = configured;
+            let start = Vec3::Y * 100.0;
+            app.world_mut().entity_mut(actor).remove::<AlsCapsuleCrouched>().insert((Position(start), Transform::from_translation(start),
+                Stance::Standing, AlsDesiredStance(Stance::Crouching), LocomotionState::Grounded,
+                AlsCrouchTransaction::default(), als_character_capsule(0.9, 0.3)));
+            app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+            app.world_mut().run_system_once(crate::character_assembly::sync_avatar_stance_offset).unwrap();
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            let collider = app.world().get::<Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents();
+            let transaction = app.world().get::<AlsCrouchTransaction>(actor).unwrap();
+            let mesh_y = app.world().get::<Transform>(avatar).unwrap().translation.y;
+            assert!((position.y - (100.0 - 0.9 + actual)).abs() < 1e-5, "configured={configured} position={position:?}");
+            assert!((collider.y - actual).abs() < 1e-5 && (transaction.collider_half_height - actual).abs() < 1e-6);
+            assert!((mesh_y - (crate::character_assembly::AVATAR_CAPSULE_BOTTOM_OFFSET + 0.9 - actual)).abs() < 1e-6);
+            assert_eq!(app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().crouch.crouched_capsule_half_height, configured);
+        }
     }
 
     #[test]

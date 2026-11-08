@@ -613,7 +613,7 @@ fn ragdoll_capsule_dimensions(
     world_scale: Vec3,
 ) -> (f32, f32) {
     let (half_height, radius) = if let Some(params) = params_assets.get(params_handle.0.id()) {
-        let half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
+        let half_height = if stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height };
         (half_height, params.crouch.standing_capsule_radius)
     } else {
         (

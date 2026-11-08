@@ -1,0 +1,74 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Classes/GameFramework/CharacterMovementComponent.h",
+      "sha256": "1193be5e0b09815310a3f65f51e82aebcca1b708240d16932af324d588e1d447",
+      "excerpts": [
+        {
+          "first_line": 383,
+          "last_line": 389,
+          "text": "\n\t/** Collision half-height when crouching (component scale is applied separately) */\n\tUE_DEPRECATED_FORGAME(5.0, \"Public access to this property is deprecated, and it will become private in a future release. Please use SetCrouchedHalfHeight and GetCrouchedHalfHeight instead.\")\n\tUPROPERTY(Category=\"Character Movement (General Settings)\", EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetCrouchedHalfHeight, BlueprintGetter=GetCrouchedHalfHeight, meta=(ClampMin=\"0\", UIMin=\"0\", ForceUnits=cm))\n\tfloat CrouchedHalfHeight;\n\n\t/** Water buoyancy. A ratio (1.0 = neutral buoyancy, 0.0 = no buoyancy) */\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 3247,
+          "last_line": 3255,
+          "text": "void UCharacterMovementComponent::SetCrouchedHalfHeight(const float NewValue)\n{\n\tCrouchedHalfHeight = NewValue;\n\n\tif (CharacterOwner != nullptr)\n\t{\n\t\tCharacterOwner->RecalculateCrouchedEyeHeight();\n\t}\n}\n"
+        },
+        {
+          "first_line": 3289,
+          "last_line": 3301,
+          "text": "\t\tCharacterOwner->GetCapsuleComponent()->SetCapsuleSize(DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleRadius(), DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight());\n\t\tbShrinkProxyCapsule = true;\n\t}\n\n\t// Change collision size to crouching dimensions\n\tconst float ComponentScale = CharacterOwner->GetCapsuleComponent()->GetShapeScale();\n\tconst float OldUnscaledHalfHeight = CharacterOwner->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();\n\tconst float OldUnscaledRadius = CharacterOwner->GetCapsuleComponent()->GetUnscaledCapsuleRadius();\n\t// Height is not allowed to be smaller than radius.\n\tconst float ClampedCrouchedHalfHeight = FMath::Max3(0.f, OldUnscaledRadius, CrouchedHalfHeight);\n\tCharacterOwner->GetCapsuleComponent()->SetCapsuleSize(OldUnscaledRadius, ClampedCrouchedHalfHeight);\n\tfloat HalfHeightAdjust = (OldUnscaledHalfHeight - ClampedCrouchedHalfHeight);\n\tfloat ScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;\n"
+        },
+        {
+          "first_line": 3331,
+          "last_line": 3343,
+          "text": "\tbForceNextFloorCheck = true;\n\n\t// OnStartCrouch takes the change from the Default size, not the current one (though they are usually the same).\n\tconst float MeshAdjust = ScaledHalfHeightAdjust;\n\tACharacter* DefaultCharacter = CharacterOwner->GetClass()->GetDefaultObject<ACharacter>();\n\tHalfHeightAdjust = (DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight() - ClampedCrouchedHalfHeight);\n\tScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;\n\n\tAdjustProxyCapsuleSize();\n\tCharacterOwner->OnStartCrouch( HalfHeightAdjust, ScaledHalfHeightAdjust );\n\n\t// Don't smooth this change in mesh position\n\tif ((bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy) || (IsNetMode(NM_ListenServer) && CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy))\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "excerpts": [
+        {
+          "first_line": 514,
+          "last_line": 529,
+          "text": "void ACharacter::OnStartCrouch( float HeightAdjust, float ScaledHeightAdjust )\n{\n\tRecalculateBaseEyeHeight();\n\n\tconst ACharacter* DefaultChar = GetDefault<ACharacter>(GetClass());\n\tif (Mesh && DefaultChar->Mesh)\n\t{\n\t\tFVector& MeshRelativeLocation = Mesh->GetRelativeLocation_DirectMutable();\n\t\tMeshRelativeLocation.Z = DefaultChar->Mesh->GetRelativeLocation().Z + HeightAdjust;\n\t\tBaseTranslationOffset.Z = MeshRelativeLocation.Z;\n\t}\n\telse\n\t{\n\t\tBaseTranslationOffset.Z = DefaultChar->BaseTranslationOffset.Z + HeightAdjust;\n\t}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 782,
+          "last_line": 790,
+          "text": "\t\t                                        : 0.0f;\r\n\r\n\tLocomotionState.ScaleWorldSpace = UE_REAL_TO_FLOAT(Proxy.GetComponentTransform().GetScale3D().Z);\r\n\r\n\tconst auto* Capsule{Character->GetCapsuleComponent()};\r\n\r\n\tLocomotionState.CapsuleRadius = Capsule->GetScaledCapsuleRadius();\r\n\tLocomotionState.CapsuleHalfHeight = Capsule->GetScaledCapsuleHalfHeight();\r\n}\r\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+      "excerpts": [
+        {
+          "first_line": 204,
+          "last_line": 213,
+          "text": "#endif\r\n\r\n\tconst auto* Capsule{GetCapsuleComponent()};\r\n\r\n\tconst auto CapsuleScale{Capsule->GetComponentScale().Z};\r\n\tconst auto CapsuleRadius{Capsule->GetScaledCapsuleRadius()};\r\n\tconst auto CapsuleHalfHeight{Capsule->GetScaledCapsuleHalfHeight()};\r\n\r\n\tconst FVector CapsuleBottomLocation{ActorLocation.X, ActorLocation.Y, ActorLocation.Z - CapsuleHalfHeight};\r\n\r\n"
+        },
+        {
+          "first_line": 965,
+          "last_line": 975,
+          "text": "\tauto RagdollLocation{!RagdollTargetLocation.IsZero() ? FVector{RagdollTargetLocation} : GetActorLocation()};\r\n\r\n\t// We use a sphere sweep instead of a simple line trace to keep capsule\r\n\t// movement consistent between ragdolling and regular character movement.\r\n\r\n\tconst auto CapsuleRadius{GetCapsuleComponent()->GetScaledCapsuleRadius()};\r\n\tconst auto CapsuleHalfHeight{GetCapsuleComponent()->GetScaledCapsuleHalfHeight()};\r\n\r\n\tconst FVector TraceStart{RagdollLocation.X, RagdollLocation.Y, RagdollLocation.Z + 2.0f * CapsuleRadius};\r\n\tconst FVector TraceEnd{RagdollLocation.X, RagdollLocation.Y, RagdollLocation.Z - CapsuleHalfHeight + CapsuleRadius};\r\n\r\n"
+        }
+      ]
+    }
+  ]
+}

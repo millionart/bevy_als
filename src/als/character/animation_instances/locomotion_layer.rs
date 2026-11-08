@@ -205,7 +205,7 @@ fn locomotion_input_writer(
                 .unwrap_or(0.0)
                 .clamp(0.0, 1.0);
         let scale = transform.to_scale_rotation_translation().0;
-        let half = if *stance == crate::als::state::Stance::Crouching { params.crouch.crouched_capsule_half_height }
+        let half = if *stance == crate::als::state::Stance::Crouching { params.crouch.actual_crouched_half_height() }
             else { params.crouch.standing_capsule_half_height } * scale.y;
         let capsule = crate::als::character::als_character_capsule(half,
             params.crouch.standing_capsule_radius * scale.x.min(scale.z));

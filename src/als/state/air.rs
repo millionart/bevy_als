@@ -215,7 +215,7 @@ fn air_state_system(
                 .and_then(|h| params_assets.get(h.id()))
                 .map(|p| {
                     let standing = p.crouch.standing_capsule_half_height;
-                    let crouched_h = p.crouch.crouched_capsule_half_height;
+                    let crouched_h = p.crouch.actual_crouched_half_height();
                     crouched
                         .get(entity)
                         .unwrap_or(false)

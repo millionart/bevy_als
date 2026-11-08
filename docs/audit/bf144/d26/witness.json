@@ -1,0 +1,72 @@
+{
+  "half-20": {
+    "hit": true,
+    "distance_cm": 70,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "half-30": {
+    "hit": true,
+    "distance_cm": 70,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "half-56": {
+    "hit": true,
+    "distance_cm": 44,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "half-90": {
+    "hit": true,
+    "distance_cm": 10,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "half-110": {
+    "hit": true,
+    "distance_cm": -10,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  }
+}

@@ -690,6 +690,10 @@ impl Default for CrouchParams {
 }
 
 impl CrouchParams {
+    pub(crate) fn actual_crouched_half_height(&self) -> f32 {
+        self.crouched_capsule_half_height.max(self.standing_capsule_radius).max(0.0)
+    }
+
     pub fn apply_override(&mut self, ovr: &CrouchParamsOverride) {
         if let Some(v) = ovr.standing_capsule_half_height {
             self.standing_capsule_half_height = v;

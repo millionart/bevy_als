@@ -5903,7 +5903,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色空中、蹲姿、pitch60°；距离中心z=0.65m的侧墙让target拒绝站起而source直立query无阻挡；相对蹲姿中心y=1.1m的顶板让target允许站起而source直立query应阻挡。同一目标几何上的source姿态查询确认阴阳边界，`bf144_crouch_stand_clearance_uses_source_gravity_orientation`共6组4PASS/2FAIL，直立3组与倾斜无障碍对照通过；证据`target/bf144/08/tilted_initial/`。
   - 漏检：旧站起阻挡/父空间测试只使用直立或yaw旋转，因此gravity orientation与actor quat相同。只登记未修复差异，未改站起容差或缩放公式。
 
-- [ ] BF144-D26 / P2 — 可配置蹲姿半高低于半径时，只夹形体而未夹中心和mesh偏移。
+- [x] BF144-D26 / P2 — 可配置蹲姿半高低于半径时，只夹形体而未夹中心和mesh偏移；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:53 +08:00；预估结束15:43 +08:00；实际结束14:57 +08:00，提前46分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE夹取/mesh与ALS尺寸消费者源、五组原生几何保存在`docs/audit/bf144/d26/`；实际尺寸统一夹到半径且原配置不变，已写中心、mesh、事务和控制器对照。已蹲时更改配置的生命周期及目标测试/真实Gate尚未验证。
   - Source：fresh UE `CharacterMovementComponent.h`的CrouchedHalfHeight为EditAnywhere/BlueprintSetter且仅ClampMin=0；`CharacterMovementComponent.cpp:3247–3254,3294–3299,3335–3341`在实际Crouch先取max(0,radius,requested)，再用这个值更新center和OnStartCrouch。`Character.cpp:514–527`把实际半高差用于mesh相对偏移。
   - Target：`src/als/character/character.rs:197–199`生成形体时将圆柱长夹到0，但`movement/motion.rs:3425–3439`、`character_assembly.rs:66–68`和transaction仍直接用未夹到radius的配置；物理形体和位置/mesh/floor尺寸状态不一致。
   - 反例：默认R=0.3m、standing H=0.9m，把公开crouched H配置成0.2m。完整角色蹲下的实际shape H=0.3m正确，但center从100到99.3m（source99.4），mesh相对y=−0.22m（source−0.32），缓存H=0.2m（source0.3）。`bf144_crouch_configured_height_keeps_source_radius_clamp`共5组4PASS/1FAIL，0.3/0.56/0.9/1.1m对照通过；证据`target/bf144/08/final/`。

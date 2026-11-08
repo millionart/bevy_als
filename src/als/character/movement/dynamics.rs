@@ -104,7 +104,7 @@ pub fn support_point_velocity(
 }
 
 fn character_contact_point(params: &AlsMovementParams, stance: Stance, position: Vec3) -> Vec3 {
-    let half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
+    let half_height = if stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height };
     position - Vec3::Y * half_height
 }
 

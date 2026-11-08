@@ -286,7 +286,7 @@ fn sync_physical_capsules(
         let Some(params) = params_assets.get(handle.id()) else { continue };
         let Ok(world) = transforms.compute_global_transform(entity) else { continue };
         let scale = world.to_scale_rotation_translation().0.abs();
-        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
+        let half = if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() }
             else { params.crouch.standing_capsule_half_height };
         let radius = params.crouch.standing_capsule_radius;
         let dimensions = (scale, half, radius);

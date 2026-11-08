@@ -64,7 +64,7 @@ pub(crate) fn sync_avatar_stance_offset(
         if !avatar.is_added() && !stance.is_changed() { continue; }
         let Some(params) = params_assets.get(handle.id()) else { continue };
         transform.translation.y = AVATAR_CAPSULE_BOTTOM_OFFSET + if *stance == crate::als::state::Stance::Crouching {
-            params.crouch.standing_capsule_half_height - params.crouch.crouched_capsule_half_height
+            params.crouch.standing_capsule_half_height - params.crouch.actual_crouched_half_height()
         } else { 0.0 };
     }
 }
