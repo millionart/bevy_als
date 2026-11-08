@@ -119,6 +119,48 @@ pub(super) fn source_box_convex_faces(
     })
 }
 
+pub(super) struct SourceCapsuleConvexFace {
+    pub index: usize,
+    pub face: SourceContactFace,
+    pub scale: DVec3,
+    pub cylinder: bool,
+    pub plane_contact: bool,
+    pub auxiliary: bool,
+}
+
+fn source_capsule_contact_flags(axis: DVec3, gjk_normal: DVec3, plane_normal: DVec3) -> (bool, bool, bool) {
+    let [axis_threshold, auxiliary_threshold, _, _] = include!("../als/settings/capsule_convex_contact.rs");
+    let [plane_epsilon, _] = include!("../als/settings/contact_face_classification.rs");
+    let cylinder = axis.dot(gjk_normal).abs() < axis_threshold;
+    let plane_contact = (plane_normal.dot(gjk_normal) - 1.0).abs() <= f64::from(plane_epsilon);
+    let auxiliary = plane_contact && axis.dot(plane_normal).abs() < auxiliary_threshold;
+    (cylinder, plane_contact, auxiliary)
+}
+
+pub(super) fn source_capsule_convex_face(
+    convex: &SourceConvexTopology,
+    scale: DVec3,
+    gjk: &SourceGjkResult,
+    axis: DVec3,
+) -> Option<SourceCapsuleConvexFace> {
+    let scale = source_convex_scale(scale);
+    let faces = convex.faces.iter().map(|face| SourceContactFace {
+        origin: DVec3::from_array(face.origin_m), normal: DVec3::from_array(face.normal),
+    }).collect::<Vec<_>>();
+    let planes = convex.vertex_planes.get(gjk.last_vertices[0])?;
+    let index = source_select_contact_plane(&faces, &planes.planes, planes.count, gjk.closest_first_m,
+        -gjk.normal_first, 0.0, include!("../als/settings/contact_face_search.rs"),
+        (scale != DVec3::ONE).then_some(scale), false)?;
+    let mut face = faces[index];
+    if scale != DVec3::ONE {
+        face.origin *= scale;
+        let normal = face.normal / scale;
+        if normal.length_squared() > f64::from(SOURCE_SMALL_NUMBER) { face.normal = normal.normalize(); }
+    }
+    let (cylinder, plane_contact, auxiliary) = source_capsule_contact_flags(axis, gjk.normal_first, face.normal);
+    Some(SourceCapsuleConvexFace { index, face, scale, cylinder, plane_contact, auxiliary })
+}
+
 pub(crate) fn source_select_contact_plane(
     faces: &[SourceContactFace],
     vertex_planes: &[usize],
@@ -196,6 +238,48 @@ mod tests {
 
     fn array(value: &serde_json::Value) -> DVec3 {
         DVec3::new(value[0].as_f64().unwrap(), value[1].as_f64().unwrap(), value[2].as_f64().unwrap())
+    }
+
+    #[test]
+    fn source_capsule_convex_faces_match_native_cylinder_and_endcap() {
+        use crate::extensions::source_contact_epa::SourceEpaSettings;
+        use crate::extensions::source_contact_gjk::source_capsule_convex_gjk;
+        let sample: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3e/endcap.native-sample.json")).unwrap();
+        let body = &sample["input"]["body_translation_cm"];
+        let body = DVec3::new(body[0].as_f64().unwrap(), body[2].as_f64().unwrap(), body[1].as_f64().unwrap()) * 0.01;
+        let first = body + point(&sample["geometry"]["endpoint_0_cm"]) * 0.01;
+        let second = body + point(&sample["geometry"]["endpoint_1_cm"]) * 0.01;
+        let length = first.distance(second);
+        let axis = (second - first) / length;
+        let (epsilon, iterations) = include!("../als/settings/contact_gjk.rs");
+        let (face_area_m4, initial_edge_m2, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon) =
+            include!("../als/settings/contact_epa.rs");
+        let epa = SourceEpaSettings { face_area_m4, initial_edge_m2, visibility_m, witness_m,
+            max_iterations, max_flood, relative_epsilon };
+        for (group_index, shape_index, cylinder) in [(0, 0, true), (1, 2, false)] {
+            let convex = source_convex_topology("SM_Als_Arch_01", shape_index).unwrap();
+            let vertices = convex.vertices_m.iter().copied().map(DVec3::from_array).collect::<Vec<_>>();
+            let gjk = source_capsule_convex_gjk(&vertices, DVec3::ONE, first, axis, length, epsilon, iterations, epa).unwrap();
+            let selected = source_capsule_convex_face(convex, DVec3::ONE, &gjk, axis).unwrap();
+            assert_eq!(selected.cylinder, cylinder);
+            if !cylinder {
+                assert!(selected.plane_contact && selected.auxiliary);
+                let normal = point(&sample["aggregate_contacts"][group_index]["points"][0]["world_normal"]);
+                assert!(selected.face.normal.distance(normal) < 2e-5);
+            }
+        }
+    }
+
+    #[test]
+    fn source_capsule_contact_flags_keep_strict_source_boundaries() {
+        let axis = |dot: f64| DVec3::new((1.0 - dot * dot).sqrt(), dot, 0.0);
+        let normal = DVec3::Y;
+        assert!(source_capsule_contact_flags(axis(0.009), normal, normal).0);
+        assert!(!source_capsule_contact_flags(axis(0.011), normal, normal).0);
+        assert!(source_capsule_contact_flags(axis(0.706), normal, normal).2);
+        assert!(!source_capsule_contact_flags(axis(0.708), normal, normal).2);
+        assert!(!source_capsule_contact_flags(axis(0.5), normal, -normal).1);
     }
 
     #[test]
