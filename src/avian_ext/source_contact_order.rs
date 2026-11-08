@@ -2,11 +2,13 @@ use avian3d::collision::contact_types::{ContactGraph, ContactId, ContactManifold
 use avian3d::collision::narrow_phase::NarrowPhaseConfig;
 use avian3d::dynamics::solver::{constraint_graph::{ConstraintGraph, ContactConstraintHandle, COLOR_OVERFLOW_INDEX}, PhysicsLengthUnit};
 use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
+use avian3d::parry::shape::Cuboid;
 use avian3d::prelude::{AngularVelocity, Collider, ColliderOf, ColliderTransform, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
     Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
 #[cfg(test)]
 use bevy::math::DVec3;
 use bevy::platform::collections::HashMap as EntityMap;
+use bevy::ecs::component::Tick;
 use bevy::prelude::*;
 #[cfg(test)]
 use std::collections::HashMap;
@@ -14,9 +16,9 @@ use std::collections::HashMap;
 use super::ragdoll_physics_profile::RagdollActiveMode;
 use super::source_contact_convex::{SourceConvexLifecycleSettings, source_body_local_max_extent,
     source_box_convex_manifold, source_convex_cull_distance, source_convex_hull_candidate};
-use super::source_contact_face::{source_convex_hulls, source_convex_scale, source_convex_topology};
+use super::source_contact_face::{SourceConvexTopology, source_convex_hulls, source_convex_scale, source_convex_topology};
 use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin, source_polygon_margins};
-use super::source_contact_restore::{SourceBoxContactHistory, SourceContactContext, SourceConvexGjkHistory, SourceRestorePose,
+use super::source_contact_restore::{SourceBoxContact, SourceBoxContactHistory, SourceContactContext, SourceConvexGjkHistory, SourceRestorePose,
     SourceRestoreSettings, capture_source_contact, capture_source_exact_contact, restore_source_contact,
     source_box_shape_pose, source_generated_manifold, source_scaled_bounds_max_extent_cm, write_source_solver_groups};
 
@@ -105,6 +107,74 @@ fn order_compound_groups(
     source.sort_by_key(|index| ids[*index][source_side]);
     let ordered = source.into_iter().map(|index| manifolds[index].clone()).collect::<Vec<_>>();
     for (slot, manifold) in slots.into_iter().zip(ordered) { manifolds[slot] = manifold; }
+}
+
+pub(super) struct SourceCompoundSettings {
+    pub restore: SourceRestoreSettings,
+    pub lifecycle: SourceConvexLifecycleSettings,
+    pub margins: SourceConvexMarginSettings,
+    pub cull: f64,
+    pub box_size_cm: f32,
+}
+
+pub(super) struct SourceCompoundGroups {
+    pub manifolds: Vec<ContactManifold>,
+    pub contacts: EntityMap<(u32, u32, Tick), SourceBoxContact>,
+    pub gjk: EntityMap<(u32, u32, Tick), SourceConvexGjkHistory>,
+}
+
+pub(super) fn generate_source_compound_groups(
+    identity: (ContactId, Tick),
+    template: &ContactManifold,
+    box_geometry: (&Cuboid, &Position),
+    convex: (&Collider, &[SourceConvexTopology]),
+    base_context: SourceContactContext,
+    settings: SourceCompoundSettings,
+    history: &SourceBoxContactHistory,
+) -> SourceCompoundGroups {
+    let inverse = base_context.frames[0].rotation.inverse();
+    let center = inverse * (box_geometry.1.0.as_dvec3() - base_context.frames[0].position_m);
+    let half = box_geometry.0.half_extents.as_dvec3();
+    let box_bounds = [center - half, center + half];
+    let translation = inverse * (base_context.frames[1].position_m - base_context.frames[0].position_m);
+    let rotation = inverse * base_context.frames[1].rotation;
+    let margin = source_box_margin(box_geometry.0.half_extents, settings.margins);
+    let [margin, _] = source_polygon_margins(margin, true, 0.0, false, settings.margins.minimum);
+    let scale = source_convex_scale(convex.0.scale().as_dvec3());
+    let mut template = template.clone();
+    template.points.clear();
+    let mut result = SourceCompoundGroups { manifolds: Vec::new(), contacts: EntityMap::default(), gjk: EntityMap::default() };
+    for (index, hull) in convex.1.iter().enumerate() {
+        let key = (identity.0.0, index as u32, identity.1);
+        let mut context = base_context;
+        let size_cm = source_scaled_bounds_max_extent_cm(hull.bounds_m, scale.as_vec3());
+        context.tolerance = f64::from(settings.restore.collision_tolerance_scale * settings.box_size_cm.min(size_cm)) * 0.01;
+        let prior = history.compounds.get(&key).filter(|saved| saved.matches(&context));
+        if !source_convex_hull_candidate(box_bounds, hull, scale, context.frames, settings.cull,
+            prior.is_some(), include!("../als/settings/contact_bounds_checks.rs")) { continue; }
+        let mut manifold = template.clone();
+        if let Some(saved) = restore_source_contact(&mut manifold, prior, &context, settings.restore) {
+            if let Some(gjk) = history.convex_gjk.get(&key).filter(|saved| saved.matches(&context)) {
+                result.gjk.insert(key, gjk.clone());
+            }
+            result.contacts.insert(key, saved);
+            result.manifolds.push(manifold);
+            continue;
+        }
+        let previous = history.convex_gjk.get(&key).filter(|saved| saved.matches(&context))
+            .and_then(|saved| settings.lifecycle.warm_start.then(|| saved.simplex.clone()));
+        if let Some(generated) = source_box_convex_manifold(box_bounds[0], box_bounds[1], hull, scale,
+            translation, rotation, f64::from(margin), settings.cull, previous) {
+            result.gjk.insert(key, SourceConvexGjkHistory { colliders: context.colliders, bodies: context.bodies,
+                shape_ticks: context.shape_ticks, simplex: generated.gjk.simplex_cm });
+            if generated.contacts.iter().any(|point| point.phi_m <= settings.cull) {
+                manifold = source_generated_manifold(&manifold, &generated.contacts, &context);
+                result.contacts.insert(key, capture_source_exact_contact(&manifold, &generated.contacts, &context));
+                result.manifolds.push(manifold);
+            }
+        }
+    }
+    result
 }
 
 pub(crate) fn order_source_compound_groups(
@@ -199,49 +269,12 @@ pub(crate) fn order_source_compound_groups(
         if let (Some((lifecycle, margin_settings, cull)), Some((settings, history, base_context, box_size_cm)),
             Some(hulls), Some(box_cuboid)) = (generation, restore_base, source_convex_hulls(&source.0),
                 box_shape.0.shape_scaled().as_cuboid()) {
-            let inverse = base_context.frames[0].rotation.inverse();
-            let center = inverse * (box_shape.1.0.as_dvec3() - base_context.frames[0].position_m);
-            let half = box_cuboid.half_extents.as_dvec3();
-            let box_bounds = [center - half, center + half];
-            let translation = inverse * (base_context.frames[1].position_m - base_context.frames[0].position_m);
-            let rotation = inverse * base_context.frames[1].rotation;
-            let margin = source_box_margin(box_cuboid.half_extents, *margin_settings);
-            let [margin, _] = source_polygon_margins(margin, true, 0.0, false, margin_settings.minimum);
-            let scale = source_convex_scale(compound_shape.0.scale().as_dvec3());
-            let mut template = pair.manifolds[0].clone();
-            template.points.clear();
-            let mut ordered = Vec::new();
-            for (index, hull) in hulls.iter().enumerate() {
-                let key = (pair.contact_id.0, index as u32, source.last_changed());
-                let mut context = base_context;
-                let size_cm = source_scaled_bounds_max_extent_cm(hull.bounds_m, scale.as_vec3());
-                context.tolerance = f64::from(settings.collision_tolerance_scale * box_size_cm.min(size_cm)) * 0.01;
-                let prior = history.compounds.get(&key).filter(|saved| saved.matches(&context));
-                if !source_convex_hull_candidate(box_bounds, hull, scale, context.frames, cull,
-                    prior.is_some(), include!("../als/settings/contact_bounds_checks.rs")) { continue; }
-                let mut manifold = template.clone();
-                if let Some(saved) = restore_source_contact(&mut manifold, prior, &context, *settings) {
-                    if let Some(gjk) = history.convex_gjk.get(&key).filter(|saved| saved.matches(&context)) {
-                        next_gjk.insert(key, gjk.clone());
-                    }
-                    next_compounds.insert(key, saved);
-                    ordered.push(manifold);
-                    continue;
-                }
-                let previous = history.convex_gjk.get(&key).filter(|saved| saved.matches(&context))
-                    .and_then(|saved| lifecycle.warm_start.then(|| saved.simplex.clone()));
-                if let Some(result) = source_box_convex_manifold(box_bounds[0], box_bounds[1], hull, scale,
-                    translation, rotation, f64::from(margin), cull, previous) {
-                    next_gjk.insert(key, SourceConvexGjkHistory { colliders: context.colliders, bodies: context.bodies,
-                        shape_ticks: context.shape_ticks, simplex: result.gjk.simplex_cm });
-                    if result.contacts.iter().any(|point| point.phi_m <= cull) {
-                        manifold = source_generated_manifold(&manifold, &result.contacts, &context);
-                        next_compounds.insert(key, capture_source_exact_contact(&manifold, &result.contacts, &context));
-                        ordered.push(manifold);
-                    }
-                }
-            }
-            source_updates.push((pair.contact_id, ordered));
+            let generated = generate_source_compound_groups((pair.contact_id, source.last_changed()), &pair.manifolds[0],
+                (box_cuboid, box_shape.1), (compound_shape.0, hulls), base_context,
+                SourceCompoundSettings { restore: *settings, lifecycle: *lifecycle, margins: *margin_settings, cull, box_size_cm }, history);
+            next_compounds.extend(generated.contacts);
+            next_gjk.extend(generated.gjk);
+            source_updates.push((pair.contact_id, generated.manifolds));
             continue;
         }
         let Some(ids) = contact_subshape_ids(first.0, *first.1, *first.2, second.0, *second.1, *second.2,
@@ -346,6 +379,55 @@ pub(crate) fn order_source_capsule_box_contacts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_compound_generation_preserves_native_barrel_groups() {
+        let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
+        let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) =
+            include!("../als/settings/contact_lifecycle.rs");
+        let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
+            collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
+        let restore = SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
+            empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points };
+        let lifecycle = SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale,
+            velocity_multiplier, max_velocity_expansion_cm, warm_start };
+        let margins = SourceConvexMarginSettings { fraction, maximum, minimum };
+        let entity = |index| Entity::from_raw_u32(index).unwrap();
+        let identity = (ContactId(5), Tick::new(7));
+        let hulls = source_convex_hulls("SM_Als_Barrel").unwrap();
+        for fixture in [include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-inside.native-sample.json"),
+            include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-outside.native-sample.json")] {
+            let sample: serde_json::Value = serde_json::from_str(fixture).unwrap();
+            let vector = |value: &serde_json::Value| DVec3::new(value["x"].as_f64().unwrap(),
+                value["z"].as_f64().unwrap(), value["y"].as_f64().unwrap()) * 0.01;
+            let lower = vector(&sample["geometry"]["minimum_cm"]);
+            let upper = vector(&sample["geometry"]["maximum_cm"]);
+            let translation = &sample["input"]["body_translation_cm"];
+            let body_position = DVec3::new(translation[0].as_f64().unwrap(), translation[2].as_f64().unwrap(),
+                translation[1].as_f64().unwrap()) * 0.01;
+            let box_position = Position((body_position + (lower + upper) * 0.5).as_vec3());
+            let box_shape = Cuboid::new(((upper - lower) * 0.5).as_vec3());
+            let frame = SourceRestorePose { position_m: body_position, rotation: bevy::math::DQuat::IDENTITY };
+            let static_frame = SourceRestorePose { position_m: DVec3::ZERO, rotation: bevy::math::DQuat::IDENTITY };
+            let context = SourceContactContext { colliders: [entity(1), entity(2)], bodies: [entity(1), entity(2)],
+                shape_ticks: [Tick::new(1), Tick::new(2)], frames: [frame, static_frame], tolerance: 0.0,
+                skin: 0.0, box_first: true, surface_normal: Vec3::ZERO,
+                centers: [box_position.0, Vec3::ZERO], linear: [Vec3::ZERO; 2], angular: [Vec3::ZERO; 2] };
+            let settings = SourceCompoundSettings { restore, lifecycle, margins, cull: 0.03,
+                box_size_cm: ((upper - lower).max_element() * 100.0) as f32 };
+            let template = ContactManifold::new(std::iter::empty::<ContactPoint>(), Vec3::Y);
+            let result = generate_source_compound_groups(identity, &template, (&box_shape, &box_position),
+                (&Collider::sphere(1.0), hulls), context, settings, &SourceBoxContactHistory::default());
+            let expected = sample["aggregate_contacts"].as_array().unwrap();
+            assert_eq!(result.manifolds.len(), expected.len());
+            assert_eq!(result.contacts.len(), expected.len());
+            if !expected.is_empty() {
+                assert_eq!(result.manifolds[0].points.len(), expected[0]["points"].as_array().unwrap().len());
+                assert!(result.contacts.contains_key(&(identity.0.0, 0, identity.1)));
+                assert!(result.gjk.contains_key(&(identity.0.0, 0, identity.1)));
+            }
+        }
+    }
 
     #[test]
     fn source_convex_extents_match_native_hulls_and_scales() {
