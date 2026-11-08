@@ -5799,7 +5799,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧坡面与低顶分别验证，未组合陡但可行走的坡面和有正余隙的平行顶面；水平末位移相等的20°对照不能覆盖触发前向坡面阻挡后的路径。仅登记，不添加坡道补偿或改物理参数。
   - 543 平地转坡实证：已Walking角色在40°坡首次命中后，UE先将余时转为新坡切向并实际扫到见证墙，切换坡的跨步许可时原生轨迹相同。目标相同首命中在禁止组丢失后续水平运动，q40比源少186 mm；允许组通过抬升/下扫逼近源终点。60°对照两端停在首次命中附近。证据见 `docs/audit/bf144/543/`。
 
-- [ ] BF144-D14 / P2 — 角色胶囊未携带源默认的禁止跨步权限。
+- [x] BF144-D14 / P2 — 角色胶囊未携带源默认的禁止跨步权限；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 13:50 +08:00；预估结束14:20 +08:00；实际结束13:55 +08:00，提前25分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh角色CDO、Playground七个角色胶囊、UE跨步与ALS Mantle权限源保存在`docs/audit/bf144/d14/`。角色默认No、显式覆盖及普通prop默认不变；Walking和Mantle均能读取角色/所属body权限，已写对应focused fixture，目标测试与真实Gate尚未执行。
   - Source：fresh UE `Character.cpp:81`及B_Als_Character的CollisionCylinder均为CanCharacterStepUpOn=ECB_No；`PrimitiveComponent.cpp:5287–5298`返回false，经CMC `CanStepUp:7525–7542`拒绝跨步。Playground实际7个角色实例也保留相同属性。
   - Target：`src/als/character/character.rs:361–425`的角色bundle没有移植该属性；`character/movement/motion.rs:3516–3518`在collider及body都无`AlsMantleTargetPermission`时默认true。
   - 反例：完整加载角色以50ms帧向uniform缩放0.2的被动角色前进；首次胶囊命中非穿透且normal.y≈0.0025，不属于可行走坡面。默认target把对方当可跨步prop，中心最高升至1.31152m并越过；source禁止跨步应停下。同几何普通prop允许跨过（PASS），仅给被动角色补入现有显式No权限的受控对照最高0.92562m并停在z≈−0.635m（PASS）。`bf144_walk_character_capsule_keeps_source_no_step_permission`语义FAIL，证据`target/bf144/05/permission/`。

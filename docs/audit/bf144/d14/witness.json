@@ -1,0 +1,36 @@
+{
+  "character_cdo": {
+    "object": "/ALS/ALS/Character/B_Als_Character.Default__B_Als_Character_C:CollisionCylinder",
+    "step_permission": "ECB_No"
+  },
+  "playground_characters": [
+    {
+      "object": "/ALS/ALSExtras/Levels/L_Als_Playground.L_Als_Playground:PersistentLevel.BP_Als_AICharacter2_7.CollisionCylinder",
+      "step_permission": "ECB_No"
+    },
+    {
+      "object": "/ALS/ALSExtras/Levels/L_Als_Playground.L_Als_Playground:PersistentLevel.BP_Als_AICharacter3_10.CollisionCylinder",
+      "step_permission": "ECB_No"
+    },
+    {
+      "object": "/ALS/ALSExtras/Levels/L_Als_Playground.L_Als_Playground:PersistentLevel.BP_Als_AICharacter4_13.CollisionCylinder",
+      "step_permission": "ECB_No"
+    },
+    {
+      "object": "/ALS/ALSExtras/Levels/L_Als_Playground.L_Als_Playground:PersistentLevel.BP_Als_AICharacter5_16.CollisionCylinder",
+      "step_permission": "ECB_No"
+    },
+    {
+      "object": "/ALS/ALSExtras/Levels/L_Als_Playground.L_Als_Playground:PersistentLevel.BP_Als_AICharacter6_19.CollisionCylinder",
+      "step_permission": "ECB_No"
+    },
+    {
+      "object": "/ALS/ALSExtras/Levels/L_Als_Playground.L_Als_Playground:PersistentLevel.BP_Als_AICharacter7_22.CollisionCylinder",
+      "step_permission": "ECB_No"
+    },
+    {
+      "object": "/ALS/ALSExtras/Levels/L_Als_Playground.L_Als_Playground:PersistentLevel.BP_Als_AICharacter_4.CollisionCylinder",
+      "step_permission": "ECB_No"
+    }
+  ]
+}

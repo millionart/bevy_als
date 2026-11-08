@@ -3725,7 +3725,7 @@ pub(crate) fn locomotion_drive_system(
     mut commands: Commands,
     spatial: SpatialQuery,
     velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
-    target_permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
+    target_permissions: Query<Option<&AlsMantleTargetPermission>>,
     target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
     target_bodies: Query<&RigidBody, Without<AlsCharacter>>,
     target_colliders: Query<&avian3d::prelude::ColliderOf>,
@@ -5406,6 +5406,44 @@ mod tests {
             app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
             let adjusted = app.world().get::<Position>(actor).unwrap().0;
             assert!((adjusted.y - 3.0904143).abs() < 0.006, "allows_step={allows_step} position={adjusted:?}");
+        }
+    }
+
+    #[test]
+    fn walking_respects_character_step_permission_for_root_and_child_colliders() {
+        use bevy::ecs::system::RunSystemOnce;
+        for case in ["character", "child", "prop", "override"] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let far = Vec3::new(10.0, 0.9215, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(far), Transform::from_translation(far)));
+            let target_position = Vec3::new(0.0, 0.18, -0.8);
+            if case == "character" || case == "override" {
+                let params = app.world().get::<AlsMovementParamsHandle>(actor).unwrap().0.clone();
+                let config = app.world().get::<TnuaConfig<AlsControlScheme>>(actor).unwrap().0.clone();
+                let mut bundle = crate::als::character::AlsCharacterBundle::new(params, config);
+                bundle.rigid_body = RigidBody::Static;
+                bundle.transform = Transform::from_translation(target_position).with_scale(Vec3::splat(0.2));
+                let target = app.world_mut().spawn(bundle).id();
+                if case == "override" {
+                    app.world_mut().entity_mut(target).insert(AlsMantleTargetPermission { allows_step_up: true });
+                }
+            } else if case == "child" {
+                let target = app.world_mut().spawn((AlsCharacter, RigidBody::Static, Transform::from_translation(target_position))).id();
+                app.world_mut().spawn((ChildOf(target), Collider::capsule(0.06, 0.24), Transform::IDENTITY));
+            } else {
+                app.world_mut().spawn((RigidBody::Static, Collider::capsule(0.06, 0.24), Transform::from_translation(target_position)));
+            }
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
+                    Quat::IDENTITY, 0.9, 0.3, Vec3::NEG_Z,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                    actor, &candidates, &permissions).unwrap()
+            }).unwrap();
+            assert_eq!(result.4, matches!(case, "prop" | "override"), "case={case} result={result:?}");
         }
     }
 
@@ -8000,7 +8038,7 @@ mod tests {
         let origin = app.world().get::<Position>(character).unwrap().0;
         let source_detection = app.world_mut().run_system_once(move |spatial: SpatialQuery,
             velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
-            permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>, colliders: Query<&ColliderOf>| {
+            permissions: Query<Option<&AlsMantleTargetPermission>>, colliders: Query<&ColliderOf>| {
             detect_mantle(&spatial, character, MantleDetectionInput { origin, actor_yaw: 0.0,
                 velocity_yaw: None, input_yaw: Some(0.0), locomotion: LocomotionState::Grounded,
                 capsule_half_height: 0.9, capsule_radius: 0.3, capsule_scale: 1.0, ..default() },

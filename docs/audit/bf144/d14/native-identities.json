@@ -1,0 +1,44 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/B_Als_Character.uasset",
+      "asset_identity": {
+        "bytes": 261358,
+        "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+      },
+      "request": "docs/audit/bf144/d14/character.request.json",
+      "native_output": "docs/audit/bf144/d14/character.native.json.gz",
+      "raw": {
+        "bytes": 9918888,
+        "sha256": "f20cd81b782d388ab5bbcad2da3e5aedbe280b4b2e32d6a88a4003ef8493d648"
+      },
+      "compressed": {
+        "bytes": 327460,
+        "sha256": "fa61bffae8e93ef0403ef9224a71d8c122c69d2f9ec16b3899ae283650c83222"
+      },
+      "reader_report": "docs/audit/bf144/d14/character.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALSExtras/Levels/L_Als_Playground.umap",
+      "asset_identity": {
+        "bytes": 36992,
+        "sha256": "4750ca4944eaf1fd3dafefa1bc45a64d31936136b2b22800cdceaf0f37619022"
+      },
+      "request": "docs/audit/bf144/d14/world.request.json",
+      "native_output": "docs/audit/bf144/d14/world.native.json.gz",
+      "raw": {
+        "bytes": 51470875,
+        "sha256": "79c4e72cc2f793ae55270f5868093b2eb87024015ab9dba79bc98ba67282ec1e"
+      },
+      "compressed": {
+        "bytes": 3356707,
+        "sha256": "3c7b53186c83ca8c713140983b6a1f6120061f06ba91efcc6088b87e0ea0899f"
+      },
+      "reader_report": "docs/audit/bf144/d14/world.native.json.reader.report.json"
+    }
+  ],
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  }
+}

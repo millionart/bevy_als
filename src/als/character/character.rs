@@ -47,6 +47,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(AlsCollisionLayerOwnership)]
 #[require(AlsEffectiveGravity)]
 #[require(AlsPhysicalCapsuleScale)]
+#[require(crate::als::mantle::AlsMantleTargetPermission = crate::als::mantle::AlsMantleTargetPermission { allows_step_up: false })]
 pub struct AlsCharacter;
 
 #[derive(Component, Debug, Default)]
@@ -547,6 +548,18 @@ mod tests {
         assert_eq!(bundle.aiming_yaw_constraint.active_limit_degrees, 180.0);
         assert_eq!(bundle.stance, Stance::Standing);
         assert_eq!(bundle.desired_stance.0, Stance::Standing);
+    }
+
+    #[test]
+    fn character_capsules_default_to_no_step_and_keep_explicit_overrides() {
+        let mut world = World::new();
+        let character = world.spawn(AlsCharacter).id();
+        let override_character = world.spawn((AlsCharacter,
+            crate::als::mantle::AlsMantleTargetPermission { allows_step_up: true })).id();
+        let prop = world.spawn_empty().id();
+        assert!(!world.get::<crate::als::mantle::AlsMantleTargetPermission>(character).unwrap().allows_step_up);
+        assert!(world.get::<crate::als::mantle::AlsMantleTargetPermission>(override_character).unwrap().allows_step_up);
+        assert!(world.get::<crate::als::mantle::AlsMantleTargetPermission>(prop).is_none());
     }
 
     #[test]

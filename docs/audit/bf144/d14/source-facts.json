@@ -1,0 +1,48 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "excerpts": [
+        {
+          "first_line": 74,
+          "last_line": 85,
+          "text": "\tbUseControllerRotationRoll = false;\n\tbUseControllerRotationYaw = true;\n\n\tCapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(ACharacter::CapsuleComponentName);\n\tCapsuleComponent->InitCapsuleSize(34.0f, 88.0f);\n\tCapsuleComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);\n\n\tCapsuleComponent->CanCharacterStepUpOn = ECB_No;\n\tCapsuleComponent->SetShouldUpdatePhysicsVolume(true);\n\tCapsuleComponent->SetCanEverAffectNavigation(false);\n\tCapsuleComponent->bDynamicObstacle = true;\n\tRootComponent = CapsuleComponent;\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/PrimitiveComponent.cpp",
+      "sha256": "5ef63e4b1ce58c83e4dd3a8f8b6ea579e78811052bf3c4556db03743ebdae19c",
+      "excerpts": [
+        {
+          "first_line": 5287,
+          "last_line": 5300,
+          "text": "bool UPrimitiveComponent::CanCharacterStepUp(APawn* Pawn) const\n{\n\tif ( CanCharacterStepUpOn != ECB_Owner )\n\t{\n\t\treturn CanCharacterStepUpOn == ECB_Yes;\n\t}\n\telse\n\t{\t\n\t\tconst AActor* Owner = GetOwner();\n\t\treturn Owner && Owner->CanBeBaseForCharacter(Pawn);\n\t}\n}\n\nbool UPrimitiveComponent::CanEditSimulatePhysics()\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 7525,
+          "last_line": 7547,
+          "text": "bool UCharacterMovementComponent::CanStepUp(const FHitResult& Hit) const\n{\n\tif (!Hit.IsValidBlockingHit() || !HasValidData() || MovementMode == MOVE_Falling)\n\t{\n\t\treturn false;\n\t}\n\n\t// No component for \"fake\" hits when we are on a known good base.\n\tconst UPrimitiveComponent* HitComponent = Hit.Component.Get();\n\tif (!HitComponent)\n\t{\n\t\treturn true;\n\t}\n\n\tif (!HitComponent->CanCharacterStepUp(CharacterOwner))\n\t{\n\t\treturn false;\n\t}\n\n\t// No actor for \"fake\" hits when we are on a known good base.\n\t\n\tif (!Hit.HitObjectHandle.IsValid())\n\t{\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+      "excerpts": [
+        {
+          "first_line": 231,
+          "last_line": 247,
+          "text": "\tGetWorld()->SweepSingleByChannel(ForwardTraceHit, ForwardTraceStart, ForwardTraceEnd,\r\n\t                                 FQuat::Identity, Settings->Mantling.MantlingTraceChannel,\r\n\t                                 FCollisionShape::MakeCapsule(TraceCapsuleRadius, ForwardTraceCapsuleHalfHeight),\r\n\t                                 {ForwardTraceTag, false, this}, Settings->Mantling.MantlingTraceResponses);\r\n\r\n\tauto* TargetPrimitive{ForwardTraceHit.GetComponent()};\r\n\r\n\tif (!ForwardTraceHit.IsValidBlockingHit() ||\r\n\t    !IsValid(TargetPrimitive) ||\r\n\t    TargetPrimitive->GetComponentVelocity().SizeSquared() > FMath::Square(Settings->Mantling.TargetPrimitiveSpeedThreshold) ||\r\n\t    !TargetPrimitive->CanCharacterStepUp(this) ||\r\n\t    GetCharacterMovement()->IsWalkable(ForwardTraceHit))\r\n\t{\r\n#if ENABLE_DRAW_DEBUG\r\n\t\tif (bDisplayDebug)\r\n\t\t{\r\n\t\t\tUAlsDebugUtility::DrawSweepSingleCapsuleAlternative(GetWorld(), ForwardTraceStart, ForwardTraceEnd, TraceCapsuleRadius,\r\n"
+        }
+      ]
+    }
+  ]
+}

@@ -488,10 +488,7 @@ pub fn detect_mantle(
     excluded: Entity,
     input: MantleDetectionInput,
     velocities: &Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
-    target_permissions: &Query<
-        Option<&AlsMantleTargetPermission>,
-        Without<crate::als::character::AlsCharacter>,
-    >,
+    target_permissions: &Query<Option<&AlsMantleTargetPermission>>,
     colliders: &Query<&ColliderOf>,
 ) -> MantleDetection {
     let mut trace = MantleProbeTrace::default();
@@ -1010,11 +1007,34 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         app.world_mut().run_system_once_with(|In((actor, locomotion)): In<(Entity, LocomotionState)>, spatial: SpatialQuery,
             velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
-            permissions: Query<Option<&AlsMantleTargetPermission>, Without<crate::als::character::AlsCharacter>>, colliders: Query<&ColliderOf>,
+            permissions: Query<Option<&AlsMantleTargetPermission>>, colliders: Query<&ColliderOf>,
             actors: Query<&Transform, With<crate::als::character::AlsCharacter>>| {
             detect_mantle(&spatial, actor, MantleDetectionInput { origin: actors.get(actor).unwrap().translation, input_yaw: Some(0.0),
                 locomotion, ..default() }, &velocities, &permissions, &colliders)
         }, (actor, locomotion)).unwrap()
+    }
+
+    #[test]
+    fn mantle_reads_character_step_permission_from_root_and_child_colliders() {
+        for child in [false, true] {
+            let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
+            assert!(debug_probe(&mut app, actor, LocomotionState::Grounded).intent.is_some());
+            let character = if child {
+                let parent = app.world_mut().spawn((crate::als::character::AlsCharacter, RigidBody::Static,
+                    Transform::from_xyz(0.0, 0.4, -1.4))).id();
+                app.world_mut().entity_mut(ledge).remove::<RigidBody>().insert((ChildOf(parent), Transform::IDENTITY));
+                parent
+            } else {
+                app.world_mut().entity_mut(ledge).insert(crate::als::character::AlsCharacter);
+                ledge
+            };
+            app.update();
+            app.update();
+            let denied = debug_probe(&mut app, actor, LocomotionState::Grounded);
+            assert_eq!(denied.trace.result, MantleProbeResult::ForwardRejected, "child={child} trace={:?}", denied.trace);
+            app.world_mut().entity_mut(character).insert(AlsMantleTargetPermission { allows_step_up: true });
+            assert!(debug_probe(&mut app, actor, LocomotionState::Grounded).intent.is_some(), "child={child}");
+        }
     }
 
     #[test]
