@@ -6021,7 +6021,12 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
     - 闭环：fresh UE前两次Falling阻挡、原生推力参数和Avian点力保存在`docs/audit/bf144/d38a/`；已生成目标参数并接入常规下落事务，写速度分支、动态/非动态和加载角色对照。旧target报告缺失；额外物理子步扫掠及多子步力倍率尚无复现证据，记录边界待统一验证，落地和Walking分别留给D38b/c。
   - [x] BF144-D38b — 普通落地入口提交源撞击力。开始2026-11-08 16:04 +08:00；预估结束16:49 +08:00；实际结束16:06 +08:00，提前43分钟；静态实现完成，测试/消融/Gate暂缓。
     - 闭环：fresh UE落地前输入保存与原生推力参数保存在`docs/audit/bf144/d38b/`，并引用Git管理的570原生动态台对照；普通落地复用撞击点力，已写动态/静态、中断及加载角色对照。强制沟槽落地的blocking Hit边界、测试和真实Gate待统一验证。
-  - [ ] BF144-D38c — 地面扫掠、跨步和滑移入口提交源撞击力。
+  - [ ] BF144-D38c — 地面扫掠、跨步和滑移入口提交源撞击力。开始2026-11-08 16:07 +08:00；预估结束17:02 +08:00。
+    - 子项拆分：D38c1处理禁止跨步的地面阻挡；D38c2处理跨步尝试及回退；D38c3处理滑移后续命中与初始穿透。
+    - [x] BF144-D38c1 — 禁止跨步的地面阻挡施加源撞击力。开始2026-11-08 16:08 +08:00；预估结束16:53 +08:00；实际结束16:11 +08:00，提前42分钟；静态实现完成，测试/消融/Gate暂缓。
+      - 闭环：fresh UE禁止跨步阻挡通知与原生推力参数保存在`docs/audit/bf144/d38c1/`；单步、多步及落地后续Walking传递实际撞击，已写动态墙/静态墙和加载角色对照。源端动态墙未重跑，试算滑移与允许跨步分支分别留给后续子项。
+    - [ ] BF144-D38c2 — 跨步尝试及失败回退施加源撞击力。
+    - [ ] BF144-D38c3 — 滑移后续命中和初始穿透施加源撞击力。
   - Source：fresh UE `HandleImpact:7783–7811`进入`ApplyImpactPhysicsForces:7814–7930`；native InitialPushForce500、PushForce750000、PushScaledToMass=False、UsingZOffset=False。本机CVar `p.ApplyCharacterCollisionForceAsImpulse=False`，静止阈值1cm/s内用500×30 kg·cm/s²，移动body用750000 kg·cm/s²，均AddForceAtLocation，不能按旧版本把500当一次冲量。
   - Target：`src/als/character/movement/motion.rs`空中/地面sweep和slide只调整角色位移/速度，未把命中的simulated body与源力参数提交给物理；实际air blocking命中后目标body保持原速度。
   - 反例：完整角色以5m/s撞向距胶囊前缘7cm的动态竖面，质量100kg，16.667ms首次命中。静止物体源应增加0.025m/s，target增加0；初速+0.1/−0.1m/s时源应到+1.35/+1.15，target仍+0.1/−0.1。`bf144_force_blocking_impact_keeps_source_force_branch`8组2PASS/6FAIL，同时覆盖质量200、初速0.005和20ms帧；Static/Kinematic不施力对照通过，证据`target/bf144/12/impact_downward/`。

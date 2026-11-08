@@ -3642,7 +3642,8 @@ fn falling_movement_transaction(
             let (moved, next_velocity, steps, next_remaining, lost_floor, _, last_base, rejected_base) = walking_movement_transaction(
                 spatial, capsule, transform, extent.y, extent.x.min(extent.z), velocity, desired_motion,
                 speed, input_dynamics, &cmc, landing.0, remaining, entity, candidates, step_permissions, bases, owners,
-                &impact_bodies.pawns, current_base);
+                &impact_bodies.pawns, current_base,
+                impacts.as_deref_mut().map(|writer| (writer, impact_acceleration - gravity, speed)));
             transform = moved;
             velocity = next_velocity;
             current_base = last_base;
@@ -4548,6 +4549,7 @@ fn grounded_movement_transaction(
     mode: LocomotionState, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     step_permissions: &Query<&AlsMantleTargetPermission>,
+    mut impact_context: Option<(&mut Messages<SourceCharacterImpact>, Vec3, Vec3, f32)>,
 ) -> Option<(Vec3, Option<Vec3>, Option<f32>, bool, bool, bool)> {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
@@ -4623,6 +4625,10 @@ fn grounded_movement_transaction(
                 .unwrap_or(Vec3::ZERO));
             result.5 = true;
             if !can_step_up(hit.entity) {
+                if let Some((writer, acceleration, velocity, max_speed)) = impact_context.as_mut() {
+                    writer.write(SourceCharacterImpact { collider: hit.entity, point: hit.point1,
+                        normal: impact_normal, acceleration: *acceleration, velocity: *velocity, max_speed: *max_speed });
+                }
                 return Some(result);
             }
             if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
@@ -4725,6 +4731,7 @@ fn walking_movement_transaction(
     step_permissions: &Query<&AlsMantleTargetPermission>,
     bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     owners: &Query<&ColliderOf>, pawns: &Query<(), With<AlsCharacter>>, mut last_base: Option<Entity>,
+    mut impacts: Option<(&mut Messages<SourceCharacterImpact>, Vec3, f32)>,
 ) -> (Transform, Vec3, u32, f32, bool, Vec3, Option<Entity>, bool) {
     let mut last_input = velocity;
     let mut lost_floor = false;
@@ -4735,7 +4742,8 @@ fn walking_movement_transaction(
             let center = transform.translation;
             let requested = step_velocity * step_seconds;
             let Some((advanced, remaining, next_y, penetrating, stepped_up, _)) = grounded_movement_transaction(spatial, capsule, center,
-                transform.rotation, half, radius, requested, cmc, LocomotionState::Grounded, entity, candidates, step_permissions)
+                transform.rotation, half, radius, requested, cmc, LocomotionState::Grounded, entity, candidates, step_permissions,
+                impacts.as_mut().map(|(writer, acceleration, speed)| (&mut **writer, *acceleration, step_velocity, *speed)))
                 else { return (step_velocity, Vec3::ZERO, true) };
             transform.translation = advanced + remaining.unwrap_or(requested);
             if let Some(next_y) = next_y && (stepped_up || next_y > center.y) { transform.translation.y = next_y; }
@@ -4907,7 +4915,9 @@ pub(crate) fn cmc_movement_transaction_system(
             let (moved, mut final_velocity, iterations, remaining_time, lost_floor, last_input, mut floor, rejected_base) = walking_movement_transaction(
                 &spatial_query, capsule, current_transform, half, radius, base.relative_velocity,
                 controller.basis.desired_motion, max_speed, input_dynamics, &params.cmc, factor, delta_seconds, entity,
-                &candidates, &step_permissions, &bases, &owners, &impact_bodies.pawns, initial_base);
+                &candidates, &step_permissions, &bases, &owners, &impact_bodies.pawns, initial_base,
+                impacts.as_deref_mut().map(|writer| (writer,
+                    controller.basis.desired_motion.clamp_length_max(1.0) * input_dynamics.acceleration, max_speed)));
             current_transform = moved;
             if lost_floor || rejected_base {
                 *loco = LocomotionState::Air;
@@ -4971,8 +4981,13 @@ pub(crate) fn cmc_movement_transaction_system(
             continue;
         }
         let center = position.0;
+        let impact_velocity = base.as_deref().and_then(|state| state.pre_collision_velocity)
+            .unwrap_or(next_velocity.with_y(0.0));
+        let impact_acceleration = controller.basis.desired_motion.clamp_length_max(1.0)
+            * cached_input_max.unwrap_or_else(|| dynamics.as_deref().map_or(params.acceleration.max_acceleration, |value| value.0.acceleration));
         let Some((advanced, remaining, next_y, penetrating, stepped_up, swept_movement)) = grounded_movement_transaction(&spatial_query, capsule,
-            center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };
+            center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions,
+            impacts.as_deref_mut().map(|writer| (writer, impact_acceleration, impact_velocity, runtime.grounded_max_speed))) else { continue };
         runtime.grounded_move_start = (!penetrating).then_some(center);
         if penetrating { runtime.grounded_collision_velocity = Some(next_velocity.with_y(0.0)); }
         let consumed = stepped_up || swept_movement;
@@ -5620,6 +5635,74 @@ mod tests {
     }
 
     #[test]
+    fn non_step_ground_blocking_hit_applies_source_impact_force() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        for (body, wall_x, expected) in [(RigidBody::Dynamic, 0.42, 1.5),
+            (RigidBody::Static, 0.42, 0.0), (RigidBody::Dynamic, 0.8, 0.0)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<SourceCharacterImpact>();
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, -0.1, 0.0)));
+            let wall = app.world_mut().spawn((body, Collider::cuboid(0.1, 4.0, 4.0),
+                Transform::from_xyz(wall_x, 1.0, 0.0), GravityScale(0.0), Mass(100.0), NoAutoMass,
+                LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO,
+                AlsMantleTargetPermission { allows_step_up: false })).id();
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
+                    Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.1, &crate::als::params::CmcAdapterParams::default(),
+                    LocomotionState::Grounded, actor, &candidates, &permissions,
+                    Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75)))
+            }).unwrap();
+            app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
+            let actual = app.world().get::<VelocityIntegrationData>(wall).map_or(0.0, |value| value.linear_increment.x);
+            assert!((actual - expected).abs() < 1e-4,
+                "Ground impact differs: body={body:?} wall={wall_x} actual={actual} expected={expected}");
+        }
+    }
+
+    #[test]
+    fn loaded_walking_character_pushes_a_non_step_dynamic_wall() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let wall = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(0.1, 4.0, 4.0),
+            Transform::from_xyz(0.42, 2.0, 1.0), GravityScale(0.0), Mass(100.0), NoAutoMass,
+            LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO,
+            AlsMantleTargetPermission { allows_step_up: false })).id();
+        app.update();
+        app.update();
+        let start = Vec3::new(0.0, 0.9215, 1.0);
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            LinearVelocity(Vec3::X * 3.75), LocomotionState::Grounded, TnuaMotor::default()));
+        app.world_mut().get_mut::<LinearVelocity>(wall).unwrap().0 = Vec3::ZERO;
+        app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::X;
+        {
+            let mut runtime = app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap();
+            runtime.simulation_substeps = 1;
+            runtime.simulation_delta_seconds = 0.05;
+            runtime.grounded_movement_delta = Some(Vec3::X * 0.1875);
+            runtime.controlled_input_max_acceleration = Some(20.0);
+        }
+        app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor).unwrap()
+            .pre_collision_velocity = Some(Vec3::X * 3.75);
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
+        let actual = app.world().get::<VelocityIntegrationData>(wall).unwrap().linear_increment.x;
+        assert!((actual - 1.5).abs() < 1e-4, "Walking impact must push the wall: {actual}");
+    }
+
+    #[test]
     fn loaded_character_pushes_a_dynamic_wall_on_falling_impact() {
         use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
         for (speed, expected) in [(0.0, 0.025), (0.1, 1.35), (-0.1, 1.15)] {
@@ -6009,7 +6092,7 @@ mod tests {
                 let start = Vec3::Y * 5.0;
                 let walking = grounded_movement_transaction(&spatial, capsule, start, Quat::IDENTITY, 0.9, 0.3,
                     Vec3::NEG_Z, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
-                    actor, &candidates, &permissions).unwrap();
+                    actor, &candidates, &permissions, None).unwrap();
                 let falling = falling_movement_sweep(&spatial, capsule, start, Quat::IDENTITY, Vec3::NEG_Z,
                     Vec3::NEG_Z * 10.0, 0.1, None, None, actor, &candidates, &shapes, &impact_bodies, None);
                 (walking.0.z, falling.0.z)
@@ -6264,7 +6347,7 @@ mod tests {
                     grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), center,
                         Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.25,
                         &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
-                        actor, &candidates, &permissions).unwrap()
+                        actor, &candidates, &permissions, None).unwrap()
                 }).unwrap();
                 let movement = result.1.expect("Source ramp sweep must retain its tangent movement");
                 assert!(result.5 && !result.4, "angle={angle} ceiling={ceiling} result={result:?}");
@@ -6333,7 +6416,7 @@ mod tests {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), start,
                     Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
                     &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
-                    actor, &candidates, &permissions).unwrap()
+                    actor, &candidates, &permissions, None).unwrap()
             }).unwrap();
             if angle == 60.0 {
                 assert!((result.0.x - -13.9711046).abs() < 0.004, "result={result:?}");
@@ -6415,7 +6498,7 @@ mod tests {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
                     Quat::IDENTITY, 0.9, 0.3, Vec3::NEG_Z,
                     &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
-                    actor, &candidates, &permissions).unwrap()
+                    actor, &candidates, &permissions, None).unwrap()
             }).unwrap();
             assert_eq!(result.4, matches!(case, "prop" | "override"), "case={case} result={result:?}");
         }
@@ -6453,7 +6536,7 @@ mod tests {
                     let result = grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), center,
                         Quat::IDENTITY, 0.9, 0.3, Vec3::new(0.3, 0.0, -0.3),
                         &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
-                        actor, &candidates, &permissions).unwrap();
+                        actor, &candidates, &permissions, None).unwrap();
                     assert!(result.5 && !result.4, "upper={upper_hit} result={result:?}");
                     center = result.0 + result.1.unwrap();
                     positions.push(center);
@@ -6555,7 +6638,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), center,
                     Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.1, &crate::als::params::CmcAdapterParams::default(),
-                    LocomotionState::Grounded, actor, &candidates, &permissions).unwrap()
+                    LocomotionState::Grounded, actor, &candidates, &permissions, None).unwrap()
             }).unwrap();
             assert!(!result.4);
             let height = result.2.unwrap();
@@ -7006,7 +7089,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
-                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions, None)
             }).unwrap().unwrap();
             assert!(result.4 && result.2.is_some(), "width={width} result={result:?}");
             let end = (result.0 + result.1.unwrap()).with_y(result.2.unwrap());
@@ -7071,7 +7154,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
-                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions, None)
             }).unwrap().unwrap();
             let gap = result.2.expect("the raw StepDown position must pass beneath the roof") - 2.44 - 0.9;
             assert!((0.008..0.013).contains(&gap), "roof={roof_bottom} raw_gap={gap}");
@@ -7099,7 +7182,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
-                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions, None)
             }).unwrap().unwrap();
             assert_eq!(result.2.is_some(), accepted, "yaw={yaw} contact_y={contact_y} result={result:?}");
         }
@@ -7123,7 +7206,7 @@ mod tests {
                 let cmc = crate::als::params::CmcAdapterParams::default();
                 let result = grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-14.01, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.17427273,
-                    &cmc, LocomotionState::Grounded, actor, &candidates, &permissions).unwrap();
+                    &cmc, LocomotionState::Grounded, actor, &candidates, &permissions, None).unwrap();
                 let height = result.2.expect("the blocking StepDown must be committed");
                 let destination = (result.0 + result.1.unwrap()).with_y(height);
                 let floor = find_ground_floor(&spatial, destination, 0.9, 0.3, &cmc, LocomotionState::Grounded,
@@ -7205,7 +7288,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
-                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions, None)
             }).unwrap().unwrap();
             assert!(result.2.is_some(), "the step must reach the downward sweep: {result:?}");
             let destination = result.0 + result.1.unwrap();
@@ -7260,7 +7343,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
-                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions, None)
             }).unwrap().unwrap();
             let movement = result.1.expect("Source StepUp must commit the forward movement");
             assert!(result.4 && result.2.is_some(), "ceiling={ceiling_bottom} result={result:?}");
@@ -7312,7 +7395,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.98, 2.9 + gap, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
-                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions, None)
             }).unwrap().unwrap();
             assert!(result.2.is_some(), "the source fixture must complete StepUp: gap={gap} result={result:?}");
             let slide = result.1.expect("the step must produce a slide");
@@ -7342,7 +7425,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
-                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions, None)
             }).unwrap().unwrap();
             assert_eq!(result.2.is_some(), accepted, "front={front} result={result:?}");
         }
@@ -7368,7 +7451,7 @@ mod tests {
                 permissions: Query<&AlsMantleTargetPermission>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.98, 2.9 + gap, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
-                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions, None)
             }).unwrap().unwrap();
             assert_eq!(result.2.is_some(), accepted, "height={height} gap={gap} result={result:?}");
         }
@@ -8382,7 +8465,7 @@ mod tests {
                 let (_, actual, steps, _, lost_floor, _, _, _) = walking_movement_transaction(&spatial, &capsule,
                     Transform::from_translation(start), 0.9, 0.3, velocity, Vec3::ZERO, 6.5, dynamics,
                     &crate::als::params::CmcAdapterParams::default(), 0.0, delta, actor,
-                    &candidates, &permissions, &bases, &owners, &pawns, None);
+                    &candidates, &permissions, &bases, &owners, &pawns, None, None);
                 assert_eq!(steps, 1);
                 assert!(!lost_floor);
                 assert_eq!(actual, velocity);
@@ -8402,7 +8485,7 @@ mod tests {
             let (_, actual, _, _, _, _, _, _) = walking_movement_transaction(&spatial, &capsule,
                 Transform::from_translation(start), 0.9, 0.3, velocity, Vec3::ZERO, 6.5, dynamics,
                 &crate::als::params::CmcAdapterParams::default(), 0.0, delta, actor,
-                &candidates, &permissions, &bases, &owners, &pawns, Some(floor));
+                &candidates, &permissions, &bases, &owners, &pawns, Some(floor), None);
             assert_eq!(actual, ((start + velocity * delta) - start).with_y(0.0) / delta);
             assert_ne!(actual.z, velocity.z);
         }).unwrap();
@@ -8441,11 +8524,11 @@ mod tests {
                 let cmc = crate::als::params::CmcAdapterParams::default();
                 let start = Transform::from_xyz(0.0, 0.9215, 0.0);
                 let outcome = grounded_movement_transaction(&spatial, &capsule, start.translation, Quat::IDENTITY,
-                    0.9, 0.3, Vec3::X * 0.3125, &cmc, LocomotionState::Grounded, actor, &candidates, &permissions).unwrap();
+                    0.9, 0.3, Vec3::X * 0.3125, &cmc, LocomotionState::Grounded, actor, &candidates, &permissions, None).unwrap();
                 assert_eq!(outcome.3, expected_penetration, "gap={gap:?} left={left_wall}");
                 let dynamics = crate::als::params::GroundedDynamics { acceleration: 0.0, braking_deceleration: 5.0, ground_friction: 0.0 };
                 let (_, velocity, _, _, _, _, _, _) = walking_movement_transaction(&spatial, &capsule, start, 0.9, 0.3,
-                    Vec3::X * 6.5, Vec3::ZERO, 6.5, dynamics, &cmc, 0.0, seconds, actor, &candidates, &permissions, &bases, &owners, &pawns, None);
+                    Vec3::X * 6.5, Vec3::ZERO, 6.5, dynamics, &cmc, 0.0, seconds, actor, &candidates, &permissions, &bases, &owners, &pawns, None, None);
                 if expected_penetration {
                     assert!((velocity.x - 6.25).abs() < 1e-4, "gap={gap:?} velocity={velocity:?}");
                 } else if gap.is_some() {
@@ -9146,7 +9229,7 @@ mod tests {
                 assert_eq!(floor.entity, landing, "The raised landing must belong to the separate surface");
                 let result = grounded_movement_transaction(&spatial, capsule, start, Quat::IDENTITY,
                     params.crouch.standing_capsule_half_height, params.crouch.standing_capsule_radius,
-                    Vec3::X, &params.cmc, LocomotionState::Grounded, character, &candidates, &permissions).unwrap();
+                    Vec3::X, &params.cmc, LocomotionState::Grounded, character, &candidates, &permissions, None).unwrap();
                 assert_eq!(result.2.is_some_and(|height| height > start.y + 0.1), front_allowed && landing_allowed,
                     "Source StepUp checks the initial surface and the higher downward hit: front={front_allowed} landing={landing_allowed} result={result:?}");
             }).unwrap();
