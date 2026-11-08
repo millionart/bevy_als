@@ -1077,6 +1077,77 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    fn free_walking_snapshot_preserves_plan_at_nonzero_world_origin() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .init_resource::<Time<avian3d::prelude::Physics>>()
+            .add_systems(FixedPostUpdate, snapshot_actual_velocity_system);
+        app.world_mut().resource_mut::<Time<avian3d::prelude::Physics>>()
+            .advance_by(std::time::Duration::from_secs_f32(1.0 / 30.0));
+        let dt = app.world().resource::<Time<avian3d::prelude::Physics>>().delta_secs();
+        let planned = Vec3::X * 0.666_666_7;
+        let delta = Vec3::X * 0.022_222_225;
+        let mut actors = Vec::new();
+        for origin in [0.0, 1.662_102_5] {
+            let start = Vec3::X * origin;
+            let actor = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded,
+                Position(start + delta), LinearVelocity(planned),
+                AlsCmcAdapterRuntime { simulation_substeps: 1, simulation_delta_seconds: dt,
+                    grounded_move_start: Some(start), grounded_movement_delta: Some(delta), ..default() },
+                crate::als::dynamics::AlsMovementBaseDynamicsState { pre_collision_velocity: Some(planned), ..default() },
+            )).id();
+            actors.push(actor);
+        }
+        let observed_start = Vec3::new(-15.0, 0.0, -15.0);
+        let observed_plan = Vec3::new(0.666_666_7, 0.0, -0.000_050_912_964);
+        let observed_delta = Vec3::new(0.022_222_225, 0.0, -0.000_001_697_098_9);
+        let observed = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded,
+            Position(observed_start + observed_delta), LinearVelocity(observed_plan),
+            AlsCmcAdapterRuntime { simulation_substeps: 1, simulation_delta_seconds: dt,
+                grounded_move_start: Some(observed_start), grounded_movement_delta: Some(observed_delta), ..default() },
+            crate::als::dynamics::AlsMovementBaseDynamicsState { pre_collision_velocity: Some(observed_plan), ..default() },
+        )).id();
+        let start = Vec3::X * 1.662_102_5;
+        let blocked_position = start + delta * 0.5;
+        let blocked = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded,
+            Position(blocked_position), LinearVelocity(planned),
+            AlsCmcAdapterRuntime { simulation_substeps: 1, simulation_delta_seconds: dt,
+                grounded_move_start: Some(start), grounded_movement_delta: Some(delta), ..default() },
+            crate::als::dynamics::AlsMovementBaseDynamicsState { pre_collision_velocity: Some(planned), ..default() },
+        )).id();
+        let slow_dt = dt * 0.5;
+        let slow_position = start + delta * 0.5;
+        let slow = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded,
+            Position(slow_position), LinearVelocity(planned),
+            AlsCmcAdapterRuntime { simulation_substeps: 1, simulation_delta_seconds: slow_dt,
+                grounded_move_start: Some(start), grounded_movement_delta: Some(delta * 0.5), ..default() },
+            crate::als::dynamics::AlsMovementBaseDynamicsState { pre_collision_velocity: Some(planned), ..default() },
+        )).id();
+        let support = Vec3::X * 1.25;
+        let moving_position = start + delta + support * dt;
+        let moving = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded,
+            Position(moving_position), LinearVelocity(planned + support),
+            AlsCmcAdapterRuntime { simulation_substeps: 1, simulation_delta_seconds: dt,
+                grounded_move_start: Some(start), grounded_movement_delta: Some(delta), ..default() },
+            crate::als::dynamics::AlsMovementBaseDynamicsState {
+                entity: Some(Entity::PLACEHOLDER), support_velocity: support,
+                pre_collision_velocity: Some(planned), ..default()
+            },
+        )).id();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        for actor in actors {
+            assert_eq!(app.world().get::<AlsActualVelocity>(actor).unwrap().world_velocity.x, planned.x);
+        }
+        assert_eq!(app.world().get::<AlsActualVelocity>(observed).unwrap().world_velocity, observed_plan);
+        assert_eq!(app.world().get::<AlsActualVelocity>(blocked).unwrap().world_velocity.x,
+            (blocked_position.x - start.x) / dt);
+        assert_eq!(app.world().get::<AlsActualVelocity>(slow).unwrap().world_velocity.x,
+            (slow_position.x - start.x) / slow_dt);
+        assert_eq!(app.world().get::<LinearVelocity>(moving).unwrap().x,
+            (moving_position.x - start.x - support.x * dt) / dt + support.x);
+    }
+
+    #[test]
     fn actual_velocity_snapshot_retains_full_velocity_and_horizontal_speed() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
@@ -2773,8 +2844,22 @@ fn snapshot_actual_velocity_system(
             let support = base.as_deref().filter(|base| base.entity.is_some())
                 .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));
             let relative = (position.0 - start - support * time.delta_secs()) / runtime.simulation_delta_seconds;
-            velocity.x = relative.x + support.x;
-            velocity.z = relative.z + support.z;
+            let planned = base.as_deref().filter(|base| base.support_velocity == Vec3::ZERO)
+                .and_then(|base| base.pre_collision_velocity)
+                .filter(|planned| *locomotion == LocomotionState::Grounded
+                    && runtime.simulation_substeps == 1 && runtime.simulation_delta_seconds == time.delta_secs()
+                    && runtime.grounded_movement_delta.is_some_and(|delta| {
+                        let expected = start + delta;
+                        delta.with_y(0.0) == (*planned * runtime.simulation_delta_seconds).with_y(0.0)
+                            && position.0.x == expected.x && position.0.z == expected.z
+                    }));
+            if let Some(planned) = planned {
+                velocity.x = planned.x;
+                velocity.z = planned.z;
+            } else {
+                velocity.x = relative.x + support.x;
+                velocity.z = relative.z + support.z;
+            }
         }
         if *locomotion != LocomotionState::Grounded
             && let Some(base) = base.as_deref_mut() {

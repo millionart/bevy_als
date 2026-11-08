@@ -1,0 +1,116 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "first_line": 565,
+          "last_line": 581,
+          "text": "\t\tif (IsMovingOnGround())\n\t\t{\n\t\t\t// Make velocity reflect actual move\n\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\n\t\t\t{\n\t\t\t\t// TODO Start of custom ALS code block.\n\n\t\t\t\tPrePenetrationAdjustmentVelocity = MoveVelocity;\n\t\t\t\tbPrePenetrationAdjustmentVelocityValid = true;\n\n\t\t\t\t// TODO End of custom ALS code block.\n\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\n\t\t\t\tMaintainHorizontalGroundVelocity();\n\t\t\t}\n\t\t}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 5862,
+          "last_line": 5879,
+          "text": "\t\t\t}\n\t\t}\n\n\n\t\t// Allow overlap events and such to change physics state and velocity\n\t\tif (IsMovingOnGround())\n\t\t{\n\t\t\t// Make velocity reflect actual move\n\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\n\t\t\t{\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\n\t\t\t\tMaintainHorizontalGroundVelocity();\n\t\t\t}\n\t\t}\n\n\t\t// If we didn't move at all this iteration then abort (since future iterations will also be stuck).\n\t\tif (UpdatedComponent->GetComponentLocation() == OldLocation)"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/motion.rs",
+      "revision": "before_D254a",
+      "sha256": "6169e8d9339b4f219cbeefc89925b9fb10cf53230b81e7c37b737946912093d7",
+      "excerpts": [
+        {
+          "first_line": 2762,
+          "last_line": 2791,
+          "text": "fn snapshot_actual_velocity_system(\n    time: Res<Time<avian3d::prelude::Physics>>,\n    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &mut AlsCmcAdapterRuntime,\n        &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,\n) {\n    for (mut velocity, mut actual, position, mut runtime, locomotion, mut base) in &mut characters {\n        if let Some(collision_velocity) = runtime.grounded_collision_velocity.take() {\n            velocity.0 = collision_velocity;\n        } else if let Some(start) = runtime.grounded_move_start\n            && let Some(position) = position\n            && runtime.simulation_delta_seconds > 0.0 {\n            let support = base.as_deref().filter(|base| base.entity.is_some())\n                .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));\n            let relative = (position.0 - start - support * time.delta_secs()) / runtime.simulation_delta_seconds;\n            velocity.x = relative.x + support.x;\n            velocity.z = relative.z + support.z;\n        }\n        if *locomotion != LocomotionState::Grounded\n            && let Some(base) = base.as_deref_mut() {\n            *base = default();\n        }\n        *actual = AlsActualVelocity::from_physics_velocity(\n            crate::als::dynamics::locomotion_velocity(velocity.0, *locomotion, base.as_deref()));\n    }\n}\n\npub fn movement_sweep_travel(distance: f32, hit_distance: f32) -> f32 {\n    let pullback = (distance * PULLBACK_PROPORTION).clamp(PULLBACK_MIN_DISTANCE, PULLBACK_MAX_DISTANCE)\n        + distance * PULLBACK_TIME_BIAS;\n    (hit_distance - pullback).max(0.0)"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/motion.rs",
+      "revision": "before_D254a",
+      "sha256": "6169e8d9339b4f219cbeefc89925b9fb10cf53230b81e7c37b737946912093d7",
+      "excerpts": [
+        {
+          "first_line": 4281,
+          "last_line": 4292,
+          "text": "        let planned_velocity = if !stepped_up && !penetrating && remaining.is_none() && next_y.is_some()\n            && runtime.simulation_substeps == 1 && runtime.grounded_movement_delta.is_some()\n            && delta_seconds == time.delta_secs() {\n            base.as_deref().filter(|base| base.support_velocity == Vec3::ZERO)\n                .and_then(|base| base.pre_collision_velocity)\n        } else { None };\n        let remaining_velocity = if stepped_up {\n            base.as_deref().filter(|base| base.entity.is_some())\n                .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0))\n        } else { planned_velocity.unwrap_or_else(|| remaining.unwrap_or(delta) / time.delta_secs()) };\n        motor.lin.boost.x = remaining_velocity.x - velocity.x;\n        motor.lin.boost.z = remaining_velocity.z - velocity.z;"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/source_physics_timing.rs",
+      "revision": "before_D254a",
+      "sha256": "564004f6f9926e1192c03c47c0e201c18d687addb198e85c82a4544d8c40c5c6",
+      "excerpts": [
+        {
+          "first_line": 164,
+          "last_line": 198,
+          "text": "fn integrate_character_position(\n    frame_time: Res<Time<Virtual>>,\n    physics_time: Res<Time<Physics>>,\n    substeps: Res<SubstepCount>,\n    spatial: SpatialQuery,\n    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,\n    shapes: Query<(&Collider, &Position, &Rotation)>,\n    mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,\n        Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,\n        Option<&SourceCharacterFullFrame>, Has<CustomPositionIntegration>,\n        &mut crate::als::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,\n) {\n    let frame_step = frame_time.delta_secs() / substeps.0 as f32;\n    let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;\n    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, full_frame, custom_position, mut runtime) in &mut characters {\n        let movement = if let Some(frame) = full_frame {\n            if *locomotion == LocomotionState::Grounded && runtime.grounded_move_start.is_none()\n                && let Some(delta) = runtime.grounded_movement_delta {\n                delta / substeps.0 as f32 + Vec3::Y * body.linear_velocity.y * frame_step\n            } else if *locomotion == LocomotionState::Air {\n                (frame.velocity_before_step + body.linear_velocity) * 0.5 * frame_step\n            } else { body.linear_velocity * frame_step }\n        } else if !custom_position && *rigid_body == RigidBody::Dynamic\n            && *locomotion == LocomotionState::Grounded\n            && action != Some(&AlsNotifyLocomotionAction::Ragdolling)\n            && base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {\n            let relative_velocity = crate::als::dynamics::locomotion_velocity(body.linear_velocity, *locomotion, base);\n            if runtime.grounded_move_start.is_none() && let Some(delta) = runtime.grounded_movement_delta {\n                (delta - base.unwrap().support_velocity * frame_time.delta_secs()\n                    - relative_velocity * physics_time.delta_secs()).with_y(0.0) / substeps.0 as f32\n                    + Vec3::Y * relative_velocity.y * extra_step\n            } else { relative_velocity * extra_step }\n        } else {\n            continue;\n        };"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d254a/witness.json",
+      "bytes": 869,
+      "sha256": "aa837594334eca5d8a4486ea14d234af8d0763c597c483ee77f4ff3f1a2b404f"
+    },
+    {
+      "path": "docs/audit/bf144/501/evidence-input.json",
+      "bytes": 1574,
+      "sha256": "033517ae9f6bcd1a6e0bcf6c2a47d0be263a0c0db91309aafc1d8da2ed01daab"
+    },
+    {
+      "path": "docs/audit/bf144/501/replay-baseline.json",
+      "bytes": 6449,
+      "sha256": "cfa70899472944287cd905e24d01fd8ee74845d27988f201d7641693c477a3a7"
+    },
+    {
+      "path": "docs/audit/bf144/501/summary.json",
+      "bytes": 3097,
+      "sha256": "005f1c9b4f2b10deaeeb834aabc464b384736b4cebe421eaf0258e1bad4af8b5"
+    },
+    {
+      "path": "docs/audit/bf144/576/summary.json",
+      "bytes": 3548,
+      "sha256": "8eedd526df8355595dc79020c35d056c3e0999b4604f31bd424f4fc6aa683603"
+    },
+    {
+      "path": "docs/audit/bf144/d264/source-facts.json",
+      "bytes": 14934,
+      "sha256": "9f2a951d797420bcb3d910040c8f7d72ec139595b35b7976bb64dad9f914d519"
+    },
+    {
+      "path": "docs/audit/bf144/d264/velocity.native.json",
+      "bytes": 128579,
+      "sha256": "b6a1b6d1389942064cdee03be6e29ff52f8f7802e705439d0e1a39a892558e07"
+    },
+    {
+      "path": "docs/audit/bf144/d264/velocity.native.json.reader.report.json",
+      "bytes": 426,
+      "sha256": "9157bf0f2d5113b3c48dd02c86bf631ee2b49b30161a48f4c10c29f9ee3351a6"
+    },
+    {
+      "path": "docs/audit/bf144/d264/native-identities.json",
+      "bytes": 645,
+      "sha256": "d2e0bba1b70802588d5151cfcd101e3e811e2557240b983d2b6687254966ed0e"
+    }
+  ],
+  "missing_previous_evidence": [
+    "target/bf144/308/red-check.json",
+    "target/bf144/308/zero-origin-check.json",
+    "target/bf144/308/factors-check.json"
+  ],
+  "scope": "Single-step, zero-support grounded snapshot with matching planned and observed displacement; actual collision, time dilation, moving support, and internal landing steps are separate.",
+  "status": "implementation_complete_static_and_runtime_gates_pending"
+}
