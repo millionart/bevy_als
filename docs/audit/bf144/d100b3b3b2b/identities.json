@@ -1,0 +1,10 @@
+{
+  "native_source": "docs/audit/bf144/d100b3b3b1/gjk.native.json.gz",
+  "native_identity": "docs/audit/bf144/d100b3b3b1/native-identity.json",
+  "fixture": "docs/audit/bf144/d100b3b3b2b/gjk.native-samples.json",
+  "fixture_bytes": 37799,
+  "fixture_sha256": "50f9038914ed7311d48a7a031a458b74c127e768ac7709fda6d1c0e41bd18e3a",
+  "target": "src/als/settings/contact_gjk.rs",
+  "target_bytes": 39,
+  "target_sha256": "b4adf96aeda3ac262d04eab056d66bf6084321f9ea3de4f7fc4ba787f95c138f"
+}

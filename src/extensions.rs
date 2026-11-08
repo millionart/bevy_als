@@ -117,6 +117,8 @@ pub use query_collision::ComplexCollider;
 pub(crate) mod source_capsule_sweep;
 #[path = "avian_ext/source_contact_friction.rs"]
 pub(crate) mod source_contact_friction;
+#[path = "avian_ext/source_contact_gjk.rs"]
+pub(crate) mod source_contact_gjk;
 #[path = "avian_ext/source_contact_face.rs"]
 pub(crate) mod source_contact_face;
 #[path = "avian_ext/source_contact_history.rs"]
