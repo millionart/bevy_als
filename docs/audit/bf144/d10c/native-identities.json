@@ -1,0 +1,25 @@
+{
+  "asset": "Content/ALS/Character/B_Als_Character.uasset",
+  "asset_identity": {
+    "bytes": 261358,
+    "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+  },
+  "request": "docs/audit/bf144/d10c/edge.request.json",
+  "native_output": "docs/audit/bf144/d10c/edge.native.json.gz",
+  "raw": {
+    "bytes": 22737432,
+    "sha256": "2a9eec46a33cfe415828bb30cd52fa118b8a5aeb3480e19d120fbc4be9cefcf4"
+  },
+  "compressed": {
+    "bytes": 1391846,
+    "sha256": "b04e0b72548851d1fad9f5f2a520af8d07f5a393428a7f50c8471b18cab49099"
+  },
+  "reader_report": "docs/audit/bf144/d10c/edge.native.json.reader.report.json",
+  "upper_case": "docs/audit/bf144/d10a/native-identities.json",
+  "diagnostic_reader": {
+    "package_sha256": "fda7b1a921149b75a0212cfb7de2414d955aa161d19e01a88ccce009b98ffea5",
+    "source_sha256": "3caa20ebf96082a0f9750681c419b3116fdfc9e7e532cfab4542604d46967e72",
+    "build_instructions": "docs/audit/bf144/547/README.md",
+    "source_identity": "docs/audit/bf144/547/reader-source.json"
+  }
+}

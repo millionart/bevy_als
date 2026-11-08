@@ -4201,8 +4201,8 @@ fn apply_actual_stance(
     });
 }
 
-fn walking_step_slide_normal(delta: Vec3, normal: Vec3, floor_normal: Vec3, floor_distance: f32) -> Vec3 {
-    if normal.y > 0.0 && normal.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
+fn walking_step_slide_normal(delta: Vec3, normal: Vec3, impact_normal: Vec3, floor_normal: Vec3, floor_distance: f32) -> Vec3 {
+    if normal.y > 0.0 && impact_normal.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
         normal.with_y(0.0).normalize_or_zero()
     } else if normal.y < -1e-4 && floor_distance < MIN_FLOOR_DISTANCE {
         let selected = if delta.dot(floor_normal) < 0.0 && floor_normal.y < 1.0 - 1e-5 { floor_normal } else { normal };
@@ -4302,7 +4302,9 @@ fn grounded_movement_transaction(
             if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 { return Some(result); }
             let forward_travel = movement_sweep_travel(forward_config.max_distance, hit.distance);
             let advance = *direction * forward_travel;
-            let normal = walking_step_slide_normal(remaining_delta, hit.normal1, floor_normal, floor_distance);
+            let impact_normal = source_sweep_impact_normal(spatial_query, &hit, *direction * forward_config.max_distance,
+                raised, Quat::IDENTITY, capsule);
+            let normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
             let tail = remaining_delta - advance;
             let slide = tail - normal * tail.dot(normal);
             let mut progressed = advance;
@@ -5807,12 +5809,54 @@ mod tests {
         let opposed_floor = Vec3::new(-4.0_f32.to_radians().sin(), 4.0_f32.to_radians().cos(), 0.0);
         let following_floor = Vec3::new(-opposed_floor.x, opposed_floor.y, 0.0);
         let wall_flat = wall.with_y(0.0).normalize();
-        assert!(walking_step_slide_normal(Vec3::X, wall, Vec3::Y, 0.018).distance(wall_flat) < 1e-6);
-        assert_eq!(walking_step_slide_normal(Vec3::X, wall, Vec3::Y, 0.0215), wall);
-        assert!(walking_step_slide_normal(Vec3::X, wall, opposed_floor, 0.018).distance(Vec3::NEG_X) < 1e-6);
-        assert!(walking_step_slide_normal(Vec3::X, wall, following_floor, 0.018).distance(wall_flat) < 1e-6);
+        assert!(walking_step_slide_normal(Vec3::X, wall, wall, Vec3::Y, 0.018).distance(wall_flat) < 1e-6);
+        assert_eq!(walking_step_slide_normal(Vec3::X, wall, wall, Vec3::Y, 0.0215), wall);
+        assert!(walking_step_slide_normal(Vec3::X, wall, wall, opposed_floor, 0.018).distance(Vec3::NEG_X) < 1e-6);
+        assert!(walking_step_slide_normal(Vec3::X, wall, wall, following_floor, 0.018).distance(wall_flat) < 1e-6);
         let nearly_vertical = Vec3::new(-0.001, 0.9999995, 0.0);
-        assert!(walking_step_slide_normal(Vec3::X, wall, nearly_vertical, 0.018).distance(wall_flat) < 1e-6);
+        assert!(walking_step_slide_normal(Vec3::X, wall, wall, nearly_vertical, 0.018).distance(wall_flat) < 1e-6);
+    }
+
+    #[test]
+    fn walking_step_slide_uses_the_impact_face_for_positive_contact() {
+        for contact in [Vec3::new(-0.62927973, 0.77717894, 0.0), Vec3::new(-0.73775566, 0.67506796, 0.0)] {
+            assert_eq!(walking_step_slide_normal(Vec3::X, contact, Vec3::NEG_X, Vec3::Y, 0.0215), Vec3::NEG_X);
+            assert_eq!(walking_step_slide_normal(Vec3::X, contact, Vec3::Y, Vec3::Y, 0.0215), contact);
+        }
+    }
+
+    #[test]
+    fn step_up_uses_the_source_edge_face_under_both_ceilings() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (ceiling_bottom, expected_x) in [(4.07, -13.790219), (4.04, -13.821881)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            for (size, position) in [
+                (Vec3::new(4.0, 0.2, 4.0), Vec3::new(-15.0, 1.9, -15.0)),
+                (Vec3::new(0.02, 0.2, 0.02), Vec3::new(-13.855, 2.08, -14.73)),
+                (Vec3::new(1.0, 0.1, 1.0), Vec3::new(-14.65, ceiling_bottom + 0.05, -15.0)),
+                (Vec3::new(0.08, 0.43, 1.0), Vec3::new(-13.55, 2.215, -15.0)),
+            ] {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(size.x, size.y, size.z),
+                    Transform::from_translation(position)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Vec3::new(-13.98, 2.9215, -15.0), Quat::IDENTITY, 0.9, 0.3, Vec3::X * 0.3125,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, actor, &candidates, &permissions)
+            }).unwrap().unwrap();
+            let movement = result.1.expect("Source StepUp must commit the forward movement");
+            assert!(result.4 && result.2.is_some(), "ceiling={ceiling_bottom} result={result:?}");
+            assert!(movement.y.abs() < 1e-5, "ceiling={ceiling_bottom} movement={movement:?}");
+            assert!((result.0.x + movement.x - expected_x).abs() < 0.002,
+                "ceiling={ceiling_bottom} result={result:?} source_x={expected_x}");
+        }
     }
 
     #[test]
