@@ -112,7 +112,7 @@ pub(crate) mod tests {
                 LocomotionState::Grounded, Stance::Standing, AlsViewYaw(0.3),
                 Transform::from_rotation(Quat::from_rotation_y(0.7)), LinearVelocity(Vec3::X * 4.0),
                 AlsInputCommand::default(), crate::als::air::AlsPreImpactVelocity { last_air_vertical_velocity: -8.0 },
-                crate::actual_motion::AlsActualMotion { horizontal_speed: speed,
+                crate::actual_motion::AlsActualMotion { world_velocity: Vec3::NEG_Y * 8.0, horizontal_speed: speed,
                     velocity_yaw_degrees: yaw.to_degrees(), ..default() })).id();
             world.resource_mut::<Messages<crate::als::transition::StateTransitionEvent>>().write(
                 crate::als::transition::StateTransitionEvent { entity: actor,
@@ -140,7 +140,8 @@ pub(crate) mod tests {
                 let actor = world.spawn((crate::als::character::AlsCharacter, AlsRollState::default(),
                     LocomotionState::Air, Stance::Standing, AlsViewYaw::default(), Transform::IDENTITY,
                     LinearVelocity(Vec3::NEG_Z * 3.75), AlsAirState::default(), AlsInputCommand::default(),
-                    crate::als::air::AlsPreImpactVelocity { last_air_vertical_velocity: -speed })).id();
+                    crate::als::air::AlsPreImpactVelocity { last_air_vertical_velocity: -speed },
+                    crate::actual_motion::AlsActualMotion { world_velocity: Vec3::NEG_Y * speed, ..default() })).id();
                 if landed {
                     world.resource_mut::<Messages<StateTransitionEvent>>().write(StateTransitionEvent {
                         entity: actor, dimension: Dimension::LocomotionState,
@@ -151,6 +152,51 @@ pub(crate) mod tests {
                 assert_eq!(world.get::<AlsRollState>(actor).unwrap().active, landed && speed >= 7.0,
                     "Source automatic Roll follows the landing callback and retained impact speed");
             }
+        }
+    }
+
+    #[test]
+    fn landing_roll_uses_the_retained_character_velocity() {
+        use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
+        for (retained, current, expected) in [(3.0_f32, 8.0_f32, false), (8.0, 3.0, true),
+            (3.0, 3.0, false), (8.0, 8.0, true), (7.0, 3.0, true)] {
+            let mut world = World::new();
+            world.init_resource::<Messages<StateTransitionEvent>>();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(0.02));
+            world.insert_resource(time);
+            let actor = world.spawn((crate::als::character::AlsCharacter, AlsRollState::default(),
+                LocomotionState::Grounded, Stance::Standing, AlsViewYaw::default(), Transform::IDENTITY,
+                AlsInputCommand::default(), LinearVelocity(Vec3::NEG_Y * current),
+                crate::als::air::AlsPreImpactVelocity { last_air_vertical_velocity: -current },
+                crate::actual_motion::AlsActualMotion { world_velocity: Vec3::NEG_Y * retained, ..default() })).id();
+            world.resource_mut::<Messages<StateTransitionEvent>>().write(StateTransitionEvent { entity: actor,
+                dimension: Dimension::LocomotionState, from: StateValue::LocomotionState(LocomotionState::Air),
+                to: StateValue::LocomotionState(LocomotionState::Grounded) });
+            world.run_system_once(advance_rolls).unwrap();
+            assert_eq!(world.get::<AlsRollState>(actor).unwrap().active, expected,
+                "retained={retained} current={current}");
+        }
+    }
+
+    #[test]
+    fn loaded_landing_roll_uses_the_pre_movement_snapshot() {
+        for (retained, current, expected) in [(3.0_f32, 8.0_f32, false), (8.0, 3.0, true),
+            (3.0, 3.0, false), (8.0, 8.0, true)] {
+            let (mut app, actor, _) = loaded_roll_character();
+            let start = Vec3::Y * 0.94;
+            app.world_mut().entity_mut(actor).insert((avian3d::prelude::Position(start), Transform::from_translation(start),
+                LocomotionState::Air, LinearVelocity(Vec3::NEG_Y * current), bevy_tnua::TnuaMotor::default(), AlsRollState::default(),
+                crate::als::character::AlsEffectiveGravity { value: Vec3::NEG_Y * 9.81, ..default() },
+                crate::als::character::AlsCmcAdapterRuntime::default(),
+                crate::als::air::AlsPreImpactVelocity { last_air_vertical_velocity: -current },
+                crate::actual_motion::AlsActualMotion { world_velocity: Vec3::NEG_Y * retained, ..default() }));
+            app.world_mut().get_mut::<bevy_tnua::TnuaController<crate::als::control_scheme::AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(crate::als::motion::cmc_movement_transaction_system).unwrap();
+            app.world_mut().run_system_once(advance_rolls).unwrap();
+            assert_eq!(app.world().get::<AlsRollState>(actor).unwrap().active, expected,
+                "retained={retained} current={current}");
         }
     }
 
@@ -2125,7 +2171,6 @@ fn advance_rolls(
     transform_helper: bevy::transform::helper::TransformHelper,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut mode_changes: MessageReader<crate::als::transition::StateTransitionEvent>,
-    pre_impacts: Query<&crate::als::air::AlsPreImpactVelocity>,
     blocked: Query<(), With<crate::als::motion::AlsMovementInputBlocked>>,
     actions: Query<&crate::animation_events::AlsNotifyLocomotionAction>,
     mut blend_outs: Query<&mut AlsRollBlendOut>,
@@ -2184,8 +2229,7 @@ fn advance_rolls(
         let previous_roll = *roll;
         let landed = landings.contains(&character);
         let landing_speed = if landed {
-            pre_impacts.get(character).map_or_else(|_| air.map_or(0.0, |air| air.last_impact_vy),
-                |record| (-record.last_air_vertical_velocity).max(0.0))
+            motion.map_or(0.0, |state| (-state.world_velocity.y).max(0.0))
         } else { air.map_or(0.0, |air| air.last_impact_vy) };
         let landing_ready = (landed || (*loco == LocomotionState::Grounded
             && air.is_some_and(|air| air.landing_time <= dt.max(0.05))))

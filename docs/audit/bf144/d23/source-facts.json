@@ -1,0 +1,47 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/MovementComponent.cpp",
+      "sha256": "86a3a43b4bfa0dede657294303f126893e8518d474db217c282a9b4bf6a6f3ba",
+      "excerpts": [
+        {
+          "first_line": 26,
+          "last_line": 38,
+          "text": "\t: Super(ObjectInitializer)\n{\n\tPrimaryComponentTick.TickGroup = TG_PrePhysics;\n\tPrimaryComponentTick.bCanEverTick = true;\n\n\tMoveComponentFlags = MOVECOMP_NoFlags;\n\n\tbUpdateOnlyIfRendered = false;\n\tbAutoUpdateTickRegistration = true;\n\tbTickBeforeOwner = true;\n\tbAutoRegisterUpdatedComponent = true;\n\tbAutoRegisterPhysicsVolumeUpdates = true;\n\tbComponentShouldUpdatePhysicsVolume = false;\n"
+        },
+        {
+          "first_line": 180,
+          "last_line": 191,
+          "text": "\n\t// Super may start up the tick function when we don't want to.\n\tUpdateTickRegistration();\n\n\t// If the owner ticks, make sure we tick first\n\tAActor* Owner = GetOwner();\n\tif (bTickBeforeOwner && bRegister && PrimaryComponentTick.bCanEverTick && Owner && Owner->CanEverTick())\n\t{\n\t\tOwner->PrimaryActorTick.AddPrerequisite(this, PrimaryComponentTick);\n\t}\n}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 2868,
+          "last_line": 2888,
+          "text": "\t\tOldVelocity = Velocity;\n\t\tOldLocation = UpdatedComponent->GetComponentLocation();\n\n\t\tApplyAccumulatedForces(DeltaSeconds);\n\n\t\t// Update the character state before we do our movement\n\t\tUpdateCharacterStateBeforeMovement(DeltaSeconds);\n\n\t\tif (MovementMode == MOVE_NavWalking && bWantsToLeaveNavWalking)\n\t\t{\n\t\t\tTryToLeaveNavWalking();\n\t\t}\n\n\t\t// Character::LaunchCharacter() has been deferred until now.\n\t\tHandlePendingLaunch();\n\t\tClearAccumulatedForces();\n\n#if ROOT_MOTION_DEBUG\n\t\tif (RootMotionSourceDebug::CVarDebugRootMotionSources.GetValueOnGameThread() == 1)\n\t\t{\n\t\t\tif (OldVelocity != Velocity)\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacter.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+      "excerpts": [
+        {
+          "first_line": 505,
+          "last_line": 530,
+          "text": "void AAlsCharacter::NotifyLocomotionModeChanged(const FGameplayTag PreviousLocomotionMode)\r\n{\r\n\tApplyDesiredStance();\r\n\r\n\tif (LocomotionMode == AlsLocomotionModeTags::Grounded &&\r\n\t    PreviousLocomotionMode == AlsLocomotionModeTags::InAir)\r\n\t{\r\n\t\tif (Settings->Ragdolling.bStartRagdollingOnLand &&\r\n\t\t    LocomotionState.Velocity.Z <= -Settings->Ragdolling.RagdollingOnLandSpeedThreshold)\r\n\t\t{\r\n\t\t\tStartRagdolling();\r\n\t\t}\r\n\t\telse if (Settings->Rolling.bStartRollingOnLand &&\r\n\t\t         LocomotionState.Velocity.Z <= -Settings->Rolling.RollingOnLandSpeedThreshold)\r\n\t\t{\r\n\t\t\tstatic constexpr auto PlayRate{1.3f};\r\n\r\n\t\t\tStartRolling(LocomotionState.bHasVelocity\r\n\t\t\t\t             ? LocomotionState.VelocityYawAngle\r\n\t\t\t\t             : UE_REAL_TO_FLOAT(FMath::UnwindDegrees(GetActorRotation().Yaw)),\r\n\t\t\t             PlayRate);\r\n\t\t}\r\n\t\telse\r\n\t\t{\r\n\t\t\t// Increase friction for a short period of time to prevent sliding on the ground after landing.\r\n\r\n"
+        },
+        {
+          "first_line": 1371,
+          "last_line": 1383,
+          "text": "\r\nvoid AAlsCharacter::RefreshLocomotion()\r\n{\r\n\tconst auto bHadVelocity{LocomotionState.bHasVelocity};\r\n\r\n\tLocomotionState.Velocity = GetVelocity();\r\n\r\n\t// Determine if the character is moving by getting its speed. The speed equals the length\r\n\t// of the horizontal velocity, so it does not take vertical movement into account. If the\r\n\t// character is moving, update the last velocity rotation. This value is saved because it might\r\n\t// be useful to know the last orientation of a movement even after the character has stopped.\r\n\r\n\tLocomotionState.Speed = UE_REAL_TO_FLOAT(LocomotionState.Velocity.Size2D());\r\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "frame": 40,
+  "cases": {
+    "retained-3-current-8": {
+      "retained_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -316.35000085271895
+      },
+      "current_velocity_before_tick_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -800
+      },
+      "landed_events": 1,
+      "playing_roll_sequences": []
+    },
+    "retained-8-current-3": {
+      "retained_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -816.350000852719
+      },
+      "current_velocity_before_tick_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -300
+      },
+      "landed_events": 1,
+      "playing_roll_sequences": [
+        "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+      ]
+    },
+    "retained-3-current-3": {
+      "retained_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -316.35000085271895
+      },
+      "current_velocity_before_tick_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -300
+      },
+      "landed_events": 1,
+      "playing_roll_sequences": []
+    },
+    "retained-8-current-8": {
+      "retained_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -816.350000852719
+      },
+      "current_velocity_before_tick_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": -800
+      },
+      "landed_events": 1,
+      "playing_roll_sequences": [
+        "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll"
+      ]
+    }
+  }
+}

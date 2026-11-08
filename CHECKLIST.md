@@ -5879,7 +5879,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧速度回归以较大运动量或全零为输入，未覆盖这个源厘米平方阈值。实际影响为亚毫米每秒残余漂移，优先级P3；只登记，不扩大其他近零阈值调整。
   - 556 原生双子步实证：60ms无输入空中，单轴0.20mm/s及双轴各0.22mm/s只首30ms推进并清水平速度；双轴各0.23mm/s合速越阈，两步保留。目标低速两案实际两步及帧末残速仍在，逐步F32位置复算精确。证据 `docs/audit/bf144/556/`。
 
-- [ ] BF144-D23 / P2 — 落地滚翻启动读取本帧物理速度，偏离源保留的Character速度快照。
+- [x] BF144-D23 / P2 — 落地滚翻启动读取本帧物理速度，偏离源保留的Character速度快照；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:41 +08:00；预估结束15:26 +08:00；实际结束14:45 +08:00，提前41分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE/ALS时序源及四组原生落地/montage交叉读数保存在`docs/audit/bf144/d23/`；Roll启动消费retained snapshot，保留其他pre-impact记录及无事件回退，已写交叉/阈值和加载角色事务对照，目标测试与真实Gate尚未执行。
   - Source：fresh `MovementComponent.cpp:35,186–188`让CMC先于owner Tick；ALS `NotifyLocomotionModeChanged:518–527`用LocomotionState.Velocity判断滚翻，该值直到后续`RefreshLocomotion:1376`才刷新。UE `PerformMovement:2871–2885`的外力/launch可在当前CMC运动前改变实际velocity，而不回写这个角色快照。
   - Target：`src/als/character/movement/motion.rs:3697–3701`的落地仲裁读AlsActualMotion快照；`state/air.rs:337–344`另记录本帧LinearVelocity，`character/actions/roll_drive.rs:2185–2193`却用后者决定是否真正启动Roll，两个消费者不一致。
   - 反例：完整角色从0.94m中心高落地，保留下降速度3m/s而当前速度被更新为8m/s时，source应普通落地，target启动Roll；保留8m/s而当前3m/s时，source应Roll，target没有启动。两份速度相同的3/3、8/8对照PASS。`bf144_landing_roll_uses_retained_character_velocity`共4组2PASS/2FAIL，证据`target/bf144/07/retained_velocity/`。
