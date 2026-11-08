@@ -2641,6 +2641,47 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    fn ragdoll_exit_standing_clearance_ignores_its_own_rig() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+        use crate::als::state::AlsNotifyLocomotionAction;
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, _) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = Stance::Crouching;
+        for _ in 0..6 { app.update(); }
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
+        app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..90 { app.update(); }
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+        let ragdoll = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+        let own = ragdoll.bodies.values().chain(ragdoll.colliders.values()).copied().collect::<Vec<_>>();
+        app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = Stance::Standing;
+        app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+        app.world_mut().run_system_once(crate::ragdoll_link::ragdoll_exit_route_system).unwrap();
+        app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::GettingUp);
+        let own_hit = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            transforms: bevy::transform::helper::TransformHelper,
+            params_assets: Res<Assets<AlsMovementParams>>, handles: Query<&AlsMovementParamsHandle>| {
+            let world = transforms.compute_global_transform(actor).unwrap();
+            let scale = world.to_scale_rotation_translation().0;
+            let params = params_assets.get(handles.get(actor).unwrap().id()).unwrap();
+            let (current_half, _) = capsule_dimensions(params, Stance::Crouching);
+            let (standing_half, radius) = capsule_dimensions(params, Stance::Standing);
+            let capsule = als_character_capsule(current_half * scale.y
+                + (standing_half - current_half) * scale.abs().min_element() + STAND_UP_SWEEP_INFLATION,
+                radius * scale.x.min(scale.z));
+            let center = capsule_center_for_stance(params, world.translation(), Stance::Crouching,
+                Stance::Standing, scale.abs().min_element()) + Vec3::Y * STAND_UP_SWEEP_INFLATION;
+            spatial.shape_intersections(&capsule, center, Quat::IDENTITY, &SpatialQueryFilter::from_excluded_entities([actor]))
+                .into_iter().any(|hit| own.contains(&hit))
+        }).unwrap();
+        assert!(own_hit, "The standing query must overlap an active owned ragdoll collider");
+        app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Standing);
+    }
+
+    #[test]
     fn jump_chain_keeps_the_source_priority_order() {
         assert_eq!(
             jump_chain(true, Stance::Crouching, true),
@@ -4295,6 +4336,7 @@ pub(crate) type ReshapeQueryItem<'a> = (
     &'a AlsMovementParamsHandle,
     Has<CapsuleReshapeDeferred>,
     &'a mut AlsCrouchTransaction,
+    Option<&'a crate::character_assembly::AlsCharacterAssembly>,
 );
 
 pub(crate) fn capsule_reshape_system(
@@ -4305,6 +4347,8 @@ pub(crate) fn capsule_reshape_system(
     transforms: bevy::transform::helper::TransformHelper,
     mut q: Query<ReshapeQueryItem, With<AlsCharacter>>,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    avatars: Query<(&crate::character_assembly::AlsCharacterAvatar, &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
+    players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
 ) {
     for (
         entity,
@@ -4319,6 +4363,7 @@ pub(crate) fn capsule_reshape_system(
         handle,
         already_deferred,
         mut transaction,
+        assembly,
     ) in &mut q
     {
         let Some(params) = params_assets.get(handle.id()) else {
@@ -4357,12 +4402,22 @@ pub(crate) fn capsule_reshape_system(
             continue;
         }
         let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue; };
+        let mut excluded = vec![entity];
+        if target == Stance::Standing {
+            if let Some(ragdoll) = crate::ragdoll_link::animated_player_for_character(entity, assembly, &avatars)
+                .and_then(|player| players.get(player).ok())
+                .and_then(|player| player.get_spawned_ragdoll()) {
+                excluded.extend(ragdoll.bodies.values().copied());
+                excluded.extend(ragdoll.colliders.values().copied());
+            }
+        }
         apply_capsule_for_stance(
             &mut commands,
             &spatial_query,
             &candidates,
             params,
             entity,
+            &excluded,
             target,
             *locomotion,
             &mut stance,
@@ -4383,6 +4438,7 @@ fn apply_capsule_for_stance(
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     params: &AlsMovementParams,
     entity: Entity,
+    excluded: &[Entity],
     target: Stance,
     locomotion: LocomotionState,
     stance: &mut Stance,
@@ -4429,7 +4485,7 @@ fn apply_capsule_for_stance(
             transaction.crouch_applied(half_height, radius, target_center);
         }
         Stance::Standing => {
-            let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+            let filter = SpatialQueryFilter::from_excluded_entities(excluded.iter().copied());
             let (standing_half, radius) = capsule_dimensions(params, Stance::Standing);
             let (current_half, _) = capsule_dimensions(params, *stance);
             let standing_capsule = als_character_capsule(current_half * scale.y

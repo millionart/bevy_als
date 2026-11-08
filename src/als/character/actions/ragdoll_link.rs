@@ -311,7 +311,7 @@ impl AlsRagdollStartEligibility<'_, '_> {
     }
 }
 
-fn animated_player_for_character(
+pub(crate) fn animated_player_for_character(
     character: Entity,
     assembly: Option<&AlsCharacterAssembly>,
     avatars: &Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,

@@ -6279,10 +6279,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`get_up.rs:177–181`直接写GettingUp；`capsule_reshape_system:3299–3317`仅轮询当前action，GettingUp生效后不再消费Ragdoll期间积累的desired stance，未保留None阶段的源副作用。
   - 反例：实际Ragdoll退出前，Standing期望Crouching或反向，允许的GetUp先于capsule reshape顺序均保留旧姿态/半高0.9或0.56m；先让reshape看到None则正确应用。16组交接矩阵中此根因对应4处FAIL，包含rig碰撞已先清除的控制，排除D69干扰；相同期望姿态8组通过。`bf144_ragdoll_lifecycle_exit_applies_pending_desired_stance`，证据`20/stance_order/`；旧单动作姿态测试遗漏同帧None→GettingUp。
 
-- [ ] BF144-D69 / P2 — Ragdoll退出的站立净空查询把自身rig当作障碍。
+- [x] BF144-D69 / P2 — Ragdoll退出的站立净空查询把自身rig当作障碍。
+  - 本轮开始：2026-11-08 19:09 +08:00；预计结束：2026-11-08 19:54 +08:00。按现有姿态事务与PA读取闭包处理；先核对UE角色忽略规则，再修正净空过滤并补最小反例，统一验证留到升级后。
   - Source：fresh UE `UnCrouch:3391–3393`以CharacterOwner构造CapsuleParams，忽略整个本角色；Ragdoll的mesh仍属于该actor。ALS退出也先恢复mesh/capsule查询，再交给CMC执行待处理站立。
   - Target：`apply_capsule_for_stance:3375–3384`只排除actor实体，`character_blocks_collider:3840–3842`只识别同一capsule body；独立rig body没有被当作角色自身排除。`ragdoll_link_system`的rig layer停用与reshape未定序，旧rig仍可参与这次净空查询。
   - 反例：Crouching Ragdoll期望Standing，GettingUp尚未阻止reshape时，净空查询命中的阻挡全部是本角色thigh_l/r、pelvis、spine_01/02/03，导致仍为Crouching；只把rig layer停用排在查询前，阻挡为空并正确Standing。与D68同一16组矩阵中这是一处独立FAIL，反向缩小胶囊不受影响；证据包含实际阻挡归属。未修改普通Crouch实现或物理profile。
+  - 19:13 source/static摘要：fresh UE `UnCrouch`、查询参数构造及ALS停止Ragdoll链路已读取；fresh PA 原生结果与已跟踪证据逐字节相同。站立净空及其落地补查排除当前绑定rig的body/collider，新增加载角色自身重叠反例并保留顶棚阻挡控制；旧反例缓存缺失，D70通道响应、测试、消融和真实入口均待统一验证。证据`docs/audit/bf144/d69/`。实际结束：2026-11-08 19:13 +08:00；偏差：−41分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D70 / P2 — 活动Ragdoll没有保留mesh对Pawn的Ignore响应。
   - Source：fresh B_Als_Character CharacterMesh的Pawn/Visibility/Vehicle为Ignore；`BodyInstance.cpp:4789–4819`把PA body响应与当前mesh响应取Min，`StartRagdollingImplementation`仅将mesh object改为PhysicsBody、启用QueryAndPhysics，Pawn仍Ignore。普通Pawn胶囊对该mesh的移动/净空查询以及物理接触都应忽略。
