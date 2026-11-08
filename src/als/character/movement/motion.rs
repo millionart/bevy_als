@@ -4210,7 +4210,7 @@ fn walking_step_slide_normal(delta: Vec3, normal: Vec3, impact_normal: Vec3, flo
     } else { normal }
 }
 
-fn walking_two_wall_adjust(delta: Vec3, normal: Vec3, previous: Vec3, remaining: f32, floor_distance: f32) -> Vec3 {
+fn walking_two_wall_adjust(delta: Vec3, normal: Vec3, impact: Vec3, previous: Vec3, remaining: f32, floor_distance: f32) -> Vec3 {
     let dot = previous.dot(normal);
     let mut adjusted = if dot <= 0.0 {
         let crease = normal.cross(previous).normalize_or_zero();
@@ -4223,7 +4223,7 @@ fn walking_two_wall_adjust(delta: Vec3, normal: Vec3, previous: Vec3, remaining:
         else { result }
     };
     if adjusted.y > 0.0 {
-        if normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos() && normal.y > 1e-4 {
+        if (normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos() || impact.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) && normal.y > 1e-4 {
             let up = adjusted.normalize_or_zero().y * delta.length() / normal.y;
             adjusted = (delta.with_y(0.0) + Vec3::Y * up) * remaining;
             if adjusted.y > MAX_STEP_HEIGHT { adjusted *= MAX_STEP_HEIGHT / adjusted.y; }
@@ -4243,15 +4243,29 @@ fn ground_ramp_movement(delta: Vec3, contact: Vec3, impact: Vec3, line: bool) ->
     } else { delta }
 }
 
-fn walking_first_slide_sweep(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3,
-    delta: Vec3, normal: Vec3, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool) -> Vec3 {
+fn walking_slide_sweep(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3,
+    delta: Vec3, normal: Vec3, floor_distance: f32, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool) -> Option<Vec3> {
     let slide = delta - normal * delta.dot(normal);
-    if slide.dot(delta) <= 0.0 { return Vec3::ZERO; }
-    let Ok((direction, distance)) = Dir3::new_and_length(slide) else { return Vec3::ZERO };
+    if slide.dot(delta) <= 0.0 { return Some(Vec3::ZERO); }
+    let Ok((direction, distance)) = Dir3::new_and_length(slide) else { return Some(Vec3::ZERO) };
     let config = ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) };
     let hit = spatial.cast_shape_predicate(capsule, origin, Quat::IDENTITY, direction, &config, filter, accepts);
+    if hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { return None; }
     let travel = hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
-    *direction * travel
+    let mut progress = *direction * travel;
+    if let Some(hit) = hit {
+        let impact = source_sweep_impact_normal(spatial, &hit, slide, origin, Quat::IDENTITY, capsule);
+        let adjusted = walking_two_wall_adjust(slide, hit.normal1, impact, normal, 1.0 - travel / distance, floor_distance);
+        if adjusted.abs().max_element() > 1e-5 && adjusted.dot(delta) > 0.0
+            && let Ok((next_direction, next_distance)) = Dir3::new_and_length(adjusted) {
+            let next_config = ShapeCastConfig { max_distance: next_distance, ..config };
+            let next = spatial.cast_shape_predicate(capsule, origin + progress, Quat::IDENTITY,
+                next_direction, &next_config, filter, accepts);
+            let travel = next.map_or(next_distance, |hit| movement_sweep_travel(next_distance, hit.distance));
+            progress += *next_direction * travel;
+        }
+    }
+    Some(progress)
 }
 
 fn grounded_movement_transaction(
@@ -4331,7 +4345,8 @@ fn grounded_movement_transaction(
             let (floor_normal, floor_distance) = floor.map_or((Vec3::Y, f32::INFINITY),
                 |floor| (floor.hit.normal1, floor.sweep_distance));
             let slide_normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
-            result.1 = Some(walking_first_slide_sweep(spatial_query, capsule, raised, remaining_delta, slide_normal, &filter, &accepts));
+            result.1 = Some(walking_slide_sweep(spatial_query, capsule, raised, remaining_delta, slide_normal, floor_distance, &filter, &accepts)
+                .unwrap_or(Vec3::ZERO));
             result.5 = true;
             if !can_step_up(hit.entity) {
                 return Some(result);
@@ -4358,36 +4373,10 @@ fn grounded_movement_transaction(
                 let impact_normal = source_sweep_impact_normal(spatial_query, &hit, *step_direction * forward_config.max_distance,
                     raised, Quat::IDENTITY, capsule);
                 let normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
-                let tail = remaining_delta - advance;
-                let slide = tail - normal * tail.dot(normal);
-                let mut progressed = advance;
-                let mut had_progress = forward_travel > 0.0;
-                if slide.dot(remaining_delta) > 0.0 && let Ok((slide_direction, slide_distance)) = Dir3::new_and_length(slide) {
-                    let slide_config = ShapeCastConfig { max_distance: slide_distance, ..forward_config };
-                    let slide_hit = spatial_query.cast_shape_predicate(capsule, raised + advance, Quat::IDENTITY,
-                        slide_direction, &slide_config, &filter, &accepts);
-                    if slide_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { return Some(result); }
-                    let slide_travel = slide_hit.map_or(slide_distance,
-                        |hit| movement_sweep_travel(slide_distance, hit.distance));
-                    progressed += *slide_direction * slide_travel;
-                    had_progress |= slide_travel > 0.0;
-                    if let Some(second) = slide_hit {
-                        let adjusted = walking_two_wall_adjust(slide, second.normal1, normal,
-                            1.0 - slide_travel / slide_distance, floor_distance);
-                        if adjusted.abs().max_element() > 1e-5 && adjusted.dot(remaining_delta) > 0.0
-                            && let Ok((next_direction, next_distance)) = Dir3::new_and_length(adjusted) {
-                            let next_config = ShapeCastConfig { max_distance: next_distance, ..forward_config };
-                            let next_hit = spatial_query.cast_shape_predicate(capsule, raised + progressed, Quat::IDENTITY,
-                                next_direction, &next_config, &filter, &accepts);
-                            let next_travel = next_hit.map_or(next_distance,
-                                |hit| movement_sweep_travel(next_distance, hit.distance));
-                            progressed += *next_direction * next_travel;
-                            had_progress |= next_travel > 0.0;
-                        }
-                    }
-                }
-                if !had_progress { return Some(result); }
-                remaining_delta = progressed;
+                let Some(slide) = walking_slide_sweep(spatial_query, capsule, raised + advance,
+                    remaining_delta - advance, normal, floor_distance, &filter, &accepts) else { return Some(result) };
+                if forward_travel == 0.0 && slide.length_squared() == 0.0 { return Some(result); }
+                remaining_delta = advance + slide;
             }
         }
     }
@@ -6155,14 +6144,48 @@ mod tests {
     fn walking_two_wall_adjust_preserves_source_projection_and_ground_limits() {
         let first = Vec3::NEG_X;
         let obtuse = Vec3::new(-0.5, 0.0, -3.0_f32.sqrt() * 0.5);
-        let result = walking_two_wall_adjust(Vec3::Z * 0.2, obtuse, first, 0.5, 0.0215);
+        let result = walking_two_wall_adjust(Vec3::Z * 0.2, obtuse, obtuse, first, 0.5, 0.0215);
         assert!(result.distance(Vec3::new(-0.04330127, 0.0, 0.025)) < 1e-6);
-        let repeated = walking_two_wall_adjust(Vec3::Z * 0.2, first, first, 0.5, 0.0215);
+        let repeated = walking_two_wall_adjust(Vec3::Z * 0.2, first, first, first, 0.5, 0.0215);
         assert!(repeated.distance(Vec3::new(-0.0001, 0.0, 0.1)) < 1e-6);
         let acute = Vec3::new(0.5, 0.0, -3.0_f32.sqrt() * 0.5);
-        assert!(walking_two_wall_adjust(Vec3::NEG_Y * 0.1, acute, first, 0.5, 0.0215)
+        assert!(walking_two_wall_adjust(Vec3::NEG_Y * 0.1, acute, acute, first, 0.5, 0.0215)
             .distance(Vec3::NEG_Y * 0.05) < 1e-6);
-        assert_eq!(walking_two_wall_adjust(Vec3::NEG_Y * 0.1, acute, first, 0.5, 0.018), Vec3::ZERO);
+        assert_eq!(walking_two_wall_adjust(Vec3::NEG_Y * 0.1, acute, acute, first, 0.5, 0.018), Vec3::ZERO);
+    }
+
+    #[test]
+    fn two_wall_adjust_uses_the_walkable_impact_face() {
+        let normal = Vec3::new(-0.8, 0.6, 0.0);
+        let walkable = walking_two_wall_adjust(Vec3::X * 0.2, normal, Vec3::Y, Vec3::Z, 0.5, 0.0215);
+        let steep = walking_two_wall_adjust(Vec3::X * 0.2, normal, normal, Vec3::Z, 0.5, 0.0215);
+        assert!(walkable.y > 0.1, "walkable={walkable:?}");
+        assert_eq!(steep.y, 0.0);
+    }
+
+    #[test]
+    fn two_wall_slide_sweeps_the_adjusted_direction_against_a_third_wall() {
+        use bevy::ecs::system::RunSystemOnce;
+        for third_wall in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 2.0, 0.1),
+                Transform::from_xyz(0.0, 1.0, -0.6).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4))));
+            if third_wall {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 2.0, 4.0), Transform::from_xyz(-0.5, 1.0, 0.0)));
+            }
+            app.update();
+            app.update();
+            let progress = app.world_mut().run_system_once(|spatial: SpatialQuery| {
+                walking_slide_sweep(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y,
+                    Vec3::new(1.0, 0.0, -1.0), Vec3::NEG_X, 0.0215,
+                    &SpatialQueryFilter::default(), &|_| true).unwrap()
+            }).unwrap();
+            assert!(progress.z < -0.2, "third_wall={third_wall} progress={progress:?}");
+            if third_wall { assert!(progress.x >= -0.1501 && progress.x < -0.1, "progress={progress:?}"); }
+            else { assert!(progress.x < -0.3, "progress={progress:?}"); }
+        }
     }
 
     #[test]
