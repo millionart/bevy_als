@@ -4519,7 +4519,8 @@ fn ground_ramp_movement(delta: Vec3, contact: Vec3, impact: Vec3, line: bool) ->
 }
 
 fn walking_slide_sweep(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3,
-    delta: Vec3, normal: Vec3, floor_distance: f32, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool) -> Option<Vec3> {
+    delta: Vec3, normal: Vec3, floor_distance: f32, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool,
+    mut impacts: Option<&mut Vec<(ShapeHitData, Vec3)>>) -> Option<Vec3> {
     let slide = delta - normal * delta.dot(normal);
     if slide.dot(delta) <= 0.0 { return Some(Vec3::ZERO); }
     let Ok((direction, distance)) = Dir3::new_and_length(slide) else { return Some(Vec3::ZERO) };
@@ -4530,12 +4531,17 @@ fn walking_slide_sweep(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3,
     let mut progress = *direction * travel;
     if let Some(hit) = hit {
         let impact = source_sweep_impact_normal(spatial, &hit, slide, origin, Quat::IDENTITY, capsule);
+        if let Some(impacts) = impacts.as_deref_mut() { impacts.push((hit, impact)); }
         let adjusted = walking_two_wall_adjust(slide, hit.normal1, impact, normal, 1.0 - travel / distance, floor_distance);
         if adjusted.abs().max_element() > 1e-5 && adjusted.dot(delta) > 0.0
             && let Ok((next_direction, next_distance)) = Dir3::new_and_length(adjusted) {
             let next_config = ShapeCastConfig { max_distance: next_distance, ..config };
             let next = spatial.cast_shape_predicate(capsule, origin + progress, Quat::IDENTITY,
                 next_direction, &next_config, filter, accepts);
+            if let Some(hit) = next && let Some(impacts) = impacts.as_deref_mut() {
+                let impact = source_sweep_impact_normal(spatial, &hit, adjusted, origin + progress, Quat::IDENTITY, capsule);
+                impacts.push((hit, impact));
+            }
             let travel = next.map_or(next_distance, |hit| movement_sweep_travel(next_distance, hit.distance));
             progress += *next_direction * travel;
         }
@@ -4560,6 +4566,7 @@ fn grounded_movement_transaction(
     mut impact_context: Option<(&mut Messages<SourceCharacterImpact>, Vec3, Vec3, f32)>,
 ) -> Option<(Vec3, Option<Vec3>, Option<f32>, bool, bool, bool)> {
     let mut pending_step_impact = None;
+    let mut pending_fallback_impacts = Vec::new();
     let outcome = (|| {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
@@ -4631,14 +4638,18 @@ fn grounded_movement_transaction(
             let (floor_normal, floor_distance) = floor.map_or((Vec3::Y, f32::INFINITY),
                 |floor| (floor.hit.normal1, floor.sweep_distance));
             let slide_normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
-            result.1 = Some(walking_slide_sweep(spatial_query, capsule, raised, remaining_delta, slide_normal, floor_distance, &filter, &accepts)
+            let mut fallback_impacts = Vec::new();
+            result.1 = Some(walking_slide_sweep(spatial_query, capsule, raised, remaining_delta, slide_normal, floor_distance,
+                &filter, &accepts, Some(&mut fallback_impacts))
                 .unwrap_or(Vec3::ZERO));
             result.5 = true;
             if !can_step_up(hit.entity) {
                 record_ground_impact(&mut impact_context, &hit, impact_normal);
+                for (hit, normal) in fallback_impacts { record_ground_impact(&mut impact_context, &hit, normal); }
                 return Some(result);
             }
             pending_step_impact = Some((hit, impact_normal));
+            pending_fallback_impacts = fallback_impacts;
             if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
                 return Some(result);
             }
@@ -4661,7 +4672,8 @@ fn grounded_movement_transaction(
                 let advance = *step_direction * forward_travel;
                 let impact_normal = source_sweep_impact_normal(spatial_query, &hit, *step_direction * forward_config.max_distance,
                     raised, Quat::IDENTITY, capsule);
-                if !up_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) {
+                let step_impacts_enabled = !up_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0);
+                if step_impacts_enabled {
                     if let Some(up_hit) = up_hit {
                         let normal = source_sweep_impact_normal(spatial_query, &up_hit, Vec3::Y * up_config.max_distance,
                             up_origin, Quat::IDENTITY, capsule);
@@ -4670,8 +4682,13 @@ fn grounded_movement_transaction(
                     record_ground_impact(&mut impact_context, &hit, impact_normal);
                 }
                 let normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
+                let mut step_slide_impacts = Vec::new();
                 let Some(slide) = walking_slide_sweep(spatial_query, capsule, raised + advance,
-                    remaining_delta - advance, normal, floor_distance, &filter, &accepts) else { return Some(result) };
+                    remaining_delta - advance, normal, floor_distance, &filter, &accepts,
+                    Some(&mut step_slide_impacts)) else { return Some(result) };
+                if step_impacts_enabled {
+                    for (hit, normal) in step_slide_impacts { record_ground_impact(&mut impact_context, &hit, normal); }
+                }
                 if forward_travel == 0.0 && slide.length_squared() == 0.0 { return Some(result); }
                 remaining_delta = advance + slide;
             }
@@ -4715,6 +4732,7 @@ fn grounded_movement_transaction(
     if let Some((hit, normal)) = pending_step_impact
         && !outcome.as_ref().is_some_and(|result| result.4) {
         record_ground_impact(&mut impact_context, &hit, normal);
+        for (hit, normal) in pending_fallback_impacts { record_ground_impact(&mut impact_context, &hit, normal); }
     }
     outcome
 }
@@ -5792,6 +5810,103 @@ mod tests {
         let ceiling_acceleration = app.world().get::<VelocityIntegrationData>(ceiling).unwrap().linear_increment;
         assert!(wall_acceleration.x > 0.0, "Forward step impact must push the wall: {wall_acceleration:?}");
         assert!(ceiling_acceleration.y > 0.0, "Blocked lift must push the ceiling: {ceiling_acceleration:?}");
+    }
+
+    #[test]
+    fn slide_records_only_the_sweeps_that_hit() {
+        use bevy::ecs::system::RunSystemOnce;
+        for third_wall in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            let first = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 2.0, 0.1),
+                Transform::from_xyz(0.0, 1.0, -0.6).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4)))).id();
+            let third = third_wall.then(|| app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 2.0, 4.0),
+                Transform::from_xyz(-0.5, 1.0, 0.0))).id());
+            app.update();
+            app.update();
+            let impacts = app.world_mut().run_system_once(|spatial: SpatialQuery| {
+                let mut impacts = Vec::new();
+                walking_slide_sweep(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y,
+                    Vec3::new(1.0, 0.0, -1.0), Vec3::NEG_X, 0.0215,
+                    &SpatialQueryFilter::default(), &|_| true, Some(&mut impacts)).unwrap();
+                impacts
+            }).unwrap();
+            assert_eq!(impacts.first().map(|(hit, _)| hit.entity), Some(first));
+            assert_eq!(impacts.get(1).map(|(hit, _)| hit.entity), third);
+            assert_eq!(impacts.len(), if third_wall { 2 } else { 1 });
+        }
+    }
+
+    #[test]
+    fn successful_step_discards_speculative_slide_impacts() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .add_message::<SourceCharacterImpact>();
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+            Transform::from_xyz(0.0, -0.1, 0.0)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.2, 0.2, 1.0),
+            Transform::from_xyz(0.47, 0.1, 0.0)));
+        let witness = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(2.0, 0.2, 0.1),
+            Transform::from_xyz(0.0, 0.1, 0.6), GravityScale(0.0), Mass(100.0), NoAutoMass,
+            LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO)).id();
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        let (witnessed, outcome) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+            permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
+            let capsule = als_character_capsule(0.9, 0.3);
+            let mut preview = Vec::new();
+            walking_slide_sweep(&spatial, &capsule, Vec3::new(0.07, 0.9215, 0.07),
+                Vec3::new(0.43, 0.0, 0.43), Vec3::NEG_X, 0.0215,
+                &SpatialQueryFilter::default(), &|_| true, Some(&mut preview)).unwrap();
+            let outcome = grounded_movement_transaction(&spatial, &capsule, Vec3::Y * 0.9215,
+                Quat::IDENTITY, 0.9, 0.3, Vec3::new(0.5, 0.0, 0.5), &crate::als::params::CmcAdapterParams::default(),
+                LocomotionState::Grounded, actor, &candidates, &permissions,
+                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75))).unwrap();
+            (preview.iter().any(|(hit, _)| hit.entity == witness), outcome)
+        }).unwrap();
+        assert!(witnessed, "The discarded slide must actually hit its witness");
+        assert!(outcome.4, "The actual step must succeed: {outcome:?}");
+        app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
+        let acceleration = app.world().get::<VelocityIntegrationData>(witness).unwrap().linear_increment;
+        assert_eq!(acceleration, Vec3::ZERO, "A speculative slide must not push the witness");
+    }
+
+    #[test]
+    fn failed_step_commits_the_actual_fallback_slide_impact() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .add_message::<SourceCharacterImpact>();
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 2.0, 4.0), Transform::from_xyz(0.42, 1.0, 0.0),
+            AlsMantleTargetPermission { allows_step_up: false }));
+        let witness = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(1.0, 2.0, 0.1),
+            Transform::from_xyz(-0.3, 1.0, 0.6), GravityScale(0.0), Mass(100.0), NoAutoMass,
+            LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO)).id();
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+            permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
+            grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
+                Quat::IDENTITY, 0.9, 0.3, Vec3::new(0.5, 0.0, 0.5), &crate::als::params::CmcAdapterParams::default(),
+                LocomotionState::Grounded, actor, &candidates, &permissions,
+                Some((&mut impacts, Vec3::X * 20.0, Vec3::X * 5.0, 3.75)))
+        }).unwrap();
+        app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
+        let acceleration = app.world().get::<VelocityIntegrationData>(witness).unwrap().linear_increment;
+        assert!(acceleration.z > 0.0, "The committed slide must push its blocking witness: {acceleration:?}");
     }
 
     #[test]
@@ -7348,7 +7463,7 @@ mod tests {
             let progress = app.world_mut().run_system_once(|spatial: SpatialQuery| {
                 walking_slide_sweep(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y,
                     Vec3::new(1.0, 0.0, -1.0), Vec3::NEG_X, 0.0215,
-                    &SpatialQueryFilter::default(), &|_| true).unwrap()
+                    &SpatialQueryFilter::default(), &|_| true, None).unwrap()
             }).unwrap();
             assert!(progress.z < -0.2, "third_wall={third_wall} progress={progress:?}");
             if third_wall { assert!(progress.x >= -0.1501 && progress.x < -0.1, "progress={progress:?}"); }
