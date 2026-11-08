@@ -1,0 +1,44 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 5035,
+          "last_line": 5057,
+          "text": "\t\t{\n\t\t\treturn;\n\t\t}\n\t\t\n\t\tfloat LastMoveTimeSlice = timeTick;\n\t\tfloat subTimeTickRemaining = timeTick * (1.f - Hit.Time);\n\t\t\n\t\tif ( IsSwimming() ) //just entered water\n\t\t{\n\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\tStartSwimming(OldLocation, OldVelocity, timeTick, remainingTime, Iterations);\n\t\t\treturn;\n\t\t}\n\t\telse if ( Hit.bBlockingHit )\n\t\t{\n\t\t\tif (IsValidLandingSpot(UpdatedComponent->GetComponentLocation(), Hit))\n\t\t\t{\n\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\tProcessLanded(Hit, remainingTime, Iterations);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\telse\n\t\t\t{\n"
+        },
+        {
+          "first_line": 5138,
+          "last_line": 5161,
+          "text": "\n\t\t\t\tif (subTimeTickRemaining > UE_KINDA_SMALL_NUMBER && (Delta | Adjusted) > 0.f)\n\t\t\t\t{\n\t\t\t\t\t// Move in deflected direction.\n\t\t\t\t\tSafeMoveUpdatedComponent( Delta, PawnRotation, true, Hit);\n\t\t\t\t\t\n\t\t\t\t\tif (Hit.bBlockingHit)\n\t\t\t\t\t{\n\t\t\t\t\t\t// hit second wall\n\t\t\t\t\t\tLastMoveTimeSlice = subTimeTickRemaining;\n\t\t\t\t\t\tsubTimeTickRemaining = subTimeTickRemaining * (1.f - Hit.Time);\n\n\t\t\t\t\t\tif (IsValidLandingSpot(UpdatedComponent->GetComponentLocation(), Hit))\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tremainingTime += subTimeTickRemaining;\n\t\t\t\t\t\t\tProcessLanded(Hit, remainingTime, Iterations);\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tHandleImpact(Hit, LastMoveTimeSlice, Delta);\n\n\t\t\t\t\t\t// If we've changed physics mode, abort.\n\t\t\t\t\t\tif (!HasValidData() || !IsFalling())\n\t\t\t\t\t\t{\n"
+        },
+        {
+          "first_line": 6373,
+          "last_line": 6440,
+          "text": "void UCharacterMovementComponent::ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_CharProcessLanded);\n\n\tif( CharacterOwner && CharacterOwner->ShouldNotifyLanded(Hit) )\n\t{\n\t\tCharacterOwner->Landed(Hit);\n\t}\n\tif( IsFalling() )\n\t{\n\t\tif (GroundMovementMode == MOVE_NavWalking)\n\t\t{\n\t\t\t// verify navmesh projection and current floor\n\t\t\t// otherwise movement will be stuck in infinite loop:\n\t\t\t// navwalking -> (no navmesh) -> falling -> (standing on something) -> navwalking -> ....\n\n\t\t\tconst FVector TestLocation = GetActorFeetLocation();\n\t\t\tFNavLocation NavLocation;\n\n\t\t\tconst bool bHasNavigationData = FindNavFloor(TestLocation, NavLocation);\n\t\t\tif (!bHasNavigationData || NavLocation.NodeRef == INVALID_NAVNODEREF)\n\t\t\t{\n\t\t\t\tGroundMovementMode = MOVE_Walking;\n\t\t\t\tUE_LOGF(LogNavMeshMovement, Verbose, \"ProcessLanded(): %ls tried to go to NavWalking but couldn't find NavMesh! Using Walking instead.\", *GetNameSafe(CharacterOwner));\n\t\t\t}\n\t\t}\n\n\t\tSetPostLandedPhysics(Hit);\n\t}\n\t\n\tIPathFollowingAgentInterface* PFAgent = GetPathFollowingAgent();\n\tif (PFAgent)\n\t{\n\t\tPFAgent->OnLanded();\n\t}\n\n\tStartNewPhysics(remainingTime, Iterations);\n}\n\nvoid UCharacterMovementComponent::SetPostLandedPhysics(const FHitResult& Hit)\n{\n\tif( CharacterOwner )\n\t{\n\t\tif (CanEverSwim() && IsInWater())\n\t\t{\n\t\t\tSetMovementMode(MOVE_Swimming);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tconst FVector PreImpactAccel = Acceleration + (IsFalling() ? -GetGravityDirection() * GetGravityZ() : FVector::ZeroVector);\n\t\t\tconst FVector PreImpactVelocity = Velocity;\n\n\t\t\tif (DefaultLandMovementMode == MOVE_Walking ||\n\t\t\t\tDefaultLandMovementMode == MOVE_NavWalking ||\n\t\t\t\tDefaultLandMovementMode == MOVE_Falling)\n\t\t\t{\n\t\t\t\tSetMovementMode(GroundMovementMode);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tSetDefaultMovementMode();\n\t\t\t}\n\t\t\t\n\t\t\tApplyImpactPhysicsForces(Hit, PreImpactAccel, PreImpactVelocity);\n\t\t}\n\t}\n}\n\n"
+        },
+        {
+          "first_line": 7814,
+          "last_line": 7832,
+          "text": "void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity)\n{\n\tif (bEnablePhysicsInteraction && Impact.bBlockingHit )\n\t{\n\t\tif (UPrimitiveComponent* ImpactComponent = Impact.GetComponent())\n\t\t{\n\t\t\tFVector ForcePoint = Impact.ImpactPoint;\n\t\t\tfloat BodyMass = 1.0f; // set to 1 as this is used as a multiplier\n\n\t\t\tbool bCanBePushed = false;\n\t\t\tFBodyInstance* BI = ImpactComponent->GetBodyInstance(Impact.BoneName);\n\t\t\tif(BI != nullptr && BI->IsInstanceSimulatingPhysics())\n\t\t\t{\n\t\t\t\tBodyMass = FMath::Max(BI->GetBodyMass(), 1.0f);\n\n\t\t\t\tif(bPushForceUsingZOffset)\n\t\t\t\t{\n\t\t\t\t\tFBox Bounds = BI->GetBodyBounds();\n\n"
+        },
+        {
+          "first_line": 7860,
+          "last_line": 7933,
+          "text": "\t\t\tif (bCanBePushed)\n\t\t\t{\n\t\t\t\tFVector Force = Impact.ImpactNormal * -1.0f;\n\n\t\t\t\tfloat PushForceModificator = 1.0f;\n\n\t\t\t\tconst FVector ComponentVelocity = ImpactComponent->GetPhysicsLinearVelocity(Impact.BoneName);\n\t\t\t\tconst FVector VirtualVelocity = ImpactAcceleration.IsZero() ? ImpactVelocity : ImpactAcceleration.GetSafeNormal() * GetMaxSpeed();\n\n\t\t\t\tfloat Dot = 0.0f;\n\n\t\t\t\tif (bScalePushForceToVelocity && !ComponentVelocity.IsNearlyZero())\n\t\t\t\t{\n\t\t\t\t\tDot = ComponentVelocity | VirtualVelocity;\n\n\t\t\t\t\tif (Dot > 0.0f && Dot < 1.0f)\n\t\t\t\t\t{\n\t\t\t\t\t\tPushForceModificator *= Dot;\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tif (bPushForceScaledToMass)\n\t\t\t\t{\n\t\t\t\t\tPushForceModificator *= BodyMass;\n\t\t\t\t}\n\t\t\t\tconst bool bClientAuthScheduledPushForces = CharacterMovementCVars::bEnableClientAuthScheduledPushForces && Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled();\n\t\n#if UE_WITH_REMOTE_OBJECT_HANDLE\n\t\t\t\tPushForceModificator *= PhysicsForceSubsteppingFactor;\n#endif\n\n\t\t\t\tForce *= PushForceModificator;\n\t\t\t\tconst float ZeroVelocityTolerance = 1.0f;\n\t\t\t\tif (ComponentVelocity.IsNearlyZero(ZeroVelocityTolerance))\n\t\t\t\t{\n\t\t\t\t\tForce *= InitialPushForceFactor;\n\n\t\t\t\t\tif (CharacterMovementCVars::bApplyCharacterCollisionForceAsImpulse)\n\t\t\t\t\t{\n\t\t\t\t\t\tif (!bClientAuthScheduledPushForces)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tImpactComponent->AddImpulseAtLocation(Force, ForcePoint, Impact.BoneName);\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tApplyAsyncPhysicsStateAction(ImpactComponent, Impact.BoneName, EPhysicsStateAction::AddImpulseAtPosition, Force, ForcePoint);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\t//Originally the force is applied as impulse, which was inaccurate. The extra scaling is applied so that the force is calibrated to match the old behavior at 30fps. \n\t\t\t\t\t\tconst float ExtraForceFactor = 30.f;\n\t\t\t\t\t\tForce *= ExtraForceFactor;\n\n\t\t\t\t\t\tif (!bClientAuthScheduledPushForces)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tImpactComponent->AddForceAtLocation(Force, ForcePoint, Impact.BoneName);\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tApplyAsyncPhysicsStateAction(ImpactComponent, Impact.BoneName, EPhysicsStateAction::AddForceAtPosition, Force, ForcePoint);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tForce *= PushForceFactor;\n\t\t\t\t\tif (!bClientAuthScheduledPushForces)\n\t\t\t\t\t{\n\t\t\t\t\t\tImpactComponent->AddForceAtLocation(Force, ForcePoint, Impact.BoneName);\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\tApplyAsyncPhysicsStateAction(ImpactComponent, Impact.BoneName, EPhysicsStateAction::AddForceAtPosition, Force, ForcePoint);\n"
+        }
+      ]
+    }
+  ],
+  "native_cdo": {
+    "bEnablePhysicsInteraction": "True",
+    "InitialPushForceFactor": "500.000000",
+    "PushForceFactor": "750000.000000",
+    "bPushForceUsingZOffset": "False",
+    "bPushForceScaledToMass": "False",
+    "bScalePushForceToVelocity": "True"
+  },
+  "prior_native_landing": "docs/audit/bf144/570/impact.native.json.gz"
+}

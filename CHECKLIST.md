@@ -6019,7 +6019,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 子项拆分：D38a导入推力参数并处理下落阻挡；D38b处理落地入口；D38c处理地面扫掠、跨步和滑移入口。各项分别静态实现并提交，父项在全部完成后标记，统一验证延后。
   - [x] BF144-D38a — 下落阻挡时按静止/运动刚体分支提交源点力。开始2026-11-08 15:57 +08:00；预估结束16:52 +08:00；实际结束16:03 +08:00，提前49分钟；静态实现完成，测试/消融/Gate暂缓。
     - 闭环：fresh UE前两次Falling阻挡、原生推力参数和Avian点力保存在`docs/audit/bf144/d38a/`；已生成目标参数并接入常规下落事务，写速度分支、动态/非动态和加载角色对照。旧target报告缺失；额外物理子步扫掠及多子步力倍率尚无复现证据，记录边界待统一验证，落地和Walking分别留给D38b/c。
-  - [ ] BF144-D38b — 普通落地入口提交源撞击力。
+  - [x] BF144-D38b — 普通落地入口提交源撞击力。开始2026-11-08 16:04 +08:00；预估结束16:49 +08:00；实际结束16:06 +08:00，提前43分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 闭环：fresh UE落地前输入保存与原生推力参数保存在`docs/audit/bf144/d38b/`，并引用Git管理的570原生动态台对照；普通落地复用撞击点力，已写动态/静态、中断及加载角色对照。强制沟槽落地的blocking Hit边界、测试和真实Gate待统一验证。
   - [ ] BF144-D38c — 地面扫掠、跨步和滑移入口提交源撞击力。
   - Source：fresh UE `HandleImpact:7783–7811`进入`ApplyImpactPhysicsForces:7814–7930`；native InitialPushForce500、PushForce750000、PushScaledToMass=False、UsingZOffset=False。本机CVar `p.ApplyCharacterCollisionForceAsImpulse=False`，静止阈值1cm/s内用500×30 kg·cm/s²，移动body用750000 kg·cm/s²，均AddForceAtLocation，不能按旧版本把500当一次冲量。
   - Target：`src/als/character/movement/motion.rs`空中/地面sweep和slide只调整角色位移/速度，未把命中的simulated body与源力参数提交给物理；实际air blocking命中后目标body保持原速度。

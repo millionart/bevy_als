@@ -2884,6 +2884,17 @@ pub(crate) struct SourceCharacterImpact {
     max_speed: f32,
 }
 
+fn record_character_impact(
+    context: &mut Option<(&mut Messages<SourceCharacterImpact>, Vec3, f32, f32, bool)>,
+    hit: &ShapeHitData, normal: Vec3, velocity: Vec3, landed: bool,
+) {
+    if let Some((writer, acceleration, falling_speed, grounded_speed, landing_allowed)) = context.as_mut() {
+        if landed && !*landing_allowed { return; }
+        writer.write(SourceCharacterImpact { collider: hit.entity, point: hit.point1, normal,
+            acceleration: *acceleration, velocity, max_speed: if landed { *grounded_speed } else { *falling_speed } });
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum MovementBaseFollowPhase {
     BeforeSensors,
@@ -3334,7 +3345,7 @@ pub(crate) fn falling_movement_sweep(
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     shapes: &Query<(&Collider, &Position, &Rotation)>,
     impact_bodies: &FallingImpactBodies,
-    mut impact_context: Option<(&mut Messages<SourceCharacterImpact>, Vec3, f32)>,
+    mut impact_context: Option<(&mut Messages<SourceCharacterImpact>, Vec3, f32, f32, bool)>,
 ) -> (Vec3, Vec3, bool, Option<(f32, bool)>, Option<LocomotionState>) {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, candidates);
@@ -3444,12 +3455,14 @@ pub(crate) fn falling_movement_sweep(
             && let Some((cmc, ..)) = landing.as_ref() {
             if find_ground_floor(spatial, position, extent.y, extent.x.min(extent.z), cmc,
                 LocomotionState::Air, &filter, entity, candidates).is_some() {
+                record_character_impact(&mut impact_context, &hit, impact_normal, velocity, true);
                 return (applied, velocity, contact, Some((remaining_time, sweep == 2)), None);
             }
         }
         if sweep == 0 && qualification.is_some_and(|(_, edge)| edge)
             && remaining.dot(normal) < 0.0 && let Some((cmc, ..)) = landing.as_ref() {
             if edge_floor_landing(spatial, position, extent.y, extent.x.min(extent.z), cmc, entity, candidates) {
+                record_character_impact(&mut impact_context, &hit, impact_normal, velocity, true);
                 return (applied, velocity, contact, Some((remaining_time, false)), None);
             }
             contact = false;
@@ -3463,10 +3476,7 @@ pub(crate) fn falling_movement_sweep(
             if sidestepped { collision_mode = Some(LocomotionState::Air); }
             break;
         }
-        if let Some((writer, acceleration, max_speed)) = impact_context.as_mut() {
-            writer.write(SourceCharacterImpact { collider: hit.entity, point: hit.point1,
-                normal: impact_normal, acceleration: *acceleration, velocity, max_speed: *max_speed });
-        }
+        record_character_impact(&mut impact_context, &hit, impact_normal, velocity, false);
         let budget = velocity * remaining_time;
         let penetrating = hit.distance == 0.0 && (hit.point1 - hit.point2).dot(normal) > 0.0;
         let input = if sweep == 0 && let Some((without_air, acceleration)) = air_control {
@@ -3579,10 +3589,12 @@ fn falling_movement_transaction(
         let requested = (old_velocity + velocity) * (0.5 * step);
         let impact_acceleration = desired_motion.clamp_length_max(1.0)
             * cached_input_max.unwrap_or(params.acceleration.max_acceleration) + gravity;
+        let (stance, rotation, gait, yaw) = grounded;
+        let grounded_speed = crate::als::dynamics::max_allowed_speed(params, stance, rotation, gait, velocity.with_y(0.0), yaw);
         let (applied, deflected, hit, landing_remaining, step_collision_mode) = falling_movement_sweep(spatial, capsule, transform.translation,
             transform.rotation, requested, velocity, step, air_control,
             Some((&params.cmc, params.jump.jump_z_velocity, max_speed, &mut *random_seed)), entity, candidates, shapes, impact_bodies,
-            impacts.as_deref_mut().map(|writer| (writer, impact_acceleration, max_speed)));
+            impacts.as_deref_mut().map(|writer| (writer, impact_acceleration, max_speed, grounded_speed, !landing.1)));
         collision_mode = step_collision_mode;
         transform.translation += applied;
         contact |= hit;
@@ -5597,7 +5609,7 @@ mod tests {
                 shapes: Query<(&Collider, &Position, &Rotation)>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
                 falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3), Vec3::ZERO, Quat::IDENTITY,
                     Vec3::X * (5.0 / 60.0), Vec3::X * 5.0, 1.0 / 60.0, None, None,
-                    actor, &candidates, &shapes, &impact_bodies, Some((&mut impacts, Vec3::NEG_Y * 9.81, 3.75)))
+                    actor, &candidates, &shapes, &impact_bodies, Some((&mut impacts, Vec3::NEG_Y * 9.81, 3.75, 3.75, true)))
             }).unwrap();
             assert!(hit.0.x < 5.0 / 60.0, "The wall must block the capsule: {hit:?}");
             app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
@@ -5626,6 +5638,64 @@ mod tests {
             assert!((actual - expected).abs() < 0.02,
                 "Falling impact must push the wall: speed={speed} actual={actual} expected={expected}");
         }
+    }
+
+    #[test]
+    fn normal_landing_applies_source_impact_force_to_dynamic_bases() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        for (body, landing_allowed, expected) in [(RigidBody::Dynamic, true, -1.5),
+            (RigidBody::Dynamic, false, 0.0), (RigidBody::Static, true, 0.0),
+            (RigidBody::Kinematic, true, 0.0)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<SourceCharacterImpact>();
+            app.finish();
+            let floor = app.world_mut().spawn((body, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, -0.1, 0.0), GravityScale(0.0), Mass(100.0), NoAutoMass,
+                LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO)).id();
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                shapes: Query<(&Collider, &Position, &Rotation)>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
+                let params = crate::als::params::CmcAdapterParams::default();
+                let mut seed = 123;
+                falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.925, Quat::IDENTITY,
+                    Vec3::NEG_Y * 0.05, Vec3::NEG_Y * 2.0, 0.025, None, Some((&params, 4.2, 3.75, &mut seed)),
+                    actor, &candidates, &shapes, &impact_bodies,
+                    Some((&mut impacts, Vec3::NEG_Y * 9.81, 3.75, 3.75, landing_allowed)))
+            }).unwrap();
+            assert!(hit.3.is_some(), "The capsule must land: {hit:?}");
+            app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
+            let actual = app.world().get::<VelocityIntegrationData>(floor).map_or(0.0, |value| value.linear_increment.y);
+            assert!((actual - expected).abs() < 1e-4,
+                "Landing impact differs: body={body:?} allowed={landing_allowed} actual={actual} expected={expected}");
+        }
+    }
+
+    #[test]
+    fn loaded_landing_pushes_dynamic_base_before_standing_force() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let floor = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(4.0, 0.2, 4.0),
+            Transform::from_xyz(0.0, 1.9, 0.0), GravityScale(0.0), Mass(100.0), NoAutoMass,
+            LockedAxes::ROTATION_LOCKED, LinearVelocity::ZERO)).id();
+        app.update();
+        app.update();
+        let start = Vec3::Y * 2.925;
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            LinearVelocity(Vec3::NEG_Y * 2.0), LocomotionState::Air, TnuaMotor::default()));
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.025));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+        app.world_mut().run_system_once(apply_character_impact_forces).unwrap();
+        let actual = app.world().get::<VelocityIntegrationData>(floor).unwrap().linear_increment.y;
+        assert!((actual + 1.5).abs() < 1e-4, "Landing must apply its own impact force: {actual}");
     }
 
     #[test]
