@@ -6754,7 +6754,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 本轮开始：2026-11-09 02:50 +08:00；预计结束：2026-11-09 03:40 +08:00。对已有活动碰撞对按源hull顺序筛选全部候选，复用或生成源接触并增减solver槽，保留逐hull simplex；用已写Bench正间隙缺组、普通body和原有组序控制验证。估时依据：c4c3a已有源bounds筛选，c4c2已有源生成/缓存/槽写回，c4c1已有fresh原生缺组；测试及消融待统一Gate。
   - 02:56 source/static摘要：已有目标活动组的碰撞对现按源hull顺序筛选全部候选，复用/生成源点并增减实际solver槽；远处未访问hull不建立热缓存。已扩展Bench内外cull、源点序和缓存控制；fresh中央样本确认完全无目标manifold的独立边界，已写测试并留c4c3c。测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d100b3b3c4c3b/`。实际结束：2026-11-09 02:56 +08:00；偏差：−44分钟；结果：子项静态实现完成，未再拆分。
 
-- [ ] BF144-D100b3b3c4c3c / P3 — 激活目标无manifold时的源凸包接触。
+- [x] BF144-D100b3b3c4c3c / P3 — 激活目标无manifold时的源凸包接触。
+  - 03:48 静态收口：目标已有碰撞对时，源box/convex接触可在空manifold下进入Avian真实touching与约束生命周期；Barrel、Bench和非源控制已写。目标整个pair缺失尚无已证实反例，不扩展；测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d100b3b3c4c3c1/`、`docs/audit/bf144/d100b3b3c4c3c3b/`。实际开始：2026-11-09 03:01 +08:00；预计结束：未单独登记；实际结束：2026-11-09 03:48 +08:00；偏差：无法计算；结果：静态完成，拆分为1/2/3。
   - 03:01 source/static摘要：目标窄相位在无接触点时不会调用modify hook，直接在其后插入约束还必须处理touching、事件和sleep island；为保持真实生命周期，先确认是否还存在目标整个碰撞对缺失，并拆分候选发现合同与实际接入。
   - 03:01 fresh源：单hull Barrel在2.4cm间距时源激活4点，3.5cm时无约束；目标静止窄相位只按0.5cm预测。最初将该0.5cm误当作broadphase完整增长，关于整个pair缺失的推断已于03:16纠正。证据`docs/audit/bf144/d100b3b3c4c3c1/`。
 
