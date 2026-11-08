@@ -6296,10 +6296,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：同一完整App生成两个普通角色，第一角色进入Ragdoll后，用第二角色实际胶囊和生产查询predicate在pelvis位置查询，17个实际shape命中被接受；21个非root shape均通过当前层与collision hook。非Ragdoll对照为0，地板在两组均阻挡。`bf144_pa_character_query_preserves_mesh_pawn_ignore`2组1PASS/1FAIL，证据`target/bf144/21/initial/`。此项是角色之间的channel响应，独立于D69忽略整个自身actor；未把尚未运行的双方接触轨迹称作已验证。
   - 19:27 source/static摘要：fresh角色mesh、PA覆盖和贴地Pawn通道已闭合；离线工具从原生输出生成独立目标响应，普通移动/站立、Ragdoll贴地、物理配对及CCD均使用该响应。已写双角色、场景障碍、pair/CCD和导入器对照，并修复D69测试被新通道逻辑掩盖的边界；原反例缓存缺失，测试、消融、真实物理轨迹和Playground仍待统一验证。证据`docs/audit/bf144/d70/`。实际结束：2026-11-08 19:27 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D71 / P3 — Ragdoll惯量矩阵分解丢失缩小rig的非对角耦合项。
+- [x] BF144-D71 / P3 — Ragdoll惯量矩阵分解丢失缩小rig的非对角耦合项。
+  - 本轮开始：2026-11-08 19:27 +08:00；预计结束：2026-11-08 20:22 +08:00。重读Chaos分解与质量属性并采集目标scale原生body样本，修复惯量分解入口并补样本/动态消费对照；统一测试留待升级后。
+  - 19:30 source/static摘要：fresh Chaos分解在kg·cm²中先比较绝对均值1e-8，再比较非对角平方和与均值平方的相对1e-8；fresh PA原生读取了1.0/0.2两种尺度的实际body主惯量和质量坐标系。目标库的1e-10为无量纲缩放前绝对门槛；保留现有本征分解器，通过源门槛与归一化输入消除量纲依赖，数值一致性留统一Gate。
   - Source：fresh `BodyUtils::ComputeMassProperties`与Chaos `MassProperties.cpp:17–98`在kg·cm²中按相对off-diagonal/trace门槛分解；新增原生body probe读取实际principal/frame，不用闭式理想矩阵替代源数值。scale=0.2时spine_03/head/hand_l/r仍保留耦合。
   - Target：`ragdoll_physics_profile.rs:1424–1427`把kg·m²矩阵交给`AngularInertia::from_mat3_unchecked`；当前glam_matrix_extras 0.3.0 `symmetric_eigen3.rs:96`以绝对off-diagonal平方和<1e-10认定对角矩阵。这些缩小后的有效项被清零，随后该AngularInertia进入真实rig物理参数。
   - 反例：完整rig scale=0.2的head源Ixz=4.0892246e-6，target为0；以Ix x列量级的局部X角冲量复算，源角速度响应含z=−0.22336152，target z=0。10组native frame对照5PASS/5FAIL，只将实际body的principal/frame改用native转换后全部恢复。默认head另有同一分解入口的约1.43e-6矩阵误差，记录为数值偏差，不冒称已比较整段布娃娃轨迹。既有PA测试只测少数主轴或较大尺寸，未覆盖SI量级触发的绝对门槛。
+  - 19:33 source/static摘要：fresh原生body principal/frame与目标坐标基及惯量单位离线转换已持久化；十组分解前输入最大相对差约2.2e-7。源绝对均值/相对非对角门槛及归一化分解已接入实际rig，已写尺度阈值、native body和角冲量对照；近重本征值数值差、测试、消融和真实入口均待统一验证。证据`docs/audit/bf144/d71/`。实际结束：2026-11-08 19:33 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D72 / P3 — 初始极小uniform rig的质量属性绕过最终形状尺寸下限。
   - Source：fresh `FKSphylElem::GetFinalScaled`对半高/半径及圆柱长度施加源下限，再由实际Chaos形状计算质量、质心与惯量；原生InitBody+UpdateMassProperties验证scale=0.01的pelvis Ixx=1.2151629e-9kg·m²。

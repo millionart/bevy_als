@@ -1,0 +1,7 @@
+{
+  "asset": "/ALS/ALS/Character/PA_Als.PA_Als",
+  "physics_body_probe": "docs/audit/bf144/d71/body_probe.request.json",
+  "reader": "tools/run_ue_source_reader.ps1",
+  "timeout_seconds": 240,
+  "no_progress_seconds": 90
+}

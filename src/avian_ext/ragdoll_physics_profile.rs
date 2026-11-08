@@ -1405,6 +1405,20 @@ fn scaled_ragdoll_mass_properties(
     (value, combined.local_com + nudge, inertia)
 }
 
+fn source_angular_inertia(inertia: Mat3) -> AngularInertia {
+    let diagonal = Vec3::new(inertia.x_axis.x, inertia.y_axis.y, inertia.z_axis.z);
+    let trace = (f64::from(diagonal.x) + f64::from(diagonal.y) + f64::from(diagonal.z)) / 3.0;
+    let off_diagonal = [inertia.x_axis.y, inertia.x_axis.z, inertia.y_axis.z]
+        .into_iter().map(|value| f64::from(value).powi(2)).sum::<f64>();
+    if trace * 10_000.0 <= f64::from(1e-8_f32)
+        || off_diagonal / (trace * trace) < f64::from(1e-8_f32) {
+        return AngularInertia::new(diagonal);
+    }
+    let mut result = AngularInertia::from_mat3_unchecked(inertia / trace as f32);
+    result.principal *= trace as f32;
+    result
+}
+
 #[allow(clippy::too_many_arguments)]
 fn apply_profile_to_spawned_ragdoll(
     commands: &mut Commands,
@@ -1507,7 +1521,7 @@ fn apply_profile_to_spawned_ragdoll(
                 }
                 if recalculate_mass || mass.update_with_scale {
                     entity.insert((Mass(scaled_mass), CenterOfMass(center),
-                        AngularInertia::from_mat3_unchecked(inertia),
+                        source_angular_inertia(inertia),
                         NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia));
                 }
             } else if let Some(baseline) = entity.take::<RagdollMassPropertiesBaseline>() {
@@ -1804,6 +1818,84 @@ fn joint_anchor_distance(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn angular_inertia_uses_source_relative_and_unit_thresholds() {
+        for scale in [1.0_f32, 0.001, 0.000001, 2e-12] {
+            for (off_diagonal, diagonalized) in [(0.00009_f32, false), (0.00011, true), (0.2, true)] {
+                let matrix = Mat3::from_cols(
+                    Vec3::new(1.2, 0.0, off_diagonal), Vec3::new(0.0, 0.8, 0.0),
+                    Vec3::new(off_diagonal, 0.0, 1.0)) * scale;
+                let inertia = source_angular_inertia(matrix);
+                let basis = Mat3::from_quat(inertia.local_frame);
+                let actual = basis * Mat3::from_diagonal(inertia.principal) * basis.transpose();
+                let expected = if diagonalized { off_diagonal * scale } else { 0.0 };
+                assert!((actual.x_axis.z - expected).abs() < scale * 2e-5,
+                    "scale={scale} off_diagonal={off_diagonal} actual={}", actual.x_axis.z);
+            }
+        }
+        let tiny = Mat3::from_cols(Vec3::new(1.2, 0.0, 0.2), Vec3::new(0.0, 0.8, 0.0),
+            Vec3::new(0.2, 0.0, 1.0)) * 0.5e-12;
+        let inertia = source_angular_inertia(tiny);
+        assert_eq!(inertia.local_frame, Quat::IDENTITY);
+        assert_eq!(inertia.principal, Vec3::new(1.2, 0.8, 1.0) * 0.5e-12);
+    }
+
+    #[test]
+    fn scaled_ragdoll_body_inertia_matches_native_frames() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::ragdoll::{definition::Ragdoll, spawning::spawn_ragdoll_avian};
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d71/body_probe.runtime.json")).unwrap();
+        for sample in fixture["samples"].as_array().unwrap() {
+            let scale = sample["scale"][0].as_f64().unwrap() as f32;
+            let profile = crate::pa_als::parse_pa_als_profile();
+            let ragdoll: Ragdoll = ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate), crate::extensions::SourcePhysicsJointPlugin));
+            app.finish(); app.cleanup();
+            let world = app.world_mut();
+            let player = world.spawn((AnimationGraphPlayer::new(Handle::default()), Transform::IDENTITY)).id();
+            let spawned = world.run_system_once(move |mut commands: Commands| {
+                spawn_ragdoll_avian(player, &ragdoll, Isometry3d::IDENTITY, None, &mut commands)
+            }).unwrap();
+            let bodies = spawned.bodies.values().map(|entity| {
+                (world.get::<BodyLabel>(*entity).unwrap().0.clone(), *entity)
+            }).collect::<Vec<_>>();
+            world.run_system_once(move |mut commands: Commands,
+                body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>, joint_labels: Query<&JointLabel>,
+                spherical: Query<&SphericalJoint>, revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
+                transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
+                apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, Vec3::splat(scale), Vec3::splat(scale), true,
+                    &body_labels, &collider_labels, &joint_labels, &spherical, &revolute, &source_joints, &transforms, &mut colliders)
+            }).unwrap();
+            for label in ["pelvis", "spine_03", "head", "hand_l", "hand_r"] {
+                let expected = sample["bodies"].as_array().unwrap().iter().find(|body| body["bone_name"] == label).unwrap();
+                let vector = |key: &str| Vec3::new(expected[key][0].as_f64().unwrap() as f32,
+                    expected[key][1].as_f64().unwrap() as f32, expected[key][2].as_f64().unwrap() as f32);
+                let rotation = &expected["rotation_xyzw"];
+                let frame = Quat::from_xyzw(rotation[0].as_f64().unwrap() as f32, rotation[1].as_f64().unwrap() as f32,
+                    rotation[2].as_f64().unwrap() as f32, rotation[3].as_f64().unwrap() as f32);
+                let basis = Mat3::from_quat(frame);
+                let native = basis * Mat3::from_diagonal(vector("principal_kg_m2")) * basis.transpose();
+                let body = bodies.iter().find(|(name, _)| name == label).unwrap().1;
+                let inertia = world.get::<AngularInertia>(body).unwrap();
+                let basis = Mat3::from_quat(inertia.local_frame);
+                let actual = basis * Mat3::from_diagonal(inertia.principal) * basis.transpose();
+                let largest = native.x_axis.abs().max(native.y_axis.abs()).max(native.z_axis.abs()).max_element();
+                assert!(actual.abs_diff_eq(native, largest * 1e-4), "scale={scale} body={label} actual={actual:?} native={native:?}");
+                if scale == 0.2 && label == "head" {
+                    let impulse = Vec3::X * native.x_axis.x;
+                    let expected_response = native.inverse() * impulse;
+                    let actual_response = actual.inverse() * impulse;
+                    assert!(expected_response.z.abs() > 0.1);
+                    assert!((actual_response.z - expected_response.z).abs() < 3e-4,
+                        "actual={actual_response:?} native={expected_response:?}");
+                }
+            }
+        }
+    }
+
     fn source_sleep_fixture(dt: f32, substeps: u32, linear: f32, angular: f32, counter: i32,
         velocity: Vec3, spin: Vec3) -> (App, Entity) {
         use bevy::reflect::{PartialReflect, ReflectMut};
