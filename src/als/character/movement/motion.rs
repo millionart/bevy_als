@@ -3117,7 +3117,7 @@ fn falling_movement_transaction(
             }
             let (stance, rotation, gait, yaw) = grounded;
             let thresholds = params.gait_speed_thresholds(stance, rotation, velocity, yaw);
-            let gait_amount = crate::als::gait::calculate_gait_amount_for_thresholds(velocity.length(), thresholds);
+            let gait_amount = crate::als::gait::calculate_gait_amount_for_velocity(velocity, thresholds);
             let dynamics = params.grounded_dynamics(stance, rotation, gait_amount);
             let speed = crate::als::dynamics::max_allowed_speed(params, stance, rotation, gait, velocity, yaw);
             if remaining >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS

@@ -173,7 +173,14 @@ pub fn calculate_gait_amount(speed: f32, settings: &StanceGaitSpeeds) -> f32 {
 }
 
 pub fn calculate_gait_amount_for_thresholds(speed: f32, thresholds: GaitSpeedThresholds) -> f32 {
-    let speed = speed * 100.0;
+    calculate_gait_amount_for_centimeters(speed * 100.0, thresholds)
+}
+
+pub(crate) fn calculate_gait_amount_for_velocity(velocity: Vec3, thresholds: GaitSpeedThresholds) -> f32 {
+    calculate_gait_amount_for_centimeters(crate::als::motion::source_horizontal_speed_centimeters(velocity), thresholds)
+}
+
+fn calculate_gait_amount_for_centimeters(speed: f32, thresholds: GaitSpeedThresholds) -> f32 {
     let thresholds = GaitSpeedThresholds {
         walk: thresholds.walk * 100.0,
         run: thresholds.run * 100.0,
@@ -336,7 +343,7 @@ pub fn refresh_gait_system(
             view_yaw.0,
         );
         max_allowed.0 = allowed;
-        gait_amount.0 = calculate_gait_amount_for_thresholds(speed, thresholds);
+        gait_amount.0 = calculate_gait_amount_for_velocity(actual_velocity.world_velocity, thresholds);
         let actual = calculate_actual_gait(speed, allowed, params.gait_speeds(*stance, *rotation_mode));
         if *gait != actual {
             let previous = *gait;
@@ -553,6 +560,17 @@ mod tests {
     }
 
     #[test]
+    fn gait_amount_keeps_source_centimeters_for_two_axis_velocity() {
+        let velocity = Vec3::new(-1.714_544_9, 0.0, -4.188_258_6);
+        let thresholds = StanceGaitSpeeds::default().gait_speed_thresholds(1.0);
+        let centimeters = crate::als::motion::source_horizontal_speed_centimeters(velocity);
+        assert_eq!(centimeters, 452.561_3);
+        assert_eq!(calculate_gait_amount_for_centimeters(centimeters, thresholds), 2.282_041);
+        let meters = crate::als::motion::source_horizontal_speed_meters(velocity);
+        assert_ne!(calculate_gait_amount_for_thresholds(meters, thresholds), 2.282_041);
+    }
+
+    #[test]
     fn gait_weights_follow_the_source_curve_ranges() {
         assert_eq!(GaitWeights::from_gait_amount(0.0), GaitWeights::default());
         assert_eq!(
@@ -698,6 +716,14 @@ mod tests {
             Gait::Sprinting
         );
         assert_eq!(*app.world().get::<Gait>(entity).unwrap(), Gait::Walking);
+
+        let velocity = Vec3::new(-1.714_544_9, 0.0, -4.188_258_6);
+        *app.world_mut().get_mut::<AlsActualVelocity>(entity).unwrap() = AlsActualVelocity {
+            world_velocity: velocity,
+            horizontal_speed: crate::als::motion::source_horizontal_speed_meters(velocity),
+        };
+        app.update();
+        assert_eq!(app.world().get::<AlsGaitAmount>(entity).unwrap().0, 2.282_041);
 
         *app.world_mut()
             .get_mut::<AlsActualVelocity>(entity)

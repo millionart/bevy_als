@@ -4,7 +4,7 @@ use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
 
 use crate::als::character::{AlsCharacter, AlsCmcAdapterRuntime, AlsMovementParamsHandle};
 use crate::als::control_scheme::AlsControlScheme;
-use crate::als::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount_for_thresholds};
+use crate::als::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount_for_velocity};
 use crate::als::movement_constants::{BRAKE_TO_STOP_VELOCITY, BRAKING_SMALL_VELOCITY_SQUARED, MAX_SPEED_SQUARED_RATIO, MIN_MOVEMENT_DELTA_SECONDS};
 use crate::actual_motion::AlsActualMotion;
 use crate::als::mantle::AlsMantleState;
@@ -370,7 +370,7 @@ pub fn predict_grounded_stop_distance_with_braking_friction(
             break;
         }
         let thresholds = params.gait_speed_thresholds(stance, rotation_mode, velocity, 0.0);
-        let gait_amount = calculate_gait_amount_for_thresholds(speed, thresholds);
+        let gait_amount = calculate_gait_amount_for_velocity(velocity, thresholds);
         let dynamics = params.grounded_dynamics(stance, rotation_mode, gait_amount);
         let (next, _) = simulate_grounded_velocity_with_braking_friction(
             velocity,
@@ -565,7 +565,7 @@ pub fn grounded_dynamics_motor_system(
         cmc_runtime.grounded_max_speed = max_speed;
         if root_motion_active { continue; }
         let thresholds = params.gait_speed_thresholds(*stance, *rotation_mode, current, view_yaw.0);
-        gait_amount.0 = calculate_gait_amount_for_thresholds(current.length(), thresholds);
+        gait_amount.0 = calculate_gait_amount_for_velocity(current, thresholds);
         if AlsMovementParams::has_gait_settings(*stance, *rotation_mode) {
             dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
         }
@@ -1506,7 +1506,7 @@ mod tests {
         let stance = *app.world().get::<Stance>(character).unwrap();
         let rotation = *app.world().get::<RotationMode>(character).unwrap();
         let thresholds = params.gait_speed_thresholds(stance, rotation, before, app.world().get::<AlsViewYaw>(character).unwrap().0);
-        let dynamics = params.grounded_dynamics(stance, rotation, calculate_gait_amount_for_thresholds(before.length(), thresholds));
+        let dynamics = params.grounded_dynamics(stance, rotation, calculate_gait_amount_for_velocity(before, thresholds));
         let source = simulate_grounded_velocity_with_braking_friction(before, Vec3::ZERO, 3.75,
             dynamics, &params.cmc, 0.0, app.world().resource::<Time>().delta_secs()).0;
         assert!(source.length() > 0.1, "Source baseline must retain measurable momentum at the friction consumer: before={before:?}, source={source:?}");
@@ -1553,7 +1553,7 @@ mod tests {
         assert_eq!(braking.remaining_seconds, 0.5, "Source pending timer must keep its entire creation-frame delay");
         let horizontal_velocity = velocity.with_y(0.0);
         let thresholds = params.gait_speed_thresholds(Stance::Standing, RotationMode::ViewDirection, horizontal_velocity, app.world().get::<AlsViewYaw>(character).unwrap().0);
-        let dynamics = params.grounded_dynamics(Stance::Standing, RotationMode::ViewDirection, calculate_gait_amount_for_thresholds(horizontal_velocity.length(), thresholds));
+        let dynamics = params.grounded_dynamics(Stance::Standing, RotationMode::ViewDirection, calculate_gait_amount_for_velocity(horizontal_velocity, thresholds));
         let expected_velocity = simulate_grounded_velocity_with_braking_friction(velocity,
             Vec3::ZERO, 3.75, dynamics, &params.cmc, expected_factor, 0.05).0;
         app.update();
