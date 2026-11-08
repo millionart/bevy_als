@@ -76,6 +76,27 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn roll_acceptance_uses_the_mode_when_input_arrives() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (input_mode, movement_mode, expected) in [(LocomotionState::Air, LocomotionState::Grounded, false),
+            (LocomotionState::Grounded, LocomotionState::Air, true),
+            (LocomotionState::Grounded, LocomotionState::Grounded, true),
+            (LocomotionState::Air, LocomotionState::Air, false)] {
+            let mut world = World::new();
+            world.insert_resource(Time::<()>::default());
+            world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
+            let actor = world.spawn((crate::als::character::AlsCharacter, AlsRollState::default(),
+                input_mode, Stance::Standing, AlsViewYaw::default(), Transform::IDENTITY,
+                AlsInputCommand { roll_pressed: true, ..default() }, AlsNotifyLocomotionAction::None)).id();
+            world.run_system_once(start_roll_input).unwrap();
+            *world.get_mut::<LocomotionState>(actor).unwrap() = movement_mode;
+            world.run_system_once(advance_rolls).unwrap();
+            assert_eq!(world.get::<AlsRollState>(actor).unwrap().active, expected,
+                "input={input_mode:?} after_movement={movement_mode:?}");
+        }
+    }
+
+    #[test]
     fn loaded_roll_start_commits_action_and_crouch_before_movement() {
         for (stance, dilation, pressed) in [(Stance::Standing, 1.0, true), (Stance::Standing, 0.0, true),
             (Stance::Crouching, 1.0, true), (Stance::Crouching, 0.0, true),
@@ -98,6 +119,46 @@ pub(crate) mod tests {
             let half = app.world().get::<avian3d::prelude::Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents().y;
             let expected_half = if expected == Stance::Crouching { 0.56 } else { 0.9 };
             assert!((half - expected_half).abs() < 1e-5, "stance={stance:?} dilation={dilation} pressed={pressed} half={half}");
+        }
+    }
+
+    #[test]
+    fn loaded_roll_input_uses_pre_movement_grounding() {
+        use bevy::time::TimeUpdateStrategy;
+        for (landing, pressed, delta, expected_roll) in [(true, true, 0.05, false),
+            (true, false, 0.05, false), (false, true, 0.1, true), (false, true, 0.05, true)] {
+            let (mut app, actor, _) = loaded_roll_character();
+            let floor = app.world_mut().spawn((avian3d::prelude::RigidBody::Static,
+                avian3d::prelude::Collider::cuboid(if landing { 4.0 } else { 1.0 }, 0.2, 4.0),
+                Transform::from_xyz(0.0, 1.9, 0.0))).id();
+            app.update();
+            app.update();
+            let start = if landing { Vec3::new(0.0, 2.925, 0.0) } else { Vec3::new(0.55, 2.9215, 0.0) };
+            let velocity = if landing { Vec3::NEG_Y * 2.0 } else { Vec3::X * 3.75 };
+            app.world_mut().entity_mut(actor).insert((avian3d::prelude::Position(start), Transform::from_translation(start),
+                LinearVelocity(velocity), if landing { LocomotionState::Air } else { LocomotionState::Grounded },
+                AlsRollState::default(), AlsNotifyLocomotionAction::None, AlsAirState::default()));
+            {
+                let mut base = app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBase>(actor).unwrap();
+                *base = default();
+                if !landing { base.entity = Some(floor); base.location = Vec3::new(0.0, 1.9, 0.0); }
+            }
+            {
+                let mut base = app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor).unwrap();
+                *base = default();
+                if !landing { base.entity = Some(floor); base.relative_velocity = velocity; }
+            }
+            let input = &mut *app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap();
+            input.roll_pressed = pressed;
+            input.move_dir = if landing { Vec2::ZERO } else { Vec2::X };
+            *app.world_mut().resource_mut::<TimeUpdateStrategy>() =
+                TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
+            app.update();
+            let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+            if landing { assert_eq!(mode, LocomotionState::Grounded); }
+            if !landing && delta > 0.05 { assert_eq!(mode, LocomotionState::Air); }
+            assert_eq!(app.world().get::<AlsRollState>(actor).unwrap().active, expected_roll,
+                "landing={landing} pressed={pressed} delta={delta} mode={mode:?}");
         }
     }
 

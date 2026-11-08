@@ -6084,7 +6084,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整站立角色按Roll，owner1首帧roll.active=True、action=Rolling，但实际stance仍Standing、胶囊H0.9，第二帧才变Crouching/H0.56；源首个运动帧已应蹲伏。owner0从Standing或Crouching启动，target虽active但action连续两帧仍None，源应立即Rolling。`bf144_roll_lifecycle_start_commits_action_and_crouch_before_movement`6组3PASS/3FAIL，已有蹲伏的owner1及两组无Roll输入对照通过；证据`target/bf144/14/start/`。
   - 漏检：旧Roll蹲伏和root-motion回归观察已运行多帧的动作，notify首区间测试只验证事件本身，没有比较源显式StartRolling提交先于CMC的关系。本项限定启动动作/胶囊时序，根运动位移与碰撞另行审计；未改生产实现。
 
-- [ ] BF144-D44 / P2 — Roll输入使用运动后的mode判定，改变同帧地空切换的接收结果。
+- [x] BF144-D44 / P2 — Roll输入使用运动后的mode判定，改变同帧地空切换的接收结果；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 16:55 +08:00；预估结束17:35 +08:00；实际结束16:57 +08:00，提前38分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS输入即刻判定、落空不中断设置保存在`docs/audit/bf144/d44/`；D43前移与输入标记已覆盖此行为，本项补输入时/运动后模式反转的系统及加载角色对照。旧target报告缺失，源端同帧场景未复测，动画Gate待执行。
   - Source：fresh `AlsCharacterExample.cpp:197–202`输入回调立即`StartRollingGrounded(1.3)`；`AlsCharacter_Actions.cpp:34–42`当场检查Grounded，然后接受或返回，没有等待本帧movement结束。CS bInterruptRollingWhenInAir=False，所以在Grounded已接受的Roll不会仅因随后进入Air而取消。
   - Target：`src/als/character/actions/roll_drive.rs:2122–2216`在PostUpdate读取locomotion再调用`roll.rs:144–154`，晚于Update内可能改变mode的falling/walking transaction。输入命令被留到运动之后重新判断。
   - 反例：完整角色以vy=−2m/s处于离地约2cm的Air时按Roll，50ms内普通落地，源输入应拒绝且低落地速度不自动Roll，target切Grounded后启动Roll。反向边界：在1m平台x=0.55、Grounded、水平3.75m/s时按Roll，100ms多子步先走离平台，源已接受且应保留Roll，target在Air拒绝；同几何50ms单子步对照仍接受。
