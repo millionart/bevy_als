@@ -5537,17 +5537,19 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - BF144.468最终FootLocation限长消费者：fresh TVector::GetClampedToMaxSize在double厘米下按Max*(1/sqrt(SizeSquared))缩放；当前public unit按Max/sqrt。真实319帧有636 Location/121 active clamp，467精确thigh T和466独立厘米spring输入使完整source向量636 native逐值精确；同一厘米数字/upZ/初始state/真实delta公开目标scalar全同，仍37 double向量差，F32投影全同。只换倒数乘法636全恢复，首q1/pc113 native Z13.793534620321694cm、当前13.79353462032168cm；不含D165单位或D248 quaternion因素。当前精确共同输入合同失败；物理删倒数因素同处失败、删clamp q1左脚失败101，bytes恢复同target重编后四域全报告字节恢复。证据docs/audit/bf144/468/summary.json、comparison.json、ablation-failures.txt；只扩既证算子消费者，不新编号，不宣称当前米域/全Rig等价，生产未修。
 
 
-- [ ] BF144-D248 / P3 — Rig及动画Pose归一化未保持源ARM64 reciprocal-sqrt路径。
+- [x] BF144-D248 / P3 — Rig及动画Pose归一化未保持源ARM64 reciprocal-sqrt路径。
   - 按精度和消费阶段拆分：D248a处理Rig双精度四元数及层级共享归一化，D248b处理已证动画Pose单精度消费路径；两项各自保存源证据与fixture并提交，统一Gate留到全部静态修复及Bevy/依赖迁移后。
   - [x] BF144-D248a — Rig双精度源ARM64归一化。开始2026-11-08 10:15 +08:00；预估结束11:05 +08:00。依据：.471/.480/.481已提供原生消费者和消融，需fresh核对UE Dot4、NEON两轮迭代、平台回退及公开调用，补原生primitive与层级fixture。
     - 10:17 source/static闭环：fresh UE `Quat::Normalize`/Rig层级使用ARM64 Dot4、reciprocal estimate与两轮NEON refinement；映射源XYZW→runtime XZYW后Dot4需保持两组FMA。fresh identity及四个实际足旋转原生primitive已重采，identity w为0.9999999999509513；目标`rig_normalize`供层级、IK、插值及足部等共享调用。此证据限定ARM64，其余平台保留原实现；Quat与Transform各自阈值在极小边界的差异尚无原生反例，不扩大本项。
     - 10:18直接caller核对：角色Pose发布的既有D276 writer会先转换到源坐标再调用同一helper；新helper在ARM64自身按runtime坐标计算源Dot4，因此该调用必须去掉重复坐标映射，同时保留非ARM旧路径。正在fresh重采D276足骨输入对应的UE归一化输出；这是共享helper调用迁移，不复开写入阶段。
     - 10:20实现摘要：ARM64共享Rig normalizer使用源Dot4/FMA与NEON estimate两轮refinement，Pose发布直接caller完成坐标迁移；fresh四个足旋转、identity及发布输入原生结果和相关源码在`docs/audit/bf144/d248a/`。非ARM源后端与Quat/Transform极小阈值边界未证，单精度Pose留D248b；测试、消融、图审计及公共Gate待全部静态修复/依赖迁移后执行。实际实现结束2026-11-08 10:20 +08:00，较预估提前45分钟；拆分为D248a/b。
-  - [ ] BF144-D248b — 动画Pose单精度源ARM64归一化：分为Head mesh-space additive和Layered Pose两个已证消费闭包，分别实现并提交后再关闭本项。
+  - [x] BF144-D248b — 动画Pose单精度源ARM64归一化：分为Head mesh-space additive和Layered Pose两个已证消费闭包，分别实现并提交后再关闭本项。
     - [x] BF144-D248b1 — Head mesh-space additive的F32倒平方根方法。开始2026-11-08 10:23 +08:00；预估结束11:03 +08:00。依据：.454已封存318帧实际输入及三阶段因素矩阵，需fresh核UE/glam方法、三个生产归一化点和公开节点fixture；跨平台及其他消费者独立记录。
       - 10:26 source/static闭环：fresh UE ARM64 float倒平方根使用estimate与两轮NEON修正，当前glam用sqrt再求倒数；.454在固定当前F32 Dot4、乘法和三阶段时验证Head的delta/product/local方法因子。目标`MeshSpaceAdditive`直接提供这三处，也被local additive、组合和root-motion调用；只替换其同一归一化方法并保留现有阶段。fresh Head 000:cc/ss原生重新读取，实际骨链fixture引用.454受控输出，未冒称完整source F32等价。
       - 10:28实现摘要：Head additive三个已有阶段使用共享ARM64 F32倒平方根方法，非ARM保留原实现；fresh cc/ss源pose均等于封存原生记录，左手IK骨同输入的y分量与方法控制一致，整骨仍有余差。请求、受控骨链fixture、原生数据与哈希在`docs/audit/bf144/d248b1/`；相邻local/root及全量测试尚未执行。实际实现结束2026-11-08 10:28 +08:00，较预估提前35分钟；Layered Pose留D248b2。
-    - [ ] BF144-D248b2 — Layered Pose已证F32归一化阶段，依赖D248b1的同一F32方法；开始时重新估时。
+    - [x] BF144-D248b2 — Layered Pose已证F32归一化阶段，依赖D248b1的同一F32方法。开始2026-11-08 10:29 +08:00；预估结束11:19 +08:00。依据：.427原target报告缺失但清单保留实际20层与算子边界，需fresh核LayeredBoneBlend图、UE consumer和glam内部插值，重采最小完整source节点后改公开扩展；测试与消融统一后置。
+      - 10:33 source/static闭环：fresh AB_Als_Layering含5个单层mesh骨混合，spine节点在原生probe产生24零权重、1个1/3、1个2/3和53满权重骨；UE部分权重FastLerp后与mesh→local各归一化。目标当前`Quat::lerp`内部及外部各归一化，另有local归一化；本项只换这三处方法、保留次数/乘法及shortest-path，D238/D163独立。local-space部分权重的依赖库`BonePose::normalize_quat`在项目节点内替换，满/零权重原分支保留；其他Pose节点不因此扩展。
+      - 10:37实现摘要：Layered的glam lerp内部、外部和local重建阶段及local-space部分混合复用D248b1方法；已写共享normalizer实际调用和反号短弧fixture。fresh源图与受控79骨probe、请求及哈希在`docs/audit/bf144/d248b2/`，旧.427目标原报缺失。其他Pose、非ARM及所有目标Gate未验证；实际实现结束2026-11-08 10:37 +08:00，较预估提前42分钟；与D248a/b1共同完成实现，测试与消融待依赖迁移后执行。
   - BF144.481 twist global消费者：从精确1332 IK post79骨原始cache独立lazy求值2664个thigh/calf twist global，全部native精确；已证后继foot/手IK writer literal目标不在twist祖先链才用帧末globals交叉，不借ball。最小回退source normalizer保source自然raw cache与public clean clone两个端点各1精确，却使2个native twist全局失败，证明该归一化是实际后续消费者的必要primitive。源码/输入bytes同target六库重编完整cache/consumer报告byte恢复；见docs/audit/bf144/481/negative-check.json与twist-lifetime.json。未新增编号，不称全Rig/Root或未遇Equals skip通过。
 
   - BF144.480 weighted IK消费者：在source solver core/向量/标量Slerp均固定时，只回退wrapper三骨normalizer，source6 partial有12 quat/8位置double差，current12控制有31/21，F32均同。1332 source完整三骨TQS与1302公开模型先精确；最小双腿物理去normalizer后core2/public2仍过、native TQS101拒，按bytes恢复同target六库重编全报告保持。证据docs/audit/bf144/480/comparison.json、negative-check.json；不将算法控制当实际全Rig修复，后代/dirty/Equals计数仍开。

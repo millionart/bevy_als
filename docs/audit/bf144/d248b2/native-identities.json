@@ -1,0 +1,46 @@
+{
+  "assets": [
+    {
+      "path": "Content/ALS/Character/AnimationInstances/AB_Als_Layering.uasset",
+      "bytes": 780471,
+      "sha256": "439a8a84ab242d95a32ce79c0b9fa80984a1b6be861878b559101e31b2195d2c"
+    },
+    {
+      "path": "Content/ALS/Character/SKM_Als.uasset",
+      "bytes": 2606592,
+      "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+    }
+  ],
+  "requests": [
+    "docs/audit/bf144/d248b2/layering.request.json",
+    "docs/audit/bf144/d248b2/layered.request.json"
+  ],
+  "sample_input_source": "docs/audit/bf144/451b/batch-00.request.json",
+  "outputs": {
+    "layering": {
+      "native_output": "docs/audit/bf144/d248b2/layering.native.json.gz",
+      "raw": {
+        "bytes": 14691358,
+        "sha256": "3343335e7791a1a4b570bd737ea2c5c9b78010f5164e75f2335f0f9250144200"
+      },
+      "compressed": {
+        "bytes": 523583,
+        "sha256": "c7838a001d196813857586a6a08cb9dd3502d307dab233832264c36e0bea9134"
+      },
+      "reader_report": "docs/audit/bf144/d248b2/layering.native.json.reader.report.json"
+    },
+    "layered": {
+      "native_output": "docs/audit/bf144/d248b2/layered.native.json.gz",
+      "raw": {
+        "bytes": 14728072,
+        "sha256": "2cb97d32cdd22a5679391c42200710aca04da18834673b7f7e64428aaee61ec3"
+      },
+      "compressed": {
+        "bytes": 530787,
+        "sha256": "e476e180b421e63f32515d85fae796211749c20b842076523b16fc89deecbab1"
+      },
+      "reader_report": "docs/audit/bf144/d248b2/layered.native.json.reader.report.json"
+    }
+  },
+  "historical_target_reports": "missing_target_bf144_427"
+}

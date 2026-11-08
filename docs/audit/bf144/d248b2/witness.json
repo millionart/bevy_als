@@ -1,0 +1,165 @@
+{
+  "node_guid": "c118bb3b-4e38-ad76-0cbc-cf865ad26c84",
+  "sample": "spine-current-and-source-inputs",
+  "counts": {
+    "0": 24,
+    "0.3333333432674408": 1,
+    "0.6666666865348816": 1,
+    "1": 53
+  },
+  "selected": [
+    {
+      "bone": "root",
+      "weight": {
+        "source": 0,
+        "weight": 0
+      },
+      "native_transform": {
+        "translation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      }
+    },
+    {
+      "bone": "pelvis",
+      "weight": {
+        "source": 0,
+        "weight": 0
+      },
+      "native_transform": {
+        "translation": {
+          "x": 0,
+          "y": -3.056153282523155,
+          "z": 96.75059914588928
+        },
+        "rotation": {
+          "x": 0.0012852258088414945,
+          "y": 0.7071056131481173,
+          "z": -0.0012852258088414945,
+          "w": -0.7071056131481173
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      }
+    },
+    {
+      "bone": "spine_01",
+      "weight": {
+        "source": 0,
+        "weight": 0.3333333432674408
+      },
+      "native_transform": {
+        "translation": {
+          "x": 10.808877249558776,
+          "y": 0.851415117581686,
+          "z": -6.067098818060442e-13
+        },
+        "rotation": {
+          "x": -5.421010682925481e-19,
+          "y": -1.566672087365464e-17,
+          "z": 0.08865764718513126,
+          "w": 0.9960621574467661
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      }
+    },
+    {
+      "bone": "spine_02",
+      "weight": {
+        "source": 0,
+        "weight": 0.6666666865348816
+      },
+      "native_transform": {
+        "translation": {
+          "x": 18.861337939898156,
+          "y": -3.798977787295981,
+          "z": 1.9073486186016461e-06
+        },
+        "rotation": {
+          "x": 0,
+          "y": 7.37257477362462e-18,
+          "z": -0.07452254382458615,
+          "w": 0.9972193291658121
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      }
+    },
+    {
+      "bone": "spine_03",
+      "weight": {
+        "source": 0,
+        "weight": 1
+      },
+      "native_transform": {
+        "translation": {
+          "x": 13.407328605651855,
+          "y": -0.42047739028930664,
+          "z": -5.545784101043671e-13
+        },
+        "rotation": {
+          "x": -5.204170428185664e-18,
+          "y": -1.0145421829530699e-16,
+          "z": -0.04362602912151083,
+          "w": 0.9990479315744011
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      }
+    },
+    {
+      "bone": "clavicle_l",
+      "weight": {
+        "source": 0,
+        "weight": 1
+      },
+      "native_transform": {
+        "translation": {
+          "x": 11.883688926696777,
+          "y": 2.7320873737335205,
+          "z": -3.7819831371307373
+        },
+        "rotation": {
+          "x": -0.16441313640361502,
+          "y": 0.7435790172811448,
+          "z": -0.08560833188065334,
+          "w": 0.6424404868544205
+        },
+        "scale": {
+          "x": 0.9999999403953552,
+          "y": 0.9999997019767761,
+          "z": 1.0000004768371582
+        }
+      }
+    }
+  ],
+  "input_note": "current and source Head base poses are controlled inputs, not the native Layering node own history",
+  "source_method_control": "docs/audit/bf144/454/contract-reciprocal_current.json",
+  "historical_native_427": "missing_target_report"
+}

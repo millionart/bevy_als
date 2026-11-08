@@ -133,7 +133,21 @@ pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(
         } else {
             let source_rotation = source_mesh[index];
             let overlay_rotation = overlay_mesh[index];
-            source_rotation.lerp(overlay_rotation, weight).normalize()
+            #[cfg(target_arch = "aarch64")]
+            {
+                let overlay_rotation = if source_rotation.dot(overlay_rotation).is_sign_negative() {
+                    -overlay_rotation
+                } else {
+                    overlay_rotation
+                };
+                let blended = source_rotation * (1.0 - weight) + overlay_rotation * weight;
+                let normalized = crate::extensions::mesh_space_additive::normalize_pose_rotation(blended);
+                crate::extensions::mesh_space_additive::normalize_pose_rotation(normalized)
+            }
+            #[cfg(not(target_arch = "aarch64"))]
+            {
+                source_rotation.lerp(overlay_rotation, weight).normalize()
+            }
         };
         output_mesh.push(rotation);
 
@@ -146,11 +160,10 @@ pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(
         {
             continue;
         }
-        let local = parent
+        let local = crate::extensions::mesh_space_additive::normalize_pose_rotation(parent
             .and_then(|parent| output_mesh.get(parent).copied())
             .map(|parent| parent.inverse() * rotation)
-            .unwrap_or(rotation)
-            .normalize();
+            .unwrap_or(rotation));
         if let Some(index) = base.paths.get(&bone).copied() {
             base.bones[index].rotation = Some(local);
         } else {
@@ -239,6 +252,36 @@ mod tests {
         skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
         skeleton.add_bone(child_path, Transform::IDENTITY, Transform::IDENTITY);
         (skeleton, root, child)
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    fn layered_local_reconstruction_uses_shared_pose_normalizer() {
+        let (skeleton, root, child) = skeleton();
+        let rotation = Quat::from_xyzw(0.171_007_78, 0.669_664_7, 0.722_707_2, 0.000_017_113_984);
+        let mut base = Pose::default();
+        base.add_bone(BonePose { rotation: Some(Quat::IDENTITY), ..default() }, root);
+        base.add_bone(BonePose { rotation: Some(rotation), ..default() }, child);
+        let expected = crate::extensions::mesh_space_additive::normalize_pose_rotation(rotation);
+        assert_ne!(expected, rotation.normalize());
+        apply_mesh_space_layered_blend(&mut base, &Pose::default(), 1.0, &BoneMask::none(), &skeleton);
+        assert_eq!(base.get_bone(child).unwrap().rotation, Some(expected));
+    }
+
+    #[test]
+    fn layered_partial_weight_keeps_antipodal_rotations_aligned() {
+        let (skeleton, root, child) = skeleton();
+        let rotation = Quat::from_rotation_x(0.8);
+        let mut base = Pose::default();
+        base.add_bone(BonePose { rotation: Some(Quat::IDENTITY), ..default() }, root);
+        base.add_bone(BonePose { rotation: Some(rotation), ..default() }, child);
+        let mut overlay = base.clone();
+        let index = overlay.paths[&child];
+        overlay.bones[index].rotation = Some(-rotation);
+        let mut mask = BoneMask::none();
+        mask.add_bone_weight(child, skeleton.id_to_path(child).unwrap().clone(), 1.0);
+        apply_mesh_space_layered_blend(&mut base, &overlay, 0.5, &mask, &skeleton);
+        assert!(close_rotation(base.get_bone(child).unwrap().rotation.unwrap(), rotation));
     }
 
     #[test]

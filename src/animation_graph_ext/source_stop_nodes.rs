@@ -398,7 +398,11 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                         if weight <= 1e-5 { continue; }
                         if let Some(target) = target.get_bone(*bone) {
                             base.bones[*index] = if weight >= 1.0 - 1e-5 { target.clone() }
-                                else { base.bones[*index].scalar_mult(1.0 - weight).linear_add(&target.scalar_mult(weight)).normalize_quat() };
+                                else {
+                                    let mut blended = base.bones[*index].scalar_mult(1.0 - weight).linear_add(&target.scalar_mult(weight));
+                                    blended.rotation = blended.rotation.map(crate::extensions::mesh_space_additive::normalize_pose_rotation);
+                                    blended
+                                };
                         }
                     }
                 }

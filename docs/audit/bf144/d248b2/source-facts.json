@@ -1,0 +1,119 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/AnimGraphRuntime/Private/AnimNodes/AnimNode_LayeredBoneBlend.cpp",
+      "sha256": "d66d750065c42c1ed2ea5c3dca7c75f213b8f585eba4a9577c579b976740ee4d",
+      "excerpts": [
+        {
+          "first_line": 243,
+          "last_line": 275,
+          "text": "void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)\n{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)\n\tANIM_MT_SCOPE_CYCLE_COUNTER(BlendPosesInGraph, !IsInGameThread());\n\n\tconst int NumPoses = BlendPoses.Num();\n\tif ((NumPoses == 0) || !bHasRelevantPoses)\n\t{\n\t\tBasePose.Evaluate(Output);\n\t}\n\telse\n\t{\n\t\tFPoseContext BasePoseContext(Output);\n\n\t\t// evaluate children\n\t\tBasePose.Evaluate(BasePoseContext);\n\n\t\tTArray<FCompactPose, TMemStackAllocator<>> TargetBlendPoses;\n\t\tTargetBlendPoses.SetNum(NumPoses);\n\n\t\tTArray<FBlendedCurve, TMemStackAllocator<>> TargetBlendCurves;\n\t\tTargetBlendCurves.SetNum(NumPoses);\n\n\t\tTArray<UE::Anim::FStackAttributeContainer, TMemStackAllocator<>> TargetBlendAttributes;\n\t\tTargetBlendAttributes.SetNum(NumPoses);\n\n\t\tfor (int32 ChildIndex = 0; ChildIndex < NumPoses; ++ChildIndex)\n\t\t{\n\t\t\tif (FAnimWeight::IsRelevant(BlendWeights[ChildIndex]))\n\t\t\t{\n\t\t\t\tFPoseContext CurrentPoseContext(Output);\n\t\t\t\tBlendPoses[ChildIndex].Evaluate(CurrentPoseContext);\n\n"
+        },
+        {
+          "first_line": 303,
+          "last_line": 324,
+          "text": "\t\t\t\t});\n\t\t}\n\n\t\tFAnimationRuntime::EBlendPosesPerBoneFilterFlags BlendFlags = FAnimationRuntime::EBlendPosesPerBoneFilterFlags::None;\n\t\tif (bMeshSpaceRotationBlend)\n\t\t{\n\t\t\tBlendFlags |= FAnimationRuntime::EBlendPosesPerBoneFilterFlags::MeshSpaceRotation;\n\n\t\t\tif (bRootSpaceRotationBlend)\n\t\t\t{\n\t\t\t\tBlendFlags |= FAnimationRuntime::EBlendPosesPerBoneFilterFlags::RootSpaceRotation;\n\t\t\t}\n\t\t}\n\t\tif (bMeshSpaceScaleBlend)\n\t\t{\n\t\t\tBlendFlags |= FAnimationRuntime::EBlendPosesPerBoneFilterFlags::MeshSpaceScale;\n\t\t}\n\n\t\tFAnimationPoseData AnimationPoseData(Output);\n\t\tFAnimationRuntime::BlendPosesPerBoneFilter(BasePoseContext.Pose, TargetBlendPoses, BasePoseContext.Curve, TargetBlendCurves, BasePoseContext.CustomAttributes, TargetBlendAttributes, AnimationPoseData, CurrentBoneBlendWeights, BlendFlags, CurveBlendOption);\n\t}\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimationRuntime.cpp",
+      "sha256": "cc1c1ab4a70fd3607deae8792cb48709eb5948c58a07eac704e6dcb264d8d159",
+      "excerpts": [
+        {
+          "first_line": 1949,
+          "last_line": 1984,
+          "text": "\t// helpers for mesh space transform accumulation\n\tauto AccumulateMeshSpaceRotation = [&](int32 PoseIndex, FCompactPoseBoneIndex BoneIndex, const FQuat& ParentSourceRotation, const FQuat& ParentTargetRotation)\n\t{\n\t\tSourceRotations[BoneIndex] = ParentSourceRotation * BasePose[BoneIndex].GetRotation();\n\t\tTargetRotations[BoneIndex] = ParentTargetRotation * BlendPoses[PoseIndex][BoneIndex].GetRotation();\n\t};\n\tauto AccumulateMeshSpaceScale = [&](int32 PoseIndex, FCompactPoseBoneIndex BoneIndex, const FVector& ParentSourceScale, const FVector& ParentTargetScale)\n\t{\n\t\tSourceScales[BoneIndex] = ParentSourceScale * BasePose[BoneIndex].GetScale3D();\n\t\tTargetScales[BoneIndex] = ParentTargetScale * BlendPoses[PoseIndex][BoneIndex].GetScale3D();\n\t};\n\n\n\t// helpers for mesh space to local space transformation\n\tauto ConvertMeshToLocalSpaceRotation = [&](FTransform& BlendAtom, FCompactPoseBoneIndex ParentIndex, FCompactPoseBoneIndex BoneIndex)\n\t{\n\t\t// local -> mesh -> local transformations can cause loss of precision for long bone chains, we have to normalize rotation there.\n\t\tFQuat LocalBlendQuat = BlendRotations[ParentIndex].Inverse() * BlendRotations[BoneIndex];\n\t\tLocalBlendQuat.Normalize();\n\t\tBlendAtom.SetRotation(LocalBlendQuat);\n\t};\n\tauto ConvertMeshToLocalSpaceScale = [&](FTransform& BlendAtom, FCompactPoseBoneIndex ParentIndex, FCompactPoseBoneIndex BoneIndex)\n\t{\n\t\tFVector ParentScaleInv = FTransform::GetSafeScaleReciprocal(BlendScales[ParentIndex], UE_SMALL_NUMBER);\n\t\tFVector LocalBlendScale = ParentScaleInv * BlendScales[BoneIndex];\n\t\tBlendAtom.SetScale3D(LocalBlendScale);\n\t};\n\n\n\t// helpers for mesh space lerping\n\tauto LerpMeshSpaceRotation = [&](FCompactPoseBoneIndex BoneIndex, float BlendWeight)\n\t{\n\t\t// Fast lerp produces un-normalized quaternions, so we'll re-normalize.\n\t\tBlendRotations[BoneIndex] = FQuat::FastLerp(SourceRotations[BoneIndex], TargetRotations[BoneIndex], BlendWeight);\n\t\tBlendRotations[BoneIndex].Normalize();\n\t};\n"
+        },
+        {
+          "first_line": 2053,
+          "last_line": 2095,
+          "text": "\t\t\tconst FCompactPoseBoneIndex ParentIndex = BoneContainer.GetParentBoneIndex(BoneIndex);\n\n\t\t\tif (ParentIndex != INDEX_NONE)\n\t\t\t{\n\t\t\t\tAccumulateMeshSpaceRotation(PoseIndex, BoneIndex, SourceRotations[ParentIndex], TargetRotations[ParentIndex]);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\t// Ignore the root bone for component-space calculation. This forces our rotations to be in root-space.\n\t\t\t\tSourceRotations[BoneIndex] = FQuat::Identity;\n\t\t\t\tTargetRotations[BoneIndex] = FQuat::Identity;\n\t\t\t}\n\n\t\t\tconst FTransform& BaseAtom = BasePose[BoneIndex];\n\t\t\tconst FTransform& TargetAtom = BlendPoses[PoseIndex][BoneIndex];\n\t\t\tFTransform BlendAtom;\n\n\t\t\tconst float BlendWeight = FMath::Clamp(BoneBlendWeights[BoneIndex.GetInt()].BlendWeight, 0.f, 1.f);\n\t\t\tMaxPoseWeights[PoseIndex] = FMath::Max(MaxPoseWeights[PoseIndex], BlendWeight);\n\n\t\t\tif (!FAnimWeight::IsRelevant(BlendWeight))\n\t\t\t{\n\t\t\t\tBlendAtom = BaseAtom;\n\t\t\t\tBlendRotations[BoneIndex] = SourceRotations[BoneIndex];\n\t\t\t}\n\t\t\telse if (FAnimWeight::IsFullWeight(BlendWeight))\n\t\t\t{\n\t\t\t\tBlendAtom = TargetAtom;\n\t\t\t\tBlendRotations[BoneIndex] = TargetRotations[BoneIndex];\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tBlendAtom = BaseAtom;\n\t\t\t\tBlendAtom.BlendWith(TargetAtom, BlendWeight);\n\t\t\t\tLerpMeshSpaceRotation(BoneIndex, BlendWeight);\n\t\t\t}\n\n\t\t\tif (ParentIndex != INDEX_NONE)\n\t\t\t{\n\t\t\t\tConvertMeshToLocalSpaceRotation(BlendAtom, ParentIndex, BoneIndex);\n\t\t\t}\n\n\t\t\tOutPose[BoneIndex] = BlendAtom;\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathNeon.h",
+      "sha256": "bfcba580c7c1f4b39dd6d4b45390d5db64c6f63c3579ef645f83ea19dc6a4b7c",
+      "excerpts": [
+        {
+          "first_line": 1022,
+          "last_line": 1028,
+          "text": "FORCEINLINE VectorRegister4Float VectorDot4(VectorRegister4Float Vec1, VectorRegister4Float Vec2)\n{\n\tVectorRegister4Float Temp = VectorMultiply(Vec1, Vec2);\n\tfloat32x2_t sum = vpadd_f32(vget_low_f32(Temp), vget_high_f32(Temp));\n\tsum = vpadd_f32(sum, sum);\n\treturn vdupq_lane_f32(sum, 0);\n}\n"
+        },
+        {
+          "first_line": 1698,
+          "last_line": 1731,
+          "text": "FORCEINLINE VectorRegister4Float VectorReciprocalSqrtEstimate(VectorRegister4Float Vec)\n{\n\treturn vrsqrteq_f32(Vec);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrtEstimate(VectorRegister4Double Vec)\n{\n\tVectorRegister4Double Result;\n\tResult.XY = vrsqrteq_f64(Vec.XY);\n\tResult.ZW = vrsqrteq_f64(Vec.ZW);\n\treturn Result;\n}\n\n/**\n * Return the reciprocal of the square root of each component\n *\n * @param Vector\tVector\n * @return\t\t\tVectorRegister4Float(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))\n */\nFORCEINLINE VectorRegister4Float VectorReciprocalSqrt(VectorRegister4Float Vec)\n{\n\t// Initial estimate\n\tVectorRegister4Float RecipSqrt = VectorReciprocalSqrtEstimate(Vec);\n\n\t// Two refinement\n\tRecipSqrt = VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);\n\treturn VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrt(VectorRegister4Double Vec)\n{\n\t// Initial estimate\n\tVectorRegister4Double RecipSqrt = VectorReciprocalSqrtEstimate(Vec);\n\n"
+        }
+      ]
+    },
+    {
+      "path": "glam-0.32.1/src/f32/neon/quat.rs",
+      "sha256": "98274e9ae2d8c175c58554bdd23562ab366f8dc356eb238ee99b2d1d9c23093d",
+      "excerpts": [
+        {
+          "first_line": 690,
+          "last_line": 727,
+          "text": "\n    #[inline(always)]\n    #[must_use]\n    fn lerp_impl(self, end: Self, s: f32) -> Self {\n        (self * (1.0 - s) + end * s).normalize()\n    }\n\n    /// Performs a linear interpolation between `self` and `rhs` based on\n    /// the value `s`.\n    ///\n    /// When `s` is `0.0`, the result will be equal to `self`.  When `s`\n    /// is `1.0`, the result will be equal to `rhs`.\n    ///\n    /// # Panics\n    ///\n    /// Will panic if `self` or `end` are not normalized when `glam_assert` is enabled.\n    #[doc(alias = \"mix\")]\n    #[inline]\n    #[must_use]\n    pub fn lerp(self, end: Self, s: f32) -> Self {\n        glam_assert!(self.is_normalized());\n        glam_assert!(end.is_normalized());\n\n        const NEG_ZERO: float32x4_t = f32x4_from_array([-0.0; 4]);\n        unsafe {\n            let dot = dot4_into_f32x4(self.0, end.0);\n            // Calculate the bias, if the dot product is positive or zero, there is no bias\n            // but if it is negative, we want to flip the 'end' rotation XYZW components\n            let bias = vandq_u32(vreinterpretq_u32_f32(dot), vreinterpretq_u32_f32(NEG_ZERO));\n            self.lerp_impl(\n                Self(vreinterpretq_f32_u32(veorq_u32(\n                    vreinterpretq_u32_f32(end.0),\n                    bias,\n                ))),\n                s,\n            )\n        }\n    }\n"
+        }
+      ]
+    },
+    {
+      "path": "glam-0.32.1/src/neon.rs",
+      "sha256": "37fdfee5ef3ef12a831b0290d3205c36c36c3a78dccc39bdee0f04963cb8f864",
+      "excerpts": [
+        {
+          "first_line": 40,
+          "last_line": 52,
+          "text": "#[inline]\npub(crate) unsafe fn dot4(lhs: float32x4_t, rhs: float32x4_t) -> f32 {\n    let x2_y2_z2_w2 = vmulq_f32(lhs, rhs);\n    // TODO: horizontal add - might perform bad?\n    vaddvq_f32(x2_y2_z2_w2)\n}\n\n#[inline]\npub(crate) unsafe fn dot4_into_f32x4(lhs: float32x4_t, rhs: float32x4_t) -> float32x4_t {\n    let dot = dot4(lhs, rhs);\n    vld1q_dup_f32(&dot as *const f32)\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "bevy_animation_graph_core/src/pose.rs",
+      "sha256": "962f07a8d357fd26d0494dc0486830cd3701dfdab25416fa8c4cefa25090570d",
+      "excerpts": [
+        {
+          "first_line": 156,
+          "last_line": 170,
+          "text": "    pub fn linear_blend_mut(&mut self, other: &BonePose, alpha: f32) {\n        self.rotation = either_or_mix(self.rotation, other.rotation, |a, b| a.slerp(b, alpha));\n        self.translation =\n            either_or_mix(self.translation, other.translation, |a, b| a.lerp(b, alpha));\n        self.scale = either_or_mix(self.scale, other.scale, |a, b| a.lerp(b, alpha));\n        self.weights = either_or_mix(self.weights.clone(), other.weights.clone(), |a, b| {\n            let length = a.len().max(b.len());\n            (0..length)\n                .map(|index| {\n                    let old = a.get(index).copied().unwrap_or(0.0);\n                    let new = b.get(index).copied().unwrap_or(0.0);\n                    old + (new - old) * alpha\n                })\n                .collect()\n        });\n"
+        },
+        {
+          "first_line": 187,
+          "last_line": 216,
+          "text": "    pub fn linear_add(&self, other: &BonePose) -> Self {\n        Self {\n            rotation: either_or_mix(self.rotation, other.rotation, |a, b| {\n                linear_add_quaternion(a, b)\n            }),\n            translation: either_or_mix(self.translation, other.translation, |a, b| a + b),\n            scale: either_or_mix(self.scale, other.scale, |a, b| a + b),\n            weights: either_or_mix(self.weights.clone(), other.weights.clone(), |a, b| {\n                a.into_iter().zip(b).map(|(a, b)| a + b).collect()\n            }),\n        }\n    }\n\n    pub fn scalar_mult(&self, alpha: f32) -> Self {\n        Self {\n            rotation: self.rotation.map(|r| r * alpha),\n            translation: self.translation.map(|t| alpha * t),\n            scale: self.scale.map(|s| alpha * s),\n            weights: self\n                .weights\n                .clone()\n                .map(|w| w.into_iter().map(|a| alpha * a).collect()),\n        }\n    }\n\n    pub fn normalize_quat(&self) -> Self {\n        Self {\n            rotation: self.rotation.map(|r| r.normalize()),\n            translation: self.translation,\n            scale: self.scale,\n"
+        },
+        {
+          "first_line": 349,
+          "last_line": 357,
+          "text": "        (None, None) => None,\n        (Some(a), None) => Some(a),\n        (None, Some(b)) => Some(b),\n    }\n}\n\nfn linear_add_quaternion(a: Quat, b: Quat) -> Quat {\n    if a.dot(b) < 0. { a - b } else { a + b }\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "src/animation_graph_ext/mesh_space_layered_blend.rs",
+      "sha256": "25a3157661dc17f9be448a9b2a4b9c631eff0ffadddb2c1c33a67992c374518a",
+      "excerpts": [
+        {
+          "first_line": 106,
+          "last_line": 165,
+          "text": "pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(\n    base: &mut Pose,\n    overlay: &Pose,\n    alpha: f32,\n    bone_mask: &BoneMask,\n    skeleton: &Skeleton,\n    hierarchy: &[(BoneId, Option<usize>)],\n) {\n    let alpha = alpha.clamp(0.0, 1.0);\n    if alpha <= WEIGHT_THRESHOLD {\n        return;\n    }\n\n    let source_mesh = mesh_rotations(base, skeleton, hierarchy);\n    let overlay_mesh = mesh_rotations(overlay, skeleton, hierarchy);\n    LinearInterpolator {\n        bone_mask: bone_mask.clone(),\n    }\n    .interpolate_pose(base, overlay, alpha);\n\n    let mut output_mesh = Vec::with_capacity(hierarchy.len());\n\n    for (index, &(bone, parent)) in hierarchy.iter().enumerate() {\n        let mask_weight = bone_mask.bone_weight(&bone).clamp(0.0, 1.0);\n        let weight = (alpha * mask_weight).clamp(0.0, 1.0);\n        let rotation = if weight <= WEIGHT_THRESHOLD {\n            source_mesh[index]\n        } else {\n            let source_rotation = source_mesh[index];\n            let overlay_rotation = overlay_mesh[index];\n            source_rotation.lerp(overlay_rotation, weight).normalize()\n        };\n        output_mesh.push(rotation);\n\n        if weight <= WEIGHT_THRESHOLD\n            && !base.paths.contains_key(&bone)\n            && !overlay.paths.contains_key(&bone)\n            && parent.is_none_or(|parent| {\n                output_mesh.get(parent) == source_mesh.get(parent)\n            })\n        {\n            continue;\n        }\n        let local = parent\n            .and_then(|parent| output_mesh.get(parent).copied())\n            .map(|parent| parent.inverse() * rotation)\n            .unwrap_or(rotation)\n            .normalize();\n        if let Some(index) = base.paths.get(&bone).copied() {\n            base.bones[index].rotation = Some(local);\n        } else {\n            base.add_bone(\n                BonePose {\n                    rotation: Some(local),\n                    ..default()\n                },\n                bone,\n            );\n        }\n    }\n"
+        }
+      ],
+      "revision": "before_D248b2"
+    },
+    {
+      "path": "src/animation_graph_ext/source_stop_nodes.rs",
+      "sha256": "d7c1f20651725709e7eada1e42e58b48478722712269d1e864ddc2184f4b4aa3",
+      "excerpts": [
+        {
+          "first_line": 375,
+          "last_line": 405,
+          "text": "                let root_motion = source_layered_root_motion(&base, &overlays, &weights, root_source, root_weight,\n                    self.blend_root_motion_based_on_root_bone);\n                let mut mask = data.mask.clone();\n                let sources = &data.sources;\n                let mut target = data.reference.clone();\n                for (bone, index) in &target.paths {\n                    let reference = target.bones[*index].clone();\n                    if let Some(base_index) = base.paths.get(bone).copied() {\n                        base.bones[base_index] = reference.overlay(&base.bones[base_index]);\n                    } else { base.add_bone(reference.clone(), *bone); }\n                    let mut source = sources.get(bone).copied().unwrap_or(0);\n                    let weight = (mask.bone_weight(bone) * weights[source]).clamp(0.0, 1.0);\n                    let weight = if weight <= 1e-5 { source = 0; 0.0 } else if weight >= 1.0 - 1e-5 { 1.0 } else { weight };\n                    mask.update_bone_weight(*bone, weight);\n                    if let Some(overlay) = overlays[source].as_ref().and_then(|pose| pose.get_bone(*bone)) {\n                        target.bones[*index] = reference.overlay(overlay);\n                    }\n                }\n                if self.mesh_space_rotation_blend {\n                    crate::extensions::mesh_space_layered_blend::apply_mesh_space_layered_blend_with_hierarchy(&mut base, &target, 1.0, &mask, skeleton, &data.hierarchy);\n                } else {\n                    for (bone, index) in &base.paths {\n                        let weight = mask.bone_weight(bone);\n                        if weight <= 1e-5 { continue; }\n                        if let Some(target) = target.get_bone(*bone) {\n                            base.bones[*index] = if weight >= 1.0 - 1e-5 { target.clone() }\n                                else { base.bones[*index].scalar_mult(1.0 - weight).linear_add(&target.scalar_mult(weight)).normalize_quat() };\n                        }\n                    }\n                }\n                base.root_motion = root_motion;\n"
+        }
+      ],
+      "revision": "before_D248b2"
+    }
+  ]
+}

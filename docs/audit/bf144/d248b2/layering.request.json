@@ -1,0 +1,6 @@
+{
+  "asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering",
+  "output": "docs/audit/bf144/d248b2/layering.native.json",
+  "timeout_seconds": 240,
+  "no_progress_seconds": 90
+}
