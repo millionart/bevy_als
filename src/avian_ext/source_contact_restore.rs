@@ -40,7 +40,7 @@ pub(crate) struct SourceRestorePoint {
     pub disabled: bool,
 }
 
-fn source_float_position(value: DVec3) -> DVec3 {
+pub(super) fn source_float_position(value: DVec3) -> DVec3 {
     source_direction(source_position(value).as_vec3().as_dvec3()) * 0.01
 }
 
