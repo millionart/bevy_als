@@ -4039,10 +4039,11 @@ pub(crate) fn locomotion_drive_system(
         }, |view| view.0);
         let world_input = view_relative_move_input(effective.move_dir, movement_yaw);
 
-        let desired_forward = roll
-            .filter(|state| state.active)
-            .and_then(|state| Dir3::new(yaw_to_world_forward(state.direction_yaw)).ok())
-            .or_else(|| Dir3::new(gtf.forward().as_vec3()).ok());
+        let desired_forward = if roll.is_some_and(|state| state.active) {
+            None
+        } else {
+            Dir3::new(gtf.forward().as_vec3()).ok()
+        };
 
         controller.basis = TnuaBuiltinWalk {
             desired_motion: world_input,
@@ -5823,6 +5824,20 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn rolling_does_not_feed_tnua_a_second_turn_target() {
+        use bevy::ecs::system::RunSystemOnce;
+        for active in [false, true] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(actor).insert(crate::als::roll::AlsRollState {
+                active, direction_yaw: 0.0, ..default()
+            });
+            app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+            let forward = app.world().get::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_forward;
+            assert_eq!(forward.is_none(), active, "active={active} forward={forward:?}");
+        }
+    }
+
     #[test]
     fn unwalkable_floor_query_preserves_initial_penetration() {
         use bevy::ecs::system::RunSystemOnce;

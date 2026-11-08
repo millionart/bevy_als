@@ -6108,7 +6108,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整已蹲伏角色静止按Roll，frame delta34/40/50ms时原生根位移应16.366/22.077/31.595mm，实际水平位移均0；同帧已正确采样root且写入相应非零速度，物理前runtime仍Some(Vec3::ZERO)。`bf144_roll_root_first_frame_replaces_ordinary_movement_budget`8组5PASS/3FAIL，16.667/33.333及51/60/100ms对照通过；证据`target/bf144/15/first_frame/`。
   - 漏检：旧大帧Roll回归先播放到动作中段，再测试时钟，绕开了Roll开始前普通CMC已经写预算的首帧。夹具提前完成Crouch，排除D43；本项是物理消费优先级，不是原始轨道或播放权重问题，仅登记。
 
-- [ ] BF144-D47 / P2 — Roll叠加Tnua角速度，重复应用转向。
+- [x] BF144-D47 / P2 — Roll叠加Tnua角速度，重复应用转向；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:06 +08:00；预估结束17:51 +08:00；实际结束17:08 +08:00，提前43分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE/ALS旋转开关与Tnua角速度规则、原生Roll根旋转46帧保存在`docs/audit/bf144/d47/`；Roll活跃时停止提供重复转向目标，已写跨物理积分及倍率对照。旧target报告缺失，源端动态旋转未复测，通知结束门槛留给D48。
   - Source：fresh native CMC bOrientRotationToMovement=False、bUseControllerDesiredRotation=False，UE `PhysicsRotation:6632–6636`提前返回；ALS `AlsCharacterMovementComponent.cpp:313–321`仍广播其手动rotation，由`AlsCharacter_Actions.cpp:116–140`执行一次half-life0.1的yaw阻尼。原生A_Als_Roll根旋转全identity，不存在另一次动画root旋转。
   - Target：`src/als/character/movement/motion.rs:3081–3088`把Roll目标方向继续喂给Tnua Walk，产生最多500°/s的angular boost；`roll_drive.rs:2304–2320`又直接写入正确的阻尼rotation，之后物理积分仍应用上述angular velocity。
   - 反例：完整已启动的Grounded Roll，当前yaw0.7rad、目标0，owner1的源单次阻尼应到0.6234437；物理前target也是0.6234436，物理后却到0.4779995，多转约8.333°。`bf144_roll_root_physical_turn_is_applied_only_once`9组6PASS/3FAIL，owner0.5/1/2均多转同一世界帧角度；同方向零角误差对照通过，仅在夹具物理前清AngularVelocity的三组也恢复源结果，证据`target/bf144/15/root_core/`。

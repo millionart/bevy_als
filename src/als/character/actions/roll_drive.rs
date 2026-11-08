@@ -508,6 +508,27 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_roll_rotation_is_applied_once_through_physics() {
+        use avian3d::prelude::AngularVelocity;
+        for (dilation, yaw) in [(0.5, 0.7), (1.0, 0.7), (2.0, 0.7),
+            (0.5, 0.0), (1.0, 0.0), (2.0, 0.0)] {
+            let (mut app, actor, _) = loaded_roll_character();
+            play_loaded_roll(&mut app, actor);
+            let rotation = Quat::from_rotation_y(yaw);
+            let mut transform = *app.world().get::<Transform>(actor).unwrap();
+            transform.rotation = rotation;
+            app.world_mut().entity_mut(actor).insert((transform, Rotation(rotation), AngularVelocity::ZERO,
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation)));
+            app.world_mut().get_mut::<AlsRollState>(actor).unwrap().direction_yaw = 0.0;
+            app.update();
+            let actual = app.world().get::<Rotation>(actor).unwrap().0.to_euler(EulerRot::YXZ).0;
+            let expected = damper_exact_angle(yaw, 0.0, dilation / 60.0, ROLL_ROTATION_HALF_LIFE_SECS);
+            assert!((actual - expected).abs() < 1e-4,
+                "dilation={dilation} yaw={yaw} actual={actual} expected={expected}");
+        }
+    }
+
+    #[test]
     fn loaded_roll_source_velocity_preserves_owner_clock_displacement_base_and_handoff() {
         for (mode, base_speed) in [(LocomotionState::Grounded, 0.0_f32), (LocomotionState::Grounded, 0.75), (LocomotionState::Custom, 0.0)] {
             for dilation in [0.5_f32, 1.0, 2.0] {
