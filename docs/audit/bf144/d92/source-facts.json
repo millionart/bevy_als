@@ -1,0 +1,58 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/PBDRigidsEvolutionGBF.h",
+    "sha256": "99da3b38d8e53976c040d1e41e83f70109b298908aedf37ad5aed7d405e447ed",
+    "start_line": 61,
+    "end_line": 72,
+    "text": "\t\t// Default settings for FChaosSolverConfiguration\n\t\tstatic constexpr int32 DefaultNumPositionIterations = 8;\n\t\tstatic constexpr int32 DefaultNumVelocityIterations = 2;\n\t\tstatic constexpr int32 DefaultNumProjectionIterations = 1;\n\t\tstatic constexpr FRealSingle DefaultCollisionMarginFraction = 0.05f;\n\t\tstatic constexpr FRealSingle DefaultCollisionMarginMax = 10.0f;\n\t\tstatic constexpr FRealSingle DefaultCollisionCullDistance = 3.0f;\n\t\tstatic constexpr FRealSingle DefaultCollisionMaxPushOutVelocity = 1000.0f;\n\t\tstatic constexpr FRealSingle DefaultCollisionDepenetrationVelocity = -1.0f;\n\t\tstatic constexpr int32 DefaultRestitutionThreshold = 1000;\n\n\t\tCHAOS_API FPBDRigidsEvolutionGBF("
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDRigidsEvolutionGBF.cpp",
+    "sha256": "733d0d1c075eb559319e9e8e4364923b8090652e6997738d6eebbec066b06712",
+    "start_line": 1362,
+    "end_line": 1370,
+    "text": "\tbool InIsSingleThreaded)\n\t: Base(InParticles, SolverPhysicsMaterials, InIsSingleThreaded)\n\t, Clustering(*this, Particles.GetClusteredParticles(), InStrainModifiers)\n\t, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, &SolverPhysicsMaterials, CalculateNumCollisionsPerBlock(), DefaultRestitutionThreshold)\n\t, BroadPhase(InParticles)\n\t, CollisionDetector(BroadPhase, CollisionConstraints)\n\t, PreIntegrateCallback(nullptr)\n\t, PostIntegrateCallback(nullptr)\n\t, PreSolveCallback(nullptr)"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDCollisionConstraints.cpp",
+    "sha256": "694bfd6e809e4e3414e050843c282e96700d360f87142d5e4995665670f1e599",
+    "start_line": 65,
+    "end_line": 69,
+    "text": "\tFRealSingle DefaultCollisionRestitution = 0;\n\tFAutoConsoleVariableRef CVarDefaultCollisionRestitution(TEXT(\"p.DefaultCollisionRestitution\"), DefaultCollisionRestitution, TEXT(\"Collision restitution default value if no materials are found.\"));\n\n\tFRealSingle CollisionRestitutionThresholdOverride = -1.0f;\n\tFAutoConsoleVariableRef CVarDefaultCollisionRestitutionThreshold(TEXT(\"p.CollisionRestitutionThreshold\"), CollisionRestitutionThresholdOverride, TEXT(\"Collision restitution threshold override if >= 0 (units of acceleration)\"));"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDCollisionConstraints.cpp",
+    "sha256": "694bfd6e809e4e3414e050843c282e96700d360f87142d5e4995665670f1e599",
+    "start_line": 506,
+    "end_line": 525,
+    "text": "\t\t\tMaterialStaticFriction = DefaultCollisionFriction;\n\t\t\tMaterialRestitution = DefaultCollisionRestitution;\n\t\t}\n\n\t\tMaterialRestitutionThreshold = RestitutionThreshold;\n\n\t\t// Overrides for testing\n\t\tif (CollisionFrictionOverride >= 0)\n\t\t{\n\t\t\tMaterialDynamicFriction = CollisionFrictionOverride;\n\t\t\tMaterialStaticFriction = CollisionFrictionOverride;\n\t\t}\n\t\tif (CollisionRestitutionOverride >= 0)\n\t\t{\n\t\t\tMaterialRestitution = CollisionRestitutionOverride;\n\t\t}\n\t\tif (CollisionRestitutionThresholdOverride >= 0.0f)\n\t\t{\n\t\t\tMaterialRestitutionThreshold = CollisionRestitutionThresholdOverride;\n\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/PBDCollisionContainerSolver.cpp",
+    "sha256": "b92ce7e6ffec23d4285268bcdb8f0f7fabe7263ccff4230179d9921849305e79",
+    "start_line": 85,
+    "end_line": 90,
+    "text": "\t{\n\t\tFManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ConstraintPointIndex);\n\n\t\tconst FRealSingle Restitution = FRealSingle(Constraint->GetRestitution());\n\t\tconst FRealSingle RestitutionVelocityThreshold = FRealSingle(Constraint->GetRestitutionThreshold()) * Dt;\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/PBDCollisionContainerSolver.cpp",
+    "sha256": "b92ce7e6ffec23d4285268bcdb8f0f7fabe7263ccff4230179d9921849305e79",
+    "start_line": 158,
+    "end_line": 168,
+    "text": "\n\t\t// The target contact velocity, taking restitution into account\n\t\tFRealSingle WorldContactTargetVelocityNormal = FRealSingle(0);\n\t\tif (Restitution > FRealSingle(0))\n\t\t{\n\t\t\tif (ContactVelocityNormal < -RestitutionVelocityThreshold)\n\t\t\t{\n\t\t\t\tWorldContactTargetVelocityNormal = -Restitution * ContactVelocityNormal;\n\t\t\t}\n\t\t}\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/plugin.rs",
+    "sha256": "b8c96fa4fcdc013ef28830afe5821a013676252519fb1169fb08b8d33227ceea",
+    "start_line": 635,
+    "end_line": 641,
+    "text": "    mut diagnostics: ResMut<SolverDiagnostics>,\n) {\n    let start = crate::utils::Instant::now();\n\n    // The restitution threshold determining the speed required for restitution to be applied.\n    let threshold = solver_config.restitution_threshold * length_unit.0;\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/contact/mod.rs",
+    "sha256": "425a095c46fac096b45e14cd58afa83d0ece39e026c9f4966756f30ae6c319b2",
+    "start_line": 368,
+    "end_line": 375,
+    "text": "        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();\n        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();\n\n        for point in self.points.iter_mut() {\n            // Skip restitution for speeds below the threshold.\n            // We also skip contacts that don't apply an impulse to account for speculative contacts.\n            if point.normal_speed > -threshold || point.normal_part.total_impulse == 0.0 {\n                continue;"
+  }
+]

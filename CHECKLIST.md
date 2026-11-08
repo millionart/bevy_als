@@ -6486,11 +6486,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - 21:30 source/static摘要：fresh PA确认全部21个body的原生回弹值和组合模式，源shape材质及目标manifold消费路径已固化；现按源body索引将完整回弹组件同步到所属shape及其profile刷新。已写加载角色22个shape、单body更新隔离和实际接触manifold对照；测试、消融和Playground待统一Gate，低速阈值归D92。证据`docs/audit/bf144/d91/`。实际结束：2026-11-08 21:30 +08:00；偏差：−37分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D92 / P3 — Ragdoll普通接触的低速回弹阈值与源物理时钟不符。
+- [x] BF144-D92 / P3 — Ragdoll普通接触的低速回弹阈值与源物理时钟不符。
+  - 本轮开始：2026-11-08 21:30 +08:00；预计结束：2026-11-08 22:15 +08:00。重读源世界阈值、物理delta及比较边界，映射到目标普通接触配置并覆盖帧长变化；统一验证留待升级后。估时依据：BF144.28的contact/材质闭包实耗约29分钟，本项需补时钟和阈值相等边界。
   - Source：fresh `PBDRigidsEvolutionGBF.h:70`与cpp:1365给实际世界碰撞容器传入1000cm/s²默认阈值；全局`p.CollisionRestitutionThreshold=-1`。`PBDCollisionContainerSolver.cpp:88–89,160–166`以该加速度乘物理dt作为速度门槛，即60Hz约0.166667m/s、30Hz约0.333333m/s。项目BounceThresholdVelocity=200字段没有进入这条Chaos世界调用。
   - Target：实际Avian `SolverConfig`默认固定1m/s，`solver/plugin.rs:639–640`仅乘length unit；角色插件没有覆盖该资源。
   - 反例：完整角色head中心接触，先统一双方shape系数0.3以隔离D91；60/30Hz×入射0.05/0.25/0.5/1.5m/s×原阈值/源阈值共16组13PASS/3FAIL。60Hz的0.25/0.5及30Hz的0.5被目标压到零速度，源应分别0.075/0.15/0.15m/s；仅替换阈值后三组恢复，低于双方阈值和高于双方阈值的控制通过。证据`bf144_pa_contact_restitution_uses_source_acceleration_threshold`、`target/bf144/28/`。
   - 漏检：旧回弹验证集中于自定义CCD或较大速度，未覆盖原生普通接触阈值及其dt语义。属于低速回弹差异，未将截图或整段跌倒观感当作证据。
+  - 21:34 source/static摘要：fresh PA确认世界覆盖关闭，源默认加速度、物理delta与严格比较已固化；离线生成目标加速度，物理帧内更新Avian阈值并适配等号边界。已写多帧长、长度单位、等号两侧及加载head接触对照；测试、消融、非默认单位舍入与Playground待统一Gate。证据`docs/audit/bf144/d92/`。实际结束：2026-11-08 21:34 +08:00；偏差：−41分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D93 / P2 — Ragdoll硬材质接触被目标的柔性接触参数延迟恢复。
   - Source：fresh native PA材质SoftCollisionMode=None、body非one-way且无穿透速度override，world初始穿透恢复−1映射无限制，pushout上限10m/s。`PBDCollisionConstraint.cpp:518–524`实际stiffness=1；`PBDCollisionSolver.h:454–466,593–644,1114–1138`按当前法向误差乘有效质量作位置修正，中心单点无转矩时一轮可清零误差。

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use crate::als::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
+use avian3d::dynamics::solver::{PhysicsLengthUnit, SolverConfig};
 use avian3d::prelude::{
     Collider, Collisions, ContactPairFlags, CustomPositionIntegration, Physics, PhysicsSchedule,
     PhysicsSystems, Position, RigidBody, Rotation, ShapeCastConfig, SolverSystems, SpatialQueryFilter,
@@ -13,6 +14,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 pub const SOURCE_MAX_PHYSICS_DELTA: Duration = Duration::from_nanos(33_333_333);
 const SOURCE_PHYSICS_SUBSTEPS: u32 = include!("../../settings/physics_substeps.rs");
+const SOURCE_RESTITUTION_ACCELERATION: f32 = include!("../../settings/restitution_acceleration.rs");
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourcePhysicsTimingSet {
@@ -68,6 +70,7 @@ impl Plugin for SourcePhysicsTimingPlugin {
                     .after(avian3d::dynamics::integrator::pre_process_velocity_increments),
             )
             .add_systems(PhysicsSchedule, preserve_unobstructed_grounded_displacement.in_set(SolverSystems::PostSubstep))
+            .add_systems(PhysicsSchedule, update_source_restitution_threshold.in_set(SolverSystems::PreSubstep))
             .add_systems(
                 SubstepSchedule,
                 record_character_velocity
@@ -81,6 +84,14 @@ impl Plugin for SourcePhysicsTimingPlugin {
                     .after(crate::extensions::ragdoll_physics_profile::integrate_source_ragdoll_rotation),
             );
     }
+}
+
+fn update_source_restitution_threshold(
+    time: Res<Time<Physics>>,
+    length_unit: Res<PhysicsLengthUnit>,
+    mut solver: ResMut<SolverConfig>,
+) {
+    solver.restitution_threshold = (SOURCE_RESTITUTION_ACCELERATION * time.delta_secs() / length_unit.0).next_up();
 }
 
 fn integrate_character_velocity(
@@ -319,6 +330,29 @@ mod tests {
     use super::*;
     use avian3d::prelude::{Collider, CollisionLayers, GravityScale, LayerMask, LinearVelocity, Position, RigidBody, Sensor};
     use bevy::time::TimeUpdateStrategy;
+
+    #[test]
+    fn source_restitution_threshold_follows_clamped_physics_time() {
+        use avian3d::dynamics::solver::{PhysicsLengthUnit, SolverConfig};
+        let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
+        for unit in [1.0_f32, 2.0] {
+            app.world_mut().insert_resource(PhysicsLengthUnit(unit));
+            for frame_dt in [1.0_f32 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 0.1] {
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(frame_dt)));
+                app.update();
+                let physics_dt = app.world().resource::<Time<Physics>>().delta_secs();
+                let threshold = 10.0 * physics_dt;
+                let actual = app.world().resource::<SolverConfig>().restitution_threshold * unit;
+                assert_eq!(actual, threshold.next_up(), "unit={unit} frame_dt={frame_dt}");
+                for speed in [threshold.next_down(), threshold, threshold.next_up()] {
+                    assert_eq!(speed >= actual, speed > threshold,
+                        "unit={unit} frame_dt={frame_dt} speed={speed} threshold={threshold}");
+                }
+                assert!((physics_dt - frame_dt.min(SOURCE_MAX_PHYSICS_DELTA.as_secs_f32())).abs() < 1e-6);
+                assert!((app.world().resource::<Time<Virtual>>().delta_secs() - frame_dt).abs() < 1e-6);
+            }
+        }
+    }
 
     #[test]
     fn world_ragdoll_uses_one_clamped_physics_step_without_fixing_game_frames() {

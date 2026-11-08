@@ -2078,6 +2078,49 @@ mod tests {
     }
 
     #[test]
+    fn source_ragdoll_contact_bounce_uses_physics_frame_threshold() {
+        use avian3d::prelude::{AngularVelocity, ColliderDisabled, ComputedCenterOfMass, Gravity, JointDisabled,
+            LinearVelocity, Sleeping, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+        for dt in [1.0_f32 / 60.0, 1.0 / 30.0] {
+            for speed in [0.05_f32, 0.25, 0.5, 1.5] {
+                let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+                for _ in 0..12 { app.update(); }
+                let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+                let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+                let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+                let head = bodies.iter().find(|(label, _)| label == "head").unwrap().1;
+                let profile = app.world().get::<RagdollPhysicsProfile>(player).unwrap();
+                let head_index = profile.bodies.iter().find(|body| body.label == "head").unwrap().source_index;
+                let shape = colliders.iter().copied().find(|entity| {
+                    let label = &app.world().get::<ColliderLabel>(*entity).unwrap().0;
+                    find_collider_profile(profile, label).unwrap().source_body_index == head_index
+                }).unwrap();
+                for entity in colliders { if entity != shape { app.world_mut().entity_mut(entity).insert(ColliderDisabled); } }
+                for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+                app.world_mut().insert_resource(Gravity(Vec3::ZERO));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(dt)));
+                let local_center = app.world().get::<ComputedCenterOfMass>(head).unwrap().0;
+                let position = app.world().get::<Position>(head).unwrap().0;
+                let rotation = app.world().get::<Rotation>(head).unwrap().0;
+                let center = position + rotation * local_center;
+                app.world_mut().entity_mut(shape).insert((Collider::sphere(0.1), Transform::from_translation(local_center)));
+                app.world_mut().entity_mut(head).insert((SleepingDisabled, LinearDamping(0.0), AngularDamping(0.0),
+                    LinearVelocity(Vec3::NEG_Y * speed), AngularVelocity::ZERO)).remove::<Sleeping>();
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                    Transform::from_translation(center - Vec3::Y * 0.199), Restitution::new(0.3)));
+                app.update();
+                let actual = app.world().get::<LinearVelocity>(head).unwrap().y;
+                let expected = if speed > 10.0 * dt { speed * 0.3 } else { 0.0 };
+                assert!((actual - expected).abs() < 0.025,
+                    "dt={dt} incoming={speed} actual={actual} source={expected}");
+            }
+        }
+    }
+
+    #[test]
     fn source_ragdoll_linear_damping_follows_acceleration_and_impulse() {
         use avian3d::prelude::{AngularVelocity, ColliderDisabled, ComputedMass, ConstantForce, ConstantLocalForce,
             Forces, Gravity, JointDisabled, LinearVelocity, Sleeping, SleepingDisabled, WriteRigidBodyForces};
