@@ -1,8 +1,8 @@
-use bevy::math::{DQuat, DVec3};
+use bevy::math::{DQuat, DVec3, Vec3};
 
 use super::source_contact_face::{SourceBoxConvexFaces, SourceConvexTopology};
 use super::source_contact_gjk::SourceGjkResult;
-use super::source_contact_polygon::{source_box_face, source_clip_convex_face, source_direction};
+use super::source_contact_polygon::{source_box_face, source_clip_convex_face, source_direction, source_position};
 use super::source_contact_restore::source_float_position;
 
 #[derive(Clone, Copy)]
@@ -11,6 +11,50 @@ pub(super) struct SourceConvexContactPoint {
     pub second_m: DVec3,
     pub normal_second: DVec3,
     pub phi_m: f64,
+}
+
+fn source_convex_contact(first: DVec3, second: DVec3, normal: DVec3, phi: f64) -> SourceConvexContactPoint {
+    SourceConvexContactPoint { first_m: source_float_position(first), second_m: source_float_position(second),
+        normal_second: source_direction(source_direction(normal).as_vec3().as_dvec3()),
+        phi_m: f64::from((phi * 100.0) as f32) * 0.01 }
+}
+
+fn source_box_closest_edge(vertices: &[DVec3], position: DVec3) -> DVec3 {
+    let position = source_position(position);
+    let mut previous = source_position(*vertices.last().expect("Source box face must not be empty"));
+    let mut closest = DVec3::ZERO;
+    let mut distance = f32::MAX as f64;
+    for vertex in vertices {
+        let current = source_position(*vertex);
+        let edge = current - previous;
+        let ratio = -(previous - position).dot(edge) / edge.length_squared();
+        let ratio = if ratio < 0.0 { 0.0 } else if ratio < 1.0 { ratio } else { 1.0 };
+        let candidate = previous + ratio * edge;
+        let squared = (candidate - position).length_squared();
+        if squared < distance { closest = candidate; distance = squared; }
+        previous = current;
+    }
+    source_direction(closest) * 0.01
+}
+
+fn source_convex_closest_edge(vertices: &[DVec3], position: DVec3, scale: DVec3) -> DVec3 {
+    let scale = source_direction(scale).as_vec3();
+    let position = (source_position(position) * scale.recip().as_dvec3()).as_vec3();
+    let mut previous = source_position(*vertices.last().expect("Source convex face must not be empty")).as_vec3();
+    let mut closest = Vec3::ZERO;
+    let mut distance = f32::MAX;
+    let dot = |a: Vec3, b: Vec3| a.x * b.x + a.y * b.y + a.z * b.z;
+    for vertex in vertices {
+        let current = source_position(*vertex).as_vec3();
+        let edge = current - previous;
+        let ratio = -dot(previous - position, edge) / dot(edge, edge);
+        let ratio = if ratio < 0.0 { 0.0 } else if ratio < 1.0 { ratio } else { 1.0 };
+        let candidate = previous + ratio * edge;
+        let squared = dot(candidate - position, candidate - position);
+        if squared < distance { closest = candidate; distance = squared; }
+        previous = current;
+    }
+    source_direction(closest.as_dvec3() * scale.as_dvec3()) * 0.01
 }
 
 pub(super) fn source_box_convex_face_contacts(
@@ -45,13 +89,39 @@ pub(super) fn source_box_convex_face_contacts(
             else { convex_to_box_rotation * vertex + convex_to_box_translation };
         let (first, second) = if faces.reference_box { (projected, other) } else { (other, projected) };
         let phi = (projected - vertex).dot(separation);
-        SourceConvexContactPoint {
-            first_m: source_float_position(first), second_m: source_float_position(second),
-            normal_second: source_direction(source_direction(normal_second).as_vec3().as_dvec3()),
-            phi_m: f64::from((phi * 100.0) as f32) * 0.01,
-        }
+        source_convex_contact(first, second, normal_second, phi)
     }).collect();
     Some(contacts)
+}
+
+pub(super) fn source_box_convex_edge_contact(
+    minimum: DVec3,
+    maximum: DVec3,
+    convex: &SourceConvexTopology,
+    faces: &SourceBoxConvexFaces,
+    convex_to_box_translation: DVec3,
+    convex_to_box_rotation: DQuat,
+    gjk: &SourceGjkResult,
+    box_margin: f64,
+    cull_distance: f64,
+    force_zero_cull: bool,
+) -> Option<SourceConvexContactPoint> {
+    if faces.plane_contact || (force_zero_cull && gjk.penetration_m < 0.0) { return None; }
+    let normal_second = -gjk.normal_second;
+    if box_margin <= 0.0 {
+        return Some(source_convex_contact(gjk.closest_first_m, gjk.closest_second_m, normal_second, -gjk.penetration_m));
+    }
+    let (box_vertices, _) = source_box_face(minimum, maximum, faces.box_index);
+    let convex_vertices = convex.faces.get(faces.convex_index)?.vertices.iter().map(|index| {
+        convex.vertices_m.get(*index).copied().map(DVec3::from_array)
+    }).collect::<Option<Vec<_>>>()?;
+    let first = source_box_closest_edge(&box_vertices, gjk.closest_first_m);
+    let second = source_convex_closest_edge(&convex_vertices, gjk.closest_second_m, faces.convex_scale);
+    let first_in_second = convex_to_box_rotation.inverse() * (first - convex_to_box_translation);
+    let phi = (first_in_second - second).dot(normal_second);
+    if phi > cull_distance { return None; }
+    let first = convex_to_box_rotation * (second + phi * normal_second) + convex_to_box_translation;
+    Some(source_convex_contact(first, second, normal_second, phi))
 }
 
 #[cfg(test)]
@@ -133,5 +203,90 @@ mod tests {
             faces.plane_contact = false;
             assert!(source_box_convex_face_contacts(minimum, maximum, &hull, &faces, DVec3::Y * 2.0, DQuat::IDENTITY, &gjk).is_none());
         }
+    }
+
+    #[test]
+    fn source_closest_edges_keep_source_ties_and_unscaled_distance() {
+        let square = [DVec3::ZERO, DVec3::X * 0.01, (DVec3::X + DVec3::Y) * 0.01, DVec3::Y * 0.01];
+        let center = (DVec3::X + DVec3::Y) * 0.005;
+        assert!(source_box_closest_edge(&square, center).distance(DVec3::Y * 0.005) < 1e-12);
+        assert!(source_convex_closest_edge(&square, center, DVec3::ONE).distance(DVec3::Y * 0.005) < 1e-8);
+        let point = DVec3::new(0.08, 0.004, 0.0);
+        let closest = source_convex_closest_edge(&square, point, DVec3::new(10.0, 1.0, 1.0));
+        assert!(closest.distance(DVec3::new(0.1, 0.004, 0.0)) < 1e-8);
+        assert!(source_box_closest_edge(&[DVec3::ONE], DVec3::ZERO).distance(DVec3::ONE) < 1e-12);
+        assert!(source_convex_closest_edge(&[DVec3::ONE], DVec3::ZERO, DVec3::ONE).distance(DVec3::ONE) < 1e-8);
+    }
+
+    #[test]
+    fn source_edge_projection_matches_native_arch_with_edge_witnesses() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3c2a/classification.native-samples.json")).unwrap();
+        let sample = &fixture["samples"][2];
+        let expected = &sample["points"][0];
+        let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
+        let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
+        let hull = source_convex_topology("SM_Als_Arch_02", 2).unwrap();
+        let (box_vertices, box_normal) = source_box_face(minimum, maximum, 2);
+        let plane = &hull.faces[21];
+        let faces = SourceBoxConvexFaces { box_index: 2, convex_index: 21, reference_box: false, plane_contact: false,
+            box_face: SourceContactFace { normal: box_normal, origin: box_vertices[0] },
+            convex_face: SourceContactFace { normal: DVec3::from_array(plane.normal), origin: DVec3::from_array(plane.origin_m) },
+            convex_scale: DVec3::ONE };
+        let normal = point(&expected["world_normal"]);
+        let mut gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(), last_vertices: [0, 0],
+            normal_first: -normal, normal_second: -normal, closest_first_m: point(&expected["shape_point_0_cm"]) * 0.01,
+            closest_second_m: point(&expected["shape_point_1_cm"]) * 0.01,
+            penetration_m: -expected["phi_cm"].as_f64().unwrap() * 0.01, epa_status: None };
+        let translation = -array(&sample["input"]["body_translation_cm"]) * 0.01;
+        let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
+        let contact = source_box_convex_edge_contact(minimum, maximum, hull, &faces, translation,
+            DQuat::IDENTITY, &gjk, margin, 0.03, false).unwrap();
+        assert!(contact.first_m.distance(point(&expected["shape_point_0_cm"]) * 0.01) < 2e-6);
+        assert!(contact.second_m.distance(point(&expected["shape_point_1_cm"]) * 0.01) < 2e-6);
+        assert!((contact.phi_m - expected["phi_cm"].as_f64().unwrap() * 0.01).abs() < 2e-6);
+        assert!(source_box_convex_edge_contact(minimum, maximum, hull, &faces, translation,
+            DQuat::IDENTITY, &gjk, margin, -0.04, false).is_none());
+        let no_margin = source_box_convex_edge_contact(minimum, maximum, hull, &faces, translation,
+            DQuat::IDENTITY, &gjk, 0.0, 0.03, false).unwrap();
+        assert_eq!(no_margin.first_m, source_float_position(gjk.closest_first_m));
+        gjk.penetration_m = -0.001;
+        assert!(source_box_convex_edge_contact(minimum, maximum, hull, &faces, translation,
+            DQuat::IDENTITY, &gjk, 0.0, 0.03, true).is_none());
+    }
+
+    #[test]
+    fn source_edge_projection_matches_direct_native_gjk_when_available() {
+        use crate::extensions::source_contact_face::source_box_convex_faces;
+        let Ok(path) = std::env::var("ALS_SOURCE_FACE_CLASSIFICATION_REPORT") else { return; };
+        let report: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let sample = report["physics_contact_probe"]["samples"].as_array().unwrap().iter()
+            .find(|value| value["points"].as_array().is_some_and(|points| points.first()
+                .is_some_and(|point| point["contact_type"] == 2))).unwrap();
+        let raw = &sample["cold_gjk"];
+        let gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(),
+            last_vertices: [raw["vertex_0"].as_u64().unwrap() as usize, raw["vertex_1"].as_u64().unwrap() as usize],
+            normal_first: point(&raw["shape_normal_0"]), normal_second: point(&raw["shape_normal_1"]),
+            closest_first_m: point(&raw["shape_point_0_cm"]) * 0.01,
+            closest_second_m: point(&raw["shape_point_1_cm"]) * 0.01,
+            penetration_m: raw["penetration_cm"].as_f64().unwrap() * 0.01, epa_status: None };
+        let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
+        let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
+        let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
+        let name = sample["input"]["mesh_asset_path"].as_str().unwrap().rsplit('/').next().unwrap();
+        let index = sample["input"]["mesh_shape_index"].as_u64().unwrap() as u32;
+        let hull = source_convex_topology(name, index).unwrap();
+        let [epsilon, bias] = include!("../als/settings/contact_face_classification.rs");
+        let faces = source_box_convex_faces(minimum, maximum, hull, point(&sample["other_geometry"]["convex_core_scale"]),
+            &gjk, margin, include!("../als/settings/contact_face_search.rs"), epsilon, bias).unwrap();
+        assert!(!faces.plane_contact);
+        let translation = (array(&sample["input"]["mesh_translation_cm"]) - array(&sample["input"]["body_translation_cm"])) * 0.01;
+        let cull = sample["input"]["cull_distance_cm"].as_f64().unwrap() * 0.01;
+        let actual = source_box_convex_edge_contact(minimum, maximum, hull, &faces, translation, DQuat::IDENTITY,
+            &gjk, margin, cull, include!("../als/settings/contact_edge_zero_cull.rs")).unwrap();
+        let expected = &sample["points"][0];
+        assert!(actual.first_m.distance(point(&expected["shape_point_0_cm"]) * 0.01) < 2e-5);
+        assert!(actual.second_m.distance(point(&expected["shape_point_1_cm"]) * 0.01) < 2e-5);
+        assert!((actual.phi_m - expected["phi_cm"].as_f64().unwrap() * 0.01).abs() < 2e-5);
     }
 }

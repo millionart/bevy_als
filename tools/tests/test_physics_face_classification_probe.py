@@ -9,6 +9,7 @@ assert watchdog["success"], "Native reader did not complete successfully"
 report = json.loads(path.read_text(encoding="utf-8-sig"))
 settings = report["physics_asset"]["constraint_console_variables"]
 assert math.isfinite(float(settings["p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"]))
+assert settings["p.Chaos.Collision.Manifold.ForceOneShotManifoldEdgeEdgeCaseZeroCullDistance"] in ("true", "false")
 expected = {"SM_Als_Bench_shape_1": 1, "SM_Als_Bench_shape_2": 3,
             "SM_Als_Arch_02_shape_0_foot_l_scale_1_gap_-0.1_against_2": 2}
 samples = report["physics_contact_probe"]["samples"]

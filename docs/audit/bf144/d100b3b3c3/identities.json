@@ -1,0 +1,8 @@
+{
+  "native": "docs/audit/bf144/d100b3b3c2a/native-identities.json",
+  "fixture": "docs/audit/bf144/d100b3b3c2a/classification.native-samples.json",
+  "settings": "src/als/settings/contact_edge_zero_cull.rs",
+  "settings_sha256": "2ed27c1421e6928dbe13dbfdb5c59e1045b30341fe7ebe05700006bc5ac572c0",
+  "direct_cold_gjk_observed": false,
+  "edge_cvar_observed": false
+}
