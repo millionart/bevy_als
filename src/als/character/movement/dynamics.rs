@@ -143,6 +143,13 @@ pub fn max_allowed_speed(
     crate::als::motion::gait_max_speed_for_velocity(params, &stance, &gait, rotation_mode, velocity, view_yaw)
 }
 
+pub(crate) fn with_controlled_input_acceleration(
+    dynamics: GroundedDynamics,
+    cached_acceleration: Option<f32>,
+) -> GroundedDynamics {
+    GroundedDynamics { acceleration: cached_acceleration.unwrap_or(dynamics.acceleration), ..dynamics }
+}
+
 pub fn grounded_velocity_step(
     velocity: Vec3,
     desired_motion: Vec3,
@@ -568,6 +575,7 @@ pub fn grounded_dynamics_motor_system(
         if AlsMovementParams::has_gait_settings(*stance, *rotation_mode) {
             dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
         }
+        let input_dynamics = with_controlled_input_acceleration(dynamics.0, cmc_runtime.controlled_input_max_acceleration);
         let desired_motion = controller.basis.desired_motion;
         let braking_friction_factor = landing_braking
             .get(entity)
@@ -576,7 +584,7 @@ pub fn grounded_dynamics_motor_system(
             current,
             desired_motion,
             max_speed,
-            dynamics.0,
+            input_dynamics,
             &params.cmc,
             braking_friction_factor,
             delta_seconds,
@@ -584,8 +592,8 @@ pub fn grounded_dynamics_motor_system(
         cmc_runtime.simulation_delta_seconds = delta_seconds;
         cmc_runtime.simulation_substeps = simulation_substeps;
         cmc_runtime.grounded_movement_delta = Some(displacement + support_velocity * time.delta_secs());
-        let analog_modifier = if dynamics.0.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_motion.length().min(1.0) } else { 0.0 };
-        cmc_runtime.min_analog_speed_applied = desired_motion.with_y(0.0) != Vec3::ZERO && dynamics.0.acceleration > 0.0
+        let analog_modifier = if input_dynamics.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_motion.length().min(1.0) } else { 0.0 };
+        cmc_runtime.min_analog_speed_applied = desired_motion.with_y(0.0) != Vec3::ZERO && input_dynamics.acceleration > 0.0
             && max_speed * analog_modifier < params.cmc.min_analog_walk_speed;
         let motor_boost = next - current;
         motor.lin.boost.x = next.x + support_velocity.x - world_velocity.x;
@@ -803,7 +811,8 @@ mod tests {
             for mode in [RotationMode::VelocityDirection, RotationMode::ViewDirection, RotationMode::Aiming] {
                 app.world_mut().entity_mut(character).insert((stance, mode, LocomotionState::Grounded,
                     LinearVelocity::ZERO, AlsMaxAllowedGait(Gait::Running), TnuaMotor::default(),
-                    AlsGroundedDynamics::default(), AlsCmcAdapterRuntime::default(),
+                    AlsGroundedDynamics(GroundedDynamics { acceleration: expected.0, braking_deceleration: expected.1,
+                        ground_friction: expected.2 }), AlsCmcAdapterRuntime::default(),
                     AlsMovementBaseDynamicsState::default(), AlsLandingBrakingFriction::default()));
                 app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion = Vec3::X;
                 app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
@@ -815,6 +824,51 @@ mod tests {
                     "stance={stance:?} mode={mode:?} boost={boost:?}");
             }
         }
+    }
+
+    #[test]
+    fn grounded_motor_consumes_previous_acceleration_and_publishes_the_refreshed_curve() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let initial = 4.000_003_f32;
+        app.world_mut().entity_mut(character).insert((Stance::Standing, RotationMode::ViewDirection,
+            LocomotionState::Grounded, LinearVelocity(Vec3::X * initial), AlsMaxAllowedGait(Gait::Sprinting),
+            TnuaMotor::default(), AlsGroundedDynamics::default(), AlsCmcAdapterRuntime::default(),
+            AlsMovementBaseDynamicsState::default(), AlsLandingBrakingFriction::default()));
+        app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion = Vec3::X;
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+        app.world_mut().run_system_once(grounded_dynamics_motor_system).unwrap();
+        let refreshed = app.world().get::<AlsGroundedDynamics>(character).unwrap().0.acceleration;
+        let planned = initial + app.world().get::<TnuaMotor>(character).unwrap().lin.boost.x;
+        assert!(refreshed < 19.0 && refreshed > 0.0, "refreshed={refreshed}");
+        assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().controlled_input_max_acceleration, Some(20.0));
+        assert!((planned - 4.333_336_4).abs() < 1e-6, "planned={planned}");
+        app.world_mut().entity_mut(character).insert((LinearVelocity(Vec3::X * planned), TnuaMotor::default()));
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+        app.world_mut().run_system_once(grounded_dynamics_motor_system).unwrap();
+        assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().controlled_input_max_acceleration, Some(refreshed));
+        let next = planned + app.world().get::<TnuaMotor>(character).unwrap().lin.boost.x;
+        assert!((next - (planned + refreshed / 60.0)).abs() < 2e-6, "next={next} previous={refreshed}");
+    }
+
+    #[test]
+    fn walking_substeps_keep_the_same_controlled_acceleration() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let before = app.world().get::<Position>(character).unwrap().0;
+        app.world_mut().entity_mut(character).insert((Stance::Standing, RotationMode::ViewDirection,
+            LocomotionState::Grounded, LinearVelocity(Vec3::NEG_Z * 4.000_003),
+            AlsMaxAllowedGait(Gait::Sprinting), AlsGroundedDynamics::default(),
+            crate::als::input::AlsInputCommand { move_dir: Vec2::Y, sprint_held: true, ..default() }));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.06)));
+        app.update();
+        let runtime = app.world().get::<AlsCmcAdapterRuntime>(character).unwrap();
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+        let distance = (app.world().get::<Position>(character).unwrap().0 - before).with_y(0.0).length();
+        assert!(runtime.simulation_substeps >= 2);
+        assert_eq!(runtime.controlled_input_max_acceleration, Some(20.0));
+        assert!((velocity.z + 5.2).abs() < 1e-3, "velocity={velocity:?}");
+        assert!((distance - 0.294).abs() < 1e-3, "distance={distance}");
     }
 
     #[test]
@@ -1722,7 +1776,8 @@ mod tests {
             controller.basis.desired_motion = Vec3::X;
             let character = world.spawn((AlsCharacter, LocomotionState::Grounded, Stance::Standing,
                 RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
-                AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y * 0.92),
+                AlsGroundedDynamics(GroundedDynamics { acceleration: maximum_acceleration, ..default() }),
+                AlsGaitAmount::default(), Position(Vec3::Y * 0.92),
                 LinearVelocity(Vec3::X * 1.5), AlsMovementParamsHandle(handle), controller,
                 TnuaMotor::default(), AlsCmcAdapterRuntime::default())).id();
             world.run_system_once(grounded_dynamics_motor_system).unwrap();

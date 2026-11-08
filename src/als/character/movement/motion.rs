@@ -4569,9 +4569,10 @@ pub(crate) fn cmc_movement_transaction_system(
             let factor = braking.map_or(crate::als::dynamics::BRAKING_FRICTION_FACTOR, |state| state.factor);
             let support = base.support_velocity.with_y(0.0);
             let initial_base = movement_bases.get(entity).ok().and_then(|binding| binding.entity).or(base.entity);
+            let input_dynamics = crate::als::dynamics::with_controlled_input_acceleration(dynamics.0, cached_input_max);
             let (moved, mut final_velocity, iterations, remaining_time, lost_floor, last_input, mut floor) = walking_movement_transaction(
                 &spatial_query, capsule, current_transform, half, radius, base.relative_velocity,
-                controller.basis.desired_motion, max_speed, dynamics.0, &params.cmc, factor, delta_seconds, entity,
+                controller.basis.desired_motion, max_speed, input_dynamics, &params.cmc, factor, delta_seconds, entity,
                 &candidates, &step_permissions, &bases, &owners, initial_base);
             current_transform = moved;
             if lost_floor {

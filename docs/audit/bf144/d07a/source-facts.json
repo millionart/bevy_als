@@ -1,0 +1,51 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 3863,
+          "last_line": 3878,
+          "text": "void UCharacterMovementComponent::CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration)\n{\n\t// Do not update velocity when using root motion or when SimulatedProxy and not simulating root motion - SimulatedProxy are repped their Velocity\n\tif (!HasValidData() || HasAnimRootMotion() || DeltaTime < MIN_TICK_TIME || (CharacterOwner && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy && !bWasSimulatingRootMotion))\n\t{\n\t\treturn;\n\t}\n\n\tFriction = FMath::Max(0.f, Friction);\n\tconst float MaxAccel = GetMaxAcceleration();\n\tfloat MaxSpeed = GetMaxSpeed();\n\t\n\t// Check if path following requested movement\n\tbool bZeroRequestedAcceleration = true;\n\tFVector RequestedAcceleration = FVector::ZeroVector;\n\tfloat RequestedSpeed = 0.0f;\n"
+        },
+        {
+          "first_line": 3900,
+          "last_line": 3943,
+          "text": "\t// Path following above didn't care about the analog modifier, but we do for everything else below, so get the fully modified value.\n\t// Use max of requested speed and max speed if we modified the speed in ApplyRequestedMove above.\n\tconst float MaxInputSpeed = FMath::Max(MaxSpeed * AnalogInputModifier, GetMinAnalogSpeed());\n\tMaxSpeed = FMath::Max(RequestedSpeed, MaxInputSpeed);\n\n\t// Apply braking or deceleration\n\tconst bool bZeroAcceleration = Acceleration.IsZero();\n\tconst bool bVelocityOverMax = IsExceedingMaxSpeed(MaxSpeed);\n\t\n\t// Only apply braking if there is no acceleration, or we are over our max speed and need to slow down to it.\n\tif ((bZeroAcceleration && bZeroRequestedAcceleration) || bVelocityOverMax)\n\t{\n\t\tconst FVector OldVelocity = Velocity;\n\n\t\tconst float ActualBrakingFriction = (bUseSeparateBrakingFriction ? BrakingFriction : Friction);\n\t\tApplyVelocityBraking(DeltaTime, ActualBrakingFriction, BrakingDeceleration);\n\t\n\t\t// Don't allow braking to lower us below max speed if we started above it.\n\t\tif (bVelocityOverMax && Velocity.SizeSquared() < FMath::Square(MaxSpeed) && FVector::DotProduct(Acceleration, OldVelocity) > 0.0f)\n\t\t{\n\t\t\tVelocity = OldVelocity.GetSafeNormal() * MaxSpeed;\n\t\t}\n\t}\n\telse if (!bZeroAcceleration)\n\t{\n\t\t// Friction affects our ability to change direction. This is only done for input acceleration, not path following.\n\t\tconst FVector AccelDir = Acceleration.GetSafeNormal();\n\t\tconst float VelSize = Velocity.Size();\n\t\tVelocity = Velocity - (Velocity - AccelDir * VelSize) * FMath::Min(DeltaTime * Friction, 1.f);\n\t}\n\n\t// Apply fluid friction\n\tif (bFluid)\n\t{\n\t\tVelocity = Velocity * (1.f - FMath::Min(Friction * DeltaTime, 1.f));\n\t}\n\n\t// Apply input acceleration\n\tif (!bZeroAcceleration)\n\t{\n\t\tconst float NewMaxInputSpeed = IsExceedingMaxSpeed(MaxInputSpeed) ? Velocity.Size() : MaxInputSpeed;\n\t\tVelocity += Acceleration * DeltaTime;\n\t\tVelocity = Velocity.GetClampedToMaxSize(NewMaxInputSpeed);\n\t}\n"
+        },
+        {
+          "first_line": 6441,
+          "last_line": 6458,
+          "text": "void UCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds)\n{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}\n\n\tif (CharacterOwner->GetLocalRole() == ROLE_Authority)\n\t{\n\t\tPerformMovement(DeltaSeconds);\n\t}\n"
+        },
+        {
+          "first_line": 8134,
+          "last_line": 8155,
+          "text": "FVector UCharacterMovementComponent::ScaleInputAcceleration(const FVector& InputAcceleration) const\n{\n\treturn GetMaxAcceleration() * InputAcceleration.GetClampedToMaxSize(1.0f);\n}\n\n\nFVector UCharacterMovementComponent::RoundAcceleration(FVector InAccel) const\n{\n\t// Match FVector_NetQuantize10\n\treturn UE::Net::QuantizeVector(10, InAccel);\n}\n\nfloat UCharacterMovementComponent::ComputeAnalogInputModifier() const\n{\n\tconst float MaxAccel = GetMaxAcceleration();\n\tif (Acceleration.SizeSquared() > 0.f && MaxAccel > UE_SMALL_NUMBER)\n\t{\n\t\treturn FMath::Clamp<FVector::FReal>(Acceleration.Size() / MaxAccel, 0.f, 1.f);\n\t}\n\n\treturn 0.f;\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "first_line": 292,
+          "last_line": 300,
+          "text": "float UAlsCharacterMovementComponent::GetMaxAcceleration() const\n{\n\tif (IsMovingOnGround())\n\t{\n\t\treturn MaxAccelerationWalking;\n\t}\n\n\treturn Super::GetMaxAcceleration();\n}\n"
+        },
+        {
+          "first_line": 333,
+          "last_line": 338,
+          "text": "void UAlsCharacterMovementComponent::PhysWalking(const float DeltaTime, int32 IterationsCount)\n{\n\tRefreshGroundedMovementSettings();\n\n\tauto Iterations{IterationsCount};\n\n"
+        },
+        {
+          "first_line": 1006,
+          "last_line": 1019,
+          "text": "\n\t// Get acceleration, deceleration and ground friction using a curve. This\n\t// allows us to precisely control the movement behavior at each speed.\n\n\tif (ALS_ENSURE(IsValid(GaitSettings.AccelerationAndDecelerationAndGroundFrictionCurve)))\n\t{\n\t\tconst auto& AccelerationAndDecelerationAndGroundFrictionCurves{\n\t\t\tGaitSettings.AccelerationAndDecelerationAndGroundFrictionCurve->FloatCurves\n\t\t};\n\n\t\tMaxAccelerationWalking = AccelerationAndDecelerationAndGroundFrictionCurves[0].Eval(GaitAmount);\n\t\tBrakingDecelerationWalking = AccelerationAndDecelerationAndGroundFrictionCurves[1].Eval(GaitAmount);\n\t\tGroundFriction = AccelerationAndDecelerationAndGroundFrictionCurves[2].Eval(GaitAmount);\n\t}\n"
+        }
+      ]
+    }
+  ]
+}
