@@ -667,6 +667,8 @@ pub fn ragdoll_exit_route_system(
             Option<&mut LinearVelocity>,
             &Position,
             &Stance,
+            Option<&crate::als::transition::AlsDesiredStance>,
+            Option<&mut crate::als::motion::AlsCrouchTransaction>,
             &AlsMovementParamsHandle,
             &AlsCollisionLayerOwnership,
             Option<&AlsCharacterAssembly>,
@@ -674,7 +676,7 @@ pub fn ragdoll_exit_route_system(
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, action, mut locomotion, mut request, follow, velocity, position, stance, params_handle, ownership, assembly) in &mut characters {
+    for (entity, action, mut locomotion, mut request, follow, velocity, position, stance, desired_stance, crouch, params_handle, ownership, assembly) in &mut characters {
         if !request.ragdoll_exit {
             continue;
         }
@@ -715,6 +717,14 @@ pub fn ragdoll_exit_route_system(
             Vec3::new(location.x, center.y + half_height - radius + ALS_CHARACTER_FLOOR_CLEARANCE, location.z)
         });
         let (state, exit_velocity) = ragdoll_exit_route(follow.grounded, follow.velocity);
+        if let Some(mut crouch) = crouch {
+            let desired = desired_stance.map_or(*stance, |desired| desired.0);
+            crouch.pending_action_stance = match state {
+                LocomotionState::Air => Some(Stance::Standing),
+                LocomotionState::Grounded if matches!(desired, Stance::Standing | Stance::Crouching) => Some(desired),
+                _ => None,
+            };
+        }
         *action.unwrap() = AlsNotifyLocomotionAction::None;
         request.locomotion_state = None;
         if *locomotion != state {
@@ -1422,6 +1432,41 @@ pub(crate) mod tests {
             assert!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(actor).is_some(), "input={input}");
             assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit);
             assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_error().is_none());
+        }
+    }
+
+    #[test]
+    fn ragdoll_exit_preserves_desired_stance_when_get_up_starts_first() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::transition::AlsDesiredStance;
+        for initial in [Stance::Standing, Stance::Crouching] {
+            for desired in [Stance::Standing, Stance::Crouching] {
+                let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
+                app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = initial;
+                for _ in 0..6 { app.update(); }
+                assert_eq!(*app.world().get::<Stance>(actor).unwrap(), initial);
+                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+                for _ in 0..90 { app.update(); }
+                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+                assert!(app.world().get::<AlsRagdollGroundFollow>(actor).unwrap().grounded);
+                app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = desired;
+                let colliders = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
+                    .colliders.values().copied().collect::<Vec<_>>();
+                for collider in colliders { app.world_mut().entity_mut(collider).insert(CollisionLayers::NONE); }
+                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+                app.world_mut().run_system_once(ragdoll_exit_route_system).unwrap();
+                assert_eq!(app.world().get::<crate::als::motion::AlsCrouchTransaction>(actor).unwrap().pending_action_stance, Some(desired));
+                app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::GettingUp);
+                app.world_mut().run_system_once(crate::als::motion::capsule_reshape_system).unwrap();
+                assert_eq!(*app.world().get::<Stance>(actor).unwrap(), desired, "initial={initial:?} desired={desired:?}");
+                let transaction = app.world().get::<crate::als::motion::AlsCrouchTransaction>(actor).unwrap();
+                let handle = app.world().get::<AlsMovementParamsHandle>(actor).unwrap();
+                let params = app.world().resource::<Assets<AlsMovementParams>>().get(handle.id()).unwrap();
+                let expected_half = if desired == Stance::Crouching { params.crouch.actual_crouched_half_height() }
+                    else { params.crouch.standing_capsule_half_height };
+                assert!((transaction.collider_half_height - expected_half).abs() < 1e-5);
+            }
         }
     }
 
@@ -3250,6 +3295,7 @@ pub(crate) mod tests {
                     follow.velocity = saved_velocity;
                 }
                 app.world_mut().entity_mut(actor).insert((initial_mode, LinearVelocity(Vec3::ONE)));
+                app.world_mut().get_mut::<crate::als::transition::AlsDesiredStance>(actor).unwrap().0 = Stance::Crouching;
                 {
                     let mut request = app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap();
                     request.ragdoll_exit = true;
@@ -3261,6 +3307,8 @@ pub(crate) mod tests {
                 assert_eq!(*app.world().get::<LinearVelocity>(actor).unwrap(),
                     LinearVelocity(if grounded { Vec3::ZERO } else { saved_velocity }));
                 assert_eq!(app.world().get::<AlsRagdollAirExit>(actor).is_some(), !grounded);
+                assert_eq!(app.world().get::<crate::als::motion::AlsCrouchTransaction>(actor).unwrap().pending_action_stance,
+                    Some(if grounded { Stance::Crouching } else { Stance::Standing }));
                 let request = app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap();
                 assert!(!request.ragdoll_exit && request.locomotion_state.is_none());
             }

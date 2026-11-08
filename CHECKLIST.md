@@ -6272,7 +6272,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Jump由`movement/motion.rs:3185–3187`写ragdoll_exit，而`ragdoll_exit_route_system`只排在input_state_request之后；两者都在state_transition之前，却没有彼此的依赖。Ragdoll键在更早的input_state_request写请求，因此没有同一缺口。
   - 反例：未调整调度的完整App曾同帧通过、后续又复现Jump仍Ragdolling/未阻塞且request pending，下一帧才GettingUp。固定当前合法的两种顺序后，direct/Ragdoll/Jump×顺序共6组5PASS/1FAIL，只有退出消费者先于Jump producer时延迟。`bf144_ragdoll_lifecycle_jump_and_ragdoll_input_exit_in_current_frame`，证据`20/jump_order/`；记录可复现的单帧调度差异，不靠增加等待帧让Gate通过。
 
-- [ ] BF144-D68 / P2 — Ragdoll→GetUp未保留中间None动作触发的desired stance提交。
+- [x] BF144-D68 / P2 — Ragdoll→GetUp未保留中间None动作触发的desired stance提交；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 19:02 +08:00；预估结束19:47 +08:00；实际结束19:07 +08:00，提前40分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS动作清空/姿态请求、UE CMC提交及角色设置证据保存在`docs/audit/bf144/d68/`；蹲姿事务保留GetUp期间的待提交意图，已写四种姿态、空中与净空受阻重试对照。旧target报告缺失，自身rig排除留D69，动画Gate待执行。
   - Source：fresh `StopRagdolling:1143–1163`先切地空mode，再把action置空，最后播放GetUp并置GettingUp。`NotifyLocomotionActionChanged:1091–1098`在置空时立即ApplyDesiredStance；`801–824`调用Crouch/UnCrouch设置CMC的bWantsToCrouch，随后GettingUp不会取消这个请求，当前CMC按`UpdateCharacterStateBeforeMovement:3500–3521`提交物理姿态。
   - Target：`get_up.rs:177–181`直接写GettingUp；`capsule_reshape_system:3299–3317`仅轮询当前action，GettingUp生效后不再消费Ragdoll期间积累的desired stance，未保留None阶段的源副作用。
   - 反例：实际Ragdoll退出前，Standing期望Crouching或反向，允许的GetUp先于capsule reshape顺序均保留旧姿态/半高0.9或0.56m；先让reshape看到None则正确应用。16组交接矩阵中此根因对应4处FAIL，包含rig碰撞已先清除的控制，排除D69干扰；相同期望姿态8组通过。`bf144_ragdoll_lifecycle_exit_applies_pending_desired_stance`，证据`20/stance_order/`；旧单动作姿态测试遗漏同帧None→GettingUp。

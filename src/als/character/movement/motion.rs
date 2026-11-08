@@ -2610,6 +2610,37 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    fn get_up_retains_blocked_stance_intent_until_clear() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = Stance::Crouching;
+        for _ in 0..6 { app.update(); }
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
+        let center = app.world().get::<Position>(actor).unwrap().0;
+        let ceiling = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.1, 2.0),
+            Transform::from_xyz(center.x, 1.5, center.z))).id();
+        app.update();
+        app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = Stance::Standing;
+        app.world_mut().get_mut::<AlsCrouchTransaction>(actor).unwrap().pending_action_stance = Some(Stance::Standing);
+        app.world_mut().entity_mut(actor).insert(crate::als::state::AlsNotifyLocomotionAction::GettingUp);
+        app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
+        let transaction = app.world().get::<AlsCrouchTransaction>(actor).unwrap();
+        assert!(transaction.headroom_blocked);
+        assert_eq!(transaction.pending_action_stance, Some(Stance::Standing));
+        app.world_mut().despawn(ceiling);
+        app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Standing);
+        app.world_mut().get_mut::<AlsDesiredStance>(actor).unwrap().0 = Stance::Crouching;
+        app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Standing);
+        app.world_mut().entity_mut(actor).insert(crate::als::state::AlsNotifyLocomotionAction::None);
+        app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
+        assert_eq!(app.world().get::<AlsCrouchTransaction>(actor).unwrap().pending_action_stance, None);
+    }
+
+    #[test]
     fn jump_chain_keeps_the_source_priority_order() {
         assert_eq!(
             jump_chain(true, Stance::Crouching, true),
@@ -2723,6 +2754,7 @@ pub struct AlsCrouchTransaction {
     pub collider_center: Vec3,
     pub headroom_blocked: bool,
     pub forced_standing: bool,
+    pub pending_action_stance: Option<Stance>,
 }
 
 impl Default for AlsCrouchTransaction {
@@ -2739,6 +2771,7 @@ impl Default for AlsCrouchTransaction {
             collider_center: Vec3::ZERO,
             headroom_blocked: false,
             forced_standing: false,
+            pending_action_stance: None,
         }
     }
 }
@@ -4305,14 +4338,22 @@ pub(crate) fn capsule_reshape_system(
             world.translation(),
             *locomotion == LocomotionState::Air && !action_active,
         );
-        let target = capsule_target_for_locomotion(
+        let normal_target = capsule_target_for_locomotion(
             desired.0,
             *stance,
             *locomotion,
             action_active,
             physical_override.map(|value| value.0),
         );
+        let getting_up = action == Some(&crate::als::state::AlsNotifyLocomotionAction::GettingUp);
+        let target = if getting_up { transaction.pending_action_stance.unwrap_or(normal_target) } else { normal_target };
+        if action_active && !getting_up {
+            transaction.pending_action_stance = None;
+        } else if !action_active && transaction.pending_action_stance.is_some() {
+            transaction.pending_action_stance = Some(target);
+        }
         if target == *stance && !already_deferred {
+            if !action_active { transaction.pending_action_stance = None; }
             continue;
         }
         let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue; };
@@ -4332,6 +4373,7 @@ pub(crate) fn capsule_reshape_system(
             already_deferred,
             &mut transitions,
         );
+        if !action_active && *stance == target { transaction.pending_action_stance = None; }
     }
 }
 
