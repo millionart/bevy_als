@@ -9,6 +9,7 @@ use avian3d::prelude::{
     SubstepCount, SubstepSchedule,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
+use crate::extensions::source_contact_friction::SourceContactFrictionSettings;
 use bevy::prelude::*;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
@@ -38,7 +39,12 @@ pub struct SourcePhysicsTimingPlugin;
 
 impl Plugin for SourcePhysicsTimingPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
+        let (position_iterations, position_stiffness, tangent_velocity_squared, tangent_geometry_squared) =
+            include!("../../settings/contact_friction.rs");
+        app.insert_resource(SourceContactFrictionSettings {
+                position_iterations, position_stiffness, tangent_velocity_squared, tangent_geometry_squared,
+            })
+            .insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
             .init_resource::<SourcePhysicsClockRestore>()
             .configure_sets(
                 PostUpdate,

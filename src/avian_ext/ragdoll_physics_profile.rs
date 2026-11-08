@@ -32,6 +32,8 @@ use serde::Deserialize;
 
 use crate::extensions::{
     ragdoll_angular_drive::RagdollAngularDriveSet,
+    source_contact_friction::{SourceContactFrictionFrame, SourceContactFrictionSettings,
+        capture_source_friction_contacts, solve_source_position_contacts},
     source_physics_joint::{
         SourceAngularLimit, SourceAngularMotor, SourceAngularSpring, SourceJointSolverSettings, SourceLinearMotor,
         SourcePhysicsJoint,
@@ -808,7 +810,7 @@ pub struct RagdollPhysicsProfilePlugin;
 
 impl Plugin for RagdollPhysicsProfilePlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(
+        app.init_resource::<SourceContactFrictionFrame>().configure_sets(
             PostUpdate,
             (
                 RagdollPhysicsProfileSet
@@ -845,6 +847,14 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .after(avian3d::dynamics::integrator::IntegrationSystems::Position)
             .after(solve_profile_linear_ccd)
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
+        .add_systems(avian3d::prelude::SubstepSchedule, capture_source_friction_contacts
+            .after(IntegrationSystems::Velocity)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::WarmStart)
+            .run_if(resource_exists::<SourceContactFrictionSettings>))
+        .add_systems(avian3d::prelude::SubstepSchedule, solve_source_position_contacts
+            .after(condition_profile_solver_inertia)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax)
+            .run_if(resource_exists::<SourceContactFrictionSettings>))
         .add_systems(avian3d::prelude::SubstepSchedule, solve_profile_dof
             .after(avian3d::dynamics::solver::xpbd::XpbdSolverSystems::VelocityProjection)
             .after(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Damping)
@@ -2181,6 +2191,87 @@ mod tests {
                 assert!((moved - expected).abs() < 0.003,
                     "dt={dt} depth={depth} actual={moved} source={expected}");
                 assert!(ordinary_moved < expected * 0.8, "ordinary contact must keep its own solver behavior");
+            }
+        }
+    }
+
+    #[test]
+    fn source_ragdoll_position_friction_reaches_contact_solver() {
+        use avian3d::dynamics::solver::solver_body::SolverBodyInertia;
+        use avian3d::prelude::{AngularVelocity, ColliderDisabled, ComputedCenterOfMass, Gravity, JointDisabled,
+            LinearVelocity, Sleeping, SleepingDisabled, SubstepSchedule};
+        use bevy::time::TimeUpdateStrategy;
+        #[derive(Resource, Default)]
+        struct ObservedInertia { inverse_mass: f32, inverse_inertia: Mat3, head_suspended: bool, ordinary_retained: bool }
+        for dt in [1.0_f32 / 60.0, 1.0 / 30.0] {
+            for friction in [0.0_f32, 0.7] {
+                let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+                for _ in 0..12 { app.update(); }
+                let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+                let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+                let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+                let head = bodies.iter().find(|(label, _)| label == "head").unwrap().1;
+                let profile = app.world().get::<RagdollPhysicsProfile>(player).unwrap();
+                let head_index = profile.bodies.iter().find(|body| body.label == "head").unwrap().source_index;
+                let shape = colliders.iter().copied().find(|entity| {
+                    let label = &app.world().get::<ColliderLabel>(*entity).unwrap().0;
+                    find_collider_profile(profile, label).unwrap().source_body_index == head_index
+                }).unwrap();
+                for entity in colliders { if entity != shape { app.world_mut().entity_mut(entity).insert(ColliderDisabled); } }
+                for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+                app.world_mut().insert_resource(Gravity(Vec3::ZERO));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(dt)));
+                let local_center = app.world().get::<ComputedCenterOfMass>(head).unwrap().0;
+                let position = app.world().get::<Position>(head).unwrap().0;
+                let rotation = app.world().get::<Rotation>(head).unwrap().0;
+                let center = position + rotation * local_center;
+                app.world_mut().entity_mut(shape).insert((Collider::sphere(0.1), Transform::from_translation(local_center),
+                    Restitution::new(0.0), Friction::new(friction)));
+                app.world_mut().entity_mut(head).insert((SleepingDisabled, LinearDamping(0.0), AngularDamping(0.0),
+                    LinearVelocity(Vec3::new(1.0, -1.0, 0.0)), AngularVelocity::ZERO)).remove::<Sleeping>();
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                    Transform::from_translation(center - Vec3::Y * 0.199), Restitution::new(0.0), Friction::new(friction)));
+                let ordinary = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.1),
+                    Transform::from_translation(center + Vec3::X), SleepingDisabled,
+                    LinearVelocity(Vec3::new(1.0, -1.0, 0.0)), Friction::new(0.7))).id();
+                app.init_resource::<ObservedInertia>();
+                app.add_systems(SubstepSchedule, (move |bodies: Query<&SolverBodyInertia>,
+                    graph: Res<ConstraintGraph>, mut observed: ResMut<ObservedInertia>| {
+                    let inertia = bodies.get(head).unwrap();
+                    observed.inverse_mass = inertia.effective_inv_mass().x;
+                    observed.inverse_inertia = Mat3::from(inertia.effective_inv_angular_inertia());
+                    for constraint in graph.colors.iter().flat_map(|color| &color.contact_constraints) {
+                        if constraint.body1 == head || constraint.body2 == head {
+                            observed.head_suspended |= constraint.points.iter().any(|point| point.tangent_part.is_none());
+                        }
+                        if constraint.body1 == ordinary || constraint.body2 == ordinary {
+                            observed.ordinary_retained |= constraint.points.iter().any(|point| point.tangent_part.is_some());
+                        }
+                    }
+                }).after(condition_profile_solver_inertia)
+                    .before(crate::extensions::source_contact_friction::solve_source_position_contacts));
+                app.update();
+                let observed = app.world().resource::<ObservedInertia>();
+                if friction > 0.0 { assert!(observed.head_suspended && observed.ordinary_retained); }
+                let arm = Vec3::NEG_Y * 0.1;
+                let crosses = [arm.cross(Vec3::X), arm.cross(Vec3::Z)];
+                let kx = observed.inverse_mass + crosses[0].dot(observed.inverse_inertia * crosses[0]);
+                let kz = observed.inverse_mass + crosses[1].dot(observed.inverse_inertia * crosses[1]);
+                let coupling = crosses[0].dot(observed.inverse_inertia * crosses[1]);
+                let normal = (0.001 + dt) / observed.inverse_mass;
+                let mut impulse = Vec2::ZERO;
+                for _ in 0..4 {
+                    let error = Vec2::new(dt + kx * impulse.x + coupling * impulse.y,
+                        coupling * impulse.x + kz * impulse.y);
+                    impulse += Vec2::new(-0.5 * error.x / kx, -0.5 * error.y / kz);
+                    impulse = impulse.clamp_length_max(friction * normal);
+                }
+                let expected = dt + observed.inverse_mass * impulse.x;
+                let actual = app.world().get::<Position>(head).unwrap().x - position.x;
+                assert!((actual - expected).abs() < 0.001,
+                    "dt={dt} friction={friction} actual={actual} source={expected}");
             }
         }
     }

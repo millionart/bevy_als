@@ -1,4 +1,184 @@
 use bevy::prelude::*;
+use bevy::platform::collections::HashMap;
+use avian3d::collision::contact_types::ContactGraph;
+use avian3d::dynamics::solver::{constraint_graph::ConstraintGraph, contact::ContactTangentPart,
+    solver_body::{SolverBody, SolverBodyInertia}};
+use avian3d::prelude::{DefaultFriction, Friction, Substeps};
+
+use super::ragdoll_physics_profile::RagdollActiveMode;
+
+#[derive(Resource, Clone, Copy)]
+pub(crate) struct SourceContactFrictionSettings {
+    pub position_iterations: u32,
+    pub position_stiffness: f32,
+    pub tangent_velocity_squared: f32,
+    pub tangent_geometry_squared: f32,
+}
+
+#[derive(Clone, Copy)]
+struct FreeBody {
+    delta_position: Vec3,
+    linear_velocity: Vec3,
+    angular_velocity: Vec3,
+    dynamic: bool,
+}
+
+impl Default for FreeBody {
+    fn default() -> Self {
+        Self { delta_position: Vec3::ZERO, linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO, dynamic: false }
+    }
+}
+
+struct SourceFrictionPoint {
+    color: usize,
+    constraint: usize,
+    point: usize,
+    bodies: [Entity; 2],
+    arms: [Vec3; 2],
+    friction: SourcePositionFriction,
+    target_tangent: Option<ContactTangentPart>,
+}
+
+#[derive(Resource, Default)]
+pub(crate) struct SourceContactFrictionFrame {
+    bodies: HashMap<Entity, FreeBody>,
+    points: Vec<SourceFrictionPoint>,
+}
+
+pub(crate) fn capture_source_friction_contacts(
+    settings: Res<SourceContactFrictionSettings>,
+    time: Res<Time<Substeps>>,
+    ragdolls: Query<(), With<RagdollActiveMode>>,
+    bodies: Query<&SolverBody>,
+    materials: Query<&Friction>,
+    default_friction: Res<DefaultFriction>,
+    contact_graph: Res<ContactGraph>,
+    mut graph: ResMut<ConstraintGraph>,
+    mut frame: ResMut<SourceContactFrictionFrame>,
+) {
+    frame.bodies.clear();
+    frame.points.clear();
+    if settings.position_iterations == 0 || settings.position_stiffness <= 0.0 { return; }
+    let dt = time.delta_secs();
+    for (color_index, color) in graph.colors.iter_mut().enumerate() {
+        for (constraint_index, constraint) in color.contact_constraints.iter_mut().enumerate() {
+            if !ragdolls.contains(constraint.body1) && !ragdolls.contains(constraint.body2) { continue; }
+            let Some((_, pair)) = contact_graph.get_by_id(constraint.contact_id) else { continue; };
+            let material = |collider, body| materials.get(collider).or_else(|_| materials.get(body))
+                .map(|value| *value).unwrap_or(default_friction.0);
+            let friction = material(pair.collider1, constraint.body1).combine(material(pair.collider2, constraint.body2));
+            if friction.static_coefficient <= 0.0 && friction.dynamic_coefficient <= 0.0 { continue; }
+            let entities = [constraint.body1, constraint.body2];
+            let mut free = [FreeBody::default(); 2];
+            for index in 0..2 {
+                if let Ok(body) = bodies.get(entities[index]) {
+                    free[index] = FreeBody { delta_position: body.delta_position,
+                        linear_velocity: body.linear_velocity, angular_velocity: body.angular_velocity,
+                        dynamic: !body.flags.is_kinematic() };
+                    frame.bodies.entry(entities[index]).or_insert(free[index]);
+                }
+            }
+            for (point_index, point) in constraint.points.iter_mut().enumerate() {
+                let arms = [point.anchor1, point.anchor2];
+                let relative = free[0].linear_velocity + free[0].angular_velocity.cross(arms[0])
+                    - free[1].linear_velocity - free[1].angular_velocity.cross(arms[1]);
+                let tangential = relative - constraint.normal * relative.dot(constraint.normal);
+                let tangent = if tangential.length_squared() > settings.tangent_velocity_squared {
+                    tangential.normalize()
+                } else {
+                    let first = Vec3::Z.cross(constraint.normal);
+                    if first.length_squared() > settings.tangent_geometry_squared { first.normalize() }
+                    else { Vec3::X.cross(constraint.normal).normalize() }
+                };
+                let tangents = [tangent, constraint.normal.cross(tangent)];
+                frame.points.push(SourceFrictionPoint {
+                    color: color_index, constraint: constraint_index, point: point_index, bodies: entities, arms,
+                    friction: SourcePositionFriction { tangents,
+                        initial_delta: Vec2::new(relative.dot(tangents[0]), relative.dot(tangents[1])) * dt,
+                        normal_pushout: 0.0, static_friction: friction.static_coefficient,
+                        dynamic_friction: friction.dynamic_coefficient, net_pushout: Vec2::ZERO, static_ratio: 0.0 },
+                    target_tangent: point.tangent_part.take(),
+                });
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct PositionState {
+    initial: SourcePositionBody,
+    current: SourcePositionBody,
+}
+
+pub(crate) fn solve_source_position_contacts(
+    settings: Res<SourceContactFrictionSettings>,
+    time: Res<Time<Substeps>>,
+    mut frame: ResMut<SourceContactFrictionFrame>,
+    mut graph: ResMut<ConstraintGraph>,
+    mut bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
+) {
+    if frame.points.is_empty() { return; }
+    let dt = time.delta_secs();
+    let mut states = HashMap::<Entity, PositionState>::default();
+    for (&entity, free) in &frame.bodies {
+        let Ok((body, inertia)) = bodies.get_mut(entity) else { continue; };
+        let state = SourcePositionBody {
+            inverse_mass: inertia.effective_inv_mass().x,
+            inverse_inertia: Mat3::from(inertia.effective_inv_angular_inertia()),
+            arm: Vec3::ZERO,
+            dynamic: free.dynamic,
+            delta_position: body.delta_position - free.delta_position - free.linear_velocity * dt,
+            delta_rotation: (body.angular_velocity - free.angular_velocity) * dt,
+        };
+        states.insert(entity, PositionState { initial: state, current: state });
+    }
+    for point in &mut frame.points {
+        let constraint = &graph.colors[point.color].contact_constraints[point.constraint];
+        point.friction.normal_pushout = constraint.points[point.point].normal_part.impulse * dt;
+    }
+    for _ in 0..settings.position_iterations {
+        for point in &mut frame.points {
+            let constraint = &graph.colors[point.color].contact_constraints[point.constraint];
+            let absent = SourcePositionBody { inverse_mass: 0.0, inverse_inertia: Mat3::ZERO,
+                arm: Vec3::ZERO, dynamic: false, delta_position: Vec3::ZERO, delta_rotation: Vec3::ZERO };
+            let mut pair = [states.get(&point.bodies[0]).map_or(absent, |state| state.current),
+                states.get(&point.bodies[1]).map_or(absent, |state| state.current)];
+            pair[0].arm = point.arms[0];
+            pair[1].arm = point.arms[1];
+            if constraint.relative_dominance > 0 { pair[0].dynamic = false; }
+            if constraint.relative_dominance < 0 { pair[1].dynamic = false; }
+            solve_source_position_friction(&mut pair, &mut point.friction, settings.position_stiffness);
+            for index in 0..2 {
+                if let Some(state) = states.get_mut(&point.bodies[index]) {
+                    state.current.delta_position = pair[index].delta_position;
+                    state.current.delta_rotation = pair[index].delta_rotation;
+                }
+            }
+        }
+    }
+    for (entity, state) in states {
+        let Ok((mut body, _)) = bodies.get_mut(entity) else { continue; };
+        let position = state.current.delta_position - state.initial.delta_position;
+        let angular = state.current.delta_rotation - state.initial.delta_rotation;
+        if position == Vec3::ZERO && angular == Vec3::ZERO { continue; }
+        body.delta_position += position;
+        body.linear_velocity += position / dt;
+        body.angular_velocity += angular / dt;
+        let half = angular * 0.5;
+        body.delta_rotation.0 = (Quat::from_xyzw(half.x, half.y, half.z, 1.0) * body.delta_rotation.0).normalize();
+    }
+    for point in &mut frame.points {
+        let constraint = &mut graph.colors[point.color].contact_constraints[point.constraint];
+        let tangents = constraint.tangent_directions();
+        let position_impulse = point.friction.tangents[0] * point.friction.net_pushout.x
+            + point.friction.tangents[1] * point.friction.net_pushout.y;
+        if let Some(mut target) = point.target_tangent.take() {
+            target.impulse = -Vec2::new(position_impulse.dot(tangents[0]), position_impulse.dot(tangents[1])) / dt;
+            constraint.points[point.point].tangent_part = Some(target);
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SourcePositionBody {
