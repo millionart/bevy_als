@@ -6116,7 +6116,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整已启动的Grounded Roll，当前yaw0.7rad、目标0，owner1的源单次阻尼应到0.6234437；物理前target也是0.6234436，物理后却到0.4779995，多转约8.333°。`bf144_roll_root_physical_turn_is_applied_only_once`9组6PASS/3FAIL，owner0.5/1/2均多转同一世界帧角度；同方向零角误差对照通过，仅在夹具物理前清AngularVelocity的三组也恢复源结果，证据`target/bf144/15/root_core/`。
   - 漏检：旧旋转单测直接执行roll drive验证Transform，未继续物理积分；整帧root运动测试主要令actor已朝向目标。消融只改变每个fresh App的一次数据，生产源码与二进制未改，后续owner分组重新使用原始完整路径复现；仅登记。
 
-- [ ] BF144-D48 / P2 — Rolling动作通知结束后，root drive仍执行Roll转向。
+- [x] BF144-D48 / P2 — Rolling动作通知结束后，root drive仍执行Roll转向；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:09 +08:00；预估结束17:54 +08:00；实际结束17:12 +08:00，提前42分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS动作门槛、原生Montage通知和Roll根旋转46帧保存在`docs/audit/bf144/d48/`；无Rolling动作时停止手动阻尼而保留根旋转，已写通知跨界及加载角色对照。旧target报告缺失，源端跨界未复测，动画Gate待执行。
   - Source：fresh `AlsCharacter_Actions.cpp:118–122`要求LocomotionAction=Rolling才执行RefreshRollingPhysics；action在montage有效时间0.933433s结束，而root montage此时仍active。`AlsCharacter.cpp:1516–1525`在HasAnyRootMotion时只刷新目标角并返回，因此该区间应保持actor朝向，不继续Roll阻尼。
   - Target：`src/als/character/actions/roll_drive.rs:2286–2288,2304–2313`仅按roll.active、非Ragdoll和根提取尾段门槛判定，未要求Rolling action；clip约0.933433–1.11s期间，通知已经结束仍然阻尼到旧Roll方向。
   - 反例：完整角色自然播放到0.75/0.816667s后，实际action=None、root motion仍active；当前yaw0.7、原Roll目标0，源应保持0.7，target在物理前已改为0.6234436。`bf144_roll_root_rotation_stops_with_action_notify`4组1PASS/3FAIL，也覆盖0.716667s下一帧跨过notify结束的边界；0.3s仍Rolling的对照正确。证据`target/bf144/15/root_core/`；这里在物理前取样，明确排除D47叠加角速度。

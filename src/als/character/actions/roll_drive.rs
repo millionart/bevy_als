@@ -529,6 +529,72 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn roll_yaw_damping_stops_with_the_action_but_root_motion_remains() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (action, root_yaw, expected) in [(AlsNotifyLocomotionAction::Rolling, 0.0,
+            damper_exact_angle(0.7, 0.0, 1.0 / 60.0, ROLL_ROTATION_HALF_LIFE_SECS)),
+            (AlsNotifyLocomotionAction::None, 0.0, 0.7),
+            (AlsNotifyLocomotionAction::None, 0.2, 0.9)] {
+            let mut world = World::new();
+            world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+            world.insert_resource(time);
+            let actor = world.spawn((crate::als::character::AlsCharacter,
+                AlsRollState { active: true, time: 0.75, previous_time: 0.74, direction_yaw: 0.0, ..default() },
+                LocomotionState::Grounded, avian3d::prelude::RigidBody::Dynamic, action,
+                Transform::from_rotation(Quat::from_rotation_y(0.7)), LinearVelocity::ZERO)).id();
+            let mesh = world.spawn((ChildOf(actor), Transform::IDENTITY)).id();
+            world.spawn((AlsRollSlotSampler { character: actor, target_player: mesh, reported_unready: false },
+                RootMotionOutput { translation_delta: Vec3::X * 0.02, rotation_delta: Quat::from_rotation_y(root_yaw), ..default() }));
+            world.run_system_once(roll_drive_system).unwrap();
+            let actual = world.get::<Transform>(actor).unwrap().rotation.to_euler(EulerRot::YXZ).0;
+            assert!((actual - expected).abs() < 1e-5, "action={action:?} root_yaw={root_yaw} actual={actual} expected={expected}");
+            assert!(world.get::<LinearVelocity>(actor).unwrap().0.with_y(0.0).length() > 0.0,
+                "The action gate must not discard root translation");
+        }
+    }
+
+    #[test]
+    fn loaded_roll_stops_turning_when_the_action_notify_ends() {
+        #[derive(Resource, Default)]
+        struct RotationSample(Option<(f32, AlsNotifyLocomotionAction)>);
+        for (target_time, expected_action) in [(0.3, AlsNotifyLocomotionAction::Rolling),
+            (0.716667, AlsNotifyLocomotionAction::None), (0.75, AlsNotifyLocomotionAction::None),
+            (0.816667, AlsNotifyLocomotionAction::None)] {
+            let (mut app, actor, _) = loaded_roll_character();
+            play_loaded_roll(&mut app, actor);
+            let current = app.world().get::<AlsRollState>(actor).unwrap().time;
+            let steps = ((target_time - current).max(0.0_f32) * 60.0).round() as usize;
+            for _ in 0..steps { app.update(); }
+            let reached = app.world().get::<AlsRollState>(actor).unwrap().time;
+            assert!((reached - target_time).abs() < 1e-4, "Roll clock did not reach the requested time: {target_time} actual={reached}");
+            if target_time == 0.716667 {
+                assert!(reached < 0.7180254 && reached + 1.0 / 60.0 > 0.7180254,
+                    "The next frame must cross the source action end: {reached}");
+            }
+            app.init_resource::<RotationSample>().add_systems(PostUpdate,
+                (move |mut sample: ResMut<RotationSample>, q: Query<(&Transform, &AlsNotifyLocomotionAction)>| {
+                    let (transform, action) = q.get(actor).unwrap();
+                    sample.0 = Some((transform.rotation.to_euler(EulerRot::YXZ).0, *action));
+                }).after(AlsRollDriveSet).before(avian3d::prelude::PhysicsSystems::First));
+            let mut transform = *app.world().get::<Transform>(actor).unwrap();
+            transform.rotation = Quat::from_rotation_y(0.7);
+            app.world_mut().entity_mut(actor).insert((transform, Rotation(transform.rotation), avian3d::prelude::AngularVelocity::ZERO));
+            app.world_mut().get_mut::<AlsRollState>(actor).unwrap().direction_yaw = 0.0;
+            app.update();
+            let (actual, action) = app.world().resource::<RotationSample>().0.unwrap();
+            assert_eq!(action, expected_action, "time={target_time}");
+            let expected = if action == AlsNotifyLocomotionAction::Rolling {
+                damper_exact_angle(0.7, 0.0, 1.0 / 60.0, ROLL_ROTATION_HALF_LIFE_SECS)
+            } else { 0.7 };
+            assert!((actual - expected).abs() < 1e-4,
+                "time={target_time} action={action:?} actual={actual} expected={expected}");
+            assert!(app.world().get::<AlsRollState>(actor).unwrap().root_motion_active());
+        }
+    }
+
+    #[test]
     fn loaded_roll_source_velocity_preserves_owner_clock_displacement_base_and_handoff() {
         for (mode, base_speed) in [(LocomotionState::Grounded, 0.0_f32), (LocomotionState::Grounded, 0.75), (LocomotionState::Custom, 0.0)] {
             for dilation in [0.5_f32, 1.0, 2.0] {
@@ -2634,7 +2700,7 @@ fn roll_drive_system(
             root_motion_world_transform(actor_world, mesh_world, local_translation, local_rotation);
         let world_rotation = if local_rotation.dot(Quat::IDENTITY).abs() < 1.0 - 1e-6 {
             root_rotation
-        } else {
+        } else if action == Some(&AlsNotifyLocomotionAction::Rolling) {
             let (current_yaw, pitch, world_roll) = actor_world.rotation().to_euler(EulerRot::YXZ);
             Quat::from_euler(EulerRot::YXZ, damper_exact_angle(
                 current_yaw,
@@ -2642,6 +2708,8 @@ fn roll_drive_system(
                 actor_delta,
                 ROLL_ROTATION_HALF_LIFE_SECS,
             ), pitch, world_roll)
+        } else {
+            actor_world.rotation()
         };
         transform.rotation = parent_world.map_or(world_rotation, |parent| parent.rotation().inverse() * world_rotation);
         if let Some(mut rotation) = rotation {
