@@ -1,0 +1,140 @@
+{
+  "samples": [
+    {
+      "name": "grow-blocked",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          83
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          5
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "length_cm": 1,
+        "radius_cm": 30,
+        "half_height_cm": 110
+      }
+    },
+    {
+      "name": "grow-clear",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          200
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          5
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "length_cm": 1,
+        "radius_cm": 30,
+        "half_height_cm": 110
+      }
+    },
+    {
+      "name": "shrink-control",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          137
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          5
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "length_cm": 1,
+        "radius_cm": 30,
+        "half_height_cm": 56
+      }
+    },
+    {
+      "name": "same-control",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          103
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          5
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "length_cm": 1,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    }
+  ]
+}

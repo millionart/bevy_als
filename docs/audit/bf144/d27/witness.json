@@ -1,0 +1,25 @@
+{
+  "grow-blocked": {
+    "hit": true,
+    "distance_cm": -32,
+    "position_cm": {
+      "x": 0,
+      "y": 0,
+      "z": 78
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": -1
+    }
+  },
+  "grow-clear": {
+    "hit": false
+  },
+  "shrink-control": {
+    "hit": false
+  },
+  "same-control": {
+    "hit": false
+  }
+}

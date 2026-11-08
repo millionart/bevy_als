@@ -5911,7 +5911,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：默认R=0.3m、standing H=0.9m，把公开crouched H配置成0.2m。完整角色蹲下的实际shape H=0.3m正确，但center从100到99.3m（source99.4），mesh相对y=−0.22m（source−0.32），缓存H=0.2m（source0.3）。`bf144_crouch_configured_height_keeps_source_radius_clamp`共5组4PASS/1FAIL，0.3/0.56/0.9/1.1m对照通过；证据`target/bf144/08/final/`。
   - 漏检：现有参数测试只核对默认56cm大于30cm半径，缩放测试也维持此关系；没有测试源公开配置边界的形体与实际consumer一致性。默认配置不触发，本项只登记，不扩大配置规范化设计。
 
-- [ ] BF144-D27 / P2 — 配置为更高蹲姿时缺少源净空拒绝。
+- [x] BF144-D27 / P2 — 配置为更高蹲姿时缺少源净空拒绝；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:57 +08:00；预估结束15:32 +08:00；实际结束15:00 +08:00，提前32分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE增高Crouch净空源及四组原生几何保存在`docs/audit/bf144/d27/`；受阻保留旧姿态/形体/中心，已写缩小、倾斜、父级、无障碍与清除后重试对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `CharacterMovementComponent.cpp:3301–3319`明确处理crouch H>当前H的分支，在目标center做blocking overlap；遇阻恢复旧capsule尺寸并返回，不提交bIsCrouched/OnStartCrouch。该配置由源公开CrouchedHalfHeight Setter支持。
   - Target：`src/als/character/movement/motion.rs:3361–3370`对所有Crouching目标直接提交Collider、Stance和Position，净空查询只存在于Standing分支。
   - 反例：完整角色初始center y=100m/H=0.9m，顶板底面100.98m，初始无重叠；将crouched H设为1.1m后请求蹲下。source目标center100.2m、H1.1查询被顶板阻挡，应保持Standing/旧形体；target提交Crouching/新形体并被后置solver大幅推下。`bf144_crouch_growing_capsule_checks_source_clearance_before_commit`共4组3PASS/1FAIL，普通56cm两组和1.1m无顶板对照通过；证据`target/bf144/08/final/`。

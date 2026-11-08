@@ -4178,6 +4178,15 @@ fn apply_capsule_for_stance(
     match target {
         Stance::Crouching => {
             let (half_height, radius) = capsule_dimensions(params, target);
+            let (current_half, _) = capsule_dimensions(params, *stance);
+            if half_height > current_half {
+                let capsule = als_character_capsule(half_height * scale.y, radius * scale.x.min(scale.z));
+                let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+                if spatial_query.shape_intersections(&capsule, target_center, Quat::IDENTITY, &filter)
+                    .into_iter().any(|candidate| character_blocks_collider(entity, candidate, candidates)) {
+                    return;
+                }
+            }
             if let Ok((direction, distance)) = Dir3::new_and_length(target_center - center) {
                 let (scaled_radius, axis_half) = crate::als::character::physical_capsule_dimensions(half_height, radius, scale, 0.000001);
                 let capsule = Collider::capsule(scaled_radius, axis_half * 2.0);
@@ -5508,6 +5517,48 @@ mod tests {
             assert!((collider.y - actual).abs() < 1e-5 && (transaction.collider_half_height - actual).abs() < 1e-6);
             assert!((mesh_y - (crate::character_assembly::AVATAR_CAPSULE_BOTTOM_OFFSET + 0.9 - actual)).abs() < 1e-6);
             assert_eq!(app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().crouch.crouched_capsule_half_height, configured);
+        }
+    }
+
+    #[test]
+    fn growing_crouch_rejects_blocked_clearance_and_retries_when_clear() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (height, ceiling, angle, parented, accepted) in [
+            (0.2_f32, true, 0.0_f32, false, true), (0.56, true, 0.0, false, true),
+            (1.1, false, 0.0, false, true), (1.1, true, 0.0, false, false),
+            (1.1, true, 60.0, false, false), (1.1, true, 60.0, true, false),
+        ] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let roof = ceiling.then(|| app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0),
+                Transform::from_xyz(0.0, 11.03, 0.0))).id());
+            app.update();
+            let handle = app.world().get::<AlsMovementParamsHandle>(actor).unwrap().0.clone();
+            app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap()
+                .crouch.crouched_capsule_half_height = height;
+            let start = Vec3::Y * 10.0;
+            let rotation = Quat::from_rotation_x(angle.to_radians());
+            let local = if parented {
+                let parent = app.world_mut().spawn(Transform::from_rotation(rotation)).id();
+                app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+                Transform::from_translation(rotation.inverse() * start)
+            } else { Transform::from_translation(start).with_rotation(rotation) };
+            app.world_mut().entity_mut(actor).insert((Position(start), local, Stance::Standing,
+                AlsDesiredStance(Stance::Crouching), LocomotionState::Grounded, AlsCrouchTransaction::default()));
+            app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+            let stance = *app.world().get::<Stance>(actor).unwrap();
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            let half = app.world().get::<Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents().y;
+            assert_eq!(stance, if accepted { Stance::Crouching } else { Stance::Standing }, "height={height} angle={angle}");
+            let actual_height = if accepted { height.max(0.3) } else { 0.9 };
+            assert!((half - actual_height).abs() < 1e-5, "height={height} half={half}");
+            assert!((position.y - if accepted { start.y - 0.9 + actual_height } else { start.y }).abs() < 1e-5);
+            assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, local.rotation);
+            if !accepted {
+                app.world_mut().despawn(roof.unwrap());
+                app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+                assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
+                assert!((app.world().get::<Position>(actor).unwrap().y - 10.2).abs() < 1e-5);
+            }
         }
     }
 
