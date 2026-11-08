@@ -5964,7 +5964,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色uniform scale=2，站在动态平台上，以绕X轴1rad/s的平台角速度跳离，源脚底采样的z继承约0.273666m/s，target约1.173666m/s，多0.9m/s。直接scale和父级scale均失败；scale1、无旋转及绕Y旋转对照通过。`bf144_inherit_angular_velocity_uses_scaled_capsule_foot`共12组10PASS/2FAIL，证据`target/bf144/11/jump_and_permissions/`。
   - 漏检：旧angular support测试直接给接触点，绕Y的水平旋转也不会暴露Y采样点错误；缩放跳跃测试只验证JumpZ。最初含0.2m z偏心的组合同时触发D34，已将z偏心去掉分离最小反例；未改生产实现。
 
-- [ ] BF144-D33 / P2 — 基座速度来源忽略已提供的组件速度。
+- [x] BF144-D33 / P2 — 基座速度来源忽略已提供的组件速度；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 15:21 +08:00；预估结束16:06 +08:00；实际结束15:23 +08:00，提前43分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE组件、物理速度选择及原生继承开关保存在`docs/audit/bf144/d33/`；共享支持速度已按运动学/动态/静态基座选择，已写独立及复合碰撞体对照。旧target报告已缺失，原生自定义组件速度未实测；UE独立actor/root回退无现有对应输入，新测试与真实Gate待执行。
   - Source：fresh `Character.cpp:891–923`对movable base优先GetPhysicsOwnerVelocity，再按零值回退actor/root和body velocity；`PrimitiveComponentPhysics.cpp:1333–1344,1662–1665`证明非simulated组件返回ComponentVelocity，simulated组件返回body velocity，不能统一视作同一来源。
   - Target：`src/als/character/movement/dynamics.rs:101–123`始终读取owner LinearVelocity，未读取项目已有`AlsComponentVelocity`；同文件`component_velocity:74–76`在其他运动入口已经区分这两种来源，但本consumer未使用。
   - 反例：完整角色从运动学平台跳离，component x速度1/physical0时source应继承1m/s、target为0；component3/physical1时source应3、target仅1。`bf144_inherit_linear_velocity_uses_source_component_priority`共6组4PASS/2FAIL，零速、物理fallback、Dynamic优先physics和Static不继承对照通过，证据`target/bf144/11/jump_and_permissions/`。

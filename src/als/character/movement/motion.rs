@@ -18,6 +18,7 @@ use crate::als::character::{
     als_character_capsule,
 };
 use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeActionDiscriminant, AlsControlSchemeConfig};
+use crate::als::dynamics::AlsComponentVelocity;
 use crate::als::gait::AlsMaxAllowedGait;
 use crate::als::movement_constants::{
     EDGE_REJECT_DISTANCE, FLOOR_RETRY_SHRINK_FRACTION, FLOOR_SWEEP_SHRINK_FRACTION,
@@ -3484,7 +3485,7 @@ fn falling_movement_transaction(
     terminal: f32, mut remaining: f32, mut iterations: u32, entity: Entity, random_seed: &mut u32,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     step_permissions: &Query<&AlsMantleTargetPermission>,
-    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     owners: &Query<&ColliderOf>,
     shapes: &Query<(&Collider, &Position, &Rotation)>,
     impact_bodies: &FallingImpactBodies,
@@ -4606,7 +4607,7 @@ fn walking_movement_transaction(
     cmc: &crate::als::params::CmcAdapterParams, friction: f32, delta: f32, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     step_permissions: &Query<&AlsMantleTargetPermission>,
-    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     owners: &Query<&ColliderOf>, mut last_base: Option<Entity>,
 ) -> (Transform, Vec3, u32, f32, bool, Vec3, Option<Entity>) {
     let mut last_input = velocity;
@@ -4657,7 +4658,7 @@ pub(crate) fn cmc_movement_transaction_system(
     motion_roots: Query<(Option<&crate::als::roll::AlsRollState>, Option<&AlsMantleState>, Option<&crate::als::state::AlsNotifyLocomotionAction>)>,
     mut transforms: ParamSet<(bevy::transform::helper::TransformHelper, Query<&mut Transform, With<AlsCharacter>>)>,
     base_queries: (
-        Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+        Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
         Query<&ColliderOf>,
         Query<&mut crate::als::dynamics::AlsMovementBase, With<AlsCharacter>>,
         Query<(&Collider, &Position, &Rotation)>,
@@ -6160,7 +6161,7 @@ mod tests {
                 let frame = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                     permissions: Query<&AlsMantleTargetPermission>,
-                    bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                    bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                     owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
                     mut transitions: MessageWriter<StateTransitionEvent>| {
                     let mut params = AlsMovementParams::default();
@@ -6782,7 +6783,7 @@ mod tests {
             let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
-                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                 owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>, mut transitions: MessageWriter<StateTransitionEvent>| {
                 let mut seed = 123;
                 falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
@@ -6831,7 +6832,7 @@ mod tests {
             let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
-                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                 owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
                 mut transitions: MessageWriter<StateTransitionEvent>| {
                 let mut seed = 123;
@@ -7043,7 +7044,7 @@ mod tests {
             let (result, forced_landing) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
-                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                 owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
                 mut transitions: MessageWriter<StateTransitionEvent>| {
                 let mut seed = 123;
@@ -7255,7 +7256,7 @@ mod tests {
             let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
-                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                 owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
                 mut transitions: MessageWriter<StateTransitionEvent>| {
                 let mut seed = 123;
@@ -7325,7 +7326,7 @@ mod tests {
             let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
-                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                 owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
                 mut transitions: MessageWriter<StateTransitionEvent>| {
                 let mut seed = 123;
@@ -7374,7 +7375,7 @@ mod tests {
         let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>,
-            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
             owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
             mut transitions: MessageWriter<StateTransitionEvent>| {
             let mut seed = 123;
@@ -7527,7 +7528,7 @@ mod tests {
             let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
-                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                 owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>, mut transitions: MessageWriter<StateTransitionEvent>| {
                 let mut seed = 123;
                 falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
@@ -7650,7 +7651,7 @@ mod tests {
             app.world_mut().run_system_once(move |spatial: SpatialQuery,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
-                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                 owners: Query<&ColliderOf>| {
                 let capsule = als_character_capsule(0.9, 0.3);
                 let dynamics = crate::als::params::GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
@@ -7667,7 +7668,7 @@ mod tests {
         app.world_mut().run_system_once(move |spatial: SpatialQuery,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>,
-            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
             owners: Query<&ColliderOf>| {
             let start = Vec3::new(-7.866_695, 0.921_545_5, -15.298_997);
             let velocity = Vec3::new(6.499_999_5, 0.0, 0.001_433_724_1);
@@ -7710,7 +7711,7 @@ mod tests {
             app.world_mut().run_system_once(move |spatial: SpatialQuery,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
-                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
                 owners: Query<&ColliderOf>| {
                 let capsule = als_character_capsule(0.9, 0.3);
                 let cmc = crate::als::params::CmcAdapterParams::default();
@@ -10428,7 +10429,7 @@ mod tests {
         let (cached, airborne) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>,
-            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
             owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
             mut transitions: MessageWriter<StateTransitionEvent>| {
             let capsule = als_character_capsule(0.9, 0.3);
@@ -10465,7 +10466,7 @@ mod tests {
         let (slow, fast, exhausted) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>,
-            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
             owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
             mut transitions: MessageWriter<StateTransitionEvent>| {
             let mut run = |fresh: f64, max_iterations: u32| {

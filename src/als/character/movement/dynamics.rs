@@ -111,21 +111,25 @@ fn character_contact_point(params: &AlsMovementParams, stance: Stance, position:
 pub(crate) fn support_velocity_from_base(
     base_entity: Option<Entity>,
     contact_point: Vec3,
-    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     colliders: &Query<&ColliderOf>,
 ) -> (Option<Entity>, Vec3) {
     let Some(entity) = base_entity else {
         return (None, Vec3::ZERO);
     };
     let body = colliders.get(entity).map_or(entity, |collider| collider.body);
-    let Ok((position, linear_velocity, angular_velocity)) = bases.get(body) else {
+    let Ok((position, linear_velocity, angular_velocity, rigid_body, component)) = bases.get(body) else {
         return (None, Vec3::ZERO);
     };
+    if rigid_body == Some(&RigidBody::Static) { return (Some(entity), Vec3::ZERO); }
+    let owner_velocity = rigid_body.map_or(linear_velocity.0,
+        |body| component_velocity(body, linear_velocity, component));
+    let base_velocity = if owner_velocity == Vec3::ZERO { linear_velocity.0 } else { owner_velocity };
     (
         Some(entity),
         support_point_velocity(
             position.0,
-            linear_velocity.0,
+            base_velocity,
             angular_velocity.map_or(Vec3::ZERO, |velocity| velocity.0),
             contact_point,
         ),
@@ -498,7 +502,7 @@ pub fn grounded_dynamics_motor_system(
     >,
     actions: Query<(Option<&AlsRollState>, Option<&AlsMantleState>), With<AlsCharacter>>,
     landing_braking: Query<&AlsLandingBrakingFriction, With<AlsCharacter>>,
-    bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+    bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     colliders: Query<&ColliderOf>,
     local_transforms: Query<(&Transform, Option<&ChildOf>)>,
     world_transforms: bevy::transform::helper::TransformHelper,
@@ -1994,6 +1998,47 @@ mod tests {
         world.entity_mut(character).insert(LocomotionState::Grounded);
         world.run_system_once(grounded_dynamics_motor_system).unwrap();
         assert!((world.get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_max_speed - 3.75).abs() < 1e-5);
+    }
+
+    #[test]
+    fn airborne_base_velocity_prefers_the_source_component_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        for child in [false, true] {
+            for (kind, physical, component, expected) in [
+                (RigidBody::Kinematic, 0.0, Some(1.0), 1.0),
+                (RigidBody::Kinematic, 1.0, Some(3.0), 3.0),
+                (RigidBody::Kinematic, 1.0, Some(0.0), 1.0),
+                (RigidBody::Kinematic, 1.0, None, 1.0),
+                (RigidBody::Kinematic, 0.0, Some(0.0), 0.0),
+                (RigidBody::Dynamic, 1.0, Some(3.0), 1.0),
+                (RigidBody::Static, 1.0, Some(3.0), 0.0),
+            ] {
+                let mut world = World::new();
+                let mut time = Time::<()>::default();
+                time.advance_by(std::time::Duration::from_secs_f32(0.05));
+                world.insert_resource(time);
+                let mut assets = Assets::<AlsMovementParams>::default();
+                let handle = assets.add(AlsMovementParams::default());
+                world.insert_resource(assets);
+                let body = world.spawn((kind, Position::default(), LinearVelocity(Vec3::X * physical))).id();
+                if let Some(velocity) = component {
+                    world.entity_mut(body).insert(AlsComponentVelocity(Vec3::X * velocity));
+                }
+                let base = if child { world.spawn(ColliderOf { body }).id() } else { body };
+                let character = world.spawn((AlsCharacter, LocomotionState::Air, Stance::Standing,
+                    RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
+                    AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y),
+                    LinearVelocity::ZERO, AlsMovementParamsHandle(handle),
+                    TnuaController::<AlsControlScheme>::default(), TnuaMotor::default(),
+                    AlsCmcAdapterRuntime::default(), AlsMovementBaseDynamicsState {
+                        entity: Some(base), ..default()
+                    })).id();
+                world.run_system_once(grounded_dynamics_motor_system).unwrap();
+                let actual = world.get::<TnuaMotor>(character).unwrap().lin.boost.x;
+                assert!((actual - expected).abs() < 1e-5,
+                    "Base velocity differs: {child} {kind:?} {physical} {component:?} {actual} {expected}");
+            }
+        }
     }
 
     #[test]
