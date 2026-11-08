@@ -1,0 +1,26 @@
+{
+  "case": "ramp-no-step",
+  "frame": 41,
+  "maintain_horizontal_ground_velocity": true,
+  "floor_impact_normal": {
+    "x": -0.6427876267892145,
+    "y": 0,
+    "z": 0.7660444285165511
+  },
+  "floor_line_trace": false,
+  "trace_start_cm": {
+    "x": -1370.788682635019,
+    "y": -1500,
+    "z": 109.04143143503606
+  },
+  "trace_end_cm": {
+    "x": -1351.814470338372,
+    "y": -1500,
+    "z": 124.96268710152735
+  },
+  "trace_delta_cm": {
+    "x": 18.97421229664701,
+    "y": 0,
+    "z": 15.921255666491291
+  }
+}

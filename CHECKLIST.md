@@ -5788,6 +5788,10 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：既有零倍率测试在稳定贴地高度或空中检查速度/位移，不包含Grounded且需要高度修正的输入；只保护CMC积分没有覆盖后置floor consumer。仅登记，不把世界暂停与owner倍率0混同，不修改源码。
 
 - [ ] BF144-D13 / P2 — 坡面步行先作水平碰撞与跨步，丢失源切向移动顺序。
+  - 子项拆分：D13a处理当前可行走坡面的首次切向扫掠；D13b处理首次命中另一可行走坡后的剩余时间扫掠。两项独立静态实现并提交，父项在两者完成后标记；统一运行验证仍延后。
+  - [x] BF144-D13a — 当前坡面先按源接触/几何法线计算并扫掠切向位移。开始2026-11-08 13:40 +08:00；预估结束14:25 +08:00；实际结束13:44 +08:00，提前41分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 闭环：fresh UE/ALS坡面移动源及原生40°后续帧保存在`docs/audit/bf144/d13a/`；单步和多子步均消费沿坡请求，已写法线/line条件、20°/40°平行低顶及加载角色对照。目标测试与真实Gate尚未执行，新坡面二次扫掠留给D13b。
+  - [ ] BF144-D13b — 首次命中新可行走坡后，以剩余时间沿新坡面继续扫掠并保留后续碰撞。
   - Source：fresh UE `ComputeGroundMovementDelta:5489–5512`由当前floor的ImpactNormal生成沿坡位移，native CMC的bMaintainHorizontalGroundVelocity=True，保持所请求的水平距离；`MoveAlongFloor:5560–5589`先sweep该切向位移，真正被阻挡后才尝试第二坡面或StepUp。
   - Target：`src/als/character/movement/motion.rs:3513–3552`直接对水平delta作sweep，碰到坡面就先向上抬升；低顶限制该抬升后，剩余位移再被slide投影缩短，实际可通过的坡道因此减速。
   - 反例：40°平面与平行顶面构成保持1.2cm头部余隙的通道，胶囊沿source切向0.25m试扫无阻挡；默认ViewDirection/Running起步，90帧source应水平前进5.304167m，target仅4.343863m。完整加载角色与最小运动插件均FAIL；20°坡以及无顶/10cm余隙的10个对照PASS。`bf144_walk_ramp_under_parallel_ceiling_keeps_source_tangent_motion`及证据`target/bf144/05/ramp_loaded/`。
