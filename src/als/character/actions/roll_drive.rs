@@ -433,6 +433,58 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn roll_root_motion_clears_the_previous_grounded_movement_budget() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (active, budget) in [(true, Vec3::ZERO), (true, Vec3::X * 0.2), (false, Vec3::ZERO)] {
+            let mut world = World::new();
+            world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(0.04));
+            world.insert_resource(time);
+            let actor = world.spawn((crate::als::character::AlsCharacter,
+                AlsRollState { active, time: 0.1, previous_time: 0.05, ..default() },
+                LocomotionState::Grounded, avian3d::prelude::RigidBody::Dynamic, Transform::IDENTITY,
+                LinearVelocity::ZERO, crate::als::character::AlsCmcAdapterRuntime {
+                    grounded_movement_delta: Some(budget), ..default()
+                })).id();
+            let mesh = world.spawn((ChildOf(actor), Transform::IDENTITY)).id();
+            world.spawn((AlsRollSlotSampler { character: actor, target_player: mesh, reported_unready: false },
+                RootMotionOutput { translation_delta: Vec3::X * 0.02, ..default() }));
+            world.run_system_once(roll_drive_system).unwrap();
+            let runtime = world.get::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap();
+            assert_eq!(runtime.grounded_movement_delta, if active { None } else { Some(budget) });
+            if active { assert!(world.get::<LinearVelocity>(actor).unwrap().x.abs() > 0.1); }
+        }
+    }
+
+    #[test]
+    fn loaded_roll_first_frame_uses_root_motion_in_the_clamped_physics_window() {
+        use bevy::time::TimeUpdateStrategy;
+        for (delta, expected) in [(0.034, 0.01636579), (0.04, 0.02207679), (0.05, 0.03159513)] {
+            let (mut app, actor, _) = loaded_roll_character();
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().stance = Some(Stance::Crouching);
+            for _ in 0..8 { app.update(); }
+            assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
+            app.add_systems(PostUpdate, (move |mut actors: Query<(&AlsRollState, &mut crate::als::character::AlsCmcAdapterRuntime)>,
+                mut injected: Local<bool>| {
+                if !*injected && let Ok((roll, mut runtime)) = actors.get_mut(actor) && roll.active {
+                    runtime.grounded_movement_delta = Some(Vec3::ZERO);
+                    *injected = true;
+                }
+            }).after(AnimationGraphSet::PrePhysics).before(AlsRollDriveSet));
+            let start = app.world().get::<avian3d::prelude::Position>(actor).unwrap().0;
+            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().roll_pressed = true;
+            *app.world_mut().resource_mut::<TimeUpdateStrategy>() =
+                TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
+            app.update();
+            let moved = (app.world().get::<avian3d::prelude::Position>(actor).unwrap().0 - start).with_y(0.0).length();
+            assert!((moved - expected).abs() < 0.0005,
+                "Roll root displacement differs: delta={delta} moved={moved} source={expected}");
+            assert!(app.world().get::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap().grounded_movement_delta.is_none());
+        }
+    }
+
+    #[test]
     fn loaded_airborne_roll_preserves_vertical_velocity_through_gravity() {
         use bevy::time::TimeUpdateStrategy;
         for delta in [1.0 / 60.0, 0.1] {
@@ -2588,6 +2640,7 @@ fn roll_drive_system(
                 if falling { root_velocity.y = prior_vertical; }
                 cmc.grounded_collision_velocity = Some(root_velocity);
                 cmc.has_animation_root_velocity = true;
+                cmc.grounded_movement_delta = None;
                 cmc.grounded_move_start = None;
             }
             let mut root_velocity = world_translation / dt + support;

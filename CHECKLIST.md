@@ -6100,7 +6100,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色先接受Roll，再进入Air、原有vy为−2/0/+2m/s；16.667ms源应为−2.1635/−0.1635/+1.8365，target均−0.1635；100ms源为−2.981/−0.981/+1.019，target均−0.981。`bf144_roll_root_falling_keeps_prior_vertical_velocity`12组8PASS/4FAIL，六组无Roll与两组原vy0对照通过；证据`target/bf144/15/initial/`。
   - 漏检：旧`animation_root_velocity_restoration_preserves_falling_physics_axis`只单独执行drive后手工写入正确vy，再测末尾sync，因此掩盖了drive提前覆盖的问题。此项核对整帧实际consumer，独立于D34基座速度继承、D43启动蹲伏；仅登记，未改生产代码。
 
-- [ ] BF144-D46 / P2 — 物理封顶与CMC单步窗口内，Roll首帧沿用普通运动预算而丢失根位移。
+- [x] BF144-D46 / P2 — 物理封顶与CMC单步窗口内，Roll首帧沿用普通运动预算而丢失根位移；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:03 +08:00；预估结束17:43 +08:00；实际结束17:04 +08:00，提前39分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE/ALS根速度优先级与原生34/40/50 ms首帧根轨道读数保存在`docs/audit/bf144/d46/`；写入Roll根速度时清除旧普通位移预算，已写注入旧预算和加载角色对照。旧target报告缺失，测试与动画Gate待执行。
   - Source：fresh UE `PerformMovement:2962–2972`先把本帧动画root换成速度；ALS `PhysWalking:406–418`在HasAnimRootMotion时跳过普通CalcVelocity，并由ApplyRootMotionToVelocity覆盖速度，再MoveAlongFloor。因此已接受Roll的首个运动帧必须消费当前root增量。
   - Target：`src/als/character/movement/dynamics.rs:557–569`在输入尚未启动Roll时保存普通grounded_movement_delta；`roll_drive.rs:2327–2332`换成root速度时未清这个预算。`movement/source_physics_timing.rs:179–181`对超过33.333ms的完整帧补偿优先消费旧delta，覆盖新的root速度；CMC超过50ms时另一路多子步清delta，因此又恢复。
   - 反例：完整已蹲伏角色静止按Roll，frame delta34/40/50ms时原生根位移应16.366/22.077/31.595mm，实际水平位移均0；同帧已正确采样root且写入相应非零速度，物理前runtime仍Some(Vec3::ZERO)。`bf144_roll_root_first_frame_replaces_ordinary_movement_budget`8组5PASS/3FAIL，16.667/33.333及51/60/100ms对照通过；证据`target/bf144/15/first_frame/`。
