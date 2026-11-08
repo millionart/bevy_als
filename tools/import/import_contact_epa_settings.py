@@ -18,6 +18,7 @@ def settings(facts, native):
     if len(factors) != 4 or not all(math.isfinite(value) and value > 0 for value in factors):
         raise ValueError("Source EPA face tolerance is invalid")
     area = math.prod(factors) * SOURCE_LENGTH_TO_RUNTIME_SCALE ** 4
+    initial_edge = literal(source, rf"Dir\.SizeSquared\(\)\s*>\s*{NUMBER}", "initial edge tolerance") * SOURCE_LENGTH_TO_RUNTIME_SCALE ** 2
     visibility = literal(source, rf"SelectEpsilon\(1\.e-4f,\s*{NUMBER}\)", "visibility tolerance") * SOURCE_LENGTH_TO_RUNTIME_SCALE
     witness = literal(source, rf"OutPenetration\s*<\s*{NUMBER}", "witness tolerance") * SOURCE_LENGTH_TO_RUNTIME_SCALE
     maximum = int(literal(source, rf"MaxIterations\s*=\s*{NUMBER}", "EPA iteration limit"))
@@ -25,7 +26,7 @@ def settings(facts, native):
     relative = f32(float(native["physics_asset"]["constraint_console_variables"]["p.Chaos.Collision.EPAEpsilon"]))
     if not math.isfinite(relative) or relative <= 0:
         raise ValueError("Source EPA relative epsilon is invalid")
-    return area, visibility, witness, maximum, flood, relative
+    return area, initial_edge, visibility, witness, maximum, flood, relative
 
 
 def main():
@@ -36,8 +37,8 @@ def main():
     args = parser.parse_args()
     if args.output.resolve() in {args.facts.resolve(), args.native.resolve()}:
         raise ValueError("Target output must differ from source")
-    area, visibility, witness, maximum, flood, relative = settings(json.loads(args.facts.read_text()), read(args.native))
-    args.output.write_text(f"({area:.17g}_f64, {visibility:.17g}_f64, {witness:.17g}_f64, {maximum}_usize, {flood}_usize, {relative:.17g}_f64)\n")
+    area, initial_edge, visibility, witness, maximum, flood, relative = settings(json.loads(args.facts.read_text()), read(args.native))
+    args.output.write_text(f"({area:.17g}_f64, {initial_edge:.17g}_f64, {visibility:.17g}_f64, {witness:.17g}_f64, {maximum}_usize, {flood}_usize, {relative:.17g}_f64)\n")
 
 
 if __name__ == "__main__":

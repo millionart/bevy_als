@@ -11,8 +11,8 @@
       "sha256": "09abe087a67484d5ea88f05e6d11fd84fb0115508106614afafbe584809844f1"
     },
     "src/als/settings/contact_epa.rs": {
-      "bytes": 120,
-      "sha256": "311d80ef0981233a77a408662bf25e35b2f12558c3785228dcb35c16f638e572"
+      "bytes": 131,
+      "sha256": "ce0ed47c2473593d5d33bb73fb097787dc01bfcb327dbb853967d05eee6fbc10"
     }
   }
 }

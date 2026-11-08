@@ -5,6 +5,7 @@ use super::source_gjk_simplex::{SourceGjkSimplex, SourceGjkVertex};
 #[derive(Clone, Copy)]
 pub(crate) struct SourceEpaSettings {
     pub face_area_m4: f64,
+    pub initial_edge_m2: f64,
     pub visibility_m: f64,
     pub witness_m: f64,
     pub max_iterations: usize,
@@ -81,6 +82,82 @@ pub(crate) fn flip_source_epa_face(faces: &mut [SourceEpaFace], index: usize) {
     face.distance_cm = -face.distance_cm;
 }
 
+fn add_source_epa_farther_point<A, B>(
+    vertices: &mut Vec<SourceEpaVertex>,
+    direction: DVec3,
+    first_support: &mut A,
+    second_support: &mut B,
+    last_vertices: &mut [usize; 2],
+) where
+    A: FnMut(DVec3) -> (DVec3, usize),
+    B: FnMut(DVec3) -> (DVec3, usize),
+{
+    let (first0, _) = first_support(direction);
+    let (first1, first_index1) = first_support(-direction);
+    last_vertices[0] = first_index1;
+    let (second0, _) = second_support(-direction);
+    let (second1, second_index1) = second_support(direction);
+    last_vertices[1] = second_index1;
+    let distance0 = (first0 - second0).dot(direction);
+    let distance1 = (first1 - second1).dot(-direction);
+    let (first_cm, second_cm) = if distance1 >= distance0 { (first1, second1) } else { (first0, second0) };
+    vertices.push(SourceEpaVertex { first_cm, second_cm });
+}
+
+fn source_epa_tetrahedron(vertices: &[SourceEpaVertex], settings: SourceEpaSettings) -> Option<Vec<SourceEpaFace>> {
+    let layouts = [([1, 2, 3], [3, 1, 2], [1, 1, 1]), ([0, 3, 2], [2, 0, 3], [2, 1, 0]),
+        ([0, 1, 3], [3, 0, 1], [2, 2, 0]), ([0, 2, 1], [1, 0, 2], [2, 0, 0])];
+    layouts.into_iter().map(|(indices, adjacent_faces, adjacent_edges)| {
+        SourceEpaFace::new(vertices, indices, adjacent_faces, adjacent_edges, settings)
+    }).collect()
+}
+
+pub(crate) fn initialize_source_epa<A, B>(
+    vertices: &mut Vec<SourceEpaVertex>,
+    settings: SourceEpaSettings,
+    mut first_support: A,
+    mut second_support: B,
+    last_vertices: &mut [usize; 2],
+) -> Result<Vec<SourceEpaFace>, DVec3>
+where
+    A: FnMut(DVec3) -> (DVec3, usize),
+    B: FnMut(DVec3) -> (DVec3, usize),
+{
+    let initial = vertices.len();
+    if initial == 1 {
+        add_source_epa_farther_point(vertices, DVec3::Z, &mut first_support, &mut second_support, last_vertices);
+    }
+    let mut faces = match initial {
+        1 | 2 => {
+            let direction = vertices[1].difference() - vertices[0].difference();
+            if direction.length_squared() <= settings.initial_edge_m2 * 100.0_f64.powi(2) { return Err(DVec3::Z); }
+            let absolute = direction.abs();
+            let axis = if absolute.x <= absolute.y && absolute.x <= absolute.z { DVec3::X }
+                else if absolute.y <= absolute.z { DVec3::Y } else { DVec3::Z };
+            let orthogonal = direction.cross(axis);
+            let second_orthogonal = orthogonal.cross(direction);
+            add_source_epa_farther_point(vertices, orthogonal, &mut first_support, &mut second_support, last_vertices);
+            add_source_epa_farther_point(vertices, second_orthogonal, &mut first_support, &mut second_support, last_vertices);
+            source_epa_tetrahedron(vertices, settings).ok_or_else(|| orthogonal.normalize())?
+        }
+        3 => {
+            let base = SourceEpaFace::new(vertices, [0, 2, 1], [1, 0, 2], [2, 0, 0], settings).ok_or(DVec3::Z)?;
+            add_source_epa_farther_point(vertices, base.normal, &mut first_support, &mut second_support, last_vertices);
+            source_epa_tetrahedron(vertices, settings).ok_or(base.normal)?
+        }
+        4 => source_epa_tetrahedron(vertices, settings).ok_or(DVec3::Z)?,
+        _ => return Err(DVec3::Z),
+    };
+    let mut maximum = 0.0_f64;
+    for face in &faces {
+        if face.distance_cm.abs() > maximum.abs() { maximum = face.distance_cm; }
+    }
+    if maximum < 0.0 {
+        for index in 0..faces.len() { flip_source_epa_face(&mut faces, index); }
+    }
+    Ok(faces)
+}
+
 pub(crate) struct SourceEpaWitness {
     pub penetration_cm: f64,
     pub normal: DVec3,
@@ -123,9 +200,9 @@ mod tests {
     use super::*;
 
     fn settings() -> SourceEpaSettings {
-        let (face_area_m4, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon) =
+        let (face_area_m4, initial_edge_m2, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon) =
             include!("../als/settings/contact_epa.rs");
-        SourceEpaSettings { face_area_m4, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon }
+        SourceEpaSettings { face_area_m4, initial_edge_m2, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon }
     }
 
     fn vertex(point: DVec3) -> SourceEpaVertex {
@@ -184,6 +261,17 @@ mod tests {
             assert!((face.distance_cm - expected["distance_cm"].as_f64().unwrap()).abs() < 1e-10);
         }
         for index in 0..faces.len() { flip_source_epa_face(&mut faces, index); }
+        let mut native_vertices = vertices.clone();
+        let mut last = [99, 99];
+        let initialized = initialize_source_epa(&mut native_vertices, settings(),
+            |_| panic!("A four-point simplex must not request support"),
+            |_| panic!("A four-point simplex must not request support"), &mut last).unwrap();
+        assert_eq!(last, [99, 99]);
+        for (expected, actual) in faces.iter().zip(&initialized) {
+            assert_eq!(expected.indices, actual.indices);
+            assert_eq!(expected.normal, actual.normal);
+            assert_eq!(expected.distance_cm, actual.distance_cm);
+        }
         for (index, face) in faces.iter().enumerate() {
             for edge in 0..3 {
                 let neighbor = faces[face.adjacent_faces[edge]];
@@ -192,5 +280,62 @@ mod tests {
                 assert_eq!(neighbor.adjacent_edges[opposite], edge);
             }
         }
+    }
+
+    #[test]
+    fn source_epa_initialization_preserves_support_call_order() {
+        let shape = [DVec3::new(2.0, 0.0, 0.0), DVec3::new(-1.0, 1.0, 0.0),
+            DVec3::new(-1.0, -1.0, 1.0), DVec3::new(-1.0, -1.0, -1.0)];
+        let support = |direction: DVec3| {
+            let mut index = 0;
+            let mut best = f64::MIN;
+            for (candidate, point) in shape.iter().enumerate() {
+                let dot = point.dot(direction);
+                if dot > best { best = dot; index = candidate; }
+            }
+            (shape[index], index)
+        };
+        let cube = |direction: DVec3| {
+            let mut point = DVec3::splat(-1.0);
+            let mut index = 0;
+            for axis in 0..3 {
+                if direction[axis] >= 0.0 { point[axis] = 1.0; index |= 1 << axis; }
+            }
+            (point, index)
+        };
+        let mut single = vec![vertex(DVec3::ZERO)];
+        let mut single_last = [99, 99];
+        assert_eq!(initialize_source_epa(&mut single, settings(), cube,
+            |_| (DVec3::ZERO, 9), &mut single_last).unwrap().len(), 4);
+        assert_eq!(single.len(), 4);
+        assert_eq!(single_last, [2, 9]);
+        for initial in [2, 3, 4] {
+            let input = [shape[3], shape[0], shape[2], shape[1]];
+            let mut vertices = input[..initial].iter().copied().map(vertex).collect::<Vec<_>>();
+            let mut last = [99, 99];
+            let faces = initialize_source_epa(&mut vertices, settings(), support,
+                |_| (DVec3::ZERO, 9), &mut last).unwrap();
+            assert_eq!(vertices.len(), 4);
+            assert_eq!(faces.len(), 4);
+            if initial == 2 {
+                assert_eq!(vertices[3].first_cm, shape[1]);
+                assert_eq!(last, [2, 9]);
+            }
+            if initial == 4 { assert_eq!(last, [99, 99]); }
+            for (index, face) in faces.iter().enumerate() {
+                for edge in 0..3 {
+                    let neighbor = faces[face.adjacent_faces[edge]];
+                    let opposite = face.adjacent_edges[edge];
+                    assert_eq!(neighbor.adjacent_faces[opposite], index);
+                    assert_eq!(neighbor.adjacent_edges[opposite], edge);
+                }
+            }
+        }
+        let mut short = vec![vertex(DVec3::ZERO), vertex(DVec3::X * 0.009)];
+        let mut last = [99, 99];
+        let error = initialize_source_epa(&mut short, settings(), support,
+            |_| (DVec3::ZERO, 9), &mut last).err().unwrap();
+        assert_eq!(error, DVec3::Z);
+        assert_eq!(last, [99, 99]);
     }
 }
