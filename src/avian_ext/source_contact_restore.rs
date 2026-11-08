@@ -24,7 +24,7 @@ pub(crate) struct SourceRestoreSettings {
     pub minimum_points: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub(crate) struct SourceRestorePose {
     pub position_m: DVec3,
     pub rotation: DQuat,
@@ -205,6 +205,24 @@ pub(super) fn restore_source_contact(
     Some(saved)
 }
 
+fn source_restore_contact_groups(
+    groups: &mut [SourceBoxContact],
+    context: &SourceContactContext,
+    settings: SourceRestoreSettings,
+) -> bool {
+    let Some(first) = groups.first() else { return false; };
+    if groups.iter().any(|group| group.colliders != context.colliders || group.bodies != context.bodies
+        || group.shape_ticks != context.shape_ticks || group.last != first.last) { return false; }
+    let mut points = groups.iter().flat_map(|group| group.points.iter().copied()).collect::<Vec<_>>();
+    if !source_restore_manifold(&mut points, first.last, context.frames, context.tolerance, true, settings) {
+        return false;
+    }
+    for (destination, point) in groups.iter_mut().flat_map(|group| group.points.iter_mut()).zip(points) {
+        *destination = point;
+    }
+    true
+}
+
 pub(crate) fn restore_source_box_contacts(
     settings: Option<Res<SourceRestoreSettings>>,
     config: Res<NarrowPhaseConfig>,
@@ -330,7 +348,8 @@ mod tests {
     #[test]
     fn source_manifold_restore_matches_native_two_frame_contacts() {
         let fixtures = [include_str!("../../docs/audit/bf144/d104a/restore.native-samples.json"),
-            include_str!("../../docs/audit/bf144/d104b2b/restore.native-samples.json")];
+            include_str!("../../docs/audit/bf144/d104b2b/restore.native-samples.json"),
+            include_str!("../../docs/audit/bf144/d104b3b/restore.native-samples.json")];
         let settings = settings();
         for fixture in fixtures {
             let fixture: serde_json::Value = serde_json::from_str(fixture).unwrap();
@@ -457,6 +476,31 @@ mod tests {
         changed = context;
         changed.shape_ticks[0] = Tick::new(3);
         assert!(restore_source_contact(&mut manifold.clone(), Some(&saved), &changed, settings()).is_none());
+    }
+
+    #[test]
+    fn source_mesh_restores_points_using_one_cross_group_threshold() {
+        let entity = |index| Entity::from_raw_u32(index).unwrap();
+        let pose = SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY };
+        let context = SourceContactContext { colliders: [entity(1), entity(2)], bodies: [entity(3), entity(4)],
+            shape_ticks: [Tick::new(1), Tick::new(2)], frames: [pose; 2], tolerance: 0.01, skin: 0.0,
+            box_first: true, surface_normal: Vec3::Y, centers: [Vec3::ZERO; 2],
+            linear: [Vec3::ZERO; 2], angular: [Vec3::ZERO; 2] };
+        let point = ContactPoint::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, 0.0);
+        let first = ContactManifold::new([point; 4], Vec3::Y);
+        let second = ContactManifold::new([point; 4], Vec3::X);
+        let mut second_context = context;
+        second_context.surface_normal = Vec3::X;
+        let mut groups = [capture_source_contact(&first, &context), capture_source_contact(&second, &second_context)];
+        groups[0].points[0].initial_first_m = DVec3::X * 0.02;
+        assert!(restore_source_contact(&mut first.clone(), Some(&groups[0]), &context, settings()).is_none());
+        assert!(source_restore_contact_groups(&mut groups, &context, settings()));
+        assert_eq!(groups.iter().flat_map(|group| &group.points).filter(|point| !point.disabled).count(), 7);
+        for point in &mut groups[1].points { point.disabled = true; }
+        assert!(!source_restore_contact_groups(&mut groups, &context, settings()));
+        let mut replaced = context;
+        replaced.shape_ticks[0] = Tick::new(3);
+        assert!(!source_restore_contact_groups(&mut groups, &replaced, settings()));
     }
 
     #[test]

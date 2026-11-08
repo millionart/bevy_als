@@ -1,0 +1,17 @@
+{
+  "request": "docs/audit/bf144/d104b3b/restore.request.json",
+  "request_sha256": "71fb6de2b0daba79394d03fb43c0a2c9628ccfda45bff0a7e927a94f2c74e301",
+  "reader_report": "docs/audit/bf144/d104b3b/restore.native.json.reader.report.json",
+  "native": "docs/audit/bf144/d104b3b/restore.native.json.gz",
+  "raw_bytes": 5215723,
+  "raw_sha256": "c106946357b21f9ff35000b91eb5582b411247bf09bd102025a1b775bedb776c",
+  "gzip_bytes": 273217,
+  "gzip_sha256": "e5ea8ceeabb014d3583aacb1675c4f37a3281fa1c0344826adbe0481af559efd",
+  "source_assets": "docs/audit/bf144/d104b3a/native-identities.json",
+  "summary": "docs/audit/bf144/d104b3b/native-summary.json",
+  "fixture": {
+    "path": "docs/audit/bf144/d104b3b/restore.native-samples.json",
+    "sha256": "f23cd976736ddbf1794154869f4a026ec1eb8a4a48efca7dca7554a1fd4af2ae",
+    "bytes": 81251
+  }
+}
