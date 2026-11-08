@@ -1,0 +1,104 @@
+{
+  "native_cases": [
+    {
+      "case": "actual319-reference-0",
+      "frame": "actual-query-001",
+      "native_reference": {
+        "blocking_hit": true,
+        "impact_point_cm": {
+          "x": -1515.66136568093,
+          "y": -1508.4881730456657,
+          "z": 0
+        },
+        "impact_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "world_start_cm": {
+          "x": -1515.66136568093,
+          "y": -1508.4881730456657,
+          "z": 49.99999403953552
+        },
+        "world_end_cm": {
+          "x": -1515.66136568093,
+          "y": -1508.4881730456657,
+          "z": -80.00000596046448
+        },
+        "vm_impact_point_cm": {
+          "x": 17.076305998450138,
+          "y": -5.072213533232677,
+          "z": 5.9604644775390625e-06
+        },
+        "vm_impact_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "historical_query": 1,
+      "historical_pc": 31,
+      "native_reference_matches_prior": true
+    },
+    {
+      "case": "actual319-reference-1",
+      "frame": "actual-query-001",
+      "native_reference": {
+        "blocking_hit": true,
+        "impact_point_cm": {
+          "x": -1491.5118258881682,
+          "y": -1484.3386348969125,
+          "z": 0
+        },
+        "impact_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "world_start_cm": {
+          "x": -1491.5118258881682,
+          "y": -1484.3386348969125,
+          "z": 49.99999403953552
+        },
+        "world_end_cm": {
+          "x": -1491.5118258881682,
+          "y": -1484.3386348969125,
+          "z": -80.00000596046448
+        },
+        "vm_impact_point_cm": {
+          "x": -17.0763059984502,
+          "y": -5.072213533232652,
+          "z": 5.9604644775390625e-06
+        },
+        "vm_impact_normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "historical_query": 1,
+      "historical_pc": 40,
+      "native_reference_matches_prior": true
+    }
+  ],
+  "synthetic_near_unit_yaw": {
+    "runtime_rotation_xyzw": [
+      0,
+      0.3826834559440613,
+      0,
+      0.9238795042037964
+    ],
+    "runtime_world_normal": [
+      0,
+      1,
+      0
+    ],
+    "source_inverse_normal": [
+      0,
+      1,
+      0
+    ],
+    "historical_glam_inverse_normal_y": 0.9999999657411429
+  },
+  "historical_evidence": "docs/audit/bf144/463/README.md"
+}

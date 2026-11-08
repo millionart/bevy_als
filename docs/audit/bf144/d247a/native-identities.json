@@ -1,0 +1,32 @@
+{
+  "assets": [
+    {
+      "path": "Content/ALS/Character/AB_Als.uasset",
+      "bytes": 150527,
+      "sha256": "6097dd4043b2051a18b6fdcd2258385afb535a369c97cac8598d815e7b81f1bf"
+    },
+    {
+      "path": "Content/ALS/Character/CR_Als.uasset",
+      "bytes": 1555021,
+      "sha256": "fe52b72061bc62e0dece654b3b3bc88a9d8cf2686251f1092cb37f91127cf6ff"
+    },
+    {
+      "path": "Content/ALS/Character/SKM_Als.uasset",
+      "bytes": 2606592,
+      "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+    }
+  ],
+  "request": "docs/audit/bf144/d247a/trace.request.json",
+  "request_source": "docs/audit/bf144/462/request.json",
+  "native_output": "docs/audit/bf144/d247a/trace.native.json.gz",
+  "raw": {
+    "bytes": 4513534,
+    "sha256": "c1793d1770adbb4385e63f702a548b4a7c9ad76691b8b87c31094a706e88b2e8"
+  },
+  "compressed": {
+    "bytes": 210128,
+    "sha256": "013142241547bb842216c9744404c56adc761afaa04865dfaa7f281acafb0b49"
+  },
+  "reader_report": "docs/audit/bf144/d247a/trace.native.json.reader.report.json",
+  "historical_inputs": "docs/audit/bf144/463/inputs.json"
+}

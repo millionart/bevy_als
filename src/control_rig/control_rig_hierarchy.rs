@@ -78,6 +78,38 @@ pub fn rig_quat_near(a: DQuat, b: DQuat, tolerance: f64) -> bool {
             .all(|value| value.abs() <= tolerance)
 }
 
+fn source_cross(a: DVec3, b: DVec3) -> DVec3 {
+    #[cfg(target_arch = "aarch64")]
+    {
+        DVec3::new(
+            (-a.z).mul_add(b.y, a.y * b.z),
+            (-a.x).mul_add(b.z, a.z * b.x),
+            (-a.y).mul_add(b.x, a.x * b.y),
+        )
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    {
+        a.cross(b)
+    }
+}
+
+pub(crate) fn source_rotate_vector(rotation: DQuat, vector: DVec3) -> DVec3 {
+    let source_rotation = DVec3::new(-rotation.x, -rotation.z, -rotation.y);
+    let source_vector = DVec3::new(vector.x, vector.z, vector.y);
+    let cross = source_cross(source_rotation, source_vector);
+    let twice = cross + cross;
+    #[cfg(target_arch = "aarch64")]
+    let intermediate = DVec3::new(
+        rotation.w.mul_add(twice.x, source_vector.x),
+        rotation.w.mul_add(twice.y, source_vector.y),
+        rotation.w.mul_add(twice.z, source_vector.z),
+    );
+    #[cfg(not(target_arch = "aarch64"))]
+    let intermediate = source_vector + rotation.w * twice;
+    let result = intermediate + source_cross(source_rotation, twice);
+    DVec3::new(result.x, result.z, result.y)
+}
+
 impl RigTransform {
     fn scale_reciprocal(self) -> DVec3 {
         DVec3::from_array(self.scale.to_array().map(|value| {
@@ -90,7 +122,7 @@ impl RigTransform {
     }
 
     pub fn transform_point(self, point: DVec3) -> DVec3 {
-        self.rotation * (self.scale * point) + self.translation
+        source_rotate_vector(self.rotation, self.scale * point) + self.translation
     }
 
     pub fn inverse_transform_point(self, point: DVec3) -> DVec3 {
@@ -98,7 +130,7 @@ impl RigTransform {
     }
 
     pub fn inverse_transform_vector(self, vector: DVec3) -> DVec3 {
-        (self.rotation.conjugate() * vector) * self.scale_reciprocal()
+        source_rotate_vector(self.rotation.conjugate(), vector) * self.scale_reciprocal()
     }
 
     pub fn value(self) -> RigValue {
@@ -195,7 +227,7 @@ impl RigTransform {
         }
         Self {
             rotation: rig_normalize(parent.rotation * self.rotation),
-            translation: parent.rotation * (parent.scale * self.translation) + parent.translation,
+            translation: source_rotate_vector(parent.rotation, parent.scale * self.translation) + parent.translation,
             scale,
         }
     }
@@ -221,7 +253,7 @@ impl RigTransform {
         let inverse_rotation = parent.rotation.conjugate();
         Self {
             rotation: rig_normalize(inverse_rotation * self.rotation),
-            translation: (inverse_rotation * (self.translation - parent.translation)) * reciprocal,
+            translation: source_rotate_vector(inverse_rotation, self.translation - parent.translation) * reciprocal,
             scale,
         }
     }
@@ -851,6 +883,18 @@ mod tests {
             serde_json::from_str::<Vec<RigBone>>(&encoded).unwrap(),
             rig.bones
         );
+    }
+
+    #[test]
+    fn rig_transform_preserves_up_for_near_unit_yaw() {
+        let transform = RigTransform {
+            rotation: DQuat::from_xyzw(0.0, 0.382_683_455_944_061_3, 0.0, 0.923_879_504_203_796_4),
+            ..Default::default()
+        };
+        assert_eq!(transform.inverse_transform_vector(DVec3::Y), DVec3::Y);
+        assert_eq!(transform.transform_point(DVec3::Y), DVec3::Y);
+        let child = RigTransform { translation: DVec3::Y, ..Default::default() };
+        assert_eq!(child.global(transform).translation, DVec3::Y);
     }
 
     #[test]

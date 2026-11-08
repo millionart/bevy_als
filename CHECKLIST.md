@@ -5570,6 +5570,11 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 本consumer因子边界/消融：保同一F64 dot只换sqrt/reciprocal方法另2162 double/8投影不同；这8例当前已有6例匹配source，未将8例都当当前缺陷。两个wide整链模式所有F32数组/stage无额外差，故删除整链sqrt模式，保必要primitive对照；public Glam64与same-source-dot std-sqrt另18 raw差也单列，不混作倒数方法。移除F32方法控制使四HeadBase包回original、198最终骨变化全消；移除F64源方法使2162 native primitive恢复丢失而原/其余控制保持。源码bytes恢复同target重编12输出/2884记录byte同。`target/bf144/427/native-check.json`、`current-contract.json`、`controls-check.json`，平台限当前ARM64，未改生产或宣称整个HeadBase/Root恢复。
 
 - [ ] BF144-D247 / P3 — Rig向量旋转沿用glam展开式，近单位输入改变源法线和脚偏移。
+  - 按调用闭包拆分：D247a实现源四元数/向量旋转并接入RigTransform、射线及层级位置；D247b迁移两骨IK和Pole空间的直接向量旋转调用。各自记录证据并提交，全部静态修复及Bevy/依赖迁移后统一验证。
+  - [x] BF144-D247a — RigTransform与射线/层级的源向量旋转。开始2026-11-08 10:39 +08:00；预估结束11:29 +08:00。依据：.463已保存636调用及三个算子消融，需fresh核源坐标映射、NEON cross/FMA、正逆变换和实际unit调用，再写近单位反例。
+    - 10:41 source/static闭环：fresh UE `TransformPosition/InverseTransformVector`均经cross形式旋转，ARM64 cross和中间累加使用FMA；源坐标四元数`(-x,-z,-y,w)`、向量`(x,z,y)`需成对映射。目标`RigTransform`的正逆、层级global/local直接调用glam向量乘法，`.463`已证其实际trace normal/point/ray三个消费者；先写近单位yaw保持Up的最小反例。独立两骨IK直接调用留D247b。
+    - 10:42实现摘要：RigTransform正逆和层级位置接入源cross/FMA旋转，近单位yaw的Transform与公开foot trace fixture已写；fresh两脚ray端点、命中和局部法线均与.463封存源数据逐值对应。请求、原生结果和源码在`docs/audit/bf144/d247a/`，非ARM融合算序及所有目标Gate未验证；实际实现结束2026-11-08 10:42 +08:00，较预估提前47分钟。D247拆分为a/b，直接IK调用留b。
+  - [ ] BF144-D247b — 两骨IK和Pole空间直接旋转，依赖D247a共享算子；开始时按剩余源闭包估时。
   - BF144.482 最终 ball 消费者。1332 个 ball 对照保持本地变换和父 foot 全局变换逐值不变。厘米中换为目标公开 global 算术后，左 469、右 619 个 F32 平移记录不同。原生、目标各自 79 骨最终值逐项校准。输入冻结后的其余算术差分开记录，见 docs/audit/bf144/482/comparison.json。
   - BF144.480 partial inverse/forward位置consumer：固定source core与Slerp/normalizer，只改wrapper逆/正点变换vector方法，source6 partial的12个位置double、current12控制的24位置double改变，Quat/Scale及全部F32投影同。完整1332 source三骨TQS/1302 public模型均先校准；最小两腿去vector保持core2/public2而native101拒，另删除位置重建使source partial仅平移失配、全部旋转仍native同，该structural反例public只验zero2并单列。源码/输入bytes同target六库复编全量恢复；见docs/audit/bf144/480/comparison.json、negative-check.json。未新增D、未修生产。
 

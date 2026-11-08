@@ -823,6 +823,28 @@ mod tests {
     }
 
     #[test]
+    fn control_rig_foot_trace_keeps_source_up_with_near_unit_yaw() {
+        use RigValue::*;
+        let mut hierarchy = hierarchy();
+        let curves = HashMap::default();
+        let mut query = |_: DVec3, _: DVec3, _: &str, _: bool| Ok(Some((DVec3::ZERO, DVec3::Y)));
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy, curves: &curves, game_world: true, construction: false,
+            delta_seconds: 0.1, geometry: &geometry(),
+            to_world: RigTransform {
+                rotation: DQuat::from_xyzw(0.0, 0.382_683_455_944_061_3, 0.0, 0.923_879_504_203_796_4),
+                ..Default::default()
+            },
+            line_trace: Some(&mut query),
+        };
+        let mut args = [Vector(DVec3::ZERO), Name("Visibility".to_owned()), F32(0.5), F32(0.8),
+            F32(45.0), F32(0.135), Bool(true), Bool(false), F32(9.0), Vector(DVec3::ZERO)];
+        context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut args).unwrap();
+        assert_eq!(args[8], F32(0.0));
+        assert_eq!(args[9], Vector(DVec3::Y));
+    }
+
+    #[test]
     fn control_rig_foot_trace_preserves_query_spaces_normals_and_slope_offset() {
         use RigValue::*;
         use std::cell::Cell;
