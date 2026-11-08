@@ -3561,6 +3561,7 @@ fn falling_movement_transaction(
             continue;
         }
         velocity = deflected;
+        if velocity.with_y(0.0).length_squared() <= 1e-7 { velocity = Vec3::new(0.0, velocity.y, 0.0); }
         remaining -= step;
     }
     (transform, velocity, iterations, contact, mode, current_base, max_speed, collision_mode, refreshed_dynamics)
@@ -6914,6 +6915,65 @@ mod tests {
             let position = app.world().get::<Position>(actor).unwrap().0;
             assert!(position.x <= -0.35, "direction={direction} position={position:?}");
         }
+    }
+
+    #[test]
+    fn falling_substeps_clear_only_source_small_horizontal_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .add_message::<StateTransitionEvent>();
+        app.finish();
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        for (horizontal, clear) in [
+            (Vec3::ZERO, true),
+            (Vec3::X * 0.0002, true),
+            (Vec3::new(0.00022, 0.0, 0.00022), true),
+            (Vec3::new(0.00023, 0.0, 0.00023), false),
+            (Vec3::X * 0.000316, true),
+            (Vec3::X * 1e-7_f32.sqrt(), true),
+            (Vec3::X * 0.0003165, false),
+        ] {
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
+                mut transitions: MessageWriter<StateTransitionEvent>| {
+                let mut seed = 123;
+                falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Transform::from_xyz(0.0, 10.0, 0.0),
+                    horizontal + Vec3::NEG_Y * 0.2, Vec3::ZERO, 6.5, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
+                    (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
+                    (0.0, false, false), 40.0, 0.06, 0, actor, &mut seed,
+                    &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None)
+            }).unwrap();
+            assert_eq!(result.2, 2);
+            let expected = if clear { Vec3::ZERO } else { horizontal };
+            assert!(result.1.with_y(0.0).abs_diff_eq(expected, 1e-8), "input={horizontal:?} velocity={:?}", result.1);
+            assert!((result.1.y + 0.7886).abs() < 1e-5, "velocity={:?}", result.1);
+            let displacement = horizontal * if clear { 0.03 } else { 0.06 };
+            assert!(result.0.translation.with_y(0.0).abs_diff_eq(displacement, 1e-8),
+                "input={horizontal:?} position={:?}", result.0.translation);
+        }
+    }
+
+    #[test]
+    fn loaded_falling_substeps_publish_the_cleared_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let start = Vec3::Y * 10.0;
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            LocomotionState::Air, LinearVelocity(Vec3::new(0.0002, -0.2, 0.0)), TnuaMotor::default(),
+            crate::als::character::AlsEffectiveGravity { value: Vec3::NEG_Y * 9.81, ..default() },
+            AlsCmcAdapterRuntime::default()));
+        app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.06));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        let runtime = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap();
+        assert_eq!(runtime.simulation_substeps, 2);
+        assert_eq!(runtime.grounded_collision_velocity.unwrap().x, 0.0);
+        assert!((app.world().get::<Position>(actor).unwrap().x - 0.000006).abs() < 1e-8);
     }
 
     #[test]

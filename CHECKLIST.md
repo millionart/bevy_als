@@ -5870,7 +5870,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：角色空中被外部置为侧壁穿透0.2m，向内/向外速度各1m/s。源MTD恢复后的膨胀胶囊查询无阻挡，正常移动后中心必须x≤−0.2m；target CMC阶段仍x=0/−0.01667m，完整角色最终仅到−0.06607/−0.08044m，仍穿透约0.12–0.13m。`bf144_air_safe_move_resolves_initial_penetration_before_motion`共8组4PASS/4FAIL，墙外两方向对照通过；证据`target/bf144/06/penetration/`。
   - 漏检：旧空中碰撞回归从无重叠位置开始，穿透回归只核对Grounded floor路径；没有在Air首个SafeMove前放置可完全恢复的初始重叠。仅登记，不调整物理解穿透强度或增加补偿。
 
-- [ ] BF144-D22 / P3 — 空中子步尾部未清零源阈值内的极小水平残余速度。
+- [x] BF144-D22 / P3 — 空中子步尾部未清零源阈值内的极小水平残余速度；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:37 +08:00；预估结束15:02 +08:00；实际结束14:40 +08:00，提前22分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE阈值源和单/双轴三组原生双子步读数保存在`docs/audit/bf144/d22/`；非着地子步按水平平方阈值清零并保留竖直速度，已写阈值、位移及加载角色对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `PhysFalling:5249–5253`在每个非着地子步末尾检查水平速度平方≤`UE_KINDA_SMALL_NUMBER*10`，满足时只保留重力方向速度；按cm/s转m/s后阈值约0.00031623m/s。
   - Target：`src/als/character/movement/motion.rs:2827–2829`直接保留deflected velocity并扣除时间，未移植该阶段。
   - 反例：完整加载角色无输入、空中水平初速0.0001/0.0002m/s，source子步末尾应清零，target分别原样保留；0、0.0004、0.001m/s对照PASS。`bf144_air_tiny_horizontal_velocity_uses_source_final_zeroing`共5组3PASS/2FAIL，证据`target/bf144/06/tiny_velocity/`。
