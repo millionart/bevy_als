@@ -2,6 +2,7 @@ use bevy::math::{DQuat, DVec3};
 
 const SOURCE_POLYGON_DATA: ([[usize; 4]; 6], f32, f32, usize) = include!("source_contact_polygon_data.rs");
 pub(super) const SOURCE_SMALL_NUMBER: f32 = SOURCE_POLYGON_DATA.1;
+pub(super) const SOURCE_KINDA_SMALL_NUMBER: f32 = SOURCE_POLYGON_DATA.2;
 
 pub(super) fn source_position(value: DVec3) -> DVec3 {
     DVec3::new(value.x, value.z, value.y) * 100.0

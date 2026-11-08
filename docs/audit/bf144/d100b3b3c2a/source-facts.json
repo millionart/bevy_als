@@ -1,0 +1,37 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 40,
+    "end_line": 44,
+    "text": "\tFRealSingle Chaos_Collision_Manifold_CapsuleMinContactDistanceFraction = 0.1f;\n\tFAutoConsoleVariableRef CVarChaos_Manifold_CapsuleMinContactDistanceFraction(TEXT(\"p.Chaos.Collision.Manifold.CapsuleMinContactDistanceFraction\"), Chaos_Collision_Manifold_CapsuleMinContactDistanceFraction, TEXT(\"\"));\n\n\tFRealSingle Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.001f;\n\tFAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT(\"p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon\"), Chaos_Collision_Manifold_PlaneContactNormalEpsilon, TEXT(\"Normal tolerance used to distinguish face contacts from edge-edge contacts\"));\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 884,
+    "end_line": 915,
+    "text": "\t\t\t// @todo(chaos): get the vertex index from GJK and use to to get the plane\n\t\t\tconst FVec3 SeparationDirectionLocalConvex1 = Convex2ToConvex1Transform.TransformVectorNoScale(GJKContactPoint.ShapeContactNormal);\n\t\t\tconst int32 MostOpposingPlaneIndexConvex1 = SelectContactPlane(Convex1, GJKContactPoint.ShapeContactPoints[0], SeparationDirectionLocalConvex1, Margin1, VertexIndexA);\n\t\t\tif (MostOpposingPlaneIndexConvex1 == INDEX_NONE)\n\t\t\t{\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tFVec3 BestPlanePosition1, BestPlaneNormal1;\n\t\t\tConvex1.GetPlaneNX(MostOpposingPlaneIndexConvex1, BestPlaneNormal1, BestPlanePosition1);\n\t\t\tconst FReal BestPlaneDotNormalConvex1 = !bConvex1IsCapsule ? FMath::Abs(FVec3::DotProduct(-SeparationDirectionLocalConvex1, BestPlaneNormal1)) : -FLT_MAX;\n\n\t\t\t// Now for Convex2\n\t\t\tconst FVec3 SeparationDirectionLocalConvex2 = GJKContactPoint.ShapeContactNormal;\n\t\t\tconst int32 MostOpposingPlaneIndexConvex2 = SelectContactPlane(Convex2, GJKContactPoint.ShapeContactPoints[1], -SeparationDirectionLocalConvex2, Margin2, VertexIndexB);\n\t\t\tif (MostOpposingPlaneIndexConvex2 == INDEX_NONE)\n\t\t\t{\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tFVec3 BestPlanePosition2, BestPlaneNormal2;\n\t\t\tConvex2.GetPlaneNX(MostOpposingPlaneIndexConvex2, BestPlaneNormal2, BestPlanePosition2);\n\t\t\tconst FReal BestPlaneDotNormalConvex2 = FMath::Abs(FVec3::DotProduct(SeparationDirectionLocalConvex2, BestPlaneNormal2));\n\n\t\t\tconst FReal SmallBiasToPreventFeatureFlipping = 0.002f; // This improves frame coherence by penalizing convex 1 in favour of convex 2\n\t\t\tbool ReferenceFaceConvex1 = true; // Is the reference face on convex1 or convex2?\n\t\t\tif (BestPlaneDotNormalConvex2 + SmallBiasToPreventFeatureFlipping > BestPlaneDotNormalConvex1)\n\t\t\t{\n\t\t\t\tReferenceFaceConvex1 = false;\n\t\t\t}\n\n\t\t\t// Is this a vertex-plane or edge-edge contact? \n\t\t\tconst FReal PlaneContactNormalEpsilon = Chaos_Collision_Manifold_PlaneContactNormalEpsilon;\n\t\t\tconst bool bIsPlaneContact = FMath::IsNearlyEqual(BestPlaneDotNormalConvex1, (FReal)1., PlaneContactNormalEpsilon) || FMath::IsNearlyEqual(BestPlaneDotNormalConvex2, (FReal)1., PlaneContactNormalEpsilon);\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Public/Chaos/CorePlane.h",
+    "sha256": "1b2395a8234c84a497f521f132fa757e40a492e43baa0412df25f87a2b0368e2",
+    "start_line": 92,
+    "end_line": 108,
+    "text": "\t\tstatic FORCEINLINE void MakeScaledUnsafe(const TVec3<U>& PlaneN, const TVec3<U>& PlaneX, const TVec3<T>& Scale, const TVec3<T>& InvScale, TVec3<T>& OutN, TVec3<T>& OutX)\n\t\t{\n\t\t\tconst TVec3<T> ScaledX = TVec3<T>(PlaneX * Scale);\n\t\t\tTVec3<T> ScaledN = TVec3<T>(PlaneN * InvScale);\n\n\t\t\t// We don't handle zero scales, but we could still end up with a small normal\n\t\t\tconst T ScaleN2 = ScaledN.SizeSquared();\n\t\t\tif (ScaleN2 > UE_SMALL_NUMBER)\n\t\t\t{\n\t\t\t\tScaledN = ScaledN * FMath::InvSqrt(ScaleN2);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tScaledN = TVec3<T>(PlaneN);\n\t\t\t}\n\n\t\t\tOutN = ScaledN;\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/PhysicsEngine/Experimental/ChaosInterfaceUtils.cpp",
+    "sha256": "a2eb20f334dcab0fd972d272f96e63b584705f58355e1644547cb75e7a7bfae2",
+    "start_line": 250,
+    "end_line": 285,
+    "text": "\t\t\t{\n\t\t\t\t// Extract the scale from the transform - we have separate wrapper classes for scale versus translate/rotate \n\t\t\t\tFVector NetScale = Scale * InParams.LocalTransform.GetScale3D();\n\n\t\t\t\t// If Scale is zero in any component, set minimum positive instead\n\t\t\t\tNetScale.X = FMath::Abs(NetScale.X) < UE_KINDA_SMALL_NUMBER ? UE_KINDA_SMALL_NUMBER : NetScale.X;\n\t\t\t\tNetScale.Y = FMath::Abs(NetScale.Y) < UE_KINDA_SMALL_NUMBER ? UE_KINDA_SMALL_NUMBER : NetScale.Y;\n\t\t\t\tNetScale.Z = FMath::Abs(NetScale.Z) < UE_KINDA_SMALL_NUMBER ? UE_KINDA_SMALL_NUMBER : NetScale.Z;\n\n\t\t\t\tconst FVector NetScaleAbs = NetScale.GetAbs();\n\n\t\t\t\tconst FTransform ConvexTransform = FTransform(InParams.LocalTransform.GetRotation(), Scale * InParams.LocalTransform.GetTranslation(), FVector(1, 1, 1));\n\t\t\t\tconst bool bHasTranslationOrRotation = !ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity();\n\t\t\t\tconst bool bNoScale = NetScale == FVector(1);\n\n\t\t\t\tfor (const FKConvexElem& CollisionBody : InParams.Geometry->ConvexElems)\n\t\t\t\t{\n\t\t\t\t\tif (const auto& ConvexImplicit = CollisionBody.GetChaosConvexMesh())\n\t\t\t\t\t{\n\t\t\t\t\t\tconst FVector ScaledSize = (NetScaleAbs * CollisionBody.ElemBox.GetSize());\t// Note: Scale can be negative\n\t\t\t\t\t\tconst Chaos::FReal CollisionMargin = FMath::Min<Chaos::FReal>(ScaledSize.GetMin() * CollisionMarginFraction, CollisionMarginMax);\n\n\t\t\t\t\t\t// Wrap the convex in a scaled or instanced wrapper depending on scale value, and add a margin\n\t\t\t\t\t\t// NOTE: CollisionMargin is on the Instance/Scaled wrapper, not the inner convex (which is shared and should not have a margin).\n\t\t\t\t\t\tChaos::FImplicitObjectPtr Implicit;\n\t\t\t\t\t\tif (bNoScale)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tImplicit = MakeImplicitObjectPtr<Chaos::TImplicitObjectInstanced<Chaos::FConvex>>(ConvexImplicit, CollisionMargin);\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tImplicit = MakeImplicitObjectPtr<Chaos::TImplicitObjectScaled<Chaos::FConvex>>(ConvexImplicit, NetScale, CollisionMargin);\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Wrap the convex in a non-scaled transform if necessary (the scale is pulled out above)\n\t\t\t\t\t\tif (bHasTranslationOrRotation)\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ImplicitObjectScaled.h",
+    "sha256": "f5c4bd7ee327ca7e51308aaac02765cca881b864eb0fa3bc6d74787b36ef2694",
+    "start_line": 430,
+    "end_line": 436,
+    "text": "\n\t// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales\n\tFORCEINLINE FReal GetWindingOrder() const\n\t{\n\t\tconst FVec3 SignVector = MScale.GetSignVector();\n\t\treturn SignVector.X * SignVector.Y * SignVector.Z;\n\t}\n"
+  }
+]

@@ -2,7 +2,8 @@ use bevy::math::DVec3;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use super::source_contact_polygon::{SOURCE_SMALL_NUMBER, source_direction, source_position};
+use super::source_contact_gjk::SourceGjkResult;
+use super::source_contact_polygon::{SOURCE_KINDA_SMALL_NUMBER, SOURCE_SMALL_NUMBER, source_box_face, source_direction, source_position};
 
 pub(crate) const SOURCE_BOX_VERTEX_PLANES: [[usize; 3]; 8] = include!("source_box_vertex_planes.rs");
 
@@ -51,6 +52,67 @@ pub(super) fn source_convex_topology(asset: &str, index: u32) -> Option<&'static
 pub(crate) struct SourceContactFace {
     pub normal: DVec3,
     pub origin: DVec3,
+}
+
+pub(super) struct SourceBoxConvexFaces {
+    pub box_index: usize,
+    pub convex_index: usize,
+    pub reference_box: bool,
+    pub plane_contact: bool,
+    pub box_face: SourceContactFace,
+    pub convex_face: SourceContactFace,
+    pub convex_scale: DVec3,
+}
+
+pub(super) fn source_convex_scale(scale: DVec3) -> DVec3 {
+    let minimum = f64::from(SOURCE_KINDA_SMALL_NUMBER);
+    DVec3::from_array(scale.to_array().map(|value| {
+        f64::from((if value.abs() < minimum { minimum } else { value }) as f32)
+    }))
+}
+
+pub(super) fn source_box_convex_faces(
+    minimum: DVec3,
+    maximum: DVec3,
+    convex: &SourceConvexTopology,
+    scale: DVec3,
+    gjk: &SourceGjkResult,
+    box_margin: f64,
+    face_search: f64,
+    plane_epsilon: f32,
+    reference_bias: f32,
+) -> Option<SourceBoxConvexFaces> {
+    let scale = source_convex_scale(scale);
+    let box_faces = (0..6).map(|index| {
+        let (vertices, normal) = source_box_face(minimum, maximum, index);
+        SourceContactFace { origin: vertices[0], normal }
+    }).collect::<Vec<_>>();
+    let convex_faces = convex.faces.iter().map(|face| SourceContactFace {
+        origin: DVec3::from_array(face.origin_m), normal: DVec3::from_array(face.normal),
+    }).collect::<Vec<_>>();
+    let box_planes = SOURCE_BOX_VERTEX_PLANES.get(gjk.last_vertices[0])?;
+    let convex_planes = convex.vertex_planes.get(gjk.last_vertices[1])?;
+    let direction1 = -gjk.normal_first;
+    let direction2 = -gjk.normal_second;
+    let box_index = source_select_contact_plane(&box_faces, box_planes, box_planes.len(),
+        gjk.closest_first_m, direction1, box_margin, face_search, None, true)?;
+    let convex_index = source_select_contact_plane(&convex_faces, &convex_planes.planes, convex_planes.count,
+        gjk.closest_second_m, -direction2, 0.0, face_search, (scale != DVec3::ONE).then_some(scale), false)?;
+    let box_face = box_faces[box_index];
+    let mut convex_face = convex_faces[convex_index];
+    if scale != DVec3::ONE {
+        convex_face.origin *= scale;
+        let normal = convex_face.normal / scale;
+        if normal.length_squared() > f64::from(SOURCE_SMALL_NUMBER) { convex_face.normal = normal.normalize(); }
+    }
+    let box_alignment = (-direction1).dot(box_face.normal).abs();
+    let convex_alignment = direction2.dot(convex_face.normal).abs();
+    Some(SourceBoxConvexFaces {
+        box_index, convex_index, reference_box: !(convex_alignment + f64::from(reference_bias) > box_alignment),
+        plane_contact: (box_alignment - 1.0).abs() <= f64::from(plane_epsilon)
+            || (convex_alignment - 1.0).abs() <= f64::from(plane_epsilon),
+        box_face, convex_face, convex_scale: scale,
+    })
 }
 
 pub(crate) fn source_select_contact_plane(
@@ -123,7 +185,6 @@ pub(crate) fn source_select_contact_plane(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::extensions::source_contact_polygon::source_box_face;
 
     fn point(value: &serde_json::Value) -> DVec3 {
         DVec3::new(value["x"].as_f64().unwrap(), value["z"].as_f64().unwrap(), value["y"].as_f64().unwrap())
@@ -179,6 +240,98 @@ mod tests {
         let far = [SourceContactFace { normal: DVec3::NEG_X, origin: DVec3::splat(10.0) }; 6];
         assert_eq!(source_select_contact_plane(&far, &[0], 1, DVec3::ZERO,
             DVec3::new(1.0, 0.0, 1.0), 0.0, 0.01, None, true), Some(1));
+    }
+
+    #[test]
+    fn source_box_convex_face_classification_respects_bias_and_scale() {
+        use crate::extensions::source_gjk_simplex::SourceGjkSimplex;
+        let hull = SourceConvexTopology { vertices_m: vec![[-1.0, 0.0, 0.0]],
+            faces: vec![SourceConvexPlane { normal: [-1.0, 0.0, 0.0], origin_m: [-1.0, 0.0, 0.0], vertices: vec![0] }],
+            vertex_planes: vec![SourceVertexPlanes { count: 1, planes: vec![0] }],
+            margin_m: 0.0, winding: -1.0, bounds_m: [DVec3::NEG_X; 2] };
+        let mut gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(), last_vertices: [7, 0],
+            normal_first: DVec3::X, normal_second: DVec3::X, closest_first_m: DVec3::X,
+            closest_second_m: DVec3::NEG_X, penetration_m: 0.0, epa_status: None };
+        let [epsilon, bias] = include!("../als/settings/contact_face_classification.rs");
+        let select = |gjk: &SourceGjkResult, scale| source_box_convex_faces(DVec3::splat(-1.0), DVec3::ONE,
+            &hull, scale, gjk, 0.0, 0.01, epsilon, bias).unwrap();
+        let faces = select(&gjk, DVec3::ONE);
+        assert_eq!((faces.box_index, faces.convex_index), (3, 0));
+        assert!(!faces.reference_box && faces.plane_contact);
+        gjk.normal_second = (DVec3::X + DVec3::Y).normalize();
+        assert!(select(&gjk, DVec3::ONE).reference_box);
+        gjk.normal_first = gjk.normal_second;
+        assert!(!select(&gjk, DVec3::ONE).plane_contact);
+        gjk.normal_first = DVec3::X;
+        gjk.normal_second = DVec3::NEG_X;
+        gjk.closest_second_m = DVec3::X;
+        let reflected = select(&gjk, DVec3::new(-1.0, 1.0, 1.0));
+        assert_eq!(reflected.convex_face.normal, DVec3::X);
+        assert_eq!(reflected.convex_face.origin, DVec3::X);
+        let minimum = f64::from(SOURCE_KINDA_SMALL_NUMBER);
+        assert_eq!(source_convex_scale(DVec3::new(0.0, -0.00001, -1.0)), DVec3::new(minimum, minimum, -1.0));
+    }
+
+    #[test]
+    fn source_box_convex_faces_match_native_bench_candidates() {
+        use crate::extensions::source_gjk_simplex::SourceGjkSimplex;
+        let sample: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d143/bench-foot.native-sample.json")).unwrap();
+        let simplex = sample["gjk_simplex"].as_array().unwrap();
+        let weighted = |key: &str| simplex.iter().fold(DVec3::ZERO, |sum, value| {
+            sum + point(&value[key]) * value["weight"].as_f64().unwrap()
+        }) * 0.01;
+        let normal = point(&sample["points"][0]["world_normal"]);
+        let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
+        let gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(), last_vertices: [3, 10],
+            normal_first: -normal, normal_second: -normal, closest_first_m: weighted("shape_point_0_cm") - normal * margin,
+            closest_second_m: weighted("shape_point_1_cm"), penetration_m: 0.0, epa_status: None };
+        let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
+        let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
+        let [epsilon, bias] = include!("../als/settings/contact_face_classification.rs");
+        let faces = source_box_convex_faces(minimum, maximum, source_convex_topology("SM_Als_Bench", 2).unwrap(),
+            DVec3::ONE, &gjk, margin, include!("../als/settings/contact_face_search.rs"), epsilon, bias).unwrap();
+        assert_eq!((faces.box_index, faces.convex_index), (2, 10));
+        assert!(faces.reference_box && faces.plane_contact);
+    }
+
+    #[test]
+    fn source_box_convex_faces_match_direct_native_gjk_when_available() {
+        use crate::extensions::source_gjk_simplex::SourceGjkSimplex;
+        let Ok(path) = std::env::var("ALS_SOURCE_FACE_CLASSIFICATION_REPORT")
+            .or_else(|_| std::env::var("ALS_SOURCE_COLD_GJK_REPORT")) else { return; };
+        let report: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let [epsilon, bias] = include!("../als/settings/contact_face_classification.rs");
+        for sample in report["physics_contact_probe"]["samples"].as_array().unwrap() {
+            let contacts = sample["points"].as_array().unwrap();
+            if contacts.is_empty() { continue; }
+            let raw = &sample["cold_gjk"];
+            let gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(),
+                last_vertices: [raw["vertex_0"].as_u64().unwrap() as usize, raw["vertex_1"].as_u64().unwrap() as usize],
+                normal_first: point(&raw["shape_normal_0"]), normal_second: point(&raw["shape_normal_1"]),
+                closest_first_m: point(&raw["shape_point_0_cm"]) * 0.01,
+                closest_second_m: point(&raw["shape_point_1_cm"]) * 0.01,
+                penetration_m: raw["penetration_cm"].as_f64().unwrap() * 0.01, epa_status: None };
+            let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
+            let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
+            let scale = point(&sample["other_geometry"]["convex_core_scale"]);
+            let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
+            let name = sample["input"]["mesh_asset_path"].as_str().unwrap().rsplit('/').next().unwrap();
+            let index = sample["input"]["mesh_shape_index"].as_u64().unwrap() as u32;
+            let faces = source_box_convex_faces(minimum, maximum, source_convex_topology(name, index).unwrap(),
+                scale, &gjk, margin, include!("../als/settings/contact_face_search.rs"), epsilon, bias).unwrap();
+            let contact_type = contacts[0]["contact_type"].as_i64().unwrap();
+            assert_eq!(faces.plane_contact, contact_type != 2, "{}", sample["input"]["label"]);
+            if faces.plane_contact {
+                assert_eq!(faces.reference_box, contact_type == 3, "{}", sample["input"]["label"]);
+                let (face, key) = if faces.reference_box { (faces.box_face, "shape_point_0_cm") }
+                    else { (faces.convex_face, "shape_point_1_cm") };
+                for contact in contacts {
+                    assert!(((point(&contact[key]) * 0.01 - face.origin).dot(face.normal)).abs() < 2e-5,
+                        "{}", sample["input"]["label"]);
+                }
+            }
+        }
     }
 
     #[test]

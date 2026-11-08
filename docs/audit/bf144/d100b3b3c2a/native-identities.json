@@ -1,0 +1,23 @@
+{
+  "request": "docs/audit/bf144/d100b3b3c2a/classification.request.json",
+  "request_sha256": "ddce86a3926430bb4bb4c2c12f5baea4ab95cb99d6227405dfedfb1a5afdb0a3",
+  "reader_report": "docs/audit/bf144/d100b3b3c2a/classification.native.json.reader.report.json",
+  "native": "docs/audit/bf144/d100b3b3c2a/classification.native.json.gz",
+  "raw_bytes": 4800020,
+  "raw_sha256": "0b7e599822464ace0c28570e8dd754e5ff4547f8f5df847c5bac28e4746fabbb",
+  "gzip_bytes": 232273,
+  "gzip_sha256": "4236da0744b74371bd4cce2e5d4e901b03905cc399d0c587e2a4ecbc82ef0d9e",
+  "source_assets": "docs/audit/bf144/d104b2a/native-identities.json",
+  "summary": "docs/audit/bf144/d100b3b3c2a/native-summary.json",
+  "plane_cvar_observed": false,
+  "fixture": {
+    "path": "docs/audit/bf144/d100b3b3c2a/classification.native-samples.json",
+    "bytes": 56659,
+    "sha256": "ca5271d044d2fae7813ed3737a8da155fac7e83971a0c90d4be1c7ca3aceb0ac"
+  },
+  "settings": {
+    "path": "src/als/settings/contact_face_classification.rs",
+    "bytes": 39,
+    "sha256": "ac682d18f140cfe3952ba16f8253f4f6e404e1e72230b0911814f001e1bcbd12"
+  }
+}
