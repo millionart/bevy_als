@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    AngularVelocity, Collider, ColliderOf, CollisionLayers, CollisionStart, Collisions, ComputedMass, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
+    AngularVelocity, Collider, ColliderOf, CollisionLayers, CollisionStart, Collisions, ComputedCenterOfMass, ComputedMass, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSchedule, PhysicsStepSystems, PhysicsSystems, Position, Rotation,
     Forces, RigidBody, RigidBodyDisabled, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter, SpeculativeMargin,
     ReadRigidBodyForces, WriteRigidBodyForces,
 };
@@ -2977,6 +2977,9 @@ impl Plugin for AlsMotionPlugin {
             )
             .add_systems(PostUpdate, apply_character_overlap_impulses
                 .after(locomotion_state_sync_system).before(snapshot_actual_velocity_system).in_set(AlsActualVelocitySet))
+            .add_systems(PhysicsSchedule, apply_character_repulsion
+                .after(PhysicsStepSystems::NarrowPhase)
+                .before(avian3d::dynamics::integrator::IntegrationSystems::UpdateVelocityIncrements))
             .add_systems(PostUpdate, (
                 prepare_subminimum_custom_physics
                     .after(crate::roll_drive::AlsRollDriveSet)
@@ -5271,6 +5274,76 @@ fn source_touch_impulse(character: Vec3, other: Vec3, velocity: Vec3, mass: f32)
     direction * strength
 }
 
+fn source_repulsion_response(
+    capsule: &Collider, center: Vec3, rotation: Quat, half: f32, radius: f32,
+    body_position: Vec3, body_com: Vec3, velocity: Vec3, delta_seconds: f32,
+) -> (bool, Vec3) {
+    use crate::als::movement_constants::{CHARACTER_MOVEMENT_MASS, REPULSION_ACCELERATION,
+        REPULSION_COINCIDENT_DISTANCE, REPULSION_RADIUS_SCALE, REPULSION_STOP_DISTANCE_SQUARED};
+    let toward_center = (center - body_position).with_y(0.0);
+    let hit = Dir3::new_and_length(toward_center).ok().and_then(|(direction, distance)| {
+        capsule.cast_ray(center, rotation, body_position, *direction, distance, true)
+            .map(|(travel, _)| (body_position + *direction * travel, travel == 0.0))
+    });
+    let (hit_location, penetrating) = hit.unwrap_or((body_position, true));
+    let distance_now = (hit_location - body_position).with_y(0.0).length_squared();
+    let distance_later = (hit_location - (body_position + velocity * delta_seconds)).with_y(0.0).length_squared();
+    if hit.is_some() && distance_now < REPULSION_STOP_DISTANCE_SQUARED && !penetrating {
+        return (true, Vec3::ZERO);
+    }
+    if distance_later > distance_now && !penetrating { return (false, Vec3::ZERO); }
+    let force_center = center.with_y(if hit.is_some() { hit_location.y }
+        else { body_position.y.clamp(center.y - half, center.y + half) });
+    let offset = body_com - force_center;
+    let distance = offset.length();
+    if distance > radius * REPULSION_RADIUS_SCALE { return (false, Vec3::ZERO); }
+    let direction = if distance < REPULSION_COINCIDENT_DISTANCE { Vec3::X } else { offset / distance };
+    (false, direction * (REPULSION_ACCELERATION * CHARACTER_MOVEMENT_MASS))
+}
+
+fn apply_character_repulsion(
+    time: Res<Time<Virtual>>,
+    collisions: Collisions,
+    sensors: Query<Has<Sensor>>,
+    transforms: bevy::transform::helper::TransformHelper,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    characters: Query<(&Position, &Rotation, &Collider, &Transform, Option<&ChildOf>, &Stance,
+        &AlsMovementParamsHandle, Option<&crate::als_camera::AlsCameraCustomTimeDilation>), With<AlsCharacter>>,
+    mut bodies: ParamSet<(
+        Query<(&RigidBody, &Position, &Rotation, &ComputedCenterOfMass, &mut LinearVelocity, Has<RigidBodyDisabled>)>,
+        Query<Forces>,
+    )>,
+) {
+    use crate::als::movement_constants::{CHARACTER_GENERATES_OVERLAP_EVENTS, ENABLE_PHYSICS_INTERACTION, REPULSION_ACCELERATION};
+    if !CHARACTER_GENERATES_OVERLAP_EVENTS || !ENABLE_PHYSICS_INTERACTION || REPULSION_ACCELERATION <= 0.0 { return; }
+    for pair in collisions.iter() {
+        for (actor, other, body) in [(pair.collider1, pair.collider2, pair.body2), (pair.collider2, pair.collider1, pair.body1)] {
+            let Ok((position, rotation, capsule, local, parent, stance, handle, dilation)) = characters.get(actor) else { continue };
+            if !sensors.get(actor).unwrap_or(false) && !sensors.get(other).unwrap_or(false) { continue; }
+            let body = body.unwrap_or(other);
+            if body == actor { continue; }
+            let Some(params) = params_assets.get(handle.id()) else { continue };
+            let Ok(world) = transforms.compute_global_transform(actor) else { continue };
+            let scale = character_floor_scale(local, parent.is_some(), &world);
+            let half = if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() }
+                else { params.crouch.standing_capsule_half_height } * scale.y;
+            let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
+            let force = {
+                let mut velocities = bodies.p0();
+                let Ok((RigidBody::Dynamic, body_position, body_rotation, center_of_mass, mut velocity, false)) = velocities.get_mut(body) else { continue };
+                let com = body_position.0 + body_rotation.0 * center_of_mass.0;
+                let (stop, force) = source_repulsion_response(capsule, position.0, rotation.0, half, radius,
+                    body_position.0, com, velocity.0, time.delta_secs() * dilation.map_or(1.0, |value| value.0));
+                if stop { velocity.0 = Vec3::ZERO; }
+                force
+            };
+            if force != Vec3::ZERO && let Ok(mut body_forces) = bodies.p1().get_mut(body) {
+                body_forces.apply_force(force);
+            }
+        }
+    }
+}
+
 fn apply_character_overlap_impulses(
     mut starts: MessageReader<CollisionStart>,
     colliders: Query<(&Position, Has<Sensor>)>,
@@ -5681,6 +5754,53 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn source_repulsion_uses_capsule_trace_distance_and_body_center_of_mass() {
+        let capsule = als_character_capsule(0.9, 0.3);
+        for (distance, speed, expected_stop, expected_force) in [(0.2, 0.0, false, 2.5),
+            (0.34, 0.0, false, 2.5), (0.31, 1.0, true, 0.0), (0.32, -0.1, false, 2.5),
+            (0.34, 1.0, false, 0.0), (0.4, 0.0, false, 0.0)] {
+            let body = Vec3::X * distance;
+            let (stop, force) = source_repulsion_response(&capsule, Vec3::ZERO, Quat::IDENTITY,
+                0.9, 0.3, body, body, Vec3::X * speed, 1.0 / 60.0);
+            assert_eq!(stop, expected_stop, "distance={distance} speed={speed} force={force:?}");
+            assert!((force.x - expected_force).abs() < 1e-4,
+                "distance={distance} speed={speed} force={force:?} expected={expected_force}");
+        }
+        let body = Vec3::X * 0.2;
+        let (_, force) = source_repulsion_response(&capsule, Vec3::ZERO, Quat::IDENTITY,
+            0.9, 0.3, body, Vec3::X * 0.5, Vec3::ZERO, 1.0 / 60.0);
+        assert_eq!(force, Vec3::ZERO, "A center of mass outside the source radius must not receive force");
+        let (_, force) = source_repulsion_response(&capsule, Vec3::ZERO, Quat::IDENTITY,
+            0.9, 0.15, body, body, Vec3::ZERO, 1.0 / 60.0);
+        assert_eq!(force, Vec3::ZERO, "The source radius must follow capsule scale");
+        let body = Vec3::X * 0.34;
+        let (_, force) = source_repulsion_response(&capsule, Vec3::ZERO, Quat::IDENTITY,
+            0.9, 0.3, body, body, Vec3::X, 0.0);
+        assert!((force.x - 2.5).abs() < 1e-4, "Zero owner delta must preserve the source distance comparison");
+    }
+
+    #[test]
+    fn loaded_character_repels_overlaps_and_stops_nearby_bodies() {
+        use avian3d::prelude::{Mass, NoAutoMass};
+        for (kind, distance, speed, expected) in [(RigidBody::Dynamic, 0.2, 0.0, 0.041667),
+            (RigidBody::Dynamic, 0.34, 0.0, 0.041667), (RigidBody::Dynamic, 0.31, 1.0, 0.0),
+            (RigidBody::Dynamic, 0.32, -0.1, -0.058333), (RigidBody::Dynamic, 0.34, 1.0, 1.0),
+            (RigidBody::Dynamic, 0.4, 0.0, 0.0), (RigidBody::Kinematic, 0.2, 0.0, 0.0)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let start = app.world().get::<Position>(actor).unwrap().0;
+            let body = app.world_mut().spawn((kind, Collider::sphere(0.2), Sensor,
+                Transform::from_translation(start + Vec3::X * distance), GravityScale(0.0),
+                Mass(1.0), NoAutoMass, LinearVelocity(Vec3::X * speed))).id();
+            app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::ZERO;
+            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().move_dir = Vec2::ZERO;
+            app.update();
+            let actual = app.world().get::<LinearVelocity>(body).unwrap().x;
+            assert!((actual - expected).abs() < 0.006,
+                "Repulsion differs: kind={kind:?} distance={distance} speed={speed} actual={actual} expected={expected}");
+        }
+    }
+
     #[test]
     fn source_touch_impulse_scales_and_clamps_by_body_mass() {
         for (mass, expected_speed) in [(100.0, 0.025), (10.0, 0.25), (0.001, 3.75)] {

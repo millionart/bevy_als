@@ -67,6 +67,7 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
     overlap_shrink = literal(floor_cpp, rf'const float ShrinkScaleOverlap\s*=\s*{NUMBER}f?\s*;', 'floor retry shrink')
     if not 0 < shrink < 1 or not 0 < overlap_shrink < 1:
         raise ValueError('Source floor shrink is invalid')
+    stop_distance = literal(character_cpp, rf'StopBodyDistance\s*=\s*{NUMBER}f?\s*;', 'repulsion stop distance')
     return {
         'CHARACTER_MOVEMENT_MASS': property_number('Mass'),
         'STANDING_DOWNWARD_FORCE_SCALE': property_scalar('StandingDownwardForceScale'),
@@ -83,6 +84,9 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
         'MIN_TOUCH_IMPULSE': property_scalar('MinTouchForce') * scale,
         'MAX_TOUCH_IMPULSE': property_scalar('MaxTouchForce') * scale,
         'TOUCH_DIRECTION_VERTICAL_OFFSET': literal(character_cpp, rf'SetGravitySpaceZ\(ImpulseDir,\s*{NUMBER}f?\s*\)', 'touch vertical offset') * scale,
+        'REPULSION_ACCELERATION': property_scalar('RepulsionForce') * scale,
+        'REPULSION_RADIUS_SCALE': literal(character_cpp, rf'RepulsionForceRadius\s*=\s*CapsuleRadius\s*\*\s*{NUMBER}f?\s*;', 'repulsion radius scale'),
+        'REPULSION_STOP_DISTANCE_SQUARED': stop_distance * scale * scale,
         'MAX_STEP_HEIGHT': property_number('MaxStepHeight') * scale,
         'MAX_SLOPE_DEGREES': property_number('WalkableFloorAngle'),
         'MIN_FLOOR_DISTANCE': literal(character_cpp, rf'MIN_FLOOR_DIST\s*=\s*{NUMBER}f?\s*;', 'minimum floor distance') * scale,
@@ -128,10 +132,11 @@ def self_test():
                        {'name': 'TouchForceFactor', 'exported_text': '1.0'},
                        {'name': 'bTouchForceScaledToMass', 'exported_text': 'True'},
                        {'name': 'MinTouchForce', 'exported_text': '-1.0'},
-                       {'name': 'MaxTouchForce', 'exported_text': '250.0'}]},
+                       {'name': 'MaxTouchForce', 'exported_text': '250.0'},
+                       {'name': 'RepulsionForce', 'exported_text': '2.5'}]},
                        {'object_path': '/Character:CollisionCylinder', 'class_path': '/Script/Engine.CapsuleComponent',
                         'properties': [{'name': 'bGenerateOverlapEvents', 'exported_text': 'True'}]}]}
-    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; BRAKE_TO_STOP_VELOCITY = 10.f; MIN_TICK_TIME = 1e-6f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f; const float ZeroVelocityTolerance = 1.0f; const float ExtraForceFactor = 30.f; SetGravitySpaceZ(ImpulseDir, 0.25f);'
+    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; BRAKE_TO_STOP_VELOCITY = 10.f; MIN_TICK_TIME = 1e-6f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f; const float ZeroVelocityTolerance = 1.0f; const float ExtraForceFactor = 30.f; SetGravitySpaceZ(ImpulseDir, 0.25f); const float RepulsionForceRadius = CapsuleRadius * 1.2f; const float StopBodyDistance = 2.5f;'
     primitive = 'const float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;'
     movement = 'const float OverVelocityPercent = 1.01f; float PenetrationPullbackDistance = 0.125f; float PenetrationOverlapCheckInflation = 0.100f;'
     header = '#define UE_KINDA_SMALL_NUMBER (1.e-4f)'
@@ -142,7 +147,7 @@ def self_test():
     assert values['INITIAL_PUSH_FORCE'] == 5.0
     assert values['MOVING_PUSH_FORCE'] == 7500.0
     assert values['PUSH_FORCE_ZERO_VELOCITY_TOLERANCE'] == 0.01
-    assert values['PUSH_FORCE_NEAR_ZERO_VELOCITY'] == 1e-6
+    assert abs(values['PUSH_FORCE_NEAR_ZERO_VELOCITY'] - 1e-6) < 1e-20
     assert values['INITIAL_PUSH_FORCE_RATE'] == 30.0
     assert values['SCALE_PUSH_FORCE_TO_VELOCITY'] is True
     assert values['CHARACTER_GENERATES_OVERLAP_EVENTS'] is True
@@ -151,6 +156,16 @@ def self_test():
     assert values['MIN_TOUCH_IMPULSE'] == -0.01
     assert values['MAX_TOUCH_IMPULSE'] == 2.5
     assert values['TOUCH_DIRECTION_VERTICAL_OFFSET'] == 0.0025
+    assert values['REPULSION_ACCELERATION'] == 0.025
+    assert values['REPULSION_RADIUS_SCALE'] == 1.2
+    assert values['REPULSION_STOP_DISTANCE_SQUARED'] == 0.00025
+    repulsion_actor = json.loads(json.dumps(actor))
+    repulsion_properties = repulsion_actor['blueprint_cdo_subobjects'][0]['properties']
+    next(prop for prop in repulsion_properties if prop['name'] == 'RepulsionForce')['exported_text'] = '3.5'
+    changed_repulsion = extract(repulsion_actor, character.replace('StopBodyDistance = 2.5f', 'StopBodyDistance = 5.0f'),
+                                character, primitive, movement, header)
+    assert changed_repulsion['REPULSION_ACCELERATION'] == 0.035
+    assert changed_repulsion['REPULSION_STOP_DISTANCE_SQUARED'] == 0.0005
     changed_actor = json.loads(json.dumps(actor))
     changed_properties = changed_actor['blueprint_cdo_subobjects'][0]['properties']
     next(prop for prop in changed_properties if prop['name'] == 'StandingDownwardForceScale')['exported_text'] = '0.0'
@@ -210,7 +225,7 @@ def self_test():
             raise AssertionError('Invalid terminal source must block generation')
     assert literal('TEXT("p.EncroachEpsilon"), 0.15f,', rf'\"p\.EncroachEpsilon\"\s*\)\s*,\s*{NUMBER}f?\s*,', 'spawn epsilon') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0015
     assert literal('PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius', rf'PawnRadius - GetPerchRadiusThreshold\(\),\s*{NUMBER}f?\s*,\s*PawnRadius', 'perch minimum') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0011
-    assert len(render(values).splitlines()) == 37
+    assert len(render(values).splitlines()) == 40
     print('Movement constants self-test PASS')
 
 
@@ -243,6 +258,9 @@ def main():
     values['MIN_PERCH_RADIUS'] = literal(character, rf'PawnRadius - GetPerchRadiusThreshold\(\),\s*{NUMBER}f?\s*,\s*PawnRadius', 'minimum perch radius') * SOURCE_LENGTH_TO_RUNTIME_SCALE
     math = (engine / 'Core/Public/Math/UnrealMathUtility.h').read_text(encoding='utf-8-sig')
     values['SMALL_MOVEMENT_DISTANCE'] = literal(math, rf'#define\s+UE_KINDA_SMALL_NUMBER\s+\(?{NUMBER}f?\)?', 'small movement distance') * SOURCE_LENGTH_TO_RUNTIME_SCALE
+    chaos = (engine / 'PhysicsCore/Private/ChaosEngineInterface.cpp').read_text(encoding='utf-8-sig')
+    radial = chaos.split('static void AddRadialForce(', 1)[1].split('static void AddTorque(', 1)[0]
+    values['REPULSION_COINCIDENT_DISTANCE'] = literal(radial, rf'Distance\s*<\s*{NUMBER}', 'repulsion coincident distance') * SOURCE_LENGTH_TO_RUNTIME_SCALE
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render(values), encoding='utf-8')
     result = {'success': True, 'source_actor': actor['asset_path'], 'length_scale': SOURCE_LENGTH_TO_RUNTIME_SCALE, 'runtime_values': values}

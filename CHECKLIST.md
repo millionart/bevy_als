@@ -6048,7 +6048,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色以3.75m/s横移，与相侧0.45m处的半径0.2m模拟物体开始重叠；fixture明确使用Overlap语义，COM始终在0.36m排斥半径外，分离D40。质量100/10/0.001kg时源冲量产生速度0.025/0.25/3.75m/s，target均0。`bf144_force_overlap_touch_keeps_source_impulse`5组2PASS/3FAIL；静止角色和Kinematic物体对照通过，ContactGraph确认实际重叠且无接触约束；证据`target/bf144/12/overlap/`。
   - 漏检：旧碰撞筛选只证明Sensor不阻挡角色，未核对源允许的simulated Overlap仍应收到交互冲量。本项限定双方开启overlap事件的模拟物体，不宣称普通Block物件都触发CapsuleTouched；仅登记，不改场景profile。
 
-- [ ] BF144-D40 / P2 — 持续overlap物体缺少源排斥和近距离停速。
+- [x] BF144-D40 / P2 — 持续overlap物体缺少源排斥和近距离停速；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 16:31 +08:00；预估结束17:26 +08:00；实际结束16:36 +08:00，提前50分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE持续overlap、Chaos质心与Avian接触/射线保存在`docs/audit/bf144/d40/`；生成目标半径、平方阈值及力参数并在物理积分前处理，已写方向/停速/缩放与加载角色对照。旧target报告缺失，源端动态球未复测；首次触碰同帧顺序及穿透深度边界待统一验证。生成器自测浮点精确比较的静态不一致已同步修正，测试仍未执行。
   - Source：fresh UE `ApplyRepulsionForce:11798–11892`在普通tick遍历movable simulated overlap body；native RepulsionForce2.5、Mass100，半径=scaled capsule radius×1.2。body线段到胶囊表面有hit、未penetrate且水平DistanceNow²<2.5（源厘米数值）时清速度；否则靠近/静止或penetrate且COM在半径内时施加250 kg·cm/s²径向力。`ChaosEngineInterface.cpp:976–1028`确认按COM距离筛选及Constant力，非直接速度或加速度。
   - Target：普通角色没有该overlap body consumer；Avian Sensor pair只保留重叠，既不径向施力也不执行源停速分支。
   - 反例：静止完整角色，1kg球体与胶囊Overlap、重力关闭，源Touch因角色水平速度0而无冲量。球体中心距0.2/0.34m且静止时源首帧vx应+0.041667m/s、target0；距0.31m初速+1时源清0、target+1；距0.32m初速−0.1时源变−0.058333、target−0.1。`bf144_force_overlap_repulsion_keeps_source_radial_and_stop_branches`7组3PASS/4FAIL，向外离开、半径外和Kinematic对照通过；证据`target/bf144/12/overlap/`。
