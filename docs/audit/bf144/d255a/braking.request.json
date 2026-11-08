@@ -1,0 +1,10 @@
+{
+  "samples": [
+    {"name": "axis-no-friction", "velocity_cm_s": {"x": 98.56696724891663, "y": 0, "z": 0}, "delta_seconds": 0.03333333507180214, "friction": 0, "braking_deceleration_cm_s2": 1500, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098},
+    {"name": "reverse-no-friction", "velocity_cm_s": {"x": -98.56696724891663, "y": 0, "z": 0}, "delta_seconds": 0.03333333507180214, "friction": 0, "braking_deceleration_cm_s2": 1500, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098},
+    {"name": "zero-delta", "velocity_cm_s": {"x": 98.56696724891663, "y": 0, "z": 0}, "delta_seconds": 0, "friction": 0, "braking_deceleration_cm_s2": 1500, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098},
+    {"name": "friction-substeps", "velocity_cm_s": {"x": 100, "y": 0, "z": 0}, "delta_seconds": 0.1, "friction": 4, "braking_deceleration_cm_s2": 200, "friction_factor": 1, "braking_substep_seconds": 0.03},
+    {"name": "stop-without-reversing", "velocity_cm_s": {"x": 10, "y": 0, "z": 0}, "delta_seconds": 0.03333333507180214, "friction": 0, "braking_deceleration_cm_s2": 1500, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098},
+    {"name": "small-side-existing-normal", "velocity_cm_s": {"x": 98.5679566860199, "y": -0.000004308531842411867, "z": 0}, "delta_seconds": 0.03333333507180214, "friction": 0, "braking_deceleration_cm_s2": 1500, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098}
+  ]
+}

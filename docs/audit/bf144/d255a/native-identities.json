@@ -1,0 +1,18 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Data/Character/Movement/MS_Als_Normal.uasset",
+      "asset_identity": {
+        "bytes": 4961,
+        "sha256": "9934e80baba0a90db405eefff7c817eb2175f5219300501c73e7753db07d9533"
+      },
+      "request_asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+      "native_output": "docs/audit/bf144/d255a/braking.native.json",
+      "raw": {
+        "bytes": 57110,
+        "sha256": "dcf4851412cab526e2729a4284a68a210ce6538d8034e3194c08be15a3d517cc"
+      },
+      "reader_report": "docs/audit/bf144/d255a/braking.native.json.reader.report.json"
+    }
+  ]
+}
