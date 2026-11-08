@@ -1750,7 +1750,10 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         };
         Sample->SetArrayField(TEXT("gjk_simplex"), CaptureSimplex(*Constraint, ShapeWorld, BoxWorld));
         bool CaptureColdGJK = false;
+        bool CaptureWarmGJK = false;
         if (Input->HasField(TEXT("capture_cold_gjk")) && !Input->TryGetBoolField(TEXT("capture_cold_gjk"), CaptureColdGJK)) { return nullptr; }
+        if (Input->HasField(TEXT("capture_warm_gjk")) && !Input->TryGetBoolField(TEXT("capture_warm_gjk"), CaptureWarmGJK)) { return nullptr; }
+        if (CaptureWarmGJK && (!CaptureColdGJK || !HasNext)) { return nullptr; }
         if (CaptureColdGJK)
         {
             const Chaos::FImplicitBox3* Box = Implicit->GetObject<Chaos::FImplicitBox3>();
@@ -1766,34 +1769,45 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             const Chaos::TGJKCoreShape<Chaos::FConvex> CoreConvex(*Convex, Constraint->GetCollisionMargin1());
             const Chaos::FRigidTransform3 Relative = Chaos::FRigidTransform3(BoxWorld).GetRelativeTransformNoScale(ShapeWorld);
             Chaos::FGJKSimplexData Simplex;
-            Chaos::FReal Penetration = 0, SupportDelta = 0;
-            Chaos::FVec3 Point0 = Chaos::FVec3::ZeroVector, Point1 = Chaos::FVec3::ZeroVector;
-            Chaos::FVec3 Normal0 = Chaos::FVec3::ZeroVector, Normal1 = Chaos::FVec3::ZeroVector;
-            int32 Vertex0 = INDEX_NONE, Vertex1 = INDEX_NONE;
-            const bool Success = Chaos::GJKPenetrationWarmStartable(CoreBox, CoreConvex, Relative, Penetration,
-                Point0, Point1, Normal0, Normal1, Vertex0, Vertex1, Simplex, SupportDelta,
-                Chaos::FReal(GJKEpsilon->GetFloat()), Chaos::FReal(EPAEpsilon->GetFloat()));
-            TSharedRef<FJsonObject> Cold = MakeShared<FJsonObject>();
-            Cold->SetBoolField(TEXT("success"), Success);
-            Cold->SetNumberField(TEXT("vertex_0"), Vertex0);
-            Cold->SetNumberField(TEXT("vertex_1"), Vertex1);
-            Cold->SetNumberField(TEXT("penetration_cm"), Penetration);
-            Cold->SetNumberField(TEXT("support_delta_cm"), SupportDelta);
-            Cold->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Point0)));
-            Cold->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Point1)));
-            Cold->SetObjectField(TEXT("shape_normal_0"), CaptureVector(FVector(Normal0)));
-            Cold->SetObjectField(TEXT("shape_normal_1"), CaptureVector(FVector(Normal1)));
-            TArray<TSharedPtr<FJsonValue>> Vertices;
-            for (int32 Index = 0; Index < Simplex.NumVerts; ++Index)
+            const auto CaptureDirectGJK = [&CoreBox, &CoreConvex, &Simplex, GJKEpsilon, EPAEpsilon](const Chaos::FRigidTransform3& Transform)
             {
-                TSharedRef<FJsonObject> Vertex = MakeShared<FJsonObject>();
-                Vertex->SetNumberField(TEXT("weight"), Simplex.Barycentric[Index]);
-                Vertex->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Simplex.As[Index])));
-                Vertex->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Simplex.Bs[Index])));
-                Vertices.Add(MakeShared<FJsonValueObject>(Vertex));
+                Chaos::FReal Penetration = 0, SupportDelta = 0;
+                Chaos::FVec3 Point0 = Chaos::FVec3::ZeroVector, Point1 = Chaos::FVec3::ZeroVector;
+                Chaos::FVec3 Normal0 = Chaos::FVec3::ZeroVector, Normal1 = Chaos::FVec3::ZeroVector;
+                int32 Vertex0 = INDEX_NONE, Vertex1 = INDEX_NONE;
+                const bool Success = Chaos::GJKPenetrationWarmStartable(CoreBox, CoreConvex, Transform, Penetration,
+                    Point0, Point1, Normal0, Normal1, Vertex0, Vertex1, Simplex, SupportDelta,
+                    Chaos::FReal(GJKEpsilon->GetFloat()), Chaos::FReal(EPAEpsilon->GetFloat()));
+                TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+                Result->SetBoolField(TEXT("success"), Success);
+                Result->SetNumberField(TEXT("vertex_0"), Vertex0);
+                Result->SetNumberField(TEXT("vertex_1"), Vertex1);
+                Result->SetNumberField(TEXT("penetration_cm"), Penetration);
+                Result->SetNumberField(TEXT("support_delta_cm"), SupportDelta);
+                Result->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Point0)));
+                Result->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Point1)));
+                Result->SetObjectField(TEXT("shape_normal_0"), CaptureVector(FVector(Normal0)));
+                Result->SetObjectField(TEXT("shape_normal_1"), CaptureVector(FVector(Normal1)));
+                TArray<TSharedPtr<FJsonValue>> Vertices;
+                for (int32 Index = 0; Index < Simplex.NumVerts; ++Index)
+                {
+                    TSharedRef<FJsonObject> Vertex = MakeShared<FJsonObject>();
+                    Vertex->SetNumberField(TEXT("weight"), Simplex.Barycentric[Index]);
+                    Vertex->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Simplex.As[Index])));
+                    Vertex->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Simplex.Bs[Index])));
+                    Vertices.Add(MakeShared<FJsonValueObject>(Vertex));
+                }
+                Result->SetArrayField(TEXT("simplex"), Vertices);
+                return Result;
+            };
+            Sample->SetObjectField(TEXT("cold_gjk"), CaptureDirectGJK(Relative));
+            if (CaptureWarmGJK)
+            {
+                const FTransform NextShapeWorld = ShapeLocal * FTransform(NextBodyRotation, NextBodyTranslation);
+                const FTransform NextBoxWorld = OtherLocal * FTransform(NextOtherRotation, NextOtherTranslation);
+                const Chaos::FRigidTransform3 NextRelative = Chaos::FRigidTransform3(NextBoxWorld).GetRelativeTransformNoScale(NextShapeWorld);
+                Sample->SetObjectField(TEXT("warm_gjk"), CaptureDirectGJK(NextRelative));
             }
-            Cold->SetArrayField(TEXT("simplex"), Vertices);
-            Sample->SetObjectField(TEXT("cold_gjk"), Cold);
         }
         if (Input->HasField(TEXT("triangle_indices")))
         {
