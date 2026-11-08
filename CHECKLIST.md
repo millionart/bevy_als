@@ -6688,6 +6688,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 00:38 source/static摘要：已按源将EPA成功/上限结果转换回两侧局部见证点；BadInitialSimplex使用源接触法向，Degenerate保留上一有效GJK法向，并维持最后支持索引和原simplex。已写坏初始simplex、EPA上限/退化、冷/热原生报告对照；直接原生末次顶点、测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d100b3b3b3b3b/`。实际结束：2026-11-09 00:38 +08:00；偏差：−47分钟；结果：子项及其GJK/EPA父项静态实现完成，拆分为已列子项。
 
 - [ ] BF144-D100b3b3c / P3 — 接入源选面和凸包点序。
+  - 00:40 依赖复核：fresh `ParticlePairMidPhase.cpp:500–551`证明box上帧manifold可恢复时不会再次运行GJK并保留旧点序；先完成已登记的D104几何复用，再将本项的GJK/选面/点序接到同一生命周期，避免每帧重排已恢复点。
 
 - [ ] BF144-D100b4 / P3 — 接入mesh源接触生成顺序与分组。
 
@@ -6713,6 +6714,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 位置补证：同一受控两body、零初速/重力/回弹、单子步且不覆盖solver位置；目标两COM的y=9.997679m，源8轮位置参考为10.000947m，少恢复约3.268mm。60/30Hz及移除contact/joint共6组4PASS/2FAIL。证据`bf144_pa_contact_phase35_position_iterations_alternate_contact_and_joint`；旧Gate把joint和contact分开验证，未覆盖共同约束岛的交替。仅登记，未修改生产调度或声称执行native Chaos动态仿真。
 
 - [ ] BF144-D104 / P3 — 箱体接触每帧重建，丢失源的manifold几何复用。
+  - 本轮开始：2026-11-09 00:40 +08:00；预计结束：2026-11-09 01:35 +08:00。作为D100b3b3c的已证实生命周期依赖，fresh读取box、convex和mesh两帧原生接触；按源相对变换、逐点投影及形体身份实现复用。估时依据：BF144.36/.62已有box与72个环境姿态，同源阈值和逐点规则可独立分解；测试与消融待统一Gate。
   - Source：fresh `CollisionUtil.h:71`允许box几何复用、排除sphere/capsule；native AllowManifoldUpdate=1。`ParticlePairMidPhase.cpp:500–551`对上一帧使用过的constraint先TryRestoreManifold；`PBDCollisionConstraint.cpp:807–922`在shape位移/旋转与lateral误差容差内保留body0原surface point，并将另一侧投影到当前接触面。该几何复用独立于saved friction anchor。
   - Target：Avian `collision/collider/parry/contact_query.rs:174–189`每次创建空manifold/workspace并清除旧点；`narrow_phase/system_param.rs:789–799`只能复制旧impulse。旧ContactId仍存在也不能保留源接触几何。
   - 反例：实际PA foot_l箱体45度姿态对10cm宽箱体支撑，连续两帧沿支撑边缘平移±2mm；native API确认复用并移动旧接触点，fresh几何点仍在静态支撑边缘。完整角色保留ContactId、native mass、共同isotropic惯量与零摩擦，统一已有点序/2轮回弹并给共同阶段V/W=0、normal_speed=−2；源角速度x≈0.338012rad/s，目标+2mm为0.352183、−2mm为0.325092。60/30Hz×窄/宽面×0/±2/6mm×原几何/源复用点共32组28PASS/4FAIL，仅替换native复用点即恢复。证据`bf144_pa_contact_phase36_restored_box_geometry_reaches_response`及`target/bf144/36/`。
@@ -6720,6 +6722,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.62补充convex/trimesh：54个convex leaf与18个trimesh姿态、静止/2mm/6mm/1度yaw共288组native确认36个box允许复用，head全部排除；小平移与旋转分别有27/28个leaf不同于重建几何。24个完整foot姿态保留实际ContactId，但目标点仍匹配冷查询；固定既有静态算法差异后的48组33PASS/15FAIL，只恢复原生保留点全部通过。另48组当前完整聚合确认无新增/消失hull，未漏掉相邻约束。
   - 直接边界与消融：Bench foot的原始target几何无需替换，2mm移动后wZ约−0.28437rad/s，源保留点为0；目标与原生重建响应在既有容差内一致，旧点控制恢复。两帧长×四运动×原始/重建/保留的24组16PASS/8FAIL，静止和6mm全PASS；Stairs02两帧长及两种摩擦的32组24PASS/8FAIL同根复现。每帧重配导致ContactId改变的消融被拒绝，按源码字节恢复并在同target重编通过；104组响应在删除冗余记录后逐字不变。证据`62/native_analysis.json`、`62/final/`、`62/lifecycle_ablation/`；仅补充D104，未修复生产，saved friction及冲量历史另验。
+
+  - 00:40 拆分：源`TryRestoreManifold`的相对位置/旋转和逐点投影可独立于目标接触生命周期验证；先完成D104a数值合同，再在D104b处理shape身份、缓存、消失/重建和求解消费。拆分实际结束：2026-11-09 00:40 +08:00；偏差：−55分钟；结果：父项未完成，拆分为a/b。
+
+- [x] BF144-D104a / P3 — 移植源box接触几何复用合同。
+  - 本轮开始：2026-11-09 00:40 +08:00；预计结束：2026-11-09 01:25 +08:00。fresh读取多种形体两帧接触，按源relative pose阈值、surface点投影与最少有效点规则实现纯合同，写原生±2/6mm与旋转控制；测试/消融待统一Gate。估时依据：BF144.36/.62已有原生两帧和源逐点反例，边界可单独验收。
+  - 00:46 source/static摘要：fresh保存8组box与8组convex/mesh两帧原生结果；已按源相对位置逐分量、相对四元数点积、初始surface点、切向误差及最少有效点实现复用，写回前按源float厘米量化。已写16组原生结果及空manifold、旋转、禁用点控制；身份缓存与实际消费留D104b，测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d104a/`。实际结束：2026-11-09 00:46 +08:00；偏差：−39分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D104b / P3 — 将源接触复用接入真实物理生命周期。
 
 - [ ] BF144-D105 / P2 — 启动帧先按旧Kinematic图配置重算速度，覆盖应保留的刚体初速。
   - Source：fresh `AlsCharacter_Actions.cpp:792–807`在Start中立即SetSimulatePhysics/ResetAllBodies，再读取pelvis速度；`ChaosEngineInterface.cpp:494–542`转Dynamic保留V/W，`SingleParticlePhysicsProxy.h:1246–1269`亦只在离开Dynamic时清速度。`PhysAnim.cpp:653–655,697–701`普通骨骼更新仅向仍为kinematic的body写新动画目标。

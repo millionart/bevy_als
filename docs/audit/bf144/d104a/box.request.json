@@ -1,0 +1,476 @@
+{
+  "samples": [
+    {
+      "label": "hand_l_width_5.0_shift_0.2",
+      "bone_name": "hand_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -5,
+        1,
+        1000
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "box_half_extents_cm": [
+        5.0,
+        5.0,
+        50.0
+      ],
+      "box_translation_cm": [
+        0,
+        0,
+        943.9236832185142
+      ],
+      "box_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "expected_minimum_phi_cm": -0.1,
+      "next": {
+        "body_translation_cm": [
+          -4.8,
+          1,
+          1000
+        ],
+        "body_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "box_translation_cm": [
+          0,
+          0,
+          943.9236832185142
+        ],
+        "box_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "label": "head_width_500.0_shift_0.2",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -5,
+        -2.999999925494194,
+        1000
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "box_half_extents_cm": [
+        500.0,
+        500.0,
+        50.0
+      ],
+      "box_translation_cm": [
+        0,
+        0,
+        941.0999999452442
+      ],
+      "box_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "expected_minimum_phi_cm": -0.1,
+      "next": {
+        "body_translation_cm": [
+          -4.8,
+          -2.999999925494194,
+          1000
+        ],
+        "body_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "box_translation_cm": [
+          0,
+          0,
+          941.0999999452442
+        ],
+        "box_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "label": "root_width_500.0_shift_0.2",
+      "bone_name": "root",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        1000
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "box_half_extents_cm": [
+        500.0,
+        500.0,
+        50.0
+      ],
+      "box_translation_cm": [
+        0,
+        0,
+        940.1
+      ],
+      "box_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "expected_minimum_phi_cm": -0.1,
+      "next": {
+        "body_translation_cm": [
+          0.2,
+          0,
+          1000
+        ],
+        "body_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "box_translation_cm": [
+          0,
+          0,
+          940.1
+        ],
+        "box_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "label": "foot_l_tilt_45_width_5.0_shift_0.0",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        5.303300858899107,
+        -7.5,
+        995.4038059222875
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0.3826834323650898,
+        0,
+        0.9238795325112867
+      ],
+      "box_half_extents_cm": [
+        5.0,
+        5.0,
+        50.0
+      ],
+      "box_translation_cm": [
+        0,
+        0,
+        941.6147186257615
+      ],
+      "box_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "expected_minimum_phi_cm": -0.1,
+      "next": {
+        "body_translation_cm": [
+          5.303300858899107,
+          -7.5,
+          995.4038059222875
+        ],
+        "body_rotation_xyzw": [
+          0,
+          0.3826834323650898,
+          0,
+          0.9238795325112867
+        ],
+        "box_translation_cm": [
+          0,
+          0,
+          941.6147186257615
+        ],
+        "box_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "label": "foot_l_tilt_45_width_5.0_shift_0.2",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        5.303300858899107,
+        -7.5,
+        995.4038059222875
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0.3826834323650898,
+        0,
+        0.9238795325112867
+      ],
+      "box_half_extents_cm": [
+        5.0,
+        5.0,
+        50.0
+      ],
+      "box_translation_cm": [
+        0,
+        0,
+        941.6147186257615
+      ],
+      "box_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "expected_minimum_phi_cm": -0.1,
+      "next": {
+        "body_translation_cm": [
+          5.303300858899107,
+          -7.3,
+          995.4038059222875
+        ],
+        "body_rotation_xyzw": [
+          0,
+          0.3826834323650898,
+          0,
+          0.9238795325112867
+        ],
+        "box_translation_cm": [
+          0,
+          0,
+          941.6147186257615
+        ],
+        "box_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "label": "foot_l_tilt_45_width_5.0_shift_-0.2",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        5.303300858899107,
+        -7.5,
+        995.4038059222875
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0.3826834323650898,
+        0,
+        0.9238795325112867
+      ],
+      "box_half_extents_cm": [
+        5.0,
+        5.0,
+        50.0
+      ],
+      "box_translation_cm": [
+        0,
+        0,
+        941.6147186257615
+      ],
+      "box_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "expected_minimum_phi_cm": -0.1,
+      "next": {
+        "body_translation_cm": [
+          5.303300858899107,
+          -7.7,
+          995.4038059222875
+        ],
+        "body_rotation_xyzw": [
+          0,
+          0.3826834323650898,
+          0,
+          0.9238795325112867
+        ],
+        "box_translation_cm": [
+          0,
+          0,
+          941.6147186257615
+        ],
+        "box_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "label": "foot_l_tilt_45_width_5.0_shift_0.6",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        5.303300858899107,
+        -7.5,
+        995.4038059222875
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0.3826834323650898,
+        0,
+        0.9238795325112867
+      ],
+      "box_half_extents_cm": [
+        5.0,
+        5.0,
+        50.0
+      ],
+      "box_translation_cm": [
+        0,
+        0,
+        941.6147186257615
+      ],
+      "box_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "expected_minimum_phi_cm": -0.1,
+      "next": {
+        "body_translation_cm": [
+          5.303300858899107,
+          -6.9,
+          995.4038059222875
+        ],
+        "body_rotation_xyzw": [
+          0,
+          0.3826834323650898,
+          0,
+          0.9238795325112867
+        ],
+        "box_translation_cm": [
+          0,
+          0,
+          941.6147186257615
+        ],
+        "box_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "label": "foot_l_tilt_45_width_500.0_shift_0.2",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        5.303300858899107,
+        -7.5,
+        995.4038059222875
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0.3826834323650898,
+        0,
+        0.9238795325112867
+      ],
+      "box_half_extents_cm": [
+        500.0,
+        500.0,
+        50.0
+      ],
+      "box_translation_cm": [
+        0,
+        0,
+        941.6147186257615
+      ],
+      "box_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "expected_minimum_phi_cm": -0.1,
+      "next": {
+        "body_translation_cm": [
+          5.303300858899107,
+          -7.3,
+          995.4038059222875
+        ],
+        "body_rotation_xyzw": [
+          0,
+          0.3826834323650898,
+          0,
+          0.9238795325112867
+        ],
+        "box_translation_cm": [
+          0,
+          0,
+          941.6147186257615
+        ],
+        "box_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  ]
+}

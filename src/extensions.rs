@@ -133,6 +133,8 @@ pub(crate) mod source_contact_normal;
 pub(crate) mod source_contact_order;
 #[path = "avian_ext/source_contact_polygon.rs"]
 pub(crate) mod source_contact_polygon;
+#[path = "avian_ext/source_contact_restore.rs"]
+pub(crate) mod source_contact_restore;
 #[path = "avian_ext/source_gjk_simplex.rs"]
 pub(crate) mod source_gjk_simplex;
 #[path = "avian_ext/ragdoll_physics_profile.rs"]
