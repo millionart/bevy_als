@@ -3203,6 +3203,15 @@ fn edge_floor_landing(
         &filter, entity, candidates, Some((supplied, trace))).is_some()
 }
 
+fn limit_falling_air_control(acceleration: Vec3, normal: Vec3, penetrating: bool) -> Vec3 {
+    if penetrating {
+        if acceleration.dot(normal) > 0.0 { acceleration } else { Vec3::ZERO }
+    } else if normal.y > 0.001 && acceleration.dot(normal) < 0.0 {
+        let horizontal_normal = normal.with_y(0.0).normalize_or_zero();
+        acceleration - horizontal_normal * acceleration.dot(horizontal_normal)
+    } else { acceleration }
+}
+
 pub(crate) fn falling_movement_sweep(
     spatial: &SpatialQuery, capsule: &Collider, start: Vec3, rotation: Quat,
     movement: Vec3, mut velocity: Vec3, step: f32, air_control: Option<(Vec3, Vec3)>,
@@ -3326,7 +3335,10 @@ pub(crate) fn falling_movement_sweep(
             break;
         }
         let budget = velocity * remaining_time;
-        let input = if sweep == 1 && normal.y > 0.001
+        let penetrating = hit.distance == 0.0 && (hit.point1 - hit.point2).dot(normal) > 0.0;
+        let input = if sweep == 0 && let Some((without_air, acceleration)) = air_control {
+            (without_air + limit_falling_air_control(acceleration, normal, penetrating) * previous_time) * remaining_time
+        } else if sweep == 1 && normal.y > 0.001
             && let Some((without_air, _)) = air_control
             && previous_time > 0.0 && let Some(first) = previous_normal {
             crate::extensions::motion::falling_slide(without_air * previous_time, first, None)
@@ -3334,12 +3346,7 @@ pub(crate) fn falling_movement_sweep(
         } else { budget };
         let mut slide = crate::extensions::motion::falling_slide(input, normal, previous_normal);
         if sweep == 1 && let Some((_, acceleration)) = air_control && let Some(first) = previous_normal {
-            let limited = if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(normal) > 0.0 {
-                if acceleration.dot(normal) > 0.0 { acceleration } else { Vec3::ZERO }
-            } else if normal.y > 0.001 && acceleration.dot(normal) < 0.0 {
-                let horizontal_normal = normal.with_y(0.0).normalize_or_zero();
-                acceleration - horizontal_normal * acceleration.dot(horizontal_normal)
-            } else { acceleration };
+            let limited = limit_falling_air_control(acceleration, normal, penetrating);
             let delta_velocity = limited * remaining_time;
             if delta_velocity.dot(first) > 0.0 { slide += delta_velocity * remaining_time; }
         }
@@ -6463,6 +6470,78 @@ mod tests {
             assert_eq!(result.4, LocomotionState::Air);
             assert!(result.1.distance(expected) < 0.002, "input={desired:?} actual={:?} expected={expected:?}", result.1);
         }
+    }
+
+    #[test]
+    fn falling_air_control_uses_the_source_slope_and_penetration_rules() {
+        let normal = Vec3::new(-3.0_f32.sqrt() * 0.5, 0.5, 0.0);
+        assert!(limit_falling_air_control(Vec3::X * 6.0, normal, false).length() < 1e-6);
+        assert_eq!(limit_falling_air_control(Vec3::NEG_X, normal, false), Vec3::NEG_X);
+        assert_eq!(limit_falling_air_control(Vec3::Z, normal, false), Vec3::Z);
+        assert_eq!(limit_falling_air_control(Vec3::X, normal, true), Vec3::ZERO);
+        assert_eq!(limit_falling_air_control(Vec3::NEG_X, normal, true), Vec3::NEG_X);
+        assert_eq!(limit_falling_air_control(Vec3::X, Vec3::NEG_X, false), Vec3::X);
+    }
+
+    #[test]
+    fn falling_first_slope_hit_limits_only_inward_air_control() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .add_message::<StateTransitionEvent>();
+        app.finish();
+        let rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4) * Quat::from_rotation_z(30.0_f32.to_radians());
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 8.0, 2.0),
+            Transform::from_xyz(0.0, 3.0, 0.0).with_rotation(rotation)));
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        let n = 0.5_f32.sqrt();
+        for (desired, expected) in [
+            (Vec3::new(-n, 0.0, -n), Vec3::new(0.3562477, -0.8726250, 0.3562477)),
+            (Vec3::new(n, 0.0, n), Vec3::new(0.3739253, -0.9159262, 0.3739253)),
+            (Vec3::new(-n, 0.0, n), Vec3::new(0.2855370, -0.8726250, 0.4269584)),
+            (Vec3::ZERO, Vec3::new(0.3562477, -0.8726250, 0.3562477)),
+        ] {
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
+                mut transitions: MessageWriter<StateTransitionEvent>| {
+                let mut seed = 123;
+                falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Transform::from_xyz(0.38273278, 3.3125, 0.38273278), Vec3::NEG_Y, desired, 6.5,
+                    &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
+                    (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
+                    (0.0, false, false), 40.0, 1.0 / 60.0, 0, actor, &mut seed,
+                    &candidates, &permissions, &bases, &owners, &shapes, &mut transitions, Some(20.0))
+            }).unwrap();
+            assert_eq!(result.4, LocomotionState::Air);
+            assert!(result.1.distance(expected) < 0.003, "input={desired:?} actual={:?} source={expected:?}", result.1);
+        }
+    }
+
+    #[test]
+    fn loaded_falling_character_uses_limited_input_on_the_first_slope_hit() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4) * Quat::from_rotation_z(30.0_f32.to_radians());
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 8.0, 2.0),
+            Transform::from_xyz(0.0, 13.0, 0.0).with_rotation(rotation)));
+        app.update();
+        let start = Vec3::new(0.38273278, 13.3125, 0.38273278);
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            LocomotionState::Air, LinearVelocity(Vec3::NEG_Y), TnuaMotor::default(),
+            crate::als::character::AlsEffectiveGravity { value: Vec3::NEG_Y * 9.81, ..default() },
+            AlsCmcAdapterRuntime { controlled_input_max_acceleration: Some(20.0), ..default() }));
+        app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion =
+            Vec3::new(-1.0, 0.0, -1.0).normalize();
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        let actual = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+        let expected = Vec3::new(0.3562477, -0.8726250, 0.3562477);
+        assert!(actual.distance(expected) < 0.003, "actual={actual:?} source={expected:?}");
     }
 
     #[test]

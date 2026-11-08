@@ -1,0 +1,24 @@
+{
+  "asset": "Content/ALS/Character/B_Als_Character.uasset",
+  "asset_identity": {
+    "bytes": 261358,
+    "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+  },
+  "request": "docs/audit/bf144/d17/slope.request.json",
+  "native_output": "docs/audit/bf144/d17/slope.native.json.gz",
+  "raw": {
+    "bytes": 58568135,
+    "sha256": "c9e1e87921623d0fb901beecf7a6f6c5cf0779ca2c97c62d68d1879bb038ec10"
+  },
+  "compressed": {
+    "bytes": 4369861,
+    "sha256": "ef85ce42b4bb46f36bc949ae4e5c6ba5010d13b54a87f0429b96fd5025e59b5e"
+  },
+  "reader_report": "docs/audit/bf144/d17/slope.native.json.reader.report.json",
+  "diagnostic_reader": {
+    "source_sha256": "57da87c210688c78f36dea31f1d11915fb588f30f808d2a747e84bb931d3535f",
+    "package_sha256": "a254bfe765103032a80e823e71ed5334105c324ac855d62efea93c9d168a14fb",
+    "build_instructions": "docs/audit/bf144/572/README.md",
+    "source_identity": "docs/audit/bf144/572/reader-source.json"
+  }
+}

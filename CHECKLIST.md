@@ -5827,7 +5827,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色被外部置入厚1m的平地内部；consumer前中心y=−0.20159m，retry sweep仍穿透。相同目标几何上的solid=true对照返回距离0，符合fresh源公式；生产non-solid ray距离0.79841m、normal.y=1，返回impact_y=−1m的假floor。`bf144_walk_inside_floor_ray_does_not_accept_the_exit_surface`语义FAIL；正常贴地与移除实体的两个对照PASS。证据`target/bf144/05/inside_ray/`。
   - 漏检：旧line-floor测试的角色中心均在实体外，只覆盖胶囊侧部穿透；未比较源零时间命中与target non-solid出口语义。本反例证明错误floor有效性，未把双方第一帧仍为Grounded或未经UE执行的最终恢复位置当作另一缺陷。仅登记，不修改射线或恢复逻辑。
 
-- [ ] BF144-D17 / P2 — 空中撞陡坡后未限制朝坡内的输入，错误抵消部分下落速度。
+- [x] BF144-D17 / P2 — 空中撞陡坡后未限制朝坡内的输入，错误抵消部分下落速度；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:07 +08:00；预估结束14:52 +08:00；实际结束14:11 +08:00，提前41分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE首撞/二撞输入限制源及60°陡坡四组原生速度保存在`docs/audit/bf144/d17/`；首次碰撞复用源no-air-control与受限输入，已写朝内、离开、沿面、无输入、穿透和加载角色对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `PhysFalling:5081–5122`先从OldVelocity重算VelocityNoAirControl，再由`LimitAirControl:5257–5286`去掉朝向向上斜面的水平法线输入，最后ComputeSlideVector；源`HandleSlopeBoosting:3749`仅限制向上偏转，不能替代这一步。
   - Target：`src/als/character/movement/motion.rs:2770–2778,2742–2746`把输入加速后的完整velocity直接交给`tnua_ext/motion.rs:3`做slide，没有源no-air-control与碰撞后输入限制阶段。
   - 反例：实际完整角色以−1m/s下落、1/60s帧，在60°光滑坡面发生普通非穿透接触。朝坡输入时源应得velocity约(−0.50381,−0.87263,0)m/s，目标实际为(−0.47885,−0.82923,0)m/s，少下落约0.0434m/s；CMC碰撞阶段缓存与最终velocity一致。`bf144_air_contact_limits_input_before_slope_deflection`共8组，完整/最小角色各1FAIL；无输入、沿坡、离坡的6个对照PASS。证据`target/bf144/06/air_control/`。
