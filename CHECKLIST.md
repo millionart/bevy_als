@@ -6549,11 +6549,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 22:28 补充source/static摘要：真实Playground运动平台在目标用kinematic速度推进，锚点另一侧同样需要预测；动态body采用源一阶quat，kinematic按其实际目标角速度推进，静态body自然保持原位。
   - 22:29 source/static摘要：已接入ContactId/body/shape身份与变更失效、shape局部匹配、双方预测变换、位置/单接触速度ratio及接触消失清理；fresh原生history probe与D96a原始证据逐字节相同。已写加载head跨帧偏移/超距、shape身份、坐标与ratio对照；测试、消融、多点速度耦合及Playground待统一Gate/后续条目。证据`docs/audit/bf144/d96b/`。实际结束：2026-11-08 22:29 +08:00；偏差：−39分钟；结果：子项及父项静态实现完成，拆分为a/b。
 
-- [ ] BF144-D97 / P3 — Ragdoll回弹目标读取了施加重力前的接触速度。
+- [x] BF144-D97 / P3 — Ragdoll回弹目标读取了施加重力前的接触速度。
+  - 本轮开始：2026-11-08 22:30 +08:00；预计结束：2026-11-08 23:10 +08:00。重读源碰撞采样与目标力积分阶段，以当前solver速度更新rig接触回弹输入；覆盖重力、外力及零力控制。估时依据：BF144.31跨时钟/接触闭包已有完整角色夹具，本项复用D94求解阶段；统一测试和消融留待升级后。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:581,638,650,916–978`先积分V和P，再生成接触；`PBDCollisionContainerSolver.cpp:118–129,168–173`用此时Body.V/W求ContactVelocityNormal，回弹目标为其负值×restitution。
   - Target：Avian `collision/narrow_phase/system_param.rs:739–752`在physics narrow-phase保存point.normal_speed；`dynamics/solver/schedule.rs:37–40,61–66`随后才在substeps施加重力；`contact/mod.rs:374–388`仍用旧normal_speed构造回弹目标。
   - 反例：完整角色head单个中心接触、初始下落2m/s、共同重力9.81、native restitution=0.3；镜像材质到shape并用hard-normal排除D91/D93，速度均高于两侧阈值以排除D92。60Hz目标回弹0.60000m/s、源0.64905；30Hz为0.60000/0.69810。16组12PASS/4FAIL；原生六子步和单子步均失败，零重力及仅替换积分后normal_speed的控制全部PASS。证据`bf144_pa_contact_phase31_restitution_samples_post_force_velocity`、`target/bf144/31/gravity/`。
   - 漏检：旧回弹测试使用零重力或把帧前速度直接作为共同冲击输入；未覆盖narrow-phase与force积分的先后关系。默认角色body/shape均无SpeculativeMargin覆盖、NarrowPhaseConfig为MAX，排除有限margin测速夹断；生产未改。
+  - 22:33 source/static摘要：fresh PA和源力积分→检测→回弹输入顺序已固化；目标在solver速度积分后重算rig接触法向速度，保留普通接触路径。已写线/角速度与加载head双帧长、有无重力对照；测试、消融及Playground待统一Gate，几何时机和多点预算归D98/D99。证据`docs/audit/bf144/d97/`。实际结束：2026-11-08 22:33 +08:00；偏差：−37分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D98 / P2 — 子碰撞体同步晚于预测包围盒，Ragdoll漏掉当前帧新接触。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:581,638,650,974–1002`先按本帧积分后P/Q更新bounds，再检测；`CollisionOneShotManifoldsMiscShapes.cpp:80–95`及`ContactPointsMiscShapes.cpp:322–343`用Box.PhiWithNormal−sphere.radius构造实际重叠点，随后位置/速度solver当帧处理。

@@ -6,6 +6,22 @@ use super::ragdoll_physics_profile::RagdollActiveMode;
 #[derive(Resource, Default)]
 pub(crate) struct SourceContactSeparationRestore(Vec<(usize, usize, usize, f32)>);
 
+pub(crate) fn refresh_source_contact_normal_speed(
+    ragdolls: Query<(), With<RagdollActiveMode>>,
+    bodies: Query<&SolverBody>,
+    mut graph: ResMut<ConstraintGraph>,
+) {
+    for constraint in graph.colors.iter_mut().flat_map(|color| &mut color.contact_constraints) {
+        if !ragdolls.contains(constraint.body1) && !ragdolls.contains(constraint.body2) { continue; }
+        let first = bodies.get(constraint.body1).unwrap_or(&SolverBody::DUMMY);
+        let second = bodies.get(constraint.body2).unwrap_or(&SolverBody::DUMMY);
+        for point in &mut constraint.points {
+            point.normal_speed = (second.velocity_at_point(point.anchor2) - first.velocity_at_point(point.anchor1))
+                .dot(constraint.normal);
+        }
+    }
+}
+
 pub(crate) fn suppress_source_velocity_separation(
     ragdolls: Query<(), With<RagdollActiveMode>>,
     bodies: Query<&SolverBody>,
@@ -90,5 +106,27 @@ mod tests {
         for (contact, expected) in graph.colors[0].contact_constraints.iter().zip(original) {
             assert_eq!(contact.points[0].initial_separation, expected);
         }
+    }
+
+    #[test]
+    fn source_restitution_reads_integrated_linear_and_angular_velocity() {
+        let mut world = World::new();
+        world.insert_resource(ConstraintGraph::default());
+        let solver = SolverBody { linear_velocity: Vec3::Y * 2.1635, angular_velocity: Vec3::Z,
+            ..default() };
+        let ragdoll = world.spawn((solver.clone(), RagdollActiveMode(BodyMode::Dynamic))).id();
+        let ordinary = world.spawn(solver).id();
+        let floor = world.spawn_empty().id();
+        let mut active = constraint(ragdoll, floor, 0.01);
+        active.points[0].anchor1 = Vec3::X * 0.1;
+        active.points[0].normal_speed = -2.0;
+        let mut control = constraint(ordinary, floor, 0.01);
+        control.points[0].normal_speed = -2.0;
+        world.resource_mut::<ConstraintGraph>().colors[0].contact_constraints.extend([active, control]);
+        world.run_system_once(refresh_source_contact_normal_speed).unwrap();
+        let graph = world.resource::<ConstraintGraph>();
+        let contacts = &graph.colors[0].contact_constraints;
+        assert!((contacts[0].points[0].normal_speed + 2.2635).abs() < 1e-5);
+        assert_eq!(contacts[1].points[0].normal_speed, -2.0);
     }
 }
