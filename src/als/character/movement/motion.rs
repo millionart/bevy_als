@@ -184,6 +184,7 @@ pub fn apply_als_control_scheme_config(
     config.basis.turning_angvel = turn_angvel(rotation_mode);
     config.basis.max_slope = deg_to_rad(MAX_SLOPE_DEGREES);
     config.basis.cling_distance = WALK_CLING_DISTANCE;
+    config.basis.spring_strength = 0.0;
     config.basis.spring_dampening = 1.0;
     config.jump.height = if gravity_magnitude > f32::EPSILON {
         params.jump.jump_z_velocity * params.jump.jump_z_velocity / (2.0 * gravity_magnitude)
@@ -6978,6 +6979,36 @@ mod tests {
                 assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(start + Vec3::X * distance, 1e-6));
                 assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().location, moved_base);
             }
+        }
+    }
+
+    #[test]
+    fn grounded_float_config_does_not_apply_a_position_spring() {
+        let config = initial_als_control_scheme_config(&AlsMovementParams::default());
+        assert_eq!(config.basis.spring_strength, 0.0);
+        assert_eq!(config.basis.spring_dampening, 1.0);
+    }
+
+    #[test]
+    fn loaded_grounded_character_keeps_source_floor_distance_band() {
+        for (gap, expected) in [(0.018_f32, 0.0215_f32), (0.02, 0.02), (0.0215, 0.0215),
+            (0.0235, 0.0235), (0.025, 0.0215)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let start = Vec3::Y * (0.9 + gap);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LocomotionState::Grounded, LinearVelocity::ZERO, TnuaMotor::default(), AlsCmcAdapterRuntime::default()));
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+            for _ in 0..30 {
+                app.update();
+                assert!(std::time::Instant::now() < deadline, "Grounded floor fixture made no progress");
+            }
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            let velocity = app.world().get::<LinearVelocity>(actor).unwrap().0;
+            let handle = app.world().get::<TnuaConfig<AlsControlScheme>>(actor).unwrap().0.clone();
+            let config = app.world().resource::<Assets<AlsControlSchemeConfig>>().get(&handle).unwrap();
+            assert_eq!(config.basis.spring_strength, 0.0);
+            assert!((position.y - (0.9 + expected)).abs() < 1e-4, "gap={gap} position={position:?}");
+            assert!(velocity.y.abs() < 1e-4, "gap={gap} velocity={velocity:?}");
         }
     }
 

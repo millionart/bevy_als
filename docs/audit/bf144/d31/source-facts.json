@@ -1,0 +1,47 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 6295,
+          "last_line": 6330,
+          "text": "void UCharacterMovementComponent::AdjustFloorHeight()\n{\n\tSCOPE_CYCLE_COUNTER(STAT_CharAdjustFloorHeight);\n\n\t// If we have a floor check that hasn't hit anything, don't adjust height.\n\tif (!CurrentFloor.IsWalkableFloor())\n\t{\n\t\treturn;\n\t}\n\n\tfloat OldFloorDist = CurrentFloor.FloorDist;\n\tif (CurrentFloor.bLineTrace)\n\t{\n\t\tif (OldFloorDist < MIN_FLOOR_DIST && CurrentFloor.LineDist >= MIN_FLOOR_DIST)\n\t\t{\n\t\t\t// This would cause us to scale unwalkable walls\n\t\t\tUE_LOGF(LogCharacterMovement, VeryVerbose, \"Adjust floor height aborting due to line trace with small floor distance (line: %.2f, sweep: %.2f)\", CurrentFloor.LineDist, CurrentFloor.FloorDist);\n\t\t\treturn;\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Falling back to a line trace means the sweep was unwalkable (or in penetration). Use the line distance for the vertical adjustment.\n\t\t\tOldFloorDist = CurrentFloor.LineDist;\n\t\t}\n\t}\n\n\t// Move up or down to maintain floor height.\n\tif (OldFloorDist < MIN_FLOOR_DIST || OldFloorDist > MAX_FLOOR_DIST)\n\t{\n\t\tFHitResult AdjustHit(1.f);\n\t\tconst double InitialZ = GetGravitySpaceZ(UpdatedComponent->GetComponentLocation());\n\t\tconst float AvgFloorDist = (MIN_FLOOR_DIST + MAX_FLOOR_DIST) * 0.5f;\n\t\tconst float MoveDist = AvgFloorDist - OldFloorDist;\n\t\tSafeMoveUpdatedComponent(MoveDist * -GetGravityDirection(), UpdatedComponent->GetComponentQuat(), true, AdjustHit );\n\t\tUE_LOGF(LogCharacterMovement, VeryVerbose, \"Adjust floor height %.3f (Hit = %d)\", MoveDist, AdjustHit.bBlockingHit);\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "first_line": 388,
+          "last_line": 397,
+          "text": "\t\t// Save current values\r\n\t\tFMovementBaseInterfaceData* OldMovementBaseInterfaceData = GetMovementBaseInterfaceData_Mutable();\r\n\t\tconst FVector PreviousBaseLocation = OldMovementBaseInterfaceData && OldMovementBaseInterfaceData->IsValid() ? OldMovementBaseInterfaceData->GetBodyInstanceOwner()->GetPhysicsOwnerTransform().GetLocation() : FVector::ZeroVector;\r\n\t\tconst FVector OldLocation = UpdatedComponent->GetComponentLocation();\r\n\t\tconst FFindFloorResult OldFloor = CurrentFloor;\r\n\r\n\t\tRestorePreAdditiveRootMotionVelocity();\r\n\r\n\t\t// Ensure velocity is horizontal.\r\n\t\tMaintainHorizontalGroundVelocity();\r\n"
+        },
+        {
+          "first_line": 516,
+          "last_line": 529,
+          "text": "\t\t\t\t\tHandleWalkingOffLedge(OldFloor.HitResult.ImpactNormal, OldFloor.HitResult.Normal, OldLocation, timeTick);\r\n\t\t\t\t\tif (IsMovingOnGround())\r\n\t\t\t\t\t{\r\n\t\t\t\t\t\t// If still walking, then fall. If not, assume the user set a different mode they want to keep.\r\n\t\t\t\t\t\tStartFalling(Iterations, remainingTime, timeTick, Delta, OldLocation);\r\n\t\t\t\t\t}\r\n\t\t\t\t\treturn;\r\n\t\t\t\t}\r\n\r\n\t\t\t\tAdjustFloorHeight();\r\n\t\t\t\tSetBaseFromFloor(CurrentFloor);\r\n\t\t\t}\r\n\r\n\t\t\t// Always resolve penetration, even if the floor is walkable.\r\n"
+        }
+      ]
+    },
+    {
+      "path": "bevy-tnua/src/builtins/walk.rs",
+      "sha256": "4fca71b82733286bab728d0ff3de5810ee9e393aab7736544dce97d1b85b4e7d",
+      "excerpts": [
+        {
+          "first_line": 158,
+          "last_line": 166,
+          "text": "        Self {\n            speed: 20.0,\n            float_height: 0.0,\n            headroom: None,\n            cling_distance: 1.0,\n            spring_strength: 400.0,\n            spring_dampening: 1.2,\n            acceleration: 60.0,\n            air_acceleration: 20.0,\n"
+        },
+        {
+          "first_line": 624,
+          "last_line": 643,
+          "text": "    fn spring_force(\n        access: &TnuaBasisAccess<Self>,\n        ctx: &TnuaBasisContext,\n        spring_offset: Float,\n    ) -> TnuaVelChange {\n        let spring_force: Float = spring_offset * access.config.spring_strength;\n\n        let relative_velocity = access\n            .memory\n            .effective_velocity\n            .dot(ctx.up_direction.adjust_precision())\n            - access.memory.vertical_velocity;\n\n        let gravity_compensation = -ctx.tracker.gravity;\n\n        let dampening_boost = relative_velocity * access.config.spring_dampening;\n\n        TnuaVelChange {\n            acceleration: ctx.up_direction.adjust_precision() * spring_force + gravity_compensation,\n            boost: ctx.up_direction.adjust_precision() * -dampening_boost,\n"
+        }
+      ]
+    }
+  ]
+}

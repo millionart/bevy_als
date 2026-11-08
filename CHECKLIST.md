@@ -5944,7 +5944,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色稳定站在运动学平台，暂停world后从外部把平台x平移0.1m。source角色x及保存基座x均应保持0；target角色和缓存均立即变为0.1。`bf144_base_follow_respects_world_pause_and_owner_zero_distinction`共4组3PASS/1FAIL，未暂停、owner倍率0和暂停静止平台对照通过；证据`target/bf144/10/final/`。
   - 漏检：旧暂停测试主要冻结时间驱动的物体，平台Transform也不再变化，未触发follow的delta-independent路径。此反例要求暂停期间有外部基座位姿变化，不宣称正常冻结的平台会自行漂移；仅登记，不改通用调度或暂停策略。
 
-- [ ] BF144-D31 / P3 — 有效离地距离带内仍由Tnua悬浮弹簧缓慢抬升角色。
+- [x] BF144-D31 / P3 — 有效离地距离带内仍由Tnua悬浮弹簧缓慢抬升角色；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 15:11 +08:00；预估结束15:46 +08:00；实际结束15:14 +08:00，提前32分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS/UE距离带、Tnua弹簧和五组原生逐帧读数保存在`docs/audit/bf144/d31/`，既有446g消融支持同一根因；设spring strength为零，已写加载角色带内/带外对照，目标测试与真实Gate尚未执行。
   - BF144.446g当前冷启动consumer：App24/query19从SenseOnly切Enabled/GravityScale1后，actual offset0.0040000081062316895m、strength400、net acceleration1.6000032424926758m/s²精确推出increment0.008888907730579376与六子步Y0.9210370182991028，raw VY0.05333344638又被末尾回写0。匹配外部输入/初始位置的源frame18 floor1.9999909400939941cm仍在带内，Y0.9199999570846558保持；同target actual输入仅去spring因子即恢复该位置。319 force/raw、79 cold spring及控制消融/字节恢复同target重编全过，原生/actual报告在`docs/audit/bf144/446g/`与引用.f中Git管理。这里只扩已知根因当前首差，未将全部后续300位置余差都并入本项，生产未修。
   - Source：fresh ALS `PhysWalking:393–394,525–526`先保持水平velocity，再由UE `AdjustFloorHeight:6295–6330`仅在floor距小于1.9cm或大于2.4cm时调整；静止、无碰撞、距离在带内时应保留当前位置，没有固定悬浮高度的持续弹簧。
   - Target：`src/als/character/movement/motion.rs:151–168`把Tnua float height固定成standing H+0.019+0.005m；当前依赖Tnua Walk的默认spring strength=400，`walk.rs:410–419,624–642`持续施加offset×strength，gravity compensation同时保留。后置floor consumer虽然实现了源距离带，却没有去掉前置motor已产生的带内位移。
