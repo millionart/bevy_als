@@ -3587,6 +3587,7 @@ fn falling_movement_transaction(
 fn follow_movement_base_system(
     In(after_physics): In<bool>,
     time: Res<Time<avian3d::prelude::Physics>>,
+    virtual_time: Res<Time<Virtual>>,
     mut characters: Query<(Entity, &LocomotionState, &mut crate::als::dynamics::AlsMovementBase,
         Option<&AlsMantleState>, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,
         &mut AlsCmcAdapterRuntime, &Collider, Has<avian3d::prelude::CustomPositionIntegration>),
@@ -3599,6 +3600,7 @@ fn follow_movement_base_system(
     children: Query<&Children>,
     parents: Query<&ChildOf>,
 ) {
+    if virtual_time.is_paused() { return; }
     for (entity, mode, mut base, mantle, dynamics, mut runtime, capsule, custom_position) in &mut characters {
         let target = if *mode == LocomotionState::Custom {
             mantle.and_then(|mantle| mantle.target_base.map(|target| target.entity))
@@ -6940,6 +6942,41 @@ mod tests {
                     assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, local.rotation);
                     assert!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_move_start.unwrap().distance(position) < 1e-5);
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn movement_base_follow_pauses_only_with_the_world_clock() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (paused, owner_zero, distance) in [(true, false, 0.1_f32), (true, false, 0.0),
+            (false, true, 0.1), (false, false, 0.1)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let base_origin = Vec3::Y * 10.0;
+            let base = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_translation(base_origin))).id();
+            app.update();
+            let start = Vec3::Y * 11.0;
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start), LocomotionState::Grounded,
+                crate::als::dynamics::AlsMovementBase { entity: Some(base), location: base_origin,
+                    rotation: Quat::IDENTITY, has_relative_rotation: false },
+                AlsCmcAdapterRuntime { grounded_move_start: Some(start), ..default() },
+                crate::als_camera::AlsCameraCustomTimeDilation(if owner_zero { 0.0 } else { 1.0 })));
+            let moved_base = base_origin + Vec3::X * distance;
+            app.world_mut().entity_mut(base).insert((Position(moved_base), Transform::from_translation(moved_base)));
+            if paused { app.world_mut().resource_mut::<Time<Virtual>>().pause(); }
+            app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+            app.world_mut().run_system_once((|| true).pipe(follow_movement_base_system)).unwrap();
+            let expected = if paused { start } else { start + Vec3::X * distance };
+            assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(expected, 1e-6));
+            assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().location,
+                if paused { base_origin } else { moved_base });
+            assert!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_move_start.unwrap().abs_diff_eq(expected, 1e-6));
+            if paused {
+                app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+                app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+                assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(start + Vec3::X * distance, 1e-6));
+                assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().location, moved_base);
             }
         }
     }

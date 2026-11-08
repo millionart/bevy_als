@@ -5936,7 +5936,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色在运动学平台上，actor pitch60°，平台向z正方向移动1m，前方墙面z=1.2m。源形体z半宽0.819615m、安全中心≤0.380385m，独立同几何world-quat查询在0.380361m命中；target携带阶段中心z=0.888910m，物理结束仍z=0.847278m，约0.467m穿墙。`bf144_base_carry_sweep_uses_actual_world_capsule_rotation`共8组6PASS/2FAIL，直接和父级倾斜均失败；直立阻挡与各无墙对照通过，证据`target/bf144/10/carry_rotation/`。
   - 漏检：`movement_base_rotation_keeps_the_capsule_bottom_anchor`旋转的是平台，actor保持identity；`component_transport_precedes_the_character_movement_sweep`也只检查直立形体。该分支与D18的Air局部quat错误分别位于基座跟随和空中运动入口，不能用修好其中一处作为另一处证据。仅登记，不改生产实现。
 
-- [ ] BF144-D30 / P2 — 世界暂停时基座跟随仍执行位移并刷新缓存。
+- [x] BF144-D30 / P2 — 世界暂停时基座跟随仍执行位移并刷新缓存；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 15:09 +08:00；预估结束15:34 +08:00；实际结束15:11 +08:00，提前23分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh Actor/CMC CDO及UE暂停/owner时钟源保存在`docs/audit/bf144/d30/`；世界暂停跳过两阶段跟随与缓存，已写外部移动、恢复及owner倍率0对照。reader不能暂停世界，源结论为源码与CDO推导；目标测试与真实Gate尚未执行。
   - Source：fresh B_Als_Character的actor/CMC PrimaryTick均bTickEvenWhenPaused=False；UE `LevelTick.cpp:1782–1784`在pause进入`TickTaskManager.cpp:1574–1640`，只执行bTickEvenWhenPaused的tick，CMC的post-physics tick也继承False默认。因此暂停期间外部修改平台Transform不应运行角色UpdateBasedMovement/SaveBaseLocation；owner自定义倍率0并非世界暂停，仍执行这些阶段。
   - Target：`src/als/character/movement/motion.rs:2558–2559,2580,2831–2895`无world-pause条件，直接按基座Transform差值携带并保存；delta=0无法挡住这个与delta无关的分支。
   - 反例：完整角色稳定站在运动学平台，暂停world后从外部把平台x平移0.1m。source角色x及保存基座x均应保持0；target角色和缓存均立即变为0.1。`bf144_base_follow_respects_world_pause_and_owner_zero_distinction`共4组3PASS/1FAIL，未暂停、owner倍率0和暂停静止平台对照通过；证据`target/bf144/10/final/`。

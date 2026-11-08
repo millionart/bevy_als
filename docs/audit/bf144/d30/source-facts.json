@@ -1,0 +1,68 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/LevelTick.cpp",
+      "sha256": "f7db310f4169624be1b8d8f1ad3c089f2a2a627d93110fb7458dfe788bf33a4e",
+      "excerpts": [
+        {
+          "first_line": 1778,
+          "last_line": 1787,
+          "text": "\t\t\t\tRunTickGroup(TG_PostPhysics);\n\t\t\t}\n\t\n\t\t}\n\t\telse if( bIsPaused )\n\t\t{\n\t\t\tFTickTaskManagerInterface::Get().RunPauseFrame(this, DeltaSeconds, LEVELTICK_PauseTick, LevelsToTick);\n\t\t}\n\t\t\n\t\t// Run this on the first collection with levels, which will be DynamicSourceLevels by default\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/TickTaskManager.cpp",
+      "sha256": "d936eae72ccbf45a7b492a1919dc7a791b8c081042ee8f96b6ecc211829d9292",
+      "excerpts": [
+        {
+          "first_line": 1574,
+          "last_line": 1593,
+          "text": "\tvoid RunPauseFrame(const FTickContext& InContext)\n\t{\n\t\tcheck(!NewlySpawnedTickFunctions.Num()); // There shouldn't be any in here at this point in the frame\n\n\t\tTArray<FTickFunction*> ExecuteTickFunctions;\n\n\t\tfloat CumulativeCooldown = 0.f;\n\t\tFTickFunction* PrevTickFunction = nullptr;\n\t\tFTickFunction* TickFunction = AllCoolingDownTickFunctions.Head;\n\t\twhile (TickFunction)\n\t\t{\n\t\t\tCumulativeCooldown += TickFunction->InternalData->RelativeTickCooldown;\n\t\t\tif (TickFunction->bTickEvenWhenPaused)\n\t\t\t{\n\t\t\t\tbool bExecuteTick = false;\n\t\t\t\tTickFunction->SetTaskPointer(FTickFunction::ETickTaskState::NotQueued, nullptr); // this is stale, clear it out now\n\t\t\t\tif (CumulativeCooldown < InContext.DeltaSeconds)\n\t\t\t\t{\n\t\t\t\t\t// Queue up the tick function for later and do the reschedule before as it is in the normal ticking logic\n\t\t\t\t\tExecuteTickFunctions.Add(TickFunction);\n"
+        },
+        {
+          "first_line": 1622,
+          "last_line": 1632,
+          "text": "\t\tfor (TSet<FTickFunction*>::TIterator It(AllEnabledTickFunctions); It; ++It)\n\t\t{\n\t\t\tTickFunction = *It;\n\t\t\tTickFunction->SetTaskPointer(FTickFunction::ETickTaskState::NotQueued, nullptr); // this is stale, clear it out now\n\t\t\tif (TickFunction->bTickEvenWhenPaused && TickFunction->TickState == FTickFunction::ETickState::Enabled)\n\t\t\t{\n\t\t\t\t// Queue up the tick function for later and do the reschedule before as it is in the normal ticking logic\n\t\t\t\tExecuteTickFunctions.Add(TickFunction);\n\n\t\t\t\tif (TickFunction->TickInterval > 0.f)\n\t\t\t\t{\n"
+        },
+        {
+          "first_line": 2359,
+          "last_line": 2368,
+          "text": "\n/** Default constructor, intitalizes to reasonable defaults **/\nFTickFunction::FTickFunction()\n\t: TickGroup(TG_PrePhysics)\n\t, EndTickGroup(TG_PrePhysics)\n\t, bTickEvenWhenPaused(false)\n\t, bCanEverTick(false)\n\t, bStartWithTickEnabled(false)\n\t, bAllowTickOnDedicatedServer(true)\n\t, bAllowTickBatching(false)\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 650,
+          "last_line": 663,
+          "text": "\treturn FName(\"CharacterMovementComponentPrePhysicsTick\");\n}\n\nUCharacterMovementComponent::UCharacterMovementComponent(const FObjectInitializer& ObjectInitializer)\n\t: Super(ObjectInitializer)\n{\n\tRandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);\n\n\tPostPhysicsTickFunction.bCanEverTick = true;\n\tPostPhysicsTickFunction.bStartWithTickEnabled = false;\n\tPostPhysicsTickFunction.SetTickFunctionEnable(false);\n\tPostPhysicsTickFunction.TickGroup = TG_PostPhysics;\n\tPostPhysicsTickFunction.bRunTransactionally = true;\n\t\n"
+        },
+        {
+          "first_line": 2476,
+          "last_line": 2491,
+          "text": "void UCharacterMovementComponent::MaybeUpdateBasedMovement(float DeltaSeconds)\n{\n\tbDeferUpdateBasedMovement = false;\n\n\tFMovementBaseInterfaceData* MovementBaseInterfaceData = GetMovementBaseInterfaceData_Mutable();\n\tif (MovementBaseUtility::UseRelativeLocation(MovementBaseInterfaceData))\n\t{\n\t\t// Need to see if anything we're on is simulating physics or has a parent that is.\t\t\n\t\tif (!MovementBaseUtility::IsSimulatedBase(MovementBaseInterfaceData))\n\t\t{\n\t\t\tbDeferUpdateBasedMovement = false;\n\t\t\tUpdateBasedMovement(DeltaSeconds);\n\t\t\t// If previously simulated, go back to using normal tick dependencies.\n\t\t\tif (PostPhysicsTickFunction.IsTickFunctionEnabled())\n\t\t\t{\n\t\t\t\tPostPhysicsTickFunction.SetTickFunctionEnable(false);\n"
+        },
+        {
+          "first_line": 2522,
+          "last_line": 2535,
+          "text": "void UCharacterMovementComponent::MaybeSaveBaseLocation()\n{\n\tif (CharacterMovementCVars::BasedMovementMode == 2 || !bDeferUpdateBasedMovement)\n\t{\n\t\tSaveBaseLocation();\n\t}\n}\n\n// @todo handle lift moving up and down through encroachment\nvoid UCharacterMovementComponent::UpdateBasedMovement(float DeltaSeconds)\n{\n\tif (!HasValidData())\n\t{\n\t\treturn;\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Classes/GameFramework/Actor.h",
+      "sha256": "255c6a18c75d860e38282c7ec1561a72c9f2d4b19b41043a0df5ba668659dba9",
+      "excerpts": [
+        {
+          "first_line": 4877,
+          "last_line": 4895,
+          "text": "void FActorComponentTickFunction::ExecuteTickHelper(UActorComponent* Target, bool bTickInEditor, float DeltaTime, ELevelTick TickType, const ExecuteTickLambda& ExecuteTickFunc)\n{\n\tif (IsValid(Target))\n\t{\n\t\tFScopeCycleCounterUObject ComponentScope(Target);\n\t\tFScopeCycleCounterUObject AdditionalScope(Target->AdditionalStatObject());\n\n\t\tif (Target->bRegistered)\n\t\t{\n\t\t\tAActor* MyOwner = Target->GetOwner();\n\t\t\tif (TickType != LEVELTICK_ViewportsOnly || bTickInEditor ||\n\t\t\t\t(MyOwner && MyOwner->ShouldTickIfViewportsOnly()))\n\t\t\t{\n\t\t\t\tconst float TimeDilation = (MyOwner ? MyOwner->CustomTimeDilation : 1.f);\n\t\t\t\tExecuteTickFunc(DeltaTime * TimeDilation);\n\t\t\t}\n\t\t}\n\t}\n}\n"
+        }
+      ]
+    }
+  ]
+}
