@@ -10,6 +10,7 @@ report = json.loads(path.read_text(encoding="utf-8-sig"))
 settings = report["physics_asset"]["constraint_console_variables"]
 inverse = float(settings["p.Chaos.Collision.CullDistanceReferenceSize"])
 minimum = float(settings["p.Chaos.Collision.MinCullDistanceScale"])
+assert settings["p.Chaos.Collision.EnableBoundsChecks"] in ("true", "false")
 expected = {"bench_aggregate_within_cull": [1, 2], "bench_aggregate_outside_cull": [1]}
 for sample in report["physics_contact_probe"]["samples"]:
     contacts = sample["aggregate_contacts"]

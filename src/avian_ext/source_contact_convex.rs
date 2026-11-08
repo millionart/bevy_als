@@ -7,7 +7,7 @@ use super::source_contact_epa::SourceEpaSettings;
 use super::source_contact_face::{SourceBoxConvexFaces, SourceConvexTopology, source_box_convex_faces, source_convex_scale};
 use super::source_contact_gjk::{SourceGjkResult, source_box_convex_gjk, source_gjk_exceeds_cull};
 use super::source_contact_polygon::{source_box_face, source_clip_convex_face, source_direction, source_position};
-use super::source_contact_restore::source_float_position;
+use super::source_contact_restore::{SourceRestorePose, source_float_position};
 use super::source_gjk_simplex::SourceGjkSimplex;
 
 #[derive(Clone, Copy)]
@@ -68,6 +68,56 @@ pub(super) fn source_body_local_max_extent<'a>(
         found = true;
     }
     found.then(|| f64::from((maximum - minimum).max_element()))
+}
+
+fn source_transformed_bounds(bounds: [DVec3; 2], translation: DVec3, rotation: DQuat) -> [DVec3; 2] {
+    let minimum = source_position(bounds[0]);
+    let maximum = source_position(bounds[1]);
+    let rotation = DQuat::from_xyzw(-rotation.x, -rotation.z, -rotation.y, rotation.w);
+    let extent = (maximum - minimum) * 0.5;
+    let mut rotated = DVec3::ZERO;
+    for vertex in [DVec3::new(extent.x, extent.y, extent.z), DVec3::new(extent.x, extent.y, -extent.z),
+        DVec3::new(extent.x, -extent.y, extent.z), DVec3::new(extent.x, -extent.y, -extent.z)] {
+        rotated = rotated.max((rotation * vertex).abs());
+    }
+    let center = source_position(translation) + rotation * ((minimum + maximum) * 0.5);
+    [center - rotated, center + rotated]
+}
+
+fn source_bounds_intersect(first: [DVec3; 2], second: [DVec3; 2], cull_cm: f64) -> bool {
+    (0..3).all(|axis| !(second[1][axis] < first[0][axis] - cull_cm
+        || second[0][axis] > first[1][axis] + cull_cm))
+}
+
+pub(super) fn source_convex_hull_candidate(
+    box_bounds: [DVec3; 2],
+    convex: &SourceConvexTopology,
+    scale: DVec3,
+    frames: [SourceRestorePose; 2],
+    cull_distance: f64,
+    was_active: bool,
+    bounds_checks: bool,
+) -> bool {
+    if !bounds_checks { return true; }
+    let scale = source_convex_scale(scale);
+    let first = convex.bounds_m[0] * scale;
+    let second = convex.bounds_m[1] * scale;
+    let convex_bounds = [first.min(second), first.max(second)];
+    let cull_cm = f64::from((cull_distance * 100.0) as f32);
+    let box_world = source_transformed_bounds(box_bounds, frames[0].position_m, frames[0].rotation);
+    let convex_world = source_transformed_bounds(convex_bounds, frames[1].position_m, frames[1].rotation);
+    if !source_bounds_intersect(box_world, convex_world, cull_cm) { return false; }
+    if was_active { return true; }
+    let inverse_box = frames[0].rotation.inverse();
+    let convex_in_box = source_transformed_bounds(convex_bounds,
+        inverse_box * (frames[1].position_m - frames[0].position_m), inverse_box * frames[1].rotation);
+    let box_local = source_transformed_bounds(box_bounds, DVec3::ZERO, DQuat::IDENTITY);
+    if !source_bounds_intersect(convex_in_box, box_local, cull_cm) { return false; }
+    let inverse_convex = frames[1].rotation.inverse();
+    let box_in_convex = source_transformed_bounds(box_bounds,
+        inverse_convex * (frames[0].position_m - frames[1].position_m), inverse_convex * frames[0].rotation);
+    let convex_local = source_transformed_bounds(convex_bounds, DVec3::ZERO, DQuat::IDENTITY);
+    source_bounds_intersect(box_in_convex, convex_local, cull_cm)
 }
 
 pub(super) fn source_box_convex_manifold(
@@ -352,6 +402,38 @@ mod tests {
         assert_eq!(one_metre, f64::from(3.0_f32 + 100.0_f32 * step) * 0.01);
         assert_eq!(source_convex_cull_distance(0.28, [Vec3::X * 3.0, Vec3::ZERO], step, settings), f64::from(6.0_f32) * 0.01);
         assert_eq!(source_convex_cull_distance(0.28, [Vec3::ZERO, Vec3::X], 1.0 / 30.0, settings), f64::from(6.0_f32) * 0.01);
+    }
+
+    #[test]
+    fn source_convex_candidate_uses_world_and_local_bounds() {
+        let hull = SourceConvexTopology { vertices_m: Vec::new(), faces: Vec::new(), vertex_planes: Vec::new(),
+            margin_m: 0.0, winding: -1.0, bounds_m: [DVec3::splat(-0.5), DVec3::splat(0.5)] };
+        let bounds = [DVec3::splat(-0.5), DVec3::splat(0.5)];
+        let first = SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY };
+        let mut second = SourceRestorePose { position_m: DVec3::X * 1.125, rotation: DQuat::IDENTITY };
+        assert!(source_convex_hull_candidate(bounds, &hull, DVec3::ONE, [first, second], 0.125, false, true));
+        second.position_m.x += 0.001;
+        assert!(!source_convex_hull_candidate(bounds, &hull, DVec3::ONE, [first, second], 0.125, false, true));
+        assert!(source_convex_hull_candidate(bounds, &hull, DVec3::ONE, [first, second], 0.125, false, false));
+        let thin = [DVec3::new(-1.0, -0.05, -0.05), DVec3::new(1.0, 0.05, 0.05)];
+        let small = SourceConvexTopology { bounds_m: [DVec3::splat(-0.05), DVec3::splat(0.05)], ..hull };
+        let first = SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::from_rotation_z(std::f64::consts::FRAC_PI_4) };
+        let second = SourceRestorePose { position_m: DVec3::new(0.7, -0.7, 0.0), rotation: DQuat::IDENTITY };
+        assert!(!source_convex_hull_candidate(thin, &small, DVec3::ONE, [first, second], 0.0, false, true));
+        assert!(source_convex_hull_candidate(thin, &small, DVec3::ONE, [first, second], 0.0, true, true));
+    }
+
+    #[test]
+    fn source_convex_candidate_keeps_native_positive_gap_hull() {
+        let sample: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3c4c1/aggregate.native-sample.json")).unwrap();
+        let box_bounds = [point(&sample["geometry"]["minimum_cm"]) * 0.01,
+            point(&sample["geometry"]["maximum_cm"]) * 0.01];
+        let frames = [SourceRestorePose { position_m: array(&sample["input"]["body_translation_cm"]) * 0.01,
+                rotation: DQuat::IDENTITY },
+            SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY }];
+        let source = source_convex_topology("SM_Als_Bench", 2).unwrap();
+        assert!(source_convex_hull_candidate(box_bounds, source, DVec3::ONE, frames, 0.03, false, true));
     }
 
     #[test]
