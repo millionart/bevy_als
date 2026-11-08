@@ -17,6 +17,7 @@ samples = data["physics_contact_probe"]["samples"]
 expected = {(mesh, bone, gap) for mesh in ["SM_Als_Barrel", "SM_Als_Rock", "SM_Als_Stairs_01"] for bone in ["head", "foot_l"] for gap in [-0.1, 30]}
 assert len(samples) == len(expected)
 assert {(s["input"]["mesh_asset_path"].rsplit("/", 1)[1], s["input"]["bone_name"], s["input"]["placement_gap_cm"]) for s in samples} == expected
+mesh_orders = {}
 for sample in samples:
     source = sample["input"]
     geometry = sample["other_geometry"]
@@ -27,8 +28,13 @@ for sample in samples:
     if geometry["kind"] == "trimesh":
         vertices = geometry["trimesh_core_vertices_cm"]
         triangles = geometry["trimesh_core_triangles"]
+        order = geometry["trimesh_core_bvh_face_order"]
         assert vertices and triangles
         assert all(len(indices) == 3 and all(0 <= index < len(vertices) for index in indices) for indices in triangles)
+        assert sorted(order) == list(range(len(triangles)))
+        mesh = source["mesh_asset_path"]
+        assert mesh not in mesh_orders or mesh_orders[mesh] == order
+        mesh_orders[mesh] = order
     for point in sample["points"]:
         assert point["face_index"] >= 0 if geometry["kind"] == "trimesh" else point["face_index"] == -1
         if geometry["kind"] == "trimesh":

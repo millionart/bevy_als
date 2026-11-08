@@ -1,0 +1,63 @@
+{
+  "captures": {
+    "mesh": {
+      "request": "docs/audit/bf144/d100b/mesh.request.json",
+      "request_sha256": "170a9d67a5ce77b379abcd57dab6b9df8a75827b0c04a92ec455cad22e6222dc",
+      "reader_report": "docs/audit/bf144/d100b/mesh.native.json.reader.report.json",
+      "native_output": "docs/audit/bf144/d100b/mesh.native.json.gz",
+      "raw_bytes": 5529066,
+      "raw_sha256": "e0fa47636410ad12b7af14ccb3fbcf82b92cfcffa04529745756a89dc1afe9ef",
+      "gzip_bytes": 344019,
+      "gzip_sha256": "830c87f52b89f5909c38f78e27bb0c7d41803c075de5e5cc380cbe29f4687473",
+      "sample_count": 12
+    },
+    "compound": {
+      "request": "docs/audit/bf144/d100b/compound.request.json",
+      "request_sha256": "f9d15fc4a20d575503e919cb69f9e1afc1a63ae080d97f8d77ee92e2350b65b6",
+      "reader_report": "docs/audit/bf144/d100b/compound.native.json.reader.report.json",
+      "native_output": "docs/audit/bf144/d100b/compound.native.json.gz",
+      "raw_bytes": 4876360,
+      "raw_sha256": "ca0c1fb3012c331759a96e6441e9b347dae8e24ac6ae260ddad85bfeb0515894",
+      "gzip_bytes": 240104,
+      "gzip_sha256": "601cdcbf717022bc81240752089d1ce002a0ebd40b72c1f2bb65a27d04a9dc24",
+      "sample_count": 7
+    }
+  },
+  "assets": [
+    {
+      "asset": "/ALS/ALS/Character/PA_Als.PA_Als",
+      "bytes": 52745,
+      "sha256": "299d44f90d97cfca296cf888df9727c9f3cc9435cc86e11b3525f6f04d45ebb6"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+      "bytes": 30301,
+      "sha256": "7a160378616f667ce77a4473006ed97d756564e60eec2affba220769a31ad7b0"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_02",
+      "bytes": 35729,
+      "sha256": "1b28fc84c254770fb34906100466a40e18a08cd1d7d662bc171781aa3eafb206"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel",
+      "bytes": 44645,
+      "sha256": "be516c55f6df90e53d338df94a7486a732286024299ec167b3c36df90db34708"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Bench",
+      "bytes": 116066,
+      "sha256": "9ee5440e69dff3b28b72525cf82d03c34653510c80a4b1fe54f044484b02fbc6"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Rock",
+      "bytes": 61873,
+      "sha256": "0b57a7dddc1b0c312b821d9e6c3f49f35acf26d5ba345d2b6012e4d47658f40e"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01",
+      "bytes": 20561,
+      "sha256": "58a38b5b77c257fade48a852bea4416b84b3444b269305f2f900d39cebd94517"
+    }
+  ]
+}

@@ -1645,8 +1645,20 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                     for (int32 Vertex : {Vertex0, Vertex1, Vertex2}) { Indices.Add(MakeShared<FJsonValueNumber>(Vertex)); }
                     Triangles.Add(MakeShared<FJsonValueArray>(Indices));
                 }
+                TArray<int32> BVHFaces;
+                Core->FindOverlappingTriangles(Core->BoundingBox(), BVHFaces);
+                TSet<int32> SeenFaces;
+                TArray<TSharedPtr<FJsonValue>> FaceOrder;
+                for (int32 Face : BVHFaces)
+                {
+                    if (Face < 0 || Face >= Triangles.Num() || SeenFaces.Contains(Face)) { return nullptr; }
+                    SeenFaces.Add(Face);
+                    FaceOrder.Add(MakeShared<FJsonValueNumber>(Face));
+                }
+                if (SeenFaces.Num() != Triangles.Num()) { return nullptr; }
                 OtherGeometryValue->SetArrayField(TEXT("trimesh_core_vertices_cm"), Vertices);
                 OtherGeometryValue->SetArrayField(TEXT("trimesh_core_triangles"), Triangles);
+                OtherGeometryValue->SetArrayField(TEXT("trimesh_core_bvh_face_order"), FaceOrder);
             }
         }
         FChaosSolversModule* Module = FChaosSolversModule::GetModule();
