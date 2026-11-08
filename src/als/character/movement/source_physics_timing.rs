@@ -27,6 +27,7 @@ struct SourcePhysicsClockRestore {
 #[derive(Component, Default)]
 struct SourceCharacterFullFrame {
     velocity_before_step: Vec3,
+    landed: bool,
 }
 
 pub struct SourcePhysicsTimingPlugin;
@@ -208,17 +209,20 @@ fn integrate_character_position(
     substeps: Res<SubstepCount>,
     spatial: SpatialQuery,
     impact_bodies: crate::als::motion::FallingImpactBodies,
+    params_assets: Option<Res<Assets<crate::als::params::AlsMovementParams>>>,
+    step_permissions: Query<&crate::als::mantle::AlsMantleTargetPermission>,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     shapes: Query<(&Collider, &Position, &Rotation)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,
-        Option<&SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
-        &mut crate::als::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
+        Option<&mut SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
+        &mut crate::als::character::AlsCmcAdapterRuntime,
+        Option<&crate::als::character::AlsMovementParamsHandle>), With<AlsCharacter>>,
 ) {
     let frame_step = frame_time.delta_secs() / substeps.0 as f32;
     let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;
-    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, full_frame, custom_position, mut runtime) in &mut characters {
-        let movement = if let Some(frame) = full_frame {
+    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, mut full_frame, custom_position, mut runtime, handle) in &mut characters {
+        let movement = if let Some(frame) = full_frame.as_deref() {
             if *locomotion == LocomotionState::Grounded && runtime.grounded_move_start.is_none()
                 && let Some(delta) = runtime.grounded_movement_delta {
                 delta / substeps.0 as f32 + Vec3::Y * body.linear_velocity.y * frame_step
@@ -240,11 +244,44 @@ fn integrate_character_position(
         };
         let start = position.0 + body.delta_position;
         if *locomotion == LocomotionState::Air {
-            let (applied, velocity, contact, _, _) = crate::als::motion::falling_movement_sweep(&spatial, collider,
-                start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, None, entity, &candidates, &shapes, &impact_bodies, None);
-            body.delta_position += applied;
-            body.linear_velocity = velocity;
-            runtime.airborne_sweep_contact |= contact;
+            let params = params_assets.as_ref().and_then(|assets| handle.and_then(|handle| assets.get(handle.id())));
+            let root_landing = runtime.has_animation_root_velocity && full_frame.is_some() && params.is_some();
+            let mut walking_time = full_frame.as_deref().filter(|frame| frame.landed).map(|_| frame_step);
+            if walking_time.is_none() {
+                let max_speed = runtime.grounded_max_speed;
+                let landing = if root_landing {
+                    let params = params.unwrap();
+                    Some((&params.cmc, params.jump.jump_z_velocity, max_speed, &mut runtime.random_seed))
+                } else { None };
+                let (applied, velocity, contact, remaining, _) = crate::als::motion::falling_movement_sweep(&spatial, collider,
+                    start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, landing, entity, &candidates, &shapes, &impact_bodies, None);
+                body.delta_position += applied;
+                body.linear_velocity = velocity;
+                runtime.airborne_sweep_contact |= contact;
+                if root_landing && let Some((remaining, last_impact)) = remaining {
+                    full_frame.as_deref_mut().unwrap().landed = true;
+                    walking_time = Some(if last_impact { 0.0 } else { remaining });
+                }
+            }
+            if let (Some(walking_time), Some(params)) = (walking_time, params) {
+                body.linear_velocity.y = 0.0;
+                let mut transform = Transform::from_translation(position.0 + body.delta_position);
+                let extent = collider.shape_scaled().compute_local_aabb().half_extents();
+                crate::als::motion::adjust_walking_floor_height(&spatial, collider, &mut transform,
+                    extent.y, extent.x.min(extent.z), &params.cmc, entity, &candidates);
+                let requested = body.linear_velocity * walking_time;
+                if let Some((advanced, remaining, next_y, _, stepped_up, _)) = crate::als::motion::grounded_movement_transaction(
+                    &spatial, collider, transform.translation, Quat::IDENTITY, extent.y, extent.x.min(extent.z),
+                    requested, &params.cmc, LocomotionState::Grounded, entity, &candidates, &step_permissions, None) {
+                    let previous_y = transform.translation.y;
+                    transform.translation = advanced + remaining.unwrap_or(requested);
+                    if let Some(next_y) = next_y && (stepped_up || next_y > previous_y) { transform.translation.y = next_y; }
+                }
+                let floor = crate::als::motion::adjust_walking_floor_height(&spatial, collider, &mut transform,
+                    extent.y, extent.x.min(extent.z), &params.cmc, entity, &candidates);
+                full_frame.as_deref_mut().unwrap().landed = floor.is_some();
+                body.delta_position = transform.translation - position.0;
+            }
             continue;
         }
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);

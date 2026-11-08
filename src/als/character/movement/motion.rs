@@ -4572,7 +4572,7 @@ fn record_ground_impact(context: &mut Option<(&mut Messages<SourceCharacterImpac
     }
 }
 
-fn grounded_movement_transaction(
+pub(crate) fn grounded_movement_transaction(
     spatial_query: &SpatialQuery, capsule: &Collider, center: Vec3, rotation: Quat,
     half: f32, radius: f32, delta: Vec3, cmc: &crate::als::params::CmcAdapterParams,
     mode: LocomotionState, entity: Entity,
@@ -4765,7 +4765,7 @@ fn character_floor_scale(local: &Transform, parented: bool, world: &GlobalTransf
     if parented { world.to_scale_rotation_translation().0 } else { local.scale }
 }
 
-fn adjust_walking_floor_height(
+pub(crate) fn adjust_walking_floor_height(
     spatial: &SpatialQuery, capsule: &Collider, transform: &mut Transform, half: f32, radius: f32,
     cmc: &crate::als::params::CmcAdapterParams, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,

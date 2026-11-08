@@ -1,0 +1,23 @@
+{
+  "asset": "Content/ALS/Character/B_Als_Character.uasset",
+  "asset_identity": {
+    "bytes": 261358,
+    "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+  },
+  "request": "docs/audit/bf144/d52/landing.request.json",
+  "native_output": "docs/audit/bf144/d52/landing.native.json.gz",
+  "raw": {
+    "bytes": 69177077,
+    "sha256": "6860250eb0f3c09fc3c8a24541a638e84722c15a4f4e276f73aab70b755b7dac"
+  },
+  "compressed": {
+    "bytes": 5305732,
+    "sha256": "807796bb3969c98d8b71eaa3dfcb2ee55e5a32654d502c48a724f6e4bfb9685a"
+  },
+  "reader_report": "docs/audit/bf144/d52/landing.native.json.reader.report.json",
+  "reader": {
+    "source_sha256": "57da87c210688c78f36dea31f1d11915fb588f30f808d2a747e84bb931d3535f",
+    "package_sha256": "a254bfe765103032a80e823e71ed5334105c324ac855d62efea93c9d168a14fb",
+    "reconstruction": "docs/audit/bf144/572/README.md"
+  }
+}

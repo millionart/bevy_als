@@ -548,6 +548,53 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_roll_landing_adjusts_floor_before_remaining_walking() {
+        use avian3d::prelude::{Collider, Position, RigidBody, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        for (rolling, delta, gap, landed) in [(true, 0.05, 0.005, true),
+            (true, 0.1, 0.005, true), (true, 0.1, 0.02, true),
+            (true, 0.05, 0.02, false), (true, 0.05, 0.1, false),
+            (false, 0.1, 0.005, true)] {
+            for substeps in [1, 6] {
+                let (mut app, actor, _) = loaded_roll_character();
+                let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 1.0, 4.0),
+                    Transform::from_xyz(5.0, 1.5, 0.0))).id();
+                app.update();
+                if rolling { play_loaded_roll(&mut app, actor); }
+                let half = app.world().get::<Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents().y;
+                let start = Vec3::new(5.0, 2.0 + half + gap, 0.0);
+                app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                    LocomotionState::Air, LinearVelocity::ZERO, bevy_tnua::TnuaMotor::default(),
+                    crate::als::character::AlsCmcAdapterRuntime::default(),
+                    crate::als::dynamics::AlsMovementBase::default(),
+                    crate::als::dynamics::AlsMovementBaseDynamicsState::default()));
+                app.insert_resource(SubstepCount(substeps));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+                app.update();
+                let position = app.world().get::<Position>(actor).unwrap().0;
+                let actual_half = app.world().get::<Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents().y;
+                let distance = position.y - 2.0 - actual_half;
+                let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+                if landed {
+                    assert_eq!(mode, LocomotionState::Grounded, "rolling={rolling} delta={delta} gap={gap} substeps={substeps}");
+                    assert!((0.019..=0.024).contains(&distance),
+                        "rolling={rolling} delta={delta} gap={gap} substeps={substeps} distance={distance}");
+                    assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().entity, Some(floor));
+                    assert!(app.world().get::<LinearVelocity>(actor).unwrap().y.abs() < 1e-4);
+                } else {
+                    assert_eq!(mode, LocomotionState::Air, "rolling={rolling} delta={delta} gap={gap} substeps={substeps}");
+                    let expected = gap - 0.5 * 9.81 * delta * delta;
+                    assert!((distance - expected).abs() < 0.0001,
+                        "rolling={rolling} delta={delta} gap={gap} substeps={substeps} distance={distance} expected={expected}");
+                }
+                if rolling {
+                    assert!((position - start).with_y(0.0).length() > 0.001);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn loaded_roll_rotation_is_applied_once_through_physics() {
         use avian3d::prelude::AngularVelocity;
         for (dilation, yaw) in [(0.5, 0.7), (1.0, 0.7), (2.0, 0.7),

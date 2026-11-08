@@ -6148,7 +6148,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整已启动Grounded Roll、world dt16.667ms、owner=1e−5，actor delta0.166667µs；源水平位移0，实际前移约0.834µm。`bf144_roll_root_owner_subminimum_does_not_move_capsule`8组7PASS/1FAIL；owner0冻结、owner1e−4/1正常移动及Custom四组对照符合源，证据`target/bf144/15/owner_minimum/`。只核对XZ，已有D12/D31的离地高度问题未重复记入。
   - 漏检：旧最小tick回归压低world时间或只覆盖Custom，没有用正常world时间×微小owner倍率穿过Roll的两种不同门槛。影响量级极小但条件与源不同，记P3，未改阈值或引入补偿。
 
-- [ ] BF144-D52 / P2 — Roll落地没有进入源Walking交接，漏掉当帧floor高度调整。
+- [x] BF144-D52 / P2 — Roll落地没有进入源Walking交接，漏掉当帧floor高度调整；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:27 +08:00；预估结束18:22 +08:00；实际结束17:39 +08:00，提前43分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE落地→Walking/floor调整/根运动和原生四组读数保存在`docs/audit/bf144/d52/`；目标子步接通落地校验、高度调整和余步Walking，已写加载角色与子步对照。fresh源50ms/20mm未接触、仍为Falling，与旧反例中该组合的落地预期不同；旧target报告缺失，动态基座与动作中断组合未复测，动画Gate待执行。
   - Source：fresh UE `ProcessLanded:6373–6409`先SetPostLandedPhysics再StartNewPhysics(remainingTime)；`6412–6441`切Walking后，`OnMovementModeChanged:1441–1452`立即FindFloor、AdjustFloorHeight及SetBaseFromFloor。该交接在animation root motion期间同样执行，源允许离地带为1.9–2.4cm。
   - Target：`src/als/character/movement/source_physics_timing.rs:199–205`对Root Air完整帧调用falling_movement_sweep却传landing_cmc=None，使`movement/motion.rs:2731–2742`的landing remaining分支不可达；余步继续用Air slide，`4098–4114`仅在物理完成后发布Grounded，未执行该帧Walking入口的高度调整。
   - 反例：完整已播放Roll的Air角色、初始vy0，在4m静态平台上方5/20mm，50/100ms内实际落地。源应调整到1.9–2.4cm带内，target已Grounded但离地仅0.040/0.021mm；无Roll两组为21.499mm。`bf144_roll_root_landing_enters_walking_before_remaining_move`6组2PASS/4FAIL；夹具只关闭角色solver约束、仍保留floor sweep的两组也仅0.046/0.138mm，证据`target/bf144/15/landing_walking/`。
