@@ -1,8 +1,51 @@
 use bevy::math::DVec3;
+use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use super::source_contact_polygon::{SOURCE_SMALL_NUMBER, source_direction, source_position};
 
 pub(crate) const SOURCE_BOX_VERTEX_PLANES: [[usize; 3]; 8] = include!("source_box_vertex_planes.rs");
+
+#[derive(serde::Deserialize)]
+pub(super) struct SourceConvexPlane {
+    pub normal: [f64; 3],
+    pub origin_m: [f64; 3],
+    pub vertices: Vec<usize>,
+}
+
+#[derive(serde::Deserialize)]
+pub(super) struct SourceVertexPlanes {
+    pub count: usize,
+    pub planes: Vec<usize>,
+}
+
+#[derive(serde::Deserialize)]
+pub(super) struct SourceConvexTopology {
+    pub vertices_m: Vec<[f64; 3]>,
+    pub faces: Vec<SourceConvexPlane>,
+    pub vertex_planes: Vec<SourceVertexPlanes>,
+    pub margin_m: f64,
+    pub winding: f64,
+    #[serde(skip)]
+    pub bounds_m: [DVec3; 2],
+}
+
+static SOURCE_CONVEX_TOPOLOGY: LazyLock<HashMap<String, Vec<SourceConvexTopology>>> = LazyLock::new(|| {
+    let mut shapes: HashMap<String, Vec<SourceConvexTopology>> = serde_json::from_str(include_str!(
+        "../../assets/ALSExtras/Environment/Meshes/static_convex_topology.runtime.json"
+    )).expect("Generated source convex topology must be valid");
+    for hull in shapes.values_mut().flatten() {
+        hull.bounds_m = hull.vertices_m.iter().copied().map(DVec3::from_array).fold(
+            [DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)],
+            |[minimum, maximum], vertex| [minimum.min(vertex), maximum.max(vertex)],
+        );
+    }
+    shapes
+});
+
+pub(super) fn source_convex_topology(asset: &str, index: u32) -> Option<&'static SourceConvexTopology> {
+    SOURCE_CONVEX_TOPOLOGY.get(asset)?.get(index as usize)
+}
 
 #[derive(Clone, Copy)]
 pub(crate) struct SourceContactFace {
@@ -88,6 +131,37 @@ mod tests {
 
     fn array(value: &serde_json::Value) -> DVec3 {
         DVec3::new(value[0].as_f64().unwrap(), value[1].as_f64().unwrap(), value[2].as_f64().unwrap())
+    }
+
+    #[test]
+    fn source_runtime_convex_topology_matches_native_bench() {
+        let sample: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d143/bench-foot.native-sample.json")).unwrap();
+        let native = &sample["other_geometry"];
+        let topology = source_convex_topology("SM_Als_Bench", 2).unwrap();
+        let vertices = native["convex_core_vertices_cm"].as_array().unwrap();
+        let planes = native["convex_core_planes"].as_array().unwrap();
+        assert_eq!(topology.vertices_m.len(), vertices.len());
+        assert_eq!(topology.faces.len(), planes.len());
+        for (actual, expected) in topology.vertices_m.iter().zip(vertices) {
+            assert!(DVec3::from_array(*actual).distance(point(expected) * 0.01) < 1e-12);
+        }
+        for (actual, expected) in topology.faces.iter().zip(planes) {
+            assert!(DVec3::from_array(actual.normal).distance(point(&expected["normal"])) < 1e-12);
+            assert!(DVec3::from_array(actual.origin_m).distance(point(&expected["origin_cm"]) * 0.01) < 1e-12);
+            assert_eq!(actual.vertices, expected["vertex_indices"].as_array().unwrap().iter()
+                .map(|index| index.as_u64().unwrap() as usize).collect::<Vec<_>>());
+        }
+        assert!((topology.margin_m - native["margin_cm"].as_f64().unwrap() * 0.01).abs() < 1e-12);
+        assert_eq!(topology.winding, -1.0);
+        assert_eq!(SOURCE_CONVEX_TOPOLOGY.values().map(Vec::len).sum::<usize>(), 15);
+        for hull in SOURCE_CONVEX_TOPOLOGY.values().flatten() {
+            assert_eq!(hull.vertices_m.len(), hull.vertex_planes.len());
+            assert!(hull.vertex_planes.iter().all(|adjacency| adjacency.planes.len() <= 3
+                && adjacency.planes.iter().all(|index| *index < hull.faces.len()) && adjacency.count >= adjacency.planes.len()));
+        }
+        assert!(source_convex_topology("missing", 0).is_none());
+        assert!(source_convex_topology("SM_Als_Bench", 99).is_none());
     }
 
     #[test]

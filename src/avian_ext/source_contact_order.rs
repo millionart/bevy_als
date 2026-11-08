@@ -4,13 +4,15 @@ use avian3d::dynamics::solver::{constraint_graph::{ContactConstraintHandle, COLO
 use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
 use avian3d::prelude::{AngularVelocity, Collider, ColliderTransform, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
     Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
+#[cfg(test)]
 use bevy::math::DVec3;
 use bevy::platform::collections::HashMap as EntityMap;
 use bevy::prelude::*;
+#[cfg(test)]
 use std::collections::HashMap;
-use std::sync::LazyLock;
 
 use super::ragdoll_physics_profile::RagdollActiveMode;
+use super::source_contact_face::source_convex_topology;
 use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin};
 use super::source_contact_restore::{SourceBoxContactHistory, SourceContactContext, SourceRestorePose,
     SourceRestoreSettings, capture_source_contact, restore_source_contact, source_box_shape_pose,
@@ -21,29 +23,8 @@ const SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD: f32 = include!("capsule_contact_axis
 #[derive(Component)]
 pub(crate) struct SourceCompoundOrder(pub String);
 
-#[derive(serde::Deserialize)]
-struct SourceHullVertices {
-    vertices_m: Vec<[f64; 3]>,
-}
-
-static SOURCE_CONVEX_BOUNDS: LazyLock<HashMap<String, Vec<[DVec3; 2]>>> = LazyLock::new(|| {
-    let shapes: HashMap<String, Vec<SourceHullVertices>> = serde_json::from_str(include_str!(
-        "../../assets/ALSExtras/Environment/Meshes/static_convex_topology.runtime.json"
-    )).expect("Generated source convex topology must be valid");
-    shapes.into_iter().map(|(name, hulls)| {
-        let bounds = hulls.into_iter().map(|hull| {
-            hull.vertices_m.into_iter().map(DVec3::from_array).fold(
-                [DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)],
-                |[minimum, maximum], vertex| [minimum.min(vertex), maximum.max(vertex)],
-            )
-        }).collect();
-        (name, bounds)
-    }).collect()
-});
-
 pub(super) fn source_convex_max_extent_cm(asset: &str, index: u32, scale: Vec3) -> Option<f32> {
-    let bounds = *SOURCE_CONVEX_BOUNDS.get(asset)?.get(index as usize)?;
-    Some(source_scaled_bounds_max_extent_cm(bounds, scale))
+    Some(source_scaled_bounds_max_extent_cm(source_convex_topology(asset, index)?.bounds_m, scale))
 }
 
 fn unique_subshape_ids(candidates: &[Vec<(usize, [u32; 2])>], raw_count: usize) -> Option<Vec<[u32; 2]>> {

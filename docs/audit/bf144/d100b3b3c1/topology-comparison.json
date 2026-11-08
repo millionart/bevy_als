@@ -1,0 +1,26 @@
+[
+  {
+    "asset": "SM_Als_Bench",
+    "shape_index": 2,
+    "vertices": 16,
+    "faces": 16,
+    "source_direct_adjacency_present": false,
+    "equal": true
+  },
+  {
+    "asset": "SM_Als_Arch_01",
+    "shape_index": 4,
+    "vertices": 12,
+    "faces": 15,
+    "source_direct_adjacency_present": false,
+    "equal": true
+  },
+  {
+    "asset": "SM_Als_Barrel_Broken",
+    "shape_index": 0,
+    "vertices": 48,
+    "faces": 26,
+    "source_direct_adjacency_present": false,
+    "equal": true
+  }
+]

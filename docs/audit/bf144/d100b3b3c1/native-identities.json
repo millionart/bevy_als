@@ -1,0 +1,14 @@
+{
+  "request": "docs/audit/bf144/d100b3b3c1/topology.request.json",
+  "request_sha256": "f747029587e2d1dfc2ec521537f5598a0c7dfeee98bd8e098c776add799cdae3",
+  "reader_report": "docs/audit/bf144/d100b3b3c1/topology.native.json.reader.report.json",
+  "native": "docs/audit/bf144/d100b3b3c1/topology.native.json.gz",
+  "raw_bytes": 4793150,
+  "raw_sha256": "c675940ca96920d0696d4232f5a4c1364205415971a00e94e9b7a95fc4e14568",
+  "gzip_bytes": 231519,
+  "gzip_sha256": "4303c0250e83faa4630aa73c704dd1fcbf375319c569b444c4d0ae3515470994",
+  "source_assets": "docs/audit/bf144/d104b2a/native-identities.json",
+  "target": "assets/ALSExtras/Environment/Meshes/static_convex_topology.runtime.json",
+  "target_sha256": "0874e8ad7778530c2c6bb6afea1b8bd866068f7e9e01ef43f596e0d7169a8829",
+  "comparison": "docs/audit/bf144/d100b3b3c1/topology-comparison.json"
+}
