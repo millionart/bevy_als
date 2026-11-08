@@ -6713,6 +6713,15 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 02:05 source/static摘要：已按box double厘米、凸包 float厘米及反缩放选边生成单点，保留源严格平局、退化线段、margin和cull分支；写Arch02原生点作为替代witness的隔离控制及直接GJK报告对照。旧reader未记录edge cull CVar，暂用源默认值并已补采集；直接顶点、真实接入、测试、消融及Playground待后续。证据`docs/audit/bf144/d100b3b3c3/`。实际结束：2026-11-09 02:05 +08:00；偏差：−46分钟；结果：子项静态实现完成，未再拆分。
 
 - [ ] BF144-D100b3b3c4 / P3 — 将源凸包几何与GJK缓存接入真实生命周期。
+  - 02:06 source/static摘要：源GJK返回的最大支持偏移会扩大首次接触的剔除距离，当前GJK结果未暴露该值；重建时还必须保留每hull热simplex，成功复用时不得重跑GJK。拆为c4a支持偏移与剔除合同、c4b完整源几何生成、c4c真实缓存和solver接入。
+
+- [x] BF144-D100b3b3c4a / P3 — 保留源GJK支持偏移与接触剔除边界。
+  - 本轮开始：2026-11-09 02:06 +08:00；预计结束：2026-11-09 02:46 +08:00。fresh读取box/convex在源cull边界两侧的样本，从AABB支持函数生成源最大偏移并暴露GJK结果，编写源阈值和直接native控制。估时依据：D100b3b3b2b已实现核心GJK，源box支持偏移为单一固定表达式；reader重建、测试和消融待统一Gate。
+  - 02:10 source/static摘要：fresh Bench在基础cull=3cm时，复算GJK间距3.2cm仍有4点、3.5cm为0点；源box margin约0.6cm产生约0.439cm支持偏移。GJK结果已保留该值及严格剔除判断，已写边界和两组原生控制；旧reader直接support delta待重建重采，几何组合、测试、消融及Playground待后续。证据`docs/audit/bf144/d100b3b3c4a/`。实际结束：2026-11-09 02:10 +08:00；偏差：−36分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D100b3b3c4b / P3 — 组合源GJK、选面和接触生成。
+
+- [ ] BF144-D100b3b3c4c / P3 — 将源生成和热simplex接入真实接触生命周期。
 
 - [ ] BF144-D100b4 / P3 — 接入mesh源接触生成顺序与分组。
 

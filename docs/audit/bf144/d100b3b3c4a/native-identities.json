@@ -1,0 +1,17 @@
+{
+  "request": "docs/audit/bf144/d100b3b3c4a/cull.request.json",
+  "request_sha256": "63ab082bb747713b02604d40b7f406d1eea5244232e7dd46b0ccb9bee8068a13",
+  "reader_report": "docs/audit/bf144/d100b3b3c4a/cull.native.json.reader.report.json",
+  "native": "docs/audit/bf144/d100b3b3c4a/cull.native.json.gz",
+  "raw_bytes": 4776945,
+  "raw_sha256": "bcc6148d75b4168fa92108c5d8a4d652cad03aacf89a3f2892caff1aedc63b8e",
+  "gzip_bytes": 227680,
+  "gzip_sha256": "bcf0aca361bf8338bcd2b2777aa328df69ff85505474f47757bf489e2b6b7898",
+  "source_assets": "docs/audit/bf144/d104b2a/native-identities.json",
+  "summary": "docs/audit/bf144/d100b3b3c4a/native-summary.json",
+  "fixture": {
+    "path": "docs/audit/bf144/d100b3b3c4a/cull.native-samples.json",
+    "bytes": 29726,
+    "sha256": "f33264bdb86a52cf0bd149100555c31bbaddb206664debaea87c15b3dc50ea3b"
+  }
+}

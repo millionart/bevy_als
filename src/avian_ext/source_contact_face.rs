@@ -251,7 +251,7 @@ mod tests {
             margin_m: 0.0, winding: -1.0, bounds_m: [DVec3::NEG_X; 2] };
         let mut gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(), last_vertices: [7, 0],
             normal_first: DVec3::X, normal_second: DVec3::X, closest_first_m: DVec3::X,
-            closest_second_m: DVec3::NEG_X, penetration_m: 0.0, epa_status: None };
+            closest_second_m: DVec3::NEG_X, penetration_m: 0.0, max_support_delta_m: 0.0, epa_status: None };
         let [epsilon, bias] = include!("../als/settings/contact_face_classification.rs");
         let select = |gjk: &SourceGjkResult, scale| source_box_convex_faces(DVec3::splat(-1.0), DVec3::ONE,
             &hull, scale, gjk, 0.0, 0.01, epsilon, bias).unwrap();
@@ -285,7 +285,7 @@ mod tests {
         let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
         let gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(), last_vertices: [3, 10],
             normal_first: -normal, normal_second: -normal, closest_first_m: weighted("shape_point_0_cm") - normal * margin,
-            closest_second_m: weighted("shape_point_1_cm"), penetration_m: 0.0, epa_status: None };
+            closest_second_m: weighted("shape_point_1_cm"), penetration_m: 0.0, max_support_delta_m: 0.0, epa_status: None };
         let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
         let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
         let [epsilon, bias] = include!("../als/settings/contact_face_classification.rs");
@@ -311,7 +311,7 @@ mod tests {
                 normal_first: point(&raw["shape_normal_0"]), normal_second: point(&raw["shape_normal_1"]),
                 closest_first_m: point(&raw["shape_point_0_cm"]) * 0.01,
                 closest_second_m: point(&raw["shape_point_1_cm"]) * 0.01,
-                penetration_m: raw["penetration_cm"].as_f64().unwrap() * 0.01, epa_status: None };
+                penetration_m: raw["penetration_cm"].as_f64().unwrap() * 0.01, max_support_delta_m: 0.0, epa_status: None };
             let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
             let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
             let scale = point(&sample["other_geometry"]["convex_core_scale"]);

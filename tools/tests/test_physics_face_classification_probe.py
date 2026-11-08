@@ -20,4 +20,5 @@ for sample in samples:
     assert gjk["success"]
     assert 0 <= gjk["vertex_0"] < 8
     assert 0 <= gjk["vertex_1"] < len(sample["other_geometry"]["convex_core_vertices_cm"])
+    assert math.isclose(gjk["support_delta_cm"], (math.sqrt(3) - 1) * sample["collision_margin_0_cm"], abs_tol=1e-7)
 print("physics face classification probe PASS")

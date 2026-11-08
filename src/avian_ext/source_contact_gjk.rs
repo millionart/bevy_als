@@ -13,7 +13,12 @@ pub(crate) struct SourceGjkResult {
     pub closest_first_m: DVec3,
     pub closest_second_m: DVec3,
     pub penetration_m: f64,
+    pub max_support_delta_m: f64,
     pub epa_status: Option<SourceEpaStatus>,
+}
+
+pub(super) fn source_gjk_exceeds_cull(result: &SourceGjkResult, cull_distance: f64) -> bool {
+    -result.penetration_m > cull_distance + result.max_support_delta_m
 }
 
 pub(super) fn source_box_support(minimum: DVec3, maximum: DVec3, margin: f64, direction: DVec3) -> (DVec3, usize) {
@@ -53,6 +58,7 @@ pub(crate) fn source_box_convex_gjk(
     let minimum = source_position(box_minimum);
     let maximum = source_position(box_maximum);
     let margin = f64::from((box_margin * 100.0) as f32);
+    let max_support_delta_m = (3.0_f64.sqrt() - 1.0) * margin * 0.01;
     let vertices = convex_vertices.iter().copied().map(|point| source_position(point).as_vec3()).collect::<Vec<_>>();
     let scale = source_direction(convex_scale);
     let translation = source_position(relative_translation);
@@ -111,6 +117,7 @@ pub(crate) fn source_box_convex_gjk(
                         closest_first_m: source_direction(witness.first_cm + witness.normal * margin) * 0.01,
                         closest_second_m: source_direction(inverse * (witness.second_cm - translation)) * 0.01,
                         penetration_m: (witness.penetration_cm + margin) * 0.01,
+                        max_support_delta_m,
                         epa_status,
                     });
                 }
@@ -144,6 +151,7 @@ pub(crate) fn source_box_convex_gjk(
         closest_first_m: source_direction(first) * 0.01,
         closest_second_m: source_direction(second) * 0.01,
         penetration_m: (margin - distance) * 0.01,
+        max_support_delta_m,
         epa_status,
     })
 }
@@ -186,6 +194,7 @@ mod tests {
         assert!(actual.closest_first_m.distance(runtime_point(source_point(&expected["shape_point_0_cm"]))) < 1e-7);
         assert!(actual.closest_second_m.distance(runtime_point(source_point(&expected["shape_point_1_cm"]))) < 1e-7);
         assert!((actual.penetration_m - expected["penetration_cm"].as_f64().unwrap() * 0.01).abs() < 1e-7);
+        assert!((actual.max_support_delta_m - expected["support_delta_cm"].as_f64().unwrap() * 0.01).abs() < 1e-9);
     }
 
     #[test]
@@ -196,6 +205,46 @@ mod tests {
         let (point, index) = source_box_support(DVec3::splat(-2.0), DVec3::splat(2.0), 0.5, DVec3::ZERO);
         assert_eq!(point, DVec3::splat(1.5));
         assert_eq!(index, 7);
+    }
+
+    #[test]
+    fn source_gjk_cull_keeps_corner_margin_and_strict_boundary() {
+        let vertices = [-0.1, 0.1].into_iter().flat_map(|x| [-0.1, 0.1].into_iter().flat_map(move |y| {
+            [-0.1, 0.1].into_iter().map(move |z| DVec3::new(x, y, z))
+        })).collect::<Vec<_>>();
+        let (epsilon, iterations) = include!("../als/settings/contact_gjk.rs");
+        let mut gjk = source_box_convex_gjk(DVec3::splat(-0.1), DVec3::splat(0.1), 0.006, &vertices,
+            DVec3::ONE, DVec3::X * 0.5, DQuat::IDENTITY, epsilon, iterations, None, epa_settings()).unwrap();
+        assert!((gjk.max_support_delta_m - 0.004392305).abs() < 1e-9);
+        let boundary = 0.03 + gjk.max_support_delta_m;
+        gjk.penetration_m = -boundary;
+        assert!(!source_gjk_exceeds_cull(&gjk, 0.03));
+        gjk.penetration_m = -boundary.next_up();
+        assert!(source_gjk_exceeds_cull(&gjk, 0.03));
+    }
+
+    #[test]
+    fn source_gjk_cull_matches_native_bench_boundary() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3c4a/cull.native-samples.json")).unwrap();
+        let (epsilon, iterations) = include!("../als/settings/contact_gjk.rs");
+        for sample in fixture["samples"].as_array().unwrap() {
+            let input = &sample["input"];
+            let values = |key: &str| {
+                let value = &input[key];
+                DVec3::new(value[0].as_f64().unwrap(), value[1].as_f64().unwrap(), value[2].as_f64().unwrap())
+            };
+            let minimum = runtime_point(source_point(&sample["geometry"]["minimum_cm"]));
+            let maximum = runtime_point(source_point(&sample["geometry"]["maximum_cm"]));
+            let vertices = sample["other_geometry"]["convex_core_vertices_cm"].as_array().unwrap().iter()
+                .map(|value| runtime_point(source_point(value))).collect::<Vec<_>>();
+            let translation = runtime_point(values("mesh_translation_cm") - values("body_translation_cm"));
+            let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
+            let gjk = source_box_convex_gjk(minimum, maximum, margin, &vertices, DVec3::ONE, translation,
+                DQuat::IDENTITY, epsilon, iterations, None, epa_settings()).unwrap();
+            assert_eq!(source_gjk_exceeds_cull(&gjk, input["cull_distance_cm"].as_f64().unwrap() * 0.01),
+                sample["points"].as_array().unwrap().is_empty(), "{}", input["label"]);
+        }
     }
 
     #[test]

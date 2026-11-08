@@ -158,7 +158,7 @@ mod tests {
             let source_normal = point(&sample["points"][0]["world_normal"]);
             let gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(), last_vertices: [0, 0],
                 normal_first: -source_normal, normal_second: -source_normal, closest_first_m: DVec3::ZERO,
-                closest_second_m: DVec3::ZERO, penetration_m: 0.0, epa_status: None };
+                closest_second_m: DVec3::ZERO, penetration_m: 0.0, max_support_delta_m: 0.0, epa_status: None };
             let translation = -array(&sample["input"]["body_translation_cm"]) * 0.01;
             let actual = source_box_convex_face_contacts(minimum, maximum, hull, &faces, translation, DQuat::IDENTITY, &gjk).unwrap();
             let expected = sample["points"].as_array().unwrap();
@@ -184,7 +184,7 @@ mod tests {
             winding: -1.0, bounds_m: [minimum, maximum] };
         let gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(), last_vertices: [0, 0],
             normal_first: DVec3::Y, normal_second: DVec3::Y, closest_first_m: DVec3::ZERO,
-            closest_second_m: DVec3::ZERO, penetration_m: 0.0, epa_status: None };
+            closest_second_m: DVec3::ZERO, penetration_m: 0.0, max_support_delta_m: 0.0, epa_status: None };
         let scale = DVec3::new(-1.0, 1.0, 1.0);
         for reference_box in [false, true] {
             let mut faces = SourceBoxConvexFaces { box_index: 5, convex_index: 0, reference_box, plane_contact: true,
@@ -237,7 +237,7 @@ mod tests {
         let mut gjk = SourceGjkResult { simplex_cm: SourceGjkSimplex::default(), last_vertices: [0, 0],
             normal_first: -normal, normal_second: -normal, closest_first_m: point(&expected["shape_point_0_cm"]) * 0.01,
             closest_second_m: point(&expected["shape_point_1_cm"]) * 0.01,
-            penetration_m: -expected["phi_cm"].as_f64().unwrap() * 0.01, epa_status: None };
+            penetration_m: -expected["phi_cm"].as_f64().unwrap() * 0.01, max_support_delta_m: 0.0, epa_status: None };
         let translation = -array(&sample["input"]["body_translation_cm"]) * 0.01;
         let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
         let contact = source_box_convex_edge_contact(minimum, maximum, hull, &faces, translation,
@@ -269,7 +269,7 @@ mod tests {
             normal_first: point(&raw["shape_normal_0"]), normal_second: point(&raw["shape_normal_1"]),
             closest_first_m: point(&raw["shape_point_0_cm"]) * 0.01,
             closest_second_m: point(&raw["shape_point_1_cm"]) * 0.01,
-            penetration_m: raw["penetration_cm"].as_f64().unwrap() * 0.01, epa_status: None };
+            penetration_m: raw["penetration_cm"].as_f64().unwrap() * 0.01, max_support_delta_m: 0.0, epa_status: None };
         let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
         let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
         let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;

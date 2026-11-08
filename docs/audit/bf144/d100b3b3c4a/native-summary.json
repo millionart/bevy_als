@@ -1,0 +1,18 @@
+[
+  {
+    "label": "bench_cull_inside",
+    "derived_gjk_phi_cm": 3.2000002705078074,
+    "cull_cm": 3,
+    "derived_support_delta_cm": 0.43923050199477764,
+    "native_point_count": 4,
+    "direct_cold_gjk_present": false
+  },
+  {
+    "label": "bench_cull_outside",
+    "derived_gjk_phi_cm": 3.5000002705078117,
+    "cull_cm": 3,
+    "derived_support_delta_cm": 0.43923050199477764,
+    "native_point_count": 0,
+    "direct_cold_gjk_present": false
+  }
+]
