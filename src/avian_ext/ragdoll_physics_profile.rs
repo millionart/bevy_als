@@ -2213,6 +2213,70 @@ mod tests {
     }
 
     #[test]
+    fn source_ragdoll_child_bounds_track_post_solver_pose_before_prediction() {
+        use avian3d::prelude::{AngularVelocity, ColliderAabb, ColliderDisabled, ComputedCenterOfMass, Gravity,
+            JointDisabled, LinearVelocity, Sleeping, SleepingDisabled, SubstepCount};
+        use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+        for dt in [1.0_f32 / 60.0, 1.0 / 30.0] {
+            for substeps in [1, 6] {
+                for reaches_wall in [false, true] {
+                    let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                    let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+                    app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+                    for _ in 0..12 { app.update(); }
+                    let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+                    let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+                    let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+                    let head = bodies.iter().find(|(label, _)| label == "head").unwrap().1;
+                    let profile = app.world().get::<RagdollPhysicsProfile>(player).unwrap();
+                    let index = profile.bodies.iter().find(|body| body.label == "head").unwrap().source_index;
+                    let shape = colliders.iter().copied().find(|entity| {
+                        let label = &app.world().get::<ColliderLabel>(*entity).unwrap().0;
+                        find_collider_profile(profile, label).unwrap().source_body_index == index
+                    }).unwrap();
+                    for entity in colliders { if entity != shape { app.world_mut().entity_mut(entity).insert(ColliderDisabled); } }
+                    for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+                    app.world_mut().insert_resource(Gravity(Vec3::ZERO));
+                    app.world_mut().insert_resource(SubstepCount(substeps));
+                    app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(dt)));
+                    let center_local = app.world().get::<ComputedCenterOfMass>(head).unwrap().0;
+                    let rotation = app.world().get::<Rotation>(head).unwrap().0;
+                    let current_center = app.world().get::<Position>(head).unwrap().0 + rotation * center_local;
+                    let start_center = Vec3::new(-0.65, current_center.y, current_center.z);
+                    let start_body = start_center - rotation * center_local;
+                    let parent = app.world().get::<ChildOf>(head).unwrap().parent();
+                    let local_body = app.world_mut().run_system_once(move |transforms: bevy::transform::helper::TransformHelper| {
+                        transforms.compute_global_transform(parent).unwrap().affine().inverse().transform_point3(start_body)
+                    }).unwrap();
+                    app.world_mut().get_mut::<Transform>(head).unwrap().translation = local_body;
+                    app.world_mut().entity_mut(shape).insert((Collider::sphere(0.1), Transform::from_translation(center_local),
+                        Friction::new(0.0), Restitution::new(0.0)));
+                    let speed = if reaches_wall { 0.25 / dt } else { 0.0625 / dt };
+                    app.world_mut().entity_mut(head).insert((Position(start_body), SleepingDisabled,
+                        LinearDamping(0.0), AngularDamping(0.0), LinearVelocity(Vec3::X * speed), AngularVelocity::ZERO)).remove::<Sleeping>();
+                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.2, 4.0, 4.0),
+                        Transform::from_translation(Vec3::new(0.0, start_center.y, start_center.z)),
+                        Friction::new(0.0), Restitution::new(0.0)));
+                    app.update();
+                    if reaches_wall {
+                        let aabb = app.world().get::<ColliderAabb>(shape).unwrap();
+                        assert!(aabb.max.x > -0.1, "dt={dt} substeps={substeps} aabb={aabb:?}");
+                    }
+                    app.update();
+                    let final_center = app.world().get::<Position>(head).unwrap().0
+                        + app.world().get::<Rotation>(head).unwrap().0 * center_local;
+                    let velocity = app.world().get::<LinearVelocity>(head).unwrap().x;
+                    let expected = if reaches_wall { -0.2 } else { -0.65 + speed * dt * 2.0 };
+                    assert!((final_center.x - expected).abs() < 0.006,
+                        "dt={dt} substeps={substeps} reaches={reaches_wall} actual={final_center:?} source={expected}");
+                    if reaches_wall { assert!(velocity.abs() < 0.01); }
+                    else { assert!((velocity - speed).abs() < 0.01); }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn source_ragdoll_hard_contacts_recover_source_penetration() {
         use avian3d::prelude::{AngularVelocity, ColliderDisabled, ComputedCenterOfMass, Gravity, JointDisabled,
             LinearVelocity, Sleeping, SleepingDisabled};

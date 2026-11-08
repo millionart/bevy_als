@@ -6557,11 +6557,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧回弹测试使用零重力或把帧前速度直接作为共同冲击输入；未覆盖narrow-phase与force积分的先后关系。默认角色body/shape均无SpeculativeMargin覆盖、NarrowPhaseConfig为MAX，排除有限margin测速夹断；生产未改。
   - 22:33 source/static摘要：fresh PA和源力积分→检测→回弹输入顺序已固化；目标在solver速度积分后重算rig接触法向速度，保留普通接触路径。已写线/角速度与加载head双帧长、有无重力对照；测试、消融及Playground待统一Gate，几何时机和多点预算归D98/D99。证据`docs/audit/bf144/d97/`。实际结束：2026-11-08 22:33 +08:00；偏差：−37分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D98 / P2 — 子碰撞体同步晚于预测包围盒，Ragdoll漏掉当前帧新接触。
+- [x] BF144-D98 / P2 — 子碰撞体同步晚于预测包围盒，Ragdoll漏掉当前帧新接触。
+  - 本轮开始：2026-11-08 22:33 +08:00；预计结束：2026-11-08 23:18 +08:00。重读源预测bounds及Avian末帧更新顺序，把已有子碰撞体同步放在solver写回后、AABB预测前；补加载角色连续位移和未到达障碍控制。估时依据：BF144.31已分离真实head与bounds时序，本项只改现有入口调度并补回归夹具；执行与消融待统一Gate。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:581,638,650,974–1002`先按本帧积分后P/Q更新bounds，再检测；`CollisionOneShotManifoldsMiscShapes.cpp:80–95`及`ContactPointsMiscShapes.cpp:322–343`用Box.PhiWithNormal−sphere.radius构造实际重叠点，随后位置/速度solver当帧处理。
   - Target：Avian `collider_tree/update.rs:67–71,753–778`在Finalize之后、Last之前，用child Position/Rotation构造velocity-swept AABB；`src/als/character/character.rs:230–245`却到Last才同步这些child pose。Avian原生child同步也只在下一帧First执行。因此恒速运动时bounds覆盖上一段位移，narrow-phase发生在本帧位置积分前又无法补救。
   - 反例：完整角色head保留native质量/惯量，受控中心sphere半径0.1m对静止box，无gravity/friction/restitution/其他关节。连续运动到x=−0.4后，下一帧自由终点−0.15，源应在box左面停到−0.2且V=0；target未生成接触，仍为−0.15及7.5m/s（30Hz）或15m/s（60Hz）。16组12PASS/4FAIL，原生六子步及单步均失败。采到的AABB.max.x仍为−0.295，而提前同一pose同步后为−0.045，接触生成且位置/速度恢复；未到达障碍的控制通过。证据`bf144_pa_contact_phase31_detection_samples_the_integrated_shape_position`、`target/bf144/31/`。
   - 漏检：旧接触测试从已经重叠的几何开始、只检查帧末child pose，或使用body与shape同entity；没有串联child更新→预测bounds→下一帧检测。消融去掉历史AABB缓存和手工平移，仅保留fixture中的提前pose同步仍得到相同恢复，生产实现未改。该缺陷与D93已生成接触后的柔性恢复独立。
+  - 22:36 source/static摘要：fresh PA、源积分/bounds顺序及Avian写回/AABB时序已固化；既有child pose同步移到solver写回后、AABB预测之前。已写加载head双帧长、单/六子步、到达与未到达障碍及AABB对照；测试、消融、加速/旋转和Playground待统一Gate。证据`docs/audit/bf144/d98/`。实际结束：2026-11-08 22:36 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D99 / P3 — 多点碰撞回弹仍使用默认单次迭代，遗漏源世界velocity预算。
   - Source：fresh `PBDCollisionContainerSolver.cpp:900–904`每次世界velocity迭代都处理collision manifold；`PBDCollisionSolver.h:1158–1245`在native AveragePointEnabled=False时逐点处理，两次迭代来自当前世界PhysicsSettings。`CollisionResolution.cpp:652–665→CollisionOneShotManifolds.cpp:1133–1200`的水平capsule/box分支生成两个端点。

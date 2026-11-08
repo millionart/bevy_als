@@ -1,0 +1,66 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDRigidsEvolutionGBF.cpp",
+    "sha256": "733d0d1c075eb559319e9e8e4364923b8090652e6997738d6eebbec066b06712",
+    "start_line": 574,
+    "end_line": 592,
+    "text": "\t\t\tSCOPE_CYCLE_COUNTER(STAT_Evolution_PreIntegrateCallback);\n\t\t\tPreIntegrateCallback(Dt);\n\t\t}\n\n\t\t{\n\t\t\tSCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);\n\t\t\tCSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Integrate);\n\t\t\tIntegrate(Dt);\n\t\t}\n\n\t\t{\n\t\t\tif (CaptureRewindKinematicTarget)\n\t\t\t{\n\t\t\t\tCaptureRewindKinematicTarget(Particles.GetActiveMovingKinematicParticlesView());\n\t\t\t}\n\n\t\t\tSCOPE_CYCLE_COUNTER(STAT_Evolution_KinematicTargets);\n\t\t\tCSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_KinematicTargets);\n\t\t\tApplyKinematicTargets(Dt, SubStepInfo.PseudoFraction);"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDRigidsEvolutionGBF.cpp",
+    "sha256": "733d0d1c075eb559319e9e8e4364923b8090652e6997738d6eebbec066b06712",
+    "start_line": 638,
+    "end_line": 655,
+    "text": "\t\t\tCollisionDetector.RunBroadPhase(Dt, GetCurrentStepResimCache());\n\t\t}\n\n\t\tif (MidPhaseModifiers)\n\t\t{\n\t\t\tSCOPE_CYCLE_COUNTER(STAT_Evolution_MidPhaseModifierCallback);\n\t\t\tApplyMidPhaseModifier(Dt);\n\t\t}\n\n\t\t{\n\t\t\tCVD_SCOPE_TRACE_SOLVER_STEP(CVDDC_CollisionDetectionNarrowPhase, TEXT(\"Collision Detection Narrow Phase\"));\n\t\t\tQUICK_SCOPE_CYCLE_COUNTER(Chaos_RunNarrowPhase);\n\t\t\tCollisionDetector.RunNarrowPhase(Dt, GetCurrentStepResimCache());\n\t\t}\n\t}\n\n\tif (PostDetectCollisionsCallback != nullptr)\n\t{"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDRigidsEvolutionGBF.cpp",
+    "sha256": "733d0d1c075eb559319e9e8e4364923b8090652e6997738d6eebbec066b06712",
+    "start_line": 974,
+    "end_line": 1003,
+    "text": "\t\t\t\t\tFVec3 PCoM = Particle.XCom();\n\t\t\t\t\tFRotation3 QCoM = Particle.RCom();\n\n\t\t\t\t\tPCoM = PCoM + V * Dt;\n\t\t\t\t\tQCoM = FRotation3::IntegrateRotationWithAngularVelocity(QCoM, W, Dt);\n\n\t\t\t\t\tParticle.SetTransformPQCom(PCoM, QCoM);\n\t\t\t\t\tParticle.SetV(V);\n\t\t\t\t\tParticle.SetW(W);\n\n\t\t\t\t\t// We need to expand the bounds back along velocity otherwise we can miss collisions when a box\n\t\t\t\t\t// lands on another box, imparting velocity to the lower box and causing the boxes to be\n\t\t\t\t\t// separated by more than Cull Distance at collision detection time.\n\t\t\t\t\t// NOTE: We use a different (larger) max bounds expansion when MACD is enabled.\n\t\t\t\t\tFVec3 VelocityBoundsDelta = FVec3(0);\n\t\t\t\t\tconst bool bIsMACD = bForceMACD || (bAllowMACD && Particle.MACDEnabled());\n\t\t\t\t\tconst FReal ParticleVelocityBoundsMultiplier = bIsMACD ? VelocityBoundsMultiplierMACD : VelocityBoundsMultiplier;\n\t\t\t\t\tconst FReal ParticleMaxVelocityBoundsExpansion = bIsMACD ? MaxVelocityBoundsExpansionMACD : MaxVelocityBoundsExpansion;\n\t\t\t\t\tif ((ParticleVelocityBoundsMultiplier > 0) && (ParticleMaxVelocityBoundsExpansion > 0))\n\t\t\t\t\t{\n\t\t\t\t\t\tVelocityBoundsDelta = (-ParticleVelocityBoundsMultiplier * Dt) * V;\n\t\t\t\t\t\tVelocityBoundsDelta = VelocityBoundsDelta.BoundToCube(ParticleMaxVelocityBoundsExpansion);\n\t\t\t\t\t}\n\n\t\t\t\t\tif (!Particle.CCDEnabled())\n\t\t\t\t\t{\n\t\t\t\t\t\t// Expand bounds about P/Q by a small amount. This can still result in missed collisions, especially\n\t\t\t\t\t\t// when we have joints that pull the body back to X/R, if P-X is greater than the BoundsThickness\n\t\t\t\t\t\tParticle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.GetP(), Particle.GetQ()), FVec3(BoundsThickness), VelocityBoundsDelta);\n\t\t\t\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifoldsMiscShapes.cpp",
+    "sha256": "b41cc64bf7f38d027a7f737e96b1b0cd96d1bfd2ef51d40d9b44ae892d82f340",
+    "start_line": 80,
+    "end_line": 95,
+    "text": "\t\tvoid ConstructSphereBoxOneShotManifold(const FSphere& Sphere, const FRigidTransform3& SphereTransform, const FImplicitBox3& Box, const FRigidTransform3& BoxTransform, const FReal Dt, FPBDCollisionConstraint& Constraint)\n\t\t{\n\t\t\t// We only build one shot manifolds once\n\t\t\t// All convexes are pre-scaled, or wrapped in TImplicitObjectScaled\n\t\t\tensure(SphereTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));\n\t\t\tensure(BoxTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));\n\n\t\t\t// @todo(chaos): support manifold maintenance\n\t\t\tConstraint.ResetActiveManifoldContacts();\n\n\t\t\tFContactPoint ContactPoint = SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform);\n\t\t\tif (ContactPoint.Phi < Constraint.GetCullDistance())\n\t\t\t{\n\t\t\t\tConstraint.AddOneshotManifoldContact(ContactPoint);\n\t\t\t}\n\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/ContactPointsMiscShapes.cpp",
+    "sha256": "95a88701cafb01a054c01858b1ccf29b3e29020449a3dd4acbebfcdae561bc3a",
+    "start_line": 322,
+    "end_line": 343,
+    "text": "\tFContactPoint SphereBoxContactPoint(const FSphere& Sphere, const FRigidTransform3& SphereTransform, const FImplicitBox3& Box, const FRigidTransform3& BoxTransform)\n\t{\n\t\tFContactPoint Result;\n\n\n\t\tconst FVec3 SphereWorld = SphereTransform.TransformPosition(FVec3(Sphere.GetCenterf()));\t// World-space sphere pos\n\t\tconst FVec3 SphereBox = BoxTransform.InverseTransformPosition(SphereWorld);\t\t\t// Box-space sphere pos\n\n\t\tFVec3 NormalBox;\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t// Box-space normal\n\t\tFReal PhiToSphereCenter = Box.PhiWithNormal(SphereBox, NormalBox);\n\t\tFReal Phi = PhiToSphereCenter - Sphere.GetRadiusf();\n\n\t\tFVec3 NormalWorld = BoxTransform.TransformVectorNoScale(NormalBox);\n\t\tFVec3 LocationWorld = SphereWorld - (Sphere.GetRadiusf()) * NormalWorld;\n\n\t\tResult.ShapeContactPoints[0] = SphereTransform.InverseTransformPosition(LocationWorld);\n\t\tResult.ShapeContactPoints[1] = BoxTransform.InverseTransformPosition(LocationWorld - Phi * NormalWorld);\n\t\tResult.ShapeContactNormal = NormalBox;\n\t\tResult.Phi = Phi;\n\t\treturn Result;\n\t}\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collider_tree/update.rs",
+    "sha256": "44e67ab015f7b7393fd08b8a46cba7bf7bf6eee26e651d441bc91edf636d1759",
+    "start_line": 53,
+    "end_line": 72,
+    "text": "\n        // Add systems for updating collider AABBs before physics step.\n        // This accounts for manually moved colliders.\n        app.add_systems(\n            PhysicsSchedule,\n            update_moved_collider_aabbs::<C>\n                .in_set(ColliderTreeSystems::UpdateAabbs)\n                // Allowing ambiguities is required so that it's possible\n                // to have multiple collision backends at the same time.\n                .ambiguous_with_all(),\n        );\n\n        // Clear moved proxies and update dynamic and kinematic collider AABBs.\n        app.add_systems(\n            PhysicsSchedule,\n            (clear_moved_proxies, update_solver_body_aabbs::<C>)\n                .chain()\n                .after(PhysicsStepSystems::Finalize)\n                .before(PhysicsStepSystems::Last),\n        );"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collider_tree/update.rs",
+    "sha256": "44e67ab015f7b7393fd08b8a46cba7bf7bf6eee26e651d441bc91edf636d1759",
+    "start_line": 750,
+    "end_line": 779,
+    "text": "                    //       into account the uniform circular motion.\n                    let offset = pos.0 - rb_pos.0 - center_of_mass.0;\n                    #[cfg(feature = \"2d\")]\n                    let vel = lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x);\n                    #[cfg(feature = \"3d\")]\n                    let vel = lin_vel.0 + ang_vel.cross(offset);\n                    let movement = (vel * delta_secs)\n                        .clamp_length_max(speculative_margin.max(contact_tolerance));\n\n                    // Current position and predicted position for next feame\n                    #[cfg(feature = \"2d\")]\n                    let (end_pos, end_rot) = (\n                        pos.0 + movement,\n                        *rot * Rotation::radians(ang_vel.0 * delta_secs),\n                    );\n\n                    #[cfg(feature = \"3d\")]\n                    let (end_pos, end_rot) = (\n                        pos.0 + movement,\n                        Rotation(Quaternion::from_scaled_axis(ang_vel.0 * delta_secs) * rot.0)\n                            .fast_renormalize(),\n                    );\n\n                    // Compute swept AABB, the space that the body would occupy if it was integrated for one frame\n                    // TODO: Should we expand the AABB in all directions for speculative contacts?\n                    *aabb = collider\n                        .swept_aabb_with_context(pos.0, *rot, end_pos, end_rot, context)\n                        .grow(growth);\n                }\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collision/collider/collider_transform/plugin.rs",
+    "sha256": "bac0c6c2020abbf746fa2a1699bfc5a013c90e6ef957e3739ee8bf7bc93e60ca",
+    "start_line": 60,
+    "end_line": 95,
+    "text": "        // Only traverses trees with `AncestorMarker<ColliderMarker>`.\n        physics_schedule\n            .add_systems(update_child_collider_position.in_set(PhysicsStepSystems::First));\n    }\n}\n\n#[allow(clippy::type_complexity)]\npub(crate) fn update_child_collider_position(\n    mut collider_query: Query<\n        (\n            &ColliderTransform,\n            &mut Position,\n            &mut Rotation,\n            &ColliderOf,\n        ),\n        Without<RigidBody>,\n    >,\n    rb_query: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,\n) {\n    for (collider_transform, mut position, mut rotation, collider_of) in &mut collider_query {\n        let Ok((rb_pos, rb_rot)) = rb_query.get(collider_of.body) else {\n            continue;\n        };\n\n        position.0 = rb_pos.0 + rb_rot * collider_transform.translation;\n        #[cfg(feature = \"2d\")]\n        {\n            *rotation = *rb_rot * collider_transform.rotation;\n        }\n        #[cfg(feature = \"3d\")]\n        {\n            *rotation = (rb_rot.0 * collider_transform.rotation.0)\n                .normalize()\n                .into();\n        }\n    }"
+  },
+  {
+    "source_file": "src/als/character/character.rs",
+    "revision": "dd6b774c4208e98515430883bc59cdcf0aa86d35",
+    "sha256": "222a545b83d9c447164029f11b7d45a54918483c31dcc667ef20a1d4ebf71b20",
+    "start_line": 278,
+    "end_line": 281,
+    "text": "            .add_systems(PhysicsSchedule, character_contact_friction_system\n                .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))\n            .add_systems(PhysicsSchedule, sync_child_collider_poses\n                .in_set(PhysicsStepSystems::Last));"
+  }
+]

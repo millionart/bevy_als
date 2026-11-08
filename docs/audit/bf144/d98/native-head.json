@@ -1,0 +1,7 @@
+{
+  "bone": "head",
+  "mass_kg": 3.514681816101074,
+  "shapes": [
+    "capsule"
+  ]
+}

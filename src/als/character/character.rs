@@ -278,7 +278,7 @@ impl Plugin for AlsCharacterPlugin {
             .add_systems(PhysicsSchedule, character_contact_friction_system
                 .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
             .add_systems(PhysicsSchedule, sync_child_collider_poses
-                .in_set(PhysicsStepSystems::Last));
+                .in_set(PhysicsStepSystems::Finalize));
     }
 }
 
