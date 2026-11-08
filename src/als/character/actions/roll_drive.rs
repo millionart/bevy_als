@@ -949,7 +949,7 @@ pub(crate) mod tests {
         (app, character, avatar)
     }
 
-    fn play_loaded_roll(app: &mut App, character: Entity) -> Entity {
+    pub(crate) fn play_loaded_roll(app: &mut App, character: Entity) -> Entity {
         *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Grounded;
         app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
         app.world_mut().run_system_once(advance_rolls).unwrap();

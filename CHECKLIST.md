@@ -6132,7 +6132,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整Air Roll、vy初值0，16.667/25/33.333ms下源下降约1.3625/3.0656/5.45mm，实际多下降约0.223/0.511/0.908mm；速度都正确。`bf144_roll_root_falling_position_keeps_source_midpoint`12组9PASS/3FAIL；六组无Roll及34/50/100ms三组Roll对照均匹配源midpoint，证据`target/bf144/15/midpoint/`。
   - 漏检：旧Roll空中回归只核对velocity.y或大帧位移，没有核对短帧的竖直位置公式。本反例从vy0开始，排除D45清除已有速度；源重力输入按用户采用Bevy值9.81，差异只在积分方法。当前影响为亚毫米量级，记录P3，不添加补偿。
 
-- [ ] BF144-D50 / P2 — Roll已结束root motion的blend tail仍阻止正常朝向更新。
+- [x] BF144-D50 / P2 — Roll已结束root motion的blend tail仍阻止正常朝向更新；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:17 +08:00；预估结束18:02 +08:00；实际结束17:20 +08:00，提前42分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE Montage根运动停止、ALS普通转向门槛及原生MontagesOnly设置保存在`docs/audit/bf144/d50/`；根运动结束后不再因blend tail阻挡普通转向，已写系统与自然加载角色对照。旧target报告缺失，源端尾段场景未复测，动画Gate待执行。
   - Source：fresh UE `AnimMontage.cpp:1558–1597`在自然Stop时启动blend并通知AnimInstance，`AnimInstance.cpp:3722–3725`立即清RootMotionMontageInstance；主AB_Als的MontagesOnly模式下`SkeletalMeshComponent.cpp:4762–4782`因此不再IsPlayingRootMotion。ALS `RefreshGroundedRotation:1516–1525`在action=None且无root时恢复常规rotation，Aiming路径`1698–1706`使用1000°/s目标角限速和0.1s半衰期。
   - Target：`src/als/character/movement/motion.rs:416–440`把roll.active一直当作action_active，直到整段1.153846s播放结束才解除；自然root约0.853846s停止之后约0.3s的blend仍阻止普通朝向输入。
   - 反例：完整角色自然Roll到0.9/1.05s，action=None、root_motion_active=False；输入移动并瞄准view yaw1.2rad，源下帧应从0转到0.0318133rad，target仍0。`bf144_roll_root_blend_tail_restores_normal_rotation`6组4PASS/2FAIL；1.2s自然结束对照及夹具仅清已结束root的roll.active后三组均到0.03181338，证据`target/bf144/15/blend_tail/`。

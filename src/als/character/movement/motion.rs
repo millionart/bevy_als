@@ -459,7 +459,7 @@ fn rotation_response_system(
         let Ok(actor_world) = space.p0().compute_global_transform(entity) else { continue; };
         let current_yaw = world_forward_to_yaw(actor_world.rotation() * Vec3::NEG_Z);
         let action_active = collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
-            || roll.is_some_and(|state| state.active)
+            || roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)
             || actions.get(entity).is_ok_and(|action| *action != crate::als::state::AlsNotifyLocomotionAction::None);
         let invalid_mode = !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air);
         if action_active || invalid_mode {
@@ -5824,6 +5824,58 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn normal_aiming_rotation_resumes_during_the_roll_blend_tail() {
+        for (time, active, expected) in [(0.3, true, 0.0), (0.9, true, 0.0318133),
+            (1.05, true, 0.0318133), (1.2, false, 0.0318133)] {
+            let mut app = App::new();
+            let mut clock = Time::<()>::default();
+            clock.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+            app.insert_resource(clock).init_resource::<Assets<AlsMovementParams>>()
+                .add_systems(Update, rotation_response_system);
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+            let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, Stance::Standing, Gait::Running,
+                LocomotionState::Grounded, RotationMode::Aiming, AlsViewYaw(1.2), AlsMovementParamsHandle(params),
+                LinearVelocity(Vec3::NEG_Z * 3.75),
+                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 0.0, ..default() },
+                AlsRotationResponseState { initialized: true, previous_view_yaw: 1.2,
+                    previous_rotation_mode: Some(RotationMode::Aiming), ..default() },
+                crate::als::roll::AlsRollState { active, time, ..default() },
+                crate::als::state::AlsNotifyLocomotionAction::None)).id();
+            app.update();
+            let actual = world_forward_to_yaw(*app.world().get::<Transform>(actor).unwrap().forward());
+            assert!((actual - expected).abs() < 1e-5,
+                "time={time} active={active} actual={actual} expected={expected}");
+        }
+    }
+
+    #[test]
+    fn loaded_roll_blend_tail_restores_normal_aiming_rotation() {
+        use bevy::ecs::system::RunSystemOnce;
+        for target in [0.9_f32, 1.05, 1.2] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            crate::roll_drive::tests::play_loaded_roll(&mut app, actor);
+            let current = app.world().get::<crate::als::roll::AlsRollState>(actor).unwrap().time;
+            let steps = ((target - current).max(0.0) * 60.0).round() as usize;
+            for _ in 0..steps { app.update(); }
+            let roll = *app.world().get::<crate::als::roll::AlsRollState>(actor).unwrap();
+            assert!(!roll.root_motion_active(), "target={target} roll={roll:?}");
+            assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(actor),
+                Some(&crate::als::state::AlsNotifyLocomotionAction::None));
+            let mut transform = *app.world().get::<Transform>(actor).unwrap();
+            transform.rotation = Quat::IDENTITY;
+            app.world_mut().entity_mut(actor).insert((transform, Rotation::IDENTITY, RotationMode::Aiming,
+                AlsViewYaw(1.2), LinearVelocity(Vec3::NEG_Z * 3.75), LocomotionState::Grounded,
+                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 0.0, ..default() },
+                AlsRotationResponseState { initialized: true, previous_view_yaw: 1.2,
+                    previous_rotation_mode: Some(RotationMode::Aiming), ..default() }));
+            *app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor).unwrap() = default();
+            app.world_mut().run_system_once(rotation_response_system).unwrap();
+            let actual = world_forward_to_yaw(*app.world().get::<Transform>(actor).unwrap().forward());
+            assert!((actual - 0.0318133).abs() < 1e-5, "target={target} roll={roll:?} actual={actual}");
+        }
+    }
+
     #[test]
     fn rolling_does_not_feed_tnua_a_second_turn_target() {
         use bevy::ecs::system::RunSystemOnce;
