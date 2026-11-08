@@ -520,6 +520,34 @@ mod tests {
     }
 
     #[test]
+    fn initial_globals_match_native_cdo_hierarchy() {
+        use crate::extensions::control_rig_hierarchy::{RigHierarchy, RigSpace};
+
+        let source: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d242/native-cdo-bones.json"
+        )).unwrap();
+        let definition: RigDefinition = serde_json::from_str(include_str!(
+            "../../assets/ALS/Character/CR_Als.program.json"
+        )).unwrap();
+        assert_eq!(source.len(), definition.bones.len());
+        let mut hierarchy = RigHierarchy::new(definition.bones.clone(), definition.translation_tolerance).unwrap();
+        for (index, (source, bone)) in source.iter().zip(&definition.bones).enumerate() {
+            assert_eq!(source["name"].as_str(), Some(bone.name.as_str()));
+            let transform = &source["initial_global_transform"];
+            let component = |group: &str, axis: &str| transform[group][axis].as_f64().unwrap();
+            let translation = DVec3::new(component("translation", "x") * 0.01,
+                component("translation", "z") * 0.01, component("translation", "y") * 0.01);
+            let rotation = DQuat::from_xyzw(-component("rotation", "x"), -component("rotation", "z"),
+                -component("rotation", "y"), component("rotation", "w"));
+            let scale = DVec3::new(component("scale", "x"), component("scale", "z"), component("scale", "y"));
+            assert_eq!(bone.initial_global.translation, translation, "{}", bone.name);
+            assert_eq!(bone.initial_global.rotation, rotation, "{}", bone.name);
+            assert_eq!(bone.initial_global.scale, scale, "{}", bone.name);
+            assert_eq!(hierarchy.transform(index, RigSpace::Global, true).unwrap(), bone.initial_global, "{}", bone.name);
+        }
+    }
+
+    #[test]
     fn control_rig_complete_source_program_runs_construction_and_frames() {
         use crate::extensions::{
             control_rig_hierarchy::{RigHierarchy, RigSpace, RigTransform},

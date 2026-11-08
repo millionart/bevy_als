@@ -554,6 +554,22 @@ mod tests {
     }
 
     #[test]
+    fn loaded_control_rig_uses_generated_initial_globals() {
+        use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph};
+
+        let (app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player = app.world().get::<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>(player).unwrap();
+        let graphs = app.world().resource::<Assets<AnimationGraph>>();
+        let (_, node, _) = current_control_rig(player, graphs).unwrap();
+        let node = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap();
+        let definition: RigDefinition = serde_json::from_str(include_str!(
+            "../../assets/ALS/Character/CR_Als.program.json"
+        )).unwrap();
+        assert_eq!(node.definition.as_ref().unwrap().bones, definition.bones);
+    }
+
+    #[test]
     fn control_rig_hot_swap_rebuilds_values_and_hierarchy() {
         let mut definition = hot_swap_definition();
         let node = ControlRigBoundaryNode { transfer_input_pose: false, transfer_input_curves: false, ..default() };

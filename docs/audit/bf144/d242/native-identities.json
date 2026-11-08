@@ -1,0 +1,64 @@
+{
+  "native_sources": [
+    {
+      "asset": "Content/ALS/Character/CR_Als.uasset",
+      "asset_identity": {
+        "bytes": 1555021,
+        "sha256": "fe52b72061bc62e0dece654b3b3bc88a9d8cf2686251f1092cb37f91127cf6ff"
+      },
+      "request": "docs/audit/bf144/d242/rig.request.json",
+      "native_output": "docs/audit/bf144/d242/rig.native.json.gz",
+      "raw": {
+        "bytes": 20439700,
+        "sha256": "afc814a7c0933163a7d0f16fe1b090481da08380740f9f2829495d1fe77c2f7d"
+      },
+      "compressed": {
+        "bytes": 488695,
+        "sha256": "de02a6b63f68aab2288663a7ea5f3c0e044f664e03487db9f8b9c61f5150534e"
+      },
+      "reader_report": "docs/audit/bf144/d242/rig.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Character/AB_Als.uasset",
+      "asset_identity": {
+        "bytes": 150527,
+        "sha256": "6097dd4043b2051a18b6fdcd2258385afb535a369c97cac8598d815e7b81f1bf"
+      },
+      "request": "docs/audit/bf144/d242/root.request.json",
+      "native_output": "docs/audit/bf144/d242/root.native.json.gz",
+      "raw": {
+        "bytes": 2527347,
+        "sha256": "c912c55fab6c7091ae06e86826b61ee49143bdd5629a93c5f70efd01866c2b2f"
+      },
+      "compressed": {
+        "bytes": 104096,
+        "sha256": "8b32b07b585e40f54967b667733b0bf18d7b8e04b6a619dd9f7af2a892b215cb"
+      },
+      "reader_report": "docs/audit/bf144/d242/root.native.json.reader.report.json"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "assets/ALS/Character/CR_Als.program.json",
+      "previous": {
+        "bytes": 193044,
+        "sha256": "38e9b94a2a88c67853d1c2b046cae11a094ce923b2258d17996f06c7d7225ab3"
+      },
+      "generated": {
+        "bytes": 193057,
+        "sha256": "b3c97b4bb75d0f55887e50425e1100e5277893fb2052e405a60e700fce653480"
+      }
+    },
+    {
+      "path": "assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+      "previous": {
+        "bytes": 82044,
+        "sha256": "e13739154ecb4c8888b2efeac0d22364ddb7b2c6724594b2b817f952595a4d10"
+      },
+      "generated": {
+        "bytes": 82057,
+        "sha256": "28cdd3b9a6093ae956d9b405ffff914fa26962e0757314f85ed44e7492e72c9e"
+      }
+    }
+  ]
+}
