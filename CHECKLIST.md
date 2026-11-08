@@ -5599,7 +5599,12 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - [x] BF144-D246a — 世界空间F64盒体射线。开始2026-11-08 10:47 +08:00；预估结束11:37 +08:00。依据：.462/.463有两脚真实盒体ray及636历史，需核Avian公开shape与已安装Parry F64 API、正常/起点内/最近命中边界及源双精度点；复杂形状与缓存另拆。
     - 10:50 source/static闭环：UE足射线的原生box端点与命中为double厘米；目标Avian `Collider`公开scaled shape，现成Parry 0.27双精度Cuboid提供同一solid射线接口。盒体可在局部F64计算参数并按原始F64世界segment重建命中；保持过滤、最近hit、起点内及终点边界。旧F32路径暂服务三角网格等其余形状，D246b不得因此关闭。已写原生水平面及内部起点fixture，fresh源ray复采中。
     - 10:54实现摘要：盒体使用F64局部射线与原始世界segment，混合球体仍用旧路径并参与最近命中；已写源水平面、内起点和混合过滤fixture。fresh source ray与.463记录逐值一致，证据在`docs/audit/bf144/d246a/`。新增直接Parry F64依赖及锁文件入口尚未解析/编译；三角网格和其他形状留D246b。实际实现结束2026-11-08 10:54 +08:00，较预估提前43分钟；目标测试、消融及公共Gate仍待执行。
-  - [ ] BF144-D246b — Playground三角网格和其他碰撞形状的F64射线及生命周期，依赖D246a；开始时根据实际形状闭包重新估时。
+  - [ ] BF144-D246b — Playground三角网格和其他碰撞形状的F64射线及生命周期，依赖D246a；分为网格和其余实际形状，均完成后关闭父项。
+    - [x] BF144-D246b1 — 三角网格双精度射线与现有BVH复用。开始2026-11-08 10:57 +08:00；预估结束11:47 +08:00。依据：Playground地形和复杂碰撞均用TriMesh，Parry F64可复用已安装依赖但重建BVH不可逐射线执行；需fresh native mesh命中、遍历精度及最小过滤fixture。
+      - 11:00设计闭环：fresh Parry源码公开现有TriMesh BVH节点AABB、叶索引和原始三角形；可在每个节点将F32边界精确提升到F64并复用原树，在命中叶用F64三角形求交，无需建立全局缓存、重复构建BVH或修改公开world结构。共享边/顶点选面差归既有D162，不称本项解决。
+      - 11:02 source/static闭环：fresh UE对Playground的Cart复杂网格以F64非整数水平坐标射线命中，原生hit保留输入X/Y并给出实际三角面；Parry已有BVH在scaled mesh局部空间保存F32顶点边界，可精确提升后以F64 slab剪枝和F64三角相交。已写两层网格的最近面与miss fixture，保持其他形状旧路径。
+      - 11:03实现摘要：复用现有网格BVH，在节点和叶三角使用F64射线；另补单叶控制，未增加缓存/重复构建。fresh Cart源请求、三角访问、结果和哈希在`docs/audit/bf144/d246b1/`；F32几何、D162选面和D246b2其他形状保持边界。实际实现结束2026-11-08 11:03 +08:00，较预估提前44分钟；目标测试、消融、性能和公共Gate待依赖迁移后执行。
+    - [ ] BF144-D246b2 — Playground其余实际形状及混合最近命中，依赖D246b1双精度射线；开始时根据source形状闭包估时。
   - BF144.463同源world ray的当前边界：保持原公开F32 query/两Floor，636完整hit与源API world hit仍不同，但垂直值全同；1272目标水平分量精确f32(native world ray origin)。源hit水平坐标少量还与自身origin的F64值不同，该求交/单位算序边界独立保留，不把它也归F32量化。目标588 offset差在不改query F32路径/几何的D247控制中已全恢复，不能将本批scalar残差归本项；未称两Box/单Box或整个查询等价。`docs/audit/bf144/463/check.json`与source-hit-origin-boundary.json，无新D/修复。
   - Source：fresh `AlsRigUnit_FootOffsetTrace.cpp:24–29,48–57`在FVector/double厘米世界空间调用LineTraceSingleByChannel，再用FHitResult.ImpactPoint逆转回Rig。真实同segment/同floor box原生query的runtime point为(−0.1390749849522201,−1.4210854715202004e−16,0.12767334008114312)；geometry、channel、复杂模式与输入均来自原warm-6的实际调用。
   - Target：`src/control_rig/control_rig_query.rs:33–53`把start/end差与origin先降为Vec3，经float方向/长度查询后用float origin+direction*length重建点，再升DVec3。实际point为(−0.13907498121261597,5.960464477539063e−8,0.12767334282398224)，公开query重放逐值精确。

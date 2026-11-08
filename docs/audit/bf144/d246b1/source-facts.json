@@ -1,0 +1,103 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/TriangleMeshImplicitObject.cpp",
+      "sha256": "99a818cd596fc3f159e5214a724210826cd59e2e4e1caa2cd64cae5506e8f407",
+      "excerpts": [
+        {
+          "first_line": 934,
+          "last_line": 975,
+          "text": "bool FTriangleMeshImplicitObject::RaycastImp(const TArray<TVector<IdxType, 3>>& Elements, const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const\n{\n\tFTriangleMeshRaycastVisitor<IdxType> SQVisitor(StartPoint, Dir, Thickness, MParticles, Elements, bool(MeshSettingsFlags & ETriangleMeshSettingsFlags::CullsBackFaceRaycast));\n\n\tif (Thickness > 0)\n\t{\n\t\tFVec3 QueryHalfExtents = FVec3(Thickness) * 0.5f;\n\t\tFastBVH.Sweep(StartPoint, Dir, Length, QueryHalfExtents, SQVisitor);\n\t}\n\telse\n\t{\n\t\tFastBVH.Raycast(StartPoint, Dir, Length, SQVisitor);\n\t}\n\n\tif (SQVisitor.OutTime <= Length)\n\t{\n\t\tOutTime = SQVisitor.OutTime;\n\t\tOutPosition = SQVisitor.OutPosition;\n\t\tOutNormal = SQVisitor.OutNormal;\n\t\tOutFaceIndex = SQVisitor.OutFaceIndex;\n\t\treturn true;\n\t}\n\telse\n\t{\n\t\treturn false;\n\t}\n}\n\nbool FTriangleMeshImplicitObject::Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const\n{\n\tif (MElements.RequiresLargeIndices())\n\t{\n\t\treturn RaycastImp(MElements.GetLargeIndexBuffer(), StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);\n\t}\n\telse\n\t{\n\t\treturn RaycastImp(MElements.GetSmallIndexBuffer(), StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);\n\t}\n}\n\nvoid FTriangleMeshImplicitObject::CollectTriangles(const FAABB3& MeshQueryBounds, const FRigidTransform3& MeshToObjectTransform, const FAABB3& ObjectBounds, Private::FMeshContactGenerator& Collector) const\n{\n"
+        }
+      ]
+    },
+    {
+      "path": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+      "sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+      "excerpts": [
+        {
+          "first_line": 1239,
+          "last_line": 1257,
+          "text": "        if ((*Input)->HasField(TEXT(\"mesh_raycast\")))\n        {\n            const TSharedPtr<FJsonObject>* Ray = nullptr;\n            FString MeshPath;\n            TArray<double> TranslationValues, ScaleValues, StartValues, EndValues;\n            bool bTraceComplex = false;\n            bool bCaptureVisits = false;\n            if (!(*Input)->TryGetObjectField(TEXT(\"mesh_raycast\"), Ray)\n                || !(*Ray)->TryGetStringField(TEXT(\"asset_path\"), MeshPath)\n                || !ReadArray(*Ray, TEXT(\"translation_cm\"), TranslationValues, 3)\n                || !ReadArray(*Ray, TEXT(\"scale\"), ScaleValues, 3)\n                || !ReadArray(*Ray, TEXT(\"start_cm\"), StartValues, 3)\n                || !ReadArray(*Ray, TEXT(\"end_cm\"), EndValues, 3)\n                || !(*Ray)->TryGetBoolField(TEXT(\"trace_complex\"), bTraceComplex)) { return nullptr; }\n            if ((*Ray)->HasField(TEXT(\"capture_ray_visits\")) && !(*Ray)->TryGetBoolField(TEXT(\"capture_ray_visits\"), bCaptureVisits)) { return nullptr; }\n            const FVector Scale(ScaleValues[0], ScaleValues[1], ScaleValues[2]);\n            if (Scale.X == 0 || Scale.Y == 0 || Scale.Z == 0) { return nullptr; }\n            UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *MeshPath);\n            UBodySetup* Setup = Mesh ? Mesh->GetBodySetup() : nullptr;\n"
+        },
+        {
+          "first_line": 1280,
+          "last_line": 1328,
+          "text": "                    Chaos::FVec3 CoreScale;\n                    Chaos::FReal Margin;\n                    const Chaos::FTriangleMeshImplicitObject* Core = Chaos::UnwrapImplicit<Chaos::FTriangleMeshImplicitObject>(\n                        *Shape.Shape->GetLeafGeometry(), CoreScale, Margin);\n                    if (Core == nullptr) { return nullptr; }\n                    ShapeValue->SetBoolField(TEXT(\"culls_back_face\"), Core->GetCullsBackFaceRaycast());\n                    ShapeValue->SetObjectField(TEXT(\"core_scale\"), CaptureVector(FVector(CoreScale)));\n                    if (bCaptureVisits)\n                    {\n                        const auto& Actor = Body.GetPhysicsActorHandle()->GetGameThreadAPI();\n                        const FTransform LeafWorld = FTransform(Shape.Shape->GetLeafRelativeTransform()) * FTransform(Actor.R(), Actor.X());\n                        const FVector Delta = FVector(EndValues[0], EndValues[1], EndValues[2]) - FVector(StartValues[0], StartValues[1], StartValues[2]);\n                        const float Distance = static_cast<float>(Delta.Size());\n                        if (Distance <= UE_KINDA_SMALL_NUMBER) { return nullptr; }\n                        Chaos::FVec3 CoreStart = LeafWorld.InverseTransformPositionNoScale(FVector(StartValues[0], StartValues[1], StartValues[2]));\n                        Chaos::FVec3 CoreDirection = LeafWorld.InverseTransformVectorNoScale(Delta) / Distance;\n                        Chaos::FReal CoreLength = Distance;\n                        Chaos::FReal LengthScale = 1;\n                        if (Chaos::IsScaled(Shape.Shape->GetLeafGeometry()->GetType()))\n                        {\n                            const Chaos::FVec3f InverseScale = static_cast<const Chaos::FImplicitObjectScaled&>(*Shape.Shape->GetLeafGeometry()).GetInvScale();\n                            ShapeValue->SetObjectField(TEXT(\"core_inverse_scale\"), CaptureVector(FVector(InverseScale)));\n                            CoreStart = InverseScale * CoreStart;\n                            CoreDirection = InverseScale * CoreDirection;\n                            LengthScale = CoreDirection.Size();\n                            CoreDirection *= Chaos::FReal(1) / LengthScale;\n                            CoreLength *= LengthScale;\n                        }\n                        const TSharedPtr<FJsonObject> Visits = CaptureMeshRayVisits(*Core, CoreStart, CoreDirection, CoreLength);\n                        if (!Visits.IsValid()) { return nullptr; }\n                        Visits->SetNumberField(TEXT(\"length_scale\"), LengthScale);\n                        ShapeValue->SetObjectField(TEXT(\"ray_visits\"), Visits);\n                    }\n                }\n                ShapeValues.Add(MakeShared<FJsonValueObject>(ShapeValue));\n            }\n            FHitResult Hit;\n            const bool bHit = Body.LineTrace(Hit, FVector(StartValues[0], StartValues[1], StartValues[2]),\n                FVector(EndValues[0], EndValues[1], EndValues[2]), bTraceComplex, false);\n            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();\n            Result->SetArrayField(TEXT(\"shapes\"), ShapeValues);\n            Result->SetBoolField(TEXT(\"double_sided_geometry\"), Setup->bDoubleSidedGeometry);\n            Result->SetNumberField(TEXT(\"collision_trace_flag\"), static_cast<int32>(Setup->GetCollisionTraceFlag()));\n            Result->SetBoolField(TEXT(\"hit\"), bHit);\n            if (bHit)\n            {\n                Result->SetNumberField(TEXT(\"distance_cm\"), Hit.Distance);\n                Result->SetObjectField(TEXT(\"position_cm\"), CaptureVector(Hit.ImpactPoint));\n                Result->SetObjectField(TEXT(\"normal\"), CaptureVector(Hit.ImpactNormal));\n"
+        }
+      ],
+      "revision": "before_D246b1"
+    },
+    {
+      "path": "parry3d-0.27.0/src/partitioning/bvh/bvh_traverse.rs",
+      "sha256": "f43f6296da38696d2e005605faa2336c1ce9f1cd415f6f2fd280c02703d5557b",
+      "excerpts": [
+        {
+          "first_line": 109,
+          "last_line": 116,
+          "text": "pub enum TraversalAction {\n    /// The traversal will continue on the children of the tested node.\n    Continue,\n    /// The traversal will skip all descendants of the tested node.\n    Prune,\n    /// The traversal will exit immediately.\n    EarlyExit,\n}\n"
+        },
+        {
+          "first_line": 290,
+          "last_line": 315,
+          "text": "    pub fn traverse(&self, mut check_node: impl FnMut(&BvhNode) -> TraversalAction) {\n        self.traverse_indexed(None, move |node, _| check_node(node));\n    }\n\n    /// Similar to [`Self::traverse`] but starts the traversal with the node at index `subtree`,\n    /// and the `check_node` closure is given the node index.\n    ///\n    /// If `subtree` is `None` the traversal starts at the root of the tree.\n    pub fn traverse_indexed(\n        &self,\n        subtree: Option<BvhNodeIndex>,\n        mut check_node: impl FnMut(&BvhNode, BvhNodeIndex) -> TraversalAction,\n    ) {\n        let mut stack = Self::traversal_stack();\n        let mut curr_id = 0;\n\n        if let Some(subtree) = subtree {\n            let to_check = &self.nodes[subtree];\n            match check_node(to_check, subtree) {\n                TraversalAction::Continue => {\n                    if to_check.is_leaf() {\n                        return;\n                    }\n\n                    curr_id = to_check.children;\n                }\n"
+        }
+      ]
+    },
+    {
+      "path": "parry3d-0.27.0/src/partitioning/bvh/bvh_tree.rs",
+      "sha256": "43f0c061445e1685ca2035a3189c6c65d0cfdeb2fd72d94a8024ccf03aee4c87",
+      "excerpts": [
+        {
+          "first_line": 550,
+          "last_line": 560,
+          "text": "    ///\n    /// # See Also\n    ///\n    /// - [`leaf`](Self::leaf) - Create a leaf node\n    /// - [`is_leaf`](Self::is_leaf) - Check if a node is a leaf\n    #[inline(always)]\n    pub fn leaf_data(&self) -> Option<u32> {\n        self.is_leaf().then_some(self.children)\n    }\n\n    /// Returns `true` if this node is a leaf.\n"
+        },
+        {
+          "first_line": 707,
+          "last_line": 718,
+          "text": "    ///\n    /// - [`mins`](Self::mins) - Get just the minimum corner\n    /// - [`maxs`](Self::maxs) - Get just the maximum corner\n    #[inline]\n    pub fn aabb(&self) -> Aabb {\n        Aabb {\n            mins: self.mins,\n            maxs: self.maxs,\n        }\n    }\n\n    /// Returns the center point of this node's AABB.\n"
+        }
+      ]
+    },
+    {
+      "path": "parry3d-0.27.0/src/shape/trimesh.rs",
+      "sha256": "c8b8eef3711d1434527b3e29096d2aa6693ec226e1565a40e609af8e86e3a09e",
+      "excerpts": [
+        {
+          "first_line": 1805,
+          "last_line": 1810,
+          "text": "    /// assert!(!bvh.is_empty());\n    /// # }\n    /// ```\n    pub fn bvh(&self) -> &Bvh {\n        &self.bvh\n    }\n"
+        },
+        {
+          "first_line": 1881,
+          "last_line": 1888,
+          "text": "    pub fn triangle(&self, i: u32) -> Triangle {\n        let idx = self.indices[i as usize];\n        Triangle::new(\n            self.vertices[idx[0] as usize],\n            self.vertices[idx[1] as usize],\n            self.vertices[idx[2] as usize],\n        )\n    }\n"
+        }
+      ]
+    },
+    {
+      "path": "parry3d-f64-0.27.0/src/query/ray/ray_triangle.rs",
+      "sha256": "4b630e2a9f9d99309c44c7af4792bcc6dab44edc26907d65ce92fa4c1682d482",
+      "excerpts": [
+        {
+          "first_line": 57,
+          "last_line": 94,
+          "text": "    #[cfg(feature = \"dim3\")]\n    fn cast_local_ray_and_get_normal(\n        &self,\n        ray: &Ray,\n        max_time_of_impact: Real,\n        _: bool,\n    ) -> Option<RayIntersection> {\n        let inter = local_ray_intersection_with_triangle(self.a, self.b, self.c, ray)?.0;\n\n        if inter.time_of_impact <= max_time_of_impact {\n            Some(inter)\n        } else {\n            None\n        }\n    }\n}\n\n/// Computes the intersection between a triangle and a ray.\n///\n/// If an intersection is found, the time of impact, the normal and the barycentric coordinates of\n/// the intersection point are returned.\n#[cfg(feature = \"dim3\")]\npub fn local_ray_intersection_with_triangle(\n    a: Vector,\n    b: Vector,\n    c: Vector,\n    ray: &Ray,\n) -> Option<(RayIntersection, Vector)> {\n    let ab = b - a;\n    let ac = c - a;\n\n    // normal\n    let n = ab.cross(ac);\n    let d = n.dot(ray.dir);\n\n    // the normal and the ray direction are parallel\n    if d == 0.0 {\n        return None;\n"
+        }
+      ]
+    },
+    {
+      "path": "src/control_rig/control_rig_query.rs",
+      "sha256": "b083be3c2c099b91e43d284dd7cc304bf6dd5b0285de7c23ffca680231fef5d0",
+      "excerpts": [
+        {
+          "first_line": 20,
+          "last_line": 75,
+          "text": "}\n\nimpl RigQueryContext {\n    pub fn trace(\n        &self,\n        start: DVec3,\n        end: DVec3,\n        channel: &str,\n        complex: bool,\n    ) -> Result<Option<(DVec3, DVec3)>, String> {\n        if channel != self.channel || !complex {\n            return Err(\"rig collision query mode is unsupported\".to_owned());\n        }\n        let delta = end - start;\n        if !delta.is_finite() || delta == DVec3::ZERO {\n            return Ok(None);\n        }\n        let delta_f32 = delta.as_vec3();\n        let fallback = Dir3::new(delta_f32).ok().map(|direction| (direction, delta_f32.length()));\n        let origin = start.as_vec3();\n        let mut nearest = 1.0;\n        let mut hit = None;\n        for (entity, (position, rotation, collider, layers)) in &self.world.colliders {\n            if !self.filter.test(*entity, *layers) {\n                continue;\n            }\n            let candidate = if let Some(cuboid) = collider.shape_scaled().as_cuboid() {\n                let rotation = rotation.0.as_dquat();\n                let local_origin = source_rotate_vector(rotation.conjugate(), start - position.0.as_dvec3());\n                let local_delta = source_rotate_vector(rotation.conjugate(), delta);\n                Cuboid::new(cuboid.half_extents.as_dvec3())\n                    .cast_local_ray_and_get_normal(&Ray::new(local_origin, local_delta), nearest, true)\n                    .map(|impact| (impact.time_of_impact, start + delta * impact.time_of_impact,\n                        source_rotate_vector(rotation, impact.normal)))\n            } else if let Some((direction, distance)) = fallback {\n                collider.cast_ray(position.0, *rotation, origin, direction.as_vec3(), distance, true)\n                    .map(|(length, normal)| (f64::from(length) / f64::from(distance),\n                        (origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()))\n            } else {\n                None\n            };\n            let Some((fraction, point, normal)) = candidate else {\n                continue;\n            };\n            if fraction < nearest {\n                nearest = fraction;\n                hit = Some((point, normal));\n            }\n        }\n        Ok(hit)\n    }\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n"
+        }
+      ],
+      "revision": "before_D246b1"
+    }
+  ]
+}

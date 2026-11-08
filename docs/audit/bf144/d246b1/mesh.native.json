@@ -1,0 +1,3430 @@
+{
+	"format": "ue_asset_source_v1",
+	"asset_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+	"asset_class": "/Script/ALS.AlsAnimationInstanceSettings",
+	"asset_properties": [
+		{
+			"name": "General",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsGeneralAnimationSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(bUseHandIkBones=True,bUseFootIkBones=True,MovingSmoothSpeedThreshold=150.000000,LeanInterpolationHalfLife=0.200000)",
+			"fields": [
+				{
+					"name": "bUseHandIkBones",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "True"
+				},
+				{
+					"name": "bUseFootIkBones",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "True"
+				},
+				{
+					"name": "MovingSmoothSpeedThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "150.000000",
+					"numeric_value": 150
+				},
+				{
+					"name": "LeanInterpolationHalfLife",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.200000",
+					"numeric_value": 0.20000000298023224
+				}
+			]
+		},
+		{
+			"name": "Head",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsHeadSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(PitchAngleInterpolationHalfLife=0.100000,YawAngleInterpolationHalfLife=0.100000,SwitchLookSidesYawAngleInterpolationHalfLife=0.200000,FirstPersonPitchAngleInterpolationHalfLife=0.010000,FirstPersonYawAngleInterpolationHalfLife=0.010000)",
+			"fields": [
+				{
+					"name": "PitchAngleInterpolationHalfLife",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.100000",
+					"numeric_value": 0.10000000149011612
+				},
+				{
+					"name": "YawAngleInterpolationHalfLife",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.100000",
+					"numeric_value": 0.10000000149011612
+				},
+				{
+					"name": "SwitchLookSidesYawAngleInterpolationHalfLife",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.200000",
+					"numeric_value": 0.20000000298023224
+				},
+				{
+					"name": "FirstPersonPitchAngleInterpolationHalfLife",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.010000",
+					"numeric_value": 0.0099999997764825821
+				},
+				{
+					"name": "FirstPersonYawAngleInterpolationHalfLife",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.010000",
+					"numeric_value": 0.0099999997764825821
+				}
+			]
+		},
+		{
+			"name": "Grounded",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsGroundedSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(RotationYawOffsetForwardCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward'\",RotationYawOffsetBackwardCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward'\",RotationYawOffsetLeftCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left.CF_Als_RotationYawOffset_Left'\",RotationYawOffsetRightCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right.CF_Als_RotationYawOffset_Right'\",VelocityBlendInterpolationHalfLife=0.100000)",
+			"fields": [
+				{
+					"name": "RotationYawOffsetForwardCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward'"
+				},
+				{
+					"name": "RotationYawOffsetBackwardCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward'"
+				},
+				{
+					"name": "RotationYawOffsetLeftCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left.CF_Als_RotationYawOffset_Left'"
+				},
+				{
+					"name": "RotationYawOffsetRightCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right.CF_Als_RotationYawOffset_Right'"
+				},
+				{
+					"name": "VelocityBlendInterpolationHalfLife",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.100000",
+					"numeric_value": 0.10000000149011612
+				}
+			]
+		},
+		{
+			"name": "Standing",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsStandingSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(AnimatedWalkSpeed=150.000000,AnimatedRunSpeed=350.000000,AnimatedSprintSpeed=600.000000,StrideBlendAmountWalkCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.CF_Als_StrideBlendAmount_Walk'\",StrideBlendAmountRunCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Run.CF_Als_StrideBlendAmount_Run'\",PivotActivationSpeedThreshold=200.000000)",
+			"fields": [
+				{
+					"name": "AnimatedWalkSpeed",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "150.000000",
+					"numeric_value": 150
+				},
+				{
+					"name": "AnimatedRunSpeed",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "350.000000",
+					"numeric_value": 350
+				},
+				{
+					"name": "AnimatedSprintSpeed",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "600.000000",
+					"numeric_value": 600
+				},
+				{
+					"name": "StrideBlendAmountWalkCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.CF_Als_StrideBlendAmount_Walk'"
+				},
+				{
+					"name": "StrideBlendAmountRunCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Run.CF_Als_StrideBlendAmount_Run'"
+				},
+				{
+					"name": "PivotActivationSpeedThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "200.000000",
+					"numeric_value": 200
+				}
+			]
+		},
+		{
+			"name": "Crouching",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsCrouchingSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(AnimatedCrouchSpeed=150.000000,StrideBlendAmountCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.CF_Als_StrideBlendAmount_Walk'\")",
+			"fields": [
+				{
+					"name": "AnimatedCrouchSpeed",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "150.000000",
+					"numeric_value": 150
+				},
+				{
+					"name": "StrideBlendAmountCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.CF_Als_StrideBlendAmount_Walk'"
+				}
+			]
+		},
+		{
+			"name": "InAir",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsInAirSettings",
+			"flags": "0x10000000000015",
+			"exported_text": "(LeanAmountCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.CF_Als_LeanAmount_Air'\",GroundPredictionAmountCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.CF_Als_GroundPredictionAmount'\",GroundPredictionSweepChannel=ECC_Visibility,GroundPredictionResponseChannels=(ECC_WorldStatic,ECC_WorldDynamic,ECC_Destructible),GroundPredictionSweepResponses=(WorldStatic=ECR_Block,WorldDynamic=ECR_Block,Destructible=ECR_Block))",
+			"fields": [
+				{
+					"name": "LeanAmountCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.CF_Als_LeanAmount_Air'"
+				},
+				{
+					"name": "GroundPredictionAmountCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.CF_Als_GroundPredictionAmount'"
+				},
+				{
+					"name": "GroundPredictionSweepChannel",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ECollisionChannel>",
+					"flags": "0x18001040000205",
+					"exported_text": "ECC_Visibility"
+				},
+				{
+					"name": "GroundPredictionResponseChannels",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000205",
+					"exported_text": "(ECC_WorldStatic,ECC_WorldDynamic,ECC_Destructible)"
+				},
+				{
+					"name": "GroundPredictionSweepResponses",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FCollisionResponseContainer",
+					"flags": "0x10041000020005",
+					"exported_text": "(WorldStatic=ECR_Block,WorldDynamic=ECR_Block,Destructible=ECR_Block)",
+					"fields": [
+						{
+							"name": "WorldStatic",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Block"
+						},
+						{
+							"name": "WorldDynamic",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Block"
+						},
+						{
+							"name": "Pawn",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "Visibility",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "Camera",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "PhysicsBody",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "Vehicle",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "Destructible",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Block"
+						},
+						{
+							"name": "EngineTraceChannel1",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "EngineTraceChannel2",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "EngineTraceChannel3",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "EngineTraceChannel4",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "EngineTraceChannel5",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "EngineTraceChannel6",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel1",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel2",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel3",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel4",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel5",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel6",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel7",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel8",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel9",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel10",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel11",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel12",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel13",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel14",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel15",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel16",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel17",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel18",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel19",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel20",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel21",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel22",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel23",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel24",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel25",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel26",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel27",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel28",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel29",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel30",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel31",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel32",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel33",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel34",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel35",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel36",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel37",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel38",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel39",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel40",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel41",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel42",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel43",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel44",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel45",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel46",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel47",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel48",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel49",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						},
+						{
+							"name": "GameTraceChannel50",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionResponse>",
+							"flags": "0x18001040000215",
+							"exported_text": "ECR_Ignore"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "FootLock",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsFootLockSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(bAllowFootLock=True,ThighAngleLimit=90.000000,FootAngleLimit=40.000000)",
+			"fields": [
+				{
+					"name": "bAllowFootLock",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000005",
+					"exported_text": "True"
+				},
+				{
+					"name": "ThighAngleLimit",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "90.000000",
+					"numeric_value": 90
+				},
+				{
+					"name": "FootAngleLimit",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "40.000000",
+					"numeric_value": 40
+				}
+			]
+		},
+		{
+			"name": "Transitions",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsTransitionsSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(QuickStopBlendInDuration=0.100000,QuickStopBlendOutDuration=0.200000,QuickStopPlayRate=(X=1.750000,Y=3.000000),QuickStopStartTime=0.300000,StandingLeftSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.A_Als_Stand_Transition_Left'\",StandingRightSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.A_Als_Stand_Transition_Right'\",CrouchingLeftSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left'\",CrouchingRightSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right'\")",
+			"fields": [
+				{
+					"name": "QuickStopBlendInDuration",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.100000",
+					"numeric_value": 0.10000000149011612
+				},
+				{
+					"name": "QuickStopBlendOutDuration",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.200000",
+					"numeric_value": 0.20000000298023224
+				},
+				{
+					"name": "QuickStopPlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector2f",
+					"flags": "0x18001040000205",
+					"exported_text": "(X=1.750000,Y=3.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001041000201",
+							"exported_text": "1.750000",
+							"numeric_value": 1.75
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001041000201",
+							"exported_text": "3.000000",
+							"numeric_value": 3
+						}
+					]
+				},
+				{
+					"name": "QuickStopStartTime",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.300000",
+					"numeric_value": 0.30000001192092896
+				},
+				{
+					"name": "StandingLeftSequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.A_Als_Stand_Transition_Left'"
+				},
+				{
+					"name": "StandingRightSequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.A_Als_Stand_Transition_Right'"
+				},
+				{
+					"name": "CrouchingLeftSequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left'"
+				},
+				{
+					"name": "CrouchingRightSequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right'"
+				}
+			]
+		},
+		{
+			"name": "DynamicTransitions",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsDynamicTransitionsSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(FootLockDistanceThreshold=8.000000,BlendDuration=0.200000,PlayRate=1.500000,StandingLeftSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.A_Als_Stand_DynamicTransition_Left'\",StandingRightSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.A_Als_Stand_DynamicTransition_Right'\",CrouchingLeftSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.A_Als_Crouch_DynamicTransition_Left'\",CrouchingRightSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.A_Als_Crouch_DynamicTransition_Right'\")",
+			"fields": [
+				{
+					"name": "FootLockDistanceThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "8.000000",
+					"numeric_value": 8
+				},
+				{
+					"name": "BlendDuration",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.200000",
+					"numeric_value": 0.20000000298023224
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "1.500000",
+					"numeric_value": 1.5
+				},
+				{
+					"name": "StandingLeftSequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.A_Als_Stand_DynamicTransition_Left'"
+				},
+				{
+					"name": "StandingRightSequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.A_Als_Stand_DynamicTransition_Right'"
+				},
+				{
+					"name": "CrouchingLeftSequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.A_Als_Crouch_DynamicTransition_Left'"
+				},
+				{
+					"name": "CrouchingRightSequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000205",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.A_Als_Crouch_DynamicTransition_Right'"
+				}
+			]
+		},
+		{
+			"name": "RotateInPlace",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsRotateInPlaceSettings",
+			"flags": "0x10001000000015",
+			"exported_text": "(ViewYawAngleThreshold=50.000000,FirstPersonViewYawAngleThreshold=65.000000,ReferenceViewYawSpeed=(X=180.000000,Y=460.000000),PlayRate=(X=1.150000,Y=3.000000))",
+			"fields": [
+				{
+					"name": "ViewYawAngleThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "50.000000",
+					"numeric_value": 50
+				},
+				{
+					"name": "FirstPersonViewYawAngleThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "65.000000",
+					"numeric_value": 65
+				},
+				{
+					"name": "ReferenceViewYawSpeed",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector2f",
+					"flags": "0x18001040000205",
+					"exported_text": "(X=180.000000,Y=460.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001041000201",
+							"exported_text": "180.000000",
+							"numeric_value": 180
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001041000201",
+							"exported_text": "460.000000",
+							"numeric_value": 460
+						}
+					]
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector2f",
+					"flags": "0x18001040000205",
+					"exported_text": "(X=1.150000,Y=3.000000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001041000201",
+							"exported_text": "1.150000",
+							"numeric_value": 1.1499999761581421
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001041000201",
+							"exported_text": "3.000000",
+							"numeric_value": 3
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "TurnInPlace",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlsGeneralTurnInPlaceSettings",
+			"flags": "0x10009000000015",
+			"exported_text": "(ViewYawAngleThreshold=45.000000,ViewYawSpeedThreshold=50.000000,ViewYawAngleToActivationDelay=(X=0.000000,Y=0.750000),Turn180AngleThreshold=130.000000,BlendDuration=0.200000,StandingTurn90Left=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_0'\",StandingTurn90Right=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_1'\",StandingTurn180Left=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_2'\",StandingTurn180Right=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_3'\",CrouchingTurn90Left=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_4'\",CrouchingTurn90Right=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_5'\",CrouchingTurn180Left=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_6'\",CrouchingTurn180Right=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_7'\")",
+			"fields": [
+				{
+					"name": "ViewYawAngleThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "45.000000",
+					"numeric_value": 45
+				},
+				{
+					"name": "ViewYawSpeedThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "50.000000",
+					"numeric_value": 50
+				},
+				{
+					"name": "ViewYawAngleToActivationDelay",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FVector2f",
+					"flags": "0x18001040000205",
+					"exported_text": "(X=0.000000,Y=0.750000)",
+					"fields": [
+						{
+							"name": "X",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001041000201",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Y",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001041000201",
+							"exported_text": "0.750000",
+							"numeric_value": 0.75
+						}
+					]
+				},
+				{
+					"name": "Turn180AngleThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "130.000000",
+					"numeric_value": 130
+				},
+				{
+					"name": "BlendDuration",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000205",
+					"exported_text": "0.200000",
+					"numeric_value": 0.20000000298023224
+				},
+				{
+					"name": "StandingTurn90Left",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+					"flags": "0x11E00100008020D",
+					"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_0'"
+				},
+				{
+					"name": "StandingTurn90Right",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+					"flags": "0x11E00100008020D",
+					"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_1'"
+				},
+				{
+					"name": "StandingTurn180Left",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+					"flags": "0x11E00100008020D",
+					"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_2'"
+				},
+				{
+					"name": "StandingTurn180Right",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+					"flags": "0x11E00100008020D",
+					"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_3'"
+				},
+				{
+					"name": "CrouchingTurn90Left",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+					"flags": "0x11E00100008020D",
+					"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_4'"
+				},
+				{
+					"name": "CrouchingTurn90Right",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+					"flags": "0x11E00100008020D",
+					"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_5'"
+				},
+				{
+					"name": "CrouchingTurn180Left",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+					"flags": "0x11E00100008020D",
+					"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_6'"
+				},
+				{
+					"name": "CrouchingTurn180Right",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+					"flags": "0x11E00100008020D",
+					"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_7'"
+				}
+			]
+		}
+	],
+	"engine_debug_fonts":
+	{
+		"tiny":
+		{
+			"size_points": 8,
+			"max_char_height": 13,
+			"style": "Light"
+		},
+		"medium":
+		{
+			"size_points": 10,
+			"max_char_height": 15,
+			"style": "Regular"
+		}
+	},
+	"blueprint_cdo_path": "None",
+	"blueprint_cdo_properties": [],
+	"blueprint_cdo_subobjects": [],
+	"asset_objects": [
+		{
+			"index": 0,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+			"class_path": "/Script/ALS.AlsAnimationInstanceSettings",
+			"properties": [
+				{
+					"name": "General",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsGeneralAnimationSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(bUseHandIkBones=True,bUseFootIkBones=True,MovingSmoothSpeedThreshold=150.000000,LeanInterpolationHalfLife=0.200000)",
+					"fields": [
+						{
+							"name": "bUseHandIkBones",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "bUseFootIkBones",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "MovingSmoothSpeedThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "150.000000",
+							"numeric_value": 150
+						},
+						{
+							"name": "LeanInterpolationHalfLife",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.200000",
+							"numeric_value": 0.20000000298023224
+						}
+					]
+				},
+				{
+					"name": "Head",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsHeadSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(PitchAngleInterpolationHalfLife=0.100000,YawAngleInterpolationHalfLife=0.100000,SwitchLookSidesYawAngleInterpolationHalfLife=0.200000,FirstPersonPitchAngleInterpolationHalfLife=0.010000,FirstPersonYawAngleInterpolationHalfLife=0.010000)",
+					"fields": [
+						{
+							"name": "PitchAngleInterpolationHalfLife",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.100000",
+							"numeric_value": 0.10000000149011612
+						},
+						{
+							"name": "YawAngleInterpolationHalfLife",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.100000",
+							"numeric_value": 0.10000000149011612
+						},
+						{
+							"name": "SwitchLookSidesYawAngleInterpolationHalfLife",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.200000",
+							"numeric_value": 0.20000000298023224
+						},
+						{
+							"name": "FirstPersonPitchAngleInterpolationHalfLife",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.010000",
+							"numeric_value": 0.0099999997764825821
+						},
+						{
+							"name": "FirstPersonYawAngleInterpolationHalfLife",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.010000",
+							"numeric_value": 0.0099999997764825821
+						}
+					]
+				},
+				{
+					"name": "Grounded",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsGroundedSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(RotationYawOffsetForwardCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward'\",RotationYawOffsetBackwardCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward'\",RotationYawOffsetLeftCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left.CF_Als_RotationYawOffset_Left'\",RotationYawOffsetRightCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right.CF_Als_RotationYawOffset_Right'\",VelocityBlendInterpolationHalfLife=0.100000)",
+					"fields": [
+						{
+							"name": "RotationYawOffsetForwardCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward'"
+						},
+						{
+							"name": "RotationYawOffsetBackwardCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.CF_Als_RotationYawOffset_ForwardBackward'"
+						},
+						{
+							"name": "RotationYawOffsetLeftCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left.CF_Als_RotationYawOffset_Left'"
+						},
+						{
+							"name": "RotationYawOffsetRightCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right.CF_Als_RotationYawOffset_Right'"
+						},
+						{
+							"name": "VelocityBlendInterpolationHalfLife",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.100000",
+							"numeric_value": 0.10000000149011612
+						}
+					]
+				},
+				{
+					"name": "Standing",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsStandingSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(AnimatedWalkSpeed=150.000000,AnimatedRunSpeed=350.000000,AnimatedSprintSpeed=600.000000,StrideBlendAmountWalkCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.CF_Als_StrideBlendAmount_Walk'\",StrideBlendAmountRunCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Run.CF_Als_StrideBlendAmount_Run'\",PivotActivationSpeedThreshold=200.000000)",
+					"fields": [
+						{
+							"name": "AnimatedWalkSpeed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "150.000000",
+							"numeric_value": 150
+						},
+						{
+							"name": "AnimatedRunSpeed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "350.000000",
+							"numeric_value": 350
+						},
+						{
+							"name": "AnimatedSprintSpeed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "600.000000",
+							"numeric_value": 600
+						},
+						{
+							"name": "StrideBlendAmountWalkCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.CF_Als_StrideBlendAmount_Walk'"
+						},
+						{
+							"name": "StrideBlendAmountRunCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Run.CF_Als_StrideBlendAmount_Run'"
+						},
+						{
+							"name": "PivotActivationSpeedThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "200.000000",
+							"numeric_value": 200
+						}
+					]
+				},
+				{
+					"name": "Crouching",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsCrouchingSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(AnimatedCrouchSpeed=150.000000,StrideBlendAmountCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.CF_Als_StrideBlendAmount_Walk'\")",
+					"fields": [
+						{
+							"name": "AnimatedCrouchSpeed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "150.000000",
+							"numeric_value": 150
+						},
+						{
+							"name": "StrideBlendAmountCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.CF_Als_StrideBlendAmount_Walk'"
+						}
+					]
+				},
+				{
+					"name": "InAir",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsInAirSettings",
+					"flags": "0x10000000000015",
+					"exported_text": "(LeanAmountCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.CF_Als_LeanAmount_Air'\",GroundPredictionAmountCurve=\"/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.CF_Als_GroundPredictionAmount'\",GroundPredictionSweepChannel=ECC_Visibility,GroundPredictionResponseChannels=(ECC_WorldStatic,ECC_WorldDynamic,ECC_Destructible),GroundPredictionSweepResponses=(WorldStatic=ECR_Block,WorldDynamic=ECR_Block,Destructible=ECR_Block))",
+					"fields": [
+						{
+							"name": "LeanAmountCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.CF_Als_LeanAmount_Air'"
+						},
+						{
+							"name": "GroundPredictionAmountCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.CurveFloat'/ALS/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.CF_Als_GroundPredictionAmount'"
+						},
+						{
+							"name": "GroundPredictionSweepChannel",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ECollisionChannel>",
+							"flags": "0x18001040000205",
+							"exported_text": "ECC_Visibility"
+						},
+						{
+							"name": "GroundPredictionResponseChannels",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000205",
+							"exported_text": "(ECC_WorldStatic,ECC_WorldDynamic,ECC_Destructible)"
+						},
+						{
+							"name": "GroundPredictionSweepResponses",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FCollisionResponseContainer",
+							"flags": "0x10041000020005",
+							"exported_text": "(WorldStatic=ECR_Block,WorldDynamic=ECR_Block,Destructible=ECR_Block)",
+							"fields": [
+								{
+									"name": "WorldStatic",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Block"
+								},
+								{
+									"name": "WorldDynamic",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Block"
+								},
+								{
+									"name": "Pawn",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "Visibility",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "Camera",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "PhysicsBody",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "Vehicle",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "Destructible",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Block"
+								},
+								{
+									"name": "EngineTraceChannel1",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "EngineTraceChannel2",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "EngineTraceChannel3",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "EngineTraceChannel4",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "EngineTraceChannel5",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "EngineTraceChannel6",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel1",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel2",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel3",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel4",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel5",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel6",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel7",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel8",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel9",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel10",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel11",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel12",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel13",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel14",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel15",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel16",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel17",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel18",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel19",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel20",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel21",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel22",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel23",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel24",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel25",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel26",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel27",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel28",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel29",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel30",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel31",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel32",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel33",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel34",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel35",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel36",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel37",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel38",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel39",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel40",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel41",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel42",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel43",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel44",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel45",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel46",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel47",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel48",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel49",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								},
+								{
+									"name": "GameTraceChannel50",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ECollisionResponse>",
+									"flags": "0x18001040000215",
+									"exported_text": "ECR_Ignore"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "FootLock",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsFootLockSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(bAllowFootLock=True,ThighAngleLimit=90.000000,FootAngleLimit=40.000000)",
+					"fields": [
+						{
+							"name": "bAllowFootLock",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001000000005",
+							"exported_text": "True"
+						},
+						{
+							"name": "ThighAngleLimit",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "90.000000",
+							"numeric_value": 90
+						},
+						{
+							"name": "FootAngleLimit",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "40.000000",
+							"numeric_value": 40
+						}
+					]
+				},
+				{
+					"name": "Transitions",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsTransitionsSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(QuickStopBlendInDuration=0.100000,QuickStopBlendOutDuration=0.200000,QuickStopPlayRate=(X=1.750000,Y=3.000000),QuickStopStartTime=0.300000,StandingLeftSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.A_Als_Stand_Transition_Left'\",StandingRightSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.A_Als_Stand_Transition_Right'\",CrouchingLeftSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left'\",CrouchingRightSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right'\")",
+					"fields": [
+						{
+							"name": "QuickStopBlendInDuration",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.100000",
+							"numeric_value": 0.10000000149011612
+						},
+						{
+							"name": "QuickStopBlendOutDuration",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.200000",
+							"numeric_value": 0.20000000298023224
+						},
+						{
+							"name": "QuickStopPlayRate",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector2f",
+							"flags": "0x18001040000205",
+							"exported_text": "(X=1.750000,Y=3.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001041000201",
+									"exported_text": "1.750000",
+									"numeric_value": 1.75
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001041000201",
+									"exported_text": "3.000000",
+									"numeric_value": 3
+								}
+							]
+						},
+						{
+							"name": "QuickStopStartTime",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.300000",
+							"numeric_value": 0.30000001192092896
+						},
+						{
+							"name": "StandingLeftSequence",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.A_Als_Stand_Transition_Left'"
+						},
+						{
+							"name": "StandingRightSequence",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.A_Als_Stand_Transition_Right'"
+						},
+						{
+							"name": "CrouchingLeftSequence",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left'"
+						},
+						{
+							"name": "CrouchingRightSequence",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right'"
+						}
+					]
+				},
+				{
+					"name": "DynamicTransitions",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsDynamicTransitionsSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(FootLockDistanceThreshold=8.000000,BlendDuration=0.200000,PlayRate=1.500000,StandingLeftSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.A_Als_Stand_DynamicTransition_Left'\",StandingRightSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.A_Als_Stand_DynamicTransition_Right'\",CrouchingLeftSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.A_Als_Crouch_DynamicTransition_Left'\",CrouchingRightSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.A_Als_Crouch_DynamicTransition_Right'\")",
+					"fields": [
+						{
+							"name": "FootLockDistanceThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "8.000000",
+							"numeric_value": 8
+						},
+						{
+							"name": "BlendDuration",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.200000",
+							"numeric_value": 0.20000000298023224
+						},
+						{
+							"name": "PlayRate",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "1.500000",
+							"numeric_value": 1.5
+						},
+						{
+							"name": "StandingLeftSequence",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.A_Als_Stand_DynamicTransition_Left'"
+						},
+						{
+							"name": "StandingRightSequence",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.A_Als_Stand_DynamicTransition_Right'"
+						},
+						{
+							"name": "CrouchingLeftSequence",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.A_Als_Crouch_DynamicTransition_Left'"
+						},
+						{
+							"name": "CrouchingRightSequence",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+							"flags": "0x11C001000000205",
+							"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.A_Als_Crouch_DynamicTransition_Right'"
+						}
+					]
+				},
+				{
+					"name": "RotateInPlace",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsRotateInPlaceSettings",
+					"flags": "0x10001000000015",
+					"exported_text": "(ViewYawAngleThreshold=50.000000,FirstPersonViewYawAngleThreshold=65.000000,ReferenceViewYawSpeed=(X=180.000000,Y=460.000000),PlayRate=(X=1.150000,Y=3.000000))",
+					"fields": [
+						{
+							"name": "ViewYawAngleThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "50.000000",
+							"numeric_value": 50
+						},
+						{
+							"name": "FirstPersonViewYawAngleThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "65.000000",
+							"numeric_value": 65
+						},
+						{
+							"name": "ReferenceViewYawSpeed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector2f",
+							"flags": "0x18001040000205",
+							"exported_text": "(X=180.000000,Y=460.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001041000201",
+									"exported_text": "180.000000",
+									"numeric_value": 180
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001041000201",
+									"exported_text": "460.000000",
+									"numeric_value": 460
+								}
+							]
+						},
+						{
+							"name": "PlayRate",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector2f",
+							"flags": "0x18001040000205",
+							"exported_text": "(X=1.150000,Y=3.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001041000201",
+									"exported_text": "1.150000",
+									"numeric_value": 1.1499999761581421
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001041000201",
+									"exported_text": "3.000000",
+									"numeric_value": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "TurnInPlace",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlsGeneralTurnInPlaceSettings",
+					"flags": "0x10009000000015",
+					"exported_text": "(ViewYawAngleThreshold=45.000000,ViewYawSpeedThreshold=50.000000,ViewYawAngleToActivationDelay=(X=0.000000,Y=0.750000),Turn180AngleThreshold=130.000000,BlendDuration=0.200000,StandingTurn90Left=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_0'\",StandingTurn90Right=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_1'\",StandingTurn180Left=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_2'\",StandingTurn180Right=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_3'\",CrouchingTurn90Left=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_4'\",CrouchingTurn90Right=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_5'\",CrouchingTurn180Left=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_6'\",CrouchingTurn180Right=\"/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_7'\")",
+					"fields": [
+						{
+							"name": "ViewYawAngleThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "45.000000",
+							"numeric_value": 45
+						},
+						{
+							"name": "ViewYawSpeedThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "50.000000",
+							"numeric_value": 50
+						},
+						{
+							"name": "ViewYawAngleToActivationDelay",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector2f",
+							"flags": "0x18001040000205",
+							"exported_text": "(X=0.000000,Y=0.750000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001041000201",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001041000201",
+									"exported_text": "0.750000",
+									"numeric_value": 0.75
+								}
+							]
+						},
+						{
+							"name": "Turn180AngleThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "130.000000",
+							"numeric_value": 130
+						},
+						{
+							"name": "BlendDuration",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.200000",
+							"numeric_value": 0.20000000298023224
+						},
+						{
+							"name": "StandingTurn90Left",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+							"flags": "0x11E00100008020D",
+							"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_0'"
+						},
+						{
+							"name": "StandingTurn90Right",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+							"flags": "0x11E00100008020D",
+							"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_1'"
+						},
+						{
+							"name": "StandingTurn180Left",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+							"flags": "0x11E00100008020D",
+							"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_2'"
+						},
+						{
+							"name": "StandingTurn180Right",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+							"flags": "0x11E00100008020D",
+							"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_3'"
+						},
+						{
+							"name": "CrouchingTurn90Left",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+							"flags": "0x11E00100008020D",
+							"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_4'"
+						},
+						{
+							"name": "CrouchingTurn90Right",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+							"flags": "0x11E00100008020D",
+							"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_5'"
+						},
+						{
+							"name": "CrouchingTurn180Left",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+							"flags": "0x11E00100008020D",
+							"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_6'"
+						},
+						{
+							"name": "CrouchingTurn180Right",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UAlsTurnInPlaceSettings>",
+							"flags": "0x11E00100008020D",
+							"exported_text": "/Script/ALS.AlsTurnInPlaceSettings'/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_7'"
+						}
+					]
+				}
+			]
+		},
+		{
+			"index": 1,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_0",
+			"class_path": "/Script/ALS.AlsTurnInPlaceSettings",
+			"properties": [
+				{
+					"name": "Sequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000215",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.A_Als_Turn_90_Left'"
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "1.200000",
+					"numeric_value": 1.2000000476837158
+				},
+				{
+					"name": "bScalePlayRateByAnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000015",
+					"exported_text": "True"
+				},
+				{
+					"name": "AnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "90.000000",
+					"numeric_value": 90
+				}
+			]
+		},
+		{
+			"index": 2,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_1",
+			"class_path": "/Script/ALS.AlsTurnInPlaceSettings",
+			"properties": [
+				{
+					"name": "Sequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000215",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.A_Als_Turn_90_Right'"
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "1.200000",
+					"numeric_value": 1.2000000476837158
+				},
+				{
+					"name": "bScalePlayRateByAnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000015",
+					"exported_text": "True"
+				},
+				{
+					"name": "AnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "90.000000",
+					"numeric_value": 90
+				}
+			]
+		},
+		{
+			"index": 3,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_2",
+			"class_path": "/Script/ALS.AlsTurnInPlaceSettings",
+			"properties": [
+				{
+					"name": "Sequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000215",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.A_Als_Turn_180_Left'"
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "1.200000",
+					"numeric_value": 1.2000000476837158
+				},
+				{
+					"name": "bScalePlayRateByAnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000015",
+					"exported_text": "True"
+				},
+				{
+					"name": "AnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "180.000000",
+					"numeric_value": 180
+				}
+			]
+		},
+		{
+			"index": 4,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_3",
+			"class_path": "/Script/ALS.AlsTurnInPlaceSettings",
+			"properties": [
+				{
+					"name": "Sequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000215",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.A_Als_Turn_180_Right'"
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "1.200000",
+					"numeric_value": 1.2000000476837158
+				},
+				{
+					"name": "bScalePlayRateByAnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000015",
+					"exported_text": "True"
+				},
+				{
+					"name": "AnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "180.000000",
+					"numeric_value": 180
+				}
+			]
+		},
+		{
+			"index": 5,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_4",
+			"class_path": "/Script/ALS.AlsTurnInPlaceSettings",
+			"properties": [
+				{
+					"name": "Sequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000215",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.A_Als_Crouch_Turn_90_Left'"
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "1.200000",
+					"numeric_value": 1.2000000476837158
+				},
+				{
+					"name": "bScalePlayRateByAnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000015",
+					"exported_text": "False"
+				},
+				{
+					"name": "AnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "90.000000",
+					"numeric_value": 90
+				}
+			]
+		},
+		{
+			"index": 6,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_5",
+			"class_path": "/Script/ALS.AlsTurnInPlaceSettings",
+			"properties": [
+				{
+					"name": "Sequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000215",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.A_Als_Crouch_Turn_90_Right'"
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "1.200000",
+					"numeric_value": 1.2000000476837158
+				},
+				{
+					"name": "bScalePlayRateByAnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000015",
+					"exported_text": "False"
+				},
+				{
+					"name": "AnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "90.000000",
+					"numeric_value": 90
+				}
+			]
+		},
+		{
+			"index": 7,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_6",
+			"class_path": "/Script/ALS.AlsTurnInPlaceSettings",
+			"properties": [
+				{
+					"name": "Sequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000215",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.A_Als_Crouch_Turn_180_Left'"
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "1.200000",
+					"numeric_value": 1.2000000476837158
+				},
+				{
+					"name": "bScalePlayRateByAnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000015",
+					"exported_text": "False"
+				},
+				{
+					"name": "AnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "180.000000",
+					"numeric_value": 180
+				}
+			]
+		},
+		{
+			"index": 8,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default:AlsTurnInPlaceSettings_7",
+			"class_path": "/Script/ALS.AlsTurnInPlaceSettings",
+			"properties": [
+				{
+					"name": "Sequence",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequenceBase>",
+					"flags": "0x11C001000000215",
+					"exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.A_Als_Crouch_Turn_180_Right'"
+				},
+				{
+					"name": "PlayRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "1.200000",
+					"numeric_value": 1.2000000476837158
+				},
+				{
+					"name": "bScalePlayRateByAnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000015",
+					"exported_text": "False"
+				},
+				{
+					"name": "AnimatedTurnAngle",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000215",
+					"exported_text": "180.000000",
+					"numeric_value": 180
+				}
+			]
+		}
+	],
+	"graphs": [],
+	"geometry_query_probe":
+	{
+		"samples": [
+			{
+				"input":
+				{
+					"name": "cart-complex-precision",
+					"rotation_xyzw": [
+						0,
+						0,
+						0,
+						1
+					],
+					"mesh_raycast":
+					{
+						"asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Cart",
+						"translation_cm": [
+							0,
+							0,
+							0
+						],
+						"scale": [
+							1,
+							1,
+							1
+						],
+						"start_cm": [
+							0.123456789012,
+							-0.23456789123399999,
+							200
+						],
+						"end_cm": [
+							0.123456789012,
+							-0.23456789123399999,
+							-200
+						],
+						"trace_complex": true,
+						"capture_ray_visits": true
+					}
+				},
+				"rotator_degrees":
+				{
+					"pitch": 0,
+					"yaw": 0,
+					"roll": -0
+				},
+				"mesh_raycast":
+				{
+					"shapes": [
+						{
+							"complex": true,
+							"simple": true,
+							"query_enabled": true,
+							"triangle_mesh": true,
+							"culls_back_face": true,
+							"core_scale":
+							{
+								"x": 1,
+								"y": 1,
+								"z": 1
+							},
+							"ray_visits":
+							{
+								"start_cm":
+								{
+									"x": 0.123456789012,
+									"y": -0.23456789123399999,
+									"z": 200
+								},
+								"direction":
+								{
+									"x": 0,
+									"y": 0,
+									"z": -1
+								},
+								"length_cm": 400,
+								"agrees_with_core": true,
+								"hit": true,
+								"selected_internal_face": 498,
+								"distance_cm": 144.30429732903698,
+								"position_cm":
+								{
+									"x": 0.123456789012,
+									"y": -0.23456789123399999,
+									"z": 55.695702670963016
+								},
+								"normal":
+								{
+									"x": -0,
+									"y": 2.377598382167935e-08,
+									"z": 0.99999999999999956
+								},
+								"visits": [
+									{
+										"internal_face": 486,
+										"external_face": 143,
+										"length_before_cm": 400,
+										"culled": true,
+										"hit": false,
+										"vertices_cm": [
+											{
+												"x": 58.065803527832031,
+												"y": 42.627998352050781,
+												"z": 48.795101165771484
+											},
+											{
+												"x": 58.065803527832031,
+												"y": -113.57981872558594,
+												"z": 48.960399627685547
+											},
+											{
+												"x": -57.966999053955078,
+												"y": 42.66510009765625,
+												"z": 46.690101623535156
+											}
+										],
+										"length_after_cm": 400
+									},
+									{
+										"internal_face": 487,
+										"external_face": 144,
+										"length_before_cm": 400,
+										"culled": true,
+										"hit": false,
+										"vertices_cm": [
+											{
+												"x": -57.982002258300781,
+												"y": -113.57981109619141,
+												"z": 48.96820068359375
+											},
+											{
+												"x": -57.966999053955078,
+												"y": 42.66510009765625,
+												"z": 46.690101623535156
+											},
+											{
+												"x": 58.065803527832031,
+												"y": -113.57981872558594,
+												"z": 48.960399627685547
+											}
+										],
+										"length_after_cm": 400
+									},
+									{
+										"internal_face": 490,
+										"external_face": 541,
+										"length_before_cm": 400,
+										"culled": false,
+										"hit": false,
+										"vertices_cm": [
+											{
+												"x": 57.567600250244141,
+												"y": -118.29750061035156,
+												"z": 54.464199066162109
+											},
+											{
+												"x": 57.567501068115234,
+												"y": 47.658000946044922,
+												"z": 54.464401245117188
+											},
+											{
+												"x": -57.561595916748047,
+												"y": -118.29750061035156,
+												"z": 54.464408874511719
+											}
+										],
+										"length_after_cm": 400
+									},
+									{
+										"internal_face": 491,
+										"external_face": 542,
+										"length_before_cm": 400,
+										"culled": false,
+										"hit": true,
+										"vertices_cm": [
+											{
+												"x": -57.561698913574219,
+												"y": 47.658000946044922,
+												"z": 54.464401245117188
+											},
+											{
+												"x": -57.561595916748047,
+												"y": -118.29750061035156,
+												"z": 54.464408874511719
+											},
+											{
+												"x": 57.567501068115234,
+												"y": 47.658000946044922,
+												"z": 54.464401245117188
+											}
+										],
+										"distance_cm": 145.53559655314018,
+										"normal":
+										{
+											"x": -0,
+											"y": 4.5972531550316224e-08,
+											"z": 0.99999999999999878
+										},
+										"barycentric_uv": [
+											0.28858681024806904,
+											0.50104687592926145
+										],
+										"length_after_cm": 145.53559875488281
+									},
+									{
+										"internal_face": 498,
+										"external_face": 911,
+										"length_before_cm": 145.53559875488281,
+										"culled": false,
+										"hit": true,
+										"vertices_cm": [
+											{
+												"x": -54.927799224853516,
+												"y": 44.846298217773438,
+												"z": 55.695701599121094
+											},
+											{
+												"x": -54.927700042724609,
+												"y": -115.59700012207031,
+												"z": 55.695705413818359
+											},
+											{
+												"x": 55.250999450683594,
+												"y": 44.846298217773438,
+												"z": 55.695701599121094
+											}
+										],
+										"distance_cm": 144.30429732903698,
+										"normal":
+										{
+											"x": -0,
+											"y": 2.377598382167935e-08,
+											"z": 0.99999999999999956
+										},
+										"barycentric_uv": [
+											0.28097693437789584,
+											0.49965355229633629
+										],
+										"length_after_cm": 144.30429077148438
+									},
+									{
+										"internal_face": 499,
+										"external_face": 912,
+										"length_before_cm": 144.30429077148438,
+										"culled": false,
+										"hit": false,
+										"vertices_cm": [
+											{
+												"x": 55.250999450683594,
+												"y": -115.59690093994141,
+												"z": 55.695701599121094
+											},
+											{
+												"x": 55.250999450683594,
+												"y": 44.846298217773438,
+												"z": 55.695701599121094
+											},
+											{
+												"x": -54.927700042724609,
+												"y": -115.59700012207031,
+												"z": 55.695705413818359
+											}
+										],
+										"length_after_cm": 144.30429077148438
+									}
+								],
+								"length_scale": 1
+							}
+						}
+					],
+					"double_sided_geometry": false,
+					"collision_trace_flag": 3,
+					"hit": true,
+					"distance_cm": 144.30429077148438,
+					"position_cm":
+					{
+						"x": 0.123456789012,
+						"y": -0.23456789123399999,
+						"z": 55.695702670963016
+					},
+					"normal":
+					{
+						"x": 0,
+						"y": 2.3775983821679357e-08,
+						"z": 0.99999999999999978
+					},
+					"face_index": 911
+				}
+			}
+		]
+	}
+}

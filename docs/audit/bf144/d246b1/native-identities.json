@@ -1,0 +1,31 @@
+{
+  "assets": [
+    {
+      "path": "Content/ALSExtras/Environment/Meshes/SM_Als_Cart.uasset",
+      "bytes": 57263,
+      "sha256": "dc05b3e00d64fbd98ab9b8050e5eccb3771bd2f4efaf549901e9b6f984e4d7f3"
+    },
+    {
+      "path": "Content/ALS/Data/AnimationInstance/AIS_Als_Default.uasset",
+      "bytes": 9631,
+      "sha256": "9af2ffa2d8e832b93d3bbaeea2f35e4663acc3aa643e65a128e3f9df8f73c6a7"
+    },
+    {
+      "path": "assets/ALSExtras/Environment/Meshes/SM_Als_Cart.gltf",
+      "bytes": 1840,
+      "sha256": "0cd8c31c7cfde0219f8c4841088ee674ae7ab34e4a8503dd9b258f71b67945aa"
+    },
+    {
+      "path": "assets/ALSExtras/Environment/Meshes/SM_Als_Cart.bin",
+      "bytes": 154316,
+      "sha256": "d8921715b01a9fb0b5be51a956ed1203895e4911c253a61639d538f378e92e42"
+    }
+  ],
+  "request": "docs/audit/bf144/d246b1/mesh.request.json",
+  "native_output": "docs/audit/bf144/d246b1/mesh.native.json",
+  "raw": {
+    "bytes": 112958,
+    "sha256": "6752e83064085aebef4795bbc83d6544a624d70635f153c45a87a50efccce735"
+  },
+  "reader_report": "docs/audit/bf144/d246b1/mesh.native.json.reader.report.json"
+}

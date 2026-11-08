@@ -1,0 +1,17 @@
+{
+  "samples": [
+    {
+      "name": "cart-complex-precision",
+      "rotation_xyzw": [0, 0, 0, 1],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Cart",
+        "translation_cm": [0, 0, 0],
+        "scale": [1, 1, 1],
+        "start_cm": [0.123456789012, -0.234567891234, 200],
+        "end_cm": [0.123456789012, -0.234567891234, -200],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    }
+  ]
+}

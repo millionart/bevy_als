@@ -1,0 +1,53 @@
+{
+  "name": "cart-complex-precision",
+  "source_world_hit_cm": {
+    "x": 0.123456789012,
+    "y": -0.234567891234,
+    "z": 55.695702670963016
+  },
+  "source_world_normal": {
+    "x": 0,
+    "y": 2.3775983821679357e-08,
+    "z": 0.9999999999999998
+  },
+  "source_distance_cm": 144.30429077148438,
+  "source_mesh_backface_culling": true,
+  "source_triangle": {
+    "internal_face": 498,
+    "external_face": 911,
+    "length_before_cm": 145.5355987548828,
+    "culled": false,
+    "hit": true,
+    "vertices_cm": [
+      {
+        "x": -54.927799224853516,
+        "y": 44.84629821777344,
+        "z": 55.695701599121094
+      },
+      {
+        "x": -54.92770004272461,
+        "y": -115.59700012207031,
+        "z": 55.69570541381836
+      },
+      {
+        "x": 55.250999450683594,
+        "y": 44.84629821777344,
+        "z": 55.695701599121094
+      }
+    ],
+    "distance_cm": 144.30429732903698,
+    "normal": {
+      "x": 0,
+      "y": 2.377598382167935e-08,
+      "z": 0.9999999999999996
+    },
+    "barycentric_uv": [
+      0.28097693437789584,
+      0.4996535522963363
+    ],
+    "length_after_cm": 144.30429077148438
+  },
+  "source_ray_visits_agree_with_core": true,
+  "source_bvh_visit_count": 6,
+  "boundary": "Target geometry remains F32; shared-edge face selection is D162"
+}
