@@ -3625,7 +3625,8 @@ fn follow_movement_base_system(
                     [entity, owner, target].into_iter().chain(children.iter_descendants(owner)));
                 let config = ShapeCastConfig { ignore_origin_penetration: true,
                     ..ShapeCastConfig::from_max_distance(distance) };
-                let hit = space.p1().cast_shape_predicate(capsule, origin, Quat::IDENTITY, direction, &config, &filter,
+                let Ok(rotation) = space.p0().compute_global_transform(entity).map(|world| world.rotation()) else { continue; };
+                let hit = space.p1().cast_shape_predicate(capsule, origin, rotation, direction, &config, &filter,
                     &|candidate| character_blocks_collider(entity, candidate, &candidates));
                 let applied = *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
                 let Ok(parent_world) = parents.get(entity).ok()
@@ -6898,6 +6899,47 @@ mod tests {
                 assert!((actual.z - expected_z).abs() < 0.003,
                     "parented={parented} rotation={world_rotation:?} position={actual:?}");
                 assert_eq!(local_after.rotation, local.rotation, "parented={parented}");
+            }
+        }
+    }
+
+    #[test]
+    fn movement_base_carry_sweeps_with_the_character_world_rotation() {
+        use bevy::ecs::system::RunSystemOnce;
+        for angle in [0.0_f32, 60.0] {
+            for parented in [false, true] {
+                for wall in [false, true] {
+                    let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+                    let base_origin = Vec3::Y * 10.0;
+                    let base = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.2, 4.0),
+                        Transform::from_translation(base_origin))).id();
+                    if wall {
+                        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 0.1),
+                            Transform::from_xyz(0.0, 11.0, 1.25)));
+                    }
+                    app.update();
+                    let start = Vec3::Y * 11.0;
+                    let rotation = Quat::from_rotation_x(angle.to_radians());
+                    let local = if parented {
+                        let parent = app.world_mut().spawn(Transform::from_rotation(rotation)).id();
+                        app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+                        Transform::from_translation(rotation.inverse() * start)
+                    } else { Transform::from_translation(start).with_rotation(rotation) };
+                    app.world_mut().entity_mut(actor).insert((Position(start), local, LocomotionState::Grounded,
+                        crate::als::dynamics::AlsMovementBase { entity: Some(base), location: base_origin,
+                            rotation: Quat::IDENTITY, has_relative_rotation: false },
+                        AlsCmcAdapterRuntime { grounded_move_start: Some(start), ..default() }));
+                    let target = base_origin + Vec3::Z;
+                    app.world_mut().entity_mut(base).insert((Position(target), Transform::from_translation(target)));
+                    app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+                    let position = app.world().get::<Position>(actor).unwrap().0;
+                    let extent = 0.3 + 0.6 * angle.to_radians().sin().abs();
+                    let expected = if wall { movement_sweep_travel(1.0, 1.2 - extent) } else { 1.0 };
+                    assert!((position.z - expected).abs() < 0.003,
+                        "angle={angle} parented={parented} wall={wall} position={position:?} expected={expected}");
+                    assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, local.rotation);
+                    assert!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_move_start.unwrap().distance(position) < 1e-5);
+                }
             }
         }
     }

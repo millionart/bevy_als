@@ -5928,7 +5928,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧跳跃轨迹/帧长测试验证无障碍曲线，普通顶板碰撞测试未组合零速点位于子步内部；无顶板3组和16.7ms未越顶点撞顶的对照都通过。当前反例影响为毫米级接触路径差，不宣称默认跳跃高度存在大误差；bNotifyApex在CDO为False，未把未使用的callback另列缺陷。
   - 555 原生开关实证：同一0.2m/s、50ms、1.5mm顶间隙，启用顶点切分时实际向上命中顶板；关闭时无Hit且终点高1.541mm。目标生产整步向下，终点与源关闭组相同到微米内，实际胶囊另按顶点扫可命中。原生观察开关两份实际运动逐值。证据 `docs/audit/bf144/555/`。
 
-- [ ] BF144-D29 / P2 — 基座携带的阻挡查询固定使用直立胶囊。
+- [x] BF144-D29 / P2 — 基座携带的阻挡查询固定使用直立胶囊；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 15:06 +08:00；预估结束15:36 +08:00；实际结束15:08 +08:00，提前28分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE基座世界quat/CDO与原生直立/倾斜几何保存在`docs/audit/bf144/d29/`；携带sweep使用角色世界旋转，已写直接/父级、直立和无墙对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `UpdateBasedMovement:2578–2580,2667–2677`取组件当前世界quat并用于实际MoveUpdatedComponent sweep；本次native IgnoreBaseRotation=True只禁用基座对actor朝向的改变，不把actor已有pitch/roll清零，FastAttachedMove=False要求保留碰撞查询。
   - Target：`src/als/character/movement/motion.rs:2870–2874`基座跟随的shape cast硬编码`Quat::IDENTITY`，与actual actor世界形体不同；已完成的普通基座阻挡测试只使用直立角色。
   - 反例：完整角色在运动学平台上，actor pitch60°，平台向z正方向移动1m，前方墙面z=1.2m。源形体z半宽0.819615m、安全中心≤0.380385m，独立同几何world-quat查询在0.380361m命中；target携带阶段中心z=0.888910m，物理结束仍z=0.847278m，约0.467m穿墙。`bf144_base_carry_sweep_uses_actual_world_capsule_rotation`共8组6PASS/2FAIL，直接和父级倾斜均失败；直立阻挡与各无墙对照通过，证据`target/bf144/10/carry_rotation/`。
