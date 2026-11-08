@@ -1,0 +1,65 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 57,
+    "end_line": 61,
+    "text": "\tFRealSingle Chaos_Collision_Manifold_CullDistanceMarginMultiplier = 1.0f;\n\tFAutoConsoleVariableRef CVarChaosCollisioConvexManifoldCullDistanceMarginMultiplier(TEXT(\"p.Chaos.Collision.Manifold.CullDistanceMarginMultiplier\"), Chaos_Collision_Manifold_CullDistanceMarginMultiplier, TEXT(\"\"));\n\n\tFRealSingle Chaos_Collision_Manifold_MinFaceSearchDistance = 1.0f;\n\tFAutoConsoleVariableRef CVarChaosCollisioConvexManifoldMinFaceSearchDistance(TEXT(\"p.Chaos.Collision.Manifold.MinFaceSearchDistance\"), Chaos_Collision_Manifold_MinFaceSearchDistance, TEXT(\"\"));\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 610,
+    "end_line": 640,
+    "text": "\t\ttemplate <typename ConvexImplicitType>\n\t\tvoid FindBestPlane(\n\t\t\tconst ConvexImplicitType& Convex,\n\t\t\tconst FVec3& X,\n\t\t\tconst FVec3& N,\n\t\t\tconst FReal MaxDistance,\n\t\t\tconst int32 PlaneIndex,\n\t\t\tint32& BestPlaneIndex,\n\t\t\tFReal& BestPlaneDot)\n\t\t{\n\t\t\tconst TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);\n\t\t\t\t\n\t\t\t// Reject planes farther than MaxDistance\n\t\t\tconst FReal PlaneDistance = Plane.SignedDistance(X);\n\t\t\tif (FMath::Abs(PlaneDistance) <= MaxDistance)\n\t\t\t{\n\t\t\t\t// Ignore planes that do not oppose N\n\t\t\t\tconst FReal PlaneNormalDotN = FVec3::DotProduct(N, Plane.Normal());\n\t\t\t\tif (PlaneNormalDotN <= -UE_SMALL_NUMBER)\n\t\t\t\t{\n\t\t\t\t\t// Keep the most opposing plane\n\t\t\t\t\tif (PlaneNormalDotN < BestPlaneDot)\n\t\t\t\t\t{\n\t\t\t\t\t\tBestPlaneDot = PlaneNormalDotN;\n\t\t\t\t\t\tBestPlaneIndex = PlaneIndex;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\n\t\t// Specialization for scaled convex. Avoids the instantiation of a scaled plane object\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 642,
+    "end_line": 680,
+    "text": "\t\tvoid FindBestPlaneScaledConvex(\n\t\t\tconst TImplicitObjectScaled<FConvex>& ScaledConvex,\n\t\t\tconst FConvex::FVec3Type& X,\n\t\t\tconst FConvex::FVec3Type& N,\n\t\t\tconst FConvex::FVec3Type& Scale,\n\t\t\tconst FConvex::FVec3Type& ScaleInv,\n\t\t\tconst FConvex::FRealType MaxDistance,\n\t\t\tconst int32 PlaneIndex,\n\t\t\tint32& OutBestPlaneIndex,\n\t\t\tFConvex::FRealType& InOutBestPlaneDot)\n\t\t{\n\t\t\tusing FConvexReal = FConvex::FRealType;\n\t\t\tusing FConvexVec3 = FConvex::FVec3Type;\n\t\t\tusing FConvexPlane = FConvex::FPlaneType;\n\n\t\t\tconst FConvex* UnscaledConvex = ScaledConvex.GetInnerObject()->template GetObject<FConvex>();\n\t\t\tconst FConvexPlane& UnscaledPlane = UnscaledConvex->GetPlaneRaw(PlaneIndex);\n\n\t\t\tconst FConvexVec3 ScaledPlaneX = UnscaledPlane.X() * Scale;\n\t\t\tFConvexVec3 ScaledPlaneN = UnscaledPlane.Normal() * ScaleInv;\n\n\t\t\tif (ScaledPlaneN.Normalize())\n\t\t\t{\n\t\t\t\t// Reject planes farther than MaxDistance\n\t\t\t\tconst FConvexReal PlaneDistance = FConvexVec3::DotProduct(X - ScaledPlaneX, ScaledPlaneN);\n\t\t\t\tif (FMath::Abs(PlaneDistance) <= MaxDistance)\n\t\t\t\t{\n\t\t\t\t\t// Ignore planes that do not oppose N\n\t\t\t\t\tconst FConvexReal PlaneNormalDotN = FConvexVec3::DotProduct(N, ScaledPlaneN);\n\t\t\t\t\tif (PlaneNormalDotN <= -UE_SMALL_NUMBER)\n\t\t\t\t\t{\n\t\t\t\t\t\t// Keep the most opposing plane\n\t\t\t\t\t\tif (PlaneNormalDotN < InOutBestPlaneDot)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tInOutBestPlaneDot = PlaneNormalDotN;\n\t\t\t\t\t\t\tOutBestPlaneIndex = PlaneIndex;\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 695,
+    "end_line": 741,
+    "text": "\t\tint32 SelectContactPlane(\n\t\t\tconst ConvexImplicitType& Convex,\n\t\t\tconst FVec3 X,\n\t\t\tconst FVec3 N,\n\t\t\tconst FReal InMaxDistance,\n\t\t\tconst int32 VertexIndex)\n\t\t{\n\t\t\t// Handle InMaxDistance = 0. We expect that the X is actually on the surface in this case, so the search distance just needs to be some reasonable tolerance.\n\t\t\t// @todo(chaos): this should probable be dependent on the size of the objects...\n\t\t\tconst FReal MinFaceSearchDistance = Chaos_Collision_Manifold_MinFaceSearchDistance;\n\t\t\tconst FReal MaxDistance = FMath::Max(InMaxDistance, MinFaceSearchDistance);\n\n\t\t\tint32 BestPlaneIndex = INDEX_NONE;\n\t\t\tFReal BestPlaneDot = 1.0f;\n\t\t\t{\n\t\t\t\tint32 PlaneIndices[3] = {INDEX_NONE, INDEX_NONE, INDEX_NONE};\n\t\t\t\tint32 NumPlanes = Convex.GetVertexPlanes3(VertexIndex, PlaneIndices[0], PlaneIndices[1], PlaneIndices[2]);\n\n\t\t\t\t// If we have more than 3 planes we iterate over the full set of planes since it is faster than using the half edge structure\n\t\t\t\tif(NumPlanes > 3)\n\t\t\t\t{\n\t\t\t\t\tNumPlanes = Convex.NumPlanes();\n\t\t\t\t\tfor (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)\n\t\t\t\t\t{\n\t\t\t\t\t\tFindBestPlane(Convex, X, N, MaxDistance, PlaneIndex, BestPlaneIndex, BestPlaneDot);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\t// Otherwise we iterate over the cached planes\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tfor (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)\n\t\t\t\t\t{\n\t\t\t\t\t\tFindBestPlane(Convex, X, N, MaxDistance, PlaneIndices[PlaneIndex], BestPlaneIndex, BestPlaneDot);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\t\n\t\t\t// Malformed convexes or half-spaces or capsules could have all planes rejected above.\n\t\t\t// If that happens, select the most opposing plane including those that\n\t\t\t// may point the same direction as N. \n\t\t\tif (BestPlaneIndex == INDEX_NONE)\n\t\t\t{\n\t\t\t\t// This always returns a valid plane.\n\t\t\t\tBestPlaneIndex = Convex.GetMostOpposingPlane(N);\n\t\t\t}\n\n\t\t\tCheckPlaneIndex(BestPlaneIndex, Convex, X, N, InMaxDistance, VertexIndex);\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 752,
+    "end_line": 810,
+    "text": "\t\t{\n\t\t\tusing FConvexReal = FConvex::FRealType;\n\t\t\tusing FConvexVec3 = FConvex::FVec3Type;\n\t\t\tusing FConvexPlane = FConvex::FPlaneType;\n\n\t\t\t// Handle InMaxDistance = 0. We expect that the X is actually on the surface in this case, so the search distance just needs to be some reasonable tolerance.\n\t\t\t// @todo(chaos): this should probable be dependent on the size of the objects...\n\t\t\tconst FConvexReal MinFaceSearchDistance = Chaos_Collision_Manifold_MinFaceSearchDistance;\n\t\t\tconst FConvexReal MaxDistance = FMath::Max(FConvexReal(InMaxDistance), MinFaceSearchDistance);\n\n\t\t\t// LWC_TODO: Precision Loss\n\t\t\t// Scale precision is ok as long as we only support large positions and not large sizes...\n\t\t\t// N precision is ok with floats (normalized)\n\t\t\t// X precision is ok as long as we don't try to find the exact separation of objects that are separated by LWC distances\n\t\t\t// which we don't in collision detection (objects must pass bounds checks first).\n\t\t\tconst FConvexVec3 Scale = FConvexVec3(ScaledConvex.GetScale());\n\t\t\tconst FConvexVec3 ScaleInv = FConvexVec3(ScaledConvex.GetInvScale());\n\t\t\tconst FConvexVec3 X = FConvexVec3(InX);\n\t\t\tconst FConvexVec3 N = FConvexVec3(InN);\n\n\t\t\tint32 BestPlaneIndex = INDEX_NONE;\n\t\t\tFConvexReal BestPlaneDot = 1.0f;\n\t\t\t{\n\t\t\t\tint32 PlaneIndices[3] = { INDEX_NONE, INDEX_NONE, INDEX_NONE };\n\t\t\t\tint32 NumPlanes = ScaledConvex.GetVertexPlanes3(VertexIndex, PlaneIndices[0], PlaneIndices[1], PlaneIndices[2]);\n\n\t\t\t\t// If we have more than 3 planes we iterate over the full set of planes since it is faster than using the half edge structure\n\t\t\t\tif (NumPlanes > 3)\n\t\t\t\t{\n\t\t\t\t\tNumPlanes = ScaledConvex.NumPlanes();\n\t\t\t\t\tfor (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)\n\t\t\t\t\t{\n\t\t\t\t\t\tFindBestPlaneScaledConvex(ScaledConvex, X, N, Scale, ScaleInv, MaxDistance, PlaneIndex, BestPlaneIndex, BestPlaneDot);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\t// Otherwise we iterate over the cached planes\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tfor (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)\n\t\t\t\t\t{\n\t\t\t\t\t\tFindBestPlaneScaledConvex(ScaledConvex, X, N, Scale, ScaleInv, MaxDistance, PlaneIndices[PlaneIndex], BestPlaneIndex, BestPlaneDot);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Malformed convexes or half-spaces or capsules could have all planes rejected above.\n\t\t\t// If that happens, select the most opposing plane including those that\n\t\t\t// may point the same direction as N. \n\t\t\tif (BestPlaneIndex == INDEX_NONE)\n\t\t\t{\n\t\t\t\t// This always returns a valid plane.\n\t\t\t\tBestPlaneIndex = ScaledConvex.GetMostOpposingPlane(N);\n\t\t\t}\n\n\t\t\tCheckPlaneIndex(BestPlaneIndex, ScaledConvex, X, N, InMaxDistance, VertexIndex);\n\t\t\treturn BestPlaneIndex;\n\t\t}\n\n\t\t// GJK was failing to generate vertex indices. This issue was tracked down to a degenerate simplex in GJK, but we may need this again one day...\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Convex.cpp",
+    "sha256": "d1e93497a8f751f55e78693350b3779e9a0f5f9b3956151c9e98f9a517b54fd5",
+    "start_line": 193,
+    "end_line": 235,
+    "text": "\tint32 FConvex::GetMostOpposingPlane(const FVec3& Normal) const\n\t{\n\t\t// @todo(chaos): use hill climbing\n\t\tint32 MostOpposingIdx = INDEX_NONE;\n\t\tFReal MostOpposingDot = TNumericLimits<FReal>::Max();\n\t\tfor (int32 Idx = 0; Idx < Planes.Num(); ++Idx)\n\t\t{\n\t\t\tconst FPlaneType& Plane = Planes[Idx];\n\t\t\tconst FReal Dot = FVec3::DotProduct(Plane.Normal(), Normal);\n\t\t\tif (Dot < MostOpposingDot)\n\t\t\t{\n\t\t\t\tMostOpposingDot = Dot;\n\t\t\t\tMostOpposingIdx = Idx;\n\t\t\t}\n\t\t}\n\t\tCHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);\n\t\treturn MostOpposingIdx;\n\t}\n\n\tint32 FConvex::GetMostOpposingPlaneScaled(const FVec3& Normal, const FVec3& Scale) const\n\t{\n\t\t// NOTE: We cannot just call the scale-less version like we can for box, even if we unscale the normal\n\t\t// @todo(chaos): use hill climbing\n\t\tint32 MostOpposingIdx = INDEX_NONE;\n\t\tFReal MostOpposingDot = TNumericLimits<FReal>::Max();\n\t\tfor (int32 Idx = 0; Idx < Planes.Num(); ++Idx)\n\t\t{\n\t\t\tconst FPlaneType& Plane = Planes[Idx];\n\t\t\tconst FVec3 ScaledNormal = (Plane.Normal() / Scale).GetSafeNormal();\n\t\t\tconst FReal Dot = FVec3::DotProduct(ScaledNormal, Normal);\n\t\t\tif (Dot < MostOpposingDot)\n\t\t\t{\n\t\t\t\tMostOpposingDot = Dot;\n\t\t\t\tMostOpposingIdx = Idx;\n\t\t\t}\n\t\t}\n\t\tCHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);\n\t\treturn MostOpposingIdx;\n\t}\n\n\tFVec3 FConvex::GetClosestEdge(int32 PlaneIndex, const FVec3& InPosition, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const\n\t{\n\t\tFVec3Type ClosestEdgePosition = FVec3Type(0);\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Box.h",
+    "sha256": "8deef2bc40af77117752fc65726ac148bca7891ec05fcda75378149ec64d88b6",
+    "start_line": 201,
+    "end_line": 211,
+    "text": "\t\t// Get the index of the plane that most opposes the normal\n\t\tint32 GetMostOpposingPlane(const TVector<T, d>& Normal) const\n\t\t{\n\t\t\t// NOTE: Index returned here must match indices as set up in SNormals (see Box.cpp)\n\t\t\tint32 AxisIndex = FVec3(Normal.GetAbs()).MaxAxis();\n\t\t\tif (Normal[AxisIndex] < 0.0f)\n\t\t\t{\n\t\t\t\tAxisIndex += 3;\n\t\t\t}\n\t\t\treturn AxisIndex;\n\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Public/Chaos/Vector.h",
+    "sha256": "d59255a403cb14528257602b4bcd04ff948cb8bb996fbc77412e1746dcd596e1",
+    "start_line": 728,
+    "end_line": 737,
+    "text": "\t\t\treturn (X > Y && X > Z) ? X : (Y > Z ? Y : Z);\n\t\t}\n\t\tFRealDouble Min() const\n\t\t{\n\t\t\treturn (X < Y&& X < Z) ? X : (Y < Z ? Y : Z);\n\t\t}\n\t\tint32 MaxAxis() const\n\t\t{\n\t\t\treturn (X > Y && X > Z) ? 0 : (Y > Z ? 1 : 2);\n\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "start_line": 1765,
+    "end_line": 1775,
+    "text": "inline bool TVector<T>::Normalize(T Tolerance)\n{\n    const T SquareSum = X*X + Y*Y + Z*Z;\n    if(SquareSum > Tolerance)\n    {\n        const T Scale = FMath::InvSqrt(SquareSum);\n        X *= Scale; Y *= Scale; Z *= Scale;\n        return true;\n    }\n    return false;\n}\n"
+  }
+]

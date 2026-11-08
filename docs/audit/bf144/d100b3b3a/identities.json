@@ -1,0 +1,16 @@
+{
+  "native_source": "docs/audit/bf144/d143/gjk.native.json.gz",
+  "native_identity": "docs/audit/bf144/d143/native-identities.json",
+  "native_sample": "docs/audit/bf144/d143/bench-foot.native-sample.json",
+  "native_sample_sha256": "91fd65d9028c3338fa4a3390b25f3a7204869c8b9604ccf013ada67c8fb37e0d",
+  "targets": {
+    "src/avian_ext/source_box_vertex_planes.rs": {
+      "bytes": 89,
+      "sha256": "593d5070f981b21edf3bdea707d658b2c4e3e98a49170b62fdc9387d1d04ad2b"
+    },
+    "src/als/settings/contact_face_search.rs": {
+      "bytes": 9,
+      "sha256": "a5d06e5c69b232ea79d6f429a8e3752ecfe666b0115d09b02067080a011f27e5"
+    }
+  }
+}

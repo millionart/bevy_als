@@ -6,7 +6,7 @@ from pathlib import Path
 path = Path(sys.argv[1])
 data = json.loads(path.read_text(encoding="utf-8-sig"))
 settings = data["physics_asset"]["constraint_console_variables"]
-assert all(name in settings for name in ["p.Chaos.Collision.ConvexZeroMargin", "p.Chaos.Collision.MarginFraction", "p.Chaos.Collision.MarginMax"])
+assert all(name in settings for name in ["p.Chaos.Collision.ConvexZeroMargin", "p.Chaos.Collision.MarginFraction", "p.Chaos.Collision.MarginMax", "p.Chaos.Collision.Manifold.MinFaceSearchDistance"])
 assert settings["p.Chaos.Collision.UseGJK2"] == "false"
 assert math.isclose(float(settings["p.Chaos.Collision.GJKEpsilon"]), 1e-6)
 assert math.isclose(float(settings["p.Chaos.Collision.EPAEpsilon"]), 1e-6)

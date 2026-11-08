@@ -1,0 +1,16 @@
+{
+  "native_sample": "docs/audit/bf144/d143/bench-foot.native-sample.json",
+  "simplex_convex_vertex": 10,
+  "squared_error_cm2": 0.0,
+  "derived_vertex_planes": {
+    "count": 6,
+    "planes": [
+      3,
+      11,
+      10
+    ]
+  },
+  "native_contact_type": 3,
+  "source_box_face_from_contact": "docs/audit/bf144/d100b3b2/face-evidence.json",
+  "last_support_vertex_directly_observed": false
+}
