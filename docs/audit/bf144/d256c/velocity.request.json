@@ -1,0 +1,158 @@
+{
+  "samples": [
+    {
+      "name": "turn-0",
+      "velocity_cm_s": {
+        "x": -377.54523754119873,
+        "y": 319.9061155319214,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 2400,
+        "y": 0,
+        "z": 0
+      },
+      "delta_seconds": 0.03125,
+      "friction": 8.0,
+      "braking_deceleration_cm_s2": 0,
+      "friction_factor": 0,
+      "braking_substep_seconds": 0.05,
+      "max_speed_cm_s": 1000.0,
+      "max_acceleration_cm_s2": 2400,
+      "min_analog_speed_cm_s": 0,
+      "analog_input_modifier": 1
+    },
+    {
+      "name": "turn-1",
+      "velocity_cm_s": {
+        "x": -180.03283739089966,
+        "y": -220.86806297302246,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 2400,
+        "y": 0,
+        "z": 0
+      },
+      "delta_seconds": 0.03125,
+      "friction": 8.0,
+      "braking_deceleration_cm_s2": 0,
+      "friction_factor": 0,
+      "braking_substep_seconds": 0.05,
+      "max_speed_cm_s": 1000.0,
+      "max_acceleration_cm_s2": 2400,
+      "min_analog_speed_cm_s": 0,
+      "analog_input_modifier": 1
+    },
+    {
+      "name": "turn-2",
+      "velocity_cm_s": {
+        "x": -24.62695688009262,
+        "y": 338.00108432769775,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 2400,
+        "y": 0,
+        "z": 0
+      },
+      "delta_seconds": 0.03125,
+      "friction": 8.0,
+      "braking_deceleration_cm_s2": 0,
+      "friction_factor": 0,
+      "braking_substep_seconds": 0.05,
+      "max_speed_cm_s": 1000.0,
+      "max_acceleration_cm_s2": 2400,
+      "min_analog_speed_cm_s": 0,
+      "analog_input_modifier": 1
+    },
+    {
+      "name": "overspeed-cap-0",
+      "velocity_cm_s": {
+        "x": 494.5411682128906,
+        "y": 231.12101554870605,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 2400,
+        "y": 0,
+        "z": 0
+      },
+      "delta_seconds": 0.03125,
+      "friction": 0.0,
+      "braking_deceleration_cm_s2": 0,
+      "friction_factor": 0,
+      "braking_substep_seconds": 0.05,
+      "max_speed_cm_s": 400.0,
+      "max_acceleration_cm_s2": 2400,
+      "min_analog_speed_cm_s": 0,
+      "analog_input_modifier": 1
+    },
+    {
+      "name": "overspeed-cap-1",
+      "velocity_cm_s": {
+        "x": 428.30142974853516,
+        "y": 25.670629739761353,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 2400,
+        "y": 0,
+        "z": 0
+      },
+      "delta_seconds": 0.03125,
+      "friction": 0.0,
+      "braking_deceleration_cm_s2": 0,
+      "friction_factor": 0,
+      "braking_substep_seconds": 0.05,
+      "max_speed_cm_s": 400.0,
+      "max_acceleration_cm_s2": 2400,
+      "min_analog_speed_cm_s": 0,
+      "analog_input_modifier": 1
+    },
+    {
+      "name": "no-turn",
+      "velocity_cm_s": {
+        "x": -377.54523754119873,
+        "y": 319.9061155319214,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 2400,
+        "y": 0,
+        "z": 0
+      },
+      "delta_seconds": 0.03125,
+      "friction": 0.0,
+      "braking_deceleration_cm_s2": 0,
+      "friction_factor": 0,
+      "braking_substep_seconds": 0.05,
+      "max_speed_cm_s": 1000.0,
+      "max_acceleration_cm_s2": 2400,
+      "min_analog_speed_cm_s": 0,
+      "analog_input_modifier": 1
+    },
+    {
+      "name": "zero-delta",
+      "velocity_cm_s": {
+        "x": -377.54523754119873,
+        "y": 319.9061155319214,
+        "z": 0
+      },
+      "acceleration_cm_s2": {
+        "x": 2400,
+        "y": 0,
+        "z": 0
+      },
+      "delta_seconds": 0.0,
+      "friction": 8.0,
+      "braking_deceleration_cm_s2": 0,
+      "friction_factor": 0,
+      "braking_substep_seconds": 0.05,
+      "max_speed_cm_s": 1000.0,
+      "max_acceleration_cm_s2": 2400,
+      "min_analog_speed_cm_s": 0,
+      "analog_input_modifier": 1
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Data/Character/Movement/MS_Als_Normal.uasset",
+      "asset_identity": {
+        "bytes": 4961,
+        "sha256": "9934e80baba0a90db405eefff7c817eb2175f5219300501c73e7753db07d9533"
+      },
+      "request_asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+      "native_output": "docs/audit/bf144/d256c/velocity.native.json",
+      "raw": {
+        "bytes": 64301,
+        "sha256": "a15b4fc3af3cf9d1b5fa37fe687c462984240ca2eb20985476f4259ed37965a1"
+      },
+      "reader_report": "docs/audit/bf144/d256c/velocity.native.json.reader.report.json"
+    }
+  ]
+}

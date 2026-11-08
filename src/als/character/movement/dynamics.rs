@@ -176,7 +176,7 @@ pub fn grounded_velocity_step_with_braking_friction(
     let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
     let desired_horizontal = Vec3::new(desired_motion.x, 0.0, desired_motion.z);
     let desired_amount = desired_horizontal.length().min(1.0);
-    let speed = horizontal_velocity.length();
+    let speed = f64::from(crate::als::motion::source_horizontal_speed_centimeters(horizontal_velocity)) / 100.0;
     let delta_seconds = delta_seconds.max(0.0);
     if delta_seconds < MIN_MOVEMENT_DELTA_SECONDS { return horizontal_velocity; }
     let acceleration = desired_horizontal.clamp_length_max(1.0) * dynamics.acceleration.max(0.0);
@@ -219,14 +219,14 @@ pub fn grounded_velocity_step_with_braking_friction(
     let next = if has_acceleration && !overspeed {
         let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);
         let next = next.as_dvec3();
-        next - (next - (acceleration_direction * speed).as_dvec3()) * f64::from(friction_alpha)
+        next - (next - acceleration_direction.as_dvec3() * speed) * f64::from(friction_alpha)
     } else { next.as_dvec3() };
     if !has_acceleration { return next.as_vec3(); }
     let input_limit = if next.length_squared() > f64::from(target_speed * target_speed * MAX_SPEED_SQUARED_RATIO) {
-        next.length() as f32
-    } else { target_speed };
+        f64::from((next * 100.0).length() as f32) / 100.0
+    } else { f64::from(target_speed) };
     (next + (acceleration * delta_seconds).as_dvec3())
-        .clamp_length_max(f64::from(input_limit)).as_vec3()
+        .clamp_length_max(input_limit).as_vec3()
 }
 
 pub fn analog_target_speed(max_speed: f32, desired_amount: f32, min_analog_walk_speed: f32) -> f32 {
@@ -715,6 +715,31 @@ mod tests {
             GroundedDynamics { ground_friction: 0.0, ..dynamics }, 0.0, 0.0, 0.03030303120613098, 0.05,
         );
         assert_eq!(capped, Vec3::new(3.3541018962860107, 0.0, 1.6770509481430054));
+    }
+
+    #[test]
+    fn grounded_turning_and_overspeed_keep_source_centimeter_speed() {
+        for (velocity, friction, max_speed, delta, expected) in [
+            (Vec3::new(-3.775_452_4, 0.0, -3.199_061_2), 8.0, 10.0, 0.03125,
+                Vec3::new(-0.844_454_65, 0.0, -2.399_295_8)),
+            (Vec3::new(-1.800_328_4, 0.0, 2.208_680_6), 8.0, 10.0, 0.03125,
+                Vec3::new(0.112_120_055, 0.0, 1.656_510_5)),
+            (Vec3::new(-0.246_269_57, 0.0, -3.380_010_8), 8.0, 10.0, 0.03125,
+                Vec3::new(1.412_540_4, 0.0, -2.535_008_2)),
+            (Vec3::new(4.945_411_7, 0.0, -2.311_210_2), 0.0, 4.0, 0.03125,
+                Vec3::new(5.058_210_4, 0.0, -2.052_632_6)),
+            (Vec3::new(4.283_014_3, 0.0, -0.256_706_3), 0.0, 4.0, 0.03125,
+                Vec3::new(4.285_13, 0.0, -0.218_560_86)),
+            (Vec3::new(-3.775_452_4, 0.0, -3.199_061_2), 0.0, 10.0, 0.03125,
+                Vec3::new(-3.025_452_4, 0.0, -3.199_061_2)),
+            (Vec3::new(-3.775_452_4, 0.0, -3.199_061_2), 8.0, 10.0, 0.0,
+                Vec3::new(-3.775_452_4, 0.0, -3.199_061_2)),
+        ] {
+            let actual = grounded_velocity_step_with_braking_friction(velocity, Vec3::X, max_speed,
+                GroundedDynamics { acceleration: 24.0, braking_deceleration: 0.0, ground_friction: friction },
+                0.0, 0.0, 0.05, delta);
+            assert_eq!(actual, expected);
+        }
     }
 
     #[test]

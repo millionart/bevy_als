@@ -5408,7 +5408,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
   - BF144.387原自然Stop双侧扩展：两段相同44步公开Stop构造，源末端2.33328318596与current raw完整duration/实际配置clamp时点保分层；去EndOffset控制丢12个尾部源时点，去increment丢60个前序，二者合并88位置全精确。该实际双侧native时钟输入证明此边，不新增产品D；当前完整Slot骨骼/自然Base仍后继，.333受控14T/73R姿态幅度不直接推广到本自然两叶。源码字节恢复同target重编88输出同，见`target/bf144/387/restore-check.json`。
 
-- [ ] BF144-D256 / P3 — 普通Speed标量直接按米制float量化，未保留源厘米float的舍入阶段。
+- [x] BF144-D256 / P3 — 普通Speed标量直接按米制float量化，未保留源厘米float的舍入阶段。
   - BF144.441c gait消费者：原场景实际240向量经native double长度→cm float与720 native范围映射核验，固定米制映射时只换该长度生产阶段，第165帧gait由0.8489471673965454变0.8489471077919006；源cm float为148.5657501220703，投影米float1.4856574535369873，当前直接米float为1.4856575727462769。再恢复D268的厘米映射便回到0.8489471673965454，两因素在该帧相消，故这里只扩长度阶段敏感性，不称原实际gait在165不符或单改length已恢复物理。证据`docs/audit/bf144/441c/mapping-check.json`、`mapping.native.json`；全部240 native输入/长度与当前public gait精确，旧丢失链没有被冒称重验。
   - BF144.440 CalcVelocity VelSize消费者：fresh `CalcVelocity:3922–3923`同样先将源cm double向量长度写入float，再乘FVector double方向，普通Speed的厘米float标量阶段在这里也存在。完整共同240组合中先固定D255/D265/D266与native参与参数，只保target meter-float length时仅24侧向仍差；换为source cm-float length即全240完整向量native精确。fresh同向量native Geometry length确认runtime meter float2.6666667461395264/source cm float266.66668701171875，物理长度2.6666668701171874；该scalar只一项使已修其它因素的plan侧向由1.4570463235941133e-7恢复native1.4570464657026605e-7。这里只扩完整组合条件下的plan消费者，不称默认运行单改length已恢复物理、也不把原始source/target参数轨迹当相同。证据`target/bf144/440/length-check.json`、`endpoint-check.json`；去cm-float计算丢24向量恢复，其余非length组合不变，源码bytes恢复同target重编完整输出byte精确，见`controls-check.json`；identity按当前项封口，无新编号，生产未修。
   - Source：fresh `AlsCharacter.cpp:1375–1386`先对世界FVector double厘米速度求Size2D，再UE_REAL_TO_FLOAT存Speed；`AlsAnimationInstance.cpp:699–700`直接复制该float厘米标量。原生现成scaled_distance以第三轴0执行相同平方和/平方根，同时返回double与float，120样本中的40个实际source速度精确恢复原记录Speed。
@@ -5434,7 +5434,10 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
     - 修复第1轮：开始2026-11-08 08:47 +08:00；预估结束09:37 +08:00。依据：fresh `AlsCharacterMovementComponent`以世界水平速度的厘米float直接映射gait；D256a米制接口不能保证所有双轴速度回乘后还原源厘米float，真实gait与动力/落地消费者需保留原始厘米输入。将按共同输入重采原生长度和映射；测试在全部静态修复及Bevy/依赖迁移后执行。
     - 08:48 source/static闭环：fresh三组双轴共同速度中，首组源452.5613098144531cm/s、米float往返452.56134033203125cm/s，原生gait分别为2.282041072845459/2.282041311264038；源直接将厘米float传给范围映射。目标gait状态、地面动力、预测与落地重启均消费该映射，公开标量米制接口仍需保留；已写源原生和实际gait系统反例。
     - 08:51实现摘要：gait状态、地面动力、停止预测与落地重启从世界速度直取源厘米float，复用同一映射；公开米制标量接口语义保留。三组受控原生长度/映射及真实gait系统反例已封存；自定义阈值精度不纳入本项。实现结束08:51、偏差−46分钟；测试、消融和公共Gate待统一阶段执行。
-  - [ ] BF144-D256c — CMC转向消费源厘米float速度并保留后续向量精度。
+  - [x] BF144-D256c — CMC转向消费源厘米float速度并保留后续向量精度。
+    - 修复第1轮：开始2026-11-08 08:52 +08:00；预估结束09:42 +08:00。依据：fresh `CalcVelocity`将double厘米速度长度存float后与double方向相乘，随后超速输入上限同样读取float速度；需锁定精确加速/摩擦参数重采共同向量，分别保留D255等未修乘积边界。测试在全部静态修复及Bevy/依赖迁移后执行。
+    - 08:55 source/static闭环：fresh原生三组转向、两组超速限幅与零步长/无转向控制固定轴向加速、精确dt和摩擦；例如源长度494.8538513183594cm/s的转向输出X投米float为−0.8444546461105347。已将转向速度及超速上限保留源厘米float后升double，补七组实际生产核反例；加速/制动F32乘积仍留D255。
+    - 08:56实现摘要：共同向量的原生长度、CMC结果和watchdog已封存，七组转向/超速/控制均有focused用例；D256a/b/c静态实现已齐。实现结束08:56、偏差−46分钟；测试、消融、图审计和公共Gate待全部静态修复及Bevy/依赖迁移后执行。
 
 - [ ] BF144-D255 / P3 — 地面运动向量乘法提前按F32舍入，改变加速与制动计划速度。
   - Source：fresh `CharacterMovementComponent.cpp:4377–4432`以FVector double执行RevAccel×float dt后加回Velocity；`Vector.h:2058–2073`给出实际GetSafeNormal。原生有效标准CharacterMovement的受控制动核15样本已核，12原实际输入的纯制动向量与独立模型逐值相同；此核不tick世界、不执行位置回算，也无动画root motion。
