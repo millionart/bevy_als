@@ -1,0 +1,44 @@
+[
+  {
+    "source_file": "parry3d-0.27.0/src/query/contact/contact_support_map_support_map.rs",
+    "sha256": "fcb9e37067085e862b6a23bfbe73a4bc39ff56ceefc90031f9c0b10766430562",
+    "start_line": 8,
+    "end_line": 30,
+    "text": "pub fn contact_support_map_support_map<G1, G2>(\n    pos12: &Pose,\n    g1: &G1,\n    g2: &G2,\n    prediction: Real,\n) -> Option<Contact>\nwhere\n    G1: ?Sized + SupportMap,\n    G2: ?Sized + SupportMap,\n{\n    let simplex = &mut VoronoiSimplex::new();\n    match contact_support_map_support_map_with_params(pos12, g1, g2, prediction, simplex, None) {\n        GJKResult::ClosestPoints(point1, point2_1, normal1) => {\n            let dist = (point2_1 - point1).dot(normal1);\n            let point2 = pos12.inverse_transform_point(point2_1);\n            let normal2 = pos12.rotation.inverse() * -normal1;\n            Some(Contact::new(point1, point2, normal1, normal2, dist))\n        }\n        GJKResult::NoIntersection(_) => None,\n        GJKResult::Intersection => unreachable!(),\n        GJKResult::Proximity(_) => unreachable!(),\n    }\n}\n"
+  },
+  {
+    "source_file": "parry3d-0.27.0/src/query/contact/contact_support_map_support_map.rs",
+    "sha256": "fcb9e37067085e862b6a23bfbe73a4bc39ff56ceefc90031f9c0b10766430562",
+    "start_line": 38,
+    "end_line": 58,
+    "text": "pub fn contact_support_map_support_map_with_params<G1, G2>(\n    pos12: &Pose,\n    g1: &G1,\n    g2: &G2,\n    prediction: Real,\n    simplex: &mut VoronoiSimplex,\n    init_dir: Option<Vector>,\n) -> GJKResult\nwhere\n    G1: ?Sized + SupportMap,\n    G2: ?Sized + SupportMap,\n{\n    let dir = if let Some(init_dir) = init_dir {\n        init_dir\n    } else if let Some(init_dir) = (pos12.translation).try_normalize() {\n        init_dir\n    } else {\n        Vector::X\n    };\n\n    simplex.reset(CsoPoint::from_shapes(pos12, g1, g2, dir));\n"
+  },
+  {
+    "source_file": "parry3d-0.27.0/src/shape/cuboid.rs",
+    "sha256": "e096c59d8192dc997b7db25e0dcd024eefb5c9f37a00a2338bafd11f39582630",
+    "start_line": 115,
+    "end_line": 120,
+    "text": "    /// # }\n    /// ```\n    #[inline]\n    pub fn new(half_extents: Vector) -> Cuboid {\n        Cuboid { half_extents }\n    }\n"
+  },
+  {
+    "source_file": "parry3d-0.27.0/src/shape/cuboid.rs",
+    "sha256": "e096c59d8192dc997b7db25e0dcd024eefb5c9f37a00a2338bafd11f39582630",
+    "start_line": 449,
+    "end_line": 453,
+    "text": "impl SupportMap for Cuboid {\n    #[inline]\n    fn local_support_point(&self, dir: Vector) -> Vector {\n        dir.copy_sign_to(self.half_extents)\n    }\n"
+  },
+  {
+    "source_file": "parry3d-0.27.0/src/shape/compound.rs",
+    "sha256": "8c5434b1b0943f9be6888541172e2c5e0f877c800a20993a4fc74724a2bf5be5",
+    "start_line": 325,
+    "end_line": 333,
+    "text": "    ///\n    /// let shifted_compound = Compound::new(new_shapes);\n    /// assert_eq!(shifted_compound.shapes().len(), 2);\n    /// # }\n    /// ```\n    #[inline]\n    pub fn shapes(&self) -> &[(Pose, SharedShape)] {\n        &self.shapes[..]\n    }\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collision/collider/parry/contact_query.rs",
+    "sha256": "52d8e0d70a8edb91bae3094d83e76570b651adb1512066c83d27e4eee0c79298",
+    "start_line": 227,
+    "end_line": 255,
+    "text": "    manifolds.extend(new_manifolds.iter().filter_map(|manifold| {\n        // Skip empty manifolds.\n        if manifold.contacts().is_empty() {\n            return None;\n        }\n\n        let subpos1 = manifold.subshape_pos1.unwrap_or_default();\n        let local_normal: Vector = (subpos1.rotation * manifold.local_n1).normalize();\n        let normal = rotation1 * local_normal;\n\n        // Make sure the normal is valid\n        if !normal.is_normalized() {\n            return None;\n        }\n\n        let points = manifold.contacts().iter().map(|contact| {\n            // The contact point is the midpoint of the two points in world space.\n            // The anchors are relative to the positions of the colliders.\n            let point1 = rotation1 * subpos1.transform_point(contact.local_p1);\n            let anchor1 = point1 + normal * contact.dist * 0.5;\n            let anchor2 = anchor1 + (position1.0 - position2.0);\n            let world_point = position1.0 + anchor1;\n            ContactPoint::new(anchor1, anchor2, world_point, -contact.dist)\n                .with_feature_ids(contact.fid1.into(), contact.fid2.into())\n        });\n\n        let manifold = ContactManifold::new(points, normal);\n\n        Some(manifold)\n"
+  }
+]

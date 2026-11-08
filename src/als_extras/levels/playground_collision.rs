@@ -170,7 +170,7 @@ fn playground_mesh_physics_bridge(
         if let Some(complex) = template.complex {
             commands.entity(root).insert(crate::extensions::ComplexCollider(complex));
         }
-        if matches!(source.kind, PlaygroundColliderKind::Convex { source_hulls } if source_hulls > 1) {
+        if matches!(source.kind, PlaygroundColliderKind::Convex { .. }) {
             commands.entity(root).insert(crate::extensions::source_contact_order::SourceCompoundOrder);
         }
         commands.entity(root).insert((
