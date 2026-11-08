@@ -1,0 +1,32 @@
+{
+  "assets": [
+    {
+      "path": "Content/ALS/Character/AB_Als.uasset",
+      "bytes": 150527,
+      "sha256": "6097dd4043b2051a18b6fdcd2258385afb535a369c97cac8598d815e7b81f1bf"
+    },
+    {
+      "path": "Content/ALS/Character/CR_Als.uasset",
+      "bytes": 1555021,
+      "sha256": "fe52b72061bc62e0dece654b3b3bc88a9d8cf2686251f1092cb37f91127cf6ff"
+    },
+    {
+      "path": "Content/ALS/Character/SKM_Als.uasset",
+      "bytes": 2606592,
+      "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+    }
+  ],
+  "request": "docs/audit/bf144/d249b/foot.request.json",
+  "request_source": "docs/audit/bf144/d250/weights-before.request.json",
+  "native_output": "docs/audit/bf144/d249b/foot.native.json.gz",
+  "raw": {
+    "bytes": 4003895,
+    "sha256": "c569137dcba0f6089c6beef7c6de01c132eb0d9f6e76f6b81e816569629036cc"
+  },
+  "compressed": {
+    "bytes": 221480,
+    "sha256": "3ad0dc10fc7f63d3ed53f0aeadb73d03c2326f625fce63480408f40b03ebdf9b"
+  },
+  "reader_report": "docs/audit/bf144/d249b/foot.native.json.reader.report.json",
+  "historical_controls": "docs/audit/bf144/468/inputs.json"
+}

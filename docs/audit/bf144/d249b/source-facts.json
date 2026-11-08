@@ -1,0 +1,66 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/Nodes/AlsRigUnit_ApplyFootOffsetLocation.cpp",
+      "sha256": "7c3917f7993b1551b4afff93663cd34158049ef65cd2e6bb77c4a3a9f8e1b2ac",
+      "excerpts": [
+        {
+          "first_line": 23,
+          "last_line": 58,
+          "text": "\tconst auto PelvisLocationZ{UE_REAL_TO_FLOAT(Hierarchy->GetGlobalTransform(CachedPelvisItem).GetLocation().Z)};\r\n\tconst auto ThighLocation{Hierarchy->GetGlobalTransform(CachedThighItem).GetLocation()};\r\n\r\n\tconst auto MaxFootLocationZ{PelvisLocationZ - MinPelvisToFootDistanceZ};\r\n\tconst auto MaxFootOffsetLocationZ{MaxFootLocationZ - UE_REAL_TO_FLOAT(FootTargetLocation.Z)};\r\n\r\n\t// Limit how high the foot offset can raise the foot relative to the pelvis.\r\n\tauto TargetOffsetLocationZ{FMath::Min(FootOffsetLocationZ, MaxFootOffsetLocationZ)};\r\n\r\n\t// Do not allow the foot offset to be lower than the pelvis offset to prevent leg stretching.\r\n\tTargetOffsetLocationZ = FMath::Max(TargetOffsetLocationZ, PelvisOffset);\r\n\r\n\tif (!bInitialized)\r\n\t{\r\n\t\tbInitialized = true;\r\n\r\n\t\tOffsetSpringState.Reset();\r\n\t\tOffsetLocationZ = TargetOffsetLocationZ;\r\n\t}\r\n\telse\r\n\t{\r\n\t\tOffsetLocationZ = UAlsMath::SpringDamperFloat(OffsetSpringState, OffsetLocationZ, TargetOffsetLocationZ,\r\n\t\t                                              UE_REAL_TO_FLOAT(ExecuteContext.GetDeltaTime()), OffsetInterpolationFrequency,\r\n\t\t                                              OffsetInterpolationDampingRatio, OffsetInterpolationTargetVelocityAmount);\r\n\t}\r\n\r\n\tFootLocation.X = FootTargetLocation.X;\r\n\tFootLocation.Y = FootTargetLocation.Y;\r\n\tFootLocation.Z = FootTargetLocation.Z + OffsetLocationZ;\r\n\r\n\t// Prevent the leg from being fully straightened. We do this after offset interpolation, otherwise the effect will not be noticeable.\r\n\r\n\tconst auto LegVector{FootLocation - ThighLocation};\r\n\tconst auto ClampedLegVector{LegVector.GetClampedToMaxSize(LegLength * MaxLegStretchRatio)};\r\n\r\n\tFootLocation = ThighLocation + ClampedLegVector;\r\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+      "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+      "excerpts": [
+        {
+          "first_line": 1543,
+          "last_line": 1549,
+          "text": "\ntemplate<typename T>\nUE_FORCEINLINE_HINT T TVector<T>::operator|(const TVector<T>& V) const\n{\n    return X*V.X + Y*V.Y + Z*V.Z;\n}\n\n"
+        },
+        {
+          "first_line": 1904,
+          "last_line": 1921,
+          "text": "inline TVector<T> TVector<T>::GetClampedToMaxSize(T MaxSize) const\n{\n    if (MaxSize < UE_KINDA_SMALL_NUMBER)\n    {\n        return ZeroVector;\n    }\n\n    const T VSq = SizeSquared();\n    if (VSq > FMath::Square(MaxSize))\n    {\n        const T Scale = MaxSize * FMath::InvSqrt(VSq);\n        return TVector<T>(X*Scale, Y*Scale, Z*Scale);\n    }\n    else\n    {\n        return *this;\n    }\t\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/GenericPlatform/GenericPlatformMath.h",
+      "sha256": "f8f04febb4df4cb8a58f145fbac30e72a2400707ca261120e7444a1ff0798908",
+      "excerpts": [
+        {
+          "first_line": 559,
+          "last_line": 565,
+          "text": "\t/** Computes a fully accurate inverse square root */\n\t[[nodiscard]] static UE_FORCEINLINE_HINT float InvSqrt( float F ) { return 1.0f / sqrtf( F ); }\n\t[[nodiscard]] static UE_FORCEINLINE_HINT double InvSqrt( double F ) { return 1.0 / sqrt( F ); }\n\n\t/** Computes a faster but less accurate inverse square root */\n\t[[nodiscard]] static UE_FORCEINLINE_HINT float InvSqrtEst( float F ) { return InvSqrt( F ); }\n\t[[nodiscard]] static UE_FORCEINLINE_HINT double InvSqrtEst( double F ) { return InvSqrt( F ); }\n"
+        }
+      ]
+    },
+    {
+      "path": "src/control_rig/control_rig_ik.rs",
+      "sha256": "a68d87c1c2cba0f47229b156a097e0ef1f9530b07fcefc34a4d6c1d772622f4c",
+      "excerpts": [
+        {
+          "first_line": 18,
+          "last_line": 21,
+          "text": "pub(crate) fn source_vector_dot(a: DVec3, b: DVec3) -> f64 {\n    (a.x * b.x + a.z * b.z) + a.y * b.y\n}\n\n"
+        }
+      ],
+      "revision": "before_D249b"
+    },
+    {
+      "path": "src/control_rig/control_rig_units.rs",
+      "sha256": "97266aa57990c9eb50c843043c2fd7b22ac1d875f4506d598d6b0c7153627f86",
+      "excerpts": [
+        {
+          "first_line": 160,
+          "last_line": 216,
+          "text": "                };\n                let [F32(velocity), F32(previous), Bool(valid)] = state.as_mut_slice() else {\n                    return Err(\"rig offset spring state layout is invalid\".to_owned());\n                };\n                let up = self.geometry.basis[2];\n                let pelvis = self\n                    .hierarchy\n                    .transform(pelvis, RigSpace::Global, false)?\n                    .translation\n                    .dot(up) as f32;\n                let thigh = self\n                    .hierarchy\n                    .transform(thigh, RigSpace::Global, false)?\n                    .translation;\n                let maximum = pelvis - *pelvis_distance - target.dot(up) as f32;\n                let target_offset = foot_offset.min(maximum).max(*pelvis_offset);\n                if !*initialized {\n                    *initialized = true;\n                    *velocity = 0.0;\n                    *previous = 0.0;\n                    *valid = false;\n                    *offset = target_offset;\n                } else {\n                    let delta_seconds = self.delta_seconds as f32;\n                    if delta_seconds > 1e-8 {\n                        if !*valid {\n                            *velocity = 0.0;\n                            *previous = target_offset;\n                            *valid = true;\n                            *offset = target_offset;\n                        } else {\n                            let target_velocity = (target_offset - *previous)\n                                * rig_clamp01(*target_velocity_amount)\n                                / delta_seconds;\n                            rig_spring_damper(\n                                offset,\n                                velocity,\n                                target_offset,\n                                target_velocity,\n                                delta_seconds,\n                                *frequency,\n                                *damping,\n                            );\n                            *previous = target_offset;\n                        }\n                    }\n                }\n                let leg = *target + up * *offset as f64 - thigh;\n                let maximum = (*length * *stretch) as f64;\n                let leg = if maximum < self.geometry.near_zero {\n                    DVec3::ZERO\n                } else if leg.length_squared() > maximum * maximum {\n                    leg * (maximum / leg.length())\n                } else {\n                    leg\n                };\n                *location = thigh + leg;\n"
+        }
+      ],
+      "revision": "before_D249b"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ use crate::extensions::{
     control_rig_hierarchy::{
         RigHierarchy, RigSpace, RigTransform, rig_normalize, rig_quat_near, rig_slerp,
     },
-    control_rig_ik::RigGeometry,
+    control_rig_ik::{RigGeometry, source_vector_dot},
     control_rig_math::{
         RigValue, rig_clamp01, rig_damper_alpha, rig_euler, rig_quaternion, rig_spring_damper,
     },
@@ -208,10 +208,13 @@ impl RigUnitContext<'_> {
                 let maximum = (*length * *stretch) as f64;
                 let leg = if maximum < self.geometry.near_zero {
                     DVec3::ZERO
-                } else if leg.length_squared() > maximum * maximum {
-                    leg * (maximum / leg.length())
                 } else {
-                    leg
+                    let squared = source_vector_dot(leg, leg);
+                    if squared > maximum * maximum {
+                        leg * (maximum * (1.0 / squared.sqrt()))
+                    } else {
+                        leg
+                    }
                 };
                 *location = thigh + leg;
             }
@@ -661,6 +664,35 @@ mod tests {
             DVec3::X, DVec3::Y, 0.0, [42.572_25, 40.196_82], false, 0.75, 1.25);
         assert_eq!(bones[1].translation,
             DVec3::new(-16.246_864_416_758_697, 53.175_769_941_310_58, 1.105_702_083_001_855_1));
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    fn control_rig_foot_limit_preserves_source_reciprocal_order() {
+        use RigValue::*;
+        let mut hierarchy = hierarchy();
+        for (index, translation) in [
+            (0, DVec3::new(1.700_763_719_368_582_5e-28, 96.750_599_145_889_28, -3.056_153_282_523_155)),
+            (1, DVec3::new(-9.005_802_624_670_832, 95.300_045_790_121, -2.529_951_274_917_837)),
+        ] {
+            hierarchy.set_transform(index, RigSpace::Global, false,
+                RigTransform { translation, ..Default::default() }, true).unwrap();
+        }
+        let curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy, curves: &curves, game_world: true, construction: false,
+            delta_seconds: 0.0, geometry: &geometry(), to_world: RigTransform::default(), line_trace: None,
+        };
+        let mut args = [
+            item("Bone0"), item("Bone1"),
+            Vector(DVec3::new(-17.076_301_574_707_03, 13.465_189_933_776_855, -5.072_212_219_238_281)),
+            F32(5.960_464_5e-6), F32(5.960_464_5e-6), F32(82.768_73), F32(20.0), F32(0.99),
+            F32(12.0), F32(2.0), F32(0.0), Bool(false), List(vec![]), List(vec![]),
+            List(vec![F32(0.0), F32(0.0), Bool(false)]), F32(0.0), Vector(DVec3::ZERO),
+        ];
+        context.call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args).unwrap();
+        assert_eq!(args[16], Vector(DVec3::new(-17.043_921_025_986_54, 13.793_534_620_321_694,
+            -5.062_012_130_634_415_5)));
     }
 
     #[test]
