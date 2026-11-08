@@ -1,0 +1,36 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Data/Character/CS_Als_Default.uasset",
+      "asset_identity": {
+        "bytes": 2950,
+        "sha256": "396a58b953c55e8bf103feab2475bc1994a7c0a0463ec73eb73c9c2cc254d2df"
+      },
+      "request": "docs/audit/bf144/d43/settings.request.json",
+      "native_output": "docs/audit/bf144/d43/settings.native.json",
+      "raw": {
+        "bytes": 69993,
+        "sha256": "506b0673d3a7304e97c3bb513d3b149f0be845b7a4ac26a867796501ca5ed64f"
+      },
+      "reader_report": "docs/audit/bf144/d43/settings.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Actions/Roll/AM_Als_Roll.uasset",
+      "asset_identity": {
+        "bytes": 25304,
+        "sha256": "b47d81dc91c5e7cacc579268e9c6f97749c6727deb331205a2359483fd75fe37"
+      },
+      "request": "docs/audit/bf144/d43/montage.request.json",
+      "native_output": "docs/audit/bf144/d43/montage.native.json",
+      "raw": {
+        "bytes": 56377,
+        "sha256": "d4b97dc0eb7c7c74cd57535f754b19a366876174b5947a85665e5fd47e773bbd"
+      },
+      "reader_report": "docs/audit/bf144/d43/montage.native.json.reader.report.json"
+    }
+  ],
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  }
+}

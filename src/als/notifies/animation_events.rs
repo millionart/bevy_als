@@ -804,7 +804,7 @@ fn notify_action(tag: Option<&str>) -> AlsNotifyLocomotionAction {
     AlsNotifyLocomotionAction::new(tag.unwrap_or("")).expect("Source locomotion action must be a valid gameplay tag")
 }
 
-fn physical_stance_override(
+pub(crate) fn physical_stance_override(
     action: AlsNotifyLocomotionAction,
 ) -> Option<AlsPhysicalStanceOverride> {
     if action == AlsNotifyLocomotionAction::Rolling && ROLL_CROUCH_ON_START {

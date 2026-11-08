@@ -6075,7 +6075,10 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色静止在高处静态平台，下一帧删除该平台。站立/蹲伏×16.667/50ms下源首帧vy应0且高度不变，target分别vy=−0.1635/−0.4905m/s、下降约1.59/14.31mm；各模式都正确切Air，差异在积分阶段。`bf144_recovery_stationary_floor_loss_defers_falling_integration`8组4PASS/4FAIL，保留平台的4组对照均Grounded、vy0；证据`target/bf144/13/stationary_loss/`。
   - 漏检：旧基座销毁与floor失效测试只断言切Air和没有水平瞬移；移动走离的remaining-time测试有非零MoveDelta，没有触发该早退。反例使用静态基座，排除D34竖直支持速度继承；仅登记，不改重力值。
 
-- [ ] BF144-D43 / P2 — Roll启动未立即提交动作和蹲伏，依赖随后动画通知。
+- [x] BF144-D43 / P2 — Roll启动未立即提交动作和蹲伏，依赖随后动画通知；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 16:49 +08:00；预估结束17:44 +08:00；实际结束16:54 +08:00，提前50分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS启动动作与蹲伏、原生角色设置及Roll Montage通知保存在`docs/audit/bf144/d43/`；输入实际启动前移并立即提交动作/蹲伏，已写输入拒绝和加载角色零倍率对照。旧target报告缺失，源端零倍率未复测，动画视觉Gate待执行。
+  - 范围：将输入触发的真实启动前移以满足本项；其对D44输入模式时序的影响只记录，D44仍需独立source核对和验证。
   - Source：fresh `AlsCharacter_Actions.cpp:90–100`在Montage_Play成功后立即SetLocomotionAction(Rolling)，`AlsCharacter.cpp:1080–1099,801–827`随即ApplyDesiredStance请求Crouch；同帧CMC BeforeMovement消费请求。AM_Als_Roll的action notify从0.0001s开始，不替代这个显式启动步骤；owner时间倍率0也不取消输入调用或SetLocomotionAction。
   - Target：`src/als/character/actions/roll_drive.rs:2122–2244`只启动roll state，`src/als/notifies/animation_events.rs:1003–1013,1048–1060`通过随后notify设置action/physical stance override。该PostUpdate阶段晚于Update里的`movement/motion.rs:2559–2562,3270`胶囊reshape；clip时间不前进时notify甚至尚未开始。
   - 反例：完整站立角色按Roll，owner1首帧roll.active=True、action=Rolling，但实际stance仍Standing、胶囊H0.9，第二帧才变Crouching/H0.56；源首个运动帧已应蹲伏。owner0从Standing或Crouching启动，target虽active但action连续两帧仍None，源应立即Rolling。`bf144_roll_lifecycle_start_commits_action_and_crouch_before_movement`6组3PASS/3FAIL，已有蹲伏的owner1及两组无Roll输入对照通过；证据`target/bf144/14/start/`。

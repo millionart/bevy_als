@@ -55,6 +55,53 @@ impl AlsRollTail {
 #[cfg(test)]
 pub(crate) mod tests {
     #[test]
+    fn roll_input_commits_action_and_stance_only_when_started() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (locomotion, pressed, blocked, expected) in [(LocomotionState::Grounded, true, false, true),
+            (LocomotionState::Grounded, false, false, false), (LocomotionState::Grounded, true, true, false),
+            (LocomotionState::Air, true, false, false)] {
+            let mut world = World::new();
+            let actor = world.spawn((crate::als::character::AlsCharacter, AlsRollState::default(),
+                locomotion, Stance::Standing, AlsViewYaw::default(), Transform::IDENTITY,
+                AlsInputCommand { roll_pressed: pressed, ..default() }, AlsNotifyLocomotionAction::None)).id();
+            if blocked { world.entity_mut(actor).insert(crate::als::motion::AlsMovementInputBlocked); }
+            world.run_system_once(start_roll_input).unwrap();
+            assert_eq!(world.get::<AlsRollState>(actor).unwrap().active, expected);
+            assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor).unwrap(),
+                &if expected { AlsNotifyLocomotionAction::Rolling } else { AlsNotifyLocomotionAction::None });
+            assert_eq!(world.get::<crate::als::transition::AlsPhysicalStanceOverride>(actor).map(|value| value.0),
+                expected.then_some(Stance::Crouching));
+            assert_eq!(world.get::<AlsRollInputHandled>(actor).is_some(), pressed);
+        }
+    }
+
+    #[test]
+    fn loaded_roll_start_commits_action_and_crouch_before_movement() {
+        for (stance, dilation, pressed) in [(Stance::Standing, 1.0, true), (Stance::Standing, 0.0, true),
+            (Stance::Crouching, 1.0, true), (Stance::Crouching, 0.0, true),
+            (Stance::Standing, 1.0, false), (Stance::Crouching, 1.0, false)] {
+            let (mut app, actor, _) = loaded_roll_character();
+            if stance == Stance::Crouching {
+                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().stance = Some(stance);
+                for _ in 0..8 { app.update(); }
+                assert_eq!(*app.world().get::<Stance>(actor).unwrap(), stance);
+            }
+            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(dilation));
+            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().roll_pressed = pressed;
+            app.update();
+            assert_eq!(app.world().get::<AlsRollState>(actor).unwrap().active, pressed);
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor).copied(), Some(if pressed {
+                AlsNotifyLocomotionAction::Rolling
+            } else { AlsNotifyLocomotionAction::None }));
+            let expected = if pressed { Stance::Crouching } else { stance };
+            assert_eq!(*app.world().get::<Stance>(actor).unwrap(), expected);
+            let half = app.world().get::<avian3d::prelude::Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents().y;
+            let expected_half = if expected == Stance::Crouching { 0.56 } else { 0.9 };
+            assert!((half - expected_half).abs() < 1e-5, "stance={stance:?} dilation={dilation} pressed={pressed} half={half}");
+        }
+    }
+
+    #[test]
     fn roll_small_input_keeps_consumed_direction_through_the_full_frame() {
         for amount in [0.01_f32, 0.0002] {
             let (mut app, actor, _) = loaded_roll_character();
@@ -1940,6 +1987,9 @@ impl AlsRollBlendOut {
 
 pub struct AlsRollDrivePlugin;
 
+#[derive(Component)]
+struct AlsRollInputHandled;
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsRollDriveSet;
 
@@ -1947,6 +1997,9 @@ impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<crate::als::transition::StateTransitionEvent>().add_systems(Startup, load_roll_slot_curve_asset)
             .add_observer(discard_roll_target)
+            .add_systems(Update, (ensure_roll_state, start_roll_input).chain()
+                .after(crate::als::motion::locomotion_drive_system)
+                .before(crate::als::transition::state_transition_system))
             .add_systems(PostUpdate, ensure_roll_slot_samplers.after(ensure_roll_state).before(advance_rolls))
             .configure_sets(
                 PostUpdate,
@@ -1986,6 +2039,55 @@ fn ensure_roll_state(
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsRollState::default());
+    }
+}
+
+fn start_roll_input(
+    mut commands: Commands,
+    transforms: bevy::transform::helper::TransformHelper,
+    blocked: Query<(), With<crate::als::motion::AlsMovementInputBlocked>>,
+    actions: Query<&AlsNotifyLocomotionAction>,
+    blend_outs: Query<&AlsRollBlendOut>,
+    samplers: Query<(Entity, &AlsRollSlotSampler, &AnimationGraphPlayer), Without<AlsRollTail>>,
+    mut characters: Query<(Entity, &mut AlsRollState, &LocomotionState, &Stance, &AlsViewYaw,
+        Option<&crate::als::view::AlsPlayerViewYaw>, &AlsInputCommand, Option<&AlsInputOverride>,
+        Option<&crate::actual_motion::AlsActualMotion>), With<crate::als::character::AlsCharacter>>,
+) {
+    for (character, mut roll, locomotion, stance, view, player_view, cmd, override_input, motion) in &mut characters {
+        let input = *override_input.map(|value| &value.0).unwrap_or(cmd);
+        if !input.roll_pressed { continue; }
+        commands.entity(character).insert(AlsRollInputHandled);
+        let action = actions.get(character).ok().copied().unwrap_or(AlsNotifyLocomotionAction::None);
+        let action_blocked = !matches!(action, AlsNotifyLocomotionAction::None | AlsNotifyLocomotionAction::Rolling);
+        let effective = crate::als::motion::movement_input_for_action(input, blocked.contains(character) || action_blocked);
+        if !effective.roll_pressed { continue; }
+        let Ok(world) = transforms.compute_global_transform(character) else { continue };
+        let actor_yaw = world.rotation().to_euler(EulerRot::YXZ).0;
+        let input_yaw = motion.and_then(|value| value.has_input.then_some(value.input_yaw_degrees.to_radians()));
+        let direction_basis = AlsViewYaw(if input_yaw.is_some() { player_view.map_or(view.0, |value| value.0) } else { actor_yaw });
+        let previous = *roll;
+        if action == AlsNotifyLocomotionAction::None && *locomotion == LocomotionState::Grounded { roll.active = false; }
+        let stopped_blend = blend_outs.get(character).ok().copied();
+        if stopped_blend.is_some() && *locomotion == LocomotionState::Grounded { roll.active = false; }
+        let started = roll.update(&effective, select_roll_direction(input_yaw, &direction_basis), locomotion, stance, 0.0).started;
+        if !started { continue; }
+        if previous.active {
+            let mut blend = stopped_blend.unwrap_or_else(|| AlsRollBlendOut::new(&previous,
+                (crate::als::roll::ROLL_DURATION_SECS - previous.time).max(0.0)));
+            blend.stop(crate::als::roll::ROLL_WEIGHT_IN_SECS);
+            for (entity, sampler, player) in &samplers {
+                if sampler.character != character { continue; }
+                commands.entity(entity).insert(AlsRollTail { time: previous.time, blend });
+                let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = player.get_animation_source() else { continue };
+                commands.spawn((Name::new("als_roll_slot_sampler"), Children::default(), ChildOf(character),
+                    AnimationGraphPlayer::new(player.skeleton().clone()).with_graph(graph.clone()), RootMotionOutput::default(), *sampler));
+            }
+            commands.entity(character).remove::<AlsRollBlendOut>();
+        }
+        commands.entity(character).insert(AlsNotifyLocomotionAction::Rolling);
+        if let Some(stance) = crate::animation_events::physical_stance_override(AlsNotifyLocomotionAction::Rolling) {
+            commands.entity(character).insert(stance);
+        }
     }
 }
 
@@ -2188,6 +2290,7 @@ fn advance_rolls(
             &AlsInputCommand,
             Option<&AlsInputOverride>,
             Option<&crate::actual_motion::AlsActualMotion>,
+            Has<AlsRollInputHandled>,
         ),
         With<crate::als::character::AlsCharacter>,
     >,
@@ -2214,17 +2317,20 @@ fn advance_rolls(
         cmd,
         ovr,
         motion,
+        input_handled,
     ) in &mut q
     {
+        if input_handled { commands.entity(character).remove::<AlsRollInputHandled>(); }
         let Ok(actor_world) = transform_helper.compute_global_transform(character) else { continue; };
         let actor_yaw = actor_world.rotation().to_euler(EulerRot::YXZ).0;
         let dt = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
         let action_blocked = actions.get(character).is_ok_and(|action| !matches!(*action,
             crate::animation_events::AlsNotifyLocomotionAction::None | crate::animation_events::AlsNotifyLocomotionAction::Rolling));
-        let effective = crate::als::motion::movement_input_for_action(
+        let mut effective = crate::als::motion::movement_input_for_action(
             *ovr.map(|o| &o.0).unwrap_or(cmd),
             blocked.contains(character) || action_blocked,
         );
+        if input_handled { effective.roll_pressed = false; }
 
         let previous_roll = *roll;
         let landed = landings.contains(&character);
@@ -2265,6 +2371,10 @@ fn advance_rolls(
             lifecycle = roll.start_from_landing(landing_speed, velocity_yaw, actor_yaw, *stance);
         }
         if lifecycle.started {
+            commands.entity(character).insert(AlsNotifyLocomotionAction::Rolling);
+            if let Some(stance) = crate::animation_events::physical_stance_override(AlsNotifyLocomotionAction::Rolling) {
+                commands.entity(character).insert(stance);
+            }
             if previous_roll.active {
                 let mut blend = stopped_blend.unwrap_or_else(|| AlsRollBlendOut::new(&previous_roll,
                     (crate::als::roll::ROLL_DURATION_SECS - previous_roll.time).max(0.0)));
