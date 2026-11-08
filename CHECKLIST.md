@@ -5835,7 +5835,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：实际完整角色以−1m/s下落、1/60s帧，在60°光滑坡面发生普通非穿透接触。朝坡输入时源应得velocity约(−0.50381,−0.87263,0)m/s，目标实际为(−0.47885,−0.82923,0)m/s，少下落约0.0434m/s；CMC碰撞阶段缓存与最终velocity一致。`bf144_air_contact_limits_input_before_slope_deflection`共8组，完整/最小角色各1FAIL；无输入、沿坡、离坡的6个对照PASS。证据`target/bf144/06/air_control/`。
   - 漏检：旧falling_slide单元测试只核对给定delta的几何投影/向上限位，steep_contact测试只核对保持Air；没有比较接触后的输入限制与速度。仅登记，不改空中算法或坡度阈值。
 
-- [ ] BF144-D18 / P2 — 空中胶囊sweep把局部旋转当成世界旋转。
+- [x] BF144-D18 / P2 — 空中胶囊sweep把局部旋转当成世界旋转；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:12 +08:00；预估结束14:52 +08:00；实际结束14:15 +08:00，提前37分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE世界quat源与直立/倾斜胶囊原生等价几何探针保存在`docs/audit/bf144/d18/`；Air及两种Walk→Air入口传世界旋转、写回保留局部旋转，已写加载角色直接/父级及yaw对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `PhysFalling:4909–4910,5044`以UpdatedComponent的GetComponentQuat构造PawnRotation，并交给SafeMoveUpdatedComponent；实际移动查询使用component世界形体。
   - Target：`src/als/character/movement/motion.rs:3712–3722`复制local Transform，只把translation替换成世界Position；`falling_movement_transaction:2777–2778`把仍为local的rotation交给world spatial query。外层虽已计算world transform，却只使用其scale。
   - 反例：世界pitch=60°、uniform胶囊半高0.9m/半径0.3m，朝平墙空中运动。源世界形体前向半径0.81962m，相同目标shape的world-quat查询也验证此值。直接world rotation时中心停在z=0.83009m；挂在60°父级、local rotation=identity时，碰撞阶段走到z=0.31142m，完整角色后置solver一次结果仍只有z=0.53624m。`bf144_air_sweep_uses_world_capsule_rotation`共8组6PASS/2FAIL，证据`target/bf144/06/world_rotation/`。

@@ -4567,6 +4567,7 @@ pub(crate) fn cmc_movement_transaction_system(
             && !root_motion_active {
             let mut initial_transform = *transform;
             initial_transform.translation = position.0;
+            initial_transform.rotation = world.rotation();
             let initial = velocity.0 + motor.lin.boost;
             let max_speed = runtime.grounded_max_speed;
             let (moved, final_velocity, steps, contact, mode, floor, grounded_max_speed, collision_mode, refreshed) = falling_movement_transaction(&spatial_query, capsule,
@@ -4589,7 +4590,6 @@ pub(crate) fn cmc_movement_transaction_system(
             runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { final_velocity });
             runtime.airborne_sweep_contact |= contact;
             let world_position = moved.translation;
-            *transform = moved;
             transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
             commands.entity(entity).insert(Position(moved.translation));
             motor.lin.boost = -velocity.0;
@@ -4650,8 +4650,10 @@ pub(crate) fn cmc_movement_transaction_system(
                 final_velocity += leaving_support;
                 let terminal = physics_modes.get(entity).ok().and_then(|(_, volume, _)| volume)
                     .unwrap_or(&default_volume.0).terminal_velocity;
+                let mut falling_transform = current_transform;
+                falling_transform.rotation = world.rotation();
                 let (moved, falling_velocity, _, contact, mode, landing_base, grounded_max_speed, collision_mode, refreshed) = falling_movement_transaction(&spatial_query,
-                    capsule, current_transform, final_velocity, controller.basis.desired_motion, max_speed,
+                    capsule, falling_transform, final_velocity, controller.basis.desired_motion, max_speed,
                     params, gravity.value, grounded, landing, terminal, remaining_time, iterations, entity,
                     &mut runtime.random_seed, &candidates, &step_permissions, &bases, &owners, &shapes, &mut transitions, cached_input_max);
                 if let Some(refreshed) = refreshed { dynamics.0 = refreshed; }
@@ -4664,7 +4666,7 @@ pub(crate) fn cmc_movement_transaction_system(
                         crate::als::dynamics::AlsMovementBase::default(), LinearVelocity::ZERO));
                     *base = default();
                 }
-                current_transform = moved;
+                current_transform.translation = moved.translation;
                 final_velocity = falling_velocity;
                 runtime.airborne_sweep_contact |= contact;
             }
@@ -4736,6 +4738,7 @@ pub(crate) fn cmc_movement_transaction_system(
                     let max_speed = runtime.grounded_max_speed;
                     let mut falling_start = *transform;
                     falling_start.translation = destination;
+                    falling_start.rotation = world.rotation();
                     *loco = LocomotionState::Air;
                     transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
                         from: StateValue::LocomotionState(LocomotionState::Grounded),
@@ -4759,7 +4762,6 @@ pub(crate) fn cmc_movement_transaction_system(
                         if let Some(base) = base.as_deref_mut() { *base = default(); }
                     }
                     let world_position = moved.translation;
-                    *transform = moved;
                     transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
                     commands.entity(entity).insert(Position(world_position));
                     motor.lin.boost = -velocity.0;
@@ -6542,6 +6544,43 @@ mod tests {
         let actual = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
         let expected = Vec3::new(0.3562477, -0.8726250, 0.3562477);
         assert!(actual.distance(expected) < 0.003, "actual={actual:?} source={expected:?}");
+    }
+
+    #[test]
+    fn falling_capsule_uses_world_rotation_without_changing_local_rotation() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 0.1),
+            Transform::from_xyz(0.0, 5.0, -0.05)));
+        app.update();
+        for (world_rotation, expected_z) in [
+            (Quat::IDENTITY, 0.3106),
+            (Quat::from_rotation_y(60.0_f32.to_radians()), 0.3106),
+            (Quat::from_rotation_x(60.0_f32.to_radians()), 0.8302),
+        ] {
+            for parented in [false, true] {
+                let start = Vec3::new(0.0, 5.0, 1.0);
+                let local = if parented {
+                    let parent = app.world_mut().spawn(Transform::from_rotation(world_rotation)).id();
+                    app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+                    Transform::from_translation(world_rotation.inverse() * start)
+                } else {
+                    app.world_mut().entity_mut(actor).remove::<ChildOf>();
+                    Transform::from_translation(start).with_rotation(world_rotation)
+                };
+                app.world_mut().entity_mut(actor).insert((Position(start), local, LocomotionState::Air,
+                    LinearVelocity(Vec3::NEG_Z * 12.0), TnuaMotor::default(),
+                    crate::als::character::AlsEffectiveGravity::default(), AlsCmcAdapterRuntime::default()));
+                app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
+                app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+                app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+                let actual = app.world().get::<Position>(actor).unwrap().0;
+                let local_after = app.world().get::<Transform>(actor).unwrap();
+                assert!((actual.z - expected_z).abs() < 0.003,
+                    "parented={parented} rotation={world_rotation:?} position={actual:?}");
+                assert_eq!(local_after.rotation, local.rotation, "parented={parented}");
+            }
+        }
     }
 
     #[test]
