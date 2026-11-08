@@ -1,0 +1,712 @@
+{
+  "fresh": "docs/audit/bf144/d99/character.native.json.gz",
+  "previous": "docs/audit/bf144/d81/character.native.json.gz",
+  "cdo_equal": true,
+  "change_count": 176,
+  "changes": [
+    {
+      "path": "/asset_objects/94/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/94/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/94/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/94/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/94/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/113/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/113/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/113/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/113/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/113/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/116/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/116/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/116/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/116/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/116/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/120/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/120/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/120/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/120/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/120/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/124/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/124/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/124/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/124/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/124/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/127/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/127/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/127/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/127/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/127/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/130/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/130/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/130/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/130/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/asset_objects/130/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/18/pins/2/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/19/pins/2/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/20/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/24/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/27/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/27/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/28/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/28/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/28/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/28/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/29/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/29/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/30/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/30/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/30/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/1/nodes/30/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/5/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/6/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/6/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/6/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/6/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/6/pins/4/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/6/pins/5/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/6/pins/5/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/9/pins/2/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/15/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/15/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/16/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/16/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/16/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/16/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/nodes/16/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/5/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/nodes/0/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/nodes/0/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/nodes/1/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/nodes/1/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/nodes/1/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/nodes/1/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/nodes/1/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/6/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/0/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/0/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/0/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/0/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/1/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/1/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/1/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/1/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/1/pins/2/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/1/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/2/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/2/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/2/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/2/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/nodes/2/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/7/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/0/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/0/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/0/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/0/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/1/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/1/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/1/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/1/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/1/pins/2/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/1/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/2/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/2/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/2/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/2/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/nodes/2/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/8/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/nodes/0/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/nodes/0/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/nodes/1/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/nodes/1/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/nodes/1/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/nodes/1/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/nodes/1/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/9/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/nodes/0/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/nodes/0/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/nodes/1/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/nodes/1/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/nodes/1/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/nodes/1/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/nodes/1/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/10/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/nodes/0/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/nodes/0/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/nodes/1/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/nodes/1/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/nodes/1/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/nodes/1/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/nodes/1/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/properties/6/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/properties/6/fields/0/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/properties/6/fields/1/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/properties/6/fields/2/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/11/properties/6/fields/3/exported_text",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/2/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/2/pins/3/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/6/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/7/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/7/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/7/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/7/pins/2/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/7/pins/3/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/8/pins/0/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/9/pins/0/linked_to/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/9/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/10/pins/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/10/pins/1/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/10/pins/1/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/10/pins/2/linked_to/0/pin_id",
+      "kind": "value"
+    },
+    {
+      "path": "/graphs/13/nodes/10/pins/2/pin_id",
+      "kind": "value"
+    }
+  ]
+}

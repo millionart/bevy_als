@@ -129,4 +129,68 @@ mod tests {
         assert!((contacts[0].points[0].normal_speed + 2.2635).abs() < 1e-5);
         assert_eq!(contacts[1].points[0].normal_speed, -2.0);
     }
+
+    #[test]
+    fn source_world_restitution_budget_reaches_native_head_two_point_solver() {
+        use avian3d::dynamics::solver::{SolverConfig, solver_body::SolverBodyInertia};
+        use avian3d::math::SymmetricMatrix;
+        use avian3d::prelude::LockedAxes;
+        let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.update();
+        let iterations = app.world().resource::<SolverConfig>().restitution_iterations;
+        assert_eq!(iterations, 2);
+        let profile = crate::pa_als::parse_pa_als_profile();
+        let native = profile.bodies.iter().find(|body| body.label == "head").unwrap().mass_properties.unwrap();
+        let inverse_mass = native.mass_kg.recip();
+        let inverse_inertia = native.inertia_tensor_kg_m2.inverse();
+        let inertia = SolverBodyInertia::new(inverse_mass, SymmetricMatrix::from_mat3_unchecked(inverse_inertia),
+            LockedAxes::default(), 0, true);
+        let mut world = World::new();
+        let head = world.spawn_empty().id(); let floor = world.spawn_empty().id();
+        let mut contact = constraint(head, floor, 0.01);
+        contact.restitution = 0.3;
+        let arms = [Vec3::new(-0.1, 0.0, 0.0), Vec3::new(0.07, 0.0, 0.02)];
+        contact.points.push(contact.points[0].clone());
+        for (point, arm) in contact.points.iter_mut().zip(arms) {
+            point.anchor1 = arm;
+            point.normal_speed = -2.0;
+            point.normal_part.impulse = 10.0;
+            point.normal_part.total_impulse = 1.0;
+            let cross = arm.cross(Vec3::Y);
+            point.normal_part.effective_mass = (inverse_mass + cross.dot(inverse_inertia * cross)).recip();
+        }
+        let mut once = contact.clone();
+        let mut once_head = SolverBody::default(); let mut once_floor = SolverBody::DUMMY;
+        once.apply_restitution(&mut once_head, &mut once_floor, &inertia, &SolverBodyInertia::DUMMY, 0.1);
+        let mut actual = SolverBody::default(); let mut fixed = SolverBody::DUMMY;
+        for _ in 0..iterations { contact.apply_restitution(&mut actual, &mut fixed, &inertia, &SolverBodyInertia::DUMMY, 0.1); }
+        let mut velocity = Vec3::ZERO; let mut angular = Vec3::ZERO;
+        for _ in 0..2 {
+            for arm in arms {
+                let cross = arm.cross(Vec3::Y);
+                let effective_mass = (inverse_mass + cross.dot(inverse_inertia * cross)).recip();
+                let normal_speed = -(velocity + angular.cross(arm)).dot(Vec3::Y);
+                let impulse = -effective_mass * (normal_speed - 0.6);
+                velocity -= Vec3::Y * (inverse_mass * impulse);
+                angular -= inverse_inertia * cross * impulse;
+            }
+        }
+        assert!(actual.linear_velocity.abs_diff_eq(velocity, 1e-5));
+        assert!(actual.angular_velocity.abs_diff_eq(angular, 1e-5));
+        assert!((actual.angular_velocity - once_head.angular_velocity).length() > 1e-4);
+        let mut single = once.clone();
+        single.points.truncate(1);
+        single.points[0].normal_part.impulse = 10.0;
+        let mut single_head = SolverBody::default(); let mut single_floor = SolverBody::DUMMY;
+        single.apply_restitution(&mut single_head, &mut single_floor, &inertia, &SolverBodyInertia::DUMMY, 0.1);
+        let first_pass = single_head.clone();
+        single.apply_restitution(&mut single_head, &mut single_floor, &inertia, &SolverBodyInertia::DUMMY, 0.1);
+        assert!(single_head.linear_velocity.abs_diff_eq(first_pass.linear_velocity, 1e-6));
+        assert!(single_head.angular_velocity.abs_diff_eq(first_pass.angular_velocity, 1e-6));
+        let mut no_bounce = once;
+        no_bounce.restitution = 0.0;
+        let mut still = SolverBody::default(); let mut static_body = SolverBody::DUMMY;
+        no_bounce.apply_restitution(&mut still, &mut static_body, &inertia, &SolverBodyInertia::DUMMY, 0.1);
+        assert_eq!(still.linear_velocity, Vec3::ZERO);
+    }
 }

@@ -17,6 +17,7 @@ pub const SOURCE_MAX_PHYSICS_DELTA: Duration = Duration::from_nanos(33_333_333);
 const SOURCE_PHYSICS_SUBSTEPS: u32 = include!("../../settings/physics_substeps.rs");
 const SOURCE_RESTITUTION_ACCELERATION: f32 = include!("../../settings/restitution_acceleration.rs");
 const SOURCE_CONTACT_PUSHOUT_SPEED: f32 = include!("../../settings/contact_pushout_speed.rs");
+const SOURCE_WORLD_SOLVER_ITERATIONS: [u32; 3] = include!("../../settings/world_solver_iterations.rs");
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourcePhysicsTimingSet {
@@ -103,6 +104,7 @@ fn update_source_contact_limits(
 ) {
     solver.restitution_threshold = (SOURCE_RESTITUTION_ACCELERATION * time.delta_secs() / length_unit.0).next_up();
     solver.max_overlap_solve_speed = SOURCE_CONTACT_PUSHOUT_SPEED / length_unit.0;
+    solver.restitution_iterations = SOURCE_WORLD_SOLVER_ITERATIONS[1] as usize;
 }
 
 fn integrate_character_velocity(

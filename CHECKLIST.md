@@ -6565,11 +6565,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧接触测试从已经重叠的几何开始、只检查帧末child pose，或使用body与shape同entity；没有串联child更新→预测bounds→下一帧检测。消融去掉历史AABB缓存和手工平移，仅保留fixture中的提前pose同步仍得到相同恢复，生产实现未改。该缺陷与D93已生成接触后的柔性恢复独立。
   - 22:36 source/static摘要：fresh PA、源积分/bounds顺序及Avian写回/AABB时序已固化；既有child pose同步移到solver写回后、AABB预测之前。已写加载head双帧长、单/六子步、到达与未到达障碍及AABB对照；测试、消融、加速/旋转和Playground待统一Gate。证据`docs/audit/bf144/d98/`。实际结束：2026-11-08 22:36 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D99 / P3 — 多点碰撞回弹仍使用默认单次迭代，遗漏源世界velocity预算。
+- [x] BF144-D99 / P3 — 多点碰撞回弹仍使用默认单次迭代，遗漏源世界velocity预算。
+  - 本轮开始：2026-11-08 22:36 +08:00；预计结束：2026-11-08 23:11 +08:00。重读源world迭代与目标多点回弹消费，复用已生成的世界预算并补多点/单点控制；统一测试和消融留待升级后。估时依据：BF144.32已隔离共同接触输入及原生惯量，D81已有source世界配置生成链。
   - Source：fresh `PBDCollisionContainerSolver.cpp:900–904`每次世界velocity迭代都处理collision manifold；`PBDCollisionSolver.h:1158–1245`在native AveragePointEnabled=False时逐点处理，两次迭代来自当前世界PhysicsSettings。`CollisionResolution.cpp:652–665→CollisionOneShotManifolds.cpp:1133–1200`的水平capsule/box分支生成两个端点。
   - Target：Avian `dynamics/solver/plugin.rs:288–299,629–670,710–718`使用独立SolverConfig.restitution_iterations，默认1且项目未接入世界collision预算；此字段与D81中SourcePhysicsJoint的RBAN数据没有调用关系。
   - 反例：完整角色native head capsule、mass/inertia/conditioning与两个实际受力端点；在回弹阶段提供共同零V/W、已激活normal冲量、restitution=0.3和同一normal/有效惯量。目标vY=0.6575385m/s，源两次参考0.6316152；目标角速度(x,z)=(-0.733396,-1.047396)，源=(-0.402972,-0.575503)。60/30Hz均失败，仅把回弹迭代改2恢复；另有相同isotropic惯量矩阵控制及单点/零回弹对照，共20组16PASS/4FAIL。证据`bf144_pa_contact_phase32_multi_point_velocity_uses_source_budget`、`bf144_pa_contact_phase32_native_inertia_uses_source_multi_point_budget`、`target/bf144/32/`。
   - 漏检：旧回弹验收只含单点，重复迭代天然不改变结果；旧joint预算测试未覆盖独立collision solver。这里比较同一组阶段输入的有限次求解，不将target生成的微小法向分量或完整自然落地轨迹视为源已等价；生产实现未改。
+
+  - 22:43 source/static摘要：fresh PA/PhysicsSettings/角色mesh确认世界速度预算2、覆盖及平均点关闭；角色CDO不变，图标识等字段与旧native输出有差异，已单独保存本次原始结果。目标多点回弹复用D81生成的世界预算；已写原生head质量/惯量的两点逐轮参考及单点、零回弹控制。测试、消融、接触顺序与Playground待统一Gate。证据`docs/audit/bf144/d99/`。实际结束：2026-11-08 22:43 +08:00；偏差：−28分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D100 / P3 — Ragdoll接触点与约束组顺序不同，有限次求解改变角速度。
   - Source：本次native UpdateConstraint给水平head capsule/box生成的端点顺序为正X端→负X端；`PBDCollisionContainerSolver.cpp:289–301`按未disabled的原始顺序追加solver点，`PBDCollisionSolver.h:1166–1245`逐点求解，没有对这条primitive分支另行排序。

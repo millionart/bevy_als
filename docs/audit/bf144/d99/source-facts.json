@@ -1,0 +1,44 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PBDRigidsSolver.cpp",
+    "sha256": "8d810ddcab03ca703abd57f4bdc6319fb6b78c1940037422ca43bd305752dc9f",
+    "start_line": 3693,
+    "end_line": 3699,
+    "text": "\t{\n\t\tGetEvolution()->GetRigidClustering().ApplySettings(InConfig);\n\t\tSetPositionIterations(InConfig.PositionIterations);\n\t\tSetVelocityIterations(InConfig.VelocityIterations);\n\t\tSetProjectionIterations(InConfig.ProjectionIterations);\n\t\tSetCollisionCullDistance(InConfig.CollisionCullDistance);\n\t\tSetCollisionMaxPushOutVelocity(InConfig.CollisionMaxPushOutVelocity);"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PBDRigidsSolver.cpp",
+    "sha256": "8d810ddcab03ca703abd57f4bdc6319fb6b78c1940037422ca43bd305752dc9f",
+    "start_line": 3765,
+    "end_line": 3771,
+    "text": "\t\t\t{\n\t\t\t\tSetPositionIterations(ChaosSolverPositionIterations);\n\t\t\t}\n\t\t\tif (ChaosSolverVelocityIterations >= 0)\n\t\t\t{\n\t\t\t\tSetVelocityIterations(ChaosSolverVelocityIterations);\n\t\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/PBDCollisionContainerSolver.cpp",
+    "sha256": "b92ce7e6ffec23d4285268bcdb8f0f7fabe7263ccff4230179d9921849305e79",
+    "start_line": 896,
+    "end_line": 905,
+    "text": "\n\t\tUpdateVelocityShockPropagation(InDt, It, NumIts, BeginIndex, EndIndex, SolverSettings);\n\n\t\tconst FSolverReal Dt = FSolverReal(InDt);\n\t\tconst bool bApplyDynamicFriction = (It >= NumIts - SolverSettings.NumVelocityFrictionIterations);\n\n\t\tfor (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)\n\t\t{\n\t\t\tCollisionSolvers[SolverIndex].SolveVelocity(Dt, bApplyDynamicFriction);\n\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Collision/PBDCollisionSolver.h",
+    "sha256": "75ad39b6c292d0b22ec8c883a5d794f13f509ab9c1febf1ba7cd949b4b4a9b89",
+    "start_line": 1158,
+    "end_line": 1175,
+    "text": "\t\t\tconst bool bSolveAverageContact = (NumManifoldPoints() > 1) && CVars::bChaos_PBDCollisionSolver_Velocity_AveragePointEnabled;\n\t\t\tif (bSolveAverageContact)\n\t\t\t{\n\t\t\t\tSolveVelocityAverage(Dt);\n\t\t\t}\n\n\t\t\tconst FSolverReal DynamicFriction = (bApplyDynamicFriction && (Dt > 0) && CVars::bChaos_PBDCollisionSolver_Velocity_FrictionEnabled) ? State.VelocityFriction : FSolverReal(0);\n\n\t\t\tfor (int32 PointIndex = 0; PointIndex < NumManifoldPoints(); ++PointIndex)\n\t\t\t{\n\t\t\t\tFPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];\n\t\t\t\tif (!!SolverManifoldPoint.Flags.bDisableVelocitySolve)\n\t\t\t\t{\n\t\t\t\t\tcontinue;\n\t\t\t\t}\n\n\t\t\t\t// Solver for normal velocity when...\n\t\t\t\t// - we applied a positional impulse"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/plugin.rs",
+    "sha256": "b8c96fa4fcdc013ef28830afe5821a013676252519fb1169fb08b8d33227ceea",
+    "start_line": 278,
+    "end_line": 299,
+    "text": "    ///\n    /// A higher number of iterations can result in more accurate bounces,\n    /// but it only makes a difference when there are more than one contact point.\n    ///\n    /// For example, with just one iteration, a cube falling flat on the ground\n    /// might bounce and rotate to one side, because the impulses are applied\n    /// to the corners sequentially, and some of the impulses are likely to be larger\n    /// than the others. With multiple iterations, the impulses are applied more evenly.\n    ///\n    /// Default: `1`\n    pub restitution_iterations: usize,\n}\n\nimpl Default for SolverConfig {\n    fn default() -> Self {\n        Self {\n            contact_damping_ratio: 10.0,\n            contact_frequency_factor: 1.5,\n            max_overlap_solve_speed: 4.0,\n            warm_start_coefficient: 1.0,\n            restitution_threshold: 1.0,\n            restitution_iterations: 1,"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/plugin.rs",
+    "sha256": "b8c96fa4fcdc013ef28830afe5821a013676252519fb1169fb08b8d33227ceea",
+    "start_line": 710,
+    "end_line": 718,
+    "text": "    // Performing multiple iterations can result in more accurate restitution,\n    // but only if there are more than one contact point.\n    let point_count = constraint.points.len();\n    let iterations = if point_count > 1 { iterations } else { 1 };\n\n    for _ in 0..iterations {\n        constraint.apply_restitution(body1, body2, inertia1, inertia2, threshold);\n    }\n}"
+  }
+]

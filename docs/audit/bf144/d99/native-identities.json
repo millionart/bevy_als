@@ -1,0 +1,41 @@
+{
+  "asset": "Content/ALS/Character/PA_Als.uasset",
+  "asset_identity": {
+    "bytes": 52745,
+    "sha256": "299d44f90d97cfca296cf888df9727c9f3cc9435cc86e11b3525f6f04d45ebb6"
+  },
+  "request": "docs/audit/bf144/d99/physics_asset.request.json",
+  "native_output": "docs/audit/bf144/d65a/physics_asset.native.json.gz",
+  "raw": {
+    "bytes": 4751605,
+    "sha256": "e206bef0e4012ebba808a6558ff5209a4afe58a287dca8a7ca4b7bd68af14e9b"
+  },
+  "compressed": {
+    "bytes": 224912,
+    "sha256": "ed167540559d0d1e93ad56c375523342343602810cf468fcb337fc8e30cc0ac6"
+  },
+  "reader_report": "docs/audit/bf144/d99/physics_asset.native.json.reader.report.json",
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  },
+  "fresh_output_identical_to": "docs/audit/bf144/d65a/physics_asset.native.json.gz",
+  "settings": {
+    "source": "docs/audit/bf144/d81/settings.native.json",
+    "fresh_request": "docs/audit/bf144/d99/settings.request.json",
+    "reader_report": "docs/audit/bf144/d99/settings.native.json.reader.report.json",
+    "bytes": 86263,
+    "sha256": "d92acc88fc82c19b4be00ecfb2c5f3e1f0c90040393014274b2af9c0e2434249"
+  },
+  "character": {
+    "source": "docs/audit/bf144/d99/character.native.json.gz",
+    "request": "docs/audit/bf144/d99/character.request.json",
+    "reader_report": "docs/audit/bf144/d99/character.native.json.reader.report.json",
+    "raw_bytes": 9918900,
+    "raw_sha256": "b45f646770dd0e653c8157dee211bf2a77afb8abacf4f21eac75d6b21317caec",
+    "gzip_bytes": 327452,
+    "gzip_sha256": "8f54c7f64cbf07ab78fd754641cd327b18ce9849b5c2faa7f8e1cecbd38d962c",
+    "previous": "docs/audit/bf144/d81/character.native.json.gz",
+    "comparison": "CDO and mesh properties unchanged; graph identifiers and graph property payloads differ"
+  }
+}
