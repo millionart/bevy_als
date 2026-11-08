@@ -6715,7 +6715,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色的pelvis/spine_01保持实际质量与启用的linear lock，中心frame/单球接触隔离转矩，关节预算8/2且关闭projection，使用hard contact排除D93。共同回弹阶段V/W=0、输入normal_speed=−2、restitution=0.3时，目标父body速度0、子body0.6m/s；源两轮交替均应0.41612768m/s。60/30Hz×1/6子步及移除contact/joint、零回弹、显式交替控制共32组28PASS/4FAIL；交替同一实际collision消费者和中心点速度投影后恢复。证据`bf144_pa_contact_phase35_restitution_interleaves_source_joint_velocity`、`target/bf144/35/velocity/`。
   - 位置补证：同一受控两body、零初速/重力/回弹、单子步且不覆盖solver位置；目标两COM的y=9.997679m，源8轮位置参考为10.000947m，少恢复约3.268mm。60/30Hz及移除contact/joint共6组4PASS/2FAIL。证据`bf144_pa_contact_phase35_position_iterations_alternate_contact_and_joint`；旧Gate把joint和contact分开验证，未覆盖共同约束岛的交替。仅登记，未修改生产调度或声称执行native Chaos动态仿真。
 
-- [ ] BF144-D104 / P3 — 箱体接触每帧重建，丢失源的manifold几何复用。
+- [x] BF144-D104 / P3 — 箱体接触每帧重建，丢失源的manifold几何复用。
   - 本轮开始：2026-11-09 00:40 +08:00；预计结束：2026-11-09 01:35 +08:00。作为D100b3b3c的已证实生命周期依赖，fresh读取box、convex和mesh两帧原生接触；按源相对变换、逐点投影及形体身份实现复用。估时依据：BF144.36/.62已有box与72个环境姿态，同源阈值和逐点规则可独立分解；测试与消融待统一Gate。
   - Source：fresh `CollisionUtil.h:71`允许box几何复用、排除sphere/capsule；native AllowManifoldUpdate=1。`ParticlePairMidPhase.cpp:500–551`对上一帧使用过的constraint先TryRestoreManifold；`PBDCollisionConstraint.cpp:807–922`在shape位移/旋转与lateral误差容差内保留body0原surface point，并将另一侧投影到当前接触面。该几何复用独立于saved friction anchor。
   - Target：Avian `collision/collider/parry/contact_query.rs:174–189`每次创建空manifold/workspace并清除旧点；`narrow_phase/system_param.rs:789–799`只能复制旧impulse。旧ContactId仍存在也不能保留源接触几何。
@@ -6726,12 +6726,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 直接边界与消融：Bench foot的原始target几何无需替换，2mm移动后wZ约−0.28437rad/s，源保留点为0；目标与原生重建响应在既有容差内一致，旧点控制恢复。两帧长×四运动×原始/重建/保留的24组16PASS/8FAIL，静止和6mm全PASS；Stairs02两帧长及两种摩擦的32组24PASS/8FAIL同根复现。每帧重配导致ContactId改变的消融被拒绝，按源码字节恢复并在同target重编通过；104组响应在删除冗余记录后逐字不变。证据`62/native_analysis.json`、`62/final/`、`62/lifecycle_ablation/`；仅补充D104，未修复生产，saved friction及冲量历史另验。
 
   - 00:40 拆分：源`TryRestoreManifold`的相对位置/旋转和逐点投影可独立于目标接触生命周期验证；先完成D104a数值合同，再在D104b处理shape身份、缓存、消失/重建和求解消费。拆分实际结束：2026-11-09 00:40 +08:00；偏差：−55分钟；结果：父项未完成，拆分为a/b。
+  - 01:40 source/static摘要：primitive、compound和trimesh的源复用合同与真实目标消费均已静态接入；目标完全没有活动组及源三角面生成/排序仍由D100b4等后续处理。完整转换diff、编译、测试、消融与Playground待统一Gate。实际结束：2026-11-09 01:40 +08:00；偏差：+5分钟；结果：静态实现完成，拆分为已列子项。
 
 - [x] BF144-D104a / P3 — 移植源box接触几何复用合同。
   - 本轮开始：2026-11-09 00:40 +08:00；预计结束：2026-11-09 01:25 +08:00。fresh读取多种形体两帧接触，按源relative pose阈值、surface点投影与最少有效点规则实现纯合同，写原生±2/6mm与旋转控制；测试/消融待统一Gate。估时依据：BF144.36/.62已有原生两帧和源逐点反例，边界可单独验收。
   - 00:46 source/static摘要：fresh保存8组box与8组convex/mesh两帧原生结果；已按源相对位置逐分量、相对四元数点积、初始surface点、切向误差及最少有效点实现复用，写回前按源float厘米量化。已写16组原生结果及空manifold、旋转、禁用点控制；身份缓存与实际消费留D104b，测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d104a/`。实际结束：2026-11-09 00:46 +08:00；偏差：−39分钟；结果：子项静态实现完成，未再拆分。
 
-- [ ] BF144-D104b / P3 — 将源接触复用接入真实物理生命周期。
+- [x] BF144-D104b / P3 — 将源接触复用接入真实物理生命周期。
   - 00:49 source/static摘要：原生box/box是单一manifold；compound每个源hull有独立约束，trimesh则把多个target manifold映射到一个源shape。它们的缓存身份和目标重组不同，拆为D104b1 box/box、D104b2 compound和D104b3 trimesh；已读source唤醒约束需保留睡眠历史。
 
 - [x] BF144-D104b1 / P3 — 在真实box/box接触中复用源几何。
@@ -6741,7 +6742,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 01:09 有限复开：fresh源证明box/convex与box/box共用同一逐点复用和重建生命周期，但每个凸包须独立缓存。旧静态合同未覆盖共享实现与多hull并存；提取同一接触复用逻辑并隔离两种身份，保留box/box原测试，与D104b2b共同静态闭环。本轮开始：2026-11-09 01:09 +08:00；预计结束：2026-11-09 01:59 +08:00。
   - 01:19 复开闭环：box/box 与凸包共享点捕获、复用和法向速度计算，但保留独立缓存；原box测试保留，新增shape/body替换控制。实际结束：2026-11-09 01:19 +08:00；偏差：−40分钟；结果：静态重闭，测试与消融待统一Gate。
 
-- [ ] BF144-D104b2 / P3 — 在真实compound接触中复用源几何。
+- [x] BF144-D104b2 / P3 — 在真实compound接触中复用源几何。
   - 01:04 source/static摘要：源每个凸包各有独立shape约束和包围盒，目标将同一静态物体的凸包合成一个collider，且当前组排序先修改normal再交换solver槽。复用必须在修改前取得源hull身份，并使用该hull的源包围盒计算容差；拆为D104b2a源hull元数据与D104b2b实际生命周期接入，避免用整个compound包围盒替代。
 
 - [x] BF144-D104b2a / P3 — 保存实际凸包的源包围盒与目标身份。
@@ -6754,7 +6755,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 本轮开始：2026-11-09 01:09 +08:00；预计结束：2026-11-09 01:59 +08:00。先以原始目标窄相位结果确定hull身份，再按源shape粒度保存/复用接触并保持求解槽顺序和睡眠历史；编写多hull、身份更换及普通body控制。估时依据：D104a/b1已有复用合同，D100b3a已有原始身份与solver槽，D104b2a已完成源bounds；测试、消融和Playground待统一Gate。
   - 01:19 source/static摘要：fresh Arch/foot 两个hull各自对±2mm复用、6mm重建，小位移保留点与fresh点相差约2mm；已按目标原始hull身份、资产及形体tick隔离缓存，复用成功跳过核心GJK，重建后再排序到solver槽并保留睡眠历史。已写六组原生复用、真实多hull及身份变更控制；目标身份歧义/缺组由D100b3b等后续处理，测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d104b2b/`。实际结束：2026-11-09 01:19 +08:00；偏差：−40分钟；结果：子项静态实现完成，未再拆分。
 
-- [ ] BF144-D104b3 / P3 — 在真实trimesh接触中复用源几何。
+- [x] BF144-D104b3 / P3 — 在真实trimesh接触中复用源几何。
   - 01:22 source/static摘要：源大型mesh manifold允许超过四点并统一判断有效点，单点可有不同法向；Avian按三角接触生成多个共享各自法向的manifold及solver槽。拆为D104b3a源mesh边界与身份、D104b3b跨组复用合同、D104b3c真实槽重组，先恢复源shape粒度再处理目标分组。
 
 - [x] BF144-D104b3a / P3 — 保存实际trimesh的源包围盒与目标身份。
@@ -6766,14 +6767,16 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 本轮开始：2026-11-09 01:28 +08:00；预计结束：2026-11-09 02:18 +08:00。fresh读取Cart与Stairs多点两帧接触，将多个目标组作为同一源shape统一执行逐点投影和最少有效点判断；写14点、不同法向及跨组禁用点控制。估时依据：D104a已有源逐点合同和14点样本，D104b1/b2b已有共享接触缓存；真实槽接入留b3c。
   - 01:30 source/static摘要：fresh Cart有14点、Stairs02有8点，各含两种法向；2mm时整体复用，6mm时整体重建。已实现跨目标组的统一点数判断，写分组不足四点但整体七点通过、整体三点失败和形体替换控制，四组原生数据加入逐点测试；真实槽接入、测试、消融及Playground待后续。证据`docs/audit/bf144/d104b3b/`。实际结束：2026-11-09 01:30 +08:00；偏差：−48分钟；结果：子项静态实现完成，未再拆分。
 
-- [ ] BF144-D104b3c / P3 — 将复用结果接入真实trimesh求解槽。
+- [x] BF144-D104b3c / P3 — 将复用结果接入真实trimesh求解槽。
   - 01:32 source/static摘要：源复用可保留超过四点且局部禁用，目标每个manifold独占solver槽并在数量变化时通过公开`ConstraintGraph::push_manifold/pop_manifold`同步。拆为D104b3c1跨组几何写回、D104b3c2真实槽与睡眠生命周期，避免把点序和槽身份混为一项。
 
 - [x] BF144-D104b3c1 / P3 — 将统一复用点写回各目标组。
   - 本轮开始：2026-11-09 01:32 +08:00；预计结束：2026-11-09 02:17 +08:00。按源保留初始点索引和每组法向，写回多组几何、深度、质心锚点与法向速度；覆盖部分组点禁用后再次复用及失败不修改缓存。估时依据：D104b3b已实现跨组判定，D104b1已有单组写回；真实槽与统一Gate留后续。
   - 01:34 source/static摘要：已按原点索引保存模板并复用每组法向，写回中点、质心锚点、深度及法向速度；空组不输出，失败不修改缓存。已写部分禁用后二次复用、整组禁用和整体失败控制，旧box/convex路径保留共享写回。真实solver槽、测试、消融及Playground待后续。证据`docs/audit/bf144/d104b3c1/`。实际结束：2026-11-09 01:34 +08:00；偏差：−43分钟；结果：子项静态实现完成，未再拆分。
 
-- [ ] BF144-D104b3c2 / P3 — 在真实trimesh接触中维护缓存与solver槽。
+- [x] BF144-D104b3c2 / P3 — 在真实trimesh接触中维护缓存与solver槽。
+  - 本轮开始：2026-11-09 01:35 +08:00；预计结束：2026-11-09 02:25 +08:00。按源mesh shape身份维护跨组缓存和睡眠历史，在真实窄相位后复用并通过Avian公开约束图同步manifold槽数与消费次序；写多组、槽增减、普通body和身份替换控制。估时依据：D104b3a/b/c1已分别完成源bounds、整体阈值和组写回，Avian公开槽操作已核对；测试、消融与Playground待统一Gate。
+  - 01:40 source/static摘要：真实Playground mesh按源shape维护跨组缓存，保留睡眠历史并在复用后用公开约束图增减槽、按实际solver次序分组；材质取当前接触。已写双三角槽恢复/缩减、普通body、资产替换和有限帧睡眠唤醒控制；目标完全缺组和源三角生成/排序留D100b4，测试、消融及Playground待统一Gate。证据`docs/audit/bf144/d104b3c2/`。实际结束：2026-11-09 01:40 +08:00；偏差：−45分钟；结果：子项及父项静态实现完成，拆分为已列子项。
 
 - [ ] BF144-D105 / P2 — 启动帧先按旧Kinematic图配置重算速度，覆盖应保留的刚体初速。
   - Source：fresh `AlsCharacter_Actions.cpp:792–807`在Start中立即SetSimulatePhysics/ResetAllBodies，再读取pelvis速度；`ChaosEngineInterface.cpp:494–542`转Dynamic保留V/W，`SingleParticlePhysicsProxy.h:1246–1269`亦只在离开Dynamic时清速度。`PhysAnim.cpp:653–655,697–701`普通骨骼更新仅向仍为kinematic的body写新动画目标。

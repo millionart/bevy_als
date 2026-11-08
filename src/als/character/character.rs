@@ -279,6 +279,10 @@ impl Plugin for AlsCharacterPlugin {
             .add_systems(PhysicsSchedule, crate::extensions::source_contact_restore::restore_source_box_contacts
                 .in_set(avian3d::collision::narrow_phase::NarrowPhaseSystems::Last)
                 .before(crate::extensions::source_contact_order::order_source_compound_groups))
+            .add_systems(PhysicsSchedule, crate::extensions::source_contact_restore::restore_source_mesh_manifolds
+                .in_set(avian3d::collision::narrow_phase::NarrowPhaseSystems::Last)
+                .after(crate::extensions::source_contact_restore::restore_source_box_contacts)
+                .before(crate::extensions::source_contact_order::order_source_compound_groups))
             .add_systems(PhysicsSchedule, crate::extensions::source_contact_order::order_source_compound_groups
                 .in_set(avian3d::collision::narrow_phase::NarrowPhaseSystems::Last))
             .add_systems(PhysicsSchedule, (character_contact_friction_system,

@@ -1,6 +1,6 @@
-use avian3d::collision::contact_types::{ContactGraph, ContactManifold, ContactPoint};
+use avian3d::collision::contact_types::{ContactGraph, ContactId, ContactManifold, ContactPoint};
 use avian3d::collision::narrow_phase::NarrowPhaseConfig;
-use avian3d::dynamics::solver::PhysicsLengthUnit;
+use avian3d::dynamics::solver::{PhysicsLengthUnit, constraint_graph::{ConstraintGraph, ContactConstraintHandle, COLOR_OVERFLOW_INDEX}};
 use avian3d::prelude::{AngularVelocity, Collider, ColliderTransform, CollisionMargin, ComputedCenterOfMass,
     LinearVelocity, Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
 use bevy::ecs::component::Tick;
@@ -98,6 +98,7 @@ pub(super) struct SourceBoxContact {
 pub(crate) struct SourceBoxContactHistory {
     entries: HashMap<u32, SourceBoxContact>,
     pub(super) compounds: HashMap<(u32, u32, Tick), SourceBoxContact>,
+    meshes: HashMap<u32, SourceMeshHistory>,
 }
 
 #[derive(Component)]
@@ -235,6 +236,12 @@ struct SourceMeshContacts {
     contacts: Vec<SourceBoxContact>,
 }
 
+#[derive(Clone)]
+struct SourceMeshHistory {
+    source_tick: Tick,
+    contacts: SourceMeshContacts,
+}
+
 fn capture_source_mesh_contacts(manifolds: &[ContactManifold], context: &SourceContactContext) -> SourceMeshContacts {
     let contacts = manifolds.iter().map(|manifold| {
         let mut context = *context;
@@ -330,6 +337,122 @@ pub(crate) fn restore_source_box_contacts(
         if let Some((_, pair)) = graph.get_mut_by_id(id) { pair.manifolds[0] = manifold; }
     }
     history.entries = next;
+}
+
+fn source_solver_slots(handles: &[ContactConstraintHandle]) -> Vec<usize> {
+    let mut slots = (0..handles.len()).collect::<Vec<_>>();
+    slots.sort_by_key(|index| {
+        let handle = handles[*index];
+        let color = handle.color_index as usize;
+        (if color == COLOR_OVERFLOW_INDEX { 0 } else { color + 1 }, handle.local_index)
+    });
+    slots
+}
+
+fn write_source_mesh_solver_groups(
+    graph: &mut ContactGraph,
+    constraints: &mut ConstraintGraph,
+    id: ContactId,
+    manifolds: Vec<ContactManifold>,
+) {
+    let Some((edge, pair)) = graph.get_by_id(id) else { return; };
+    let (Some(body1), Some(body2)) = (pair.body1, pair.body2) else { return; };
+    let count = edge.constraint_handles.len();
+    for _ in manifolds.len()..count {
+        constraints.pop_manifold(&mut graph.edges, id, body1, body2);
+    }
+    if let Some((edge, pair)) = graph.get_mut_by_id(id) {
+        pair.manifolds = manifolds;
+        while edge.constraint_handles.len() < pair.manifolds.len() {
+            constraints.push_manifold(edge, pair);
+        }
+        let slots = source_solver_slots(&edge.constraint_handles);
+        let ordered = pair.manifolds.clone();
+        for (slot, manifold) in slots.into_iter().zip(ordered) { pair.manifolds[slot] = manifold; }
+    }
+}
+
+pub(crate) fn restore_source_mesh_manifolds(
+    settings: Option<Res<SourceRestoreSettings>>,
+    config: Res<NarrowPhaseConfig>,
+    length: Res<PhysicsLengthUnit>,
+    time: Res<Time>,
+    ragdolls: Query<(), With<RagdollActiveMode>>,
+    sources: Query<Ref<SourceMeshContact>>,
+    colliders: Query<(Ref<Collider>, &Position, &Rotation, Option<&CollisionMargin>, Option<&ColliderTransform>, Option<&SpeculativeMargin>)>,
+    bodies: Query<(&RigidBody, &Position, &Rotation, &ComputedCenterOfMass, Option<&CollisionMargin>,
+        &LinearVelocity, &AngularVelocity, Option<&SpeculativeMargin>), Without<RigidBodyDisabled>>,
+    mut history: ResMut<SourceBoxContactHistory>,
+    mut graph: ResMut<ContactGraph>,
+    mut constraints: ResMut<ConstraintGraph>,
+) {
+    let Some(settings) = settings else { history.meshes.clear(); return; };
+    let mut next = HashMap::default();
+    let mut updates = Vec::new();
+    for pair in graph.iter_active_touching() {
+        if !pair.generates_constraints() || pair.manifolds.is_empty() { continue; }
+        let Some((edge, _)) = graph.get_by_id(pair.contact_id) else { continue; };
+        if edge.constraint_handles.len() != pair.manifolds.len() { continue; }
+        let (mesh_first, source) = if let Ok(source) = sources.get(pair.collider1) { (true, source) }
+            else if let Ok(source) = sources.get(pair.collider2) { (false, source) } else { continue; };
+        let (Some(body1), Some(body2)) = (pair.body1, pair.body2) else { continue; };
+        let (box_entity, mesh_entity, box_body, mesh_body) = if mesh_first {
+            (pair.collider2, pair.collider1, body2, body1)
+        } else { (pair.collider1, pair.collider2, body1, body2) };
+        if !ragdolls.contains(box_body) { continue; }
+        let (Ok(box_shape), Ok(mesh_shape), Ok(box_data), Ok(mesh_data)) =
+            (colliders.get(box_entity), colliders.get(mesh_entity), bodies.get(box_body), bodies.get(mesh_body)) else { continue; };
+        if !box_data.0.is_dynamic() || !mesh_data.0.is_static()
+            || box_shape.0.shape_scaled().as_cuboid().is_none() || mesh_shape.0.shape_scaled().as_trimesh().is_none() { continue; }
+        let Some(mesh_size_cm) = source_mesh_max_extent_cm(&source.0, mesh_shape.0.scale()) else { continue; };
+        let frames = [source_box_shape_pose(box_shape.1, box_shape.2, box_shape.4, box_data.1, box_data.2),
+            SourceRestorePose { position_m: mesh_shape.1.0.as_dvec3(), rotation: mesh_shape.2.0.as_dquat() }];
+        let bounds = box_shape.0.shape_scaled().compute_local_aabb();
+        let box_size_cm = (f64::from((bounds.maxs - bounds.mins).abs().max_element()) * 100.0) as f32;
+        let skin = box_shape.3.or(box_data.4).map_or(0.0, |value| value.0)
+            + mesh_shape.3.or(mesh_data.4).map_or(0.0, |value| value.0);
+        let ordered_bodies = if mesh_first { [mesh_data, box_data] } else { [box_data, mesh_data] };
+        let margins = if mesh_first { [mesh_shape.5, box_shape.5] } else { [box_shape.5, mesh_shape.5] };
+        let linear = [0, 1].map(|index| {
+            let body = ordered_bodies[index];
+            let margin = margins[index].or(body.7).map_or(length.0 * config.default_speculative_margin, |value| value.0);
+            if margin < f32::MAX { body.5.0.clamp_length_max(margin / time.delta_secs()) } else { body.5.0 }
+        });
+        let context = SourceContactContext { colliders: [box_entity, mesh_entity], bodies: [box_body, mesh_body],
+            shape_ticks: [box_shape.0.last_changed(), mesh_shape.0.last_changed()], frames,
+            tolerance: f64::from(settings.collision_tolerance_scale * box_size_cm.min(mesh_size_cm)) * 0.01,
+            skin, box_first: !mesh_first, surface_normal: Vec3::ZERO,
+            centers: ordered_bodies.map(|body| body.1.0 + body.2.0 * body.3.0),
+            linear, angular: ordered_bodies.map(|body| body.6.0) };
+        let source_tick = source.last_changed();
+        let prior = history.meshes.get(&pair.contact_id.0).filter(|saved| saved.source_tick == source_tick);
+        let mut saved = prior.cloned().unwrap_or_else(|| SourceMeshHistory { source_tick, contacts:
+            capture_source_mesh_contacts(&source_solver_slots(&edge.constraint_handles).into_iter()
+                .map(|index| pair.manifolds[index].clone()).collect::<Vec<_>>(), &context) });
+        let restored = prior.and_then(|_| restore_source_mesh_contacts(&mut saved.contacts, &context, *settings));
+        if let Some(mut restored) = restored {
+            let current = &pair.manifolds[0];
+            for manifold in &mut restored {
+                manifold.friction = current.friction;
+                manifold.restitution = current.restitution;
+                manifold.tangent_velocity = current.tangent_velocity;
+            }
+            updates.push((pair.contact_id, restored));
+        } else if prior.is_some() {
+            saved.contacts = capture_source_mesh_contacts(&source_solver_slots(&edge.constraint_handles).into_iter()
+                .map(|index| pair.manifolds[index].clone()).collect::<Vec<_>>(), &context);
+        }
+        next.insert(pair.contact_id.0, saved);
+    }
+    for (&id, saved) in &history.meshes {
+        if graph.get_by_id(ContactId(id)).is_some_and(|(edge, pair)| edge.is_sleeping() && pair.is_touching()) {
+            next.insert(id, saved.clone());
+        }
+    }
+    for (id, manifolds) in updates {
+        write_source_mesh_solver_groups(&mut graph, &mut constraints, id, manifolds);
+    }
+    history.meshes = next;
 }
 
 #[cfg(test)]
@@ -569,6 +692,123 @@ mod tests {
         saved.contacts[1].points[0].disabled = true;
         assert!(restore_source_mesh_contacts(&mut saved, &context, settings()).is_none());
         assert_eq!(saved.contacts[1].points.iter().filter(|point| !point.disabled).count(), 3);
+    }
+
+    #[test]
+    fn source_mesh_slots_follow_actual_solver_order() {
+        let handles = [
+            ContactConstraintHandle { color_index: 21, local_index: 0 },
+            ContactConstraintHandle { color_index: COLOR_OVERFLOW_INDEX as u8, local_index: 2 },
+            ContactConstraintHandle { color_index: 3, local_index: 4 },
+            ContactConstraintHandle { color_index: 3, local_index: 1 },
+        ];
+        assert_eq!(source_solver_slots(&handles), vec![1, 3, 2, 0]);
+    }
+
+    #[test]
+    fn source_mesh_restore_rebuilds_missing_solver_slots() {
+        use avian3d::collision::narrow_phase::NarrowPhaseSystems;
+        use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled, TimeToSleep};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+
+        #[derive(Resource, Default)]
+        struct TrimOnce(bool);
+
+        fn trim_one(mut trim: ResMut<TrimOnce>, mut graph: ResMut<ContactGraph>, mut constraints: ResMut<ConstraintGraph>) {
+            if !trim.0 { return; }
+            let target = graph.iter_active_touching().find_map(|pair| {
+                let (edge, _) = graph.get_by_id(pair.contact_id)?;
+                (edge.constraint_handles.len() > 1).then_some((pair.contact_id, pair.body1?, pair.body2?))
+            });
+            if let Some((id, body1, body2)) = target {
+                constraints.pop_manifold(&mut graph.edges, id, body1, body2);
+                let (_, pair) = graph.get_mut_by_id(id).unwrap();
+                pair.manifolds.pop();
+                trim.0 = false;
+            }
+        }
+
+        for source_body in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
+                .insert_resource(Gravity(Vec3::ZERO))
+                .insert_resource(settings())
+                .init_resource::<SourceBoxContactHistory>()
+                .init_resource::<TrimOnce>()
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
+                .add_systems(PhysicsSchedule, trim_one.in_set(NarrowPhaseSystems::Last).before(restore_source_mesh_manifolds))
+                .add_systems(PhysicsSchedule, restore_source_mesh_manifolds.in_set(NarrowPhaseSystems::Last));
+            app.finish();
+            app.cleanup();
+            let mesh = Collider::trimesh(vec![Vec3::new(-1.0, 0.0, -1.0), Vec3::new(1.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 1.0), Vec3::new(-1.0, 0.0, 1.0)], vec![[0, 2, 1], [0, 3, 2]]);
+            let ground = app.world_mut().spawn((RigidBody::Static, mesh, SourceMeshContact("SM_Als_Cart".into()), Transform::IDENTITY)).id();
+            let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
+                Collider::cuboid(0.2, 0.2, 0.2), Transform::from_xyz(0.0, 0.05, 0.0))).id();
+            if source_body { app.world_mut().entity_mut(foot).insert(RagdollActiveMode(BodyMode::Dynamic)); }
+            app.update();
+            app.update();
+            let (edge, pair) = app.world().resource::<ContactGraph>().get(ground, foot).unwrap();
+            let original = pair.manifolds.len();
+            assert!(original > 1);
+            assert_eq!(edge.constraint_handles.len(), original);
+            app.world_mut().resource_mut::<TrimOnce>().0 = true;
+            app.world_mut().get_mut::<Position>(foot).unwrap().0.x += 0.002;
+            app.world_mut().get_mut::<Transform>(foot).unwrap().translation.x += 0.002;
+            app.update();
+            assert!(!app.world().resource::<TrimOnce>().0);
+            let graph = app.world().resource::<ContactGraph>();
+            let (edge, pair) = graph.get(ground, foot).unwrap();
+            assert_eq!(pair.manifolds.len(), if source_body { original } else { original - 1 });
+            assert_eq!(edge.constraint_handles.len(), pair.manifolds.len());
+            let constraints = app.world().resource::<ConstraintGraph>();
+            for (index, handle) in edge.constraint_handles.iter().enumerate() {
+                let stored = &constraints.colors[handle.color_index as usize].manifold_handles[handle.local_index];
+                assert_eq!(stored.contact_id, pair.contact_id);
+                assert_eq!(stored.manifold_index, index);
+            }
+            assert_eq!(app.world().resource::<SourceBoxContactHistory>().meshes.len(), usize::from(source_body));
+            if source_body {
+                let old_tick = app.world().resource::<SourceBoxContactHistory>().meshes[&pair.contact_id.0].source_tick;
+                app.world_mut().entity_mut(ground).insert(SourceMeshContact("SM_Als_Cart".into()));
+                app.update();
+                let graph = app.world().resource::<ContactGraph>();
+                let (_, pair) = graph.get(ground, foot).unwrap();
+                let id = pair.contact_id;
+                let remaining = pair.manifolds[0].clone();
+                let new_tick = app.world().resource::<SourceBoxContactHistory>().meshes[&id.0].source_tick;
+                assert_ne!(old_tick, new_tick);
+                let initial = app.world().resource::<SourceBoxContactHistory>().meshes[&id.0]
+                    .contacts.contacts[0].points[0].initial_first_m;
+                app.world_mut().entity_mut(foot).remove::<SleepingDisabled>();
+                app.world_mut().insert_resource(TimeToSleep(0.05));
+                let slept = (0..30).any(|_| {
+                    app.update();
+                    app.world().resource::<ContactGraph>().get(ground, foot).is_some_and(|(edge, _)| edge.is_sleeping())
+                });
+                assert!(slept, "The source mesh contact did not sleep within 30 physics frames");
+                app.update();
+                assert_eq!(app.world().resource::<SourceBoxContactHistory>().meshes[&id.0]
+                    .contacts.contacts[0].points[0].initial_first_m, initial);
+                app.world_mut().get_mut::<Position>(foot).unwrap().0.x += 0.001;
+                app.world_mut().get_mut::<Transform>(foot).unwrap().translation.x += 0.001;
+                let woke = (0..5).any(|_| {
+                    app.update();
+                    app.world().resource::<ContactGraph>().get(ground, foot).is_some_and(|(edge, _)| !edge.is_sleeping())
+                });
+                assert!(woke, "The source mesh contact did not wake within five physics frames");
+                assert_eq!(app.world().resource::<SourceBoxContactHistory>().meshes[&id.0]
+                    .contacts.contacts[0].points[0].initial_first_m, initial);
+                app.world_mut().resource_scope(|world, mut graph: Mut<ContactGraph>| {
+                    let mut constraints = world.resource_mut::<ConstraintGraph>();
+                    write_source_mesh_solver_groups(&mut graph, &mut constraints, id, vec![remaining]);
+                });
+                let (edge, pair) = app.world().resource::<ContactGraph>().get(ground, foot).unwrap();
+                assert_eq!(edge.constraint_handles.len(), 1);
+                assert_eq!(pair.manifolds.len(), 1);
+            }
+        }
     }
 
     #[test]
