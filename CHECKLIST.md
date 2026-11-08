@@ -5697,7 +5697,9 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 反例：实际加载角色和动画，静止 ViewDirection 朝120°触发 Turn；按真实 rotation_mode_pressed 切换为 VelocityDirection。捕获位于 `AlsCrouchingLayerSet` 后、`AlsRotationResponseSet` 前，当帧曲线47.6275度/秒、dt=1/60；source yaw应0.0380855rad，target为0.0365703rad。`bf144_turn_to_velocity_rotation_uses_actual_curve` 的可见mesh、Turn曲线、静止和切换前置均通过后语义FAIL；固定90度/秒消费者反例也失败，记录在 `target/bf144/02/turn/`。
   - 漏检：`stationary_turn_curve_starts_at_actor_yaw_and_retains_its_target` 仅测试 ViewDirection，`velocity_direction_retains_rotation_target_after_velocity_stops` 不包含曲线；未组合模式切换与尚未消退的 Turn 曲线。未将初始无曲线夹具和旧采样时点计入有效反例，未修改生产实现。
 
-- [ ] BF144-D04 / P2 — 冻结角色的瞄准限位在精确半转处选到相反一侧。
+- [x] BF144-D04 / P2 — 冻结角色的瞄准限位在精确半转处选到相反一侧。
+  - 2026-11-08 12:19 开始：预估结束12:49 +08:00。依据.02已分离0倍率半转与5040组对照，fresh读取源约束、角度remap、角色时钟和限位设置；修正secondary插值的源角度边界并补实际owner倍率与邻域控制，测试/消融/公共Gate延后。
+  - 12:23 source/static闭环：fresh资产确认70°，源secondary对remap结果用未二次remap的角差插值，Unwind保留±180；actor自定义倍率0仍执行Tick。目标按该顺序计算并保留半转符号，已写半转两侧和owner倍率0/0.001/1控制；当次读取与相同D01原文哈希复用，源码和本次报告见`docs/audit/bf144/d04/`。实现结束2026-11-08 12:23 +08:00，较预估提前26分钟；5040组差分、测试、消融与公共Gate待依赖升级后执行。
   - Source：fresh `AlsCharacter.cpp:1718–1787` 先保留 counterclockwise remap 的符号，secondary 在0 delta只做0量插值，再执行primary clamp；UE `Actor.cpp:372–379,1997–2003` 证明 CustomTimeDilation=0仍传0调用Character Tick，并非全局暂停。
   - Target：`src/als/character/movement/motion.rs:244–246,261–267` 用通用 damper_yaw 代替该段标量算法；0 delta仍执行末尾 `wrap_yaw_radians`，将 +π 变成−π，随后primary限位反向。
   - 反例：静止瞄准、已应用70°限位、view与body相差180°。实际运动插件在 owner倍率1/.001时到+110°（对照PASS），倍率0时到−110°（source仍应+110°）；`bf144_frozen_owner_aiming_half_turn_keeps_source_side` 语义FAIL。独立source-degree公式5040组中36处同类边界FAIL，其余5004组无差异。证据：`target/bf144/02/frozen/`。

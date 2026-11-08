@@ -1,0 +1,15 @@
+{
+  "asset": "Content/ALS/Data/Character/CS_Als_Default.uasset",
+  "asset_identity": {
+    "bytes": 2950,
+    "sha256": "396a58b953c55e8bf103feab2475bc1994a7c0a0463ec73eb73c9c2cc254d2df"
+  },
+  "request": "docs/audit/bf144/d04/settings.request.json",
+  "native_output": "docs/audit/bf144/d01/settings.native.json",
+  "fresh_raw": {
+    "bytes": 69993,
+    "sha256": "506b0673d3a7304e97c3bb513d3b149f0be845b7a4ac26a867796501ca5ed64f"
+  },
+  "reused_identical_bytes": true,
+  "reader_report": "docs/audit/bf144/d04/settings.native.json.reader.report.json"
+}

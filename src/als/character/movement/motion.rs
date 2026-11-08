@@ -273,7 +273,13 @@ pub fn constrained_aiming_yaw(
     view_space_yaw = counterclockwise_yaw_delta(view_space_yaw);
     if apply_secondary_constraint {
         let target = view_space_yaw.clamp(-minimum_limit, minimum_limit);
-        view_space_yaw = damper_yaw(view_space_yaw, target, delta_seconds, 0.1);
+        let delta = unwind_aiming_yaw(target - view_space_yaw);
+        view_space_yaw = if delta.abs() <= tolerance {
+            target
+        } else {
+            let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.1 + 1e-8) * delta_seconds);
+            unwind_aiming_yaw(view_space_yaw + delta * alpha)
+        };
     }
     if view_space_yaw.abs() > limit + tolerance {
         view_space_yaw = view_space_yaw.clamp(-limit, limit);
@@ -281,6 +287,12 @@ pub fn constrained_aiming_yaw(
         limit = view_space_yaw.abs().max(minimum_limit);
     }
     (wrap_yaw_radians(view_yaw - view_space_yaw), limit.to_degrees())
+}
+
+fn unwind_aiming_yaw(angle: f32) -> f32 {
+    if angle > std::f32::consts::PI { angle - std::f32::consts::TAU }
+    else if angle < -std::f32::consts::PI { angle + std::f32::consts::TAU }
+    else { angle }
 }
 
 fn counterclockwise_yaw_delta(delta: f32) -> f32 {
@@ -1443,6 +1455,44 @@ mod rotation_cap_tests {
             constrained_aiming_yaw(20.0_f32.to_radians(), 0.0, 70.0, 180.0, false, 0.0, false);
         assert!((near_yaw - 0.0).abs() < 1e-6);
         assert!((near_limit - 70.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn aiming_secondary_preserves_the_source_half_turn_side() {
+        for (view, expected) in [(180.0_f32, 110.0_f32), (-180.0, 110.0), (179.9, 109.9), (-179.9, -109.9)] {
+            let (yaw, limit) = constrained_aiming_yaw(view.to_radians(), 0.0, 70.0, 70.0, false, 0.0, true);
+            assert!((yaw.to_degrees() - expected).abs() < 1e-4, "view={view} yaw={} expected={expected}", yaw.to_degrees());
+            assert!((limit - 70.0).abs() < 1e-4);
+        }
+        for delta in [0.0_f32, 0.001 / 60.0, 1.0 / 60.0] {
+            let (yaw, limit) = constrained_aiming_yaw(std::f32::consts::PI, 0.0, 70.0, 70.0, false, delta, true);
+            assert!((yaw.to_degrees() - 110.0).abs() < 1e-4, "delta={delta} yaw={}", yaw.to_degrees());
+            assert!((limit - 70.0).abs() < 1e-4);
+        }
+    }
+
+    #[test]
+    fn frozen_owner_aiming_half_turn_keeps_the_source_side() {
+        for dilation in [0.0_f32, 0.001, 1.0] {
+            let mut app = App::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+            app.insert_resource(time).init_resource::<Assets<AlsMovementParams>>()
+                .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
+                .add_systems(Update, rotation_response_system);
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+            let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
+                Stance::Standing, Gait::Walking, LocomotionState::Grounded, RotationMode::Aiming,
+                AlsViewYaw(std::f32::consts::PI), AlsMovementParamsHandle(params), LinearVelocity::ZERO,
+                AlsInputCommand::default(), crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                AlsAimingYawConstraint { active_limit_degrees: 70.0, applied_last_frame: true },
+                AlsRotationResponseState { initialized: true, previous_rotation_mode: Some(RotationMode::Aiming),
+                    previous_view_yaw: std::f32::consts::PI, ..default() })).id();
+            app.update();
+            let yaw = world_forward_to_yaw(app.world().get::<Transform>(actor).unwrap().rotation * Vec3::NEG_Z);
+            assert!((yaw.to_degrees() - 110.0).abs() < 1e-4, "dilation={dilation} yaw={}", yaw.to_degrees());
+            assert!((app.world().get::<AlsAimingYawConstraint>(actor).unwrap().active_limit_degrees - 70.0).abs() < 1e-4);
+        }
     }
 
     #[test]
