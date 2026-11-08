@@ -3240,16 +3240,64 @@ impl FallingImpactBodies<'_, '_> {
     }
 }
 
-fn falling_penetration_adjustment(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3, rotation: Quat,
-    hit: &ShapeHitData, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool,
-    impact_bodies: &FallingImpactBodies) -> Option<Vec3> {
+fn falling_penetration_vector(hit: &ShapeHitData, impact_bodies: &FallingImpactBodies) -> Option<Vec3> {
     let depth = (hit.point1 - hit.point2).dot(hit.normal1);
     if hit.distance != 0.0 || depth <= 0.0 { return None; }
     let maximum = if impact_bodies.is_pawn(hit.entity) { MAX_DEPENETRATION_WITH_PAWN } else { MAX_DEPENETRATION_WITH_GEOMETRY };
-    let adjustment = (hit.normal1 * (depth + PENETRATION_PULLBACK_DISTANCE)).clamp_length_max(maximum);
+    Some((hit.normal1 * (depth + PENETRATION_PULLBACK_DISTANCE)).clamp_length_max(maximum))
+}
+
+fn falling_penetration_adjustment(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3, rotation: Quat,
+    hit: &ShapeHitData, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool,
+    impact_bodies: &FallingImpactBodies) -> Option<Vec3> {
+    let adjustment = falling_penetration_vector(hit, impact_bodies)?;
     let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
     let inflated = als_character_capsule(extent.y + PENETRATION_OVERLAP_INFLATION, extent.x + PENETRATION_OVERLAP_INFLATION);
     (!spatial.shape_intersections(&inflated, origin + adjustment, rotation, filter).into_iter().any(accepts)).then_some(adjustment)
+}
+
+fn falling_resolve_penetration(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3, rotation: Quat,
+    hit: &ShapeHitData, movement: Vec3, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool,
+    impact_bodies: &FallingImpactBodies) -> Option<Vec3> {
+    if let Some(adjustment) = falling_penetration_adjustment(spatial, capsule, origin, rotation,
+        hit, filter, accepts, impact_bodies) { return Some(adjustment); }
+    let adjustment = falling_penetration_vector(hit, impact_bodies)?;
+    let attempt = |delta: Vec3| {
+        let Ok((direction, distance)) = Dir3::new_and_length(delta) else { return (Vec3::ZERO, None) };
+        let config = ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) };
+        let hit = spatial.cast_shape_predicate(capsule, origin, rotation, direction, &config, filter, accepts);
+        let travel = hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
+        (*direction * travel, hit)
+    };
+    let (moved, second) = attempt(adjustment);
+    if moved != Vec3::ZERO { return Some(moved); }
+    if let Some(second) = second && let Some(second_mtd) = falling_penetration_vector(&second, impact_bodies)
+        && second_mtd != adjustment {
+        let (moved, _) = attempt(adjustment + second_mtd);
+        if moved != Vec3::ZERO { return Some(moved); }
+    }
+    if movement != Vec3::ZERO {
+        let (moved, _) = attempt(adjustment + movement);
+        if moved != Vec3::ZERO { return Some(moved); }
+        if movement.dot(adjustment) > 0.0 {
+            let (moved, _) = attempt(movement);
+            if moved != Vec3::ZERO { return Some(moved); }
+        }
+    }
+    None
+}
+
+fn falling_safe_sweep(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3, rotation: Quat,
+    direction: Dir3, distance: f32, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool,
+    impact_bodies: &FallingImpactBodies) -> (Vec3, Option<ShapeHitData>) {
+    let config = ShapeCastConfig::from_max_distance(distance);
+    let hit = spatial.cast_shape_predicate(capsule, origin, rotation, direction, &config, filter, accepts);
+    if let Some(initial) = hit.as_ref() && let Some(adjustment) = falling_resolve_penetration(spatial, capsule, origin,
+        rotation, initial, *direction * distance, filter, accepts, impact_bodies) {
+        let retry = ShapeCastConfig { ignore_origin_penetration: true, ..config };
+        return (adjustment, spatial.cast_shape_predicate(capsule, origin + adjustment, rotation, direction, &retry, filter, accepts));
+    }
+    (Vec3::ZERO, hit)
 }
 
 pub(crate) fn falling_movement_sweep(
@@ -3276,20 +3324,10 @@ pub(crate) fn falling_movement_sweep(
         let third_delta = remaining;
         let mut motion = Dir3::new_and_length(remaining).ok();
         let mut hit = motion.as_ref().and_then(|(direction, distance)| {
-            let config = ShapeCastConfig::from_max_distance(*distance);
-            let origin = start + applied;
-            let hit = spatial.cast_shape_predicate(capsule, origin, rotation, *direction, &config, &filter, &accepts);
-            if let Some(initial) = hit.as_ref() && initial.distance == 0.0
-                && (initial.point1 - initial.point2).dot(initial.normal1) > 0.0 {
-                if let Some(adjustment) = falling_penetration_adjustment(spatial, capsule, origin, rotation,
-                    initial, &filter, &accepts, impact_bodies) {
-                    applied += adjustment;
-                    teleported = true;
-                    return spatial.cast_shape_predicate(capsule, start + applied, rotation, *direction, &config, &filter, &accepts);
-                }
-                let retry = ShapeCastConfig { ignore_origin_penetration: true, ..config };
-                return spatial.cast_shape_predicate(capsule, origin, rotation, *direction, &retry, &filter, &accepts);
-            }
+            let (adjustment, hit) = falling_safe_sweep(spatial, capsule, start + applied, rotation,
+                *direction, *distance, &filter, &accepts, impact_bodies);
+            applied += adjustment;
+            teleported |= adjustment != Vec3::ZERO;
             hit
         });
         let mut sidestepped = false;
@@ -3302,10 +3340,10 @@ pub(crate) fn falling_movement_sweep(
             remaining = side * 0.01;
             motion = Dir3::new_and_length(remaining).ok();
             hit = motion.as_ref().and_then(|(direction, distance)| {
-                let config = ShapeCastConfig { ignore_origin_penetration: true,
-                    ..ShapeCastConfig::from_max_distance(*distance) };
-                spatial.cast_shape_predicate(capsule, start + applied, rotation,
-                    *direction, &config, &filter, &accepts)
+                let (adjustment, hit) = falling_safe_sweep(spatial, capsule, start + applied, rotation,
+                    *direction, *distance, &filter, &accepts, impact_bodies);
+                applied += adjustment;
+                hit
             });
             sidestepped = true;
         }
@@ -3334,10 +3372,9 @@ pub(crate) fn falling_movement_sweep(
                 velocity.y = (*jump_z * 0.25).max(0.01);
                 let kick = velocity * step;
                 if let Ok((direction, distance)) = Dir3::new_and_length(kick) {
-                    let config = ShapeCastConfig { ignore_origin_penetration: true,
-                        ..ShapeCastConfig::from_max_distance(distance) };
-                    let hit = spatial.cast_shape_predicate(capsule, start + applied, rotation,
-                        direction, &config, &filter, &accepts);
+                    let (adjustment, hit) = falling_safe_sweep(spatial, capsule, start + applied, rotation,
+                        direction, distance, &filter, &accepts, impact_bodies);
+                    applied += adjustment;
                     applied += *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
                 }
             }
@@ -6851,6 +6888,8 @@ mod tests {
                 assert_eq!(result.1.x, direction);
             } else if blocked {
                 assert!(adjustment.is_none(), "A blocked adjustment must not teleport into the other wall");
+                let end = start + result.0;
+                assert!(end.x < -0.3 && end.x >= -0.3501, "The source sweep-out must make only available progress: {end:?}");
             } else {
                 assert!(adjustment.is_none());
                 assert!((result.0.x - direction / 60.0).abs() < 1e-5);
@@ -6875,6 +6914,45 @@ mod tests {
             let position = app.world().get::<Position>(actor).unwrap().0;
             assert!(position.x <= -0.35, "direction={direction} position={position:?}");
         }
+    }
+
+    #[test]
+    fn falling_overlap_combines_competing_mtds_when_the_first_sweep_is_blocked() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 4.0, 4.0), Transform::IDENTITY));
+        let normal = Vec3::new(0.5_f32.sqrt(), 0.0, -0.5_f32.sqrt());
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 4.0, 4.0),
+            Transform::from_translation(normal * -0.256066).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_4))));
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        let (first, second, resolved) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            impact_bodies: FallingImpactBodies,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            let capsule = als_character_capsule(0.9, 0.3);
+            let origin = Vec3::new(-0.15, 0.0, 0.0);
+            let filter = SpatialQueryFilter::from_excluded_entities([actor]);
+            let accepts = |candidate| character_blocks_collider(actor, candidate, &candidates);
+            let hit = spatial.cast_shape_predicate(&capsule, origin, Quat::IDENTITY, Dir3::X,
+                &ShapeCastConfig::from_max_distance(0.02), &filter, &accepts).unwrap();
+            assert!(falling_penetration_adjustment(&spatial, &capsule, origin, Quat::IDENTITY,
+                &hit, &filter, &accepts, &impact_bodies).is_none());
+            let first = falling_penetration_vector(&hit, &impact_bodies).unwrap();
+            let (direction, distance) = Dir3::new_and_length(first).unwrap();
+            let second_hit = spatial.cast_shape_predicate(&capsule, origin, Quat::IDENTITY, direction,
+                &ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) },
+                &filter, &accepts).unwrap();
+            let second = falling_penetration_vector(&second_hit, &impact_bodies).unwrap();
+            let resolved = falling_resolve_penetration(&spatial, &capsule, origin, Quat::IDENTITY,
+                &hit, Vec3::X * 0.02, &filter, &accepts, &impact_bodies).unwrap();
+            (first, second, resolved)
+        }).unwrap();
+        assert_ne!(first, second);
+        assert!(resolved.distance(first + second) < 1e-4, "first={first:?} second={second:?} resolved={resolved:?}");
+        assert!(resolved.dot(first) > 0.0 && resolved.dot(second) > 0.0);
     }
 
     #[test]

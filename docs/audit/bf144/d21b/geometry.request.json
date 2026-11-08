@@ -1,0 +1,72 @@
+{
+  "samples": [
+    {
+      "name": "partial_exit_blocker",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -70,
+          0,
+          0
+        ],
+        "box_half_extents_cm": [
+          5,
+          200,
+          200
+        ],
+        "start_cm": [
+          -15,
+          0,
+          0
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "length_cm": 20.125,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    },
+    {
+      "name": "opposing_overlap",
+      "rotation_xyzw": [
+        0,
+        0,
+        -0.3826834323650898,
+        0.9238795325112867
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          -18.10660050313145,
+          18.10660050313145,
+          0
+        ],
+        "box_half_extents_cm": [
+          5,
+          200,
+          200
+        ],
+        "start_cm": [
+          -15,
+          0,
+          0
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "length_cm": 20.125,
+        "radius_cm": 30,
+        "half_height_cm": 90
+      }
+    }
+  ]
+}
