@@ -114,6 +114,7 @@ impl MapEntities for SourcePhysicsJoint {
 pub struct SourcePhysicsJointSolverData {
     point: SphericalJoint,
     point_data: SphericalJointSolverData,
+    cached_position_lagrange: Vec3,
     frames: [Quat; 2],
     arms: [Vec3; 2],
     center_difference: Vec3,
@@ -131,6 +132,7 @@ impl Default for SourcePhysicsJointSolverData {
         Self {
             point: SphericalJoint::new(Entity::PLACEHOLDER, Entity::PLACEHOLDER),
             point_data: default(),
+            cached_position_lagrange: Vec3::ZERO,
             frames: [Quat::IDENTITY; 2],
             arms: [Vec3::ZERO; 2],
             center_difference: Vec3::ZERO,
@@ -148,6 +150,7 @@ impl Default for SourcePhysicsJointSolverData {
 impl XpbdConstraintSolverData for SourcePhysicsJointSolverData {
     fn clear_lagrange_multipliers(&mut self) {
         self.point_data.clear_lagrange_multipliers();
+        self.cached_position_lagrange = Vec3::ZERO;
         self.limit_lambdas = [0.0; 3];
         self.limit_axes = [Vec3::ZERO; 3];
         self.motor_lambdas = [0.0; 3];
@@ -156,7 +159,7 @@ impl XpbdConstraintSolverData for SourcePhysicsJointSolverData {
     }
 
     fn total_position_lagrange(&self) -> Vec3 {
-        self.point_data.total_position_lagrange()
+        self.point_data.total_position_lagrange() + self.cached_position_lagrange
     }
 
     fn total_rotation_lagrange(&self) -> Vec3 {
@@ -272,8 +275,11 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
             }
         }
         if self.linear_locked {
-            data.point
-                .solve([parent, child], inertias, &mut data.point_data, dt);
+            if self.use_linear_solver {
+                apply_cached_locked_position(parent, child, inertias, data);
+            } else {
+                data.point.solve([parent, child], inertias, &mut data.point_data, dt);
+            }
         } else {
             for index in 0..3 {
                 let motor = self.linear_motors[index];
@@ -370,6 +376,54 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
 fn cached_rotation_delta(value: Quat) -> Vec3 {
     let value = shortest_quat(value);
     Vec3::new(value.x, value.y, value.z) * (2.0 / value.w)
+}
+
+fn apply_cached_locked_position(
+    parent: &mut SolverBody,
+    child: &mut SolverBody,
+    inertias: [&SolverBodyInertia; 2],
+    data: &mut SourcePhysicsJointSolverData,
+) {
+    let arms = [data.pre_solve_rotation[0] * data.arms[0], data.pre_solve_rotation[1] * data.arms[1]];
+    let delta_rotation = [
+        cached_rotation_delta(parent.delta_rotation.0 * data.pre_solve_rotation[0].conjugate()),
+        cached_rotation_delta(child.delta_rotation.0 * data.pre_solve_rotation[1].conjugate()),
+    ];
+    let separation = data.center_difference + data.pre_solve_position[1] - data.pre_solve_position[0]
+        + arms[1] - arms[0] + child.delta_position - data.pre_solve_position[1]
+        - parent.delta_position + data.pre_solve_position[0]
+        + delta_rotation[1].cross(arms[1]) - delta_rotation[0].cross(arms[0]);
+    let frame = data.pre_solve_rotation[0] * data.frames[0];
+    let inverse_mass = [inertias[0].effective_inv_mass(), inertias[1].effective_inv_mass()];
+    let inverse_inertia = [inertias[0].effective_inv_angular_inertia(), inertias[1].effective_inv_angular_inertia()];
+    let mut position = [Vec3::ZERO; 2];
+    let mut rotation = [Vec3::ZERO; 2];
+    let mut impulse = Vec3::ZERO;
+    for axis in Vec3::AXES.map(|axis| frame * axis) {
+        let angular = [arms[0].cross(axis), arms[1].cross(axis)];
+        let response = [inverse_inertia[0] * angular[0], inverse_inertia[1] * angular[1]];
+        let denominator = axis.dot(inverse_mass[0] * axis + inverse_mass[1] * axis)
+            + angular[0].dot(response[0]) + angular[1].dot(response[1]);
+        if denominator <= f32::EPSILON { continue; }
+        let lambda = axis.dot(separation) / denominator;
+        impulse += axis * lambda;
+        position[0] += inverse_mass[0] * axis * lambda;
+        position[1] -= inverse_mass[1] * axis * lambda;
+        rotation[0] += response[0] * lambda;
+        rotation[1] -= response[1] * lambda;
+    }
+    parent.delta_position += position[0];
+    child.delta_position += position[1];
+    for (body, previous, current, delta) in [
+        (parent, data.pre_solve_rotation[0], delta_rotation[0], rotation[0]),
+        (child, data.pre_solve_rotation[1], delta_rotation[1], rotation[1]),
+    ] {
+        if delta == Vec3::ZERO { continue; }
+        let value = current + delta;
+        body.delta_rotation.0 = (Quat::from_xyzw(value.x * 0.5, value.y * 0.5, value.z * 0.5, 1.0).normalize()
+            * previous).normalize();
+    }
+    data.cached_position_lagrange += impulse;
 }
 
 fn shortest_quat(value: Quat) -> Quat {
@@ -719,6 +773,7 @@ fn capture_pre_solve_transform(
     bodies: Query<(&PreSolveDeltaPosition, &PreSolveDeltaRotation)>,
 ) {
     for (joint, mut data) in &mut joints {
+        data.cached_position_lagrange = Vec3::ZERO;
         data.limit_lambdas = [0.0; 3];
         data.limit_axes = [Vec3::ZERO; 3];
         data.motor_lambdas = [0.0; 3];
@@ -793,7 +848,8 @@ fn apply_source_joint_linear_velocity(
     data: &SourcePhysicsJointSolverData,
 ) {
     if !joint.linear_locked { return; }
-    let position_impulse = data.point_data.total_position_lagrange();
+    let position_impulse = if joint.use_linear_solver { data.cached_position_lagrange }
+        else { data.point_data.total_position_lagrange() };
     let frame = data.frames[0];
     if (frame.inverse() * position_impulse).abs().max_element() <= 1e-10 { return; }
     let conditioned = conditioned_inertias(inertias, joint.mass_conditioning, joint.settings);
@@ -955,6 +1011,150 @@ mod tests {
             0,
             true,
         )
+    }
+
+    fn source_locked_position_reference(frame: Quat, arms: [Vec3; 2], separation: Vec3,
+        inverse_mass: [f32; 2], inverse_inertia: [Mat3; 2], iterations: u32) -> ([Vec3; 2], [Quat; 2]) {
+        let axes = Vec3::AXES.map(|axis| frame * axis);
+        let mut position = [Vec3::ZERO; 2];
+        let mut rotation = [Vec3::ZERO; 2];
+        for _ in 0..iterations {
+            let error = separation + position[1] - position[0]
+                + rotation[1].cross(arms[1]) - rotation[0].cross(arms[0]);
+            let mut next_position = [Vec3::ZERO; 2];
+            let mut next_rotation = [Vec3::ZERO; 2];
+            for axis in axes {
+                let angular = [arms[0].cross(axis), arms[1].cross(axis)];
+                let response = [inverse_inertia[0] * angular[0], inverse_inertia[1] * angular[1]];
+                let denominator = inverse_mass[0] + inverse_mass[1]
+                    + angular[0].dot(response[0]) + angular[1].dot(response[1]);
+                let lambda = axis.dot(error) / denominator;
+                next_position[0] += axis * (inverse_mass[0] * lambda);
+                next_position[1] -= axis * (inverse_mass[1] * lambda);
+                next_rotation[0] += response[0] * lambda;
+                next_rotation[1] -= response[1] * lambda;
+            }
+            for index in 0..2 {
+                position[index] += next_position[index];
+                rotation[index] += next_rotation[index];
+            }
+        }
+        (position, rotation.map(|value| Quat::from_xyzw(value.x * 0.5, value.y * 0.5, value.z * 0.5, 1.0).normalize()))
+    }
+
+    #[test]
+    fn cached_locked_anchors_match_source_simultaneous_position_axes() {
+        for frame in [Quat::IDENTITY, Quat::from_euler(EulerRot::YXZ, 0.3, -0.2, 0.1)] {
+            for arms in [[Vec3::ZERO; 2], [Vec3::new(0.1, -0.2, 0.3), Vec3::new(-0.15, 0.25, 0.05)]] {
+                for parent_dynamic in [false, true] {
+                    for separation in [Vec3::ZERO, Vec3::new(0.08, 0.09, -0.1)] {
+                        for iterations in [1, 6] {
+                            let mut definition = joint();
+                            definition.use_linear_solver = true;
+                            definition.linear_locked = true;
+                            let parent_inertia = if parent_dynamic { inertia(1.0, Vec3::splat(25.0)) } else { SolverBodyInertia::DUMMY };
+                            let child_inertia = inertia(1.0, Vec3::splat(25.0));
+                            let mut data = SourcePhysicsJointSolverData { frames: [frame; 2], arms,
+                                center_difference: separation - arms[1] + arms[0], ..default() };
+                            let mut parent = SolverBody::default();
+                            let mut child = SolverBody::default();
+                            for _ in 0..iterations {
+                                definition.solve([&mut parent, &mut child], [&parent_inertia, &child_inertia], &mut data, 1.0 / 60.0);
+                            }
+                            let inverse = if parent_dynamic { 1.0_f32 } else { 0.0 };
+                            let (positions, rotations) = source_locked_position_reference(frame, arms, separation,
+                                [inverse, 1.0], [Mat3::IDENTITY * (25.0 * inverse), Mat3::IDENTITY * 25.0], iterations);
+                            for (body, position, rotation) in [(&parent, positions[0], rotations[0]), (&child, positions[1], rotations[1])] {
+                                assert!(body.delta_position.abs_diff_eq(position, 1e-5),
+                                    "frame={frame:?} arms={arms:?} separation={separation:?} iterations={iterations} actual={:?} source={position:?}", body.delta_position);
+                                assert!(body.delta_rotation.0.abs_diff_eq(rotation, 1e-5),
+                                    "frame={frame:?} arms={arms:?} separation={separation:?} iterations={iterations} actual={:?} source={rotation:?}", body.delta_rotation.0);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cached_locked_anchor_reaches_physics_schedule() {
+        use avian3d::prelude::{AngularVelocity, Gravity, LinearVelocity, Mass, PhysicsPlugins, Position, RigidBody, Rotation, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        let arms = [Vec3::new(0.1, -0.2, 0.3), Vec3::new(-0.15, 0.25, 0.05)];
+        let separation = Vec3::new(0.08, 0.09, -0.1);
+        let initial_child = separation - arms[1] + arms[0];
+        for iterations in [1, 6] {
+            let (positions, rotations) = source_locked_position_reference(Quat::IDENTITY, arms, separation,
+                [1.0, 1.0], [Mat3::IDENTITY * 25.0; 2], iterations);
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin))
+                .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(1))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish(); app.cleanup();
+            let parent = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+                AngularInertia::new(Vec3::splat(0.04)), Transform::IDENTITY)).id();
+            let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+                AngularInertia::new(Vec3::splat(0.04)), Transform::from_translation(initial_child))).id();
+            let mut definition = joint();
+            definition.parent = parent; definition.child = child;
+            definition.parent_frame = Isometry3d::new(arms[0], Quat::IDENTITY);
+            definition.child_frame = Isometry3d::new(arms[1], Quat::IDENTITY);
+            definition.use_linear_solver = true; definition.linear_locked = true;
+            definition.settings.position_iterations = iterations;
+            definition.settings.velocity_iterations = 0; definition.settings.projection_iterations = 0;
+            app.world_mut().spawn(definition);
+            app.update();
+            for (entity, position) in [(parent, Vec3::ZERO), (child, initial_child)] {
+                app.world_mut().entity_mut(entity).insert((Position(position), Transform::from_translation(position),
+                    Rotation::IDENTITY, LinearVelocity::ZERO, AngularVelocity::ZERO));
+            }
+            app.update();
+            for (entity, position, rotation) in [(parent, positions[0], rotations[0]),
+                (child, initial_child + positions[1], rotations[1])] {
+                assert!(app.world().get::<Position>(entity).unwrap().0.abs_diff_eq(position, 1e-4),
+                    "iterations={iterations} actual={:?} source={position:?}", app.world().get::<Position>(entity));
+                assert!(app.world().get::<Rotation>(entity).unwrap().0.abs_diff_eq(rotation, 1e-4),
+                    "iterations={iterations} actual={:?} source={rotation:?}", app.world().get::<Rotation>(entity));
+            }
+        }
+    }
+
+    #[test]
+    fn cached_native_spine_anchor_keeps_position_impulse_for_velocity() {
+        let profile = crate::pa_als::parse_pa_als_profile();
+        let mut definition = profile.joints.iter().find(|joint| joint.label == "spine_01").unwrap().definition.clone();
+        let parent_center = profile.bodies.iter().find(|body| body.label == "pelvis").unwrap().mass_properties.unwrap().center_of_mass_m;
+        let child_center = profile.bodies.iter().find(|body| body.label == "spine_01").unwrap().mass_properties.unwrap().center_of_mass_m;
+        let child_rotation = definition.parent_frame.rotation * definition.child_frame.rotation.conjugate();
+        let arms = [Vec3::from(definition.parent_frame.translation) - parent_center,
+            child_rotation * (Vec3::from(definition.child_frame.translation) - child_center)];
+        let separation = Vec3::new(0.08, 0.09, -0.1);
+        definition.motors = [SourceAngularMotor::default(); 3];
+        assert!(definition.linear_locked && definition.use_linear_solver && definition.mass_conditioning);
+        let mass = inertia(1.0, Vec3::splat(25.0));
+        let frame = definition.parent_frame.rotation;
+        for iterations in [1, 6] {
+            let mut data = SourcePhysicsJointSolverData { frames: [frame; 2], arms,
+                center_difference: separation - arms[1] + arms[0], ..default() };
+            let mut parent = SolverBody::default();
+            let mut child = SolverBody::default();
+            for _ in 0..iterations {
+                definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, 1.0 / 60.0);
+            }
+            let (positions, rotations) = source_locked_position_reference(frame, arms, separation,
+                [1.0, 1.0], [Mat3::IDENTITY * 25.0; 2], iterations);
+            assert!(parent.delta_position.abs_diff_eq(positions[0], 1e-5));
+            assert!(child.delta_position.abs_diff_eq(positions[1], 1e-5));
+            assert!(parent.delta_rotation.0.abs_diff_eq(rotations[0], 1e-5));
+            assert!(child.delta_rotation.0.abs_diff_eq(rotations[1], 1e-5));
+            assert!(data.total_position_lagrange().length() > 1e-6);
+            let mut parent = SolverBody::default();
+            let mut child = SolverBody { linear_velocity: Vec3::Y, ..default() };
+            apply_source_joint_linear_velocity(&definition, &mut parent, &mut child, [&mass, &mass], &data);
+            assert!(child.linear_velocity.distance(Vec3::Y) > 1e-5);
+        }
     }
 
     #[test]

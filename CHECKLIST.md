@@ -6372,11 +6372,17 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：只验证普通角度或精确180°会错过这一窄区间；证据`bf144_pa_angle_mixed_limits_preserve_source_degenerate_swing_guard`及完整角色物理消费者。
   - 20:14 source/static摘要：fresh scalar混合限位、双Swing及全soft SIMD分支已区分，native退化阈值−0.998由独立离线工具生成目标参数；目标仅跳过源排除的限位轴，保留硬锁。已写阈值两侧、双Swing/SIMD和实际物理调度对照；极小硬锁分母、测试、消融及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d79/`。实际结束：2026-11-08 20:14 +08:00；偏差：−32分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D80 / P2 — Ragdoll锁定锚点与投影复用了不同的球形约束算法。
+- [x] BF144-D80a / P2 — Ragdoll锁定锚点的位置求解复用了不同的球形约束算法。
+  - 拆分：源位置迭代及其速度阶段冲量交接归D80a；projection阶段及其提交/清零生命周期归依赖项D80b。两项分别保留各自反例并单独提交。
+  - 本轮开始：2026-11-08 20:15 +08:00；预计结束：2026-11-08 21:10 +08:00。先核对三轴缓存和位置冲量消费者，再实现位置迭代及独立源公式对照；统一执行留待升级后。
   - Source：fresh `PBDJointCachedSolverGaussSeidel.cpp:379–433,576–630,824–903`在三轴Locked/SIMD分支缓存parent connector轴、双body力臂和各轴有效质量，以当次共同DP/DQ同时算三轴lambda，再累加线性DP与角向DQ；`241–274,2168–2238`的projection使用同样三轴公式，parent固定、child球形惯量。`ConstraintGroupSolver.cpp:518–559`在projection前提交并清空原DP/DQ。
   - Target：`src/avian_ext/source_physics_joint.rs:241–243,2102–2158`在位置及projection调用Avian `SphericalJoint→PointConstraintShared::solve`；该实现沿总separation方向求一个有效质量，每轮再旋转力臂并乘增量quat，与源cached三轴算法不同。
   - 反例：实际加载角色并启动Ragdoll，在spine_01保留native双frame/COM、限位与conditioning，隔离其他joint/contact，输入相同unit mass、球形inverse inertia=25与双锚点偏移。6次位置阶段偏移(0.08,0.09,−0.10)m时，源/目标位置校正差0.000632m、角校正差0.001324rad；单次projection偏移(0.02,0.03,−0.04)m时分别差0.000914m/0.000824rad。`bf144_pa_point_full_character_position_and_projection`8组4PASS/4FAIL；零误差、projection单轴和超过5cm后纯teleport对照通过。直接生产solver12组中有力臂且多轴的1/6次求解2FAIL，移除力臂则PASS。证据`target/bf144/24/initial/`、`24/full_initial/`。这是相同迭代数的受控算法反例，不宣称执行native Chaos仿真或完整自然落地轨迹。
   - 漏检：旧point测试只验锚点最终接近，projection测试只验误差减少/大误差teleport，未按当前cached/SIMD源公式比较有限次三轴响应。只登记，不修改移植solver。
+  - 20:19 source/static摘要：fresh源确认Locked位置以固定connector三轴、力臂和共同DP/DQ算lambda并合计写回；native PA身份与既有记录一致。cached位置路径及速度阶段冲量交接已实现，已写双body有限迭代、native spine参数和PhysicsSchedule对照；projection仍属D80b，测试、消融及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d80a/`。实际结束：2026-11-08 20:19 +08:00；偏差：−51分钟；结果：静态位置子项完成，projection拆为D80b。
+
+- [ ] BF144-D80b / P2 — Ragdoll锁定锚点的projection复用了不同的球形约束算法。
+  - 依赖D80a；按本地Chaos projection三轴、parent固定/child球形惯量及projection前提交清零语义实现。沿用D80原projection反例、单轴与超过5cm的teleport控制，独立记录source/target证据并提交；不把位置阶段修复当作projection通过。
 
 - [ ] BF144-D81 / P2 — 世界Ragdoll错误使用PhysicsAsset的RBAN迭代预算。
   - Source：fresh `PhysicsAsset.h:223–228`说明SolverSettings只用于RigidBody Anim Node；实际世界经`ChaosScene.cpp:88–95→PBDRigidsSolver.cpp:3692–3697`应用PhysicsSettings。此次native PhysicsSettings为8次position/2次velocity/1次projection；三项solver override CVar均−1。`BodyInstance.h:1102–1108`在bOverrideIterationCounts=False时返回−1，native mesh及PA body不覆盖；`IslandGroup.cpp:98–144`才回落世界配置。引擎未应用项目配置时的默认同样为8/2/1。
