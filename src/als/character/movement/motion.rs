@@ -4920,6 +4920,7 @@ fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
 pub(crate) fn locomotion_state_sync_system(
     mut commands: Commands,
     time: Res<Time<Virtual>>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     motion: Query<&crate::actual_motion::AlsActualMotion, With<AlsCharacter>>,
     spatial: SpatialQuery,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
@@ -4966,6 +4967,10 @@ pub(crate) fn locomotion_state_sync_system(
             continue;
         }
         if collision_mode == Some(*current) { continue; }
+        let actor_delta = time.delta_secs() * custom_dilations.get(entity).map_or(1.0, |value| value.0);
+        if *current == LocomotionState::Grounded && actor_delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+            continue;
+        }
         let Ok(basis) = controller.basis_access() else {
             continue;
         };
@@ -5167,6 +5172,37 @@ mod tests {
             }).unwrap();
             for distance in [walking, falling] {
                 assert!((-0.4..-0.37).contains(&distance), "parented={parented} distance={distance}");
+            }
+        }
+    }
+
+    #[test]
+    fn grounded_floor_adjustment_uses_the_owner_tick_threshold() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (world_delta, dilation, start_y, adjusts) in [
+            (0.05_f32, 0.0_f32, 1.0_f32, false),
+            (0.05, 0.0, 0.9215, false),
+            (0.0000005, 1.0, 1.0, false),
+            (0.000001, 1.0, 1.0, true),
+            (0.05, 1.0, 1.0, true),
+        ] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let start = Vec3::Y * start_y;
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LocomotionState::Grounded, AlsStateRequest::default(), AlsCmcAdapterRuntime::default(),
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation)));
+            app.world_mut().resource_mut::<Time<Virtual>>().advance_by(std::time::Duration::from_secs_f32(world_delta));
+            app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+            let actual = app.world().get::<Position>(actor).unwrap().y;
+            let expected = if adjusts { 0.9215 } else { start_y };
+            assert!((actual - expected).abs() < 1e-4,
+                "world_delta={world_delta} dilation={dilation} start={start_y} actual={actual} expected={expected}");
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+            if !adjusts && start_y == 1.0 {
+                app.world_mut().get_mut::<crate::als_camera::AlsCameraCustomTimeDilation>(actor).unwrap().0 = 1.0;
+                app.world_mut().resource_mut::<Time<Virtual>>().advance_by(std::time::Duration::from_secs_f32(0.05));
+                app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+                assert!((app.world().get::<Position>(actor).unwrap().y - 0.9215).abs() < 1e-4);
             }
         }
     }

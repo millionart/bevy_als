@@ -1,0 +1,83 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Classes/GameFramework/Actor.h",
+      "sha256": "255c6a18c75d860e38282c7ec1561a72c9f2d4b19b41043a0df5ba668659dba9",
+      "excerpts": [
+        {
+          "first_line": 4877,
+          "last_line": 4895,
+          "text": "void FActorComponentTickFunction::ExecuteTickHelper(UActorComponent* Target, bool bTickInEditor, float DeltaTime, ELevelTick TickType, const ExecuteTickLambda& ExecuteTickFunc)\n{\n\tif (IsValid(Target))\n\t{\n\t\tFScopeCycleCounterUObject ComponentScope(Target);\n\t\tFScopeCycleCounterUObject AdditionalScope(Target->AdditionalStatObject());\n\n\t\tif (Target->bRegistered)\n\t\t{\n\t\t\tAActor* MyOwner = Target->GetOwner();\n\t\t\tif (TickType != LEVELTICK_ViewportsOnly || bTickInEditor ||\n\t\t\t\t(MyOwner && MyOwner->ShouldTickIfViewportsOnly()))\n\t\t\t{\n\t\t\t\tconst float TimeDilation = (MyOwner ? MyOwner->CustomTimeDilation : 1.f);\n\t\t\t\tExecuteTickFunc(DeltaTime * TimeDilation);\n\t\t\t}\n\t\t}\n\t}\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/ActorComponent.cpp",
+      "sha256": "0ee9a9217e232aa323791b445d4e859c29fb889921a9ede25daa7d3c1d0437bd",
+      "excerpts": [
+        {
+          "first_line": 1693,
+          "last_line": 1703,
+          "text": "}\n\nvoid FActorComponentTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)\n{\n\tTRACE_CPUPROFILER_EVENT_SCOPE(FActorComponentTickFunction::ExecuteTick);\n\n\tExecuteTickHelper(Target, Target->bTickInEditor, DeltaTime, TickType, [this, TickType](float DilatedTime)\n\t{\n\t\tTarget->TickComponent(DilatedTime, TickType, this);\n\t});\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 94,
+          "last_line": 99,
+          "text": "}\n\nconst FVector UCharacterMovementComponent::DefaultGravityDirection = FVector(0.0, 0.0, -1.0);\nconst float UCharacterMovementComponent::MIN_TICK_TIME = 1e-6f;\nconst float UCharacterMovementComponent::MIN_FLOOR_DIST = 1.9f;\nconst float UCharacterMovementComponent::MAX_FLOOR_DIST = 2.4f;\n"
+        },
+        {
+          "first_line": 1650,
+          "last_line": 1669,
+          "text": "void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)\n{\n\tSCOPED_NAMED_EVENT(UCharacterMovementComponent_TickComponent, FColor::Yellow);\n\tSCOPE_CYCLE_COUNTER(STAT_CharacterMovement);\n\tSCOPE_CYCLE_COUNTER(STAT_CharacterMovementTick);\n\tCSV_SCOPED_TIMING_STAT_EXCLUSIVE(CharacterMovement);\n\n\tFVector InputVector = FVector::ZeroVector;\n\tbool bUsingAsyncTick = (CharacterMovementCVars::AsyncCharacterMovement == 1) && IsAsyncCallbackRegistered();\n\tif (!bUsingAsyncTick)\n\t{\n\t\t// Do not consume input if simulating asynchronously, we will consume input when filling out async inputs.\n\t\tInputVector = ConsumeInputVector();\n\t}\n\n\tif (!HasValidData() || ShouldSkipUpdate(DeltaTime))\n\t{\n\t\treturn;\n\t}\n\n"
+        },
+        {
+          "first_line": 1745,
+          "last_line": 1762,
+          "text": "\n\t\t// Defer all mesh child updates until all movement completes. Avoiding combining this with the corrections above, as those may cause a lot of significant movement.\n\t\tFScopedMeshMovementUpdate ScopedMeshUpdate(CharacterOwner->GetMesh());\n\n\t\t// Perform input-driven move for any locally-controlled character, and also\n\t\t// allow animation root motion or physics to move characters even if they have no controller\n\t\tconst bool bShouldPerformControlledCharMove = CharacterOwner->IsLocallyControlled() \n\t\t\t\t\t\t\t\t\t\t\t\t\t  || (!CharacterOwner->GetController() && bRunPhysicsWithNoController)\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\t  || (!CharacterOwner->GetController() && CharacterOwner->IsPlayingRootMotion());\n\n\t\tif (bShouldPerformControlledCharMove)\n\t\t{\n\t\t\tControlledCharacterMove(InputVector, DeltaTime);\n\n\t\t\tconst bool bIsaListenServerAutonomousProxy = CharacterOwner->IsLocallyControlled()\n\t\t\t\t\t\t\t\t\t\t\t\t\t \t && (CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy);\n\n\t\t\tif (bIsaListenServerAutonomousProxy)\n"
+        },
+        {
+          "first_line": 2787,
+          "last_line": 2811,
+          "text": "\n\tbTeleportedSinceLastUpdate = UpdatedComponent->GetComponentLocation() != LastUpdateLocation;\n\t\n\t// no movement if we can't move, or if currently doing physical simulation on UpdatedComponent\n\tif (MovementMode == MOVE_None || UpdatedComponent->Mobility != EComponentMobility::Movable || UpdatedComponent->IsSimulatingPhysics())\n\t{\n\t\tif (!CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion)\n\t\t{\n\t\t\t// Consume root motion\n\t\t\tif (CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh())\n\t\t\t{\n\t\t\t\tTickCharacterPose(DeltaSeconds);\n\t\t\t\tRootMotionParams.Clear();\n\t\t\t}\n\t\t\tif (CurrentRootMotion.HasActiveRootMotionSources())\n\t\t\t{\n\t\t\t\tCurrentRootMotion.Clear();\n\t\t\t}\n\t\t}\n\t\t// Clear pending physics forces\n\t\tClearAccumulatedForces();\n\t\treturn;\n\t}\n\n\t// Force floor update if we've moved outside of CharacterMovement since last update.\n"
+        },
+        {
+          "first_line": 3026,
+          "last_line": 3037,
+          "text": "\t\t// Clear jump input now, to allow movement events to trigger it for next update.\n\t\tCharacterOwner->ClearJumpInput(DeltaSeconds);\n\t\tNumJumpApexAttempts = 0;\n\n\t\t// Give one final chance to update the velocity right before doing the actual position change.\n\t\tUpdateVelocityBeforeMovement(DeltaSeconds);\n\t\t\n\t\t// change position\n\t\tStartNewPhysics(DeltaSeconds, 0);\n\n\t\tif (!HasValidData())\n\t\t{\n"
+        },
+        {
+          "first_line": 3531,
+          "last_line": 3538,
+          "text": "void UCharacterMovementComponent::StartNewPhysics(float deltaTime, int32 Iterations)\n{\n\tif ((deltaTime < MIN_TICK_TIME) || (Iterations >= MaxSimulationIterations) || !HasValidData())\n\t{\n\t\treturn;\n\t}\n\n\tif (UpdatedComponent->IsSimulatingPhysics())\n"
+        },
+        {
+          "first_line": 6295,
+          "last_line": 6327,
+          "text": "void UCharacterMovementComponent::AdjustFloorHeight()\n{\n\tSCOPE_CYCLE_COUNTER(STAT_CharAdjustFloorHeight);\n\n\t// If we have a floor check that hasn't hit anything, don't adjust height.\n\tif (!CurrentFloor.IsWalkableFloor())\n\t{\n\t\treturn;\n\t}\n\n\tfloat OldFloorDist = CurrentFloor.FloorDist;\n\tif (CurrentFloor.bLineTrace)\n\t{\n\t\tif (OldFloorDist < MIN_FLOOR_DIST && CurrentFloor.LineDist >= MIN_FLOOR_DIST)\n\t\t{\n\t\t\t// This would cause us to scale unwalkable walls\n\t\t\tUE_LOGF(LogCharacterMovement, VeryVerbose, \"Adjust floor height aborting due to line trace with small floor distance (line: %.2f, sweep: %.2f)\", CurrentFloor.LineDist, CurrentFloor.FloorDist);\n\t\t\treturn;\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Falling back to a line trace means the sweep was unwalkable (or in penetration). Use the line distance for the vertical adjustment.\n\t\t\tOldFloorDist = CurrentFloor.LineDist;\n\t\t}\n\t}\n\n\t// Move up or down to maintain floor height.\n\tif (OldFloorDist < MIN_FLOOR_DIST || OldFloorDist > MAX_FLOOR_DIST)\n\t{\n\t\tFHitResult AdjustHit(1.f);\n\t\tconst double InitialZ = GetGravitySpaceZ(UpdatedComponent->GetComponentLocation());\n\t\tconst float AvgFloorDist = (MIN_FLOOR_DIST + MAX_FLOOR_DIST) * 0.5f;\n\t\tconst float MoveDist = AvgFloorDist - OldFloorDist;\n"
+        },
+        {
+          "first_line": 6441,
+          "last_line": 6460,
+          "text": "void UCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds)\n{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}\n\n\tif (CharacterOwner->GetLocalRole() == ROLE_Authority)\n\t{\n\t\tPerformMovement(DeltaSeconds);\n\t}\n\telse if (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy && IsNetMode(NM_Client))\n\t{\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "first_line": 333,
+          "last_line": 350,
+          "text": "void UAlsCharacterMovementComponent::PhysWalking(const float DeltaTime, int32 IterationsCount)\r\n{\r\n\tRefreshGroundedMovementSettings();\r\n\r\n\tauto Iterations{IterationsCount};\r\n\r\n\t// TODO Copied with modifications from UCharacterMovementComponent::PhysWalking(). After the\r\n\t// TODO release of a new engine version, this code should be updated to match the source code.\r\n\r\n\t// ReSharper disable All\r\n\r\n\t// SCOPE_CYCLE_COUNTER(STAT_CharPhysWalking);\r\n\r\n\tif (DeltaTime < MIN_TICK_TIME)\r\n\t{\r\n\t\treturn;\r\n\t}\r\n\r\n"
+        }
+      ]
+    }
+  ]
+}

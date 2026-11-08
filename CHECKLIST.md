@@ -5779,7 +5779,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色世界scale=(2,1,1)，source物理半高0.9m、水平圆半径0.6m；target形体半extent=(0.6,0.9,0.285317)m。面对距中心1m的−Z墙，源形体sweep距离0.4m，target初始sweep为0.714679m，实际前进后停在z=−0.700251m，越过源允许位置约0.30m。直接缩放与父级缩放均失败；scale=1/2的4个uniform对照通过。`bf144_floor_capsule_scale_keeps_source_circular_horizontal_shape`语义FAIL，证据`target/bf144/04/scale/`。
   - 漏检：旧world-scale测试主要比较uniform与相同world-scale的父级路径，两边一致不能证明source形体一致；AABB高度和floor helper也不能验证实际碰撞圆截面。当前默认unit scale不受此分支影响。仅登记，不复开或改写已完成的uniform parent-space修复。
 
-- [ ] BF144-D12 / P2 — 角色时间倍率为零时仍执行步行贴地高度调整。
+- [x] BF144-D12 / P2 — 角色时间倍率为零时仍执行步行贴地高度调整；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 13:36 +08:00；预估结束14:06 +08:00；实际结束13:39 +08:00，提前27分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh角色默认倍率、组件时钟、UE/ALS最小delta和floor逻辑保存在`docs/audit/bf144/d12/`；按owner实际delta保护Grounded后置floor，已写加载角色零倍率、阈值两侧和恢复对照。reader不能设置owner倍率，零倍率源结论为源码推导；目标测试与真实Gate尚未执行。
   - Source：fresh UE `PerformMovement:2788–2808`在角色被外部移动后仅标记下一次检查floor；`3034`调用`StartNewPhysics`，后者`3531–3536`在owner delta<MIN_TICK_TIME时直接返回，ALS `PhysWalking:345–348`也有同一前置返回。因此当前Grounded角色在owner=0时不执行AdjustFloorHeight。
   - Target：`src/als/character/movement/motion.rs:3978`的floor同步只检查世界暂停，`4011–4074`继续按世界帧运行；CMC已正确发布simulation_delta_seconds=0也不能阻止此阶段移动角色。
   - 反例：完整加载的Grounded角色在静态平地被外部置于中心高1m、owner倍率0；物理后、floor consumer前仍为1m且CMC delta=0，consumer后却变成0.9215m。source该阶段应保持1m；`bf144_floor_frozen_owner_does_not_run_walking_height_adjustment`语义FAIL。owner=1及初始已贴地的3个对照PASS，证据`target/bf144/04/frozen/`。
