@@ -6257,7 +6257,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`state/transition.rs:359–370`只检查当前action不是Ragdolling，直接提交Ragdolling/None；`ragdoll_link.rs:787–830`随后关闭capsule collision并禁用Tnua，rig同步遇到缺失body只是continue，没有回退许可。
   - 反例：完整角色的physics body实例中分别移除pelvis或spine_03，再请求Ragdoll；源应拒绝，target却进入Ragdolling/None、capsule变Kinematic且layers=NONE。`bf144_ragdoll_lifecycle_requires_pelvis_and_spine_body_instances`4组2PASS/2FAIL，完整rig与只缺非必需foot_l的许可对照通过，实际图没有求值错误。旧入口测试默认完整PA实例，未覆盖源显式前置条件；生产未改。
 
-- [ ] BF144-D66 / P2 — Ragdoll退出在动画实例不可用时提前恢复角色物理和模式。
+- [x] BF144-D66 / P2 — Ragdoll退出在动画实例不可用时提前恢复角色物理和模式；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 18:51 +08:00；预估结束19:36 +08:00；实际结束18:58 +08:00，提前38分钟；未拆分，测试/消融/Gate暂缓。
+  - 复盘：已有限复开归档BF102.50的退出许可与合成夹具；旧测试无动画实例仍期望成功，未检查源姿态前置条件，空中/落地速度公式本身不复开。
+  - 闭环：fresh ALS退出/快照与AB_Als原生证据保存在`docs/audit/bf144/d66/`；目标在事务前检查玩家及非空实际骨骼姿态，已写缺失/恢复与加载角色地面、空中对照。旧反例无可恢复报告路径，归档许可边界及动画Gate待统一验证。
   - Source：fresh `StopRagdollingImplementation:1071–1074`要求AnimationInstance有效且component-space pose非空，失败则保持Ragdoll；只有通过后才snapshot并恢复capsule/mesh、mode/action，最后尝试GetUp。
   - Target：`ragdoll_exit_route_system:671–704`仅在枚举自身碰撞体时可选读取player；player缺失仍清action、改Grounded/Air和velocity。之后restore parent/start_get_up虽然会因player缺失退出，但前面的物理/action提交已发生。
   - 反例：完整Ragdoll落地后令AnimationGraphPlayer不可用，再请求退出；source应保持Ragdolling，target已为None/Grounded、恢复capsule碰撞，却没有GetUp。`bf144_ragdoll_lifecycle_exit_requires_live_animation_instance`2组1PASS/1FAIL，正常player退出并成功GettingUp的对照通过。旧恢复测试始终保留可用动画实例；此项只登记退出前置条件，不把后续pose数值列为已审计。
