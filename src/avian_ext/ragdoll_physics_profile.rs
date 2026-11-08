@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, ColliderOf, CollisionLayers,
+    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, ColliderOf, CollisionLayers, CustomPositionIntegration,
     CoefficientCombine, CollisionHooks, ComputedCenterOfMass, Friction, GravityScale, JointCollisionDisabled, JointDamping, JointDisabled,
-    LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSchedule,
+    LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, Physics, PhysicsSchedule,
     PhysicsSystems, RayHitData, ShapeCastConfig, ShapeHitData, SimpleCollider, SolverSystems, SpatialQuery, SpatialQueryFilter,
     Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SphericalJoint,
 };
@@ -528,6 +528,11 @@ impl RagdollPhysicsProfile {
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RagdollActiveMode(pub BodyMode);
 
+#[derive(Component, Default)]
+struct SourceRagdollFrameRotation {
+    integrated: bool,
+}
+
 #[derive(Component, Clone, Debug)]
 pub struct RagdollCollisionMember {
     pub group: Entity,
@@ -823,6 +828,13 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
         .add_systems(PhysicsSchedule, disable_ragdoll_gyroscopic_torque
             .in_set(SolverSystems::PreSubstep))
+        .add_systems(PhysicsSchedule, (enable_source_ragdoll_rotation, ApplyDeferred)
+            .chain().in_set(SolverSystems::PreSubstep))
+        .add_systems(avian3d::prelude::SubstepSchedule, integrate_source_ragdoll_rotation
+            .in_set(avian3d::dynamics::integrator::IntegrationSystems::Position)
+            .after(avian3d::dynamics::integrator::integrate_positions))
+        .add_systems(PhysicsSchedule, (disable_source_ragdoll_rotation, ApplyDeferred)
+            .chain().in_set(SolverSystems::PostSubstep))
         .add_systems(PhysicsSchedule, prepare_profile_sleep_islands
             .before(SolverSystems::Finalize)
             .after(SolverSystems::Restitution)
@@ -831,6 +843,42 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .after(avian3d::prelude::PhysicsStepSystems::Sleeping)
             .before(avian3d::prelude::PhysicsStepSystems::Finalize)
             .run_if(resource_exists::<PhysicsIslands>));
+    }
+}
+
+fn enable_source_ragdoll_rotation(
+    mut commands: Commands,
+    bodies: Query<(Entity, &RigidBody), (With<RagdollActiveMode>, Without<CustomPositionIntegration>)>,
+) {
+    for (entity, body) in &bodies {
+        if body.is_dynamic() {
+            commands.entity(entity).insert((CustomPositionIntegration, SourceRagdollFrameRotation::default()));
+        }
+    }
+}
+
+pub(crate) fn integrate_source_ragdoll_rotation(
+    frame: Res<Time<Physics>>,
+    step: Res<Time>,
+    mut bodies: Query<(&mut SolverBody, &mut SourceRagdollFrameRotation)>,
+) {
+    for (mut body, mut state) in &mut bodies {
+        let velocity = body.linear_velocity;
+        body.delta_position += velocity * step.delta_secs();
+        if !state.integrated {
+            let angular = body.angular_velocity * (0.5 * frame.delta_secs());
+            body.delta_rotation.0 = (Quat::from_xyzw(angular.x, angular.y, angular.z, 1.0) * body.delta_rotation.0).normalize();
+            state.integrated = true;
+        }
+    }
+}
+
+fn disable_source_ragdoll_rotation(
+    mut commands: Commands,
+    bodies: Query<Entity, With<SourceRagdollFrameRotation>>,
+) {
+    for entity in &bodies {
+        commands.entity(entity).remove::<(CustomPositionIntegration, SourceRagdollFrameRotation)>();
     }
 }
 
@@ -1842,6 +1890,86 @@ fn joint_anchor_distance(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn source_ragdoll_free_rotation_uses_one_physics_frame() {
+        use avian3d::prelude::{AngularVelocity, ColliderDisabled, Gravity, JointDisabled, Physics, Rotation, Sleeping, SleepingDisabled};
+        use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+        #[derive(Resource, Default)]
+        struct ObservedPhysicsDelta(f32);
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..12 { app.update(); }
+        let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let spawned = graph.get_spawned_ragdoll().unwrap();
+        let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+        let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+        let body = bodies.iter().find(|(label, _)| label == "spine_01").unwrap().1;
+        for entity in colliders { app.world_mut().entity_mut(entity).insert(ColliderDisabled); }
+        for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+        app.world_mut().insert_resource(Gravity(Vec3::ZERO));
+        app.world_mut().entity_mut(body).insert(SleepingDisabled).remove::<Sleeping>();
+        app.init_resource::<ObservedPhysicsDelta>();
+        app.add_systems(PhysicsSchedule, (|time: Res<Time<Physics>>, mut observed: ResMut<ObservedPhysicsDelta>| {
+            observed.0 = time.delta_secs();
+        }).in_set(SolverSystems::PreSubstep));
+        let axis = Vec3::new(0.2, 0.8, -0.3).normalize();
+        let initial = Quat::from_euler(EulerRot::YXZ, 0.3, -0.2, 0.4);
+        let maximum = app.world().get::<MaxAngularSpeed>(body).unwrap().0;
+        for frame_dt in [1.0_f32 / 60.0, 1.0 / 30.0, 0.1] {
+            for speed in [0.0_f32, 0.1, 30.0, 60.0, 80.0] {
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(frame_dt)));
+                let parent = app.world().get::<ChildOf>(body).unwrap().parent();
+                let parent_rotation = app.world_mut().run_system_once(move |transforms: bevy::transform::helper::TransformHelper| {
+                    transforms.compute_global_transform(parent).unwrap().rotation()
+                }).unwrap();
+                app.world_mut().get_mut::<Transform>(body).unwrap().rotation = parent_rotation.conjugate() * initial;
+                app.world_mut().entity_mut(body).insert((Rotation(initial), AngularVelocity(axis * speed))).remove::<Sleeping>();
+                app.update();
+                let dt = app.world().resource::<ObservedPhysicsDelta>().0;
+                assert!((dt - frame_dt.min(crate::source_physics_timing::SOURCE_MAX_PHYSICS_DELTA.as_secs_f32())).abs() < 1e-6);
+                let angular = axis * speed.min(maximum);
+                let delta = angular * (0.5 * dt);
+                let expected = (Quat::from_xyzw(delta.x, delta.y, delta.z, 1.0) * initial).normalize();
+                let actual = app.world().get::<Rotation>(body).unwrap().0;
+                let error = (actual - expected).length().min((actual + expected).length());
+                assert!(error < 1e-5, "frame_dt={frame_dt} speed={speed} dt={dt} actual={actual:?} source={expected:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn source_ragdoll_rotation_preserves_other_integration_owners() {
+        use avian3d::prelude::{AngularVelocity, CustomPositionIntegration, Gravity, LinearVelocity, PhysicsPlugins, Position, RigidBody, Rotation, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin))
+            .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(6))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish(); app.cleanup();
+        let velocity = Vec3::new(1.0, 2.0, 3.0);
+        let free = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY,
+            LinearVelocity(velocity), AngularVelocity(Vec3::X * 30.0))).id();
+        let owned = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, AngularVelocity(Vec3::X * 30.0),
+            RagdollActiveMode(BodyMode::Dynamic), CustomPositionIntegration)).id();
+        let ragdoll = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, LinearVelocity(velocity),
+            AngularVelocity(Vec3::X * 30.0), RagdollActiveMode(BodyMode::Dynamic))).id();
+        app.update();
+        for entity in [free, ragdoll] {
+            app.world_mut().entity_mut(entity).insert((Position(Vec3::ZERO), Rotation::IDENTITY, Transform::IDENTITY,
+                LinearVelocity(velocity), AngularVelocity(Vec3::X * 30.0)));
+        }
+        app.world_mut().entity_mut(owned).insert((Rotation::IDENTITY, Transform::IDENTITY, AngularVelocity(Vec3::X * 30.0)));
+        app.update();
+        let expected = Quat::from_scaled_axis(Vec3::X * 0.5);
+        assert!(app.world().get::<Rotation>(free).unwrap().0.abs_diff_eq(expected, 1e-5));
+        assert!(app.world().get::<Rotation>(owned).unwrap().0.abs_diff_eq(Quat::IDENTITY, 1e-5));
+        assert!(app.world().get::<CustomPositionIntegration>(owned).is_some());
+        assert!(app.world().get::<Position>(ragdoll).unwrap().0.abs_diff_eq(app.world().get::<Position>(free).unwrap().0, 1e-6));
+    }
+
     #[test]
     fn live_ragdoll_scale_matches_source_capsules_and_body_mass() {
         use bevy::ecs::system::RunSystemOnce;

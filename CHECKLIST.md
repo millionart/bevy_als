@@ -6411,11 +6411,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧硬角速度测试只用0.5rad和unit inertia，位置lambda远离阈值；没有覆盖较小角误差与合法角色缩放。本项只判定锁定轴速度约束的激活，不宣称次轴向量的所有数值都已等价；仅登记。
   - 20:38 source/static摘要：fresh源lambda严格比较与cm²→m²换算已记录，独立工具生成cached目标阈值1e−12；非cached路径不变。已写阈值正负边界及clavicle/hand三档scale、小角度的实际solver对照；测试、消融、其他角速度轴向及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d83/`。实际结束：2026-11-08 20:38 +08:00；偏差：−33分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D84 / P2 — Ragdoll自由角积分使用指数旋转，偏离源一阶quat积分。
+- [x] BF144-D84 / P2 — Ragdoll自由角积分使用指数旋转，偏离源一阶quat积分。
+  - 本轮开始：2026-11-08 20:39 +08:00；预计结束：2026-11-08 21:34 +08:00。核对源物理帧时钟、W更新/clamp和Avian公开积分扩展点，限定Ragdoll动态body实现一次源角积分并保持线性/其他实体路径；统一验证留待升级后。
+  - 20:42 source/static摘要：fresh PhysicsSettings确认未开启substepping、MaxPhysicsDeltaTime约1/30及最大角速度3600度/秒；UE先更新/clamp W再以物理帧dt做一次normalized一阶quat积分。Avian公开`CustomPositionIntegration`同时接管位置与旋转，需对本rig维持原有线性分步且仅接管自有动态body，不能更改全局子步；碰撞/力在子步间改变W的时序仍单列验证边界。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:870–978`实际动态body路径先更新/阻尼/clamp W，再调用`Rotation.cpp:158–173`，公式为normalize(Q + 0.5×dt×PureQuat(W)×Q)。当前native未启用物理substepping，gyro=False、角阻尼0；最大角速度使用项目3600度/秒，native全局Hack上限1000rad/s不影响该值。
   - Target：Ragdoll body使用Avian `integrator/mod.rs:503–532`的from_scaled_axis(W×dt)，每步精确指数旋转；项目未给这些动态body替换为源积分。默认6个子步的恒定角速度乘积仍是整帧指数旋转，不能与源一次normalized一阶积分互换。
   - 反例：实际加载角色并启动Ragdoll，spine_01保留native惯量/角阻尼/最大速度，隔离关节和碰撞，初始姿态含三轴旋转，W方向为normalize(0.2,0.8,−0.3)。dt=1/60、1/30及100ms帧×速度0/0.1/30/60/80rad/s共15组6PASS/9FAIL；所有速度clamp和物理dt检查通过。60rad/s、实际dt≈1/30时单步姿态差0.429204rad；80rad/s正确clamp后仍差0.477497rad。0/0.1rad/s控制通过，100ms只模拟约33.33ms，未混淆world/physics时钟。证据`bf144_pa_angular_free_body_uses_source_quaternion_integration`、`target/bf144/25/free/`。
   - 漏检：旧PA Gate核对参数、限位或缓慢静止姿态，没有把实际自由旋转积分与当前UE函数逐步比较。仅登记，不为看起来更稳定或更精确而替代source语义。
+  - 20:46 source/static摘要：fresh设置确认源未substep并按clamped物理帧更新W/一阶quat；目标仅临时接管动态rig的公开位置积分，在首子步应用一次源角积分并保留线性分步/其他所有者。已写加载spine的三帧长、五速度与非rig/所有权对照；子步内W变化、测试、消融及真实接触/Playground待统一Gate。证据`docs/audit/bf144/d84/`。实际结束：2026-11-08 20:46 +08:00；偏差：−48分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D85 / P3 — Soft角阻尼直接使用W×dt，遗漏源预测quat差分。
   - Source：fresh cached solver `17–35`使用初始/预测connector quat，通过`Rotation.cpp:87–104`的2×((Q−R)×inverse(R)).xyz计算ConnectorWDts；soft标量路径`1547–1558`及SIMD路径`1634–1654`在该差分上加入本轮累计DQ，再形成阻尼项。对normalized一阶积分，这个差分是W×dt/sqrt(1+|W×dt/2|²)。

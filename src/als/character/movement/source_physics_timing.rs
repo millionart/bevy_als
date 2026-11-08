@@ -75,7 +75,8 @@ impl Plugin for SourcePhysicsTimingPlugin {
                 SubstepSchedule,
                 integrate_character_position
                     .in_set(IntegrationSystems::Position)
-                    .after(avian3d::dynamics::integrator::integrate_positions),
+                    .after(avian3d::dynamics::integrator::integrate_positions)
+                    .after(crate::extensions::ragdoll_physics_profile::integrate_source_ragdoll_rotation),
             );
     }
 }
