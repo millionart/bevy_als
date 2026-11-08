@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, CollisionLayers,
+    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, ColliderOf, CollisionLayers,
     CoefficientCombine, CollisionHooks, ComputedCenterOfMass, Friction, GravityScale, JointCollisionDisabled, JointDamping, JointDisabled,
     LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSchedule,
     PhysicsSystems, RayHitData, ShapeCastConfig, ShapeHitData, SimpleCollider, SolverSystems, SpatialQuery, SpatialQueryFilter,
@@ -529,6 +529,16 @@ pub struct RagdollCollisionMember {
     pub disabled_pairs: Arc<[(u8, u8)]>,
 }
 
+#[derive(Component, Default)]
+pub struct SourceCollisionPawn;
+
+#[derive(Component, Default)]
+pub struct SourceCollisionIgnorePawn;
+
+fn ignores_pawn_pair(ignored_a: bool, pawn_a: bool, ignored_b: bool, pawn_b: bool) -> bool {
+    ignored_a && pawn_b || ignored_b && pawn_a
+}
+
 impl RagdollCollisionMember {
     pub fn disables(&self, other: &Self) -> bool {
         if self.group != other.group {
@@ -568,6 +578,9 @@ pub struct RagdollPhysicsProfileApplied {
 pub struct RagdollCollisionHooks<'w, 's> {
     members: Query<'w, 's, &'static RagdollCollisionMember>,
     modes: Query<'w, 's, &'static RagdollShapeCollisionMode>,
+    ignored: Query<'w, 's, (), With<SourceCollisionIgnorePawn>>,
+    pawns: Query<'w, 's, (), With<SourceCollisionPawn>>,
+    owners: Query<'w, 's, &'static ColliderOf>,
 }
 
 impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
@@ -577,6 +590,12 @@ impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
         collider_2: Entity,
         _commands: &mut Commands,
     ) -> bool {
+        let is_pawn = |entity| self.pawns.contains(entity)
+            || self.owners.get(entity).is_ok_and(|owner| self.pawns.contains(owner.body));
+        if ignores_pawn_pair(self.ignored.contains(collider_1), is_pawn(collider_1),
+            self.ignored.contains(collider_2), is_pawn(collider_2)) {
+            return false;
+        }
         if [collider_1, collider_2].into_iter().any(|entity| self.modes.get(entity)
             .is_ok_and(|mode| matches!(mode, RagdollShapeCollisionMode::NoCollision | RagdollShapeCollisionMode::QueryOnly))) {
             return false;
@@ -1029,7 +1048,8 @@ fn solve_profile_linear_ccd(
     joint_graph: Option<Res<avian3d::dynamics::solver::joint_graph::JointGraph>>,
     colliders: Query<(&Collider, &avian3d::prelude::ColliderOf, &avian3d::prelude::ColliderTransform,
         Option<&Sensor>, Option<&CollisionLayers>, Option<&RagdollCollisionMember>,
-        Option<&RagdollShapeCollisionMode>, Option<&Restitution>), Without<ColliderDisabled>>,
+        Option<&RagdollShapeCollisionMode>, Option<&Restitution>, Has<SourceCollisionIgnorePawn>), Without<ColliderDisabled>>,
+    pawns: Query<(), With<SourceCollisionPawn>>,
     mut bodies: ParamSet<(Query<(&Position, &Rotation, &RigidBody, &avian3d::prelude::ComputedCenterOfMass,
         &avian3d::prelude::ComputedMass, Option<&SolverBody>, Option<&Restitution>),
         Without<avian3d::prelude::RigidBodyDisabled>>, Query<&mut SolverBody>)>,
@@ -1058,13 +1078,13 @@ fn solve_profile_linear_ccd(
     }
     let dt = time.delta_secs();
     if dt <= 0.0 || profiles.is_empty() { return; }
-    let shapes = colliders.iter().filter(|(_, _, _, sensor, _, _, mode, _)|
+    let shapes = colliders.iter().filter(|(_, _, _, sensor, _, _, mode, _, _)|
         sensor.is_none() && mode.is_none_or(|mode| mode.has_physics_response())).collect::<Vec<_>>();
     let mut states = Vec::<CcdBody>::new();
     let mut indices = bevy::platform::collections::HashMap::<Entity, usize>::new();
     {
         let read = bodies.p0();
-        for (shape, owner, local, _, _, _, _, _) in &shapes {
+        for (shape, owner, local, _, _, _, _, _, _) in &shapes {
             let index = if let Some(index) = indices.get(&owner.body) { *index } else {
                 let Ok((position, rotation, mode, center, mass, solver, restitution)) = read.get(owner.body) else { continue; };
                 let end_rotation = solver.map_or(rotation.0, |solver| solver.delta_rotation.0 * rotation.0);
@@ -1097,15 +1117,16 @@ fn solve_profile_linear_ccd(
         _ => Vec3::splat(f32::INFINITY),
     };
     let mut pairs = Vec::<CcdPair>::new();
-    for (first, (_, owner, _, _, layers, member, _, restitution)) in shapes.iter().enumerate() {
+    for (first, (_, owner, _, _, layers, member, _, restitution, ignored)) in shapes.iter().enumerate() {
         let Some(&a) = indices.get(&owner.body) else { continue; };
         let Some(settings) = states[a].settings else { continue; };
         if !states[a].dynamic || settings.enable_threshold_bounds_scale < 0.0 { continue; }
-        for (second, (_, other_owner, _, _, other_layers, other_member, _, other_restitution)) in shapes.iter().enumerate() {
+        for (second, (_, other_owner, _, _, other_layers, other_member, _, other_restitution, other_ignored)) in shapes.iter().enumerate() {
             let Some(&b) = indices.get(&other_owner.body) else { continue; };
             if a == b || states[b].dynamic && states[b].settings.is_some() && first > second { continue; }
             if settings.only_dynamic_static && !states[b].mode.is_static() { continue; }
             if !layers.copied().unwrap_or_default().interacts_with(other_layers.copied().unwrap_or_default()) { continue; }
+            if ignores_pawn_pair(*ignored, pawns.contains(owner.body), *other_ignored, pawns.contains(other_owner.body)) { continue; }
             if member.zip(*other_member).is_some_and(|(left, right)| left.disables(right)) { continue; }
             if joint_graph.as_ref().is_some_and(|graph|
                 graph.joints_between(owner.body, other_owner.body).any(|edge| edge.collision_disabled)) { continue; }
@@ -1128,8 +1149,8 @@ fn solve_profile_linear_ccd(
         let other_velocity = if b.done { Vec3::ZERO } else { b.velocity };
         let position = if a.done { a.end } else { a.start + a.velocity * from };
         let other_position = if b.done { b.end } else { b.start + b.velocity * from };
-        let (shape, _, local, _, _, _, _, _) = shapes[pair.shapes[0]];
-        let (other, _, other_local, _, _, _, _, _) = shapes[pair.shapes[1]];
+        let (shape, _, local, _, _, _, _, _, _) = shapes[pair.shapes[0]];
+        let (other, _, other_local, _, _, _, _, _, _) = shapes[pair.shapes[1]];
         let pose = Pose3::from_parts(position + a.rotation * local.translation, a.rotation * local.rotation.0);
         let other_pose = Pose3::from_parts(other_position + b.rotation * other_local.translation, b.rotation * other_local.rotation.0);
         let remaining = dt - from;
@@ -2063,6 +2084,72 @@ mod tests {
         if let Some(settings) = settings { world.entity_mut(body).insert((settings, SweptCcd::LINEAR)); }
         world.spawn((shape, ColliderOf { body }, ColliderTransform::default(), Restitution::new(0.5)));
         body
+    }
+
+    #[test]
+    fn pawn_ignore_filters_ragdoll_contacts_and_ccd() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let pawn = world.spawn((SourceCollisionPawn, RigidBody::Kinematic)).id();
+        let pawn_collider = world.spawn(ColliderOf { body: pawn }).id();
+        let rig = world.spawn(SourceCollisionIgnorePawn).id();
+        let floor = world.spawn_empty().id();
+        let pairs = world.run_system_once(move |hooks: RagdollCollisionHooks, mut commands: Commands| {
+            (hooks.filter_pairs(rig, pawn, &mut commands), hooks.filter_pairs(pawn_collider, rig, &mut commands),
+                hooks.filter_pairs(rig, floor, &mut commands), hooks.filter_pairs(pawn, floor, &mut commands))
+        }).unwrap();
+        assert_eq!(pairs, (false, false, true, true));
+
+        for ignore in [false, true] {
+            for pawn in [false, true] {
+                let mut world = World::new();
+                let mut time = Time::<()>::default();
+                time.advance_by(std::time::Duration::from_secs_f32(1.0 / 64.0));
+                world.insert_resource(time);
+                let settings = crate::pa_als::parse_pa_als_profile().ccd_settings;
+                let body = browser_ccd_body(&mut world, RigidBody::Dynamic, Vec3::NEG_X, Vec3::X * 128.0,
+                    Collider::sphere(0.1), Some(settings));
+                let wall = browser_ccd_body(&mut world, RigidBody::Static, Vec3::ZERO, Vec3::ZERO,
+                    Collider::cuboid(0.02, 2.0, 2.0), None);
+                if pawn { world.entity_mut(wall).insert(SourceCollisionPawn); }
+                if ignore {
+                    let collider = world.query::<(Entity, &ColliderOf)>().iter(&world)
+                        .find(|(_, owner)| owner.body == body).unwrap().0;
+                    world.entity_mut(collider).insert(SourceCollisionIgnorePawn);
+                }
+                world.run_system_once(solve_profile_linear_ccd).unwrap();
+                let delta = world.get::<SolverBody>(body).unwrap().delta_position.x;
+                assert_eq!(delta == 2.0, ignore && pawn, "ignore={ignore} pawn={pawn} delta={delta}");
+            }
+        }
+    }
+
+    #[test]
+    fn pawn_ignore_reaches_avian_collision_pairs() {
+        use avian3d::prelude::{Collisions, Gravity, PhysicsPlugins};
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>()))
+            .insert_resource(Gravity(Vec3::ZERO))
+            .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish(); app.cleanup();
+        let mut pairs = Vec::new();
+        for (index, (ignore, pawn)) in [(false, false), (false, true), (true, false), (true, true)].into_iter().enumerate() {
+            let x = index as f32 * 4.0;
+            let rig = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.5),
+                Transform::from_xyz(x, 0.0, 0.0), ActiveCollisionHooks::FILTER_PAIRS)).id();
+            let other = app.world_mut().spawn((RigidBody::Static, Collider::sphere(0.5),
+                Transform::from_xyz(x + 0.8, 0.0, 0.0))).id();
+            if ignore { app.world_mut().entity_mut(rig).insert(SourceCollisionIgnorePawn); }
+            if pawn { app.world_mut().entity_mut(other).insert(SourceCollisionPawn); }
+            pairs.push((rig, other, ignore && pawn));
+        }
+        app.update(); app.update();
+        let observed = app.world_mut().run_system_once(move |collisions: Collisions| {
+            pairs.iter().map(|(rig, other, ignored)| (collisions.get(*rig, *other).is_some(), *ignored)).collect::<Vec<_>>()
+        }).unwrap();
+        for (contact, ignored) in observed { assert_eq!(contact, !ignored); }
     }
 
     #[test]

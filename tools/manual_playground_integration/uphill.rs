@@ -1,7 +1,6 @@
 use super::*;
-use crate::als::character::AlsCollisionLayerOwnership;
 use crate::als::aim::AlsLastFreeRotationMode;
-use avian3d::prelude::{ColliderOf, CollisionLayers, Collisions, Sensor, SpatialQueryFilter};
+use avian3d::prelude::{Collisions, SpatialQueryFilter};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy_tnua::TnuaController;
 use crate::playground_collision::PlaygroundMeshColliderBuilt;
@@ -154,7 +153,7 @@ pub(super) fn observe(
     motion: MotionProbe,
     spatial: SpatialQuery,
     collisions: Collisions,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     characters: Query<(&Position, &LinearVelocity, &LocomotionState, &Gait, &AlsInputOverride, &AlsMovementParamsHandle,
         &Transform, &Stance, &TnuaController<crate::als::control_scheme::AlsControlScheme>), With<AlsCharacter>>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,

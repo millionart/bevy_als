@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    SimpleCollider, Collider, ColliderDensity, ColliderMassProperties, ColliderOf, CollisionLayers, ComputeMassProperties3d, ContactGraph, Sensor, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
+    SimpleCollider, Collider, ColliderDensity, ColliderMassProperties, CollisionLayers, ComputeMassProperties3d, ContactGraph, Sensor, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
     PhysicsStepSystems, PhysicsSystems, Position, RigidBody,
     SpeculativeMargin,
 };
@@ -47,6 +47,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::als::motion::AlsCrouchTransaction)]
 #[require(AlsCollisionLayerOwnership)]
 #[require(AlsEffectiveGravity)]
+#[require(crate::extensions::SourceCollisionPawn)]
 #[require(AlsPhysicalCapsuleScale)]
 #[require(crate::als::mantle::AlsMantleTargetPermission = crate::als::mantle::AlsMantleTargetPermission { allows_step_up: false })]
 pub struct AlsCharacter;
@@ -357,7 +358,7 @@ fn crush_recovery_floor_vertical_bounds(transform: &Transform, half_extents: Vec
 
 fn character_crush_recovery_system(
     floors: Query<(Entity, &GlobalTransform, &AlsCrushRecoveryFloor, &Collider)>,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     mut characters: Query<
         (
             Entity,

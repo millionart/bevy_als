@@ -12,9 +12,10 @@ use crate::extensions::ragdoll_angular_drive::{
     RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDriveSet,
 };
 use crate::extensions::{RagdollActiveMode, RagdollCollisionMember, RagdollPhysicsHandoffSet, RagdollPhysicsProfileApplied};
+use crate::extensions::SourceCollisionIgnorePawn;
 use avian3d::prelude::{
-    AngularVelocity, Collider, ColliderOf, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
-    RigidBody, Rotation, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter,
+    AngularVelocity, Collider, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
+    RigidBody, Rotation, ShapeCastConfig, ShapeHitData, SpatialQueryFilter,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::ecs::schedule::ApplyDeferred;
@@ -131,6 +132,8 @@ pub fn ragdoll_exit_route(grounded: bool, ragdoll_velocity: Vec3) -> (Locomotion
 }
 
 pub struct AlsRagdollLinkPlugin;
+
+const MESH_IGNORES_PAWN: bool = include!("../../settings/mesh_pawn_ignored.rs");
 
 impl Plugin for AlsRagdollLinkPlugin {
     fn build(&self, app: &mut App) {
@@ -650,7 +653,7 @@ pub fn ragdoll_exit_route_system(
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
     spatial: SpatialQuery,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
@@ -755,7 +758,7 @@ pub fn ragdoll_exit_route_system(
 fn release_ragdoll_air_exit_on_ground(
     mut commands: Commands,
     spatial: SpatialQuery,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<
@@ -1091,7 +1094,7 @@ pub(crate) fn restore_ragdoll_player_parent(
 
 fn ragdoll_ground_hit(
     spatial: &SpatialQuery,
-    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: &Query<crate::als::motion::CharacterCollisionCandidates>,
     trace_start: Vec3,
     trace_distance: f32,
     radius: f32,
@@ -1106,8 +1109,8 @@ fn ragdoll_ground_hit(
         Dir3::NEG_Y,
         &ShapeCastConfig::from_max_distance(trace_distance),
         &filter,
-        &|candidate| candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner)| {
-            !sensor && !owner.is_some_and(|owner| excluded.contains(&owner.body))
+        &|candidate| candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner, _, ignores_pawn)| {
+            !sensor && !ignores_pawn && !owner.is_some_and(|owner| excluded.contains(&owner.body))
                 && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
         }),
     )
@@ -1117,7 +1120,7 @@ fn ragdoll_ground_hit(
 fn ragdoll_ground_follow(
     mut commands: Commands,
     spatial: SpatialQuery,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<
@@ -1230,7 +1233,7 @@ fn ragdoll_link_system(
     mut q: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollLink), With<AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
-    layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers, Option<&RagdollCollisionMember>)>,
+    layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers, Option<&RagdollCollisionMember>, Has<SourceCollisionIgnorePawn>)>,
 ) {
     for (character, action, assembly, mut link) in &mut q {
         let is_ragdoll = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
@@ -1249,9 +1252,12 @@ fn ragdoll_link_system(
 
         if let Some(spawned) = player.get_spawned_ragdoll() {
             for collider in spawned.colliders.values() {
-                let Ok((stored, current, member)) = layers.get(*collider) else {
+                let Ok((stored, current, member, ignores_pawn)) = layers.get(*collider) else {
                     continue;
                 };
+                if MESH_IGNORES_PAWN && !ignores_pawn {
+                    commands.entity(*collider).insert(SourceCollisionIgnorePawn);
+                }
                 if is_ragdoll {
                     if let Some(desired) = member.map(|member| member.source_layers).or(stored.map(|stored| stored.0))
                         && *current != desired
@@ -1299,6 +1305,52 @@ pub(crate) mod tests {
     pub(crate) fn remove_ragdoll_body(app: &mut App, bodies: &[(String, Entity)], label: &str) {
         let body = bodies.iter().find(|(name, _)| name == label).unwrap().1;
         app.world_mut().entity_mut(body).remove::<RigidBody>();
+    }
+
+    #[test]
+    fn character_queries_and_contacts_ignore_another_actors_ragdoll() {
+        use avian3d::prelude::CollisionHooks;
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character};
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+        let other = app.world_mut().run_system_once(|mut commands: Commands, assets: Res<AssetServer>,
+            mut params: ResMut<Assets<AlsMovementParams>>,
+            mut configs: ResMut<Assets<crate::als::control_scheme::AlsControlSchemeConfig>>| {
+            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(4.0, 1.5, 0.0)) })
+        }).unwrap();
+        let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.0, 0.1, 1.0),
+            Transform::from_xyz(20.0, 0.0, 0.0), CollisionLayers::default())).id();
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..90 { app.update(); }
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+        let pelvis = bodies.iter().find(|(label, _)| label == "pelvis").unwrap().1;
+        let origin = app.world().get::<Position>(pelvis).unwrap().0;
+        let rig = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
+            .colliders.values().copied().collect::<Vec<_>>();
+        assert!(!rig.is_empty() && rig.iter().all(|entity| app.world().get::<SourceCollisionIgnorePawn>(*entity).is_some()));
+        let queried_rig = rig.clone();
+        let (raw_hits, blocking_hits, floor_blocks, ground_hit, ground_is_rig) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            colliders: Query<&Collider>, candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
+            let hits = spatial.shape_intersections(colliders.get(other).unwrap(), origin, Quat::IDENTITY,
+                &SpatialQueryFilter::from_excluded_entities([other]));
+            let raw = hits.iter().filter(|entity| queried_rig.contains(entity)).count();
+            let blocking = hits.into_iter().filter(|entity| queried_rig.contains(entity)
+                && crate::als::motion::character_blocks_collider(other, *entity, &candidates)).count();
+            let ground = ragdoll_ground_hit(&spatial, &candidates, origin + Vec3::Y * 1.5, 3.0, 0.3,
+                vec![other], CollisionLayers::default()).map(|hit| hit.entity);
+            (raw, blocking, crate::als::motion::character_blocks_collider(other, floor, &candidates), ground.is_some(),
+                ground.is_some_and(|entity| queried_rig.contains(&entity)))
+        }).unwrap();
+        assert!(raw_hits > 0, "The other character's capsule must overlap the active ragdoll");
+        assert_eq!(blocking_hits, 0);
+        assert!(floor_blocks);
+        assert!(ground_hit);
+        assert!(!ground_is_rig);
+        let allowed = app.world_mut().run_system_once(move |hooks: crate::extensions::RagdollCollisionHooks,
+            mut commands: Commands| rig.iter().filter(|entity| hooks.filter_pairs(other, **entity, &mut commands)).count()).unwrap();
+        assert_eq!(allowed, 0);
     }
 
     #[test]
@@ -1652,6 +1704,7 @@ pub(crate) mod tests {
     }
 
     use super::*;
+    use avian3d::prelude::Sensor;
 
     #[test]
     fn ragdoll_entry_stops_current_turn_and_transition_montages() {
@@ -1907,7 +1960,7 @@ pub(crate) mod tests {
         app.update();
         app.world_mut().run_schedule(FixedPostUpdate);
         let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery,
-            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+            candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
             ragdoll_ground_hit(&spatial, &candidates, Vec3::Y * 1.6, 1.5, 0.3,
                 Vec::new(), ownership.original_layers())
                 .map(|hit| hit.entity)

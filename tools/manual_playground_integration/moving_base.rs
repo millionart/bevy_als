@@ -1,10 +1,9 @@
 use super::*;
-use crate::als::character::AlsCollisionLayerOwnership;
 use crate::als::dynamics::{AlsMovementBase, AlsComponentVelocity, component_velocity};
 use crate::als::mantle::{AlsMantleTargetBase, AlsMantleTargetPermission, MantleDetectionInput, detect_mantle};
 use crate::als::motion::AlsActualVelocity;
 use crate::extensions::{PlaygroundKinematic, PlaygroundKinematicKind};
-use avian3d::prelude::{Collider, ColliderOf, CollisionLayers, Sensor, SpatialQueryFilter};
+use avian3d::prelude::{Collider, ColliderOf, SpatialQueryFilter};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 
 const POSITION_TOLERANCE: f32 = 0.001;
@@ -182,7 +181,7 @@ pub(super) fn drive(
         &LocomotionState, &AlsMovementParamsHandle), With<AlsCharacter>>,
     params: Res<Assets<AlsMovementParams>>,
     spatial: SpatialQuery,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     owners: Query<&ColliderOf>,

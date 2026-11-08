@@ -311,6 +311,7 @@ pub use ragdoll_physics_profile::{
     RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile, RagdollShapeCollisionMode,
     RagdollPhysicsHandoffSet, RagdollPhysicsProfile, RagdollPhysicsProfileApplied, RagdollSpatialQuery,
     RagdollPhysicsProfilePlugin, RagdollPhysicsProfileSet,
+    SourceCollisionIgnorePawn, SourceCollisionPawn,
 };
 pub use ragdolling_tag_blend::RagdollingTagBlendNode;
 pub use reference_local_difference::{ReferenceLocalDifferenceNode, make_local_difference};

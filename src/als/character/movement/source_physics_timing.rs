@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use crate::als::{character::{AlsCharacter, AlsCollisionLayerOwnership}, state::{AlsNotifyLocomotionAction, LocomotionState}};
+use crate::als::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
-    Collider, ColliderOf, CollisionLayers, Collisions, ContactPairFlags, CustomPositionIntegration, Physics, PhysicsSchedule,
-    PhysicsSystems, Position, RigidBody, Rotation, Sensor, ShapeCastConfig, SolverSystems, SpatialQueryFilter,
+    Collider, Collisions, ContactPairFlags, CustomPositionIntegration, Physics, PhysicsSchedule,
+    PhysicsSystems, Position, RigidBody, Rotation, ShapeCastConfig, SolverSystems, SpatialQueryFilter,
     SubstepCount, SubstepSchedule,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
@@ -211,7 +211,7 @@ fn integrate_character_position(
     impact_bodies: crate::als::motion::FallingImpactBodies,
     params_assets: Option<Res<Assets<crate::als::params::AlsMovementParams>>>,
     step_permissions: Query<&crate::als::mantle::AlsMantleTargetPermission>,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     shapes: Query<(&Collider, &Position, &Rotation)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,
@@ -1033,7 +1033,7 @@ mod tests {
                 let position = app.world().get::<Position>(character).unwrap().0;
                 let (floor, contact) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
                     collisions: avian3d::prelude::Collisions,
-                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                    candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
                     let floor = crate::als::motion::find_ground_floor(&spatial, position, 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Air,
                         &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter()

@@ -1210,7 +1210,7 @@ mod tests {
 
     #[test]
     fn actual_source_walking_stair_contact_consumes_each_segment_once() {
-        use avian3d::prelude::{CollisionLayers, ColliderOf, Sensor, SpatialQueryFilter};
+        use avian3d::prelude::SpatialQueryFilter;
         use bevy::ecs::system::RunSystemOnce;
         for (mesh_name, source, bytes, mesh_origin, center, input, gait, speed) in [
             ("SM_Als_Stairs_01", include_str!("../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.gltf"), &include_bytes!("../../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.bin")[..],
@@ -1250,7 +1250,7 @@ mod tests {
             let center = if gait == Gait::Sprinting {
                 let source_cmc = cmc.clone();
                 app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
-                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&crate::als::character::AlsCollisionLayerOwnership>)>| {
+                    candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
                     let (floor, _, _) = crate::als::motion::find_ground_floor(&spatial, center, 0.9, 0.3,
                         &source_cmc, LocomotionState::Grounded, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates).unwrap();
                     center.with_y(floor + (crate::als::movement_constants::MIN_FLOOR_DISTANCE + crate::als::movement_constants::MAX_FLOOR_DISTANCE) * 0.5)
@@ -1274,7 +1274,7 @@ mod tests {
                 let before = app.world().get::<Position>(character).unwrap().0;
                 let cmc = cmc.clone();
                 app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
-                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&crate::als::character::AlsCollisionLayerOwnership>)>| {
+                    candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
                     let filter = SpatialQueryFilter::from_excluded_entities([character]);
                     let mut source_center = before;
                     for step in 0..=2 {
@@ -1369,7 +1369,7 @@ mod tests {
 
     #[test]
     fn actual_shortened_walking_step_refunds_time_to_falling() {
-        use avian3d::prelude::{Collider, CollisionLayers, ColliderOf, Sensor, SpatialQueryFilter, ShapeCastConfig};
+        use avian3d::prelude::{Collider, SpatialQueryFilter, ShapeCastConfig};
         use bevy::ecs::system::RunSystemOnce;
         let source_input = std::sync::Arc::new(std::sync::Mutex::new(None));
         let source_sample = source_input.clone();
@@ -1388,7 +1388,7 @@ mod tests {
         let cmc = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().cmc.clone();
         let source_distance = 6.25 * 0.05;
         let applied_distance = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
-            colliders: Query<&Collider>, candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&crate::als::character::AlsCollisionLayerOwnership>)>| {
+            colliders: Query<&Collider>, candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
             let filter = SpatialQueryFilter::from_excluded_entities([character]);
             assert!(crate::als::motion::find_ground_floor(&spatial, origin, 0.9, 0.3,
                 &cmc, LocomotionState::Grounded, &filter, character, &candidates).is_some());
@@ -1431,7 +1431,7 @@ mod tests {
 
     #[test]
     fn actual_walking_off_a_ledge_gives_remaining_source_time_to_falling() {
-        use avian3d::prelude::{Collider, CollisionLayers, ColliderOf, Sensor, SpatialQueryFilter};
+        use avian3d::prelude::{Collider, SpatialQueryFilter};
         use bevy::ecs::system::RunSystemOnce;
         #[derive(Resource, Default)]
         struct FirstWalkingSample(Option<(f32, Vec3, GroundedDynamics)>);
@@ -1452,7 +1452,7 @@ mod tests {
                     sample.0 = Some((gravity.value.y, base.relative_velocity, dynamics.0));
                 }).after(grounded_dynamics_motor_system).before(TnuaPipelineSystems::Motors));
             app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
-                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&crate::als::character::AlsCollisionLayerOwnership>)>| {
+                candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
                 let filter = SpatialQueryFilter::from_excluded_entities([character]);
                 assert!(crate::als::motion::find_ground_floor(&spatial, origin, 0.9, 0.3,
                     &cmc, LocomotionState::Grounded, &filter, character, &candidates).is_some());

@@ -6285,11 +6285,16 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`apply_capsule_for_stance:3375–3384`只排除actor实体，`character_blocks_collider:3840–3842`只识别同一capsule body；独立rig body没有被当作角色自身排除。`ragdoll_link_system`的rig layer停用与reshape未定序，旧rig仍可参与这次净空查询。
   - 反例：Crouching Ragdoll期望Standing，GettingUp尚未阻止reshape时，净空查询命中的阻挡全部是本角色thigh_l/r、pelvis、spine_01/02/03，导致仍为Crouching；只把rig layer停用排在查询前，阻挡为空并正确Standing。与D68同一16组矩阵中这是一处独立FAIL，反向缩小胶囊不受影响；证据包含实际阻挡归属。未修改普通Crouch实现或物理profile。
   - 19:13 source/static摘要：fresh UE `UnCrouch`、查询参数构造及ALS停止Ragdoll链路已读取；fresh PA 原生结果与已跟踪证据逐字节相同。站立净空及其落地补查排除当前绑定rig的body/collider，新增加载角色自身重叠反例并保留顶棚阻挡控制；旧反例缓存缺失，D70通道响应、测试、消融和真实入口均待统一验证。证据`docs/audit/bf144/d69/`。实际结束：2026-11-08 19:13 +08:00；偏差：−41分钟；结果：静态实现完成，未拆分。
+  - 19:26 有限复开：D70新证实并实现的Pawn通道忽略会使原自身rig测试即使没有角色所有权排除也可能通过；fresh UE参数仍独立忽略整个CharacterOwner。补充去除该通道标记的受控对照，确保本项行为独立可消融，统一测试后复验。
+  - 19:26 静态重闭：加载rig测试先移除Pawn忽略标记，再确认实际净空重叠会被通用predicate接受，随后要求角色所有权过滤成功站立；与D70通道逻辑分离。执行、消融与真实入口仍待统一Gate。
 
-- [ ] BF144-D70 / P2 — 活动Ragdoll没有保留mesh对Pawn的Ignore响应。
+- [x] BF144-D70 / P2 — 活动Ragdoll没有保留mesh对Pawn的Ignore响应。
+  - 本轮开始：2026-11-08 19:14 +08:00；预计结束：2026-11-08 20:09 +08:00。按角色mesh响应、PA覆盖与角色查询/物理接触三条已确认链路闭合，优先复用现有碰撞过滤；统一测试留待升级后。
+  - 19:22 source/static摘要：fresh角色mesh的Pawn响应为Ignore，UE身体响应取mesh与PA较小值；除普通胶囊查询外，fresh `RagdollTraceGround:963–985`也明确使用角色胶囊的Pawn channel，纳入同一过滤合同。常规接触与项目自有CCD为另两处消费；源读取完成，target实现及聚焦夹具进行中。
   - Source：fresh B_Als_Character CharacterMesh的Pawn/Visibility/Vehicle为Ignore；`BodyInstance.cpp:4789–4819`把PA body响应与当前mesh响应取Min，`StartRagdollingImplementation`仅将mesh object改为PhysicsBody、启用QueryAndPhysics，Pawn仍Ignore。普通Pawn胶囊对该mesh的移动/净空查询以及物理接触都应忽略。
   - Target：`ragdoll_physics_profile.rs:373–376`把所有Enabled body转为Default↔Default，`ragdoll_link.rs:1214–1220`在活动时恢复这些层；`character_blocks_collider:3833–3844`接受另一个角色的rig，collision hook也没有Pawn响应过滤。
   - 反例：同一完整App生成两个普通角色，第一角色进入Ragdoll后，用第二角色实际胶囊和生产查询predicate在pelvis位置查询，17个实际shape命中被接受；21个非root shape均通过当前层与collision hook。非Ragdoll对照为0，地板在两组均阻挡。`bf144_pa_character_query_preserves_mesh_pawn_ignore`2组1PASS/1FAIL，证据`target/bf144/21/initial/`。此项是角色之间的channel响应，独立于D69忽略整个自身actor；未把尚未运行的双方接触轨迹称作已验证。
+  - 19:27 source/static摘要：fresh角色mesh、PA覆盖和贴地Pawn通道已闭合；离线工具从原生输出生成独立目标响应，普通移动/站立、Ragdoll贴地、物理配对及CCD均使用该响应。已写双角色、场景障碍、pair/CCD和导入器对照，并修复D69测试被新通道逻辑掩盖的边界；原反例缓存缺失，测试、消融、真实物理轨迹和Playground仍待统一验证。证据`docs/audit/bf144/d70/`。实际结束：2026-11-08 19:27 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D71 / P3 — Ragdoll惯量矩阵分解丢失缩小rig的非对角耦合项。
   - Source：fresh `BodyUtils::ComputeMassProperties`与Chaos `MassProperties.cpp:17–98`在kg·cm²中按相对off-diagonal/trace门槛分解；新增原生body probe读取实际principal/frame，不用闭式理想矩阵替代源数值。scale=0.2时spine_03/head/hand_l/r仍保留耦合。
