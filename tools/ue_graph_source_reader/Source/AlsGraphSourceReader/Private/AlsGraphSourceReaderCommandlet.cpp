@@ -1458,13 +1458,14 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         if (AggregateMesh && !HasMesh) { return nullptr; }
         const TCHAR* OtherTranslationKey = HasMesh ? TEXT("mesh_translation_cm") : TEXT("box_translation_cm");
         const TCHAR* OtherRotationKey = HasMesh ? TEXT("mesh_rotation_xyzw") : TEXT("box_rotation_xyzw");
-        FVector BodyTranslation, OtherTranslation, BodyPreVelocity = FVector::ZeroVector, BoxHalfExtents(1.0), MeshScale(1.0);
+        FVector BodyTranslation, OtherTranslation, BodyPreVelocity = FVector::ZeroVector, BodyScale(1.0), BoxHalfExtents(1.0), MeshScale(1.0);
         FQuat BodyRotation, OtherRotation;
         if (!Input->TryGetStringField(TEXT("bone_name"), BoneName)
             || !Input->TryGetNumberField(TEXT("shape_index"), ShapeIndex) || ShapeIndex < 0
             || !Input->TryGetNumberField(TEXT("cull_distance_cm"), CullDistance) || !FMath::IsFinite(CullDistance) || CullDistance < 0
             || !Input->TryGetNumberField(TEXT("delta_seconds"), DeltaSeconds) || !FMath::IsFinite(DeltaSeconds) || DeltaSeconds <= 0
             || !ReadVector(Input, TEXT("body_translation_cm"), BodyTranslation)
+            || (Input->HasField(TEXT("body_scale")) && (!ReadVector(Input, TEXT("body_scale"), BodyScale) || BodyScale.GetAbsMin() <= 0))
             || (Input->HasField(TEXT("body_pre_velocity_cm_s")) && !ReadVector(Input, TEXT("body_pre_velocity_cm_s"), BodyPreVelocity))
             || !ReadVector(Input, OtherTranslationKey, OtherTranslation)
             || (!HasMesh && (!ReadVector(Input, TEXT("box_half_extents_cm"), BoxHalfExtents) || BoxHalfExtents.GetMin() <= 0))
@@ -1509,7 +1510,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         FBodyInstance Body;
         Body.CopyBodyInstancePropertiesFrom(&Setup->DefaultInstance);
         Body.bSimulatePhysics = false;
-        Body.InitBody(Setup, FTransform::Identity, nullptr, nullptr, FInitBodySpawnParams(false, true));
+        Body.InitBody(Setup, FTransform(FQuat::Identity, FVector::ZeroVector, BodyScale), nullptr, nullptr, FInitBodySpawnParams(false, true));
         if (!Body.IsValidBodyInstance()) { return nullptr; }
         TArray<FPhysicsShapeHandle> Shapes;
         FPhysicsInterface::GetAllShapes_AssumedLocked(Body.GetPhysicsActorHandle(), Shapes);

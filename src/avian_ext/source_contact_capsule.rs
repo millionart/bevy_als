@@ -1,10 +1,12 @@
-use bevy::math::{DQuat, DVec3};
+use avian3d::prelude::{Collider, ColliderTransform};
+use bevy::math::{DQuat, DVec3, Quat, Vec3};
 
-use super::source_contact_convex::{SourceConvexContactPoint, source_convex_contact};
+use super::source_contact_convex::{SourceConvexContactPoint, source_bounds_intersect, source_convex_contact, source_transformed_bounds};
 use super::source_contact_epa::SourceEpaSettings;
 use super::source_contact_face::{SourceConvexTopology, source_capsule_convex_face, source_convex_scale};
 use super::source_contact_gjk::source_capsule_convex_gjk;
 use super::source_contact_polygon::{SOURCE_KINDA_SMALL_NUMBER, source_direction, source_position};
+use super::source_contact_restore::SourceRestorePose;
 
 #[derive(Clone, Copy)]
 pub(super) struct SourceCapsuleGeometry {
@@ -12,6 +14,69 @@ pub(super) struct SourceCapsuleGeometry {
     pub axis: DVec3,
     pub length_m: f64,
     pub radius_m: f64,
+}
+
+pub(super) fn source_capsule_body_geometry(collider: &Collider, local: Option<&ColliderTransform>) -> Option<SourceCapsuleGeometry> {
+    let capsule = collider.shape_scaled().as_capsule()?;
+    let translation = local.map_or(Vec3::ZERO, |value| value.translation);
+    let rotation = local.map_or(Quat::IDENTITY, |value| value.rotation.0);
+    let first = source_position((translation + rotation * capsule.segment.b).as_dvec3()).as_vec3();
+    let second = source_position((translation + rotation * capsule.segment.a).as_dvec3()).as_vec3();
+    let mut axis = second - first;
+    let squared = axis.length_squared();
+    let length = if squared < 1e-4_f32 { axis = Vec3::X; 0.0 } else {
+        let length = squared.sqrt();
+        axis /= length;
+        length
+    };
+    let radius = (f64::from(capsule.radius) * 100.0) as f32;
+    Some(SourceCapsuleGeometry { first_m: source_direction(first.as_dvec3()) * 0.01,
+        axis: source_direction(axis.as_dvec3()), length_m: f64::from(length) * 0.01,
+        radius_m: f64::from(radius) * 0.01 })
+}
+
+fn source_capsule_transformed_bounds(capsule: SourceCapsuleGeometry, translation: DVec3, rotation: DQuat) -> [DVec3; 2] {
+    let first = source_position(capsule.first_m).as_vec3();
+    let axis = source_direction(capsule.axis).as_vec3();
+    let length = (capsule.length_m * 100.0) as f32;
+    let second = first + axis * length;
+    let rotation = DQuat::from_xyzw(-rotation.x, -rotation.z, -rotation.y, rotation.w);
+    let translation = source_position(translation);
+    let first = translation + rotation * first.as_dvec3();
+    let second = translation + rotation * second.as_dvec3();
+    let radius = DVec3::splat(f64::from((capsule.radius_m * 100.0) as f32));
+    [first.min(second) - radius, first.max(second) + radius]
+}
+
+pub(super) fn source_capsule_hull_candidate(
+    capsule: SourceCapsuleGeometry,
+    convex: &SourceConvexTopology,
+    scale: DVec3,
+    frames: [SourceRestorePose; 2],
+    cull_distance: f64,
+    was_active: bool,
+    bounds_checks: bool,
+) -> bool {
+    if !bounds_checks { return true; }
+    let scale = source_convex_scale(scale);
+    let first = convex.bounds_m[0] * scale;
+    let second = convex.bounds_m[1] * scale;
+    let convex_bounds = [first.min(second), first.max(second)];
+    let cull_cm = f64::from((cull_distance * 100.0) as f32);
+    let capsule_world = source_capsule_transformed_bounds(capsule, frames[0].position_m, frames[0].rotation);
+    let convex_world = source_transformed_bounds(convex_bounds, frames[1].position_m, frames[1].rotation);
+    if !source_bounds_intersect(capsule_world, convex_world, cull_cm) { return false; }
+    if was_active { return true; }
+    let inverse_capsule = frames[0].rotation.inverse();
+    let convex_in_capsule = source_transformed_bounds(convex_bounds,
+        inverse_capsule * (frames[1].position_m - frames[0].position_m), inverse_capsule * frames[1].rotation);
+    let capsule_local = source_capsule_transformed_bounds(capsule, DVec3::ZERO, DQuat::IDENTITY);
+    if !source_bounds_intersect(convex_in_capsule, capsule_local, cull_cm) { return false; }
+    let inverse_convex = frames[1].rotation.inverse();
+    let capsule_in_convex = source_capsule_transformed_bounds(capsule,
+        inverse_convex * (frames[0].position_m - frames[1].position_m), inverse_convex * frames[0].rotation);
+    let convex_local = source_transformed_bounds(convex_bounds, DVec3::ZERO, DQuat::IDENTITY);
+    source_bounds_intersect(capsule_in_convex, convex_local, cull_cm)
 }
 
 fn source_safe_normal(value: DVec3) -> DVec3 {
@@ -144,6 +209,65 @@ mod tests {
         assert!(source_clip_capsule_line(&reference, DVec3::Z, [p(-2.0, 0.0, 0.0), p(-1.1, 0.0, 0.0)], 1.0).is_empty());
         let reflected = reference.map(|value| value * DVec3::new(-1.0, 1.0, 1.0));
         assert_eq!(source_clip_capsule_line(&reflected, DVec3::Z, [p(-2.0, 0.0, 0.0), p(2.0, 0.0, 0.0)], -1.0), clipped);
+    }
+
+    #[test]
+    fn source_capsule_body_geometry_and_bounds_match_native_head() {
+        use avian3d::prelude::{Collider, ColliderTransform, Rotation};
+        use bevy::math::Quat;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d130b2/manifold.native-samples.json")).unwrap();
+        for sample in fixture["samples"].as_array().unwrap() {
+            let geometry = &sample["geometry"];
+            let first = point(&geometry["endpoint_0_cm"]) * 0.01;
+            let second = point(&geometry["endpoint_1_cm"]) * 0.01;
+            let length = first.distance(second);
+            let radius = geometry["radius_cm"].as_f64().unwrap() * 0.01;
+            let local = ColliderTransform { translation: ((first + second) * 0.5).as_vec3(),
+                rotation: Rotation(Quat::from_rotation_arc(bevy::math::Vec3::Y, ((second - first) / length).as_vec3())),
+                ..Default::default() };
+            let collider = Collider::capsule(radius as f32, length as f32);
+            let capsule = source_capsule_body_geometry(&collider, Some(&local)).unwrap();
+            assert!(capsule.first_m.distance(first) < 2e-7, "{}", sample["input"]["label"]);
+            assert!((capsule.length_m - length).abs() < 2e-7);
+            let input = &sample["input"];
+            let body_position = array(&input["body_translation_cm"]) * 0.01;
+            let body_rotation = rotation(&input["body_rotation_xyzw"]);
+            let bounds = source_capsule_transformed_bounds(capsule, body_position, body_rotation);
+            let source_rotation = &input["body_rotation_xyzw"];
+            let source_rotation = DQuat::from_xyzw(source_rotation[0].as_f64().unwrap(), source_rotation[1].as_f64().unwrap(),
+                source_rotation[2].as_f64().unwrap(), source_rotation[3].as_f64().unwrap());
+            let translation = &input["body_translation_cm"];
+            let translation = DVec3::new(translation[0].as_f64().unwrap(), translation[1].as_f64().unwrap(), translation[2].as_f64().unwrap());
+            let source_point = |value: &serde_json::Value| DVec3::new(value["x"].as_f64().unwrap(),
+                value["y"].as_f64().unwrap(), value["z"].as_f64().unwrap());
+            let x1 = translation + source_rotation * source_point(&geometry["endpoint_0_cm"]);
+            let x2 = translation + source_rotation * source_point(&geometry["endpoint_1_cm"]);
+            let radius = DVec3::splat(geometry["radius_cm"].as_f64().unwrap());
+            assert!(bounds[0].distance(x1.min(x2) - radius) < 2e-5, "{}", input["label"]);
+            assert!(bounds[1].distance(x1.max(x2) + radius) < 2e-5, "{}", input["label"]);
+            let hull = crate::extensions::source_contact_face::source_convex_topology("SM_Als_Arch_01",
+                input["mesh_shape_index"].as_u64().unwrap() as u32).unwrap();
+            let frames = [SourceRestorePose { position_m: body_position, rotation: body_rotation },
+                SourceRestorePose { position_m: array(&input["mesh_translation_cm"]) * 0.01,
+                    rotation: rotation(&input["mesh_rotation_xyzw"]) }];
+            let candidate = source_capsule_hull_candidate(capsule, hull, array(&input["mesh_scale"]), frames,
+                input["cull_distance_cm"].as_f64().unwrap() * 0.01, false, true);
+            if !sample["points"].as_array().unwrap().is_empty() { assert!(candidate, "{}", input["label"]); }
+            if input["label"] == "arch_head_separated" { assert!(!candidate); }
+        }
+    }
+
+    #[test]
+    fn source_capsule_bounds_skip_local_checks_only_after_active_contact() {
+        let capsule = SourceCapsuleGeometry { first_m: DVec3::NEG_X, axis: DVec3::X, length_m: 2.0, radius_m: 0.05 };
+        let hull = SourceConvexTopology { vertices_m: Vec::new(), faces: Vec::new(), vertex_planes: Vec::new(),
+            margin_m: 0.0, winding: -1.0, bounds_m: [DVec3::splat(-0.05), DVec3::splat(0.05)] };
+        let frames = [SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::from_rotation_z(std::f64::consts::FRAC_PI_4) },
+            SourceRestorePose { position_m: DVec3::new(0.7, -0.7, 0.0), rotation: DQuat::IDENTITY }];
+        assert!(!source_capsule_hull_candidate(capsule, &hull, DVec3::ONE, frames, 0.0, false, true));
+        assert!(source_capsule_hull_candidate(capsule, &hull, DVec3::ONE, frames, 0.0, true, true));
+        assert!(source_capsule_hull_candidate(capsule, &hull, DVec3::ONE, frames, 0.0, false, false));
     }
 
     #[test]

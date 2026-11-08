@@ -70,7 +70,7 @@ pub(super) fn source_body_local_max_extent<'a>(
     found.then(|| f64::from((maximum - minimum).max_element()))
 }
 
-fn source_transformed_bounds(bounds: [DVec3; 2], translation: DVec3, rotation: DQuat) -> [DVec3; 2] {
+pub(super) fn source_transformed_bounds(bounds: [DVec3; 2], translation: DVec3, rotation: DQuat) -> [DVec3; 2] {
     let minimum = source_position(bounds[0]);
     let maximum = source_position(bounds[1]);
     let rotation = DQuat::from_xyzw(-rotation.x, -rotation.z, -rotation.y, rotation.w);
@@ -84,7 +84,7 @@ fn source_transformed_bounds(bounds: [DVec3; 2], translation: DVec3, rotation: D
     [center - rotated, center + rotated]
 }
 
-fn source_bounds_intersect(first: [DVec3; 2], second: [DVec3; 2], cull_cm: f64) -> bool {
+pub(super) fn source_bounds_intersect(first: [DVec3; 2], second: [DVec3; 2], cull_cm: f64) -> bool {
     (0..3).all(|axis| !(second[1][axis] < first[0][axis] - cull_cm
         || second[0][axis] > first[1][axis] + cull_cm))
 }
