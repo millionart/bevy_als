@@ -625,6 +625,7 @@ pub struct RagdollCollisionHooks<'w, 's> {
     ignored: Query<'w, 's, (), With<SourceCollisionIgnorePawn>>,
     pawns: Query<'w, 's, (), With<SourceCollisionPawn>>,
     owners: Query<'w, 's, &'static ColliderOf>,
+    source_compound: super::source_contact_narrow::SourceCompoundInputs<'w, 's>,
 }
 
 impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
@@ -648,6 +649,28 @@ impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
             return true;
         };
         !member_1.disables(member_2)
+    }
+
+    fn modify_contacts(&self, contacts: &mut avian3d::collision::contact_types::ContactPair, commands: &mut Commands) -> bool {
+        if !contacts.generates_constraints() { return true; }
+        let Some(input) = self.source_compound.input(contacts.collider1, contacts.collider2) else { return true; };
+        let Some(history) = self.source_compound.history.as_deref() else { return true; };
+        let Some(template) = contacts.manifolds.first() else { return false; };
+        let Some(cuboid) = input.box_collider.shape_scaled().as_cuboid() else { return true; };
+        let result = super::source_contact_order::generate_source_compound_groups(
+            (contacts.contact_id, input.source_tick), template, (cuboid, &input.box_position),
+            (&input.compound, input.hulls), input.context, input.settings, history);
+        let id = contacts.contact_id.0;
+        contacts.manifolds = result.manifolds;
+        commands.queue(move |world: &mut World| {
+            if let Some(mut history) = world.get_resource_mut::<super::source_contact_restore::SourceBoxContactHistory>() {
+                history.compounds.retain(|key, _| key.0 != id);
+                history.compounds.extend(result.contacts);
+                history.convex_gjk.extend(result.gjk);
+                history.narrow_phase_processed.insert(id);
+            }
+        });
+        !contacts.manifolds.is_empty()
     }
 }
 

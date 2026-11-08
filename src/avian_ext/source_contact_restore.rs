@@ -5,7 +5,7 @@ use avian3d::prelude::{AngularVelocity, Collider, ColliderTransform, CollisionMa
     LinearVelocity, Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
 use bevy::ecs::component::Tick;
 use bevy::math::{DQuat, DVec3};
-use bevy::platform::collections::HashMap;
+use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 use std::collections::HashMap as SourceBoundsMap;
 use std::sync::LazyLock;
@@ -111,6 +111,7 @@ pub(crate) struct SourceBoxContactHistory {
     entries: HashMap<u32, SourceBoxContact>,
     pub(super) compounds: HashMap<(u32, u32, Tick), SourceBoxContact>,
     pub(super) convex_gjk: HashMap<(u32, u32, Tick), SourceConvexGjkHistory>,
+    pub(super) narrow_phase_processed: HashSet<u32>,
     meshes: HashMap<u32, SourceMeshHistory>,
 }
 

@@ -3,7 +3,7 @@ use avian3d::collision::narrow_phase::NarrowPhaseConfig;
 use avian3d::dynamics::solver::{constraint_graph::{ConstraintGraph, ContactConstraintHandle, COLOR_OVERFLOW_INDEX}, PhysicsLengthUnit};
 use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
 use avian3d::parry::shape::Cuboid;
-use avian3d::prelude::{AngularVelocity, Collider, ColliderOf, ColliderTransform, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
+use avian3d::prelude::{ActiveCollisionHooks, AngularVelocity, Collider, ColliderOf, ColliderTransform, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
     Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
 #[cfg(test)]
 use bevy::math::DVec3;
@@ -20,11 +20,12 @@ use super::source_contact_face::{SourceConvexTopology, source_convex_hulls, sour
 use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin, source_polygon_margins};
 use super::source_contact_restore::{SourceBoxContact, SourceBoxContactHistory, SourceContactContext, SourceConvexGjkHistory, SourceRestorePose,
     SourceRestoreSettings, capture_source_contact, capture_source_exact_contact, restore_source_contact,
-    source_box_shape_pose, source_generated_manifold, source_scaled_bounds_max_extent_cm, write_source_solver_groups};
+    source_box_shape_pose, source_generated_manifold, source_scaled_bounds_max_extent_cm, source_solver_slots, write_source_solver_groups};
 
 const SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD: f32 = include!("capsule_contact_axis_threshold.rs");
 
 #[derive(Component)]
+#[require(ActiveCollisionHooks = ActiveCollisionHooks::MODIFY_CONTACTS)]
 pub(crate) struct SourceCompoundOrder(pub String);
 
 pub(super) fn source_convex_max_extent_cm(asset: &str, index: u32, scale: Vec3) -> Option<f32> {
@@ -203,7 +204,25 @@ pub(crate) fn order_source_compound_groups(
     let mut source_updates = Vec::new();
     let mut next_compounds = EntityMap::default();
     let mut next_gjk = EntityMap::default();
+    let processed = contact_history.as_deref_mut().map(|history| std::mem::take(&mut history.narrow_phase_processed))
+        .unwrap_or_default();
     for pair in graph.iter_active() {
+        if processed.contains(&pair.contact_id.0) {
+            if let Some((edge, _)) = graph.get_by_id(pair.contact_id)
+                && edge.constraint_handles.len() == pair.manifolds.len() {
+                let mut manifolds = pair.manifolds.clone();
+                for (slot, manifold) in source_solver_slots(&edge.constraint_handles).into_iter().zip(&pair.manifolds) {
+                    manifolds[slot] = manifold.clone();
+                }
+                updates.push((pair.contact_id, manifolds));
+            }
+            if let Some(history) = contact_history.as_deref() {
+                for (&key, saved) in &history.compounds {
+                    if key.0 == pair.contact_id.0 { next_compounds.insert(key, saved.clone()); }
+                }
+            }
+            continue;
+        }
         if !pair.body1.is_some_and(|body| ragdolls.contains(body))
             && !pair.body2.is_some_and(|body| ragdolls.contains(body)) { continue; }
         let (source_side, source) = if let Ok(source) = sources.get(pair.collider1) { (0, source) }
@@ -382,6 +401,18 @@ pub(crate) fn order_source_capsule_box_contacts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Resource, Default)]
+    struct ObservedContactEvents { starts: usize, ends: usize }
+
+    fn record_contact_events(
+        mut starts: MessageReader<avian3d::prelude::CollisionStart>,
+        mut ends: MessageReader<avian3d::prelude::CollisionEnd>,
+        mut observed: ResMut<ObservedContactEvents>,
+    ) {
+        observed.starts += starts.read().count();
+        observed.ends += ends.read().count();
+    }
 
     #[test]
     fn source_restored_compound_groups_respect_native_cull() {
@@ -608,7 +639,7 @@ mod tests {
 
     fn check_source_convex_aggregate(fixtures: &[&str]) {
         use avian3d::collision::narrow_phase::NarrowPhaseSystems;
-        use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled};
+        use avian3d::prelude::{CollisionEventsEnabled, Gravity, LockedAxes, PhysicsSchedule, SleepingDisabled, TimeToSleep};
         use bevy::time::TimeUpdateStrategy;
         use bevy_animation_graph::core::ragdoll::definition::BodyMode;
         use crate::extensions::source_contact_convex::SourceConvexLifecycleSettings;
@@ -631,15 +662,18 @@ mod tests {
             let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) = include!("../als/settings/contact_lifecycle.rs");
             let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
                 collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
-            app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
-                .insert_resource(Gravity(Vec3::ZERO))
+            app.add_plugins((MinimalPlugins, TransformPlugin));
+            crate::extensions::source_contact_narrow::add_source_physics(&mut app);
+            app.insert_resource(Gravity(Vec3::ZERO))
+                .init_resource::<ObservedContactEvents>()
                 .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
                 .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm, warm_start })
                 .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
                     empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
                 .init_resource::<SourceBoxContactHistory>()
                 .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
-                .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
+                .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last))
+                .add_systems(PhysicsSchedule, record_contact_events.after(NarrowPhaseSystems::Update));
             app.finish();
             app.cleanup();
             let compound = Collider::compound(definitions[name].iter().map(|hull| (
@@ -648,16 +682,19 @@ mod tests {
             )).collect());
             let ground = app.world_mut().spawn((RigidBody::Static, compound,
                 SourceCompoundOrder(name.into()), Transform::IDENTITY)).id();
-            let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
+            let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled, CollisionEventsEnabled,
                 Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center),
                 RagdollActiveMode(BodyMode::Dynamic))).id();
             app.update();
             app.update();
             let native = fixture["aggregate_contacts"].as_array().unwrap();
+            assert_eq!(app.world().resource::<ObservedContactEvents>().starts, usize::from(!native.is_empty()));
             let pair = app.world().resource::<ContactGraph>().get(ground, foot);
             if native.is_empty() && pair.is_none() { continue; }
             let (edge, pair) = pair.expect("The source active contact pair was not discovered");
             assert_eq!(pair.manifolds.len(), native.len());
+            assert_eq!(pair.is_touching(), !native.is_empty());
+            assert_eq!(edge.constraint_handles.len(), native.len());
             let history = app.world().resource::<SourceBoxContactHistory>();
             let mut shapes = history.compounds.keys().filter(|key| key.0 == pair.contact_id.0)
                 .map(|key| key.1).collect::<Vec<_>>();
@@ -683,6 +720,38 @@ mod tests {
                     assert!(actual.point.abs_diff_eq(midpoint, 2e-5));
                 }
             }
+            if name == "SM_Als_Barrel" && !native.is_empty() {
+                app.world_mut().get_mut::<Position>(foot).unwrap().0.y += 0.02;
+                app.world_mut().get_mut::<Transform>(foot).unwrap().translation.y += 0.02;
+                app.update();
+                assert_eq!(app.world().resource::<ObservedContactEvents>().ends, 1);
+                app.update();
+                assert_eq!(app.world().resource::<ObservedContactEvents>().ends, 1);
+                app.world_mut().get_mut::<Position>(foot).unwrap().0.y -= 0.02;
+                app.world_mut().get_mut::<Transform>(foot).unwrap().translation.y -= 0.02;
+                app.update();
+                assert_eq!(app.world().resource::<ObservedContactEvents>().starts, 2);
+                let id = app.world().resource::<ContactGraph>().get(ground, foot).unwrap().1.contact_id;
+                let key = *app.world().resource::<SourceBoxContactHistory>().compounds.keys()
+                    .find(|key| key.0 == id.0).unwrap();
+                app.world_mut().entity_mut(foot).remove::<SleepingDisabled>();
+                app.world_mut().insert_resource(TimeToSleep(0.05));
+                let slept = (0..30).any(|_| {
+                    app.update();
+                    app.world().resource::<ContactGraph>().get(ground, foot).is_some_and(|(edge, _)| edge.is_sleeping())
+                });
+                assert!(slept, "The source compound contact did not sleep within 30 physics frames");
+                app.update();
+                assert!(app.world().resource::<SourceBoxContactHistory>().compounds.contains_key(&key));
+                app.world_mut().get_mut::<Position>(foot).unwrap().0.x += 0.001;
+                app.world_mut().get_mut::<Transform>(foot).unwrap().translation.x += 0.001;
+                let woke = (0..5).any(|_| {
+                    app.update();
+                    app.world().resource::<ContactGraph>().get(ground, foot).is_some_and(|(edge, _)| !edge.is_sleeping())
+                });
+                assert!(woke, "The source compound contact did not wake within five physics frames");
+                assert!(app.world().resource::<SourceBoxContactHistory>().compounds.contains_key(&key));
+            }
         }
     }
 
@@ -707,7 +776,7 @@ mod tests {
     #[test]
     fn source_arch_edge_manifold_and_simplex_reach_actual_solver() {
         use avian3d::collision::narrow_phase::NarrowPhaseSystems;
-        use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled};
+        use avian3d::prelude::{Gravity, LockedAxes, PhysicsSchedule, SleepingDisabled};
         use bevy::time::TimeUpdateStrategy;
         use bevy_animation_graph::core::ragdoll::definition::BodyMode;
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
@@ -730,8 +799,9 @@ mod tests {
             let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) = include!("../als/settings/contact_lifecycle.rs");
             let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
                 collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
-            app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
-                .insert_resource(Gravity(Vec3::ZERO))
+            app.add_plugins((MinimalPlugins, TransformPlugin));
+            crate::extensions::source_contact_narrow::add_source_physics(&mut app);
+            app.insert_resource(Gravity(Vec3::ZERO))
                 .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
                 .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm, warm_start })
                 .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
