@@ -6476,12 +6476,15 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧测试覆盖断开后的独立睡眠，没有覆盖孤立状态已有进度再新建连接；只登记已复现的岛创建边界，不把所有合并/拆分情况一概判错。
   - 21:26 source/static摘要：fresh PA确认hand_l两端及当前岛模式，源创建、接入与断开计数生命周期已固化；目标按上一物理帧成员连接状态识别新岛，不依赖可复用的岛编号。已写新连接、拆分、接入已有岛及加载手臂body的受控对照；测试、消融、native关节及Playground待统一Gate。证据`docs/audit/bf144/d90/`。实际结束：2026-11-08 21:26 +08:00；偏差：−46分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D91 / P2 — Ragdoll的原生回弹系数未到达子碰撞体接触。
+- [x] BF144-D91 / P2 — Ragdoll的原生回弹系数未到达子碰撞体接触。
+  - 本轮开始：2026-11-08 21:27 +08:00；预计结束：2026-11-08 22:07 +08:00。重读源shape材质和Avian普通接触合并路径，将现有body材质传给所属shape，并覆盖profile刷新及真实接触；统一验证留待升级后。估时依据：BF144.28材质/接触闭包实耗约29分钟，此项复用已有profile与加载角色夹具。
   - Source：fresh PA全部21个body使用DefaultPhysicalMaterial，Restitution=0.3、Average且无override；UE `BodyInstance.cpp:4580–4613`给每个simple shape设置该材质，`PBDCollisionConstraints.cpp:469–470`组合双方系数。
   - Target：`ragdoll_physics_profile.rs:1365–1366`只在body设置Friction/Restitution；实际Avian 0.7 `collision/narrow_phase/system_param.rs:619–628`只取collider的Restitution，未像friction一样回退到body。真实PA子shape没有该组件，使用默认0。
   - 反例：完整角色head保留native质量、惯量与材质，以中心球/平面接触隔离几何和转动，两边源系数均0.3、入射1.5m/s。60/30Hz×1/默认6子步，实际组合0.15且回弹0.225m/s，源应0.3与0.45m/s；仅把已有body系数放到该shape后4组全部恢复，共8组4PASS/4FAIL。证据`bf144_pa_contact_native_body_restitution_reaches_child_shape`、`target/bf144/28/`。
   - 漏检：旧PA测试只断言body组件值，自定义CCD也会回退body材质，未核对实际普通接触manifold中的组合值。只登记，未修改依赖或生产材质适配。
   - 原生形体补证：不改21个body的形体/质量/关节/自然运动，在实际floor仅提供同一0.3材质；60/30Hz分别出现2/3个原生接触，全部组合成0.15。仅在PA子shape添加body现有0.3后全部变回0.3，共4组2PASS/2FAIL。`bf144_pa_contact_native_geometry_material_and_ccd_consumers`同时核对全部21个body的原生CCD关闭消费和无graph error。
+
+  - 21:30 source/static摘要：fresh PA确认全部21个body的原生回弹值和组合模式，源shape材质及目标manifold消费路径已固化；现按源body索引将完整回弹组件同步到所属shape及其profile刷新。已写加载角色22个shape、单body更新隔离和实际接触manifold对照；测试、消融和Playground待统一Gate，低速阈值归D92。证据`docs/audit/bf144/d91/`。实际结束：2026-11-08 21:30 +08:00；偏差：−37分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D92 / P3 — Ragdoll普通接触的低速回弹阈值与源物理时钟不符。
   - Source：fresh `PBDRigidsEvolutionGBF.h:70`与cpp:1365给实际世界碰撞容器传入1000cm/s²默认阈值；全局`p.CollisionRestitutionThreshold=-1`。`PBDCollisionContainerSolver.cpp:88–89,160–166`以该加速度乘物理dt作为速度门槛，即60Hz约0.166667m/s、30Hz约0.333333m/s。项目BounceThresholdVelocity=200字段没有进入这条Chaos世界调用。

@@ -1746,6 +1746,9 @@ fn apply_profile_to_spawned_ragdoll(
             commands.entity(*collider_entity).insert(transform);
         }
         let Some(collider) = collider else { continue; };
+        if let Some(body) = profile.bodies.iter().find(|body| body.source_index == collider.source_body_index) {
+            commands.entity(*collider_entity).insert(body.restitution);
+        }
         commands.entity(*collider_entity).insert((
             ActiveCollisionHooks::FILTER_PAIRS,
             collider.collision_mode,
@@ -2005,6 +2008,75 @@ fn joint_anchor_distance(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn source_ragdoll_shape_restitution_tracks_body_material() {
+        let (mut app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, _) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.update();
+        let profile = app.world().get::<RagdollPhysicsProfile>(player).unwrap();
+        let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let spawned = graph.get_spawned_ragdoll().unwrap();
+        let shapes = spawned.colliders.values().map(|entity| {
+            let label = &app.world().get::<ColliderLabel>(*entity).unwrap().0;
+            let collider = find_collider_profile(profile, label).unwrap();
+            (*entity, collider.source_body_index)
+        }).collect::<Vec<_>>();
+        assert_eq!(shapes.len(), 22);
+        let head = profile.bodies.iter().find(|body| body.label == "head").unwrap().source_index;
+        for (entity, index) in &shapes {
+            let body = profile.bodies.iter().find(|body| body.source_index == *index).unwrap();
+            assert_eq!(*app.world().get::<Restitution>(*entity).unwrap(), body.restitution);
+        }
+        app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies.iter_mut()
+            .find(|body| body.source_index == head).unwrap().restitution = Restitution {
+                coefficient: 0.6, combine_rule: CoefficientCombine::Max,
+            };
+        app.update();
+        for (entity, index) in shapes {
+            let material = app.world().get::<Restitution>(entity).unwrap();
+            if index == head { assert_eq!(*material, Restitution { coefficient: 0.6, combine_rule: CoefficientCombine::Max }); }
+            else { assert!((material.coefficient - 0.3).abs() < 1e-6); }
+        }
+    }
+
+    #[test]
+    fn source_ragdoll_shape_restitution_reaches_contact_manifold() {
+        use avian3d::prelude::{ColliderDisabled, ColliderTransform, Collisions, Gravity, JointDisabled};
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..12 { app.update(); }
+        let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let spawned = graph.get_spawned_ragdoll().unwrap();
+        let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+        let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+        let head = bodies.iter().find(|(label, _)| label == "head").unwrap().1;
+        let profile = app.world().get::<RagdollPhysicsProfile>(player).unwrap();
+        let head_index = profile.bodies.iter().find(|body| body.label == "head").unwrap().source_index;
+        let shape = colliders.iter().copied().find(|entity| {
+            let label = &app.world().get::<ColliderLabel>(*entity).unwrap().0;
+            find_collider_profile(profile, label).unwrap().source_body_index == head_index
+        }).unwrap();
+        for entity in colliders { if entity != shape { app.world_mut().entity_mut(entity).insert(ColliderDisabled); } }
+        for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+        app.world_mut().insert_resource(Gravity(Vec3::ZERO));
+        let position = app.world().get::<Position>(head).unwrap().0;
+        let rotation = app.world().get::<Rotation>(head).unwrap().0;
+        let center = position + rotation * app.world().get::<ColliderTransform>(shape).unwrap().translation;
+        let surface = app.world_mut().spawn((RigidBody::Static, Collider::sphere(0.02),
+            Transform::from_translation(center), Restitution::new(0.3))).id();
+        let mut observed = None;
+        for _ in 0..3 {
+            app.update();
+            observed = app.world_mut().run_system_once(move |collisions: Collisions| {
+                collisions.get(surface, shape).and_then(|pair| pair.manifolds.first().map(|manifold| manifold.restitution))
+            }).unwrap();
+            if observed.is_some() { break; }
+        }
+        assert!((observed.expect("A ragdoll shape contact was not generated") - 0.3).abs() < 1e-6);
+    }
+
     #[test]
     fn source_ragdoll_linear_damping_follows_acceleration_and_impulse() {
         use avian3d::prelude::{AngularVelocity, ColliderDisabled, ComputedMass, ConstantForce, ConstantLocalForce,

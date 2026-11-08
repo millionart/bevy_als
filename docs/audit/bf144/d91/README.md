@@ -1,0 +1,5 @@
+# BF144-D91 原生回弹材质进入shape接触
+
+fresh PA的21个body都使用回弹0.3、Average且无override；每个简单shape消费其所属body材质。源碰撞组合两个shape的材质，而当前Avian普通接触只读取collider自身的回弹组件。fresh原生输出与D65a受跟踪记录逐字节相同，逐body材质、reader请求/报告和源/目标片段已保留。
+
+目标按现有源body索引将完整回弹值及组合规则写入各自的shape，profile刷新时同步更新。已写加载角色22个shape的映射、单body材质刷新隔离及真实head接触manifold对照；低速回弹门槛属于D92。测试、消融与Playground待统一Gate。

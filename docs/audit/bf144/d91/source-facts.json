@@ -1,0 +1,30 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/PhysicsEngine/BodyInstance.cpp",
+    "sha256": "7ca0949be1e3a6eb782ca2ae1123d8b395fcb7a22436df95788a5f840a3f745c",
+    "start_line": 4575,
+    "end_line": 4615,
+    "text": "\t\t}\n\t}\n}\n\nvoid FBodyInstance::ApplyMaterialToShape_AssumesLocked(const FPhysicsShapeHandle& InShape, UPhysicalMaterial* SimplePhysMat, const TArrayView<UPhysicalMaterial*>& ComplexPhysMats, const TArrayView<FPhysicalMaterialMaskParams>* ComplexPhysMatMasks)\n{\n\t// If a triangle mesh, need to get array of materials...\n\tECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(InShape);\n\tif(GeomType == ECollisionShapeType::Trimesh)\n\t{\n\t\tif(ComplexPhysMats.Num())\n\t\t{\n\t\t\tif (ensure(ComplexPhysMatMasks))\n\t\t\t{\n\t\t\t\tFPhysicsInterface::SetMaterials(InShape, ComplexPhysMats, *ComplexPhysMatMasks);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tFPhysicsInterface::SetMaterials(InShape, ComplexPhysMats);\n\t\t\t}\n\t\t}\n\t\telse\n\t\t{\n\t\t\tif(SimplePhysMat)\n\t\t\t{\n\t\t\t\tUE_LOGF(LogPhysics, Verbose, \"FBodyInstance::ApplyMaterialToShape_AssumesLocked : PComplexMats is empty - falling back on simple physical material.\");\n\t\t\t\tFPhysicsInterface::SetMaterials(InShape, {&SimplePhysMat, 1});\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tUE_LOGF(LogPhysics, Error, \"FBodyInstance::ApplyMaterialToShape_AssumesLocked : PComplexMats is empty, and we do not have a valid simple material.\");\n\t\t\t}\n\t\t}\n\n\t}\n\t// Simple shape, \n\telse if(SimplePhysMat)\n\t{\n\t\tFPhysicsInterface::SetMaterials(InShape, {&SimplePhysMat, 1});\n\t}\n\telse"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDCollisionConstraints.cpp",
+    "sha256": "694bfd6e809e4e3414e050843c282e96700d360f87142d5e4995665670f1e599",
+    "start_line": 457,
+    "end_line": 470,
+    "text": "\t\tconst FChaosPhysicsMaterial* PhysicsMaterial1 = Private::GetPhysicsMaterial(Constraint.Particle[1], Constraint.GetShape1(), ShapeFaceIndex, &MPhysicsMaterials, &MPerParticlePhysicsMaterials, SimMaterials);\n\n\t\tFReal MaterialRestitution = 0;\n\t\tFReal MaterialRestitutionThreshold = 0;\n\t\tFReal MaterialStaticFriction = 0;\n\t\tFReal MaterialDynamicFriction = 0;\n\t\tFReal MaterialSoftThickness = 0;\n\t\tFReal MaterialSoftDivisor = 0;\n\t\tFReal MaterialBaseFrictionImpulse = 0;\n\n\t\tif (PhysicsMaterial0 && PhysicsMaterial1)\n\t\t{\n\t\t\tconst FChaosPhysicsMaterial::ECombineMode RestitutionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->RestitutionCombineMode,PhysicsMaterial1->RestitutionCombineMode);\n\t\t\tMaterialRestitution = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Restitution, PhysicsMaterial1->Restitution, RestitutionCombineMode);"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collision/narrow_phase/system_param.rs",
+    "sha256": "5bb1f6ad4868e297079694602fb091f9e113f949c767993e5728a9173c342ef6",
+    "start_line": 605,
+    "end_line": 628,
+    "text": "                // or the bodies they are attached to. Fall back to the global defaults.\n                let friction = collider1\n                    .friction\n                    .or(rb_friction1)\n                    .copied()\n                    .unwrap_or(self.default_friction.0)\n                    .combine(\n                        collider2\n                            .friction\n                            .or(rb_friction2)\n                            .copied()\n                            .unwrap_or(self.default_friction.0),\n                    )\n                    .dynamic_coefficient;\n                let restitution = collider1\n                    .restitution\n                    .copied()\n                    .unwrap_or(self.default_restitution.0)\n                    .combine(\n                        collider2\n                            .restitution\n                            .copied()\n                            .unwrap_or(self.default_restitution.0),\n                    )"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collision/narrow_phase/system_param.rs",
+    "sha256": "5bb1f6ad4868e297079694602fb091f9e113f949c767993e5728a9173c342ef6",
+    "start_line": 715,
+    "end_line": 722,
+    "text": "                );\n\n                // Transform and prune contact data.\n                contacts.manifolds.retain_mut(|manifold| {\n                    // Set the initial surface properties.\n                    manifold.friction = friction;\n                    manifold.restitution = restitution;\n                    #[cfg(feature = \"2d\")]"
+  }
+]
