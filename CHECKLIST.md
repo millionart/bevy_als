@@ -5473,12 +5473,15 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
     - 09:16 source/static闭环：.576正负落地各有一个自由Walking余步，按源double位置差复算与目标计划一致，原F32世界位置差分别损失约20.53/23.95µm/s。内部步仅在无穿透、无前向阻挡/step、有效floor且支撑点速度为零时，以相同请求位移重建double厘米位置差；实际碰撞与移动支撑仍用目标实际位移。已写两侧原历史及移动支撑控制，未执行目标测试。
     - 09:21实现摘要：已接通落地及多CMC步的静止支撑自由路径，源角色资产fresh身份与.575历史身份一致，原生压缩字节与两侧.576记录已封存；碰撞、移动支撑及极大世界坐标未声称完整源精度。实现结束09:21、偏差−42分钟；D254a/b静态实现完成，测试、消融和公共Gate待全部静态修复及Bevy/依赖迁移后执行。
 
-- [ ] BF144-D253 / P3 — 地面CMC计划位移再经六次float累计，改变首移动帧的位置与回算速度。
+- [x] BF144-D253 / P3 — 地面CMC计划位移再经六次float累计，改变首移动帧的位置与回算速度。
   - Source：fresh真实角色40步标准AddMovementInput历史中，第4帧由静止输入world+X，实际delta为0.03333333507180214，CDO MaxSimulationTimeStep为0.05000000074505806、Iterations8；`CharacterMovementComponent.cpp:5690,5716–5738,5870–5875,8162–8186`在本帧只走一个CMC步，用FVector厘米位移移动后按该步时长回算速度。原生位置2.222222454018069cm、速度66.66667014360428cm/s，换米后F32分别为0.02222222462296486、0.6666666865348816。
   - Target：`dynamics.rs:562–571`已产出正确F32计划位移0.02222222462296486；`source_physics_timing.rs:172–185`在该默认30Hz控制路径以frame_step=frame_delta/6累计Grounded位置，`motion.rs:2681–2690`再从F32实际位置回算速度。实际得到位置0.02222222276031971、速度0.6666666269302368；六次F32乘加模型逐值复现，首速度差随后进入AlsActualMotion和动画provider。
   - 最小反例与控制：未改图、标准动态角色、原floor、4步空输入后首步world+X；默认6步红测稳定失败，只在独立夹具将SubstepCount改1，两项都恢复原生投影。控制保留实际输入、初速与CMC计划值；这不是修改引擎或生产，也不是性能验收。后续帧仍有米制F32位置反馈和动画Speed标量换算余差，一步控制不恢复整段40帧；当前差异微小，未宣称可见故障。
   - 漏检：此前自然默认入口是空输入/下落，普通地面测试主要验证运动容差与同target helper，没有把公开输入首移动帧的原生double厘米位置、CMC计划值、六次实际累计和回算速度贯通。证据`target/bf144/307/first-red.json`、`first-control.json`、`stages.json`、`one-substep.json`；仅登记，原生产未修。
   - BF144.434 matched240共同实际输入补充：fresh原240 native全字段精确旧记录，另将源world输入逐帧设为target实际向量（含微小侧向分量），240输入/dt资格精确。实际source入口是ALS覆写`PhysWalking:373–440,565–581`，在静态基座下其`CalcVelocity:279–290`委托Engine算法；单步预算及末位置差分保持。当前全部240水平位置由六次delta_position累计后一次world writeback精确重放，240实际速度由相应位置差/dt精确重放；原两组source共480位置差分也全精确。仅夹具SubstepCount6→1，首20水平位置/velocity恢复共同source投影，首计划/dt/boost/dynamics保持；取消控制并源码bytes恢复同target重编，全240完整记录恢复。固定说明是子步delta累计，并非每子步重加世界原点。另71帧物理前delta/dt速度往返仅作为独立候选，未并入本项或新增D；证据`target/bf144/434/physics-check.json`、`controls-check.json`、`summary.json`，未称完整source-target轨迹/Root等价，生产未改。
+  - 修复第1轮：开始2026-11-08 09:23 +08:00；预估结束10:13 +08:00。依据：fresh ALS单CMC步与Avian 0.7六次delta_position积分/末次写回均已核；需在角色自身、完整无阻挡单步路径消除累计舍入，同时保留全局物理substep、碰撞及移动支撑。测试在全部静态修复和Bevy/依赖迁移后执行。
+  - 09:23 source/static闭环：目标既有普通Avian积分及短时长`SourceCharacterFullFrame`自定义积分都会分六次累计；仅改全局SubstepCount不符合项目物理时钟纪律。Avian在Substep结束、写回前公开SolverBody，计划仅在源单步、零支撑、计划/物理时钟一致且实际累计逐值等于无碰撞积分时还原计划位移，碰撞和实际约束变化保持原值；同时覆盖两种积分路径。
+  - 09:32实现摘要：角色专属末端处理只在已证自由单步且速度、位移、时钟及累计均匹配时保留计划水平位移，阻挡接触、移动支撑、旋转及其他自定义积分不触发，传感器不作为阻挡。已写两种积分路径与边界用例；.441c实际计划和.501源记录及六步模型封存，旧.307/.434原报缺失。实现结束09:32、偏差−41分钟；测试、消融、图审计和公共Gate待全部静态修复及Bevy/依赖迁移后执行。
 
 - [ ] BF144-D252 / P3 — 出生时未按支撑选择实际运动mode，首个无支撑物理步仍走Grounded积分。
   - Source：fresh非零engine frame17的原生角色在92.15cm有地面出生时为MOVE_Walking/有效floor，在150cm无支撑出生时已为MOVE_Falling/无floor，均发生在首world tick前。`Character.cpp:141–170`在无Controller且允许物理时调用SetDefaultMovementMode；`CharacterMovementComponent.cpp:1319–1338,1443–1454`先进入Walking并FindFloor/AdjustFloorHeight/SetBase，base无效则恢复竖速并切Falling。原生CDO Controller=None、bRunPhysicsWithNoController=True/DefaultLandModeWalking已核，不以AnimInstance的初始Grounded种子代替真实角色mode。

@@ -3,8 +3,8 @@ use std::time::Duration;
 use crate::als::{character::{AlsCharacter, AlsCollisionLayerOwnership}, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
-    Collider, ColliderOf, CollisionLayers, CustomPositionIntegration, Physics, PhysicsSchedule,
-    PhysicsSystems, Position, RigidBody, Rotation, Sensor, ShapeCastConfig, SpatialQueryFilter,
+    Collider, ColliderOf, CollisionLayers, Collisions, ContactPairFlags, CustomPositionIntegration, Physics, PhysicsSchedule,
+    PhysicsSystems, Position, RigidBody, Rotation, Sensor, ShapeCastConfig, SolverSystems, SpatialQueryFilter,
     SubstepCount, SubstepSchedule,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
@@ -64,6 +64,7 @@ impl Plugin for SourcePhysicsTimingPlugin {
                     .in_set(IntegrationSystems::UpdateVelocityIncrements)
                     .after(avian3d::dynamics::integrator::pre_process_velocity_increments),
             )
+            .add_systems(PhysicsSchedule, preserve_unobstructed_grounded_displacement.in_set(SolverSystems::PostSubstep))
             .add_systems(
                 SubstepSchedule,
                 record_character_velocity
@@ -161,6 +162,44 @@ fn record_character_velocity(mut characters: Query<(&SolverBody, &mut SourceChar
     }
 }
 
+fn preserve_unobstructed_grounded_displacement(
+    frame_time: Res<Time<Virtual>>,
+    physics_time: Res<Time<Physics>>,
+    substeps: Res<SubstepCount>,
+    collisions: Collisions,
+    mut characters: Query<(Entity, &mut SolverBody, &RigidBody, &LocomotionState,
+        &crate::als::character::AlsCmcAdapterRuntime, &crate::als::dynamics::AlsMovementBaseDynamicsState,
+        Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>), With<AlsCharacter>>,
+) {
+    if substeps.0 == 0 { return; }
+    for (entity, mut body, rigid_body, locomotion, runtime, base, full_frame, custom) in &mut characters {
+        let Some(planned) = base.pre_collision_velocity else { continue; };
+        let Some(delta) = runtime.grounded_movement_delta else { continue; };
+        if *rigid_body != RigidBody::Dynamic || *locomotion != LocomotionState::Grounded
+            || full_frame != custom || runtime.grounded_move_start.is_none()
+            || runtime.grounded_collision_velocity.is_some() || runtime.simulation_substeps != 1
+            || runtime.simulation_delta_seconds != frame_time.delta_secs()
+            || runtime.simulation_delta_seconds != physics_time.delta_secs()
+            || base.support_velocity != Vec3::ZERO || body.delta_rotation != Rotation::IDENTITY
+            || body.linear_velocity.x != planned.x || body.linear_velocity.z != planned.z
+            || delta.with_y(0.0) != (planned * runtime.simulation_delta_seconds).with_y(0.0)
+            || collisions.collisions_with(entity).any(|pair| pair.flags.contains(ContactPairFlags::GENERATE_CONSTRAINTS)) {
+            continue;
+        }
+        let step = if full_frame {
+            frame_time.delta_secs() / substeps.0 as f32
+        } else {
+            physics_time.delta().div_f64(f64::from(substeps.0)).as_secs_f32()
+        };
+        let mut accumulated = Vec3::ZERO;
+        for _ in 0..substeps.0 { accumulated += planned * step; }
+        if body.delta_position.x == accumulated.x && body.delta_position.z == accumulated.z {
+            body.delta_position.x = delta.x;
+            body.delta_position.z = delta.z;
+        }
+    }
+}
+
 fn integrate_character_position(
     frame_time: Res<Time<Virtual>>,
     physics_time: Res<Time<Physics>>,
@@ -237,6 +276,70 @@ mod tests {
     use super::*;
     use avian3d::prelude::{Collider, CollisionLayers, GravityScale, LayerMask, LinearVelocity, Position, RigidBody, Sensor};
     use bevy::time::TimeUpdateStrategy;
+
+    #[test]
+    fn free_grounded_plan_survives_six_physics_substeps() {
+        use avian3d::prelude::{ContactEdge, ContactGraph, ContactPairFlags};
+        use bevy::ecs::system::RunSystemOnce;
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).init_resource::<Time<Physics>>()
+            .init_resource::<ContactGraph>().insert_resource(SubstepCount(6));
+        let duration = Duration::from_secs_f32(1.0 / 30.0);
+        app.world_mut().resource_mut::<Time<Virtual>>().advance_by(duration);
+        app.world_mut().resource_mut::<Time<Physics>>().advance_by(duration);
+        let dt = app.world().resource::<Time<Physics>>().delta_secs();
+        let planned = Vec3::X * 0.666_666_7;
+        let delta = Vec3::X * 0.022_222_225;
+        let runtime = crate::als::character::AlsCmcAdapterRuntime {
+            simulation_substeps: 1, simulation_delta_seconds: dt,
+            grounded_move_start: Some(Vec3::ZERO), grounded_movement_delta: Some(delta), ..default()
+        };
+        let base = crate::als::dynamics::AlsMovementBaseDynamicsState { pre_collision_velocity: Some(planned), ..default() };
+        let mut accumulated = Vec3::ZERO;
+        for _ in 0..6 { accumulated += planned * (dt / 6.0); }
+        assert_ne!(accumulated.x, delta.x);
+        let mut body = SolverBody::DUMMY;
+        body.linear_velocity = planned;
+        body.delta_position = accumulated + Vec3::Y;
+        let custom = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
+            body.clone(), runtime, base, CustomPositionIntegration, SourceCharacterFullFrame::default())).id();
+        let ordinary = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
+            body.clone(), runtime, base)).id();
+        let mut blocked_body = body.clone();
+        blocked_body.delta_position.x *= 0.5;
+        let blocked = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
+            blocked_body.clone(), runtime, base)).id();
+        let moving = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
+            body.clone(), runtime, crate::als::dynamics::AlsMovementBaseDynamicsState {
+                entity: Some(Entity::PLACEHOLDER), support_velocity: Vec3::X, ..base
+            })).id();
+        let other_custom = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
+            body.clone(), runtime, base, CustomPositionIntegration)).id();
+        let touching = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
+            body.clone(), runtime, base)).id();
+        let obstacle = app.world_mut().spawn_empty().id();
+        app.world_mut().resource_mut::<ContactGraph>().add_edge_with(ContactEdge::new(touching, obstacle),
+            |pair| pair.flags.insert(ContactPairFlags::TOUCHING | ContactPairFlags::GENERATE_CONSTRAINTS)).unwrap();
+        let sensor_touching = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
+            body.clone(), runtime, base)).id();
+        let sensor = app.world_mut().spawn_empty().id();
+        app.world_mut().resource_mut::<ContactGraph>().add_edge_with(ContactEdge::new(sensor_touching, sensor),
+            |pair| pair.flags.insert(ContactPairFlags::TOUCHING)).unwrap();
+        let mut rotated_body = body.clone();
+        rotated_body.delta_rotation = Rotation(Quat::from_rotation_y(0.1));
+        let rotated = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
+            rotated_body, runtime, base)).id();
+        app.world_mut().run_system_once(preserve_unobstructed_grounded_displacement).unwrap();
+        for actor in [custom, ordinary, sensor_touching] {
+            assert_eq!(app.world().get::<SolverBody>(actor).unwrap().delta_position, delta + Vec3::Y);
+        }
+        assert_eq!(app.world().get::<SolverBody>(blocked).unwrap().delta_position, blocked_body.delta_position);
+        assert_eq!(app.world().get::<SolverBody>(moving).unwrap().delta_position, body.delta_position);
+        assert_eq!(app.world().get::<SolverBody>(other_custom).unwrap().delta_position, body.delta_position);
+        assert_eq!(app.world().get::<SolverBody>(touching).unwrap().delta_position, body.delta_position);
+        assert_eq!(app.world().get::<SolverBody>(rotated).unwrap().delta_position, body.delta_position);
+    }
 
     #[test]
     fn source_physics_delta_is_a_per_frame_cap_not_a_fixed_timestep() {
