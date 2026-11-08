@@ -1,0 +1,10 @@
+{
+  "samples": [
+    {"name": "positive-half-turn", "rotation_xyzw": [0, 0, 1, 0], "euler_degrees": [0, 180, 0]},
+    {"name": "negative-half-turn", "rotation_xyzw": [0, 0, -1, 0], "euler_degrees": [0, -180, 0]},
+    {"name": "positive-170", "rotation_xyzw": [0, 0, 0.9961946980917455, 0.08715574274765814], "euler_degrees": [0, 170, 0]},
+    {"name": "negative-170", "rotation_xyzw": [0, 0, -0.9961946980917455, 0.08715574274765814], "euler_degrees": [0, -170, 0]},
+    {"name": "positive-90", "rotation_xyzw": [0, 0, 0.7071067811865475, 0.7071067811865476], "euler_degrees": [0, 90, 0]},
+    {"name": "negative-90", "rotation_xyzw": [0, 0, -0.7071067811865475, 0.7071067811865476], "euler_degrees": [0, -90, 0]}
+  ]
+}

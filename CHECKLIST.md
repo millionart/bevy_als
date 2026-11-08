@@ -5379,12 +5379,17 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 08:14 source/static与实现摘要：fresh源确认float minimax的七系数、零输入与象限恢复及Unwind阶段；足限位调用该算子，保留D260系数。已写两个新原生twist、零输入和实际前态衍生阈值反例；旧.420原始报告缺失，引用D262a新原生请求/结果。实现结束08:14、偏差−28分钟；测试、消融与视觉Gate待静态修复及Bevy/依赖迁移后执行。
 
 
-- [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
+- [x] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
   - Source：fresh `AlsCharacter.cpp:1248–1255`对真实local controller的ViewRotation执行GetNormalized；`Rotator.h:690–717`的NormalizeAxis将−180和+180均映到+180。随后`AlsAnimationInstance.cpp:387–396`生成ViewState.YawAngle，`601–603`将+180限到+175进入同一Head临界弹簧。
   - Target：`ab_als_provider.rs:300–304`将View角交给`turn_layer.rs:360–362`，该helper用`-wrap_angle_degrees(view-body)`；wrap自身在`turn_in_place.rs:42–51`保留(−180,180]，取负后却给Head发布−180。Source基础方向符号已由共同±170控制确认，不是应整体反转yaw；问题限于精确半转的规范化顺序。
   - 最小反例：两侧真实静止Standing/ViewDirection/第三人称，前20帧零view，frame20只发送public yaw180（target仅look_delta，未写view组件/图/速度）；body yaw/rate均0，source实际ViewYaw=+180、target实际consumer=−180。源Head首步Yaw=+13.7867431640625，目标−13.7867431640625，冻结公开Head核各自实际输入完全重现。`target/bf144/379/current-halfturn-contract.json`当前语义明确失败。
   - 单因/完整consumer：public160帧Down-Up/±170/180历史中，源以target真实角作controller控制后仅120–139的−180输入被源规范为+180，余所有view/body输入相同；40帧Head状态残差从120开始。仅把这20个Head输入改+180、不改任何Head算法/其余输入或连续状态，160帧六字段全部恢复该原生控制，见`halfturn-control-check.json`。原nominal71余差中其它数值来自实际pitch等输入差，未都并入本项。原Look显式采样时间消费Head.YawAmount，最终骨骼pose幅度另后继核验，不宣称已恢复。
   - 漏检/隔离：旧.67纯Head/±180 YawSpeed矩阵没有走controller规范化→runtime符号转换→Head分支；本项已先有限复开.67该输入边界。与D04冻结角色的secondary/primary旋转算法、D163脚部Euler/quat分支不同，本次owner倍率1、普通第三人称、同一Head公共核已证相等，仅View输入表示不同。只登记，不改生产或放宽阈值；最小40源/目标完整历史、160实输入/公共核与源共同角控制见`target/bf144/379/minimal-check.json`、`kernel-check.json`、`same-input-check.json`。
+  - 修复第1轮：开始2026-11-08 08:15 +08:00；预估结束09:00 +08:00。依据：旧.379/.381运行报告当前缺失，fresh核controller NormalizeAxis、角色Rotator、View差与Head消费；需保持源UnwindDegrees在相对±180处保留两端，而非统一将所有半转映为同一符号。测试在全部静态修复和Bevy/依赖迁移后执行。
+  - 08:20 source/static闭环：源controller先按NormalizeAxis统一±180，再从actor Rotator相减并按UnwindDegrees保留相对±180；目标provider共用该入口，Head读取其yaw_angle并限到±175。已改输入坐标转换顺序并写±180、±170、非零body相对半转及public look→provider→Head用例；fresh原生旋转样本已读取，旧.379/.381完整运行报告仍缺，继续提取Head图身份与源闭包。
+  - 08:23 source闭包：fresh `AB_Als_Head`共11子图，其Blendspace求值器直接引用`BS_Als_Look`；fresh Blendspace继续引用Forward、Down、Up三个Look序列，正在补齐这条已证消费者链的原生资产身份。图静态审计与运行仍待统一阶段。
+  - 08:25 source闭包：三个Look序列均已fresh读取；Head弹簧直接消费`Settings->Head`，继续核对当前默认设置资产后封存身份。仍不将这些源读取冒称目标图审计或运行验证。
+  - 08:26实现摘要：视角先转源坐标并规范，再与角色角相减后按源规则折返；保留相对±180的不同端点。已写public look→provider和Head方向反例；fresh Head/Blendspace/三个序列/设置及旋转样本共7资产身份封存，scope覆盖544源子图。旧.379/.381运行原报缺失；实现结束08:26、偏差−34分钟。focused测试、消融、图审计及公共视觉Gate待静态修复和Bevy/依赖迁移后执行。
 
 
 

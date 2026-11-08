@@ -1,0 +1,102 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/SK_Als.uasset",
+      "asset_identity": {
+        "bytes": 45766,
+        "sha256": "8696ff0584e471a93366a2bb0b371e907d42cb13fa489755f388c5a463e5e0a6"
+      },
+      "request_asset": "/ALS/ALS/Character/SK_Als.SK_Als",
+      "native_output": "docs/audit/bf144/d258/rotation.native.json",
+      "raw": {
+        "bytes": 128340,
+        "sha256": "6cd73400bb18fa53afdf78a6972866c429976144ad712ee413fda32f2b015c9d"
+      },
+      "reader_report": "docs/audit/bf144/d258/rotation.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Character/AnimationInstances/AB_Als_Head.uasset",
+      "asset_identity": {
+        "bytes": 90031,
+        "sha256": "5b6670493229e8e64838d7421aa152e4030121b44daf94111975b1af9df67e39"
+      },
+      "request_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head",
+      "native_output": "docs/audit/bf144/d258/head.native.json",
+      "raw": {
+        "bytes": 1746562,
+        "sha256": "35f688d62a0dfce823f1592db34a2b811a1512ec5ce94a57aaa4182ed0115338"
+      },
+      "reader_report": "docs/audit/bf144/d258/head.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/View/BS_Als_Look.uasset",
+      "asset_identity": {
+        "bytes": 10006,
+        "sha256": "8e7b16f6919fa7541168ab44cc2f716831e533e471059712cac378fc163c6c73"
+      },
+      "request_asset": "/ALS/ALS/Animations/View/BS_Als_Look.BS_Als_Look",
+      "native_output": "docs/audit/bf144/d258/look-blend.native.json",
+      "raw": {
+        "bytes": 40203,
+        "sha256": "8ea0276951b5f801e5f78892f651ffa0027f45af8288dc6ab667c3694cc664ac"
+      },
+      "reader_report": "docs/audit/bf144/d258/look-blend.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/View/A_Als_Look_Forward.uasset",
+      "asset_identity": {
+        "bytes": 107075,
+        "sha256": "d2b3b909204464ff1f2a3913ca01183e72aeb7dcc4dbeb274ccfce401599b355"
+      },
+      "request_asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+      "native_output": "docs/audit/bf144/d258/look-forward.native.json",
+      "raw": {
+        "bytes": 522784,
+        "sha256": "686405c97f6a6709d7e1e99789c372ab76c9f174bb88e3c0f8f595878f83a569"
+      },
+      "reader_report": "docs/audit/bf144/d258/look-forward.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/View/A_Als_Look_Down.uasset",
+      "asset_identity": {
+        "bytes": 106994,
+        "sha256": "88590c1a52a97a879fa528d8641b1b4261330ec6650010110bc3cbfc03fd711d"
+      },
+      "request_asset": "/ALS/ALS/Animations/View/A_Als_Look_Down.A_Als_Look_Down",
+      "native_output": "docs/audit/bf144/d258/look-down.native.json",
+      "raw": {
+        "bytes": 525873,
+        "sha256": "e3ff76b73e7024e9766661af4a6f938ff7ae6dfdc2445791fb24a13f13b0d487"
+      },
+      "reader_report": "docs/audit/bf144/d258/look-down.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/View/A_Als_Look_Up.uasset",
+      "asset_identity": {
+        "bytes": 107107,
+        "sha256": "9d62a95c2e51e21d94d4dfae729107eff7e4d5f96bddd7cac8219cd2ce921c46"
+      },
+      "request_asset": "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up",
+      "native_output": "docs/audit/bf144/d258/look-up.native.json",
+      "raw": {
+        "bytes": 527396,
+        "sha256": "8f1720acbc4b1012c06682c5ed9a462ad8c3456aae59fcb2e80cff8598d6e4ec"
+      },
+      "reader_report": "docs/audit/bf144/d258/look-up.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Data/AnimationInstance/AIS_Als_Default.uasset",
+      "asset_identity": {
+        "bytes": 9631,
+        "sha256": "9af2ffa2d8e832b93d3bbaeea2f35e4663acc3aa643e65a128e3f9df8f73c6a7"
+      },
+      "request_asset": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+      "native_output": "docs/audit/bf144/d258/head-settings.native.json",
+      "raw": {
+        "bytes": 106177,
+        "sha256": "66e8b8750ba314881a66ee0a93470d18586adeed99e725813995e61ec23658fa"
+      },
+      "reader_report": "docs/audit/bf144/d258/head-settings.native.json.reader.report.json"
+    }
+  ]
+}

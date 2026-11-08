@@ -1,0 +1,226 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/AlsCharacter.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+      "excerpts": [
+        {
+          "first_line": 1243,
+          "last_line": 1256,
+          "text": "\t\t}\n\t}\n\telse\n\t{\n\t\tif (IsLocallyControlled() || (IsReplicatingMovement() && GetLocalRole() >= ROLE_Authority && IsValid(GetController())))\n\t\t{\n\t\t\t// The character movement component already sends the view rotation to the\n\t\t\t// server if movement is replicated, so we don't have to do this ourselves.\n\n\t\t\tSetReplicatedViewRotation(Super::GetViewRotation().GetNormalized(), !IsReplicatingMovement());\n\t\t}\n\t}\n\n\tRefreshViewNetworkSmoothing(DeltaTime);"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 379,
+          "last_line": 396,
+          "text": "\tcheck(IsInGameThread())\n\n\tconst auto& View{Character->GetViewState()};\n\n\tViewState.RotationWorldSpace = View.Rotation;\n\tViewState.YawSpeed = View.YawSpeed;\n}\n\nvoid UAlsAnimationInstance::RefreshView(const float DeltaTime)\n{\n\tif (!LocomotionAction.IsValid())\n\t{\n\t\tViewState.YawAngle = FMath::UnwindDegrees(UE_REAL_TO_FLOAT(\n\t\t\tViewState.RotationWorldSpace.Yaw - LocomotionState.RotationWorldSpace.Yaw));\n\n\t\tViewState.PitchAngle = FMath::UnwindDegrees(UE_REAL_TO_FLOAT(\n\t\t\tViewState.RotationWorldSpace.Pitch - LocomotionState.RotationWorldSpace.Pitch));\n"
+        },
+        {
+          "first_line": 588,
+          "last_line": 606,
+          "text": "\n\t\tHeadState.bSwitchingLookSides = false;\n\t}\n\telse\n\t{\n\t\t// Look towards view direction.\n\n\t\tTargetPitchAngle = ViewState.PitchAngle;\n\t\tTargetYawAngle = ViewState.YawAngle;\n\n\t\t// Keep the target angle in the [-175, 175] range, as the character often\n\t\t// tends to break his neck when the target angle is close to 180 degrees.\n\n\t\tTargetYawAngle = FMath::Clamp(TargetYawAngle,\n\t\t                              -180.0f + UAlsRotation::CounterClockwiseRotationAngleThreshold,\n\t\t                              180.0f - UAlsRotation::CounterClockwiseRotationAngleThreshold);\n\n\t\tif (!bFirstPerson)\n\t\t{"
+        },
+        {
+          "first_line": 738,
+          "last_line": 747,
+          "text": "\n\tif (Movement->NetworkSmoothingMode == ENetworkSmoothingMode::Disabled ||\n\t    (Character->GetLocalRole() != ROLE_SimulatedProxy &&\n\t     !(Character->IsNetMode(NM_ListenServer) && EnableListenServerSmoothingConsoleVariable->GetBool())))\n\t{\n\t\t// If the network smoothing is disabled, use the regular actor transform.\n\n\t\tLocomotionState.LocationWorldSpace = ActorTransform.GetLocation();\n\t\tLocomotionState.RotationWorldSpace = ActorTransform.Rotator();\n\t\tLocomotionState.RotationQuaternionWorldSpace = ActorTransform.GetRotation();"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Rotator.h",
+      "sha256": "673a47bdc810169eeabe9a21b3085dd29b2af43afb5d51c71f8877980dd0de5a",
+      "excerpts": [
+        {
+          "first_line": 692,
+          "last_line": 718,
+          "text": "\tAngle = FMath::Fmod(Angle, (T)360.0);\n\n\tif (Angle < (T)0.0)\n\t{\n\t\t// shift to [0,360) range\n\t\tAngle += (T)360.0;\n\t}\n\n\treturn Angle;\n}\n\ntemplate<typename T>\ninline T TRotator<T>::NormalizeAxis( T Angle )\n{\n\t// returns Angle in the range [0,360)\n\tAngle = ClampAxis(Angle);\n\n\tif (Angle > (T)180.0)\n\t{\n\t\t// shift to (-180,180]\n\t\tAngle -= (T)360.0;\n\t}\n\n\treturn Angle;\n}\n\ntemplate<typename T>"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+      "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+      "excerpts": [
+        {
+          "first_line": 951,
+          "last_line": 964,
+          "text": "\t[[nodiscard]] static constexpr T UnwindDegrees(T A)\n\t{\n\t\twhile(A > 180.f)\n\t\t{\n\t\t\tA -= 360.f;\n\t\t}\n\n\t\twhile(A < -180.f)\n\t\t{\n\t\t\tA += 360.f;\n\t\t}\n\n\t\treturn A;\n\t}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Private/Math/UnrealMath.cpp",
+      "sha256": "0e0bfe3cb82a6f322f45d159ab97ea37666d4e0744861372d5885a652dd4a6e6",
+      "excerpts": [
+        {
+          "first_line": 691,
+          "last_line": 720,
+          "text": "\tFRotator3d FQuat4d::Rotator() const\n\t{\n\t\tDiagnosticCheckNaN();\n\t\tconst double SingularityTest = Z * X - W * Y;\n\t\tconst double YawY = 2.0 * (W * Z + X * Y);\n\t\tconst double YawX = (1.0 - 2.0 * (FMath::Square(Y) + FMath::Square(Z)));\n\n\t\tconst double SINGULARITY_THRESHOLD = 0.4999995;\n\t\tconst double RAD_TO_DEG = (180.0 / UE_DOUBLE_PI);\n\t\tdouble Pitch, Yaw, Roll;\n\n\t\tif (SingularityTest < -SINGULARITY_THRESHOLD)\n\t\t{\n\t\t\tPitch = -90.0;\n\t\t\tYaw = FRotator3d::NormalizeAxis(-2.0 * FMath::Atan2(X, W) * RAD_TO_DEG);\n\t\t\tRoll = 0.0;\n\t\t}\n\t\telse if (SingularityTest > SINGULARITY_THRESHOLD)\n\t\t{\n\t\t\tPitch = 90.0;\n\t\t\tYaw = FRotator3d::NormalizeAxis(2.0 * FMath::Atan2(X, W) * RAD_TO_DEG);\n\t\t\tRoll = 0.0;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tPitch = (FMath::Asin(2.0 * SingularityTest) * RAD_TO_DEG); // Note: not FastAsin like float implementation\n\t\t\tYaw = (FMath::Atan2(YawY, YawX) * RAD_TO_DEG);\n\t\t\tRoll = (FMath::Atan2(-2.0 * (W * X + Y * Z), (1.0 - 2.0 * (FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG);\n\t\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/animation_instances/turn_layer.rs",
+      "revision": "before_D258",
+      "sha256": "c91ba9f54d74b0c5eb7445c926dd1d14d0e8bca14c3b87df355416f9d43f2c13",
+      "excerpts": [
+        {
+          "first_line": 360,
+          "last_line": 362,
+          "text": "pub(crate) fn character_turn_angle_degrees(view_yaw_degrees: f32, body_yaw_degrees: f32) -> f32 {\n    -wrap_angle_degrees(view_yaw_degrees - body_yaw_degrees)\n}"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/animation_instances/ab_als_provider.rs",
+      "revision": "before_D258",
+      "sha256": "d18d819f16dd42f94873f08f8f1c7ad1d48dbb37f9e34f45883cb117fb3f8030",
+      "excerpts": [
+        {
+          "first_line": 280,
+          "last_line": 306,
+          "text": "            let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());\n            let previous_view = player\n                .get_global_input_data(\"view_state.rotation_yaw\")\n                .and_then(|value| value.as_f32().ok())\n                .unwrap_or(view_degrees);\n            if delta_seconds > 1e-8 {\n                player.set_global_input_data(\n                    \"view_state.yaw_speed\",\n                    (view_degrees - previous_view).abs() / delta_seconds,\n                );\n            }\n            player.set_global_input_data(\"view_state.rotation_yaw\", view_degrees);\n            player.set_global_input_data(\"movement_base.b_has_relative_rotation\", motion.movement_base_snapshot.is_some());\n            player.set_global_input_data(\"movement_base.delta_yaw\", if !virtual_time.is_paused() {\n                motion.movement_base_delta_yaw_degrees\n            } else { 0.0 });\n            let body_degrees =\n                crate::als::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();\n            player.set_global_input_data(\"locomotion_state.input_yaw_angle_world_space\", -motion.input_yaw_degrees);\n            let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input(\"locomotion_action\")).is_some_and(|tag| tag.is_valid());\n            if !action_active {\n                player.set_global_input_data(\n                    \"view_state.yaw_angle\",\n                    crate::turn_layer::character_turn_angle_degrees(view_degrees, body_degrees),\n                );\n            }\n            player.set_global_input_data("
+        }
+      ]
+    },
+    {
+      "path": "src/als/state/head.rs",
+      "revision": "before_D258",
+      "sha256": "5e66955a3139d3866efc75fa9d61425242621d2f1222c3def88bbe776876ae5b",
+      "excerpts": [
+        {
+          "first_line": 70,
+          "last_line": 80,
+          "text": "pub fn unwind_degrees(mut angle: f32) -> f32 {\n    while angle > 180.0 {\n        angle -= 360.0;\n    }\n    while angle < -180.0 {\n        angle += 360.0;\n    }\n    angle\n}\n\npub use crate::als::animation::inv_exp_approx;"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Public/Utility/AlsRotation.h",
+      "sha256": "29e2d3dd3253acb915a48085dabd703823fdde2f0f1271da6df24c12b679c560",
+      "excerpts": [
+        {
+          "first_line": 9,
+          "last_line": 12,
+          "text": "\tGENERATED_BODY()\n\npublic:\n\tstatic constexpr auto CounterClockwiseRotationAngleThreshold{5.0f};"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 660,
+          "last_line": 675,
+          "text": "\t\t\t}\n\t\t}\n\n\t\t// Use the exact critical spring damper as it provides smooth head rotation. Use a\n\t\t// different smoothing time when switching sides for even smoother head rotation.\n\t\t// https://theorangeduck.com/page/spring-roll-call#critical\n\n\t\tconst auto SmoothingTime{\n\t\t\tSpringMath::HalfLifeToSmoothingTime(HeadState.bSwitchingLookSides\n\t\t\t\t                                    ? Settings->Head.SwitchLookSidesYawAngleInterpolationHalfLife\n\t\t\t\t                                    : bFirstPerson\n\t\t\t\t                                    ? Settings->Head.FirstPersonYawAngleInterpolationHalfLife\n\t\t\t\t                                    : Settings->Head.YawAngleInterpolationHalfLife)\n\t\t};\n\n\t\tSpringMath::CriticalSpringDamper(HeadState.YawAngle, HeadState.YawVelocity, TargetYawAngle, SmoothingTime, DeltaTime);"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d258/rotation.request.json",
+      "bytes": 720,
+      "sha256": "f827c061b66f5fd4af72467a841b8e1b0ed98a2c7ed1a64d011f9e0884a706c6"
+    },
+    {
+      "path": "docs/audit/bf144/d258/rotation.native.json",
+      "bytes": 128340,
+      "sha256": "6cd73400bb18fa53afdf78a6972866c429976144ad712ee413fda32f2b015c9d"
+    },
+    {
+      "path": "docs/audit/bf144/d258/rotation.native.json.reader.report.json",
+      "bytes": 426,
+      "sha256": "39524f63edf0fc4b647375d7d91157ad9e13920af269e9902a7f4001e9da17ca"
+    },
+    {
+      "path": "docs/audit/bf144/d258/head.native.json",
+      "bytes": 1746562,
+      "sha256": "35f688d62a0dfce823f1592db34a2b811a1512ec5ce94a57aaa4182ed0115338"
+    },
+    {
+      "path": "docs/audit/bf144/d258/head.native.json.reader.report.json",
+      "bytes": 421,
+      "sha256": "cc19390c5f5b856f3d5fb87f45f81a82e267b32bf4cb75eceb4212510e47e382"
+    },
+    {
+      "path": "tools/animgraph_authoring/ab_als_head.authoring.json",
+      "bytes": 18160,
+      "sha256": "2f86f192a68824561405d70b69dda9e9d0018bd446c48e96931c3fbc7ab6d3a3"
+    },
+    {
+      "path": "docs/audit/bf144/d258/look-blend.native.json",
+      "bytes": 40203,
+      "sha256": "8ea0276951b5f801e5f78892f651ffa0027f45af8288dc6ab667c3694cc664ac"
+    },
+    {
+      "path": "docs/audit/bf144/d258/look-blend.native.json.reader.report.json",
+      "bytes": 428,
+      "sha256": "dc0a79e221ffad143c24e50d39f7b94b72c3381cfa67f6b20c4c827e5578d6cb"
+    },
+    {
+      "path": "docs/audit/bf144/d258/look-forward.native.json",
+      "bytes": 522784,
+      "sha256": "686405c97f6a6709d7e1e99789c372ab76c9f174bb88e3c0f8f595878f83a569"
+    },
+    {
+      "path": "docs/audit/bf144/d258/look-forward.native.json.reader.report.json",
+      "bytes": 430,
+      "sha256": "940a04d0a203eab8991de9733565bdf770eae8fb2036a3ed9d9cf52523fa0731"
+    },
+    {
+      "path": "docs/audit/bf144/d258/look-down.native.json",
+      "bytes": 525873,
+      "sha256": "e3ff76b73e7024e9766661af4a6f938ff7ae6dfdc2445791fb24a13f13b0d487"
+    },
+    {
+      "path": "docs/audit/bf144/d258/look-down.native.json.reader.report.json",
+      "bytes": 427,
+      "sha256": "809e52f7dd5fb11174f6d04903de9779cce79cf358bafce332d08aa85517c201"
+    },
+    {
+      "path": "docs/audit/bf144/d258/look-up.native.json",
+      "bytes": 527396,
+      "sha256": "8f1720acbc4b1012c06682c5ed9a462ad8c3456aae59fcb2e80cff8598d6e4ec"
+    },
+    {
+      "path": "docs/audit/bf144/d258/look-up.native.json.reader.report.json",
+      "bytes": 425,
+      "sha256": "242b3f464d4c3c21acb80044afb4231e30cf7194c5c17a04897bc0323f561bc3"
+    },
+    {
+      "path": "docs/audit/bf144/d258/head-settings.native.json",
+      "bytes": 106177,
+      "sha256": "66e8b8750ba314881a66ee0a93470d18586adeed99e725813995e61ec23658fa"
+    },
+    {
+      "path": "docs/audit/bf144/d258/head-settings.native.json.reader.report.json",
+      "bytes": 430,
+      "sha256": "ec75ec5105f846956b54dcd67e022dad34194ce593120d00d80c6236e7f192a3"
+    }
+  ],
+  "missing_previous_evidence": [
+    "target/bf144/379/current-halfturn-contract.json",
+    "target/bf144/379/minimal-check.json",
+    "target/bf144/379/kernel-check.json",
+    "target/bf144/379/same-input-check.json",
+    "target/bf144/381/d258-native-check.json",
+    "target/bf144/381/d258-restore-check.json"
+  ],
+  "scope": "Local controller yaw normalization in source coordinates before relative yaw unwind, with Head input as the actual consumer.",
+  "status": "implementation_complete_static_and_runtime_gates_pending",
+  "fresh_head_graphs_read": 11,
+  "direct_look_assets": [
+    "/ALS/ALS/Animations/View/BS_Als_Look.BS_Als_Look",
+    "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+    "/ALS/ALS/Animations/View/A_Als_Look_Down.A_Als_Look_Down",
+    "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up"
+  ]
+}

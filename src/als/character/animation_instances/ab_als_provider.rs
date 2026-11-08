@@ -457,6 +457,24 @@ mod tests {
     use crate::als::{input::AlsInputCommand, motion::AlsInputOverride};
 
     #[test]
+    fn public_half_turn_input_publishes_source_head_yaw() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(actor).remove::<AlsInputOverride>();
+        app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = Quat::IDENTITY;
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        for counts in [-180.0, 180.0] {
+            app.world_mut().get_mut::<AlsViewYaw>(actor).unwrap().0 = 0.0;
+            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().look_delta.x = counts;
+            app.world_mut().run_system_once(crate::als::view::apply_view_input_system).unwrap();
+            app.world_mut().run_system_once(ab_als_input_writer).unwrap();
+            let yaw = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
+                .get_global_input_data("view_state.yaw_angle").unwrap().as_f32().unwrap();
+            assert_eq!(yaw, 180.0);
+        }
+    }
+
+    #[test]
     fn provider_reads_current_actor_world_rotation() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();

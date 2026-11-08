@@ -358,7 +358,7 @@ pub(crate) fn source_turn_sequence(crouching: bool, is_180: bool, lr: f32) -> &'
 }
 
 pub(crate) fn character_turn_angle_degrees(view_yaw_degrees: f32, body_yaw_degrees: f32) -> f32 {
-    -wrap_angle_degrees(view_yaw_degrees - body_yaw_degrees)
+    crate::als::head::unwind_degrees(wrap_angle_degrees(-view_yaw_degrees) + body_yaw_degrees)
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
@@ -1185,6 +1185,36 @@ mod tests {
             .play(&mut stack),
             1.2
         );
+    }
+
+    #[test]
+    fn source_half_turn_reaches_head_with_correct_direction() {
+        use crate::als::head::{AlsHeadSettings, AlsHeadState, AlsHeadUpdateInput, update_head_state};
+
+        for (view, body, expected) in [
+            (180.0, 0.0, 180.0), (-180.0, 0.0, 180.0),
+            (170.0, 0.0, -170.0), (-170.0, 0.0, 170.0),
+            (-90.0, 90.0, 180.0), (90.0, -90.0, -180.0),
+            (180.0, 10.0, -170.0), (-180.0, -10.0, 170.0),
+        ] {
+            assert_eq!(character_turn_angle_degrees(view, body), expected);
+        }
+        let mut head = AlsHeadState { initialization_required: false, ..default() };
+        update_head_state(&mut head, AlsHeadUpdateInput {
+            delta_seconds: 1.0 / 60.0,
+            delta_seconds_without_time_dilation: 1.0 / 60.0,
+            first_person: false,
+            rotation_mode: RotationMode::ViewDirection,
+            has_input: false,
+            input_yaw_world: 0.0,
+            target_yaw_world: 0.0,
+            body_yaw_world: 0.0,
+            body_yaw_velocity_world: 0.0,
+            view_yaw_angle: character_turn_angle_degrees(180.0, 0.0),
+            view_pitch_angle: 0.0,
+            movement_base_relative_yaw: 0.0,
+        }, AlsHeadSettings::default());
+        assert!(head.yaw_angle > 0.0 && head.yaw_amount > 0.5);
     }
 
     #[test]
