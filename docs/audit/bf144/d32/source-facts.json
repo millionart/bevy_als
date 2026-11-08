@@ -1,0 +1,43 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 1193,
+          "last_line": 1232,
+          "text": "FVector UCharacterMovementComponent::GetImpartedMovementBaseVelocity() const\n{\n\tFVector Result = FVector::ZeroVector;\n\tif (CharacterOwner)\n\t{\n\t\tconst FMovementBaseInterfaceData* MovementBaseInterfaceData = GetMovementBaseInterfaceData();\n\t\t\n\t\tif (MovementBaseUtility::IsDynamicBase(MovementBaseInterfaceData))\n\t\t{\n\t\t\tFVector BaseVelocity = MovementBaseUtility::GetMovementBaseVelocity(MovementBaseInterfaceData, CharacterOwner->GetBasedMovement().BoneName);\n\t\t\t\n\t\t\tif (bImpartBaseAngularVelocity)\n\t\t\t{\n\t\t\t\tconst FVector CharacterBasePosition = (UpdatedComponent->GetComponentLocation() + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * GetGravityDirection());\n\t\t\t\tconst FVector BaseTangentialVel = MovementBaseUtility::GetMovementBaseTangentialVelocity(MovementBaseInterfaceData, CharacterOwner->GetBasedMovement().BoneName, CharacterBasePosition);\n\t\t\t\tBaseVelocity += BaseTangentialVel;\n\t\t\t}\n\n\t\t\tif (bImpartBaseVelocityX)\n\t\t\t{\n\t\t\t\tResult.X = BaseVelocity.X;\n\t\t\t}\n\t\t\tif (bImpartBaseVelocityY)\n\t\t\t{\n\t\t\t\tResult.Y = BaseVelocity.Y;\n\t\t\t}\n\t\t\tif (bImpartBaseVelocityZ)\n\t\t\t{\n\t\t\t\tResult.Z = BaseVelocity.Z;\n\t\t\t}\n\t\t}\n\t}\n\t\n\treturn Result;\n}\n\nvoid UCharacterMovementComponent::Launch(FVector const& LaunchVel)\n{\n\tif ((MovementMode != MOVE_None) && IsActive() && HasValidData())\n\t{\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "excerpts": [
+        {
+          "first_line": 930,
+          "last_line": 965,
+          "text": "\tFVector GetMovementBaseTangentialVelocity(const FMovementBaseInterfaceData* MovementBase, const FName BoneName, const FVector& WorldLocation)\n\t{\n\t\tif (IsDynamicBase(MovementBase))\n\t\t{\n\t\t\tif (const FBodyInstance* BodyInstance = MovementBase->GetBodyInstanceOwner()->GetBodyInstance(BoneName))\n\t\t\t{\n\t\t\t\tconst FVector BaseAngVelInRad = BodyInstance->GetUnrealWorldAngularVelocityInRadians();\n\t\t\t\tif (!BaseAngVelInRad.IsNearlyZero())\n\t\t\t\t{\n\t\t\t\t\tFVector BaseLocation;\n\t\t\t\t\tFQuat BaseRotation;\n\t\t\t\t\tif (GetMovementBaseTransform(MovementBase, BoneName, BaseLocation, BaseRotation))\n\t\t\t\t\t{\n\t\t\t\t\t\tconst FVector RadialDistanceToBase = WorldLocation - BaseLocation;\n\t\t\t\t\t\tconst FVector TangentialVel = BaseAngVelInRad ^ RadialDistanceToBase;\n\t\t\t\t\t\treturn TangentialVel;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\t\n\t\t\tconst FBodyInstance* BodyInstance = MovementBase->GetBodyInstanceOwner()->GetBodyInstance();\n\t\t\tconst FVector BaseAngVelInRad = BodyInstance ? BodyInstance->GetUnrealWorldAngularVelocityInRadians() : FVector::ZeroVector;\n\t\t\tif (!BaseAngVelInRad.IsNearlyZero())\n\t\t\t{\n\t\t\t\tFVector BaseLocation;\n\t\t\t\tFQuat BaseRotation;\n\t\t\t\tif (GetMovementBaseTransform(MovementBase, BoneName, BaseLocation, BaseRotation))\n\t\t\t\t{\n\t\t\t\t\tconst FVector RadialDistanceToBase = WorldLocation - BaseLocation;\n\t\t\t\t\tconst FVector TangentialVel = BaseAngVelInRad ^ RadialDistanceToBase;\n\t\t\t\t\treturn TangentialVel;\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\t\n\t\treturn FVector::ZeroVector;\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Classes/Components/CapsuleComponent.h",
+      "sha256": "fb64f466a89ece55b9b782b502152733b62894a8e64ba7e0fd1f83d826346088",
+      "excerpts": [
+        {
+          "first_line": 202,
+          "last_line": 211,
+          "text": "inline float UCapsuleComponent::GetScaledCapsuleRadius() const\n{\n\tconst FVector& ComponentScale = GetComponentTransform().GetScale3D();\n\treturn CapsuleRadius * UE_REAL_TO_FLOAT(ComponentScale.X < ComponentScale.Y ? ComponentScale.X : ComponentScale.Y);\n}\n\ninline float UCapsuleComponent::GetScaledCapsuleHalfHeight() const\n{\n\treturn CapsuleHalfHeight * UE_REAL_TO_FLOAT(GetComponentTransform().GetScale3D().Z);\n}\n"
+        }
+      ]
+    }
+  ],
+  "native_cdo": {
+    "bImpartBaseAngularVelocity": "True",
+    "bImpartBaseVelocityX": "True",
+    "bImpartBaseVelocityY": "True",
+    "bImpartBaseVelocityZ": "True"
+  }
+}

@@ -5956,7 +5956,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
 
   - BF144.296自然落地消费者：未改图/空输入角色88步沿.295公开入口精确复现；第10步落到y=0.921500027m，随后77步物理solver有正竖速，但floor后公开velocity.y都0，位置仍被抬升（第11步先升0.656247mm）。仅在fixture将原配置spring_strength400改0，前11步位置完全保持，78个Grounded末位置全部固定；源同地面自然77步也固定在92.1499954cm。Fresh源码核Tnua spring offset×strength+gravity compensation与源AdjustFloorHeight距离带分支，受控去因子证实同一D31自然消费者，不新增编号、不把全部动画pose差归本项。观察/因子分支源码物理移除使负合同失败，字节恢复同target重编后3组264帧全字段恢复，以.296完成摘要为准；证据 `target/bf144/296/physics-check.json`、`source-check.json`、`removed-check.json`、`restoration-check.json`。
 
-- [ ] BF144-D32 / P2 — 角速度继承按未缩放胶囊半高取脚底。
+- [x] BF144-D32 / P2 — 角速度继承按未缩放胶囊半高取脚底；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 15:17 +08:00；预估结束15:57 +08:00；实际结束15:20 +08:00，提前37分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE脚底、角速度叉乘和原生开关保存在`docs/audit/bf144/d32/`；动力系统地面/离地共用世界缩放脚底，已写直接/父级缩放及蹲姿对照。旧target报告已缺失；原生旋转平台未实测，目标测试及真实Gate待执行，同帧落地再离地的物理AABB路径不在本反例内。
   - Source：fresh UE `GetImpartedMovementBaseVelocity:1204–1209`以当前组件位置减GetScaledCapsuleHalfHeight沿重力求脚底，`Character.cpp:930–965`以该点相对基座transform的向量与实际body angular velocity求叉积；native bImpartBaseAngularVelocity和三个轴均True。
   - Target：`src/als/character/movement/dynamics.rs:96–99,520–522`只减params里的未缩放半高；跳离时的support helper实际消费这个点，缺少actor世界scale。
   - 反例：完整角色uniform scale=2，站在动态平台上，以绕X轴1rad/s的平台角速度跳离，源脚底采样的z继承约0.273666m/s，target约1.173666m/s，多0.9m/s。直接scale和父级scale均失败；scale1、无旋转及绕Y旋转对照通过。`bf144_inherit_angular_velocity_uses_scaled_capsule_foot`共12组10PASS/2FAIL，证据`target/bf144/11/jump_and_permissions/`。

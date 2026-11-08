@@ -103,9 +103,9 @@ pub fn support_point_velocity(
     base_linear_velocity + base_angular_velocity.cross(point - base_position)
 }
 
-fn character_contact_point(params: &AlsMovementParams, stance: Stance, position: Vec3) -> Vec3 {
+fn character_contact_point(params: &AlsMovementParams, stance: Stance, position: Vec3, scale_y: f32) -> Vec3 {
     let half_height = if stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height };
-    position - Vec3::Y * half_height
+    position - Vec3::Y * half_height * scale_y
 }
 
 pub(crate) fn support_velocity_from_base(
@@ -500,6 +500,8 @@ pub fn grounded_dynamics_motor_system(
     landing_braking: Query<&AlsLandingBrakingFriction, With<AlsCharacter>>,
     bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
     colliders: Query<&ColliderOf>,
+    local_transforms: Query<(&Transform, Option<&ChildOf>)>,
+    world_transforms: bevy::transform::helper::TransformHelper,
 ) {
     for (
         entity,
@@ -539,12 +541,19 @@ pub fn grounded_dynamics_motor_system(
             params.acceleration.max_acceleration
         });
         let world_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
+        let scale_y = local_transforms.get(entity).map_or(1.0, |(local, parent)| {
+            if parent.is_none() { local.scale.y } else {
+                world_transforms.compute_global_transform(entity).map_or(local.scale.y,
+                    |world| world.to_scale_rotation_translation().0.y)
+            }
+        });
+        let contact_point = character_contact_point(params, *stance, position.0, scale_y);
         if *locomotion == LocomotionState::Air {
             if root_motion_active { continue; }
             let inherited = if let Some(mut base) = current_base_state {
                 if let Some(previous) = base.entity {
                     let (_, support) = support_velocity_from_base(Some(previous),
-                        character_contact_point(params, *stance, position.0), &bases, &colliders);
+                        contact_point, &bases, &colliders);
                     let inherited = support - base.support_velocity;
                     *base = default();
                     inherited.with_y(0.0)
@@ -556,7 +565,6 @@ pub fn grounded_dynamics_motor_system(
             motor.lin.boost.z = inherited.z;
             continue;
         }
-        let contact_point = character_contact_point(params, *stance, position.0);
         let (base_entity, support_velocity) = support_velocity_from_base(
             controller.basis_memory.standing_on_entity(),
             contact_point,
@@ -1986,6 +1994,53 @@ mod tests {
         world.entity_mut(character).insert(LocomotionState::Grounded);
         world.run_system_once(grounded_dynamics_motor_system).unwrap();
         assert!((world.get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_max_speed - 3.75).abs() < 1e-5);
+    }
+
+    #[test]
+    fn airborne_base_angular_velocity_uses_the_scaled_capsule_foot() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (stance, scale, parented, angular_velocity) in [
+            (Stance::Standing, 1.0, false, Vec3::X),
+            (Stance::Standing, 2.0, false, Vec3::X),
+            (Stance::Standing, 2.0, true, Vec3::X),
+            (Stance::Crouching, 2.0, false, Vec3::X),
+            (Stance::Crouching, 2.0, true, Vec3::X),
+            (Stance::Standing, 2.0, true, Vec3::Y),
+            (Stance::Standing, 2.0, true, Vec3::ZERO),
+        ] {
+            let mut world = World::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(0.05));
+            world.insert_resource(time);
+            let value = AlsMovementParams::default();
+            let half_height = if stance == Stance::Crouching {
+                value.crouch.actual_crouched_half_height()
+            } else { value.crouch.standing_capsule_half_height };
+            let mut assets = Assets::<AlsMovementParams>::default();
+            let handle = assets.add(value);
+            world.insert_resource(assets);
+            let base = world.spawn((Position::default(), LinearVelocity::ZERO,
+                AngularVelocity(angular_velocity))).id();
+            let character = world.spawn((AlsCharacter, LocomotionState::Air, stance,
+                RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
+                AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y * 2.0),
+                LinearVelocity::ZERO, AlsMovementParamsHandle(handle),
+                TnuaController::<AlsControlScheme>::default(), TnuaMotor::default(),
+                AlsCmcAdapterRuntime::default(), AlsMovementBaseDynamicsState {
+                    entity: Some(base), ..default()
+                })).id();
+            if parented {
+                let parent = world.spawn(Transform::from_scale(Vec3::splat(scale))).id();
+                world.entity_mut(character).insert((Transform::IDENTITY, ChildOf(parent)));
+            } else {
+                world.entity_mut(character).insert(Transform::from_scale(Vec3::splat(scale)));
+            }
+            world.run_system_once(grounded_dynamics_motor_system).unwrap();
+            let actual = world.get::<TnuaMotor>(character).unwrap().lin.boost;
+            let expected = angular_velocity.cross(Vec3::Y * (2.0 - half_height * scale)).with_y(0.0);
+            assert!(actual.distance(expected) < 1e-5,
+                "Scaled base velocity differs: {stance:?} {scale} {parented} {angular_velocity:?} {actual:?} {expected:?}");
+        }
     }
 
     #[test]
