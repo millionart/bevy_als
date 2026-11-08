@@ -3,6 +3,9 @@ import math
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "import"))
+from import_trimesh_bvh_order import bounds, nodes_for
+
 path = Path(sys.argv[1])
 report = json.loads(path.with_name(path.name + ".reader.report.json").read_text(encoding="utf-8-sig"))
 assert report["success"], "Native reader did not complete successfully"
@@ -17,7 +20,7 @@ samples = data["physics_contact_probe"]["samples"]
 expected = {(mesh, bone, gap) for mesh in ["SM_Als_Barrel", "SM_Als_Rock", "SM_Als_Stairs_01"] for bone in ["head", "foot_l"] for gap in [-0.1, 30]}
 assert len(samples) == len(expected)
 assert {(s["input"]["mesh_asset_path"].rsplit("/", 1)[1], s["input"]["bone_name"], s["input"]["placement_gap_cm"]) for s in samples} == expected
-mesh_orders = {}
+mesh_bvhs = {}
 for sample in samples:
     source = sample["input"]
     geometry = sample["other_geometry"]
@@ -29,12 +32,18 @@ for sample in samples:
         vertices = geometry["trimesh_core_vertices_cm"]
         triangles = geometry["trimesh_core_triangles"]
         order = geometry["trimesh_core_bvh_face_order"]
+        face_bounds = geometry["trimesh_core_bvh_face_bounds_cm"]
         assert vertices and triangles
         assert all(len(indices) == 3 and all(0 <= index < len(vertices) for index in indices) for indices in triangles)
         assert sorted(order) == list(range(len(triangles)))
+        assert len(face_bounds) == len(triangles)
+        for bound in face_bounds:
+            bounds(bound)
+        nodes_for(geometry, order)
         mesh = source["mesh_asset_path"]
-        assert mesh not in mesh_orders or mesh_orders[mesh] == order
-        mesh_orders[mesh] = order
+        bvh = (order, face_bounds, geometry["trimesh_core_bvh_nodes"])
+        assert mesh not in mesh_bvhs or mesh_bvhs[mesh] == bvh
+        mesh_bvhs[mesh] = bvh
     for point in sample["points"]:
         assert point["face_index"] >= 0 if geometry["kind"] == "trimesh" else point["face_index"] == -1
         if geometry["kind"] == "trimesh":
