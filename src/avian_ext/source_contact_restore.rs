@@ -1,4 +1,4 @@
-use avian3d::collision::contact_types::{ContactGraph, ContactPoint};
+use avian3d::collision::contact_types::{ContactGraph, ContactManifold, ContactPoint};
 use avian3d::collision::narrow_phase::NarrowPhaseConfig;
 use avian3d::dynamics::solver::PhysicsLengthUnit;
 use avian3d::prelude::{AngularVelocity, Collider, ColliderTransform, CollisionMargin, ComputedCenterOfMass,
@@ -83,7 +83,7 @@ pub(crate) fn source_restore_manifold(
 }
 
 #[derive(Clone)]
-struct SourceBoxContact {
+pub(super) struct SourceBoxContact {
     colliders: [Entity; 2],
     bodies: [Entity; 2],
     shape_ticks: [Tick; 2],
@@ -95,9 +95,10 @@ struct SourceBoxContact {
 #[derive(Resource, Default)]
 pub(crate) struct SourceBoxContactHistory {
     entries: HashMap<u32, SourceBoxContact>,
+    pub(super) compounds: HashMap<(u32, u32, Tick), SourceBoxContact>,
 }
 
-fn source_box_shape_pose(
+pub(super) fn source_box_shape_pose(
     position: &Position,
     rotation: &Rotation,
     local: Option<&ColliderTransform>,
@@ -118,6 +119,70 @@ fn source_box_shape_pose(
 
 fn contact_normal_speed(linear: [Vec3; 2], angular: [Vec3; 2], anchors: [Vec3; 2], normal: Vec3) -> f32 {
     (linear[1] - linear[0] + angular[1].cross(anchors[1]) - angular[0].cross(anchors[0])).dot(normal)
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct SourceContactContext {
+    pub colliders: [Entity; 2],
+    pub bodies: [Entity; 2],
+    pub shape_ticks: [Tick; 2],
+    pub frames: [SourceRestorePose; 2],
+    pub tolerance: f64,
+    pub skin: f32,
+    pub box_first: bool,
+    pub surface_normal: Vec3,
+    pub centers: [Vec3; 2],
+    pub linear: [Vec3; 2],
+    pub angular: [Vec3; 2],
+}
+
+pub(super) fn capture_source_contact(manifold: &ContactManifold, context: &SourceContactContext) -> SourceBoxContact {
+    let SourceContactContext { colliders, bodies, shape_ticks, frames, skin, box_first, surface_normal, .. } = *context;
+    let normal = manifold.normal.as_dvec3() * if box_first { -1.0 } else { 1.0 };
+    let normal = frames[1].rotation.inverse() * normal;
+    let normal = source_direction(source_direction(normal).as_vec3().as_dvec3());
+    let points = manifold.points.iter().map(|point| {
+        let offset = surface_normal.as_dvec3() * (f64::from(point.penetration - skin) * 0.5);
+        let first = point.point.as_dvec3() + offset;
+        let second = point.point.as_dvec3() - offset;
+        let (first, second) = if box_first { (first, second) } else { (second, first) };
+        let first = source_float_position(frames[0].rotation.inverse() * (first - frames[0].position_m));
+        let second = source_float_position(frames[1].rotation.inverse() * (second - frames[1].position_m));
+        SourceRestorePoint { initial_first_m: first, initial_second_m: second, normal_second: normal,
+            second_m: second, phi_m: -f64::from(point.penetration - skin), disabled: false }
+    }).collect();
+    SourceBoxContact { colliders, bodies, shape_ticks, last: frames, points, templates: manifold.points.clone() }
+}
+
+pub(super) fn restore_source_contact(
+    manifold: &mut ContactManifold,
+    previous: Option<&SourceBoxContact>,
+    context: &SourceContactContext,
+    settings: SourceRestoreSettings,
+) -> Option<SourceBoxContact> {
+    let prior = previous.filter(|saved| saved.colliders == context.colliders
+        && saved.bodies == context.bodies && saved.shape_ticks == context.shape_ticks)?;
+    let mut saved = prior.clone();
+    if !source_restore_manifold(&mut saved.points, saved.last, context.frames, context.tolerance, true, settings) {
+        return None;
+    }
+    let normal = context.frames[1].rotation * saved.points[0].normal_second;
+    manifold.normal = (normal * if context.box_first { -1.0 } else { 1.0 }).as_vec3();
+    let normal = manifold.normal;
+    manifold.points = saved.points.iter().enumerate().filter(|(_, point)| !point.disabled).map(|(index, point)| {
+        let mut result = manifold.points.get(index).copied().unwrap_or(saved.templates[index]);
+        let first = context.frames[0].position_m + context.frames[0].rotation * point.initial_first_m;
+        let second = context.frames[1].position_m + context.frames[1].rotation * point.second_m;
+        let midpoint = ((first + second) * 0.5).as_vec3();
+        result.point = midpoint;
+        result.anchor1 = midpoint - context.centers[0];
+        result.anchor2 = midpoint - context.centers[1];
+        result.penetration = (-point.phi_m) as f32 + context.skin;
+        result.normal_speed = contact_normal_speed(context.linear, context.angular, [result.anchor1, result.anchor2], normal);
+        result
+    }).collect();
+    saved.templates = manifold.points.clone();
+    Some(saved)
 }
 
 pub(crate) fn restore_source_box_contacts(
@@ -158,58 +223,23 @@ pub(crate) fn restore_source_box_contacts(
         let tolerance = f64::from(settings.collision_tolerance_scale * first_size_cm.min(second_size_cm)) * 0.01;
         let skin = box_shape.3.or(box_data.4).map_or(0.0, |value| value.0)
             + other_shape.3.or(other_data.4).map_or(0.0, |value| value.0);
-        let prior = history.entries.get(&pair.contact_id.0).filter(|saved| {
-            saved.colliders == identity.0 && saved.bodies == identity.1 && saved.shape_ticks == ticks
+        let ordered_bodies = if box_first { [box_data, other_data] } else { [other_data, box_data] };
+        let margins = if box_first { [box_shape.5, other_shape.5] } else { [other_shape.5, box_shape.5] };
+        let linear = [0, 1].map(|index| {
+            let body = ordered_bodies[index];
+            let margin = margins[index].or(body.7).map_or(length.0 * config.default_speculative_margin, |value| value.0);
+            if margin < f32::MAX { body.5.0.clamp_length_max(margin / time.delta_secs()) } else { body.5.0 }
         });
-        let capture = || {
-            let normal = pair.manifolds[0].normal.as_dvec3() * if box_first { -1.0 } else { 1.0 };
-            let normal = frames[1].rotation.inverse() * normal;
-            let normal = source_direction(source_direction(normal).as_vec3().as_dvec3());
-            let points = pair.manifolds[0].points.iter().map(|point| {
-                let offset = pair.manifolds[0].normal.as_dvec3() * (f64::from(point.penetration - skin) * 0.5);
-                let first = point.point.as_dvec3() + offset;
-                let second = point.point.as_dvec3() - offset;
-                let (first, second) = if box_first { (first, second) } else { (second, first) };
-                let first = source_float_position(frames[0].rotation.inverse() * (first - frames[0].position_m));
-                let second = source_float_position(frames[1].rotation.inverse() * (second - frames[1].position_m));
-                SourceRestorePoint { initial_first_m: first, initial_second_m: second, normal_second: normal,
-                    second_m: second, phi_m: -f64::from(point.penetration - skin), disabled: false }
-            }).collect();
-            SourceBoxContact { colliders: identity.0, bodies: identity.1, shape_ticks: ticks,
-                last: frames, points, templates: pair.manifolds[0].points.clone() }
-        };
-        let mut saved = prior.cloned().unwrap_or_else(&capture);
-        let restored = prior.is_some() && source_restore_manifold(&mut saved.points, saved.last, frames, tolerance, true, *settings);
-        if restored {
-            let mut manifold = pair.manifolds[0].clone();
-            let normal = frames[1].rotation * saved.points[0].normal_second;
-            manifold.normal = (normal * if box_first { -1.0 } else { 1.0 }).as_vec3();
-            let centers = if box_first { [box_data, other_data] } else { [other_data, box_data] }
-                .map(|body| body.1.0 + body.2.0 * body.3.0);
-            let ordered_bodies = if box_first { [box_data, other_data] } else { [other_data, box_data] };
-            let margins = if box_first { [box_shape.5, other_shape.5] } else { [other_shape.5, box_shape.5] };
-            let linear = [0, 1].map(|index| {
-                let body = ordered_bodies[index];
-                let margin = margins[index].or(body.7).map_or(length.0 * config.default_speculative_margin, |value| value.0);
-                if margin < f32::MAX { body.5.0.clamp_length_max(margin / time.delta_secs()) } else { body.5.0 }
-            });
-            let angular = ordered_bodies.map(|body| body.6.0);
-            let normal = manifold.normal;
-            manifold.points = saved.points.iter().enumerate().filter(|(_, point)| !point.disabled).map(|(index, point)| {
-                let mut result = pair.manifolds[0].points.get(index).copied().unwrap_or(saved.templates[index]);
-                let first = frames[0].position_m + frames[0].rotation * point.initial_first_m;
-                let second = frames[1].position_m + frames[1].rotation * point.second_m;
-                let midpoint = ((first + second) * 0.5).as_vec3();
-                result.point = midpoint;
-                result.anchor1 = midpoint - centers[0];
-                result.anchor2 = midpoint - centers[1];
-                result.penetration = (-point.phi_m) as f32 + skin;
-                result.normal_speed = contact_normal_speed(linear, angular, [result.anchor1, result.anchor2], normal);
-                result
-            }).collect();
-            saved.templates = manifold.points.clone();
+        let mut manifold = pair.manifolds[0].clone();
+        let context = SourceContactContext { colliders: identity.0, bodies: identity.1, shape_ticks: ticks,
+            frames, tolerance, skin, box_first, surface_normal: manifold.normal,
+            centers: ordered_bodies.map(|body| body.1.0 + body.2.0 * body.3.0),
+            linear, angular: ordered_bodies.map(|body| body.6.0) };
+        let saved = if let Some(saved) = restore_source_contact(&mut manifold, history.entries.get(&pair.contact_id.0),
+            &context, *settings) {
             updates.push((pair.contact_id, manifold));
-        } else if prior.is_some() { saved = capture(); }
+            saved
+        } else { capture_source_contact(&manifold, &context) };
         next.insert(pair.contact_id.0, saved);
     }
     for pair in graph.iter_sleeping_touching() {
@@ -266,51 +296,54 @@ mod tests {
 
     #[test]
     fn source_manifold_restore_matches_native_two_frame_contacts() {
-        let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d104a/restore.native-samples.json")).unwrap();
+        let fixtures = [include_str!("../../docs/audit/bf144/d104a/restore.native-samples.json"),
+            include_str!("../../docs/audit/bf144/d104b2b/restore.native-samples.json")];
         let settings = settings();
-        for sample in fixture["samples"].as_array().unwrap() {
-            let input = &sample["input"];
-            let next = &input["next"];
-            let local = &sample["geometry"]["shape_to_body"];
-            let other = sample.get("other_geometry");
-            let (translation_key, rotation_key) = if other.is_some() {
-                ("mesh_translation_cm", "mesh_rotation_xyzw")
-            } else { ("box_translation_cm", "box_rotation_xyzw") };
-            let other_local = other.map(|value| &value["shape_to_body"]);
-            let last = [pose(input, "body_translation_cm", "body_rotation_xyzw", Some(local)),
-                pose(input, translation_key, rotation_key, other_local)];
-            let current = [pose(next, "body_translation_cm", "body_rotation_xyzw", Some(local)),
-                pose(next, translation_key, rotation_key, other_local)];
-            let mut points = sample["points"].as_array().unwrap().iter().map(|point| {
-                let first = object_vector(&point["shape_point_0_cm"]) * 0.01;
-                let second = object_vector(&point["shape_point_1_cm"]) * 0.01;
-                let local_normal = last[1].rotation.inverse() * object_vector(&point["world_normal"]);
-                let local_normal = source_direction(source_direction(local_normal).as_vec3().as_dvec3());
-                SourceRestorePoint { initial_first_m: first, initial_second_m: second, normal_second: local_normal,
-                    second_m: second, phi_m: point["phi_cm"].as_f64().unwrap() * 0.01, disabled: false }
-            }).collect::<Vec<_>>();
-            let tolerance = if sample["geometry"]["kind"] == "box" {
-                let shape = &sample["geometry"];
-                let first_size = (object_vector(&shape["maximum_cm"]) - object_vector(&shape["minimum_cm"]))
-                    .abs().max_element() as f32;
-                let second_size = if let Some(other) = other {
-                    (object_vector(&other["bounds_max_cm"]) - object_vector(&other["bounds_min_cm"]))
-                        .abs().max_element() as f32
-                } else { (array_vector(&input["box_half_extents_cm"]) * 2.0).abs().max_element() as f32 };
-                f64::from(settings.collision_tolerance_scale * first_size.min(second_size)) * 0.01
-            } else { 1.0 };
-            let restored = source_restore_manifold(&mut points, last, current, tolerance,
-                sample["restore_allowed"].as_bool().unwrap(), settings);
-            assert_eq!(restored, sample["restored"].as_bool().unwrap(), "{}", input["label"]);
-            if restored {
-                let expected = sample["next_points"].as_array().unwrap();
-                assert_eq!(points.iter().filter(|point| !point.disabled).count(), expected.len());
-                for (point, expected) in points.iter().filter(|point| !point.disabled).zip(expected) {
-                    assert!(point.second_m.distance(object_vector(&expected["shape_point_1_cm"]) * 0.01) < 2e-6,
-                        "{}", input["label"]);
-                    assert!((point.phi_m - expected["phi_cm"].as_f64().unwrap() * 0.01).abs() < 2e-6,
-                        "{}", input["label"]);
+        for fixture in fixtures {
+            let fixture: serde_json::Value = serde_json::from_str(fixture).unwrap();
+            for sample in fixture["samples"].as_array().unwrap() {
+                let input = &sample["input"];
+                let next = &input["next"];
+                let local = &sample["geometry"]["shape_to_body"];
+                let other = sample.get("other_geometry");
+                let (translation_key, rotation_key) = if other.is_some() {
+                    ("mesh_translation_cm", "mesh_rotation_xyzw")
+                } else { ("box_translation_cm", "box_rotation_xyzw") };
+                let other_local = other.map(|value| &value["shape_to_body"]);
+                let last = [pose(input, "body_translation_cm", "body_rotation_xyzw", Some(local)),
+                    pose(input, translation_key, rotation_key, other_local)];
+                let current = [pose(next, "body_translation_cm", "body_rotation_xyzw", Some(local)),
+                    pose(next, translation_key, rotation_key, other_local)];
+                let mut points = sample["points"].as_array().unwrap().iter().map(|point| {
+                    let first = object_vector(&point["shape_point_0_cm"]) * 0.01;
+                    let second = object_vector(&point["shape_point_1_cm"]) * 0.01;
+                    let local_normal = last[1].rotation.inverse() * object_vector(&point["world_normal"]);
+                    let local_normal = source_direction(source_direction(local_normal).as_vec3().as_dvec3());
+                    SourceRestorePoint { initial_first_m: first, initial_second_m: second, normal_second: local_normal,
+                        second_m: second, phi_m: point["phi_cm"].as_f64().unwrap() * 0.01, disabled: false }
+                }).collect::<Vec<_>>();
+                let tolerance = if sample["geometry"]["kind"] == "box" {
+                    let shape = &sample["geometry"];
+                    let first_size = (object_vector(&shape["maximum_cm"]) - object_vector(&shape["minimum_cm"]))
+                        .abs().max_element() as f32;
+                    let second_size = if let Some(other) = other {
+                        (object_vector(&other["bounds_max_cm"]) - object_vector(&other["bounds_min_cm"]))
+                            .abs().max_element() as f32
+                    } else { (array_vector(&input["box_half_extents_cm"]) * 2.0).abs().max_element() as f32 };
+                    f64::from(settings.collision_tolerance_scale * first_size.min(second_size)) * 0.01
+                } else { 1.0 };
+                let restored = source_restore_manifold(&mut points, last, current, tolerance,
+                    sample["restore_allowed"].as_bool().unwrap(), settings);
+                assert_eq!(restored, sample["restored"].as_bool().unwrap(), "{}", input["label"]);
+                if restored {
+                    let expected = sample["next_points"].as_array().unwrap();
+                    assert_eq!(points.iter().filter(|point| !point.disabled).count(), expected.len());
+                    for (point, expected) in points.iter().filter(|point| !point.disabled).zip(expected) {
+                        assert!(point.second_m.distance(object_vector(&expected["shape_point_1_cm"]) * 0.01) < 2e-6,
+                            "{}", input["label"]);
+                        assert!((point.phi_m - expected["phi_cm"].as_f64().unwrap() * 0.01).abs() < 2e-6,
+                            "{}", input["label"]);
+                    }
                 }
             }
         }
@@ -369,6 +402,28 @@ mod tests {
         let moved = contact_normal_speed([Vec3::ZERO, Vec3::Y], [Vec3::Z * 2.0, Vec3::ZERO],
             [Vec3::X, Vec3::ZERO], Vec3::Y);
         assert_eq!(moved, -1.0);
+    }
+
+    #[test]
+    fn source_contact_history_rejects_replaced_shapes_and_bodies() {
+        let entity = |index| Entity::from_raw_u32(index).unwrap();
+        let pose = SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY };
+        let context = SourceContactContext { colliders: [entity(1), entity(2)], bodies: [entity(3), entity(4)],
+            shape_ticks: [Tick::new(1), Tick::new(2)], frames: [pose; 2], tolerance: 0.01, skin: 0.0,
+            box_first: true, surface_normal: Vec3::Y, centers: [Vec3::ZERO; 2],
+            linear: [Vec3::ZERO; 2], angular: [Vec3::ZERO; 2] };
+        let manifold = ContactManifold::new([ContactPoint::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, 0.0)], Vec3::Y);
+        let saved = capture_source_contact(&manifold, &context);
+        assert!(restore_source_contact(&mut manifold.clone(), Some(&saved), &context, settings()).is_some());
+        let mut changed = context;
+        changed.colliders[0] = entity(5);
+        assert!(restore_source_contact(&mut manifold.clone(), Some(&saved), &changed, settings()).is_none());
+        changed = context;
+        changed.bodies[1] = entity(6);
+        assert!(restore_source_contact(&mut manifold.clone(), Some(&saved), &changed, settings()).is_none());
+        changed = context;
+        changed.shape_ticks[0] = Tick::new(3);
+        assert!(restore_source_contact(&mut manifold.clone(), Some(&saved), &changed, settings()).is_none());
     }
 
     #[test]

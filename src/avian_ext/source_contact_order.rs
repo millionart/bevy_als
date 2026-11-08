@@ -1,16 +1,19 @@
-use avian3d::collision::contact_types::{ContactGraph, ContactManifold, ContactPoint};
+use avian3d::collision::contact_types::{ContactGraph, ContactId, ContactManifold, ContactPoint};
 use avian3d::collision::narrow_phase::NarrowPhaseConfig;
 use avian3d::dynamics::solver::{constraint_graph::{ContactConstraintHandle, COLOR_OVERFLOW_INDEX}, PhysicsLengthUnit};
 use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
-use avian3d::prelude::{AngularVelocity, Collider, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
+use avian3d::prelude::{AngularVelocity, Collider, ColliderTransform, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
     Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
 use bevy::math::DVec3;
+use bevy::platform::collections::HashMap as EntityMap;
 use bevy::prelude::*;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use super::ragdoll_physics_profile::RagdollActiveMode;
 use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin};
+use super::source_contact_restore::{SourceBoxContactHistory, SourceContactContext, SourceRestorePose,
+    SourceRestoreSettings, capture_source_contact, restore_source_contact, source_box_shape_pose};
 
 const SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD: f32 = include!("capsule_contact_axis_threshold.rs");
 
@@ -126,20 +129,24 @@ pub(crate) fn order_source_compound_groups(
     config: Res<NarrowPhaseConfig>,
     length: Res<PhysicsLengthUnit>,
     margin_settings: Option<Res<SourceConvexMarginSettings>>,
+    restore_settings: Option<Res<SourceRestoreSettings>>,
     ragdolls: Query<(), With<RagdollActiveMode>>,
-    sources: Query<(), With<SourceCompoundOrder>>,
+    sources: Query<Ref<SourceCompoundOrder>>,
     colliders: Query<(&Collider, &Position, &Rotation, Option<&CollisionMargin>, Option<&SpeculativeMargin>)>,
+    collider_details: Query<(Ref<Collider>, Option<&ColliderTransform>)>,
     bodies: Query<(&RigidBody, &Position, &Rotation, &ComputedCenterOfMass, &LinearVelocity, &AngularVelocity,
         Option<&CollisionMargin>, Option<&SpeculativeMargin>), Without<RigidBodyDisabled>>,
+    mut contact_history: Option<ResMut<SourceBoxContactHistory>>,
     mut graph: ResMut<ContactGraph>,
 ) {
     let delta = time.delta_secs();
     let mut updates = Vec::new();
+    let mut next_compounds = EntityMap::default();
     for pair in graph.iter_active() {
         if !pair.body1.is_some_and(|body| ragdolls.contains(body))
             && !pair.body2.is_some_and(|body| ragdolls.contains(body)) { continue; }
-        let source_side = if sources.contains(pair.collider1) { 0 }
-            else if sources.contains(pair.collider2) { 1 } else { continue; };
+        let (source_side, source) = if let Ok(source) = sources.get(pair.collider1) { (0, source) }
+            else if let Ok(source) = sources.get(pair.collider2) { (1, source) } else { continue; };
         let (Ok(first), Ok(second)) = (colliders.get(pair.collider1), colliders.get(pair.collider2)) else { continue; };
         let Some((edge, _)) = graph.get_by_id(pair.contact_id) else { continue; };
         if pair.manifolds.is_empty() || edge.constraint_handles.len() != pair.manifolds.len() { continue; }
@@ -164,18 +171,60 @@ pub(crate) fn order_source_compound_groups(
         } else {
             (first, pair.body1, second, pair.body2)
         };
-        if let Some(settings) = margin_settings.as_deref()
-            && box_body.is_some_and(|body| ragdolls.contains(body) && bodies.get(body).is_ok_and(|data| data.0.is_dynamic()))
-            && compound_body.is_some_and(|body| bodies.get(body).is_ok_and(|data| data.0.is_static()))
-            && box_shape.0.shape_scaled().as_cuboid().is_some_and(|shape| source_box_margin(shape.half_extents, *settings) > 0.0)
+        let box_pair = box_body.zip(compound_body).and_then(|(box_body, compound_body)| {
+            let (Ok(box_data), Ok(compound_data)) = (bodies.get(box_body), bodies.get(compound_body)) else { return None; };
+            (ragdolls.contains(box_body) && box_data.0.is_dynamic() && compound_data.0.is_static()
+                && box_shape.0.shape_scaled().as_cuboid().is_some())
+                .then_some((box_body, compound_body, box_data, compound_data))
+        });
+        let core_settings = if let (Some(settings), Some(_), Some(shape)) =
+            (margin_settings.as_deref(), box_pair, box_shape.0.shape_scaled().as_cuboid())
+            && source_box_margin(shape.half_extents, *settings) > 0.0 { Some(settings) } else { None };
+        let restore_base = if let (Some(settings), Some(history), Some((box_body, compound_body, box_data, compound_data))) =
+            (restore_settings.as_deref(), contact_history.as_deref(), box_pair)
+            && pair.generates_constraints()
         {
-            let box_pose = Pose::from_parts(box_shape.1.0, box_shape.2.0);
-            let compound_pose = Pose::from_parts(compound_shape.1.0, compound_shape.2.0);
-            for (manifold, shape_ids) in manifolds.iter_mut().zip(&ids) {
-                if let Some(normal) = source_box_convex_core_normal(box_shape.0, box_pose, compound_shape.0,
-                    compound_pose, shape_ids[source_side], *settings) {
-                    manifold.normal = if source_side == 0 { -normal } else { normal };
-                }
+            let (box_entity, compound_entity) = if source_side == 0 {
+                (pair.collider2, pair.collider1)
+            } else { (pair.collider1, pair.collider2) };
+            if let (Ok((box_collider, box_local)), Ok((compound_collider, _))) =
+                (collider_details.get(box_entity), collider_details.get(compound_entity)) {
+                let frames = [source_box_shape_pose(box_shape.1, box_shape.2, box_local, box_data.1, box_data.2),
+                    SourceRestorePose { position_m: compound_shape.1.0.as_dvec3(), rotation: compound_shape.2.0.as_dquat() }];
+                let bounds = box_shape.0.shape_scaled().compute_local_aabb();
+                let box_size_cm = (f64::from((bounds.maxs - bounds.mins).abs().max_element()) * 100.0) as f32;
+                let ordered_bodies = if source_side == 0 { [compound_data, box_data] } else { [box_data, compound_data] };
+                let context = SourceContactContext {
+                    colliders: [box_entity, compound_entity], bodies: [box_body, compound_body],
+                    shape_ticks: [box_collider.last_changed(), compound_collider.last_changed()], frames,
+                    tolerance: 0.0, skin: margin1 + margin2, box_first: source_side == 1, surface_normal: Vec3::ZERO,
+                    centers: ordered_bodies.map(|body| body.1.0 + body.2.0 * body.3.0),
+                    linear: [velocity1, velocity2], angular: ordered_bodies.map(|body| body.5.0),
+                };
+                Some((settings, history, context, box_size_cm))
+            } else { None }
+        } else { None };
+        let box_pose = Pose::from_parts(box_shape.1.0, box_shape.2.0);
+        let compound_pose = Pose::from_parts(compound_shape.1.0, compound_shape.2.0);
+        for (manifold, shape_ids) in manifolds.iter_mut().zip(&ids) {
+            let shape = shape_ids[source_side];
+            let mut entry = None;
+            if let Some((settings, history, mut context, box_size_cm)) = restore_base
+                && let Some(size_cm) = source_convex_max_extent_cm(&source.0, shape, compound_shape.0.scale()) {
+                let key = (pair.contact_id.0, shape, source.last_changed());
+                context.tolerance = f64::from(settings.collision_tolerance_scale * box_size_cm.min(size_cm)) * 0.01;
+                context.surface_normal = manifold.normal;
+                let saved = restore_source_contact(manifold, history.compounds.get(&key), &context, *settings);
+                entry = Some((key, saved, context));
+            }
+            let restored = entry.as_ref().is_some_and(|(_, saved, _)| saved.is_some());
+            if !restored && let Some(settings) = core_settings
+                && let Some(normal) = source_box_convex_core_normal(box_shape.0, box_pose, compound_shape.0,
+                    compound_pose, shape, *settings) {
+                manifold.normal = if source_side == 0 { -normal } else { normal };
+            }
+            if let Some((key, saved, context)) = entry {
+                next_compounds.insert(key, saved.unwrap_or_else(|| capture_source_contact(manifold, &context)));
             }
         }
         order_compound_groups(&mut manifolds, &ids, &edge.constraint_handles, source_side);
@@ -183,6 +232,16 @@ pub(crate) fn order_source_compound_groups(
     }
     for (id, manifolds) in updates {
         if let Some((_, pair)) = graph.get_mut_by_id(id) { pair.manifolds = manifolds; }
+    }
+    if let Some(history) = contact_history.as_deref_mut() {
+        if restore_settings.is_some() {
+            for (&key, saved) in &history.compounds {
+                if graph.get_by_id(ContactId(key.0)).is_some_and(|(edge, pair)| edge.is_sleeping() && pair.is_touching()) {
+                    next_compounds.insert(key, saved.clone());
+                }
+            }
+        }
+        history.compounds = next_compounds;
     }
 }
 
@@ -243,6 +302,102 @@ mod tests {
         }
         assert!(source_convex_max_extent_cm("missing", 0, Vec3::ONE).is_none());
         assert!(source_convex_max_extent_cm("SM_Als_Bench", 99, Vec3::ONE).is_none());
+    }
+
+    #[test]
+    fn source_arch_compound_restores_each_hull_before_solver_ordering() {
+        use avian3d::collision::narrow_phase::NarrowPhaseSystems;
+        use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3a/arch-foot.native-sample.json")).unwrap();
+        let definitions: HashMap<String, Vec<Vec<[f32; 3]>>> = serde_json::from_str(include_str!(
+            "../../assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json")).unwrap();
+        let input = &fixture["input"];
+        let to_vec = |value: &serde_json::Value| Vec3::new(value["x"].as_f64().unwrap() as f32,
+            value["z"].as_f64().unwrap() as f32, value["y"].as_f64().unwrap() as f32);
+        let lower = to_vec(&fixture["geometry"]["minimum_cm"]);
+        let upper = to_vec(&fixture["geometry"]["maximum_cm"]);
+        let translation = &input["body_translation_cm"];
+        let origin = Vec3::new(translation[0].as_f64().unwrap() as f32, translation[2].as_f64().unwrap() as f32,
+            translation[1].as_f64().unwrap() as f32);
+        let size = (upper - lower) * 0.01;
+        let center = (origin + (lower + upper) * 0.5) * 0.01;
+        let expected = fixture["aggregate_contacts"].as_array().unwrap().iter()
+            .map(|value| value["mesh_shape_index"].as_u64().unwrap() as u32).collect::<Vec<_>>();
+        for enabled in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
+                .insert_resource(Gravity(Vec3::ZERO))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
+                .init_resource::<SourceBoxContactHistory>()
+                .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
+            if enabled {
+                let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
+                    collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
+                app.insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
+                    empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points });
+            }
+            let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
+            app.insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum });
+            app.finish();
+            app.cleanup();
+            let compound = Collider::compound(definitions["SM_Als_Arch_01"].iter().map(|hull| (
+                Vec3::ZERO, Quat::IDENTITY,
+                Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
+            )).collect());
+            let ground = app.world_mut().spawn((RigidBody::Static, compound,
+                SourceCompoundOrder("SM_Als_Arch_01".into()), Transform::IDENTITY)).id();
+            let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
+                Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center),
+                RagdollActiveMode(BodyMode::Dynamic))).id();
+            app.update();
+            app.update();
+            let surfaces = |world: &World| {
+                let (edge, pair) = world.resource::<ContactGraph>().get(ground, foot).unwrap();
+                let mut slots = (0..pair.manifolds.len()).collect::<Vec<_>>();
+                slots.sort_by_key(|index| {
+                    let handle = edge.constraint_handles[*index];
+                    let color = handle.color_index as usize;
+                    (if color == COLOR_OVERFLOW_INDEX { 0 } else { color + 1 }, handle.local_index)
+                });
+                slots.into_iter().map(|index| {
+                    let manifold = &pair.manifolds[index];
+                    let normal = manifold.normal * if pair.collider1 == foot { 1.0 } else { -1.0 };
+                    manifold.points.iter().map(|point| point.point + normal * point.penetration * 0.5).collect::<Vec<_>>()
+                }).collect::<Vec<_>>()
+            };
+            let before = surfaces(app.world());
+            assert_eq!(before.len(), expected.len());
+            if enabled {
+                let mut ids = app.world().resource::<SourceBoxContactHistory>().compounds.keys()
+                    .map(|key| key.1).collect::<Vec<_>>();
+                ids.sort_unstable();
+                assert_eq!(ids, expected);
+            }
+            app.world_mut().get_mut::<Position>(foot).unwrap().0.x += 0.002;
+            app.world_mut().get_mut::<Transform>(foot).unwrap().translation.x += 0.002;
+            app.update();
+            let after = surfaces(app.world());
+            let retained = before.len() == after.len() && before.iter().zip(&after).all(|(before, after)| {
+                before.len() == after.len() && before.iter().zip(after)
+                    .all(|(before, after)| (*after - *before - Vec3::X * 0.002).length() < 2e-5)
+            });
+            assert_eq!(retained, enabled);
+            if enabled {
+                let old_tick = app.world().resource::<SourceBoxContactHistory>().compounds.keys().next().unwrap().2;
+                app.world_mut().entity_mut(ground).insert(SourceCompoundOrder("SM_Als_Arch_01".into()));
+                app.world_mut().get_mut::<Position>(foot).unwrap().0.x += 0.002;
+                app.world_mut().get_mut::<Transform>(foot).unwrap().translation.x += 0.002;
+                app.update();
+                let new_tick = app.world().resource::<SourceBoxContactHistory>().compounds.keys().next().unwrap().2;
+                assert_ne!(old_tick, new_tick);
+                let replaced = surfaces(app.world());
+                assert!(after.iter().zip(&replaced).any(|(before, after)| before.len() != after.len()
+                    || before.iter().zip(after).any(|(before, after)| (*after - *before - Vec3::X * 0.002).length() >= 2e-5)));
+            }
+        }
     }
 
     #[test]
