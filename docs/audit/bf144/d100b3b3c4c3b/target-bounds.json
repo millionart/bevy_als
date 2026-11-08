@@ -1,0 +1,52 @@
+{
+  "box_min_m": [
+    -0.13,
+    0.41920798,
+    0.14166794
+  ],
+  "box_max_m": [
+    -0.01,
+    0.53920798,
+    0.42166793999999996
+  ],
+  "compound_aabb_overlaps": true,
+  "hulls": [
+    {
+      "hull": 0,
+      "axis_gaps_m": [
+        0.57478119,
+        0,
+        0
+      ],
+      "separation_lower_bound_m": 0.57478119
+    },
+    {
+      "hull": 1,
+      "axis_gaps_m": [
+        0.71913116,
+        0,
+        0
+      ],
+      "separation_lower_bound_m": 0.71913116
+    },
+    {
+      "hull": 2,
+      "axis_gaps_m": [
+        0,
+        0.023999999999999966,
+        0
+      ],
+      "separation_lower_bound_m": 0.023999999999999966
+    },
+    {
+      "hull": 3,
+      "axis_gaps_m": [
+        0,
+        0,
+        0.27502037
+      ],
+      "separation_lower_bound_m": 0.27502037
+    }
+  ],
+  "target_query_distance_m": 0.005
+}

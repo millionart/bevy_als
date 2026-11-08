@@ -13,8 +13,8 @@ use std::collections::HashMap;
 
 use super::ragdoll_physics_profile::RagdollActiveMode;
 use super::source_contact_convex::{SourceConvexLifecycleSettings, source_body_local_max_extent,
-    source_box_convex_manifold, source_convex_cull_distance};
-use super::source_contact_face::source_convex_topology;
+    source_box_convex_manifold, source_convex_cull_distance, source_convex_hull_candidate};
+use super::source_contact_face::{source_convex_hulls, source_convex_scale, source_convex_topology};
 use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin, source_polygon_margins};
 use super::source_contact_restore::{SourceBoxContactHistory, SourceContactContext, SourceConvexGjkHistory, SourceRestorePose,
     SourceRestoreSettings, capture_source_contact, capture_source_exact_contact, restore_source_contact,
@@ -151,9 +151,6 @@ pub(crate) fn order_source_compound_groups(
         let (velocity2, margin2) = state(pair.body2, second.3, second.4);
         let prediction = (delta * (velocity2 - velocity1).length()).max(config.contact_tolerance * length.0)
             + (margin1 + margin2);
-        let Some(ids) = contact_subshape_ids(first.0, *first.1, *first.2, second.0, *second.1, *second.2,
-            prediction, &pair.manifolds) else { continue; };
-        let mut manifolds = pair.manifolds.clone();
         let (box_shape, box_body, compound_shape, compound_body) = if source_side == 0 {
             (second, pair.body2, first, pair.body1)
         } else {
@@ -199,8 +196,58 @@ pub(crate) fn order_source_compound_groups(
             source_body_local_max_extent(context.bodies[0], ownership.iter())
                 .map(|extent| (lifecycle, margins, source_convex_cull_distance(extent, [box_data.4.0, Vec3::ZERO], delta, *lifecycle)))
         } else { None };
-        let mut retained = vec![true; manifolds.len()];
-        for (index, (manifold, shape_ids)) in manifolds.iter_mut().zip(&ids).enumerate() {
+        if let (Some((lifecycle, margin_settings, cull)), Some((settings, history, base_context, box_size_cm)),
+            Some(hulls), Some(box_cuboid)) = (generation, restore_base, source_convex_hulls(&source.0),
+                box_shape.0.shape_scaled().as_cuboid()) {
+            let inverse = base_context.frames[0].rotation.inverse();
+            let center = inverse * (box_shape.1.0.as_dvec3() - base_context.frames[0].position_m);
+            let half = box_cuboid.half_extents.as_dvec3();
+            let box_bounds = [center - half, center + half];
+            let translation = inverse * (base_context.frames[1].position_m - base_context.frames[0].position_m);
+            let rotation = inverse * base_context.frames[1].rotation;
+            let margin = source_box_margin(box_cuboid.half_extents, *margin_settings);
+            let [margin, _] = source_polygon_margins(margin, true, 0.0, false, margin_settings.minimum);
+            let scale = source_convex_scale(compound_shape.0.scale().as_dvec3());
+            let mut template = pair.manifolds[0].clone();
+            template.points.clear();
+            let mut ordered = Vec::new();
+            for (index, hull) in hulls.iter().enumerate() {
+                let key = (pair.contact_id.0, index as u32, source.last_changed());
+                let mut context = base_context;
+                let size_cm = source_scaled_bounds_max_extent_cm(hull.bounds_m, scale.as_vec3());
+                context.tolerance = f64::from(settings.collision_tolerance_scale * box_size_cm.min(size_cm)) * 0.01;
+                let prior = history.compounds.get(&key).filter(|saved| saved.matches(&context));
+                if !source_convex_hull_candidate(box_bounds, hull, scale, context.frames, cull,
+                    prior.is_some(), include!("../als/settings/contact_bounds_checks.rs")) { continue; }
+                let mut manifold = template.clone();
+                if let Some(saved) = restore_source_contact(&mut manifold, prior, &context, *settings) {
+                    if let Some(gjk) = history.convex_gjk.get(&key).filter(|saved| saved.matches(&context)) {
+                        next_gjk.insert(key, gjk.clone());
+                    }
+                    next_compounds.insert(key, saved);
+                    ordered.push(manifold);
+                    continue;
+                }
+                let previous = history.convex_gjk.get(&key).filter(|saved| saved.matches(&context))
+                    .and_then(|saved| lifecycle.warm_start.then(|| saved.simplex.clone()));
+                if let Some(result) = source_box_convex_manifold(box_bounds[0], box_bounds[1], hull, scale,
+                    translation, rotation, f64::from(margin), cull, previous) {
+                    next_gjk.insert(key, SourceConvexGjkHistory { colliders: context.colliders, bodies: context.bodies,
+                        shape_ticks: context.shape_ticks, simplex: result.gjk.simplex_cm });
+                    if result.contacts.iter().any(|point| point.phi_m <= cull) {
+                        manifold = source_generated_manifold(&manifold, &result.contacts, &context);
+                        next_compounds.insert(key, capture_source_exact_contact(&manifold, &result.contacts, &context));
+                        ordered.push(manifold);
+                    }
+                }
+            }
+            source_updates.push((pair.contact_id, ordered));
+            continue;
+        }
+        let Some(ids) = contact_subshape_ids(first.0, *first.1, *first.2, second.0, *second.1, *second.2,
+            prediction, &pair.manifolds) else { continue; };
+        let mut manifolds = pair.manifolds.clone();
+        for (manifold, shape_ids) in manifolds.iter_mut().zip(&ids) {
             let shape = shape_ids[source_side];
             let mut entry = None;
             if let Some((settings, history, mut context, box_size_cm)) = restore_base
@@ -212,56 +259,17 @@ pub(crate) fn order_source_compound_groups(
                 entry = Some((key, saved, context));
             }
             let restored = entry.as_ref().is_some_and(|(_, saved, _)| saved.is_some());
-            if restored && let (Some((key, _, context)), Some((_, history, _, _))) = (entry.as_ref(), restore_base)
-                && let Some(saved) = history.convex_gjk.get(key).filter(|saved| saved.matches(context)) {
-                next_gjk.insert(*key, saved.clone());
-            }
-            let mut generated = false;
-            if !restored && let (Some((lifecycle, margin_settings, cull)), Some((key, saved, context)), Some((_, history, _, _))) =
-                (generation, entry.as_mut(), restore_base)
-                && let (Some(hull), Some(shape)) = (source_convex_topology(&source.0, shape), box_shape.0.shape_scaled().as_cuboid())
-            {
-                let inverse = context.frames[0].rotation.inverse();
-                let center = inverse * (box_shape.1.0.as_dvec3() - context.frames[0].position_m);
-                let half = shape.half_extents.as_dvec3();
-                let translation = inverse * (context.frames[1].position_m - context.frames[0].position_m);
-                let rotation = inverse * context.frames[1].rotation;
-                let margin = source_box_margin(shape.half_extents, *margin_settings);
-                let [margin, _] = source_polygon_margins(margin, true, 0.0, false, margin_settings.minimum);
-                let previous = history.convex_gjk.get(key).filter(|prior| prior.matches(context))
-                    .and_then(|prior| lifecycle.warm_start.then(|| prior.simplex.clone()));
-                if let Some(result) = source_box_convex_manifold(center - half, center + half, hull,
-                    compound_shape.0.scale().as_dvec3(), translation, rotation, f64::from(margin), cull, previous) {
-                    next_gjk.insert(*key, SourceConvexGjkHistory { colliders: context.colliders, bodies: context.bodies,
-                        shape_ticks: context.shape_ticks, simplex: result.gjk.simplex_cm });
-                    generated = true;
-                    if result.contacts.iter().any(|point| point.phi_m <= cull) {
-                        *manifold = source_generated_manifold(manifold, &result.contacts, context);
-                        *saved = Some(capture_source_exact_contact(manifold, &result.contacts, context));
-                    } else {
-                        retained[index] = false;
-                    }
-                }
-            }
-            if !restored && !generated && let Some(settings) = core_settings
+            if !restored && let Some(settings) = core_settings
                 && let Some(normal) = source_box_convex_core_normal(box_shape.0, box_pose, compound_shape.0,
                     compound_pose, shape, *settings) {
                 manifold.normal = if source_side == 0 { -normal } else { normal };
             }
-            if retained[index] && let Some((key, saved, context)) = entry {
+            if let Some((key, saved, context)) = entry {
                 next_compounds.insert(key, saved.unwrap_or_else(|| capture_source_contact(manifold, &context)));
             }
         }
-        if generation.is_some() {
-            let mut ordered = manifolds.into_iter().zip(&ids).zip(retained).filter_map(|((manifold, ids), retain)| {
-                retain.then_some((ids[source_side], manifold))
-            }).collect::<Vec<_>>();
-            ordered.sort_by_key(|(shape, _)| *shape);
-            source_updates.push((pair.contact_id, ordered.into_iter().map(|(_, manifold)| manifold).collect()));
-        } else {
-            order_compound_groups(&mut manifolds, &ids, &edge.constraint_handles, source_side);
-            updates.push((pair.contact_id, manifolds));
-        }
+        order_compound_groups(&mut manifolds, &ids, &edge.constraint_handles, source_side);
+        updates.push((pair.contact_id, manifolds));
     }
     for (id, manifolds) in updates {
         if let Some((_, pair)) = graph.get_mut_by_id(id) { pair.manifolds = manifolds; }
@@ -453,73 +461,93 @@ mod tests {
         }
     }
 
-    #[test]
-    fn source_bench_positive_gap_hull_reaches_solver_in_native_order() {
+    fn check_source_bench_aggregate(fixtures: &[&str]) {
         use avian3d::collision::narrow_phase::NarrowPhaseSystems;
         use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled};
         use bevy::time::TimeUpdateStrategy;
         use bevy_animation_graph::core::ragdoll::definition::BodyMode;
         use crate::extensions::source_contact_convex::SourceConvexLifecycleSettings;
-        let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../docs/audit/bf144/d100b3b3c4c1/aggregate.native-sample.json")).unwrap();
         let definitions: HashMap<String, Vec<Vec<[f32; 3]>>> = serde_json::from_str(include_str!(
             "../../assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json")).unwrap();
         let vector = |value: &serde_json::Value| Vec3::new(value["x"].as_f64().unwrap() as f32,
             value["z"].as_f64().unwrap() as f32, value["y"].as_f64().unwrap() as f32);
-        let lower = vector(&fixture["geometry"]["minimum_cm"]);
-        let upper = vector(&fixture["geometry"]["maximum_cm"]);
-        let body = &fixture["input"]["body_translation_cm"];
-        let body = Vec3::new(body[0].as_f64().unwrap() as f32, body[2].as_f64().unwrap() as f32,
-            body[1].as_f64().unwrap() as f32);
-        let size = (upper - lower) * 0.01;
-        let center = (body + (lower + upper) * 0.5) * 0.01;
-        let mut app = App::new();
-        let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
-        let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) = include!("../als/settings/contact_lifecycle.rs");
-        let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
-            collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
-        app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
-            .insert_resource(Gravity(Vec3::ZERO))
-            .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
-            .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm, warm_start })
-            .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
-                empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
-            .init_resource::<SourceBoxContactHistory>()
-            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
-            .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
-        app.finish();
-        app.cleanup();
-        let compound = Collider::compound(definitions["SM_Als_Bench"].iter().map(|hull| (
-            Vec3::ZERO, Quat::IDENTITY,
-            Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
-        )).collect());
-        let ground = app.world_mut().spawn((RigidBody::Static, compound,
-            SourceCompoundOrder("SM_Als_Bench".into()), Transform::IDENTITY)).id();
-        let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
-            Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center),
-            RagdollActiveMode(BodyMode::Dynamic))).id();
-        app.update();
-        app.update();
-        let (edge, pair) = app.world().resource::<ContactGraph>().get(ground, foot).unwrap();
-        let native = fixture["aggregate_contacts"].as_array().unwrap();
-        assert_eq!(pair.manifolds.len(), native.len());
-        let mut slots = (0..edge.constraint_handles.len()).collect::<Vec<_>>();
-        slots.sort_by_key(|index| {
-            let handle = edge.constraint_handles[*index];
-            let color = handle.color_index as usize;
-            (if color == COLOR_OVERFLOW_INDEX { 0 } else { color + 1 }, handle.local_index)
-        });
-        for (slot, source) in slots.into_iter().zip(native) {
-            let manifold = &pair.manifolds[slot];
-            let normal = manifold.normal * if pair.collider1 == foot { -1.0 } else { 1.0 };
-            let expected = source["points"].as_array().unwrap();
-            assert_eq!(manifold.points.len(), expected.len());
-            assert!(normal.abs_diff_eq(vector(&expected[0]["world_normal"]), 2e-5));
-            for (actual, expected) in manifold.points.iter().zip(expected) {
-                let midpoint = (vector(&expected["world_point_0_cm"]) + vector(&expected["world_point_1_cm"])) * 0.005;
-                assert!(actual.point.abs_diff_eq(midpoint, 2e-5));
+        for fixture in fixtures {
+            let fixture: serde_json::Value = serde_json::from_str(fixture).unwrap();
+            let lower = vector(&fixture["geometry"]["minimum_cm"]);
+            let upper = vector(&fixture["geometry"]["maximum_cm"]);
+            let body = &fixture["input"]["body_translation_cm"];
+            let body = Vec3::new(body[0].as_f64().unwrap() as f32, body[2].as_f64().unwrap() as f32,
+                body[1].as_f64().unwrap() as f32);
+            let size = (upper - lower) * 0.01;
+            let center = (body + (lower + upper) * 0.5) * 0.01;
+            let mut app = App::new();
+            let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
+            let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) = include!("../als/settings/contact_lifecycle.rs");
+            let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
+                collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
+            app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
+                .insert_resource(Gravity(Vec3::ZERO))
+                .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
+                .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm, warm_start })
+                .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
+                    empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
+                .init_resource::<SourceBoxContactHistory>()
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
+                .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
+            app.finish();
+            app.cleanup();
+            let compound = Collider::compound(definitions["SM_Als_Bench"].iter().map(|hull| (
+                Vec3::ZERO, Quat::IDENTITY,
+                Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
+            )).collect());
+            let ground = app.world_mut().spawn((RigidBody::Static, compound,
+                SourceCompoundOrder("SM_Als_Bench".into()), Transform::IDENTITY)).id();
+            let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
+                Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center),
+                RagdollActiveMode(BodyMode::Dynamic))).id();
+            app.update();
+            app.update();
+            let (edge, pair) = app.world().resource::<ContactGraph>().get(ground, foot).unwrap();
+            let native = fixture["aggregate_contacts"].as_array().unwrap();
+            assert_eq!(pair.manifolds.len(), native.len());
+            let history = app.world().resource::<SourceBoxContactHistory>();
+            let mut shapes = history.compounds.keys().filter(|key| key.0 == pair.contact_id.0)
+                .map(|key| key.1).collect::<Vec<_>>();
+            shapes.sort_unstable();
+            assert_eq!(shapes, native.iter().map(|value| value["mesh_shape_index"].as_u64().unwrap() as u32).collect::<Vec<_>>());
+            if !native.iter().any(|value| value["mesh_shape_index"] == 2) {
+                assert!(!history.convex_gjk.keys().any(|key| key.0 == pair.contact_id.0 && key.1 == 2));
+            }
+            let mut slots = (0..edge.constraint_handles.len()).collect::<Vec<_>>();
+            slots.sort_by_key(|index| {
+                let handle = edge.constraint_handles[*index];
+                let color = handle.color_index as usize;
+                (if color == COLOR_OVERFLOW_INDEX { 0 } else { color + 1 }, handle.local_index)
+            });
+            for (slot, source) in slots.into_iter().zip(native) {
+                let manifold = &pair.manifolds[slot];
+                let normal = manifold.normal * if pair.collider1 == foot { -1.0 } else { 1.0 };
+                let expected = source["points"].as_array().unwrap();
+                assert_eq!(manifold.points.len(), expected.len());
+                assert!(normal.abs_diff_eq(vector(&expected[0]["world_normal"]), 2e-5));
+                for (actual, expected) in manifold.points.iter().zip(expected) {
+                    let midpoint = (vector(&expected["world_point_0_cm"]) + vector(&expected["world_point_1_cm"])) * 0.005;
+                    assert!(actual.point.abs_diff_eq(midpoint, 2e-5));
+                }
             }
         }
+    }
+
+    #[test]
+    fn source_bench_positive_gap_hull_reaches_solver_in_native_order() {
+        check_source_bench_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c1/aggregate.native-sample.json"),
+            include_str!("../../docs/audit/bf144/d100b3b3c4c3b/aggregate-outside.native-sample.json")]);
+    }
+
+    #[test]
+    fn source_bench_isolated_positive_gap_activates_contact() {
+        check_source_bench_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c3b/isolated-inside.native-sample.json"),
+            include_str!("../../docs/audit/bf144/d100b3b3c4c3b/isolated-outside.native-sample.json")]);
     }
 
     #[test]

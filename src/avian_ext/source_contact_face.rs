@@ -44,8 +44,12 @@ static SOURCE_CONVEX_TOPOLOGY: LazyLock<HashMap<String, Vec<SourceConvexTopology
     shapes
 });
 
+pub(super) fn source_convex_hulls(asset: &str) -> Option<&'static [SourceConvexTopology]> {
+    SOURCE_CONVEX_TOPOLOGY.get(asset).map(Vec::as_slice)
+}
+
 pub(super) fn source_convex_topology(asset: &str, index: u32) -> Option<&'static SourceConvexTopology> {
-    SOURCE_CONVEX_TOPOLOGY.get(asset)?.get(index as usize)
+    source_convex_hulls(asset)?.get(index as usize)
 }
 
 #[derive(Clone, Copy)]

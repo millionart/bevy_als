@@ -1,0 +1,35 @@
+{
+  "request": "docs/audit/bf144/d100b3b3c4c3b/isolated.request.json",
+  "request_sha256": "9f40ad1a340712302a9cb1d1460263791953477a0553fe5bc632bb920b4228b8",
+  "reader_report": "docs/audit/bf144/d100b3b3c4c3b/isolated.native.json.reader.report.json",
+  "native": "docs/audit/bf144/d100b3b3c4c3b/isolated.native.json.gz",
+  "raw_bytes": 4780641,
+  "raw_sha256": "9a1e665b7142338ec542c330735f1db2cc96a2b18a13f60527bae1bf57086d9f",
+  "gzip_bytes": 227999,
+  "gzip_sha256": "f167df8e3c754a7889468f30a35a4e14d9ad21d8f5bc61c263e1647be608144f",
+  "source_assets": "docs/audit/bf144/d104b2a/native-identities.json",
+  "summary": "docs/audit/bf144/d100b3b3c4c3b/isolated-summary.json",
+  "target_bounds": "docs/audit/bf144/d100b3b3c4c3b/target-bounds.json",
+  "derived": [
+    {
+      "path": "docs/audit/bf144/d100b3b3c4c3b/aggregate-outside.native-sample.json",
+      "bytes": 13316,
+      "sha256": "4f75d9e126b8d8e1f8969bd1fa436ec4780f5d3c57e6c421c476e092b43340e5"
+    },
+    {
+      "path": "docs/audit/bf144/d100b3b3c4c3b/isolated-inside.native-sample.json",
+      "bytes": 13157,
+      "sha256": "1e2f701f87a6a1eedfbaafdbeae170b80c5de44530137b283ee0ef24f98fad77"
+    },
+    {
+      "path": "docs/audit/bf144/d100b3b3c4c3b/isolated-outside.native-sample.json",
+      "bytes": 9941,
+      "sha256": "d236f2fa02323db973e70c31150c0744005f741f2064b8a6879b877f2a2d046d"
+    },
+    {
+      "path": "assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json",
+      "bytes": 23625,
+      "sha256": "4fd3265734ec78cec9280b6f5fb354f54fe1fe1b3f773206a0a15efc03f7844d"
+    }
+  ]
+}

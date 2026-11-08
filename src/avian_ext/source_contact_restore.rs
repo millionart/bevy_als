@@ -96,6 +96,12 @@ pub(super) struct SourceBoxContact {
     templates: Vec<ContactPoint>,
 }
 
+impl SourceBoxContact {
+    pub(super) fn matches(&self, context: &SourceContactContext) -> bool {
+        self.colliders == context.colliders && self.bodies == context.bodies && self.shape_ticks == context.shape_ticks
+    }
+}
+
 #[derive(Resource, Default)]
 pub(crate) struct SourceBoxContactHistory {
     entries: HashMap<u32, SourceBoxContact>,
@@ -235,8 +241,7 @@ pub(super) fn restore_source_contact(
     context: &SourceContactContext,
     settings: SourceRestoreSettings,
 ) -> Option<SourceBoxContact> {
-    let prior = previous.filter(|saved| saved.colliders == context.colliders
-        && saved.bodies == context.bodies && saved.shape_ticks == context.shape_ticks)?;
+    let prior = previous.filter(|saved| saved.matches(context))?;
     let mut saved = prior.clone();
     if !source_restore_manifold(&mut saved.points, saved.last, context.frames, context.tolerance, true, settings) {
         return None;

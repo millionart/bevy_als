@@ -6741,12 +6741,17 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
 - [ ] BF144-D100b3b3c4c3 / P3 — 恢复源激活但目标缺失的凸包约束组。
   - 02:45 source/static摘要：源先用世界AABB、首次接触的双向局部bounds筛选shape pair，再运行GJK；无筛选地查询全部hull会给源未访问的远处形体建立错误热缓存。拆为c4c3a源bounds候选合同、c4c3b已有目标碰撞对内补hull；完全无活动组的边界另以原生聚合确认。
+  - 02:53 source/static摘要：fresh Bench中心位置源仅激活hull 2、最小phi约2.408cm；目标四个hull的静态AABB距离下界均大于0.5cm，但compound整体AABB与box相交，故目标碰撞对存在而无活动manifold。另拆c4c3c处理该真实边界，不将其冒称已由已有组补齐解决。证据`docs/audit/bf144/d100b3b3c4c3b/`。
 
 - [x] BF144-D100b3b3c4c3a / P3 — 按源形体bounds筛选凸包候选。
   - 本轮开始：2026-11-09 02:45 +08:00；预计结束：2026-11-09 03:35 +08:00。实现源box/convex世界AABB与首次碰撞双向局部bounds筛选、源缩放和bounds CVar；写原生Bench候选及旋转、严格边界、旧碰撞控制。估时依据：c4c1已证明缺失hull及源cull，源DoBoundsOverlap闭包为单一条件；reader新CVar、测试和消融待统一Gate。
   - 02:49 source/static摘要：已按源double厘米实现世界AABB、首次接触双向局部bounds和上帧激活分支，支持负/非均匀缩放；写原生Bench正间隙、相切、旋转和关闭bounds控制。旧reader未输出bounds CVar，暂用源默认值并已补采集；真实缺组接入、测试、消融及Playground待后续。证据`docs/audit/bf144/d100b3b3c4c3a/`。实际结束：2026-11-09 02:49 +08:00；偏差：−46分钟；结果：子项静态实现完成，未再拆分。
 
-- [ ] BF144-D100b3b3c4c3b / P3 — 为已有目标碰撞对补齐源hull组。
+- [x] BF144-D100b3b3c4c3b / P3 — 为已有目标碰撞对补齐源hull组。
+  - 本轮开始：2026-11-09 02:50 +08:00；预计结束：2026-11-09 03:40 +08:00。对已有活动碰撞对按源hull顺序筛选全部候选，复用或生成源接触并增减solver槽，保留逐hull simplex；用已写Bench正间隙缺组、普通body和原有组序控制验证。估时依据：c4c3a已有源bounds筛选，c4c2已有源生成/缓存/槽写回，c4c1已有fresh原生缺组；测试及消融待统一Gate。
+  - 02:56 source/static摘要：已有目标活动组的碰撞对现按源hull顺序筛选全部候选，复用/生成源点并增减实际solver槽；远处未访问hull不建立热缓存。已扩展Bench内外cull、源点序和缓存控制；fresh中央样本确认完全无目标manifold的独立边界，已写测试并留c4c3c。测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d100b3b3c4c3b/`。实际结束：2026-11-09 02:56 +08:00；偏差：−44分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D100b3b3c4c3c / P3 — 激活目标无manifold时的源凸包接触。
 
 - [ ] BF144-D100b4 / P3 — 接入mesh源接触生成顺序与分组。
 

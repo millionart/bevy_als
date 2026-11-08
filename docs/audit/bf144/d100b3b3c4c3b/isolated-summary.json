@@ -1,0 +1,17 @@
+[
+  {
+    "label": "bench_isolated_within_cull",
+    "constraints": [
+      {
+        "shape_index": 2,
+        "disabled": false,
+        "point_count": 4,
+        "min_phi_cm": 2.408127546310425
+      }
+    ]
+  },
+  {
+    "label": "bench_isolated_outside_cull",
+    "constraints": []
+  }
+]
