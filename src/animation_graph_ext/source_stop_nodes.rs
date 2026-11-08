@@ -3,7 +3,7 @@ use crate::extensions::animation_context::{
     pose_input_context_state,
 };
 use crate::extensions::gameplay_tag_blend::{GameplayTagBlendMode, advance_gameplay_tag_weights};
-use crate::extensions::source_pose_nodes::{blend_animation_contexts, blend_source_poses, read_blend_list_child};
+use crate::extensions::source_pose_nodes::{blend_list_contexts, blend_list_poses, read_blend_list_child};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
@@ -140,10 +140,10 @@ impl NodeLike for SourceEnumPoseBlendNode {
                 contexts.push((context, weight));
             }
         }
-        let output = blend_source_poses(&poses);
+        let (output, pass_through) = blend_list_poses(poses);
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), output);
-        let context = blend_animation_contexts(contexts);
+        let context = blend_list_contexts(contexts, pass_through);
         ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?
             .context = context;
         ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?.child_contexts = child_contexts;
@@ -804,7 +804,7 @@ mod tests {
             context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
                 graph_context_arena::GraphContextArena, new_context::GraphContext,
                 node_states::StateKey, system_resources::SystemResources},
-            edge_data::DataValue, pose::Pose, skeleton::Skeleton,
+            edge_data::DataValue, pose::{BonePose, Pose}, skeleton::Skeleton,
             state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
         };
         use crate::extensions::source_instance::{SourceInstanceProperties, SourcePropertyAssignment, SourcePropertyWriteNode};
@@ -815,10 +815,16 @@ mod tests {
             let entities = HashMap::new();
             let env = TestIoEnv::default();
             active.into_iter().map(|active| {
-                let inputs = HashMap::from([("input".into(), DataValue::Pose(Pose::default())), ("active".into(), DataValue::F32(active))]);
+                let mut pose = Pose::default();
+                pose.add_bone(BonePose { rotation: Some(Quat::from_xyzw(-0.000_079_989_426, 0.718_633_7,
+                    0.000_029_563_9, -0.695_388_9)), ..default() }, default());
+                let inputs = HashMap::from([("input".into(), DataValue::Pose(pose.clone())), ("active".into(), DataValue::F32(active))]);
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                     &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context).unwrap();
+                let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context).unwrap();
+                if graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceEnumPoseBlendNode>().is_some()) {
+                    assert_eq!(output["Pose"].as_pose().unwrap(), &pose);
+                }
                 let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
                 (state.values["order"].as_f32().unwrap(), ["child_0", "child_1"].map(|key| state.write_frames.get(key) == Some(&arena.frame_index())))
             }).collect()

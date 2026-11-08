@@ -1,0 +1,115 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/AnimGraphRuntime/Private/AnimNodes/AnimNode_BlendListBase.cpp",
+      "sha256": "377aed4af8cc5a7d805bdf4f9e959ed5df0ee782f0dfa4273a77a657b52e1053",
+      "excerpts": [
+        {
+          "first_line": 292,
+          "last_line": 325,
+          "text": "{\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)\n\tANIM_MT_SCOPE_CYCLE_COUNTER(BlendPosesInGraph, !IsInGameThread());\n\n\t// Build local arrays to pass to the BlendPosesTogether runtime\n\tTArray<int32, TInlineAllocator<8>> PosesToEvaluate;\n\tTArray<float, TInlineAllocator<8>> BlendWeights;\n\tconst int32 PerBlendDataCount = PerBlendData.Num();\n\tfor(int32 BlendIndex = 0; BlendIndex < PerBlendDataCount; ++BlendIndex)\n\t{\n\t\tconst FBlendData& BlendData = PerBlendData[BlendIndex];\n\t\tBlendWeights.Add(BlendData.Weight);\n\t\tif(BlendData.Weight > ZERO_ANIMWEIGHT_THRESH)\n\t\t{\n\t\t\tPosesToEvaluate.Add(BlendIndex);\n\t\t}\n\t}\n\n\tconst int32 NumPoses = PosesToEvaluate.Num();\n\n\tif ((NumPoses > 0) && (BlendPose.Num() == BlendWeights.Num()))\n\t{\n\t\tif(NumPoses == 1 && FAnimWeight::IsFullWeight(BlendWeights[PosesToEvaluate[0]]) && CurrentBlendProfile == nullptr)\n\t\t{\n\t\t\t// Single full weight pose - pass-through fast common case\n\t\t\tBlendPose[PosesToEvaluate[0]].Evaluate(Output);\n\t\t}\n\t\telse if (NumPoses == 2 && CurrentBlendProfile == nullptr && FMath::IsNearlyEqual(BlendWeights[PosesToEvaluate[0]] + BlendWeights[PosesToEvaluate[1]], 1.f))\n\t\t{\n\t\t\t// Fast path for two active poses without blend profile: evaluate first child directly into Output to avoid allocating a third pose.\n\t\t\t// Requires weights summing to 1.0 since BlendTwoPosesTogetherInPlace derives the second weight as (1 - first weight).\n\t\t\tconst int32 FirstPoseIndex = PosesToEvaluate[0];\n\t\t\tconst int32 SecondPoseIndex = PosesToEvaluate[1];\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/AnimGraphRuntime/Public/AnimNodes/AnimNode_BlendListByEnum.h",
+      "sha256": "d287ce773f25975ed9aac75a910f8d0d5662ebe89a45402839faacb214e3c105",
+      "excerpts": [
+        {
+          "first_line": 9,
+          "last_line": 15,
+          "text": "\n// Blend List by Enum, it changes based on enum input that enters\nUSTRUCT(BlueprintInternalUseOnly)\nstruct FAnimNode_BlendListByEnum : public FAnimNode_BlendListBase\n{\n\tGENERATED_BODY()\n\t\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/AnimGraphRuntime/Public/AnimNodes/AnimNode_BlendListByBool.h",
+      "sha256": "e1030c2427c036826d147c0a616fdc9ab470075f1506b67608ca807918dc2256",
+      "excerpts": [
+        {
+          "first_line": 9,
+          "last_line": 15,
+          "text": "\n// This node is effectively a 'branch', picking one of two input poses based on an input Boolean value\nUSTRUCT(BlueprintInternalUseOnly)\nstruct FAnimNode_BlendListByBool : public FAnimNode_BlendListBase\n{\n\tGENERATED_BODY()\nprivate:\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Public/Animation/AnimTypes.h",
+      "sha256": "0d9d803e645a048c30d5a1c887ca718e8e51b39cb9798bc5605f38f7f507c483",
+      "excerpts": [
+        {
+          "first_line": 659,
+          "last_line": 675,
+          "text": "\n/** \n * Structure for all Animation Weight helper functions.\n */\nstruct FAnimWeight\n{\n\t/** Helper function to determine if a weight is relevant. */\n\tstatic inline bool IsRelevant(float InWeight)\n\t{\n\t\treturn (InWeight > ZERO_ANIMWEIGHT_THRESH);\n\t}\n\n\t/** Helper function to determine if a normalized weight is considered full weight. */\n\tstatic inline bool IsFullWeight(float InWeight)\n\t{\n\t\treturn (InWeight >= (1.f - ZERO_ANIMWEIGHT_THRESH));\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/VectorRegister.h",
+      "sha256": "2c815cf2b899700bcb7cd21f9e3ab6dfbf1ac2ae988cfb48ad42c80452e69729",
+      "excerpts": [
+        {
+          "first_line": 130,
+          "last_line": 135,
+          "text": "/**\n* Below this weight threshold, animations won't be blended in.\n*/\n#define ZERO_ANIMWEIGHT_THRESH (0.00001f)\n#define ZERO_ANIMWEIGHT_THRESH_DOUBLE (0.00001)\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Public/Nodes/AlsAnimNode_GameplayTagsBlend.h",
+      "sha256": "59b2e41f54b0b4329dae521f90d52e745822348d9cdc9c4544d29379aca1c5ac",
+      "excerpts": [
+        {
+          "first_line": 1,
+          "last_line": 30,
+          "text": "#pragma once\r\n\r\n#include \"GameplayTagContainer.h\"\r\n#include \"AnimNodes/AnimNode_BlendListBase.h\"\r\n#include \"AlsAnimNode_GameplayTagsBlend.generated.h\"\r\n\r\nclass UAlsAnimGraphNode_GameplayTagsBlend;\r\n\r\nUSTRUCT()\r\nstruct ALS_API FAlsAnimNode_GameplayTagsBlend : public FAnimNode_BlendListBase\r\n{\r\n\tGENERATED_BODY()\r\n\r\n\tfriend UAlsAnimGraphNode_GameplayTagsBlend;\r\n\r\nprotected:\r\n\tUPROPERTY(EditAnywhere, Category = \"Settings\", Meta = (PinShownByDefault))\r\n\tFGameplayTag ActiveTag;\r\n\r\n#if WITH_EDITORONLY_DATA\r\n\tUPROPERTY(EditAnywhere, Category = \"Settings\", Meta = (FoldProperty))\r\n\tTArray<FGameplayTag> Tags;\r\n#endif\r\n\r\nprotected:\r\n\tvirtual int32 GetActiveChildIndex() override;\r\n\r\npublic:\r\n\tconst TArray<FGameplayTag>& GetTags() const;\r\n\r\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/Nodes/AlsAnimNode_GameplayTagsBlend.cpp",
+      "sha256": "b25d5e86269dcc865b9e12ab7574f9ba187283fc153e0824b9d027d0eb81277d",
+      "excerpts": [
+        {
+          "first_line": 1,
+          "last_line": 10,
+          "text": "#include \"Nodes/AlsAnimNode_GameplayTagsBlend.h\"\r\n\r\n#include UE_INLINE_GENERATED_CPP_BY_NAME(AlsAnimNode_GameplayTagsBlend)\r\n\r\nint32 FAlsAnimNode_GameplayTagsBlend::GetActiveChildIndex()\r\n{\r\n\treturn ActiveTag.IsValid()\r\n\t\t       ? GetTags().Find(ActiveTag) + 1\r\n\t\t       : 0;\r\n}\r\n"
+        }
+      ]
+    },
+    {
+      "path": "src/animation_graph_ext/source_pose_nodes.rs",
+      "sha256": "bf5b1061712f4f28a6120504790a2d8599666ee735942381d3f02ccb9de87671",
+      "excerpts": [
+        {
+          "first_line": 956,
+          "last_line": 965,
+          "text": "pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {\n    let mut output = poses.iter()\n        .map(|(pose, weight)| pose.scalar_mult(*weight))\n        .reduce(|accumulator, pose| accumulator.linear_add(&pose))\n        .unwrap_or_default().normalize_quat();\n    output.root_motion = crate::extensions::normalized_blendspace::blend_normalized_root_motion(\n        &poses.iter().map(|(pose, weight)| (pose.root_motion.clone(), *weight)).collect::<Vec<_>>(),\n    );\n    output\n}\n"
+        },
+        {
+          "first_line": 1004,
+          "last_line": 1036,
+          "text": "            read_blend_list_child(&ctx, &self.pose_pin_names[previous], previous, self.reset_child_on_activation, false, &mut child_contexts)?;\n        }\n        let weights = advance_gameplay_tag_weights(\n            &mut ctx.state_mut::<SourceGameplayTagBlendState>()?.blend,\n            self.child_count(),\n            active_index,\n            blend_time,\n            self.blend_mode,\n            delta,\n        );\n        let mut poses = Vec::new();\n        let mut contexts = Vec::new();\n        crate::extensions::source_cached_pose::prewarm_input_cached_poses(&ctx, self.pose_pin_names.iter().cloned().zip(weights.iter().copied()))?;\n        for (index, weight) in weights.into_iter().enumerate() {\n            if weight <= crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD {\n                continue;\n            }\n            let (pose, context) = crate::extensions::interruptible_fsm::with_machine_weight(weight, ||\n                read_blend_list_child(&ctx, &self.pose_pin_names[index], index,\n                    self.reset_child_on_activation, reset && index == active_index, &mut child_contexts))?;\n            if let Some(context) = context {\n                contexts.push((context, weight));\n            }\n            poses.push((pose, weight));\n        }\n        let output = blend_source_poses(&poses);\n        ctx.set_time(output.timestamp);\n        ctx.set_data_fwd(self.output_pin.clone(), output);\n        let state = ctx.state_mut::<SourceGameplayTagBlendState>()?;\n        state.child_contexts = child_contexts;\n        state.context = blend_animation_contexts(contexts);\n        Ok(())\n    }\n"
+        },
+        {
+          "first_line": 1123,
+          "last_line": 1158,
+          "text": "        }\n        let delta = delta_seconds(&ctx)?;\n        let weights = crate::extensions::gameplay_tag_blend::advance_blend_list_weights(\n            &mut ctx.state_mut::<SourceGameplayTagBlendState>()?.blend,\n            2,\n            index,\n            blend_time,\n            delta,\n            |alpha| {\n                crate::extensions::profile_blend::transition_alpha(alpha, self.blend_mode, &self.custom_curve)\n            },\n        );\n        let mut poses = Vec::new();\n        let mut contexts = Vec::new();\n        crate::extensions::source_cached_pose::prewarm_input_cached_poses(&ctx, weights.iter().enumerate().map(|(index, weight)| (format!(\"BlendPose_{index}\"), *weight)))?;\n        for (child_index, weight) in weights.into_iter().enumerate() {\n            if weight <= crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD {\n                continue;\n            }\n            let pin = format!(\"BlendPose_{child_index}\");\n            let (pose, context) = crate::extensions::interruptible_fsm::with_machine_weight(weight, ||\n                read_blend_list_child(&ctx, &pin, child_index, self.reset_child_on_activation,\n                    reset && child_index == index, &mut child_contexts))?;\n            poses.push((pose, weight));\n            if let Some(context) = context {\n                contexts.push((context, weight));\n            }\n        }\n        let pose = blend_source_poses(&poses);\n        ctx.set_time(pose.timestamp);\n        ctx.set_data_fwd(\"Pose\", pose);\n        ctx.state_mut::<SourceGameplayTagBlendState>()?.context =\n            blend_animation_contexts(contexts);\n        ctx.state_mut::<SourceGameplayTagBlendState>()?.child_contexts = child_contexts;\n        Ok(())\n    }\n"
+        }
+      ],
+      "revision": "before_D245"
+    },
+    {
+      "path": "src/animation_graph_ext/source_stop_nodes.rs",
+      "sha256": "0d2564683cbecbe53a2a67a064d21f2e3849a0771b6a4187a0ac41ff217728ed",
+      "excerpts": [
+        {
+          "first_line": 100,
+          "last_line": 150,
+          "text": "impl NodeLike for SourceEnumPoseBlendNode {\n    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {\n        let value = self.active_value(&ctx)?;\n        let selected = (value.round() - self.selected_enum_value).abs() <= f32::EPSILON;\n        let (blend_time_pin, blend_time) = if selected {\n            (&self.selected_blend_time_pin, self.selected_blend_time)\n        } else {\n            (&self.default_blend_time_pin, self.default_blend_time)\n        };\n        let blend_time = ctx.data_back(blend_time_pin.clone()).ok()\n            .and_then(|value| value.as_f32().ok()).unwrap_or(blend_time);\n        let delta = evaluator_delta(&ctx)?;\n        let previous = ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?\n            .blend.instant_transition_source(selected as usize, blend_time);\n        let reset = self.reset_child_on_activation && ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?\n            .blend.should_reset_child(2, selected as usize);\n        let mut child_contexts = std::mem::take(&mut ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?.child_contexts);\n        if let Some(previous) = previous {\n            read_blend_list_child(&ctx, if previous == 0 { &self.default_pose_pin } else { &self.selected_pose_pin },\n                previous, self.reset_child_on_activation, false, &mut child_contexts)?;\n        }\n        let alpha = source_enum_alpha(\n            ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?,\n            selected,\n            blend_time,\n            delta,\n        );\n        let mut poses = Vec::new();\n        let mut contexts = Vec::new();\n        for (index, (pin, weight)) in [\n            (&self.default_pose_pin, 1.0 - alpha),\n            (&self.selected_pose_pin, alpha),\n        ].into_iter().enumerate() {\n            if weight <= crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD {\n                continue;\n            }\n            let (pose, context) = read_blend_list_child(&ctx, pin, index, self.reset_child_on_activation,\n                reset && index == selected as usize, &mut child_contexts)?;\n            poses.push((pose, weight));\n            if let Some(context) = context {\n                contexts.push((context, weight));\n            }\n        }\n        let output = blend_source_poses(&poses);\n        ctx.set_time(output.timestamp);\n        ctx.set_data_fwd(self.output_pin.clone(), output);\n        let context = blend_animation_contexts(contexts);\n        ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?\n            .context = context;\n        ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?.child_contexts = child_contexts;\n        Ok(())\n"
+        }
+      ],
+      "revision": "before_D245"
+    }
+  ]
+}

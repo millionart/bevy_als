@@ -1,0 +1,50 @@
+{
+  "assets": [
+    {
+      "path": "Content/ALS/Character/AnimationInstances/AB_Als_Ragdolling.uasset",
+      "bytes": 92396,
+      "sha256": "db5170d88ca1135ecd84da131e26930eb4f93c8b3580906bef9b35b55c4920a8"
+    },
+    {
+      "path": "Content/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.uasset",
+      "bytes": 2145227,
+      "sha256": "52470475c15cd33106b1e964bd0ed9bb239e4331cd28b3b9388334c80e0b11df"
+    },
+    {
+      "path": "Content/ALS/Character/SKM_Als.uasset",
+      "bytes": 2606592,
+      "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+    }
+  ],
+  "requests": [
+    "docs/audit/bf144/d245/blend.request.json",
+    "docs/audit/bf144/d245/standing.request.json"
+  ],
+  "blend_request_source": "docs/audit/bf144/458/request.json",
+  "outputs": {
+    "blend": {
+      "native_output": "docs/audit/bf144/d245/blend.native.json.gz",
+      "raw": {
+        "bytes": 1838884,
+        "sha256": "37d3a58c50ba7c13593380f273d5f0ac866d73333fbde8e405569eb78c629f66"
+      },
+      "compressed": {
+        "bytes": 143244,
+        "sha256": "265f1f1d098db2cef182630ad409fbe29dd4b7bce4ef3fda8c0f9713aded7c7c"
+      },
+      "reader_report": "docs/audit/bf144/d245/blend.native.json.reader.report.json"
+    },
+    "standing": {
+      "native_output": "docs/audit/bf144/d245/standing.native.json.gz",
+      "raw": {
+        "bytes": 94113440,
+        "sha256": "ddf764eca31f3e40b3424dee6b0fdbd9c8e6362247ce65ebc84a0a082e33a617"
+      },
+      "compressed": {
+        "bytes": 3871060,
+        "sha256": "b4646419ceab67339d7216e7a179a09f3b2a993524a73fd8fb4953fcb144632c"
+      },
+      "reader_report": "docs/audit/bf144/d245/standing.native.json.reader.report.json"
+    }
+  }
+}

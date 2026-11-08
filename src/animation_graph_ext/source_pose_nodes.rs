@@ -964,6 +964,14 @@ pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {
     output
 }
 
+pub(crate) fn blend_list_poses(mut poses: Vec<(Pose, f32)>) -> (Pose, bool) {
+    if let Some(index) = poses.iter().position(|(_, weight)| *weight >= 1.0 - 1e-5)
+        && poses.iter().enumerate().all(|(other, (_, weight))| other == index || *weight <= 1e-5) {
+        return (poses.swap_remove(index).0, true);
+    }
+    (blend_source_poses(&poses), false)
+}
+
 pub fn blend_animation_contexts(
     contexts: impl IntoIterator<Item = (AnimationContextState, f32)>,
 ) -> AnimationContextState {
@@ -984,6 +992,17 @@ pub fn blend_animation_contexts(
         relevant_assets.push((context.relevant_asset, weight));
     }
     output.relevant_asset = select_relevant_asset(relevant_assets);
+    output
+}
+
+pub(crate) fn blend_list_contexts(contexts: Vec<(AnimationContextState, f32)>, pass_through: bool) -> AnimationContextState {
+    let direct_curves = pass_through.then(|| contexts.iter().find(|(_, weight)| *weight >= 1.0 - 1e-5)
+        .map(|(context, _)| (context.curves.clone(), context.curves_are_authoritative)).unwrap_or_default());
+    let mut output = blend_animation_contexts(contexts);
+    if let Some((curves, authoritative)) = direct_curves {
+        output.curves = curves;
+        output.curves_are_authoritative = authoritative;
+    }
     output
 }
 
@@ -1026,12 +1045,12 @@ impl NodeLike for SourceGameplayTagBlendNode {
             }
             poses.push((pose, weight));
         }
-        let output = blend_source_poses(&poses);
+        let (output, pass_through) = blend_list_poses(poses);
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), output);
         let state = ctx.state_mut::<SourceGameplayTagBlendState>()?;
         state.child_contexts = child_contexts;
-        state.context = blend_animation_contexts(contexts);
+        state.context = blend_list_contexts(contexts, pass_through);
         Ok(())
     }
 
@@ -1148,11 +1167,11 @@ impl NodeLike for SourceBoolBlendNode {
                 contexts.push((context, weight));
             }
         }
-        let pose = blend_source_poses(&poses);
+        let (pose, pass_through) = blend_list_poses(poses);
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
         ctx.state_mut::<SourceGameplayTagBlendState>()?.context =
-            blend_animation_contexts(contexts);
+            blend_list_contexts(contexts, pass_through);
         ctx.state_mut::<SourceGameplayTagBlendState>()?.child_contexts = child_contexts;
         Ok(())
     }
@@ -1541,6 +1560,35 @@ mod tests {
     }
 
     #[test]
+    fn blend_list_passes_one_full_weight_pose_without_normalization() {
+        use bevy_animation_graph::core::pose::{BonePose, Pose, RootMotionDelta};
+
+        let rotation = Quat::from_xyzw(-0.000_079_989_426, 0.718_633_7, 0.000_029_563_9, -0.695_388_9);
+        let mut pose = Pose { timestamp: 3.5, root_motion: Some(RootMotionDelta {
+            translation: Vec3::new(1.0, 2.0, 3.0), rotation,
+        }), ..default() };
+        pose.add_bone(BonePose { rotation: Some(rotation), translation: Some(Vec3::X), ..default() }, default());
+        let mut other = pose.clone();
+        other.bones[0].translation = Some(Vec3::Y);
+        assert_ne!(blend_source_poses(&[(pose.clone(), 1.0)]).bones[0].rotation, Some(rotation));
+        assert_eq!(blend_list_poses(vec![(pose.clone(), 1.0)]), (pose.clone(), true));
+        assert_eq!(blend_list_poses(vec![(other.clone(), 0.000_005), (pose.clone(), 0.999_995)]), (pose.clone(), true));
+        let inputs = vec![(pose.clone(), 0.25), (other.clone(), 0.75)];
+        assert_eq!(blend_list_poses(inputs.clone()), (blend_source_poses(&inputs), false));
+        assert_eq!(blend_list_poses(vec![(other.clone(), 1.0)]), (other, true));
+
+        let key = crate::extensions::SourceCurveName::from("Curve");
+        let mut active = AnimationContextState::default();
+        active.curves.insert(key.clone(), 0.75);
+        active.curves_are_authoritative = true;
+        let mut inactive = AnimationContextState::default();
+        inactive.curves.insert(key.clone(), 0.25);
+        let merged = blend_list_contexts(vec![(inactive, 0.000_005), (active, 0.999_995)], true);
+        assert_eq!(merged.curves[&key], 0.75);
+        assert!(merged.curves_are_authoritative);
+    }
+
+    #[test]
     fn source_pose_blends_accumulate_weighted_quaternions_before_normalizing() {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
@@ -1563,14 +1611,16 @@ mod tests {
                 source_inputs.set_gameplay_tag_input("source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Default"));
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                     &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context)).unwrap();
+                let initial = source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context)).unwrap();
+                assert_eq!(initial["Pose"].as_pose().unwrap(), inputs["pose_0"].as_pose().unwrap());
                 source_inputs.set_gameplay_tag_input("source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Second"));
             }
             if graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceBoolBlendNode>().is_some()) {
                 inputs.insert("source_pose_test_bool".into(), true.into());
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                     &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context)).unwrap();
+                let initial = source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context)).unwrap();
+                assert_eq!(initial["Pose"].as_pose().unwrap(), inputs["pose_0"].as_pose().unwrap());
                 inputs.insert("source_pose_test_bool".into(), false.into());
             }
             let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,

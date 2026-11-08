@@ -5615,7 +5615,13 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
   - BF144.281原始全部trace扩展：164个native offset由实际world高度与原box/射线区间独立复算精确，80次非零target命中高度与原F32 offset投影不等的key集合相同；只用同平面精确命中点，164投影全恢复。保持actual Location前态/骨盆等其余输入，80个trace scalar变更中12个直接Target/状态/位置改变，12 Target均恢复native投影。平面控制后另有6个厘米float物理米值不能被相同F32米投影精确表示，按D165厘米舍入控制164物理标量全等，不把该边界误归query点。移除平面步骤丢全部恢复/变化，源码字节恢复同target重编后结果精确；证据`target/bf144/281/factors-check.json`、`controls-check.json`、`summary.json`。未修生产或宣称整个状态反馈恢复。
 
-- [ ] BF144-D245 / P3 — 单个满权重BlendList输入仍被额外归一化，丢失源直接传递阶段。
+- [x] BF144-D245 / P3 — 单个满权重BlendList输入仍被额外归一化，丢失源直接传递阶段。
+  - 修复第1轮：开始2026-11-08 11:13 +08:00；预估结束11:53 +08:00。依据：.458已保存319组原生直传与两个public节点闭包；需fresh重读Ragdolling原图、源权重阈值和双输入控制，只改无Profile的BlendList输出阶段并保留其他Pose混合调用。
+  - 11:16 source/static闭环：fresh UE `BlendListBase::Evaluate`仅在一个权重大于`1e-5`且该权重不小于`1-1e-5`、Profile为空时直接传child；ALS tag节点继承此实现，目标tag/bool节点均无Profile字段且共用普通加权helper。只在这两个BlendList输出层复用直传判断，不改变TwoWay/MultiWay等共享helper；已写完整pose/root-motion直传、近满权重和双输入控制。原生Ragdolling三组重采中，child更新阈值差保持独立。
+  - 11:18直接consumer补充：源直传的是含curve的完整FPoseContext；目标曲线与pose分存，近满权重下若仅直传pose仍会混入微小权重curve。因此直传分支复制同一child曲线及authoritative标记，更新相关sync/sample等仍走原权重合并，不改变child更新时钟。
+  - 11:19同类型caller闭包：UE `BlendListByEnum`同样继承BlendListBase；现有Standing源读取中左右Plant Foot的4个唯一enum节点Profile均None，目标`SourceEnumPoseBlendNode`仍调用普通加权helper。该已证同类型调用须共用同一直传规则，正在fresh重读Standing资产后接入，不改变其状态更新。
+  - 11:20 source/native闭环：fresh Standing 258图确认4个唯一enum节点Profile None；Ragdolling fresh两个tag节点Profile None，满权重child0/child1的79骨和curve与对应输入逐值相同，双输入0.5/0.5输出不同于两端。tag/bool/enum三个同类型入口已共用直传与curve规则，测试未运行。
+  - 11:22实现摘要：tag/bool/enum BlendList在源单活动满权重/无Profile条件下直传Pose和对应curve，更新时钟与其他Pose混合保持原路径；已写近阈值、双输入、metadata和三节点入口fixture。fresh两资产、三原生控制、请求/哈希及图scope在`docs/audit/bf144/d245/`；child更新阈值和原生root-motion metadata仍独立。实际实现结束2026-11-08 11:22 +08:00，较预估提前31分钟；测试、消融、图审计及公共Gate待依赖迁移后执行。
   - BF144.493 非默认实际消费者。真实虚拟配置159帧三骨的公开满权重混合精确预测Root，VB foot_l/r额外旋转3/9；原生158帧该段虚拟足骨旋转保持。直接传递对照无法匹配目标Root，证据 docs/audit/bf144/493/root-blend-virtual.json。
   - BF144.458当前完整消费者：fresh Ragdolling编译外层a88 Profile None/Base→277与继承BlendListBase单满权重Evaluate直传已核。目标actual319状态全[1,0]/child0、内层从未求值，Base完整等于真实Rig输出；公开blend_source_poses完整重放a88/graphRoot/最终Root，319共3728、匹配318共3714旋转骨行额外变化，T/S/weight/meta保持。原生API对同319×79已按真实Skeleton骨序校准的25201骨TQS/curve，输出完整直传child0；delta0为独立Evaluate fixture，不冒连续Update。首ball_l整个quat当前合同失败/copy值控制通过，copy仅副本不改真实图。删观察与常量state-reader两反例拒，非默认[.25,.75]/child1验证upcoming/last路径，字节恢复同target后全新旧参数/check及fixture精确，两functional过。见`docs/audit/bf144/458/summary.json`；初错误Rig骨序请求已拒并保留，无新D、不称实际Ragdoll动作或双输入过渡等价。
   - Source：fresh `AlsAnimNode_GameplayTagsBlend.h`只继承BlendListBase的Evaluate，cpp仅选择child；`AnimNode_BlendListBase.cpp:312–317`在一个活动pose、满权重且无Profile时直接Evaluate该child。当前Ragdolling两个编译节点Profile均None，原生同输入控制的三个满权重帧完整保留79骨TQS及14curve，双输入控制则会归一化。
