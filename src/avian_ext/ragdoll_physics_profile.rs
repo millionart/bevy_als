@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, ColliderOf, CollisionLayers, CustomPositionIntegration, CustomVelocityIntegration,
+    ActiveCollisionHooks, AngularDamping, AngularInertia, AngularVelocity, CenterOfMass, Collider, ColliderDisabled, ColliderOf, CollisionLayers, CustomPositionIntegration, CustomVelocityIntegration,
     CoefficientCombine, CollisionHooks, ComputedCenterOfMass, Friction, GravityScale, JointCollisionDisabled, JointDamping, JointDisabled,
-    LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, Physics, PhysicsSchedule,
+    LinearDamping, LinearVelocity, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, Physics, PhysicsSchedule,
     PhysicsSystems, RayHitData, ShapeCastConfig, ShapeHitData, SimpleCollider, SolverSystems, SpatialQuery, SpatialQueryFilter,
     Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SphericalJoint, Substeps,
 };
@@ -11,8 +11,9 @@ use avian3d::dynamics::integrator::{IntegrationSystems, VelocityIntegrationData,
 use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
 use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
 use avian3d::collider_tree::{ColliderTreeProxyKey, ColliderTrees, MovedProxies};
+use avian3d::schedule::LastPhysicsTick;
 use bevy::ecs::schedule::ApplyDeferred;
-use bevy::ecs::system::SystemParam;
+use bevy::ecs::system::{SystemChangeTick, SystemParam};
 use bevy::math::Isometry3d;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::{
@@ -69,6 +70,8 @@ pub struct SourceBodySleep {
     smooth_linear: Vec3,
     #[serde(skip)]
     smooth_angular: Vec3,
+    #[serde(skip)]
+    explicit_wake: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -843,10 +846,32 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .before(SolverSystems::Finalize)
             .after(SolverSystems::Restitution)
             .run_if(resource_exists::<PhysicsIslands>))
+        .add_systems(PhysicsSchedule, capture_source_sleep_wakes
+            .in_set(avian3d::prelude::PhysicsStepSystems::First))
         .add_systems(PhysicsSchedule, update_profile_sleep
             .after(avian3d::prelude::PhysicsStepSystems::Sleeping)
             .before(avian3d::prelude::PhysicsStepSystems::Finalize)
             .run_if(resource_exists::<PhysicsIslands>));
+    }
+}
+
+fn capture_source_sleep_wakes(
+    last_physics_tick: Res<LastPhysicsTick>,
+    tick: SystemChangeTick,
+    mut bodies: Query<(&RigidBody, Ref<LinearVelocity>, Ref<AngularVelocity>, &mut SourceBodySleep)>,
+) {
+    let [linear_tolerance, angular_tolerance]: [f32; 2] = include!("sleep_velocity_tolerance.rs");
+    for (body, linear, angular, mut sleep) in &mut bodies {
+        sleep.explicit_wake = false;
+        let changed = (linear.is_changed() && linear.last_changed().is_newer_than(last_physics_tick.0, tick.this_run()))
+            || (angular.is_changed() && angular.last_changed().is_newer_than(last_physics_tick.0, tick.this_run()));
+        if body.is_dynamic() && changed {
+            sleep.smooth_linear = linear.0;
+            sleep.smooth_angular = angular.0;
+            sleep.explicit_wake = linear.0.abs().max_element() > linear_tolerance
+                || angular.0.abs().max_element() > angular_tolerance;
+            if sleep.explicit_wake { sleep.counter = 0; }
+        }
     }
 }
 
@@ -953,7 +978,7 @@ fn update_profile_sleep(
         let group = groups.entry(node.island_id().0).or_insert((i32::MAX, 0, true, isolated));
         group.0 = group.0.min(sleep.counter);
         group.1 = group.1.max(if isolated { sleep.counter_threshold.min(127) } else { sleep.counter_threshold });
-        group.2 &= within;
+        group.2 &= within && (!sleep.explicit_wake || isolated);
     }
     for (node, timer, disabled) in &other_bodies {
         if let Some(group) = groups.get_mut(&node.island_id().0) {
@@ -2343,6 +2368,101 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn source_sleep_external_velocity_resets_awake_island_counter() {
+        use avian3d::prelude::{AngularVelocity, LinearVelocity, Sleeping};
+        for dt in [1.0 / 60.0, 1.0 / 30.0] {
+            for connected in [false, true] {
+                for angular in [false, true] {
+                    let (mut app, first) = source_sleep_fixture(dt, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+                    let mut bodies = vec![first];
+                    if connected {
+                        let settings = *app.world().get::<SourceBodySleep>(first).unwrap();
+                        let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+                            LinearVelocity::ZERO, AngularVelocity::ZERO, settings,
+                            avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+                        app.world_mut().spawn(SphericalJoint::new(first, second));
+                        bodies.push(second);
+                    }
+                    for _ in 0..3 { app.update(); }
+                    for entity in &bodies {
+                        assert_eq!(app.world().get::<SourceBodySleep>(*entity).unwrap().counter, 3);
+                        if angular { app.world_mut().entity_mut(*entity).insert(AngularVelocity(Vec3::X * 0.005)); }
+                        else { app.world_mut().entity_mut(*entity).insert(LinearVelocity(Vec3::X * 0.005)); }
+                    }
+                    let first_sleep = if connected { 9 } else { 8 };
+                    for step in 4..=first_sleep {
+                        app.update();
+                        for entity in &bodies {
+                            assert_eq!(app.world().get::<Sleeping>(*entity).is_some(), step == first_sleep,
+                                "dt={dt} connected={connected} angular={angular} step={step}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn source_sleep_velocity_wake_uses_componentwise_source_tolerance() {
+        use avian3d::prelude::{AngularVelocity, LinearVelocity};
+        for (linear, angular, wakes) in [
+            (Vec3::ZERO, Vec3::ZERO, false),
+            (Vec3::splat(0.9e-6), Vec3::ZERO, false),
+            (Vec3::X * 1.1e-6, Vec3::ZERO, true),
+            (Vec3::ZERO, Vec3::splat(0.9e-4), false),
+            (Vec3::ZERO, Vec3::X * 1.1e-4, true),
+        ] {
+            let (mut app, body) = source_sleep_fixture(1.0 / 60.0, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+            for _ in 0..3 { app.update(); }
+            app.world_mut().entity_mut(body).insert((LinearVelocity(linear), AngularVelocity(angular)));
+            app.update();
+            assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, if wakes { 1 } else { 4 },
+                "linear={linear:?} angular={angular:?}");
+        }
+    }
+
+    #[test]
+    fn source_sleep_repeated_same_velocity_write_wakes_again() {
+        use avian3d::prelude::LinearVelocity;
+        let (mut app, body) = source_sleep_fixture(1.0 / 60.0, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+        for _ in 0..3 { app.update(); }
+        app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::X * 0.005));
+        for _ in 0..3 { app.update(); }
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 3);
+        app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::X * 0.005));
+        app.update();
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 1);
+    }
+
+    #[test]
+    fn source_sleep_loaded_ragdoll_resets_awake_counter() {
+        use avian3d::prelude::{AngularVelocity, ColliderDisabled, Gravity, JointDisabled, LinearVelocity, Sleeping};
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..12 { app.update(); }
+        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+        let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+        let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+        for entity in colliders { app.world_mut().entity_mut(entity).insert(ColliderDisabled); }
+        for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+        app.world_mut().insert_resource(Gravity(Vec3::ZERO));
+        let body = bodies.iter().find(|(label, _)| label == "hand_l").unwrap().1;
+        app.world_mut().entity_mut(body).insert((LinearVelocity::ZERO, AngularVelocity::ZERO)).remove::<Sleeping>();
+        let mut sleep = app.world_mut().get_mut::<SourceBodySleep>(body).unwrap();
+        sleep.counter = 0;
+        sleep.smooth_linear = Vec3::ZERO;
+        sleep.smooth_angular = Vec3::ZERO;
+        for _ in 0..3 { app.update(); }
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 3);
+        app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::X * 0.005));
+        for step in 4..=8 {
+            app.update();
+            assert_eq!(app.world().get::<Sleeping>(body).is_some(), step == 8, "step={step}");
         }
     }
 

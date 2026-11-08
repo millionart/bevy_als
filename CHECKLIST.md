@@ -6448,11 +6448,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧profile测试只核对阻尼字段，动力学夹具常显式把LinearDamping设为0，没有验证其执行阶段。本项是小量数值差异，未据此声称大幅视觉异常；仅登记。
   - 21:01 source/static摘要：fresh PA证实21个native系数与全局覆盖，源和Avian积分链已固化；动态rig只调整已有速度增量及阻尼乘数，覆盖重力、世界/本地力和先施加的冲量，保留普通刚体及自定义积分所有者。已写加载角色及两类控制的focused对照；测试、消融和真实Playground待统一Gate。证据`docs/audit/bf144/d87/`。实际结束：2026-11-08 21:01 +08:00；偏差：−46分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D88 / P3 — Ragdoll显式低速唤醒保留了旧睡眠计数。
+- [x] BF144-D88 / P3 — Ragdoll显式低速唤醒保留了旧睡眠计数。
+  - 本轮开始：2026-11-08 21:02 +08:00；预计结束：2026-11-08 21:52 +08:00。重读source显式速度和连接岛唤醒的生命周期，并区分目标外部写入与物理自身写回；补清醒计数、连接/孤立岛及静止控制，统一验证留待升级后。估时依据：BF144.27睡眠调用闭包和完整角色控制实耗约30分钟，本项需额外追踪组件写入阶段及反例隔离。
   - Source：fresh `ChaosEngineInterface.cpp:626–640`写入外部速度，`SingleParticlePhysicsProxy.cpp:127–132`把该更新送到`PBDRigidsEvolutionGBF.cpp:2031–2057`；只要非零速度就调用WakeParticle，即使刚体已经清醒。`PBDRigidsEvolution.cpp:1258–1272`和`IslandManager.cpp:860–902`重置计数，连接岛还禁止当前步睡眠；后续按native counter=4重新累计。
   - Target：`ragdoll_physics_profile.rs:757–838`的SourceBodySleep只有状态/采样/阈值累计，没有消费外部速度写入或显式wake来清掉已有计数。Avian `islands/sleeping.rs:569–619`对速度变更的唤醒查询只处理已Sleeping的body，也不维护该独立source计数。
   - 反例：实际角色启动Ragdoll，选hand_l两端body，native sleep阈值/质量保持原值，隔离其他joint/contact，统一单步；先静止3帧，第4帧把两body的LinearVelocity显式写为0.005m/s。60/30Hz与孤立/连接岛四组全部在第5帧休眠，source应分别到第8/9帧。共同sleep输入的受控版本与移除该覆盖后的真实body积分版本均复现；全部24组16PASS/8FAIL，静止和线/角超阈值控制通过。证据`bf144_pa_sleep_isolated_and_connected_counters_and_explicit_velocity_wake`与`target/bf144/27/`。
   - 漏检：旧wake测试先让body已经Sleeping再移除Sleeping，恰好命中此前休眠时清零的计数；没有覆盖“仍清醒且已有累计进度”的外部低速写入。本项只声明该边界提前3/4个物理帧休眠，不声称普通大冲量也会触发；仅登记。
+  - 21:09 source/static摘要：fresh PA确认手臂材质阈值及非partial岛模式，源速度dirty、分量近零、平滑值和岛唤醒闭包已固化；复用Avian物理结束tick排除自身回写，按孤立/连接岛重置进度。已写加载hand、不同步长、线/角速度、重复同值写入和阈值控制；测试、消融及Playground待统一Gate，外力平滑归D89。证据`docs/audit/bf144/d88/`。实际结束：2026-11-08 21:09 +08:00；偏差：−43分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D89 / P3 — Ragdoll外力遗漏源睡眠平滑速度的预置。
   - Source：fresh `SingleParticlePhysicsProxy.cpp:163–168`将外部Dynamics更新交给`PBDRigidsEvolutionGBF.cpp:1885–1890`；其`ResetVSmoothFromForces`在同名header `281–301`先以固定1/30秒预测V+Acceleration/30+Impulse，再用0.3混合进VSmooth。连接岛随后还会按实际位移再平滑一次，避免刚受力的body立即重新休眠。

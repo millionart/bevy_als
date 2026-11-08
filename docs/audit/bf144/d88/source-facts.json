@@ -1,0 +1,107 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/PhysicsCore/Private/ChaosEngineInterface.cpp",
+    "sha256": "f12076095b9e66bbf98241c9671f9263f3a0b3db2f5b1d33ebd4becabda5a674",
+    "start_line": 626,
+    "end_line": 660,
+    "text": "void FChaosEngineInterface::SetLinearVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InNewVelocity,bool bAutoWake)\n{\n\t// TODO: Implement bAutoWake == false.\n\t// For now we don't support auto-awake == false.\n\t// This feature is meant to detect when velocity change small\n\t// and the velocity is nearly zero, and to not wake up the\n\t// body in that case.\n\tensure(bAutoWake);\n\n\tif(ensure(FChaosEngineInterface::IsValid(InActorReference)))\n\t{\n\t\tInActorReference->GetGameThreadAPI().SetV(InNewVelocity);\n\t}\n}\n\nFVector FChaosEngineInterface::GetAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference)\n{\n\tif(ensure(FChaosEngineInterface::IsValid(InActorReference)))\n\t{\n\t\treturn InActorReference->GetGameThreadAPI().W();\n\t}\n\n\treturn FVector(0);\n}\n\nvoid FChaosEngineInterface::SetAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InNewAngularVelocity,bool bAutoWake)\n{\n\t// TODO: Implement bAutoWake == false.\n\tensure(bAutoWake);\n\n\tif(ensure(FChaosEngineInterface::IsValid(InActorReference)))\n\t{\n\t\tInActorReference->GetGameThreadAPI().SetW(InNewAngularVelocity);\n\t}\n}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/PhysicsProxy/SingleParticlePhysicsProxy.h",
+    "sha256": "bf638f1d1be3d8d18228453ac6325fa66a13eddd73393b52ca96cf353e26e52f",
+    "start_line": 322,
+    "end_line": 341,
+    "text": "\tvoid SetVBase(const FVec3& InV, bool bInvalidate = true)\n\t{\n\t\tWrite([&InV, bInvalidate, this](auto* Particle)\n\t\t{\n\t\t\tif (auto Kinematic = Particle->CastToKinematicParticle())\n\t\t\t{\n\t\t\t\tif (bInvalidate)\n\t\t\t\t{\n\t\t\t\t\tauto Dyn = Particle->CastToRigidParticle();\n\t\t\t\t\tif (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping && !InV.IsNearlyZero())\n\t\t\t\t\t{\n\t\t\t\t\t\tSetObjectStateHelper(*GetProxy(), *Dyn, EObjectStateType::Dynamic, true);\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tKinematic->SetV(InV, bInvalidate);\n\t\t\t}\n\t\t});\n\t}\npublic:"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PhysicsProxy/SingleParticlePhysicsProxy.cpp",
+    "sha256": "442f7b57234d9e24b89c25023968b484722b4374e03f33d901cdedb5f877a9a6",
+    "start_line": 125,
+    "end_line": 134,
+    "text": "\t\t\t\t}\n\t\t\t}\n\n\t\t\tauto NewVelocities = bHasKinematicData ? ParticleData.FindVelocities(Manager, DataIdx) : nullptr;\n\t\t\tif(NewVelocities)\n\t\t\t{\n\t\t\t\tEvolution.SetParticleVelocities(KinematicHandle, NewVelocities->V(), NewVelocities->W());\n\t\t\t}\n\t\t\t\n\t\t\tauto NewKinematicTargetGT = bHasKinematicData ? ParticleData.FindKinematicTarget(Manager, DataIdx) : nullptr;"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDRigidsEvolutionGBF.cpp",
+    "sha256": "733d0d1c075eb559319e9e8e4364923b8090652e6997738d6eebbec066b06712",
+    "start_line": 2031,
+    "end_line": 2061,
+    "text": "void FPBDRigidsEvolutionGBF::SetParticleVelocities(FGeometryParticleHandle* InParticle, const FVec3& InV, const FVec3f& InW)\n{\n\tif (FKinematicGeometryParticleHandle* Kinematic = InParticle->CastToKinematicParticle())\n\t{\n\t\tKinematic->SetV(InV);\n\t\tKinematic->SetW(InW);\n\t}\n\n\tif (FPBDRigidParticleHandle* Rigid = InParticle->CastToRigidParticle())\n\t{\n\t\t// Reset the velocity-based sleepiness tracking properties\n\t\tif (Rigid->IsDynamic())\n\t\t{\n\t\t\tRigid->SetVSmooth(InV);\n\t\t\tRigid->SetWSmooth(InW);\n\n\t\t\t// Wake the particle if the velocity is non-zero\n\t\t\t// NOTE: We do this even when not sleeping because we want to reset the sleep accumulators\n\t\t\tif (!InV.IsNearlyZero() || !InW.IsNearlyZero())\n\t\t\t{\n\t\t\t\tWakeParticle(Rigid);\n\t\t\t}\n\n\t\t\tGetIslandManager().FlagParticleUpdated(Rigid->Handle());\n\n\t\t\t// @todo(chaos): do we want to reset static friction an any existing contacts as well?\n\t\t}\n\t}\n}\n\nvoid FPBDRigidsEvolutionGBF::ParticleMaterialChanged(FGeometryParticleHandle* Particle)"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDRigidsEvolution.cpp",
+    "sha256": "88df70cda79b34b5cabbfda5e2793bdcf577fcfbb3e5877fe6d1d0f1931049e2",
+    "start_line": 1258,
+    "end_line": 1273,
+    "text": "\tvoid FPBDRigidsEvolutionBase::WakeParticle(FPBDRigidParticleHandle* Particle)\n\t{\n\t\tif (Particle->IsSleeping())\n\t\t{\n\t\t\t// Set to dynamic - this will also wake the particle's island\n\t\t\tSetParticleObjectState(Particle, EObjectStateType::Dynamic);\n\t\t}\n\n\t\t// Explicitly waking a particle should reset any sleep state, even if we are already awake.\n\t\t// E.g., this will reset the sleep counter to prevent the particle from immediately sleeping again.\n\t\t// NOTE: This also allows us to \"wake\" a kinematic which will wake all islands that the kinematic is in.\n\t\tIslandManager.WakeParticleIslands(Particle);\n\n\t\tIslandManager.FlagParticleUpdated(Particle);\n\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Island/IslandManager.cpp",
+    "sha256": "1ab010b3d7e8187fb769a1f8d35e2b360e412da35ca79377759d0be9fc8dce5a",
+    "start_line": 860,
+    "end_line": 903,
+    "text": "\tvoid FPBDIslandManager::WakeParticleIslands(FGeometryParticleHandle* Particle)\n\t{\n\t\t// We want to wake for at least one frame (i.e., prevent re-sleeping this frame)\n\t\tbool bIsSleepAllowed = false;\n\n\t\t// When we explicitly wake we reset sleep counters etc\n\t\tif (FPBDIslandParticle* Node = GetGraphNode(Particle))\n\t\t{\n\t\t\t// Make sure the node sleep state matches the particle state\n\t\t\tNode->Flags.bIsSleeping = FConstGenericParticleHandle(Particle)->IsSleeping();\n\n\t\t\t// NOTE: We could check Flags.bIsDynamic here, but checking the Island pointer means we \n\t\t\t// are automatically handling the case where a kinematic with constraints on it \n\t\t\t// was made dynamic right before calling WakeParticleIsland\n\t\t\tif (Node->Island != nullptr)\n\t\t\t{\n\t\t\t\t// We permit sleeping for this island if partial island sleeping and pre-integration waking are enabled.\n\t\t\t\t// This will allows us to perform partial island waking if a dynamic particle has been woken by the user or had its transform set explicitly.\n\t\t\t\tif (Node->Island->IsPartialSleepEnabled() && CVars::bChaosSolverPartialWakePreIntegration)\n\t\t\t\t{\n\t\t\t\t\tbIsSleepAllowed = true;\n\t\t\t\t}\n\n\t\t\t\t// This is a dynamic particle and we know its island\n\t\t\t\tEnqueueIslandCheckSleep(Node->Island, bIsSleepAllowed);\n\t\t\t\tUpdateIslandPartialSleepAllowed(Node->Island, Particle);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\t// This is a kinematic particle, visit our edges to find the islands we are in\n\t\t\t\tfor (const FPBDIslandConstraint* Edge : Node->Edges)\n\t\t\t\t{\n\t\t\t\t\tEnqueueIslandCheckSleep(Edge->Island, bIsSleepAllowed);\n\t\t\t\t\tUpdateIslandPartialSleepAllowed(Edge->Island, Particle);\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\n\t\t// If we are an isolated particle we keep our own sleep counter\n\t\t// NOTE: We won't even be in the graph if we are dynamic but have no constraints\n\t\tif (FPBDRigidParticleHandle* Rigid = Particle->CastToRigidParticle())\n\t\t{\n\t\t\tRigid->SetSleepCounter(0);\n\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Island/IslandManager.cpp",
+    "sha256": "1ab010b3d7e8187fb769a1f8d35e2b360e412da35ca79377759d0be9fc8dce5a",
+    "start_line": 2560,
+    "end_line": 2580,
+    "text": "\t\t\t\t}\n\t\t\t\treturn true;\n\t\t\t};\n\n\t\t// If we have explicitly made some particles go to sleep (as opposed to them naturally sleeping based on low movement)\n\t\t// we must check to see if the whole island can go to sleep. This is primarily to address the issue that we do not\n\t\t// update collisions for sleeping particles and destroy collisions in awake islands that are not updated this tick.\n\t\tfor (FPBDIsland* Island : Islands)\n\t\t{\n\t\t\tif (!!Island->Flags.bCheckSleep)\n\t\t\t{\n\t\t\t\tconst bool bIslandShouldSleep = !!Island->Flags.bIsSleepAllowed && ShouldIslandSleep(Island);\n\t\t\t\tif (bIslandShouldSleep != Island->Flags.bIsSleeping)\n\t\t\t\t{\n\t\t\t\t\tIsland->Flags.bIsSleeping = bIslandShouldSleep;\n\t\t\t\t\tIsland->SleepCounter = 0;\n\t\t\t\t}\n\n\t\t\t\t// @todo(Chaos): Island->Flags.bHasSleepingNode is always false here since it's reset in ProcessSleep and will be repopulated in CreateConstraintGraph.\n\t\t\t\t// Since this code is rarely executed, we tolerate this and just do partial wakes even though it's not necessary (i.e. flag is not used here).\n\t\t\t\tif (Island->IsPartialSleepEnabled() && CVars::bChaosSolverPartialWakePreIntegration && !!Island->Flags.bIsSleepAllowed)"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "start_line": 595,
+    "end_line": 601,
+    "text": "     * Checks whether vector is near to zero within a specified tolerance.\n     *\n     * @param Tolerance Error tolerance.\n     * @return true if the vector is near to zero, false otherwise.\n     */\n    [[nodiscard]] bool IsNearlyZero(T Tolerance=UE_KINDA_SMALL_NUMBER) const;\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "start_line": 1750,
+    "end_line": 1757,
+    "text": "inline bool TVector<T>::IsNearlyZero(T Tolerance) const\n{\n    return\n        FMath::Abs(X)<=Tolerance\n        &&\tFMath::Abs(Y)<=Tolerance\n        &&\tFMath::Abs(Z)<=Tolerance;\n}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+    "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+    "start_line": 127,
+    "end_line": 132,
+    "text": "#undef UE_INCLUDETOOL_IGNORE_INCONSISTENT_STATE\n\n#define UE_PI \t\t\t\t\t(3.1415926535897932f)\t/* Extra digits if needed: 3.1415926535897932384626433832795f */\n#define UE_SMALL_NUMBER\t\t\t(1.e-8f)\n#define UE_KINDA_SMALL_NUMBER\t(1.e-4f)\n#define UE_BIG_NUMBER\t\t\t(3.4e+38f)"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/schedule/mod.rs",
+    "sha256": "d5cea705a1639015b00b2870fd614151b8ac9c4d13d82d5fe18c42998d98d8b0",
+    "start_line": 220,
+    "end_line": 235,
+    "text": "/// A [`Tick`] corresponding to the end of the previous run of the [`PhysicsSchedule`].\n#[derive(Resource, Reflect, Default)]\n#[reflect(Resource, Default)]\npub struct LastPhysicsTick(pub Tick);\n\npub(crate) fn is_changed_after_tick<C: Component>(\n    component_ref: Ref<C>,\n    tick: Tick,\n    this_run: Tick,\n) -> bool {\n    let last_changed = component_ref.last_changed();\n    component_ref.is_changed() && last_changed.is_newer_than(tick, this_run)\n}\n\n/// Runs the [`PhysicsSchedule`].\nfn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) {"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/islands/sleeping.rs",
+    "sha256": "fc13b48710abcfe48e510eb21cd0e8687630095100067bb8eaaa6b6878ff242b",
+    "start_line": 564,
+    "end_line": 610,
+    "text": "/// Removes the [`Sleeping`] component from sleeping bodies when properties like\n/// position, rotation, velocity and external forces are changed by the user.\nfn wake_on_changed(\n    mut query: ParamSet<(\n        // These could've been changed by physics too.\n        // We need to ignore non-user changes.\n        Query<\n            (\n                Ref<Position>,\n                Ref<Rotation>,\n                Ref<LinearVelocity>,\n                Ref<AngularVelocity>,\n                Ref<SleepTimer>,\n                &BodyIslandNode,\n            ),\n            (\n                With<Sleeping>,\n                Or<(\n                    Changed<Position>,\n                    Changed<Rotation>,\n                    Changed<LinearVelocity>,\n                    Changed<AngularVelocity>,\n                    Changed<SleepTimer>,\n                )>,\n            ),\n        >,\n        // These are not modified by the physics engine\n        // and don't need special handling.\n        Query<&BodyIslandNode, Or<(ConstantForceChanges, Changed<GravityScale>)>>,\n    )>,\n    mut awake_island_bit_vec: ResMut<AwakeIslandBitVec>,\n    last_physics_tick: Res<LastPhysicsTick>,\n    system_tick: SystemChangeTick,\n) {\n    let this_run = system_tick.this_run();\n\n    for (pos, rot, lin_vel, ang_vel, sleep_timer, body_island) in &query.p0() {\n        if is_changed_after_tick(pos, last_physics_tick.0, this_run)\n            || is_changed_after_tick(rot, last_physics_tick.0, this_run)\n            || is_changed_after_tick(lin_vel, last_physics_tick.0, this_run)\n            || is_changed_after_tick(ang_vel, last_physics_tick.0, this_run)\n            || is_changed_after_tick(sleep_timer, last_physics_tick.0, this_run)\n        {\n            awake_island_bit_vec.set_and_grow(body_island.island_id.0 as usize);\n        }\n    }\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/solver_body/plugin.rs",
+    "sha256": "3a468e2eef7cedfd75978902033f989e35f614522d9ea87e4018fd35d4a6e853",
+    "start_line": 261,
+    "end_line": 291,
+    "text": "/// Writes back solver body data to rigid bodies.\n#[allow(clippy::type_complexity)]\nfn writeback_solver_bodies(\n    mut query: Query<(\n        &SolverBody,\n        &mut Position,\n        &mut Rotation,\n        &ComputedCenterOfMass,\n        &mut LinearVelocity,\n        &mut AngularVelocity,\n    )>,\n    mut diagnostics: ResMut<SolverDiagnostics>,\n) {\n    let start = bevy::platform::time::Instant::now();\n\n    query.par_iter_mut().for_each(\n        |(solver_body, mut pos, mut rot, com, mut lin_vel, mut ang_vel)| {\n            // Write back the position and rotation deltas,\n            // rotating the body around its center of mass.\n            let old_world_com = *rot * com.0;\n            *rot = (solver_body.delta_rotation * *rot).fast_renormalize();\n            let new_world_com = *rot * com.0;\n            pos.0 += solver_body.delta_position + old_world_com - new_world_com;\n\n            // Write back velocities.\n            lin_vel.0 = solver_body.linear_velocity;\n            ang_vel.0 = solver_body.angular_velocity;\n        },\n    );\n\n    diagnostics.finalize += start.elapsed();"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ParticleHandle.h",
+    "sha256": "9ab9cf4988e5cc03f90bae698ae8a629ee8b5c751cfee4992c363703398ff08a",
+    "start_line": 3924,
+    "end_line": 3928,
+    "text": "template <typename T, int d>\nvoid TKinematicGeometryParticle<T, d>::SetV(const TVector<T, d>& InV, bool bInvalidate)\n{\n\tMVelocities.Modify(bInvalidate, MDirtyFlags, Proxy, [&InV](auto& Data) { Data.SetV(InV); });\n}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Properties.h",
+    "sha256": "8acfc06c666b85ebffd6b13b2c481f061d824358ca447fd7a8d782af1d9f8ee6",
+    "start_line": 32,
+    "end_line": 43,
+    "text": "\t{\n\t\tProperty = Val;\n\t\tMarkDirty(bInvalidate, Dirty, Proxy);\n\t}\n\n\ttemplate <typename Lambda>\n\tvoid Modify(bool bInvalidate, FDirtyChaosPropertyFlags& Dirty,IPhysicsProxyBase* Proxy,const Lambda& LambdaFunc)\n\t{\n\t\tLambdaFunc(Property);\n\t\tMarkDirty(bInvalidate, Dirty, Proxy);\n\t}\n"
+  }
+]
