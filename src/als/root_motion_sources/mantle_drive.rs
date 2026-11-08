@@ -2073,6 +2073,59 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn mantle_root_velocity_excludes_the_pre_movement_base_carry() {
+        use avian3d::prelude::{Collider, RigidBody};
+        use bevy::time::TimeUpdateStrategy;
+        use std::sync::{Arc, Mutex};
+        let mut app = mantle_clip_test_app();
+        let delta = 1.0_f32 / 60.0;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+        app.update();
+        for (dilation, carry) in [(0.5_f32, 0.02_f32), (1.0, 0.02), (2.0, 0.02), (1.0, 0.0)] {
+            let old_base = Transform::from_xyz(0.0, 4.0, 0.0);
+            let next_base = old_base.with_translation(old_base.translation + Vec3::X * carry);
+            let base = app.world_mut().spawn((RigidBody::Kinematic, next_base, GlobalTransform::from(next_base),
+                Position(next_base.translation))).id();
+            let old_target = AlsMantleTargetBase { entity: base, translation: old_base.translation,
+                rotation: old_base.rotation, scale: old_base.scale, relative_location: true };
+            let new_target = AlsMantleTargetBase { translation: next_base.translation, ..old_target };
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_target_base(MantleKind::High, Vec3::new(0.0, 5.0, 0.0),
+                Vec3::new(0.0, 6.0, -1.0), 1.5, 0.0, 0.0, old_target);
+            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.time = 0.3;
+            let start_root = sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap();
+            let start = mantle.target_actor_transform_at(mantle.time, start_root);
+            let mut expected_mantle = mantle;
+            expected_mantle.refresh_target_base(Some(new_target));
+            let next_time = mantle.time + delta * dilation;
+            let next_root = sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap();
+            let expected_target = expected_mantle.target_actor_transform_at(next_time, next_root);
+            let expected_velocity = (expected_target.translation - start.translation - Vec3::X * carry) / (delta * dilation);
+            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling, RigidBody::Dynamic, Collider::capsule(0.3, 1.2),
+                start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation), LinearVelocity::ZERO,
+                crate::als::dynamics::AlsMovementBase { entity: Some(base), location: old_base.translation,
+                    rotation: old_base.rotation, has_relative_rotation: false },
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+            let sampled = Arc::new(Mutex::new(None));
+            let captured = sampled.clone();
+            app.add_systems(PostUpdate, (move |actors: Query<&LinearVelocity>| {
+                if let Ok(velocity) = actors.get(actor) { *captured.lock().unwrap() = Some(velocity.0); }
+            }).after(AlsMantleDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+            app.update();
+            let velocity = sampled.lock().unwrap().expect("Mantle velocity was not sampled");
+            assert!(velocity.abs_diff_eq(expected_velocity, 1e-4),
+                "dilation={dilation} carry={carry} actual={velocity:?} expected={expected_velocity:?}");
+            app.world_mut().despawn(actor);
+            app.world_mut().despawn(base);
+        }
+    }
+
+    #[test]
     fn mantle_moving_base_writes_the_current_actor_parent_space() {
         let mut app = mantle_clip_test_app();
         for parent_transform in [Transform::IDENTITY, Transform::from_xyz(5.0, 2.0, -3.0)

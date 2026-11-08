@@ -3730,7 +3730,15 @@ fn follow_movement_base_system(
         let Some(target) = target else { base.entity = None; continue; };
         let Ok(current) = space.p0().compute_global_transform(target) else { base.entity = None; continue; };
         let owner = owners.get(target).map_or(target, |owner| owner.body);
-        if *mode == LocomotionState::Grounded
+        let mantle_base = mantle.filter(|state| *mode == LocomotionState::Custom
+            && phase != MovementBaseFollowPhase::AfterPhysics && (state.active || state.root_motion_ready))
+            .and_then(|state| state.target_base).filter(|target| target.relative_location);
+        if let Some(initial) = mantle_base && base.entity != Some(target) {
+            base.entity = Some(target);
+            base.location = initial.translation;
+            base.rotation = initial.rotation;
+        }
+        if (*mode == LocomotionState::Grounded || mantle_base.is_some())
             && bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static) {
             let carried = if phase != MovementBaseFollowPhase::AfterPhysics || custom_position { Vec3::ZERO } else {
                 dynamics.filter(|dynamics| dynamics.entity == Some(target))
@@ -8481,6 +8489,35 @@ mod tests {
                     assert!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_move_start.unwrap().distance(position) < 1e-5);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn mantle_base_carry_uses_the_existing_feet_anchor_before_movement() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::mantle::MantleKind;
+        for (relative, distance, had_base) in [(true, 0.0, true), (true, 0.02, true),
+            (true, 0.02, false), (false, 0.02, true)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let base_start = Vec3::new(0.0, 4.0, 0.0);
+            let target = app.world_mut().spawn((RigidBody::Kinematic, Transform::from_translation(base_start))).id();
+            app.update();
+            let actor_start = Vec3::new(0.0, 5.0, 0.0);
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_target_base(MantleKind::High, actor_start, actor_start + Vec3::Y, 1.5, 0.0, 0.0,
+                AlsMantleTargetBase { entity: target, translation: base_start, rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE, relative_location: relative });
+            let velocity = Vec3::new(1.0, 0.2, -0.4);
+            app.world_mut().entity_mut(actor).insert((Position(actor_start), Transform::from_translation(actor_start),
+                LocomotionState::Custom, mantle, LinearVelocity(velocity),
+                crate::als::dynamics::AlsMovementBase { entity: had_base.then_some(target), location: if had_base { base_start } else { Vec3::ZERO },
+                    rotation: Quat::IDENTITY, has_relative_rotation: false }));
+            app.world_mut().get_mut::<Transform>(target).unwrap().translation.x += distance;
+            app.world_mut().run_system_once((|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)).unwrap();
+            let expected = actor_start + Vec3::X * if relative { distance } else { 0.0 };
+            assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(expected, 1e-5));
+            assert_eq!(app.world().get::<LinearVelocity>(actor).unwrap().0, velocity);
+            assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, Quat::IDENTITY);
         }
     }
 

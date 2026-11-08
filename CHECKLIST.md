@@ -6204,7 +6204,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色手动Mantle到0.6m按比例缩放的ledge，actor scale0.75/1.5首帧位置相对独立source公式偏离约11.4/22.1cm；单位scale对照通过。同一0.6m台阶，初始pitch或roll为0.2rad及组合倾斜偏离约8.7–12.5cm，组合yaw另差约1.15°。入口前实际global rotation已取样确认仍保留倾斜。两个focused共12组7PASS/5语义FAIL，夹具只补回初始scale偏移或完整quat的5组恢复源结果；证据`target/bf144/18/initial_controls/`。
   - 漏检：旧root复合与scaled-base测试使用单位scale、纯yaw的初始actor；基座缩放、root旋转覆盖不能代替actor自身Transform。7种动作的正常actor轨迹168采样全部匹配，排除通用轨道/mesh basis错误。本项合并同一初始Transform传递边界下的两种缺失，未重复计数，未修复生产实现。
 
-- [ ] BF144-D59 / P2 — Mantle缺少RMS前的基座携带，将平台位移计入角色自身速度。
+- [x] BF144-D59 / P2 — Mantle缺少RMS前的基座携带，将平台位移计入角色自身速度；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 18:14 +08:00；预估结束18:54 +08:00；实际结束18:17 +08:00，提前37分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh源基座先携带、RMS速度及native移动设置保存在`docs/audit/bf144/d59/`；Custom Mantle复用物理前脚底携带，已写首次绑定、倍率与实际速度对照。旧target报告缺失，物理后携带留D60，动画Gate待执行。
   - Source：fresh UE `CharacterMovementComponent.cpp:2840,2941,2992`先MaybeUpdateBasedMovement，再准备并消费RMS；`AlsRootMotionSource_Mantling.cpp:122–124`用目标位置减已携带后的actor位置再除owner delta。`AlsCharacter.cpp:1376–1383`把该CMC自身速度交给LocomotionState。
   - Target：`movement/motion.rs:2846–2885`在Custom只保存基座快照，实际位移仅在Grounded分支执行；`root_motion_sources/mantle_drive.rs:740–742`因此从未携带的位置计算速度，`snapshot_actual_velocity_system`在Custom直接发布它，进入`AlsActualMotion`。
   - 反例：实际活动Mantle中，kinematic基座在该运动帧前横移2cm，owner0.5/1/2时RMS和发布动画速度分别多出2.4/1.2/0.6m/s；最终位置仍正确。`bf144_mantle_physics_velocity_excludes_pre_movement_base_carry`5组2PASS/3FAIL；静止基座及夹具先携带actor的对照通过。证据`target/bf144/19/initial/`。
