@@ -1,3 +1,6 @@
+pub(crate) const CHARACTER_MOVEMENT_MASS: f32 = 100.0;
+pub(crate) const STANDING_DOWNWARD_FORCE_SCALE: f32 = 1.0;
+pub(crate) const ENABLE_PHYSICS_INTERACTION: bool = true;
 pub(crate) const MAX_STEP_HEIGHT: f32 = 0.45;
 pub(crate) const MAX_SLOPE_DEGREES: f32 = 44.765083;
 pub(crate) const MIN_FLOOR_DISTANCE: f32 = 0.019;

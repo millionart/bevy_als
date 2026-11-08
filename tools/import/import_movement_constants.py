@@ -38,6 +38,18 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
             raise ValueError(f'Character property is invalid: {name}')
         return values[0]
 
+    def property_scalar(name):
+        values = [float(prop['exported_text']) for prop in properties if prop['name'] == name]
+        if len(values) != 1 or not math.isfinite(values[0]):
+            raise ValueError(f'Character property is invalid: {name}')
+        return values[0]
+
+    def property_bool(name):
+        values = [prop['exported_text'] for prop in properties if prop['name'] == name]
+        if len(values) != 1 or values[0] not in ('True', 'False'):
+            raise ValueError(f'Character property is invalid: {name}')
+        return values[0] == 'True'
+
     scale = SOURCE_LENGTH_TO_RUNTIME_SCALE
     edge = literal(character_cpp, rf'SWEEP_EDGE_REJECT_DISTANCE\s*=\s*{NUMBER}f?\s*;', 'edge distance')
     small = literal(math_header, rf'#define\s+UE_KINDA_SMALL_NUMBER\s+\({NUMBER}f?\)', 'small distance')
@@ -52,6 +64,9 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
     if not 0 < shrink < 1 or not 0 < overlap_shrink < 1:
         raise ValueError('Source floor shrink is invalid')
     return {
+        'CHARACTER_MOVEMENT_MASS': property_number('Mass'),
+        'STANDING_DOWNWARD_FORCE_SCALE': property_scalar('StandingDownwardForceScale'),
+        'ENABLE_PHYSICS_INTERACTION': property_bool('bEnablePhysicsInteraction'),
         'MAX_STEP_HEIGHT': property_number('MaxStepHeight') * scale,
         'MAX_SLOPE_DEGREES': property_number('WalkableFloorAngle'),
         'MIN_FLOOR_DISTANCE': literal(character_cpp, rf'MIN_FLOOR_DIST\s*=\s*{NUMBER}f?\s*;', 'minimum floor distance') * scale,
@@ -78,7 +93,8 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
 
 
 def render(values):
-    return ''.join(f'pub(crate) const {name}: f32 = {value!r};\n' for name, value in values.items())
+    return ''.join(f'pub(crate) const {name}: bool = {str(value).lower()};\n' if isinstance(value, bool)
+                   else f'pub(crate) const {name}: f32 = {value!r};\n' for name, value in values.items())
 
 
 def self_test():
@@ -86,12 +102,33 @@ def self_test():
         'properties': [{'name': 'MaxStepHeight', 'exported_text': '45.000000'},
                        {'name': 'WalkableFloorAngle', 'exported_text': '44.765083'},
                        {'name': 'MaxDepenetrationWithGeometry', 'exported_text': '500.000000'},
-                       {'name': 'MaxDepenetrationWithPawn', 'exported_text': '100.000000'}]}]}
+                       {'name': 'MaxDepenetrationWithPawn', 'exported_text': '100.000000'},
+                       {'name': 'Mass', 'exported_text': '100.000000'},
+                       {'name': 'StandingDownwardForceScale', 'exported_text': '1.000000'},
+                       {'name': 'bEnablePhysicsInteraction', 'exported_text': 'True'}]}]}
     character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; BRAKE_TO_STOP_VELOCITY = 10.f; MIN_TICK_TIME = 1e-6f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;'
     primitive = 'const float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;'
     movement = 'const float OverVelocityPercent = 1.01f; float PenetrationPullbackDistance = 0.125f; float PenetrationOverlapCheckInflation = 0.100f;'
     header = '#define UE_KINDA_SMALL_NUMBER (1.e-4f)'
     values = extract(actor, character, character, primitive, movement, header)
+    assert values['CHARACTER_MOVEMENT_MASS'] == 100.0
+    assert values['STANDING_DOWNWARD_FORCE_SCALE'] == 1.0
+    assert values['ENABLE_PHYSICS_INTERACTION'] is True
+    changed_actor = json.loads(json.dumps(actor))
+    changed_properties = changed_actor['blueprint_cdo_subobjects'][0]['properties']
+    next(prop for prop in changed_properties if prop['name'] == 'StandingDownwardForceScale')['exported_text'] = '0.0'
+    next(prop for prop in changed_properties if prop['name'] == 'bEnablePhysicsInteraction')['exported_text'] = 'False'
+    changed_values = extract(changed_actor, character, character, primitive, movement, header)
+    assert changed_values['STANDING_DOWNWARD_FORCE_SCALE'] == 0.0
+    assert changed_values['ENABLE_PHYSICS_INTERACTION'] is False
+    assert 'pub(crate) const ENABLE_PHYSICS_INTERACTION: bool = false;' in render(changed_values)
+    changed_properties.append({'name': 'Mass', 'exported_text': '100.0'})
+    try:
+        extract(changed_actor, character, character, primitive, movement, header)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('Duplicate character mass must block generation')
     assert values['MAX_STEP_HEIGHT'] == 0.45
     assert values['MIN_FLOOR_DISTANCE'] == 0.019
     assert values['EDGE_REJECT_DISTANCE'] == 0.0015
@@ -136,7 +173,7 @@ def self_test():
             raise AssertionError('Invalid terminal source must block generation')
     assert literal('TEXT("p.EncroachEpsilon"), 0.15f,', rf'\"p\.EncroachEpsilon\"\s*\)\s*,\s*{NUMBER}f?\s*,', 'spawn epsilon') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0015
     assert literal('PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius', rf'PawnRadius - GetPerchRadiusThreshold\(\),\s*{NUMBER}f?\s*,\s*PawnRadius', 'perch minimum') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0011
-    assert len(render(values).splitlines()) == 22
+    assert len(render(values).splitlines()) == 25
     print('Movement constants self-test PASS')
 
 

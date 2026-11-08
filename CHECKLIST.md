@@ -6007,7 +6007,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色稳定站在运动学平台；同帧把平台以保持速度为0的外部位姿更新平移x=0.2m，并按跳键。源角色不应再跟随这次旧base位移，x仍0；target先移到x=0.2再起跳。owner1和0均失败，平台不动起跳及平台移动但不跳两组通过。`bf144_inherit_jump_clears_base_before_same_frame_transform_follow`共4组2PASS/2FAIL，证据`target/bf144/11/final/`。
   - 漏检：旧“component transport precedes character movement”回归只核对普通Walking；跳离测试改变velocity却没有同时改变尚未处理的base Transform。此项限定已经接受的Jump时序，与D30世界暂停门槛和D34速度轴遗漏独立；未重排生产调度。
 
-- [ ] BF144-D37 / P2 — 站在动态基座上时未提交源下压力。
+- [x] BF144-D37 / P2 — 站在动态基座上时未提交源下压力；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 15:50 +08:00；预估结束16:45 +08:00；实际结束15:55 +08:00，提前50分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE下压力、原生100kg/开关/倍率和Avian点力语义保存在`docs/audit/bf144/d37/`；离线生成目标常量后对动态floor的接触点施力，已写导入器、受力/力矩及加载角色时钟对照。旧target报告缺失，本次源端未运行动态平台；新增测试及Gate待执行。
   - Source：fresh native CMC bEnablePhysicsInteraction=True、Mass=100、StandingDownwardForceScale=1；UE `TickComponent:1801–1805`在普通运动后调用`ApplyDownwardForce:11784–11795`，有效blocking floor且base simulated时在ImpactPoint提交Gravity×Mass×Scale。owner倍率0仍执行该tick；力的积分使用world physics时钟。
   - Target：`src/als/character/character.rs:363–429`的动态胶囊及`src/als/character/movement/motion.rs`的floor/base consumer未提交对应下压力，默认Tnua悬浮间隙使接触求解也没有产生等价反作用。
   - 反例：完整角色稳定站在GravityScale0、质量100/1000kg的动态平台，胶囊离地0.023667m，控制首帧平台速度为0。按用户采用的Bevy重力9.81，16.667ms后源平台vy应−0.1635/−0.01635m/s，target均0；owner0仍应−0.1635，target0。`bf144_force_standing_downward_uses_character_mass`6组3PASS/3FAIL，Static、Kinematic和角色gravity0对照通过；证据`target/bf144/12/impact_downward/`。

@@ -1,6 +1,7 @@
 use avian3d::prelude::{
     AngularVelocity, Collider, ColliderOf, CollisionLayers, Collisions, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
-    RigidBody, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter, SpeculativeMargin,
+    Forces, RigidBody, RigidBodyDisabled, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter, SpeculativeMargin,
+    WriteRigidBodyForces,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::asset::Assets;
@@ -2921,6 +2922,8 @@ impl Plugin for AlsMotionPlugin {
                         .before(crate::als::dynamics::grounded_dynamics_motor_system),
                     cmc_movement_transaction_system.after(crate::als::dynamics::grounded_dynamics_motor_system)
                         .before(TnuaPipelineSystems::Motors),
+                    apply_standing_downward_force.after(cmc_movement_transaction_system)
+                        .before(TnuaPipelineSystems::Motors),
                     (|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)
                         .after(capsule_reshape_system).before(TnuaPipelineSystems::Sensors),
                     (|| MovementBaseFollowPhase::AfterJump).pipe(follow_movement_base_system)
@@ -5139,6 +5142,39 @@ fn line_floor_blocks_height_adjustment(sweep_distance: f32, line_distance: Optio
     line_distance.is_some_and(|line| sweep_distance < MIN_FLOOR_DISTANCE && line >= MIN_FLOOR_DISTANCE)
 }
 
+fn apply_standing_downward_force(
+    time: Res<Time<Virtual>>,
+    spatial: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    owners: Query<&ColliderOf>,
+    transforms: bevy::transform::helper::TransformHelper,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    characters: Query<(Entity, &Position, &Transform, Option<&ChildOf>, &Stance,
+        &AlsMovementParamsHandle, &LocomotionState, &AlsEffectiveGravity), With<AlsCharacter>>,
+    mut bodies: Query<(&RigidBody, Forces, Has<RigidBodyDisabled>)>,
+) {
+    use crate::als::movement_constants::{CHARACTER_MOVEMENT_MASS, ENABLE_PHYSICS_INTERACTION, STANDING_DOWNWARD_FORCE_SCALE};
+    if time.is_paused() || !ENABLE_PHYSICS_INTERACTION || STANDING_DOWNWARD_FORCE_SCALE == 0.0 { return; }
+    for (entity, position, local, parent, stance, handle, mode, gravity) in &characters {
+        if *mode != LocomotionState::Grounded { continue; }
+        let force = gravity.global * gravity.gravity_scale * (CHARACTER_MOVEMENT_MASS * STANDING_DOWNWARD_FORCE_SCALE);
+        if force == Vec3::ZERO { continue; }
+        let Some(params) = params_assets.get(handle.id()) else { continue };
+        let Ok(world) = transforms.compute_global_transform(entity) else { continue };
+        let scale = character_floor_scale(local, parent.is_some(), &world);
+        let half = if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() }
+            else { params.crouch.standing_capsule_half_height } * scale.y;
+        let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
+        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        let Some(floor) = find_ground_floor_with_penetration(&spatial, position.0, half, radius,
+            &params.cmc, *mode, &filter, entity, &candidates, None) else { continue };
+        let body = owners.get(floor.hit.entity).map_or(floor.hit.entity, |owner| owner.body);
+        if let Ok((RigidBody::Dynamic, mut forces, false)) = bodies.get_mut(body) {
+            forces.apply_force_at_point(force, floor.hit.point1);
+        }
+    }
+}
+
 pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
     cmc: &crate::als::params::CmcAdapterParams, mode: LocomotionState,
     filter: &SpatialQueryFilter, character: Entity,
@@ -5470,6 +5506,69 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn standing_force_uses_source_mass_gravity_and_contact_point() {
+        use avian3d::dynamics::integrator::VelocityIntegrationData;
+        use avian3d::prelude::{Mass, NoAutoMass};
+        use bevy::ecs::system::RunSystemOnce;
+        for (body, mass, owner_dilation, gravity_scale, offset) in [
+            (RigidBody::Dynamic, 100.0, 1.0, 1.0, 0.0),
+            (RigidBody::Dynamic, 1000.0, 1.0, 1.0, 0.0),
+            (RigidBody::Dynamic, 100.0, 0.0, 1.0, 0.0),
+            (RigidBody::Dynamic, 100.0, 1.0, 0.0, 0.0),
+            (RigidBody::Dynamic, 100.0, 1.0, 1.0, 0.4),
+            (RigidBody::Static, 100.0, 1.0, 1.0, 0.0),
+            (RigidBody::Kinematic, 100.0, 1.0, 1.0, 0.0),
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .insert_resource(Assets::<AlsMovementParams>::default());
+            app.finish();
+            let platform = app.world_mut().spawn((body, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, -0.1, 0.0), GravityScale(0.0), Mass(mass), NoAutoMass)).id();
+            app.update();
+            app.update();
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+            let start = Vec3::new(offset, 0.9215, 0.0);
+            app.world_mut().spawn((AlsCharacter, Transform::from_translation(start), Position(start),
+                Stance::Standing, AlsMovementParamsHandle(params), LocomotionState::Grounded,
+                AlsEffectiveGravity { global: Vec3::NEG_Y * 9.81, gravity_scale, ..default() },
+                crate::als_camera::AlsCameraCustomTimeDilation(owner_dilation)));
+            app.world_mut().run_system_once(apply_standing_downward_force).unwrap();
+            let integration = app.world().get::<VelocityIntegrationData>(platform);
+            let acceleration = integration.map_or(Vec3::ZERO, |value| value.linear_increment);
+            let expected = if body == RigidBody::Dynamic { -981.0 * gravity_scale / mass } else { 0.0 };
+            assert!((acceleration.y - expected).abs() < 1e-4,
+                "Standing force differs: {body:?} mass={mass} owner={owner_dilation} gravity={gravity_scale} acceleration={acceleration:?}");
+            if body == RigidBody::Dynamic && gravity_scale != 0.0 && offset != 0.0 {
+                assert!(integration.unwrap().angular_increment.z < 0.0, "Off-center standing force must apply torque");
+            }
+        }
+    }
+
+    #[test]
+    fn loaded_character_pushes_dynamic_base_with_world_physics_time() {
+        use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
+        for (mass, owner_dilation) in [(100.0, 1.0), (1000.0, 1.0), (100.0, 0.0)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let platform = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, 1.9, 0.0), GravityScale(0.0), Mass(mass), NoAutoMass,
+                LockedAxes::ROTATION_LOCKED)).id();
+            app.update();
+            app.update();
+            let start = Vec3::new(0.0, 2.9215, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LinearVelocity::ZERO, LocomotionState::Grounded,
+                crate::als_camera::AlsCameraCustomTimeDilation(owner_dilation)));
+            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::ZERO;
+            app.update();
+            let actual = app.world().get::<LinearVelocity>(platform).unwrap().y;
+            let expected = -0.1635 * 100.0 / mass;
+            assert!((actual - expected).abs() < 0.005,
+                "Standing force must use world time: mass={mass} owner={owner_dilation} actual={actual} expected={expected}");
+        }
+    }
+
     #[test]
     fn jump_off_rejects_only_forbidden_pawn_bases() {
         use bevy::ecs::system::RunSystemOnce;
