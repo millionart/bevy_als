@@ -1,0 +1,8 @@
+{
+  "samples": [
+    {"name": "forward-acceleration", "velocity_cm_s": {"x": 66.66666269302368, "y": 0, "z": 0}, "acceleration_cm_s2": {"x": 2000, "y": 0, "z": 0}, "delta_seconds": 0.03333333507180214, "friction": 0, "braking_deceleration_cm_s2": 0, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098, "max_speed_cm_s": 650, "max_acceleration_cm_s2": 2000, "min_analog_speed_cm_s": 0, "analog_input_modifier": 1},
+    {"name": "reverse-acceleration", "velocity_cm_s": {"x": -66.66666269302368, "y": 0, "z": 0}, "acceleration_cm_s2": {"x": -2000, "y": 0, "z": 0}, "delta_seconds": 0.03333333507180214, "friction": 0, "braking_deceleration_cm_s2": 0, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098, "max_speed_cm_s": 650, "max_acceleration_cm_s2": 2000, "min_analog_speed_cm_s": 0, "analog_input_modifier": 1},
+    {"name": "zero-delta", "velocity_cm_s": {"x": 66.66666269302368, "y": 0, "z": 0}, "acceleration_cm_s2": {"x": 2000, "y": 0, "z": 0}, "delta_seconds": 0, "friction": 0, "braking_deceleration_cm_s2": 0, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098, "max_speed_cm_s": 650, "max_acceleration_cm_s2": 2000, "min_analog_speed_cm_s": 0, "analog_input_modifier": 1},
+    {"name": "at-cap", "velocity_cm_s": {"x": 375, "y": 0, "z": 0}, "acceleration_cm_s2": {"x": 2000, "y": 0, "z": 0}, "delta_seconds": 0.03333333507180214, "friction": 0, "braking_deceleration_cm_s2": 0, "friction_factor": 0, "braking_substep_seconds": 0.03030303120613098, "max_speed_cm_s": 375, "max_acceleration_cm_s2": 2000, "min_analog_speed_cm_s": 0, "analog_input_modifier": 1}
+  ]
+}

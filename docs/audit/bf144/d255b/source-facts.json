@@ -1,0 +1,71 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 3931,
+          "last_line": 3945,
+          "text": "\t// Apply fluid friction\n\tif (bFluid)\n\t{\n\t\tVelocity = Velocity * (1.f - FMath::Min(Friction * DeltaTime, 1.f));\n\t}\n\n\t// Apply input acceleration\n\tif (!bZeroAcceleration)\n\t{\n\t\tconst float NewMaxInputSpeed = IsExceedingMaxSpeed(MaxInputSpeed) ? Velocity.Size() : MaxInputSpeed;\n\t\tVelocity += Acceleration * DeltaTime;\n\t\tVelocity = Velocity.GetClampedToMaxSize(NewMaxInputSpeed);\n\t}\n\n\t// Apply additional requested acceleration"
+        }
+      ]
+    },
+    {
+      "path": "src/als/character/movement/dynamics.rs",
+      "revision": "before_D255b",
+      "sha256": "4a7b058bb36ba1f4e9128743f28675fffcea98571c670d7aa8542cc2c3990a96",
+      "excerpts": [
+        {
+          "first_line": 166,
+          "last_line": 230,
+          "text": "pub fn grounded_velocity_step_with_braking_friction(\n    velocity: Vec3,\n    desired_motion: Vec3,\n    max_speed: f32,\n    dynamics: GroundedDynamics,\n    min_analog_walk_speed: f32,\n    braking_friction_factor: f32,\n    braking_substep_time: f32,\n    delta_seconds: f32,\n) -> Vec3 {\n    let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);\n    let desired_horizontal = Vec3::new(desired_motion.x, 0.0, desired_motion.z);\n    let desired_amount = desired_horizontal.length().min(1.0);\n    let speed = f64::from(crate::als::motion::source_horizontal_speed_centimeters(horizontal_velocity)) / 100.0;\n    let delta_seconds = delta_seconds.max(0.0);\n    if delta_seconds < MIN_MOVEMENT_DELTA_SECONDS { return horizontal_velocity; }\n    let acceleration = desired_horizontal.clamp_length_max(1.0) * dynamics.acceleration.max(0.0);\n    let has_acceleration = acceleration != Vec3::ZERO;\n    let analog_modifier = if has_acceleration && dynamics.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_amount } else { 0.0 };\n    let target_speed = analog_target_speed(max_speed, analog_modifier, min_analog_walk_speed);\n    let overspeed = horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO;\n    let acceleration_direction = source_grounded_normal(acceleration);\n    let mut next = horizontal_velocity.as_dvec3();\n    if !has_acceleration || overspeed {\n        let friction = dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0);\n        let deceleration = dynamics.braking_deceleration.max(0.0);\n        if friction > 0.0 || deceleration > 0.0 {\n            let reverse_acceleration = -source_grounded_normal(horizontal_velocity).as_dvec3() * f64::from(deceleration);\n            let mut remaining = delta_seconds;\n            let max_step = braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);\n            while remaining >= MIN_MOVEMENT_DELTA_SECONDS {\n                let step = if remaining > max_step && friction > 0.0 {\n                    max_step.min(remaining * 0.5)\n                } else { remaining };\n                remaining -= step;\n                next += (-next * f64::from(friction) + reverse_acceleration) * f64::from(step);\n                if next.as_vec3().dot(horizontal_velocity) <= 0.0 {\n                    next = bevy::math::DVec3::ZERO;\n                    break;\n                }\n            }\n            if next.as_vec3().length_squared() <= BRAKING_SMALL_VELOCITY_SQUARED\n                || deceleration > 0.0 && next.as_vec3().length_squared() <= BRAKE_TO_STOP_VELOCITY.powi(2)\n            {\n                next = bevy::math::DVec3::ZERO;\n            }\n        }\n        if overspeed && next.as_vec3().length_squared() < target_speed * target_speed\n            && acceleration.dot(horizontal_velocity) > 0.0\n        {\n            next = (source_grounded_normal(horizontal_velocity) * target_speed).as_dvec3();\n        }\n    }\n    let next = if has_acceleration && !overspeed {\n        let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);\n        next - (next - acceleration_direction.as_dvec3() * speed) * f64::from(friction_alpha)\n    } else { next };\n    if !has_acceleration { return next.as_vec3(); }\n    let input_limit = if next.length_squared() > f64::from(target_speed * target_speed * MAX_SPEED_SQUARED_RATIO) {\n        f64::from((next * 100.0).length() as f32) / 100.0\n    } else { f64::from(target_speed) };\n    (next + (acceleration * delta_seconds).as_dvec3())\n        .clamp_length_max(input_limit).as_vec3()\n}\n"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/audit/bf144/d255b/velocity.request.json",
+      "bytes": 1628,
+      "sha256": "bd038c5e5ca45ad280a68bb1c226fc90061cde2665f4317b1df7be59d44bb0e8"
+    },
+    {
+      "path": "docs/audit/bf144/d255b/velocity.native.json",
+      "bytes": 57705,
+      "sha256": "d1a167e6fe70ea7acc4e1eb1b4bfe384059816013a20c4954dce29f9486c3185"
+    },
+    {
+      "path": "docs/audit/bf144/d255b/velocity.native.json.reader.report.json",
+      "bytes": 426,
+      "sha256": "4739ca7c142057de9819cec375fb54948a2fc8c84830f904b4bd7dfd1978a570"
+    },
+    {
+      "path": "docs/audit/bf144/d255b/native-identities.json",
+      "bytes": 630,
+      "sha256": "14564867c7ea90d5bdbf898c58c735db7605068f4e87abe9794e39bdd92730bd"
+    },
+    {
+      "path": "docs/audit/bf144/d255a/source-facts.json",
+      "bytes": 7928,
+      "sha256": "6d41ec23dbe22589221014e8770398a47527377e2578082ade76c1c584e07bc2"
+    },
+    {
+      "path": "docs/audit/bf144/d256c/source-facts.json",
+      "bytes": 8792,
+      "sha256": "e9f178fd4fc4a7f075e7075fc74bed1e6ef3d4db27d94ded47034d2581ef4d0a"
+    },
+    {
+      "path": "docs/audit/bf144/d266a/velocity.native.json",
+      "bytes": 128634,
+      "sha256": "29eca087362675b3782245e6640ea6fedce1a1417540a504c8b98793d15e9625"
+    }
+  ],
+  "missing_previous_evidence": [
+    "target/bf144/437/native-check.json",
+    "target/bf144/437/parameter-check.json",
+    "target/bf144/437/consumer-check.json"
+  ],
+  "scope": "Double FVector acceleration times float delta before velocity accumulation and clamping; braking was D255a.",
+  "status": "implementation_complete_static_and_runtime_gates_pending"
+}
