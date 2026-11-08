@@ -1,0 +1,18 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Data/AnimationInstance/AIS_Als_Default.uasset",
+      "asset_identity": {
+        "bytes": 9631,
+        "sha256": "9af2ffa2d8e832b93d3bbaeea2f35e4663acc3aa643e65a128e3f9df8f73c6a7"
+      },
+      "request_asset": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+      "native_output": "docs/audit/bf144/d151/speed.native.json",
+      "raw": {
+        "bytes": 108256,
+        "sha256": "10abb380d44426a7120f9524bb71260a1815f9f62c1b98c0d0dfc056be148146"
+      },
+      "reader_report": "docs/audit/bf144/d151/speed.native.json.reader.report.json"
+    }
+  ]
+}

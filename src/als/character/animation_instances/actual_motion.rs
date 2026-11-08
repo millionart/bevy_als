@@ -31,7 +31,7 @@ impl AlsActualMotion {
         Self {
             world_velocity,
             local_velocity: motion.local_velocity,
-            horizontal_speed: motion.horizontal_speed,
+            horizontal_speed: Vec2::new(world_velocity.x, world_velocity.z).length(),
             velocity_yaw_degrees: world_forward_to_yaw(world_velocity).to_degrees(),
             signed_direction_radians: motion.signed_direction_radians,
             velocity_blend: HorizontalVelocityBlend {
@@ -212,6 +212,24 @@ mod tests {
         app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::new(2.0, 3.0, -1.0);
         app.world_mut().run_schedule(PostUpdate);
         assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().world_velocity, Vec3::new(2.0, 3.0, -1.0));
+    }
+
+    #[test]
+    fn moving_smooth_uses_world_horizontal_speed_for_pitched_actor() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).add_systems(PostUpdate, snapshot_actual_motion_system);
+        let mut actors = Vec::new();
+        for pitch in [0.0, std::f32::consts::FRAC_PI_3, -std::f32::consts::FRAC_PI_3] {
+            actors.push(app.world_mut().spawn((AlsCharacter, Transform::from_rotation(Quat::from_rotation_x(pitch)),
+                LocomotionState::Grounded, LinearVelocity(Vec3::new(0.0, 7.0, -1.6)))).id());
+        }
+        app.world_mut().run_schedule(PostUpdate);
+        for (index, actor) in actors.into_iter().enumerate() {
+            let motion = app.world().get::<AlsActualMotion>(actor).unwrap();
+            assert_eq!(motion.horizontal_speed, 1.6);
+            assert!(crate::standing_layer::source_moving_smooth(false, motion.horizontal_speed));
+            if index > 0 { assert!(motion.local_velocity.length() < 1.0); }
+        }
     }
 
     #[test]

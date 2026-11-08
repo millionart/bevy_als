@@ -5419,6 +5419,13 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
   - BF144.433 matched240补充：720 fresh原生长度中actual-source-cm/common-target-cm/common-target-m各240，源实际Speed/公共world核/共同向量厘米float逐份精确。固定target实际世界向量，先cm float再投影与直接米float有4份不同，移除该中间float阶段后四信号全部消失，其它数学字段保持；源码bytes恢复同target重编完整240 byte精确。源实际Speed runtime投影与target局部speed有93份不等，即使对target向量统一source Speed生产核仍92份不等，属于不同物理速度输入，不能把93/92计作本项同输入反例。证据`target/bf144/433/speed-factor-rows.json`、`speed-check.json`、`controls-check.json`，未新增编号、未修生产或宣称整Root恢复。
 
+  - 拆分：D256同时影响ALS世界速度标量、gait厘米映射的原始输入与CMC转向`VelSize`三个不同消费阶段；依次按源闭包分为a/b/c，全部实现并分别提交后才勾选父项，避免将厘米float先投回米float后再反算误作原始值。
+  - [ ] BF144-D256a — 世界速度标量按源厘米float阶段生成并投影到运行时米制。
+    - 修复第1轮：开始2026-11-08 08:36 +08:00；预估结束09:26 +08:00。依据：fresh ALS `RefreshLocomotion`先对世界速度double厘米求水平长度再存float，目标实际速度与动画快照各有生产者；需重采同向量原生长度并核对全部真实消费者。测试在全部静态修复和Bevy/依赖迁移后执行。
+    - 08:37依赖拆分：fresh source/target表明动画快照仍用角色局部投影长度，正是尚未修复的D151；若直接从世界向量实现厘米阶段会同时吞并两个独立原因。第1轮结束08:37、偏差−49分钟，结果拆分为先修D151再返回D256a，原整体目标和b/c不变。
+  - [ ] BF144-D256b — gait映射消费未丢失的源厘米float速度。
+  - [ ] BF144-D256c — CMC转向消费源厘米float速度并保留后续向量精度。
+
 - [ ] BF144-D255 / P3 — 地面运动向量乘法提前按F32舍入，改变加速与制动计划速度。
   - Source：fresh `CharacterMovementComponent.cpp:4377–4432`以FVector double执行RevAccel×float dt后加回Velocity；`Vector.h:2058–2073`给出实际GetSafeNormal。原生有效标准CharacterMovement的受控制动核15样本已核，12原实际输入的纯制动向量与独立模型逐值相同；此核不tick世界、不执行位置回算，也无动画root motion。
   - Target：`dynamics.rs:186–198`以Vec3 F32先舍入制动向量×dt，再加回F32速度。共同物理输入前速0.9856696724891663m/s、制动15m/s²、delta0.03333333507180214、friction factor0时，目标乘积15×dt先变0.5，公开冻结核结果0.48566967248916626；源原生结果48.56696464121342cm/s，投影0.48566964268684387m/s。
@@ -6532,7 +6539,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色进入实际High Mantle，第2帧dot(V,A)=−48.811157、PostLocomotion权重0.074074，Grounded回调仍写入当帧。目标lean forward=0.053087，源同输入应0.023253；只将该字段改为0，值即对齐。两帧×恢复/原样共4组3PASS/1FAIL；正点积帧数值和Lean姿态完全相同，负点积帧实际Blendspace输入及输出变化，最大骨骼角差0.013047rad。
   - 漏检：旧测试只使用Grounded模式，并用provider自己发布的最大值计算期望；没有经过Custom的源getter和仍有权重的地面consumer。fresh原生High Montage混入0.2秒、slot不强制更新source，但本帧source权重非零；Air的惯性切换不复用这个证据。证据`68/checked_initial/`、`68/final/`及`bf144_animation_phase68_custom_braking_uses_source_mode`；最终原生等价姿态尚未验收，未修复生产。
 
-- [ ] BF144-D151 / P3 — 把局部投影长度当作世界水平速度，改变移动标志与Standing状态选择。
+- [x] BF144-D151 / P3 — 把局部投影长度当作世界水平速度，改变移动标志与Standing状态选择。
   - Source：fresh `AlsCharacter.cpp:1375–1389`从GetVelocity的世界XY分量计算Speed，再以1cm/s判断HasVelocity；`1435–1436`与动画`712–716`按实际50/150cm/s阈值计算moving/moving smooth。该speed不依赖actor旋转；当前原生Standing Idle→Move直接绑定bMovingSmooth。
   - Target：`tnua_ext/motion.rs:41–45`先向角色forward/right投影，再取二维长度；`actual_motion.rs:40–44`把此长度作为horizontal_speed，provider再发布speed和移动标志。倾斜时会丢失分量，纯yaw时的舍入也可能跨越严格阈值。
   - 反例：完整角色先等到实际Standing Idle，在相同世界velocity=(0,0,−1.6)m/s、无输入下控制actor俯仰60度，目标发布0.8m/s并保持Idle；源应1.6m/s并开始Idle→Move。仅恢复horizontal_speed即进入原生对应转换，当前actor旋转与速度均已核实。直立/倾斜×原样/恢复四组3PASS/1FAIL；另11组输入边界中0.5及1.5m/s各出现一处误判，同根归并。
@@ -6541,6 +6548,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.313 实际graph传播补充：在真实Forward 40步中仅将horizontal_speed改成同帧world长度，全部物理位置/速度/body basis/模式与FSM逐值保持；31 scalar差异继续进入10 stride、28 playrate、34 asset-clock及36 pose帧，T/R/S通道行变化1225/2369/17。移除诊断producer控制回到原baseline，源码字节恢复同binary重编完整cohort一致；这些是已知因素的实际传播，未宣称肉眼可见或source pose已恢复。证据`target/bf144/313/consumer-check.json`、`controls-check.json`、`restore-check.json`。
 
   - BF144.433 matched240消费者补充：实际root Transform逐帧只读记录后，冻结公共helper经同一GlobalTransform.rotation提取重放240份actual/provider speed全部精确；若直接使用local quat，82份重放失败，已排除错误旋转读取。相同实际target世界向量改用world水平长度，94份scalar改变；720原生三域长度确认world核240份相同，源Speed240来自world XY double长度转cm float。物理移除world控制丢94信号、其它字段保持，源码bytes恢复同target重编240 byte精确，观察字段移除/恢复的完整旧240与新240也分别精确。这里只扩同输入producer证据，不称本次跑了world-only闭环姿态控制；物理输入余差仍后继。证据`target/bf144/433/speed-check.json`、`controls-check.json`、`summary.json`，生产未改。
+  - 修复第1轮：开始2026-11-08 08:37 +08:00；预估结束09:27 +08:00。依据：D256前置闭包fresh确认源Speed直接来自世界水平速度，而target动画实际快照使用局部投影；先仅改该ALS生产者并保留局部方向/通用Tnua能力，重采倾斜控制及图消费者证据。测试在全部静态修复与Bevy/依赖迁移后执行。
+  - 08:40 source/static与实现摘要：fresh源Speed只取世界水平速度，默认moving-smooth阈值150cm/s；同一160cm/s世界输入的直立/倾斜源长度相同。动画快照已用世界XZ长度，局部方向和通用Tnua算法保留，写实际快照系统的±60°倾斜/阈值反例。旧.311/.313/.433运行原报缺失；实现结束08:40、偏差−47分钟。source原生长度数据已封存，focused测试、消融、图审计与含倾斜角色的公共Playground Gate待静态修复和Bevy/依赖迁移后执行；下一步返回D256a。
 
 - [ ] BF144-D152 / P2 — 地面预测复用物理形体，遗漏源胶囊组件的查询尺寸。
   - Source：fresh `AlsAnimationInstance.cpp:785–789,1166–1188`从CapsuleComponent读取scaled radius/half-height，再用Identity旋转构建独立查询胶囊；`CapsuleComponent.h:201–211`半径取水平两轴较小值、半高取竖直尺度。这不同于D11所述物理形体的水平大轴规则。
