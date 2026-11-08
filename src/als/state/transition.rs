@@ -323,8 +323,10 @@ pub fn state_transition_system(
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut rejections: MessageWriter<StateTransitionRejectedEvent>,
+    ragdoll_eligibility: crate::ragdoll_link::AlsRagdollStartEligibility,
     mut actors: Query<(
         Entity,
+        Has<crate::als::character::AlsCharacter>,
         &mut AlsStateRequest,
         &mut LocomotionState,
         &mut Stance,
@@ -338,6 +340,7 @@ pub fn state_transition_system(
 ) {
     for (
         entity,
+        is_character,
         mut req,
         mut loco,
         mut stance,
@@ -358,6 +361,7 @@ pub fn state_transition_system(
         }
         if std::mem::take(&mut req.ragdoll_start)
             && action.as_deref() != Some(&AlsNotifyLocomotionAction::Ragdolling)
+            && (!is_character || ragdoll_eligibility.allows(entity))
         {
             req.ragdoll_exit = false;
             if !mode_locked {

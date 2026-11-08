@@ -11823,10 +11823,8 @@ mod tests {
             app.update();
             assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, Stance::Standing);
             assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
-            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().ragdoll_start = true;
-            app.update();
-            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::None));
-            assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(character), Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling));
+            app.world_mut().entity_mut(character).insert((LocomotionState::None,
+                crate::als::state::AlsNotifyLocomotionAction::Ragdolling));
             *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Grounded;
             let lifted = app.world().get::<Transform>(character).unwrap().with_translation(Vec3::Y * 10.0);
             app.world_mut().entity_mut(character).insert((lifted, Position(lifted.translation)));

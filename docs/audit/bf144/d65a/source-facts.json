@@ -1,0 +1,46 @@
+{
+  "native_physics_asset_bodies": [
+    "pelvis",
+    "spine_01",
+    "spine_02",
+    "spine_03",
+    "neck_01",
+    "head",
+    "thigh_l",
+    "thigh_r",
+    "calf_l",
+    "calf_r",
+    "clavicle_l",
+    "clavicle_r",
+    "upperarm_l",
+    "upperarm_r",
+    "lowerarm_l",
+    "lowerarm_r",
+    "hand_l",
+    "hand_r",
+    "root",
+    "foot_l",
+    "foot_r"
+  ],
+  "als_start_permission": {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 717,
+    "end_line": 729,
+    "text": "bool AAlsCharacter::IsRagdollingAllowedToStart() const\n{\n\treturn LocomotionAction != AlsLocomotionActionTags::Ragdolling &&\n\t       ALS_ENSURE_MESSAGE(GetMesh()->GetBodyInstance(UAlsConstants::PelvisBoneName()) != nullptr &&\n\t                          GetMesh()->GetBodyInstance(UAlsConstants::Spine03BoneName()) != nullptr,\n\t                          TEXT(\"A physics asset with the %s and %s bones are required for the ragdolling to work.\"),\n\t                          *UAlsConstants::PelvisBoneName().ToString(), *UAlsConstants::Spine03BoneName().ToString());\n}\n\nvoid AAlsCharacter::StartRagdolling()\n{\n\tif (GetLocalRole() <= ROLE_SimulatedProxy || !IsRagdollingAllowedToStart())\n\t{"
+  },
+  "als_start_commit": {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 753,
+    "end_line": 770,
+    "text": "\nvoid AAlsCharacter::MulticastStartRagdolling_Implementation()\n{\n\tStartRagdollingImplementation();\n}\n\nvoid AAlsCharacter::StartRagdollingImplementation()\n{\n\tif (!IsRagdollingAllowedToStart())\n\t{\n\t\treturn;\n\t}\n\n\tGetMesh()->bUpdateJointsFromAnimation = true; // Required for the flail animation to work properly.\n\n\tif (!GetMesh()->IsRunningParallelEvaluation() && !GetMesh()->GetBoneSpaceTransforms().IsEmpty())\n\t{\n\t\tGetMesh()->UpdateRBJointMotors();"
+  },
+  "ue_named_body_instance": {
+    "source_file": "Engine/Source/Runtime/Engine/Private/SkeletalMeshComponentPhysics.cpp",
+    "sha256": "1613f738b65c022b6de91a3db2dc72dc6affe0c7c7b54d49c3a66ff6fdb858b4",
+    "start_line": 2184,
+    "end_line": 2212,
+    "text": "FBodyInstance* USkeletalMeshComponent::GetBodyInstance(FName BoneName, bool, int32) const\n{\n\tUPhysicsAsset * const PhysicsAsset = GetPhysicsAsset();\n\tFBodyInstance* BodyInst = NULL;\n\n\tif(PhysicsAsset != NULL)\n\t{\n\t\t// A name of NAME_None indicates 'root body'\n\t\tif(BoneName == NAME_None)\n\t\t{\n\t\t\tif (Bodies.IsValidIndex(RootBodyData.BodyIndex))\n\t\t\t{\n\t\t\t\tBodyInst = Bodies[RootBodyData.BodyIndex];\n\t\t\t}\n\t\t}\n\t\t// otherwise, look for the body\n\t\telse\n\t\t{\n\t\t\tint32 BodyIndex = PhysicsAsset->FindBodyIndex(BoneName);\n\t\t\tif(Bodies.IsValidIndex(BodyIndex))\n\t\t\t{\n\t\t\t\tBodyInst = Bodies[BodyIndex];\n\t\t\t}\n\t\t}\n\n\t}\n\n\treturn BodyInst;\n}"
+  }
+}

@@ -6246,6 +6246,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整活动Mantle、目标位置(0,0.4,−1.4)m保持不动，Static→Kinematic或反向切换后，源公式分别按新primitive/world空间解释已存warp，target仍按旧空间，位置差约1.456m。`bf144_mantle_physics_live_mobility_controls_relative_space`4组2PASS/2FAIL，同状态两组通过；证据`target/bf144/19/mobility/`。这是外部改变目标可移动性的少见合同边界，记P3；不把源空间突变擅自改写成平滑行为。
 
 - [ ] BF144-D65 / P2 — Ragdoll启动遗漏pelvis与spine_03刚体许可检查。
+  - 拆分：D65a先建立真实物理体许可并修复显式请求；D65b再将相同许可接入源已证实的落地、翻滚中断和Mantle目标丢失入口。两项各自提交，统一测试后关闭父项。
+  - [x] BF144-D65a — 显式Ragdoll请求的物理体许可；静态实现完成。开始2026-11-08 18:37 +08:00；预估结束19:22 +08:00；实际结束18:43 +08:00，提前39分钟；测试/消融/Gate暂缓。
+    - 闭环：fresh ALS许可、UE命名body查找及PA_Als原生21体证据保存在`docs/audit/bf144/d65a/`；真实角色缺任一必需体时拒绝请求，已写完整角色与非必需体对照。旧反例无可恢复报告路径；旧无rig优先级gate及归档BF-Char5许可边界已有限复开，统一验证后恢复。
+  - [ ] BF144-D65b — 已证实的自动Ragdoll入口复用同一物理体许可；等待D65a静态实现。
   - Source：fresh `AlsCharacter_Actions.cpp:717–723,759–764`要求两处`GetBodyInstance`都非空，否则在修改montage、mesh/capsule物理、movement mode和action之前拒绝启动；fresh PA_Als确认实际命名与默认实例存在。
   - Target：`state/transition.rs:359–370`只检查当前action不是Ragdolling，直接提交Ragdolling/None；`ragdoll_link.rs:787–830`随后关闭capsule collision并禁用Tnua，rig同步遇到缺失body只是continue，没有回退许可。
   - 反例：完整角色的physics body实例中分别移除pelvis或spine_03，再请求Ragdoll；源应拒绝，target却进入Ragdolling/None、capsule变Kinematic且layers=NONE。`bf144_ragdoll_lifecycle_requires_pelvis_and_spine_body_instances`4组2PASS/2FAIL，完整rig与只缺非必需foot_l的许可对照通过，实际图没有求值错误。旧入口测试默认完整PA实例，未覆盖源显式前置条件；生产未改。

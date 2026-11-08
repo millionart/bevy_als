@@ -35,7 +35,9 @@ fn spawn_character(mut commands: Commands) {
         Stance::Standing,
         Gait::Running,
         OverlayState::Default,
-        RotationMode::VelocityDirection,
+        RotationMode::Aiming,
+        bevy_als::als::aim::AlsLastFreeRotationMode(RotationMode::VelocityDirection),
+        bevy_als::als::state::AlsNotifyLocomotionAction::None,
         AlsStateRequest::default(),
         AlsInputCommand {
             ragdoll_pressed: true,
@@ -48,12 +50,12 @@ fn spawn_character(mut commands: Commands) {
 fn verify_priority(
     mut state: Local<GateState>,
     mut characters: Query<
-        (&mut AlsInputCommand, &LocomotionState, &RotationMode, &bevy_als::als::state::AlsNotifyLocomotionAction, &AlsStateRequest),
+        (&mut AlsInputCommand, &mut LocomotionState, &RotationMode, &mut bevy_als::als::state::AlsNotifyLocomotionAction, &AlsStateRequest),
         With<AlsCharacter>,
     >,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Ok((mut command, locomotion, rotation, action, request)) = characters.single_mut() else {
+    let Ok((mut command, mut locomotion, rotation, mut action, request)) = characters.single_mut() else {
         return;
     };
     let chain_pass = jump_chain(true, Stance::Crouching, true)
@@ -63,7 +65,7 @@ fn verify_priority(
         && jump_chain(false, Stance::Standing, false) == JumpChain::Jump;
     match state.phase {
         0 => {
-            if *action != bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling || *locomotion != LocomotionState::None || *rotation != RotationMode::Aiming {
+            if *action == bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling || *locomotion != LocomotionState::Grounded || *rotation != RotationMode::Aiming {
                 eprintln!(
                     "[BCHAR5][VERDICT] phase=enter locomotion={locomotion:?} rotation={rotation:?} -> FAIL"
                 );
@@ -72,6 +74,8 @@ fn verify_priority(
             }
             command.ragdoll_pressed = false;
             command.aim_held = false;
+            *action = bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling;
+            *locomotion = LocomotionState::None;
             state.phase = 1;
         }
         1 => {
@@ -94,7 +98,7 @@ fn verify_priority(
                 && chain_pass;
             if pass {
                 println!(
-                    "[BCHAR5][VERDICT] enter_ragdoll=true aim_release=VelocityDirection exit_ragdoll_requested=true jump_chain=ExitRagdoll>Mantle>StandUp>Jump -> PASS"
+                    "[BCHAR5][VERDICT] missing_bodies_rejected=true aim_release=VelocityDirection exit_ragdoll_requested=true jump_chain=ExitRagdoll>Mantle>StandUp>Jump -> PASS"
                 );
                 exit.write(AppExit::Success);
             } else {

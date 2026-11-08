@@ -291,6 +291,25 @@ fn find_body_by_label(
     None
 }
 
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct AlsRagdollStartEligibility<'w, 's> {
+    assemblies: Query<'w, 's, &'static AlsCharacterAssembly>,
+    avatars: Query<'w, 's, (&'static AlsCharacterAvatar, &'static AnimatedSceneInstance)>,
+    players: Query<'w, 's, &'static AnimationGraphPlayer>,
+    labels: Query<'w, 's, &'static BodyLabel>,
+    bodies: Query<'w, 's, (), With<RigidBody>>,
+}
+
+impl AlsRagdollStartEligibility<'_, '_> {
+    pub(crate) fn allows(&self, character: Entity) -> bool {
+        let Some(player) = animated_player_for_character(character, self.assemblies.get(character).ok(), &self.avatars)
+            .and_then(|player| self.players.get(player).ok()) else { return false; };
+        let Some(spawned) = player.get_spawned_ragdoll() else { return false; };
+        ["pelvis", "spine_03"].into_iter().all(|label|
+            find_body_by_label(spawned, &self.labels, label).is_some_and(|body| self.bodies.contains(body)))
+    }
+}
+
 fn animated_player_for_character(
     character: Entity,
     assembly: Option<&AlsCharacterAssembly>,
@@ -1236,6 +1255,45 @@ fn ragdoll_link_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn ragdoll_start_requires_both_source_body_instances() {
+        for missing in [None, Some("pelvis"), Some("spine_03"), Some("foot_l")] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let mut bodies = None;
+            for _ in 0..600 {
+                bodies = app.world().get::<AnimationGraphPlayer>(player).and_then(|player| player.get_spawned_ragdoll())
+                    .map(|spawned| spawned.bodies.values().filter_map(|entity| {
+                        app.world().get::<BodyLabel>(*entity).map(|label| (label.0.clone(), *entity))
+                    }).collect::<Vec<_>>());
+                if bodies.as_ref().is_some_and(|bodies| ["pelvis", "spine_03", "foot_l"].into_iter()
+                    .all(|label| bodies.iter().any(|(name, _)| name == label))) { break; }
+                app.update();
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            let bodies = bodies.expect("Ragdoll bodies did not load within 600 frames");
+            assert!(["pelvis", "spine_03", "foot_l"].into_iter()
+                .all(|label| bodies.iter().any(|(name, _)| name == label)), "Required fixture bodies are missing");
+            if let Some(missing) = missing {
+                let body = bodies.iter().find(|(label, _)| label == missing).unwrap().1;
+                app.world_mut().entity_mut(body).remove::<RigidBody>();
+            }
+            let initial_layers = *app.world().get::<CollisionLayers>(actor).unwrap();
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            app.update();
+            let accepted = missing.is_none_or(|label| label == "foot_l");
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor) == Some(&AlsNotifyLocomotionAction::Ragdolling), accepted,
+                "missing={missing:?}");
+            if !accepted {
+                assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+                assert_eq!(*app.world().get::<RigidBody>(actor).unwrap(), RigidBody::Dynamic);
+                assert_eq!(*app.world().get::<CollisionLayers>(actor).unwrap(), initial_layers);
+            }
+            assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start);
+            assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_error().is_none());
+        }
+    }
+
     #[test]
     fn source_ragdoll_exit_loaded_support_lifecycle() {
         for change in ["unchanged", "remove", "move_away", "move_in", "add", "self_query"] {

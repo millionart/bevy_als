@@ -485,8 +485,9 @@ mod tests {
         app.update();
         assert_eq!(
             *app.world().get::<LocomotionState>(e).unwrap(),
-            LocomotionState::None
+            LocomotionState::Grounded
         );
+        app.world_mut().entity_mut(e).insert((LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling));
 
         app.world_mut()
             .get_mut::<AlsInputCommand>(e)
