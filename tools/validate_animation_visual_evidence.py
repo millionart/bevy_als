@@ -36,6 +36,12 @@ def finite(value):
     return isinstance(value, (int, float)) and math.isfinite(value)
 
 
+def source_world_frame_delta(raw):
+    settings = read_json(Path(__file__).resolve().parents[1] /
+        "assets/ALSExtras/Levels/L_Als_Playground/world_time.runtime.json")
+    return min(max(raw, settings["min_undilated_seconds"]), settings["max_undilated_seconds"])
+
+
 def png_report(path):
     with Image.open(path) as image:
         image.verify()
@@ -2381,6 +2387,9 @@ def fixture_rotating_base_report():
 
 
 def run_self_test():
+    assert source_world_frame_delta(0.0001) > 0.0001
+    assert source_world_frame_delta(0.3) == 0.3
+    assert abs(source_world_frame_delta(0.5) - 0.4) < 1e-7
     baseline = 1.0 / 60.0
     hitch = 0.2
     rows = [
@@ -2391,6 +2400,14 @@ def run_self_test():
     ]
     frame_report = {"manual_integration": {"moving_base_trace": rows}}
     assert not frame_hitch_issues(frame_report, baseline, hitch)
+    clamped = source_world_frame_delta(0.5)
+    clamped_report = copy.deepcopy(frame_report)
+    clamped_rows = clamped_report["manual_integration"]["moving_base_trace"]
+    clamped_rows[2]["time"] = baseline + clamped
+    clamped_rows[2]["position"] = [0.1 + 2.0 * clamped, 0.0, 0.0]
+    clamped_rows[3]["time"] = 2.0 * baseline + clamped
+    assert not frame_hitch_issues(clamped_report, baseline, clamped)
+    assert frame_hitch_issues(clamped_report, baseline, 0.5)
     missing = copy.deepcopy(frame_report)
     missing["manual_integration"]["moving_base_trace"][2]["time"] = 2.0 * baseline
     missing["manual_integration"]["moving_base_trace"][3]["time"] = 3.0 * baseline
@@ -3430,9 +3447,13 @@ def main():
     result = audit_report(report, args.min_screenshots)
     if args.expected_frame_hitch_seconds:
         if not (math.isfinite(args.baseline_frame_delta_seconds) and math.isfinite(args.expected_frame_hitch_seconds)
-                and 0.0 < args.baseline_frame_delta_seconds < args.expected_frame_hitch_seconds <= 0.25):
+                and 0.0 < args.baseline_frame_delta_seconds < args.expected_frame_hitch_seconds):
             raise ValueError("invalid frame hitch request")
-        issues = frame_hitch_issues(report, args.baseline_frame_delta_seconds, args.expected_frame_hitch_seconds)
+        baseline = source_world_frame_delta(args.baseline_frame_delta_seconds)
+        hitch = source_world_frame_delta(args.expected_frame_hitch_seconds)
+        if baseline >= hitch:
+            raise ValueError("frame hitch is indistinguishable after source world time clamping")
+        issues = frame_hitch_issues(report, baseline, hitch)
         result["issues"].extend(issues)
         result["pass"] = not result["issues"]
     print(json.dumps(result, ensure_ascii=False, indent=2))

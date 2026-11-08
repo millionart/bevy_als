@@ -177,6 +177,8 @@ pub mod state_label_event;
 pub mod sync_group_phase;
 #[path = "bevy_ext/time_dilation.rs"]
 pub mod time_dilation;
+#[path = "bevy_ext/source_world_time.rs"]
+pub mod source_world_time;
 #[path = "bevy_ext/text_overflow.rs"]
 pub mod text_overflow;
 #[path = "animation_graph_ext/time_position.rs"]

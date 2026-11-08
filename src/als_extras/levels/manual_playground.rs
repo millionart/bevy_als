@@ -28,6 +28,7 @@ use bevy_als::extensions::{
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
     PlaygroundMovingObject, PlaygroundPlugin,
 };
+use bevy_als::extensions::source_world_time::SourceWorldTimePlugin;
 use bevy_als::character_assembly::AlsCharacterAvatar;
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::game_mode::{
@@ -51,7 +52,16 @@ use bevy_als::{
 const SPAWN_VISIBLE_VALIDATION_STEPS: u32 = 60;
 const SPAWN_SENSOR_STABLE_STEPS: u32 = 20;
 
+#[derive(serde::Deserialize)]
+struct PlaygroundWorldTime {
+    min_undilated_seconds: f64,
+    max_undilated_seconds: f64,
+}
+
 fn main() {
+    let world_time: PlaygroundWorldTime = serde_json::from_str(include_str!(
+        "../../../assets/ALSExtras/Levels/L_Als_Playground/world_time.runtime.json"
+    )).expect("playground world time settings must be valid");
     let mut app = App::new();
     app.add_plugins((
         DefaultPlugins
@@ -66,6 +76,10 @@ fn main() {
                 }),
                 ..default()
             }),
+        SourceWorldTimePlugin {
+            minimum: Duration::from_secs_f64(world_time.min_undilated_seconds),
+            maximum: Duration::from_secs_f64(world_time.max_undilated_seconds),
+        },
         AlsPlayableCharacterPlugin,
         AlsGameModePlugin,
     ));
@@ -78,15 +92,14 @@ fn main() {
     ));
     if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
         app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
-        let max_delta = app.world().resource::<Time<Virtual>>().max_delta();
         let frame_delta = std::env::var("ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS")
-            .ok().map(|raw| parse_gate_frame_delta(&raw, max_delta));
+            .ok().map(|raw| parse_gate_frame_delta(&raw));
         if let Some(delta) = frame_delta {
             app.insert_resource(TimeUpdateStrategy::ManualDuration(delta));
         }
         if let Ok(raw) = std::env::var("ALS_MANUAL_INTEGRATION_FRAME_HITCH_SECS") {
             let baseline = frame_delta.expect("frame hitch requires a manual baseline delta");
-            let hitch = parse_gate_frame_delta(&raw, max_delta);
+            let hitch = parse_gate_frame_delta(&raw);
             assert!(hitch > baseline, "frame hitch must exceed the baseline delta");
             app.insert_resource(GateFrameHitch { baseline, hitch, fired: false, restore_next: false });
             app.add_systems(Last, apply_gate_frame_hitch);
@@ -157,12 +170,10 @@ fn main() {
     }
 }
 
-fn parse_gate_frame_delta(raw: &str, max_delta: Duration) -> Duration {
+fn parse_gate_frame_delta(raw: &str) -> Duration {
     let seconds = raw.parse::<f64>().expect("gate frame delta must be a number");
     assert!(seconds.is_finite() && seconds > 0.0, "gate frame delta must be positive and finite");
-    let delta = Duration::from_secs_f64(seconds);
-    assert!(delta <= max_delta, "gate frame delta exceeds the virtual clock maximum");
-    delta
+    Duration::from_secs_f64(seconds)
 }
 
 #[derive(Resource)]
@@ -1015,11 +1026,11 @@ mod tests {
     }
 
     #[test]
-    fn gate_frame_delta_is_bounded_by_the_virtual_clock() {
-        let max_delta = Duration::from_millis(250);
-        assert_eq!(parse_gate_frame_delta("0.1", max_delta), Duration::from_millis(100));
-        for invalid in ["0", "-0.1", "NaN", "inf", "bad", "0.3"] {
-            assert!(std::panic::catch_unwind(|| parse_gate_frame_delta(invalid, max_delta)).is_err());
+    fn gate_frame_delta_preserves_raw_hitches_for_the_world_clock() {
+        assert_eq!(parse_gate_frame_delta("0.1"), Duration::from_millis(100));
+        assert_eq!(parse_gate_frame_delta("0.5"), Duration::from_millis(500));
+        for invalid in ["0", "-0.1", "NaN", "inf", "bad"] {
+            assert!(std::panic::catch_unwind(|| parse_gate_frame_delta(invalid)).is_err());
         }
     }
 

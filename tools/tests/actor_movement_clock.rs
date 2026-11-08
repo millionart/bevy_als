@@ -62,6 +62,10 @@ fn stationary_velocity_rotation_retains_source_half_life_at_each_camera_speed() 
 }
 
 fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
+    movement_actor_with_world_bounds(capped, false)
+}
+
+fn movement_actor_with_world_bounds(capped: bool, world_bounds: bool) -> (App, Entity, AlsMovementParams) {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate),
         bevy_tnua_avian3d::TnuaAvian3dPlugin::new(Update),
@@ -71,6 +75,11 @@ fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
         .init_resource::<Assets<Mesh>>().add_message::<bevy::asset::AssetEvent<Mesh>>()
         .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
     if capped { app.add_plugins(bevy_als::source_physics_timing::SourcePhysicsTimingPlugin); }
+    if world_bounds {
+        app.add_plugins(bevy_als::extensions::source_world_time::SourceWorldTimePlugin {
+            minimum: Duration::from_micros(500), maximum: Duration::from_millis(400),
+        });
+    }
     app.add_systems(PostUpdate, (
         bevy::transform::systems::mark_dirty_trees,
         bevy::transform::systems::propagate_parent_transforms,
@@ -84,6 +93,34 @@ fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
     bundle.transform = Transform::from_xyz(0.0, 0.924, 0.0);
     let actor = app.world_mut().spawn(bundle).id();
     (app, actor, settings)
+}
+
+#[test]
+fn airborne_character_consumes_bounded_world_time_with_independent_physics() {
+    use bevy::time::{Real, TimeUpdateStrategy, Virtual};
+    use bevy_als::als::character::AlsCmcAdapterRuntime;
+
+    for (raw, expected) in [(0.2_f32, 0.2_f32), (0.3, 0.3), (0.5, 0.4)] {
+        let (mut app, actor, _) = movement_actor_with_world_bounds(true, true);
+        for _ in 0..3 { app.update(); }
+        let start = Vec3::new(0.0, 20.0, 0.0);
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            GlobalTransform::from_translation(start), LinearVelocity(Vec3::X), LocomotionState::Air,
+            AlsStateRequest::default().with_locomotion_state(LocomotionState::Air), AlsInputCommand::default()));
+        let other = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.1),
+            Transform::from_xyz(8.0, 20.0, 0.0), LinearVelocity::ZERO, LinearDamping(0.0))).id();
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(raw)));
+        app.update();
+        let delta = app.world().get::<Position>(actor).unwrap().0 - start;
+        let cmc = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap();
+        let other_velocity = app.world().get::<LinearVelocity>(other).unwrap().y;
+        assert!((app.world().resource::<Time<Real>>().delta_secs() - raw).abs() < 1e-6);
+        assert!((app.world().resource::<Time<Virtual>>().delta_secs() - expected).abs() < 1e-6);
+        assert!((cmc.simulation_delta_seconds - expected).abs() < 1e-6);
+        assert!((delta.x - expected).abs() < 1e-4, "raw={raw} displacement={delta:?}");
+        let physics = bevy_als::source_physics_timing::SOURCE_MAX_PHYSICS_DELTA.as_secs_f32();
+        assert!((other_velocity + 9.81 * physics).abs() < 1e-4);
+    }
 }
 
 fn scaled_movement_actor(scale: f32, hierarchy: usize) -> (App, Entity, AlsMovementParams) {

@@ -15,7 +15,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1 -or -not [double]::IsFinite($FrameDeltaSeconds) -or $FrameDeltaSeconds -lt 0 -or $FrameDeltaSeconds -gt 0.25 -or ($Case -eq "startup" -and $FrameDeltaSeconds -gt 0) -or -not [double]::IsFinite($FrameHitchSeconds) -or $FrameHitchSeconds -lt 0 -or $FrameHitchSeconds -gt 0.25 -or ($FrameHitchSeconds -gt 0 -and ($FrameDeltaSeconds -le 0 -or $FrameHitchSeconds -le $FrameDeltaSeconds -or $Case -ne "moving_base"))) {
+if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1 -or -not [double]::IsFinite($FrameDeltaSeconds) -or $FrameDeltaSeconds -lt 0 -or ($Case -eq "startup" -and $FrameDeltaSeconds -gt 0) -or -not [double]::IsFinite($FrameHitchSeconds) -or $FrameHitchSeconds -lt 0 -or ($FrameHitchSeconds -gt 0 -and ($FrameDeltaSeconds -le 0 -or $FrameHitchSeconds -le $FrameDeltaSeconds -or $Case -ne "moving_base"))) {
     throw "Invalid visual validation arguments."
 }
 

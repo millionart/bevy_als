@@ -5715,7 +5715,10 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 反例：真实运动插件的站姿VelocityDirection首帧无障碍前进速度0.4166667m/s，source Normal应0.3333333m/s；实际加速/制动/摩擦为25/20/10而非20/15/5。三rotation×两stance的另外5组都通过。`bf144_cmc_grounded_dynamics_uses_source_stance_mapping` 语义FAIL，证据 `target/bf144/03/profile/`。
   - 漏检：`defaults_match_als_source_values` 和 `grounded_dynamics_samples_match_the_live_source_contract` 把错误VelocityDirection→Responsive映射写进oracle；验证了曲线数值而没有核对MS_Als_Normal中加减速与旋转曲线的独立引用。仅登记，不改源码或旧测试。
 
-- [ ] BF144-D06 / P2 — 角色世界时钟未移植源帧长上下限。
+- [x] BF144-D06 / P2 — 角色世界时钟未移植源帧长上下限。
+  - 2026-11-08 12:28 开始：预估结束13:08 +08:00。依据.03真实hitch差与源世界时钟/物理时钟分离事实，fresh读取Playground WorldSettings和当前/迁移后Bevy时间语义；先闭最小世界delta/暂停/倍率与入口合同，物理上限保持独立，测试、消融与runtime按用户顺序暂缓。
+  - 12:38 source/static闭环：fresh世界资产给出min=0.0005000000237487257、max=0.4000000059604645及三个倍率1；UE先乘倍率并按同倍率范围clamp。Bevy 0.19先限raw、0.20先限dilated；现从受限raw重放虚拟时钟并保留Real、倍率/暂停/累计时间，源数据独立生成，物理1/30仍单独执行。公共runner/validator已允许0.3和0.5 raw并按源范围判定，相关fixture与self-test代码未运行。
+  - 12:41实现摘要：源WorldSettings、可复跑配置生成器与原文哈希在`docs/audit/bf144/d06/`；Playground接入世界时钟修正，覆盖raw上下限、倍率及暂停，虚拟最大值随倍率表示，原Real与物理限制独立。已写导入器、validator、世界时钟和实际CMC/独立物理体控制；实现结束2026-11-08 12:41 +08:00，较预估提前27分钟。纳秒/源float取整、测试、消融、完整转换对比及真实Gate待依赖升级后验证。
   - Source：fresh Playground `WorldSettings` 对象的MinUndilatedFrameTime=0.0005、MaxUndilatedFrameTime=0.4，三种TimeDilation均1；UE `WorldSettings.cpp:334–342` 对世界delta施加该范围，经LevelTick/Actor进入Character/CMC。独立物理上限1/30不替代角色世界delta。
   - Target：`src/als_extras/levels/manual_playground.rs:56–73` 使用DefaultPlugins且无世界delta配置；当前依赖 `bevy_time::Virtual` 默认上限0.25秒，未实现源最小帧长。`character/movement/motion.rs:3708` 再把该值用于普通CMC，所以后续完整帧适配无法恢复已被全局截去的时间。
   - 反例：实际加载角色在空中以1m/s水平速度运动，raw帧0.2秒得到delta/位移0.2（PASS）；raw0.3秒得到0.25而source应0.3；raw0.5秒得到0.25而source应0.4。`bf144_cmc_hitch_uses_source_world_delta_bounds` 同时读取Time<Virtual>、CMC simulation delta及实际Position，语义FAIL；机器记录 `target/bf144/03/world_clock/`。
