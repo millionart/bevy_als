@@ -1,0 +1,30 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 422,
+    "end_line": 460,
+    "text": "\t\tFVec3* GenerateConvexManifoldClippedVertices(\n\t\t\tconst ConvexImplicitType1& RefConvex,\n\t\t\tconst ConvexImplicitType2& OtherConvex,\n\t\t\tconst FRigidTransform3& OtherToRefTransform,\n\t\t\tconst int32 RefPlaneIndex,\n\t\t\tconst int32 OtherPlaneIndex,\n\t\t\tconst FVec3& RefPlaneNormal,\n\t\t\tFVec3* VertexBuffer1,\n\t\t\tFVec3* VertexBuffer2,\n\t\t\tuint32& ContactPointCount,\t// InOut\n\t\t\tconst uint32 MaxContactPointCount\n\t\t)\n\t\t{\n\t\t\t// Populate the clipped vertices by the other face's vertices\n\t\t\tconst int32 OtherConvexFaceVerticesNum = OtherConvex.NumPlaneVertices(OtherPlaneIndex);\n\t\t\tContactPointCount = FMath::Min(OtherConvexFaceVerticesNum, (int32)MaxContactPointCount); // Number of face vertices\n\t\t\tfor (int32 VertexIndex = 0; VertexIndex < (int32)ContactPointCount; ++VertexIndex)\n\t\t\t{\n\t\t\t\t// Todo Check for Grey code\n\t\t\t\tconst FVec3 OtherVertex = OtherConvex.GetVertex(OtherConvex.GetPlaneVertex(OtherPlaneIndex, VertexIndex));\n\t\t\t\tVertexBuffer1[VertexIndex] = OtherToRefTransform.TransformPositionNoScale(OtherVertex);\n\t\t\t}\n\n\t\t\t// Now clip against all planes that belong to the reference plane's, edges\n\t\t\t// Note winding order matters here, and we have to handle negative scales\n\t\t\tconst FReal RefWindingOrder = RefConvex.GetWindingOrder();\n\t\t\tconst int32 RefConvexFaceVerticesNum = RefConvex.NumPlaneVertices(RefPlaneIndex);\n\t\t\tint32 ClippingPlaneCount = RefConvexFaceVerticesNum;\n\t\t\tFVec3 PrevPoint = RefConvex.GetVertex(RefConvex.GetPlaneVertex(RefPlaneIndex, ClippingPlaneCount - 1));\n\t\t\tfor (int32 ClippingPlaneIndex = 0; (ClippingPlaneIndex < ClippingPlaneCount) && (ContactPointCount > 1); ++ClippingPlaneIndex)\n\t\t\t{\n\t\t\t\tFVec3 CurrentPoint = RefConvex.GetVertex(RefConvex.GetPlaneVertex(RefPlaneIndex, ClippingPlaneIndex));\n\t\t\t\tFVec3 ClippingPlaneNormal = RefWindingOrder * FVec3::CrossProduct(RefPlaneNormal, PrevPoint - CurrentPoint);\n\t\t\t\tClippingPlaneNormal.SafeNormalize();\n\t\t\t\tContactPointCount = ClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, MaxContactPointCount, ClippingPlaneNormal, FVec3::DotProduct(CurrentPoint, ClippingPlaneNormal));\n\t\t\t\tSwap(VertexBuffer1, VertexBuffer2); // VertexBuffer1 will now point to the latest\n\t\t\t\tPrevPoint = CurrentPoint;\n\t\t\t}\n\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Convex.h",
+    "sha256": "790b5d71ee4c7a1159d3e4cb8a7a97946e6300179d3b123e6819fdea92a71db2",
+    "start_line": 567,
+    "end_line": 571,
+    "text": "\t\t// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)\n\t\tFReal GetWindingOrder() const\n\t\t{\n\t\t\treturn 1.0f;\n\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ImplicitObjectScaled.h",
+    "sha256": "f5c4bd7ee327ca7e51308aaac02765cca881b864eb0fa3bc6d74787b36ef2694",
+    "start_line": 429,
+    "end_line": 436,
+    "text": "\t}\n\n\t// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales\n\tFORCEINLINE FReal GetWindingOrder() const\n\t{\n\t\tconst FVec3 SignVector = MScale.GetSignVector();\n\t\treturn SignVector.X * SignVector.Y * SignVector.Z;\n\t}\n"
+  },
+  {
+    "source_file": "tools/import/coordinate_basis.py",
+    "sha256": "cdb545e870644e1756b210f9bede438dc6d9b3bd918638b07be5bce9e7d894d9",
+    "start_line": 5,
+    "end_line": 25,
+    "text": "SOURCE_LENGTH_TO_RUNTIME_SCALE = 0.01\n\n\ndef source_point_to_runtime(values):\n    return [\n        values[0] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[2] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[1] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n    ]\n\n\ndef runtime_point_to_source(values):\n    return [\n        values[0] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[2] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[1] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n    ]\n\n\ndef source_direction_to_runtime(values):\n    return [values[0], values[2], values[1]]\n"
+  }
+]
