@@ -158,6 +158,7 @@ where
     Ok(faces)
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct SourceEpaWitness {
     pub penetration_cm: f64,
     pub normal: DVec3,
@@ -193,6 +194,121 @@ pub(crate) fn source_epa_witness(
         second += simplex.vertices[index].second * simplex.weights[index];
     }
     SourceEpaWitness { penetration_cm: penetration, normal, first_cm: first, second_cm: second }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SourceEpaStatus {
+    Ok,
+    MaxIterations,
+    BadInitialSimplex,
+    Degenerate,
+}
+
+pub(crate) struct SourceEpaResult {
+    pub status: SourceEpaStatus,
+    pub witness: SourceEpaWitness,
+}
+
+fn source_epa_visibility_border(
+    faces: &mut [SourceEpaFace],
+    start: usize,
+    point_cm: DVec3,
+    settings: SourceEpaSettings,
+) -> Vec<(usize, usize)> {
+    let face = faces[start];
+    let mut stack = (0..3).map(|edge| (face.adjacent_faces[edge], face.adjacent_edges[edge])).collect::<Vec<_>>();
+    let mut border = Vec::new();
+    for _ in 0..settings.max_flood {
+        let Some((index, edge)) = stack.pop() else { break; };
+        let face = &mut faces[index];
+        if face.obsolete { continue; }
+        if face.distance_to_plane(point_cm) <= settings.visibility_m * 100.0 {
+            border.push((index, edge));
+        } else {
+            face.obsolete = true;
+            for next in [(edge + 1) % 3, (edge + 2) % 3] {
+                stack.push((face.adjacent_faces[next], face.adjacent_edges[next]));
+            }
+        }
+    }
+    border
+}
+
+pub(crate) fn run_source_epa<A, B>(
+    vertices: &mut Vec<SourceEpaVertex>,
+    settings: SourceEpaSettings,
+    mut first_support: A,
+    mut second_support: B,
+    last_vertices: &mut [usize; 2],
+) -> SourceEpaResult
+where
+    A: FnMut(DVec3) -> (DVec3, usize),
+    B: FnMut(DVec3) -> (DVec3, usize),
+{
+    let mut faces = match initialize_source_epa(vertices, settings, &mut first_support, &mut second_support, last_vertices) {
+        Ok(faces) => faces,
+        Err(normal) => return SourceEpaResult { status: SourceEpaStatus::BadInitialSimplex,
+            witness: SourceEpaWitness { penetration_cm: 0.0, normal, first_cm: DVec3::ZERO, second_cm: DVec3::ZERO } },
+    };
+    let mut queue = (0..faces.len()).filter(|&index| faces[index].distance_cm <= 0.0
+        || faces[index].origin_projected_inside(vertices, 0.0)).collect::<Vec<_>>();
+    let mut last = queue.last().map_or(faces[0], |&index| faces[index]);
+    let mut upper = f64::MAX;
+    let mut status = SourceEpaStatus::MaxIterations;
+    let mut dirty = true;
+    for _ in 0..settings.max_iterations {
+        if queue.is_empty() { break; }
+        if dirty {
+            queue.sort_by(|left, right| faces[*right].distance_cm.partial_cmp(&faces[*left].distance_cm)
+                .unwrap_or(std::cmp::Ordering::Equal));
+            dirty = false;
+        }
+        let index = queue.pop().unwrap();
+        let face = faces[index];
+        if face.obsolete { continue; }
+        if face.distance_cm > upper { status = SourceEpaStatus::Ok; break; }
+        let (first_cm, first_index) = first_support(face.normal);
+        last_vertices[0] = first_index;
+        let (second_cm, second_index) = second_support(-face.normal);
+        last_vertices[1] = second_index;
+        let point = first_cm - second_cm;
+        let support_distance = face.normal.dot(point);
+        if support_distance < upper { upper = support_distance; }
+        let lower = face.distance_cm;
+        if upper <= (1.0 + settings.relative_epsilon) * lower.abs() {
+            status = SourceEpaStatus::Ok;
+            last = face;
+            break;
+        }
+        if upper < lower { status = SourceEpaStatus::Ok; break; }
+        last = face;
+        let vertex_index = vertices.len();
+        vertices.push(SourceEpaVertex { first_cm, second_cm });
+        faces[index].obsolete = true;
+        let border = source_epa_visibility_border(&mut faces, index, point, settings);
+        if border.len() < 3 { status = SourceEpaStatus::Degenerate; break; }
+        let first_new = faces.len();
+        let mut terminated = false;
+        for (offset, &(border_index, edge)) in border.iter().enumerate() {
+            let current = first_new + offset;
+            let next = if offset + 1 < border.len() { current + 1 } else { first_new };
+            let previous = if offset > 0 { current - 1 } else { first_new + border.len() - 1 };
+            let old = faces[border_index];
+            let indices = [old.indices[(edge + 1) % 3], old.indices[edge], vertex_index];
+            let new_face = SourceEpaFace::new(vertices, indices, [border_index, previous, next], [edge, 2, 1], settings);
+            faces[border_index].adjacent_faces[edge] = current;
+            faces[border_index].adjacent_edges[edge] = 0;
+            let Some(new_face) = new_face else { status = SourceEpaStatus::Degenerate; terminated = true; break; };
+            faces.push(new_face);
+            if new_face.distance_cm <= upper && (new_face.distance_cm <= 0.0
+                || new_face.origin_projected_inside(vertices, 0.0)) {
+                queue.push(current);
+                dirty = true;
+            }
+        }
+        if terminated { break; }
+    }
+    SourceEpaResult { status, witness: source_epa_witness(vertices, last, settings) }
 }
 
 #[cfg(test)]
@@ -337,5 +453,61 @@ mod tests {
             |_| (DVec3::ZERO, 9), &mut last).err().unwrap();
         assert_eq!(error, DVec3::Z);
         assert_eq!(last, [99, 99]);
+    }
+
+    #[test]
+    fn source_epa_expands_a_cube_to_its_nearest_surface() {
+        let support = |direction: DVec3| {
+            let mut point = DVec3::splat(-1.0);
+            let mut index = 0;
+            for axis in 0..3 {
+                if direction[axis] >= 0.0 { point[axis] = 1.0; index |= 1 << axis; }
+            }
+            (point, index)
+        };
+        let mut vertices = [DVec3::ONE, DVec3::new(-1.0, -1.0, 1.0),
+            DVec3::new(-1.0, 1.0, -1.0), DVec3::new(1.0, -1.0, -1.0)]
+            .into_iter().map(vertex).collect::<Vec<_>>();
+        let mut last = [99, 99];
+        let result = run_source_epa(&mut vertices, settings(), support, |_| (DVec3::ZERO, 9), &mut last);
+        assert_eq!(result.status, SourceEpaStatus::Ok);
+        assert!((result.witness.penetration_cm - 1.0).abs() < 1e-10);
+        assert!((result.witness.normal.length() - 1.0).abs() < 1e-10);
+        assert!(result.witness.first_cm.distance(result.witness.normal) < 1e-10);
+        assert_eq!(result.witness.second_cm, DVec3::ZERO);
+        assert_eq!(last[1], 9);
+    }
+
+    #[test]
+    fn source_epa_core_overlap_reaches_native_bench_normal() {
+        use crate::extensions::source_contact_gjk::{source_box_support, source_convex_support};
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3b2b/gjk.native-samples.json")).unwrap();
+        let sample = fixture["samples"].as_array().unwrap().iter().find(|value| {
+            value["input"]["label"] == "bench_foot_core_overlap"
+        }).unwrap();
+        let vector = |value: &serde_json::Value| DVec3::new(value["x"].as_f64().unwrap(),
+            value["y"].as_f64().unwrap(), value["z"].as_f64().unwrap());
+        let body = &sample["input"]["body_translation_cm"];
+        let relative = -DVec3::new(body[0].as_f64().unwrap(), body[1].as_f64().unwrap(), body[2].as_f64().unwrap());
+        let minimum = vector(&fixture["geometry"]["minimum_cm"]);
+        let maximum = vector(&fixture["geometry"]["maximum_cm"]);
+        let margin = fixture["collision_margin_0_cm"].as_f64().unwrap();
+        let convex = fixture["other_geometry"]["convex_core_vertices_cm"].as_array().unwrap().iter()
+            .map(|value| vector(value).as_vec3()).collect::<Vec<_>>();
+        let mut vertices = sample["gjk_simplex"].as_array().unwrap().iter().map(|value| SourceEpaVertex {
+            first_cm: vector(&value["shape_point_0_cm"]), second_cm: vector(&value["shape_point_1_cm"]) + relative,
+        }).collect::<Vec<_>>();
+        let mut last = [0, 0];
+        let result = run_source_epa(&mut vertices, settings(),
+            |direction| source_box_support(minimum, maximum, margin, direction),
+            |direction| {
+                let (point, index) = source_convex_support(&convex, DVec3::ONE, direction).unwrap();
+                (point + relative, index)
+            }, &mut last);
+        assert!(matches!(result.status, SourceEpaStatus::Ok | SourceEpaStatus::MaxIterations));
+        let native_normal = vector(&sample["points"][0]["world_normal"]);
+        assert!(result.witness.normal.distance(-native_normal) < 1e-5);
+        assert!(last[0] < 8 && last[1] < convex.len());
     }
 }

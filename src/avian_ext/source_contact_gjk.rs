@@ -20,7 +20,7 @@ pub(crate) enum SourceGjkResult {
     NeedsEpa { simplex_cm: SourceGjkSimplex, last_vertices: [usize; 2] },
 }
 
-fn source_box_support(minimum: DVec3, maximum: DVec3, margin: f64, direction: DVec3) -> (DVec3, usize) {
+pub(super) fn source_box_support(minimum: DVec3, maximum: DVec3, margin: f64, direction: DVec3) -> (DVec3, usize) {
     let mut point = DVec3::ZERO;
     let mut index = 0;
     for axis in 0..3 {
@@ -30,7 +30,7 @@ fn source_box_support(minimum: DVec3, maximum: DVec3, margin: f64, direction: DV
     (point, index)
 }
 
-fn source_convex_support(vertices: &[Vec3], scale: DVec3, direction: DVec3) -> Option<(DVec3, usize)> {
+pub(super) fn source_convex_support(vertices: &[Vec3], scale: DVec3, direction: DVec3) -> Option<(DVec3, usize)> {
     let direction = (scale * direction).as_vec3();
     let mut maximum = f32::MIN;
     let mut selected = None;
