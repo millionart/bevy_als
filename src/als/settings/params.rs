@@ -78,9 +78,9 @@ impl AlsMovementParams {
     pub fn grounded_dynamics_profile(
         &self,
         stance: Stance,
-        rotation_mode: RotationMode,
+        _rotation_mode: RotationMode,
     ) -> GroundedDynamicsProfile {
-        if stance == Stance::Crouching || rotation_mode == RotationMode::VelocityDirection {
+        if stance == Stance::Crouching {
             GroundedDynamicsProfile::Responsive
         } else {
             GroundedDynamicsProfile::Normal
@@ -920,7 +920,7 @@ mod tests {
         assert!((p.cmc.braking_substep_time - 1.0 / 33.0).abs() < 1e-6);
         assert_eq!(
             p.grounded_dynamics_profile(Stance::Standing, RotationMode::VelocityDirection),
-            GroundedDynamicsProfile::Responsive
+            GroundedDynamicsProfile::Normal
         );
         assert_eq!(
             p.grounded_dynamics_profile(Stance::Standing, RotationMode::ViewDirection),
@@ -1164,7 +1164,7 @@ mod tests {
         assert!((normal.ground_friction - 2.25).abs() < 1e-6);
 
         let responsive =
-            params.grounded_dynamics(Stance::Standing, RotationMode::VelocityDirection, 2.5);
+            params.grounded_dynamics(Stance::Crouching, RotationMode::VelocityDirection, 2.5);
         assert!((responsive.acceleration - 7.670_757).abs() < 1e-4);
         assert!((responsive.braking_deceleration - 10.605_449).abs() < 1e-4);
         assert!((responsive.ground_friction - 7.5).abs() < 1e-6);
@@ -1176,6 +1176,22 @@ mod tests {
         assert!((sluggish.acceleration - 2.445_746).abs() < 1e-4);
         assert!((sluggish.braking_deceleration - 4.518_285).abs() < 1e-4);
         assert!((sluggish.ground_friction - 1.734_373).abs() < 1e-4);
+    }
+
+    #[test]
+    fn stance_selects_source_acceleration_independently_of_rotation_curve() {
+        let params = AlsMovementParams::default();
+        for mode in [RotationMode::VelocityDirection, RotationMode::ViewDirection, RotationMode::Aiming] {
+            assert_eq!(params.grounded_dynamics(Stance::Standing, mode, 0.0), GroundedDynamics {
+                acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 5.0,
+            });
+            assert_eq!(params.grounded_dynamics(Stance::Crouching, mode, 0.0), GroundedDynamics {
+                acceleration: 25.0, braking_deceleration: 20.0, ground_friction: 10.0,
+            });
+            assert_eq!(params.grounded_dynamics(Stance::Standing, mode, 2.5),
+                params.grounded_dynamics(Stance::Standing, RotationMode::ViewDirection, 2.5));
+        }
+        assert_eq!(params.rotation.grounded_moving_velocity_direction.interpolation_half_lives, GaitHalfLives::responsive());
     }
 
     #[test]

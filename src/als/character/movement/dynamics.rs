@@ -794,6 +794,30 @@ mod tests {
     }
 
     #[test]
+    fn grounded_motor_uses_source_stance_curve_for_each_rotation_mode() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        for (stance, expected) in [(Stance::Standing, (20.0_f32, 15.0_f32, 5.0_f32)),
+            (Stance::Crouching, (25.0, 20.0, 10.0))] {
+            for mode in [RotationMode::VelocityDirection, RotationMode::ViewDirection, RotationMode::Aiming] {
+                app.world_mut().entity_mut(character).insert((stance, mode, LocomotionState::Grounded,
+                    LinearVelocity::ZERO, AlsMaxAllowedGait(Gait::Running), TnuaMotor::default(),
+                    AlsGroundedDynamics::default(), AlsCmcAdapterRuntime::default(),
+                    AlsMovementBaseDynamicsState::default(), AlsLandingBrakingFriction::default()));
+                app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion = Vec3::X;
+                app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+                app.world_mut().run_system_once(grounded_dynamics_motor_system).unwrap();
+                let dynamics = app.world().get::<AlsGroundedDynamics>(character).unwrap().0;
+                assert_eq!((dynamics.acceleration, dynamics.braking_deceleration, dynamics.ground_friction), expected);
+                let boost = app.world().get::<TnuaMotor>(character).unwrap().lin.boost;
+                assert!((boost.x - expected.0 / 60.0).abs() < 1e-6,
+                    "stance={stance:?} mode={mode:?} boost={boost:?}");
+            }
+        }
+    }
+
+    #[test]
     fn actual_walking_displacement_integrates_each_source_velocity_substep() {
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         for _ in 0..35 { app.update(); }

@@ -5705,7 +5705,9 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 反例：静止瞄准、已应用70°限位、view与body相差180°。实际运动插件在 owner倍率1/.001时到+110°（对照PASS），倍率0时到−110°（source仍应+110°）；`bf144_frozen_owner_aiming_half_turn_keeps_source_side` 语义FAIL。独立source-degree公式5040组中36处同类边界FAIL，其余5004组无差异。证据：`target/bf144/02/frozen/`。
   - 漏检：旧瞄准测试覆盖reset/primary/secondary和普通帧长，暂停回归在稳定角度暂停；没有覆盖0 owner delta×半转×已收紧限位。仅登记，不改公式或放宽阈值。
 
-- [ ] BF144-D05 / P2 — Standing/VelocityDirection 错选 Responsive 加减速曲线。
+- [x] BF144-D05 / P2 — Standing/VelocityDirection 错选 Responsive 加减速曲线。
+  - 2026-11-08 12:24 开始：预估结束12:59 +08:00。依据.03六组合与.512/.513 Sprint消费者证据，fresh重读MS_Als_Normal和两条三轴曲线，修复共享profile选择并更正旧错误oracle；补六组合、实际motor和独立旋转曲线控制，测试/消融/真实Gate暂缓。
+  - 12:27 source/static闭环：fresh六组设置确认Standing均Normal、Crouching均Responsive；VelocityDirection仅旋转插值引用Responsive。两条原生三轴首键分别为2000/1500/5与2500/2000/10（前两轴cm单位），目标共享profile已按stance修正，保留旋转曲线；已更新旧错误oracle并写六组合及实际motor测试。证据在`docs/audit/bf144/d05/`；实现结束2026-11-08 12:27 +08:00，较预估提前32分钟；测试、Sprint时序、消融和公共Gate待依赖升级后执行。
   - BF144.513 实际Sprint补充。单换Normal加速度使真实Sprint入场/截止由24/38到25/39，与UE一致。三轴对照保持同入场且改变后段制动。序号25的加速播放器时点和最终Root75骨数值改变。证据 docs/audit/bf144/513/summary.json。
   - BF144.512 实际Sprint补充。原生起步最大加速度20m/s²，目标VelocityDirection起步25m/s²。两端实际步态入场序号25/24，按各自输入复算计时和混合精确。单因素归因后继。证据 docs/audit/bf144/512/summary.json。
   - Source：fresh B_Als_Character→MS_Als_Normal，三种站姿rotation的 `AccelerationAndDecelerationAndGroundFrictionCurve` 均引用Normal，蹲姿才引用Responsive；VelocityDirection仅 `RotationInterpolationSpeedCurve` 引用Responsive。fresh两条CV资产确认起步Normal=20/15/5、Responsive=25/20/10（前两项已从cm换算m）。
