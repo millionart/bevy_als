@@ -4243,6 +4243,17 @@ fn ground_ramp_movement(delta: Vec3, contact: Vec3, impact: Vec3, line: bool) ->
     } else { delta }
 }
 
+fn walking_first_slide_sweep(spatial: &SpatialQuery, capsule: &Collider, origin: Vec3,
+    delta: Vec3, normal: Vec3, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool) -> Vec3 {
+    let slide = delta - normal * delta.dot(normal);
+    if slide.dot(delta) <= 0.0 { return Vec3::ZERO; }
+    let Ok((direction, distance)) = Dir3::new_and_length(slide) else { return Vec3::ZERO };
+    let config = ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) };
+    let hit = spatial.cast_shape_predicate(capsule, origin, Quat::IDENTITY, direction, &config, filter, accepts);
+    let travel = hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
+    *direction * travel
+}
+
 fn grounded_movement_transaction(
     spatial_query: &SpatialQuery, capsule: &Collider, center: Vec3, rotation: Quat,
     half: f32, radius: f32, delta: Vec3, cmc: &crate::als::params::CmcAdapterParams,
@@ -4286,10 +4297,10 @@ fn grounded_movement_transaction(
         step_delta = remaining_delta;
         result.0 = raised;
         result.5 = false;
-        let impact = (first.distance > 0.0 && first.normal1.y > 1e-4).then(||
-            source_sweep_impact_normal(spatial_query, &first, ramp_delta, center, Quat::IDENTITY, capsule));
-        let hit = if let Some(impact) = impact.filter(|normal| normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) {
-            let projected = ground_ramp_movement(remaining_delta, first.normal1, impact, false);
+        let mut impact_normal = source_sweep_impact_normal(spatial_query, &first, ramp_delta, center, Quat::IDENTITY, capsule);
+        let hit = if first.distance > 0.0 && first.normal1.y > 1e-4
+            && impact_normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos() {
+            let projected = ground_ramp_movement(remaining_delta, first.normal1, impact_normal, false);
             let second = Dir3::new_and_length(projected).ok().and_then(|(direction, distance)| {
                 spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, direction,
                     &ShapeCastConfig { max_distance: distance, ..forward_config }, &filter, &accepts)
@@ -4298,8 +4309,10 @@ fn grounded_movement_transaction(
             if let Some((hit, direction, distance)) = second {
                 if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 {
                     result.1 = Some(Vec3::ZERO);
+                    result.5 = true;
                     return Some(result);
                 }
+                impact_normal = source_sweep_impact_normal(spatial_query, &hit, projected, raised, Quat::IDENTITY, capsule);
                 let travel = movement_sweep_travel(distance, hit.distance);
                 raised += *direction * travel;
                 remaining_delta *= 1.0 - travel / distance;
@@ -4315,9 +4328,11 @@ fn grounded_movement_transaction(
         } else { Some(first) };
         if let Some(hit) = hit {
             forward_config.max_distance = remaining_delta.length();
-            let slide_normal = Vec3::new(hit.normal1.x, 0.0, hit.normal1.z).normalize_or_zero();
-            let slide = remaining_delta - slide_normal * remaining_delta.dot(slide_normal);
-            result.1 = Some(slide);
+            let (floor_normal, floor_distance) = floor.map_or((Vec3::Y, f32::INFINITY),
+                |floor| (floor.hit.normal1, floor.sweep_distance));
+            let slide_normal = walking_step_slide_normal(remaining_delta, hit.normal1, impact_normal, floor_normal, floor_distance);
+            result.1 = Some(walking_first_slide_sweep(spatial_query, capsule, raised, remaining_delta, slide_normal, &filter, &accepts));
+            result.5 = true;
             if !can_step_up(hit.entity) {
                 return Some(result);
             }
@@ -4326,8 +4341,6 @@ fn grounded_movement_transaction(
             }
             let Some(floor) = floor else { return Some(result) };
             let floor_center = floor.center_y;
-            let floor_normal = floor.hit.normal1;
-            let floor_distance = floor.sweep_distance;
             initial_floor_y = Some(floor.hit.point1.y);
             let up_config = ShapeCastConfig {
                 ignore_origin_penetration: true,
@@ -4684,11 +4697,11 @@ pub(crate) fn cmc_movement_transaction_system(
             continue;
         }
         let center = position.0;
-        let Some((advanced, remaining, next_y, penetrating, stepped_up, ramp_movement)) = grounded_movement_transaction(&spatial_query, capsule,
+        let Some((advanced, remaining, next_y, penetrating, stepped_up, swept_movement)) = grounded_movement_transaction(&spatial_query, capsule,
             center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };
         runtime.grounded_move_start = (!penetrating).then_some(center);
         if penetrating { runtime.grounded_collision_velocity = Some(next_velocity.with_y(0.0)); }
-        let consumed = stepped_up || ramp_movement;
+        let consumed = stepped_up || swept_movement;
         if consumed { runtime.grounded_movement_delta = None; }
         let advanced = if consumed { advanced + remaining.unwrap_or(delta) } else { advanced };
         let world_position = next_y.filter(|height| stepped_up || *height > center.y).map_or(advanced, |height| advanced.with_y(height));
@@ -5363,7 +5376,7 @@ mod tests {
             }).unwrap();
             if angle == 60.0 {
                 assert!((result.0.x - -13.9711046).abs() < 0.004, "result={result:?}");
-                assert!(!result.5);
+                assert!(result.1.unwrap().length() < 1e-5, "result={result:?}");
             } else if wall {
                 assert!((result.0.x - -13.7078868).abs() < 0.004,
                     "allows_step={allows_step} result={result:?}");
@@ -5445,6 +5458,78 @@ mod tests {
             }).unwrap();
             assert_eq!(result.4, matches!(case, "prop" | "override"), "case={case} result={result:?}");
         }
+    }
+
+    #[test]
+    fn rejected_step_sweeps_the_first_slide_before_each_walking_substep() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (upper_hit, second_wall) in [(false, true), (true, true), (false, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, -0.1, 0.0)));
+            let wall = if upper_hit {
+                (Vec3::new(0.1, 0.2, 4.0), Vec3::new(0.42, 1.8, 0.0))
+            } else {
+                (Vec3::new(0.1, 2.0, 4.0), Vec3::new(0.48, 1.0, 0.0))
+            };
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(wall.0.x, wall.0.y, wall.0.z),
+                Transform::from_translation(wall.1), AlsMantleTargetPermission { allows_step_up: upper_hit }));
+            if second_wall {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 2.0, 0.1),
+                    Transform::from_xyz(0.0, 1.0, -0.53), AlsMantleTargetPermission { allows_step_up: false }));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let positions = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>| {
+                let mut center = Vec3::new(0.12, 0.9215, -0.155);
+                let mut positions = Vec::new();
+                for _ in 0..2 {
+                    let result = grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), center,
+                        Quat::IDENTITY, 0.9, 0.3, Vec3::new(0.3, 0.0, -0.3),
+                        &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                        actor, &candidates, &permissions).unwrap();
+                    assert!(result.5 && !result.4, "upper={upper_hit} result={result:?}");
+                    center = result.0 + result.1.unwrap();
+                    positions.push(center);
+                }
+                positions
+            }).unwrap();
+            if second_wall {
+                assert!(positions.iter().all(|position| position.z >= -0.1801),
+                    "upper={upper_hit} positions={positions:?}");
+            } else {
+                assert!(positions[0].z < -0.3, "unblocked slide was shortened: {positions:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn loaded_walking_substeps_do_not_enter_the_second_wall() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let far = Vec3::new(10.0, 0.9215, 0.0);
+        app.world_mut().entity_mut(actor).insert((Position(far), Transform::from_translation(far)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 2.0, 4.0),
+            Transform::from_xyz(0.48, 1.0, 0.0), AlsMantleTargetPermission { allows_step_up: false }));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 2.0, 0.1),
+            Transform::from_xyz(0.0, 1.0, -0.53), AlsMantleTargetPermission { allows_step_up: false }));
+        app.update();
+        let start = Vec3::new(0.12, 0.9215, -0.155);
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            LocomotionState::Grounded, LinearVelocity(Vec3::new(3.0, 0.0, -3.0)), TnuaMotor::default(),
+            AlsCmcAdapterRuntime { simulation_delta_seconds: 0.1, simulation_substeps: 2,
+                grounded_movement_delta: Some(Vec3::new(0.3, 0.0, -0.3)), ..default() }));
+        app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion =
+            Vec3::new(1.0, 0.0, -1.0).normalize();
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.1));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        let position = app.world().get::<Position>(actor).unwrap().0;
+        assert!(position.x <= 0.1301 && position.z >= -0.1801, "position={position:?}");
     }
 
     #[test]

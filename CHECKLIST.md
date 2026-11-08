@@ -5808,6 +5808,10 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧permission测试手动插入true/false，验证了consumer分支，却没有从fresh角色CDO核对生产角色默认组件；相同大小的站立胶囊又通常因步高限制掩盖这个缺口。仅登记，不修改角色构造或扩展AI行为。
 
 - [ ] BF144-D15 / P2 — 跨步被拒后的沿墙剩余位移缺少后续扫掠，单步可失去支撑，多子步可进入第二面墙。
+  - 子项拆分：D15a在跨步拒绝/回退时执行第一次源滑动扫掠并消费实际位移；D15b补齐第二命中后的TwoWallAdjust和最终扫掠，统一复用StepUp内相同流程。两项分别静态实现并提交，统一运行验证仍延后。
+  - [x] BF144-D15a — 跨步拒绝后扫掠第一次滑动，禁止将未检查位移交给后续子步或物理。开始2026-11-08 13:57 +08:00；预估结束14:42 +08:00；实际结束14:00 +08:00，提前42分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 闭环：fresh UE/ALS滑动源和原生高坡多次命中保存在`docs/audit/bf144/d15a/`；单步与多子步消费首次滑动扫掠，已写双墙、上半球、无阻挡和加载角色对照。首次滑动后的二次扫掠由D15b处理，目标测试与真实Gate尚未执行。
+  - [ ] BF144-D15b — 第一次滑动再命中时按源TwoWallAdjust与第二扫掠继续，并统一StepUp内的同类逻辑。
   - Source：fresh UE CMC `SlideAlongSurface:3649–3686`约束接触normal后调用基类；`MovementComponent.cpp:725–774`对slide执行SafeMoveUpdatedComponent，命中第二面再TwoWallAdjust并sweep，不能直接叠加未检查的投影。StepUp因No权限或上半球命中被拒后也必须走该路径。
   - Target：`src/als/character/movement/motion.rs:3535–3543`在拒绝跨步时直接返回剩余slide；`walking_movement_transaction:3636`把它加入Transform，下一子步已从墙内开始，后置物理解穿透不能恢复源顺序。
   - 反例：角色半径0.3m，初始(x,z)=(0.12,−0.155)m，两面墙使合法中心界限为x≤0.13、z≥−0.18m。0.1s帧分2子步后，物理前已到(0.17914,−0.28758)m；最小夹具最终z=−0.24835m，完整角色一次记录z=−0.20452m，均仍穿入第二墙。默认Yes权限但首墙只命中胶囊上半球的受控几何也复现，无须No权限。`bf144_walk_wall_slide_sweeps_the_remaining_substep`共24组20PASS/4FAIL，证据`target/bf144/05/wall_full/`。
