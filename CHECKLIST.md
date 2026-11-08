@@ -6529,7 +6529,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.55补充边界：fresh `PBDCollisionSolver.h:978–992,1178–1236`在速度阶段只用V/W和目标法向速度，不再读取当前位置残差；Avian `normal_part.rs:129–132`在`use_bias=false`时仍对正间距加入separation/dt。共同原生Cart head、零摩擦、源8次线性位置投影后，actual wZ=−0.204293、source=−0.207578；只去掉该预测项即恢复，跳过零pushout点没有影响。Stairs_01 foot先隔离D139后，actual wZ=0.462137、source=0.403496，同样需要去掉预测项。60/30Hz分离控制均复现；两侧间距已统一为源线性DP/DQ，证明该边界不需要非线性旋转重算。旧BF144.29的中心球控制保持有效，但不能将“改用线性间距”推广为一般速度阶段修复。与本项共用同一预测分支，合并登记而不新增编号；证据`55/common_geometry/`、`55/final/`、`55/analysis.json`。
   - 22:06 source/static摘要：fresh PA与源法向速度阶段、Avian正间距分支已固化；最初已重叠的rig接触仅在Relax期间屏蔽新正间距并随后恢复输入。已写真实head摩擦法向速度及正间距、预测接触、非rig和恢复控制；测试、消融及Playground待统一Gate，预测接触与零pushout资格归D98/D139。证据`docs/audit/bf144/d95/`。实际结束：2026-11-08 22:06 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D96 / P3 — Ragdoll接触缓存丢失源静摩擦锚点历史。
+- [x] BF144-D96 / P3 — Ragdoll接触缓存丢失源静摩擦锚点历史。
   - Source：fresh `PBDCollisionConstraint.h:804–838`在static ratio≈1时保留旧ShapeAnchorPoints、0<ratio<1时插值旧锚点与当前点、ratio≈0时单接触改用当前点；cpp:1129–1185,1250–1292按quadratic本地接触点匹配后恢复锚点。native恢复开关True，exact=2mm、near=10mm。`PBDCollisionContainerSolver.cpp:142–158`随后从两侧保存锚点的世界差计算切向误差，即使当前切向速度为零也会恢复。
   - Target：Avian `contact_types/mod.rs:426–470`匹配旧接触时只复制warm-start normal/tangent冲量；`narrow_phase/system_param.rs:788–799`每帧生成当前几何点，`contact/mod.rs:184–200`没有历史切向位移输入。
   - 反例：完整角色head先建立静止接触，保持ContactId，向已有缓存注入±1mm/5mm的合法近距离历史偏移；下一帧只给法向入射速度，当前切向V/W=0，统一hard法向且将旧warm-start冲量归零以隔离历史信息。目标重新生成零X锚点、X位移始终0；独立源位置参考应恢复约0.494/2.470mm。ratio=0.5时源恢复约0.247mm；60/30Hz共16组8PASS/8FAIL，零偏移、ratio=0、零摩擦和20mm超距控制通过。证据`bf144_pa_friction_history_restores_saved_tangent_anchor`、`target/bf144/30/`。
@@ -6541,8 +6541,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 本轮开始：2026-11-08 22:07 +08:00；预计结束：2026-11-08 22:57 +08:00。重读native开关、strict距离边界和8点省略规则，写纯保存/匹配逻辑与反例夹具；统一测试、消融留待升级后。估时依据：BF144.63完整保存/匹配审计与对照共用已有读取工具，本项补独立数值实现。
   - 22:13 source/static摘要：fresh PA及8组原生history probe覆盖4/6/8/14点；已保存无损源结果及哈希，独立实现ratio保存、quadratic侧与strict距离匹配并生成坐标转换夹具。原生对照、边界及工具测试已写；接入、测试和消融待D96b/统一Gate。证据`docs/audit/bf144/d96a/`。实际结束：2026-11-08 22:13 +08:00；偏差：−44分钟；结果：子项静态实现完成，拆分为a/b。
 
-- [ ] BF144-D96b / P3 — 接入摩擦锚点的真实接触生命周期。
-  - 依赖D96a静态完成；计划开始：2026-11-08 22:57 +08:00；预计结束：2026-11-08 23:52 +08:00，实际开始时按剩余闭包重估。覆盖shape local/world、ContactId与位置摩擦消费；统一测试、消融及Playground留待升级后。
+- [x] BF144-D96b / P3 — 接入摩擦锚点的真实接触生命周期。
+  - 本轮开始：2026-11-08 22:13 +08:00；预计结束：2026-11-08 23:08 +08:00。D96a静态完成；重读源shape坐标和contact生命周期，接入ContactId缓存、匹配与位置摩擦消费。估时依据：D96a原生探针和独立合同实耗6分钟，剩余工作跨相位、跨帧和坐标转换，独立估算55分钟；测试、消融及Playground留待升级后。
+  - 22:17 source/static摘要：fresh PA和8组跨帧原生probe与受跟踪证据逐字节相同；源锚点存shape局部坐标并用预测后shape变换恢复。目标先按当前contact重建shape局部点，再沿自由速度预测变换；候选接触几何先于预测的根因仍归D98，速度阶段更新ratio的耦合留D137/D138闭包。
+  - 22:18 补充source/static摘要：源末轮速度摩擦可能覆盖位置阶段的static ratio；该值直接决定本项下一帧锚点，先按当前单接触共同输入重算其锥裁剪，复杂多点采样/分轴速度求解仍由D137/D138处理。
+  - 22:26 补充source/static摘要：fresh proxy在几何更新时使源particle及碰撞缓存失效；目标缓存身份除ContactId和collider外还需包含body归属与shape变更，避免重建/缩放后复用旧局部锚点。
+  - 22:28 补充source/static摘要：真实Playground运动平台在目标用kinematic速度推进，锚点另一侧同样需要预测；动态body采用源一阶quat，kinematic按其实际目标角速度推进，静态body自然保持原位。
+  - 22:29 source/static摘要：已接入ContactId/body/shape身份与变更失效、shape局部匹配、双方预测变换、位置/单接触速度ratio及接触消失清理；fresh原生history probe与D96a原始证据逐字节相同。已写加载head跨帧偏移/超距、shape身份、坐标与ratio对照；测试、消融、多点速度耦合及Playground待统一Gate/后续条目。证据`docs/audit/bf144/d96b/`。实际结束：2026-11-08 22:29 +08:00；偏差：−39分钟；结果：子项及父项静态实现完成，拆分为a/b。
 
 - [ ] BF144-D97 / P3 — Ragdoll回弹目标读取了施加重力前的接触速度。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:581,638,650,916–978`先积分V和P，再生成接触；`PBDCollisionContainerSolver.cpp:118–129,168–173`用此时Body.V/W求ContactVelocityNormal，回弹目标为其负值×restitution。

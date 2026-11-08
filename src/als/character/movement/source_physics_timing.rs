@@ -41,8 +41,11 @@ impl Plugin for SourcePhysicsTimingPlugin {
     fn build(&self, app: &mut App) {
         let (position_iterations, position_stiffness, tangent_velocity_squared, tangent_geometry_squared) =
             include!("../../settings/contact_friction.rs");
+        let [history_exact_distance, history_near_distance, history_ratio_tolerance] =
+            include!("../../settings/contact_history.rs");
         app.insert_resource(SourceContactFrictionSettings {
                 position_iterations, position_stiffness, tangent_velocity_squared, tangent_geometry_squared,
+                history_exact_distance, history_near_distance, history_ratio_tolerance,
             })
             .insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
             .init_resource::<SourcePhysicsClockRestore>()

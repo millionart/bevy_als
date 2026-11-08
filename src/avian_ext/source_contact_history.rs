@@ -1,5 +1,47 @@
 use bevy::prelude::*;
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SourceShapeFrame {
+    pub position: Vec3,
+    pub rotation: Quat,
+}
+
+impl SourceShapeFrame {
+    pub(crate) fn local_point(self, world: Vec3) -> Vec3 {
+        self.rotation.inverse() * (world - self.position)
+    }
+
+    pub(crate) fn world_point(self, local: Vec3) -> Vec3 {
+        self.position + self.rotation * local
+    }
+
+    pub(crate) fn predicted(self, center: Vec3, velocity: Vec3, angular: Vec3, dt: f32, dynamic: bool) -> Self {
+        let half = angular * (0.5 * dt);
+        let delta = if dynamic { Quat::from_xyzw(half.x, half.y, half.z, 1.0).normalize() }
+            else { Quat::from_scaled_axis(angular * dt) };
+        Self { position: center + velocity * dt + delta * (self.position - center),
+            rotation: (delta * self.rotation).normalize() }
+    }
+}
+
+pub(crate) fn source_velocity_friction_ratio(
+    initial_ratio: f32,
+    position_impulse: Vec2,
+    tangent_velocity: Vec2,
+    tangent_mass: Vec2,
+    normal_impulse: f32,
+    dynamic_friction: f32,
+    squared_tolerance: f32,
+) -> f32 {
+    let candidate = position_impulse - tangent_mass * tangent_velocity;
+    let limit = dynamic_friction * normal_impulse.max(0.0);
+    if candidate.length_squared() > limit * limit + squared_tolerance {
+        limit / candidate.length()
+    } else {
+        initial_ratio
+    }
+}
+
 pub(crate) fn save_source_contact_anchor(
     current: [Vec3; 2],
     anchors: [Vec3; 2],
@@ -54,6 +96,36 @@ mod tests {
     }
 
     fn pair(value: &serde_json::Value) -> [Vec3; 2] { [vector(&value[0]), vector(&value[1])] }
+
+    #[test]
+    fn source_contact_history_shape_space_roundtrip() {
+        let frame = SourceShapeFrame { position: Vec3::new(3.0, 4.0, 5.0), rotation: Quat::from_rotation_y(0.7) };
+        let local = Vec3::new(0.2, -0.1, 0.3);
+        let world = frame.world_point(local);
+        assert!(frame.local_point(world).abs_diff_eq(local, 1e-6));
+        let center = Vec3::new(2.0, 4.0, 5.0);
+        let velocity = Vec3::new(0.1, -0.2, 0.3);
+        let angular = Vec3::new(0.0, 2.0, 0.0);
+        let dt = 1.0 / 30.0;
+        let predicted = frame.predicted(center, velocity, angular, dt, true);
+        let half = angular * (0.5 * dt);
+        let delta = Quat::from_xyzw(half.x, half.y, half.z, 1.0).normalize();
+        let expected = center + velocity * dt + delta * (world - center);
+        assert!(predicted.world_point(local).abs_diff_eq(expected, 1e-6));
+        let kinematic = frame.predicted(center, velocity, angular, dt, false);
+        let expected = center + velocity * dt + Quat::from_scaled_axis(angular * dt) * (world - center);
+        assert!(kinematic.world_point(local).abs_diff_eq(expected, 1e-6));
+    }
+
+    #[test]
+    fn source_contact_history_velocity_friction_updates_ratio_on_slip() {
+        let ratio = source_velocity_friction_ratio(1.0, Vec2::new(0.01, 0.0), Vec2::X,
+            Vec2::ONE, 0.5, 0.7, 1e-12);
+        assert!((ratio - 0.35 / 0.99).abs() < 1e-6);
+        let unchanged = source_velocity_friction_ratio(0.5, Vec2::ZERO, Vec2::X * 0.01,
+            Vec2::ONE, 0.5, 0.7, 1e-12);
+        assert_eq!(unchanged, 0.5);
+    }
 
     #[test]
     fn source_anchor_history_matches_native_probe() {

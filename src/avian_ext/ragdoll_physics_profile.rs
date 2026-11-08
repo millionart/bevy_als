@@ -33,7 +33,8 @@ use serde::Deserialize;
 use crate::extensions::{
     ragdoll_angular_drive::RagdollAngularDriveSet,
     source_contact_friction::{SourceContactFrictionFrame, SourceContactFrictionSettings,
-        capture_source_friction_contacts, solve_source_position_contacts},
+        capture_source_friction_contacts, save_source_contact_history, solve_source_position_contacts,
+        update_source_friction_history_ratios},
     source_contact_normal::{SourceContactSeparationRestore, restore_source_velocity_separation,
         suppress_source_velocity_separation},
     source_physics_joint::{
@@ -861,6 +862,14 @@ impl Plugin for RagdollPhysicsProfilePlugin {
         .add_systems(avian3d::prelude::SubstepSchedule, suppress_source_velocity_separation
             .after(solve_source_position_contacts)
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
+        .add_systems(avian3d::prelude::SubstepSchedule, update_source_friction_history_ratios
+            .after(suppress_source_velocity_separation)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax)
+            .run_if(resource_exists::<SourceContactFrictionSettings>))
+        .add_systems(avian3d::prelude::SubstepSchedule, save_source_contact_history
+            .after(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Damping)
+            .run_if(resource_exists::<SourceContactFrictionSettings>))
         .add_systems(avian3d::prelude::SubstepSchedule, restore_source_velocity_separation
             .after(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax)
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Damping))
