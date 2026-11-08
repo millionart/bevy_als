@@ -1,11 +1,17 @@
 use avian3d::collision::contact_types::{ContactGraph, ContactManifold, ContactPoint};
+use avian3d::collision::narrow_phase::NarrowPhaseConfig;
+use avian3d::dynamics::solver::{constraint_graph::{ContactConstraintHandle, COLOR_OVERFLOW_INDEX}, PhysicsLengthUnit};
 use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
-use avian3d::prelude::{Collider, Position, Rotation};
+use avian3d::prelude::{AngularVelocity, Collider, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
+    Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
 use bevy::prelude::*;
 
 use super::ragdoll_physics_profile::RagdollActiveMode;
 
 const SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD: f32 = include!("capsule_contact_axis_threshold.rs");
+
+#[derive(Component)]
+pub(crate) struct SourceCompoundOrder;
 
 fn unique_subshape_ids(candidates: &[Vec<(usize, [u32; 2])>], raw_count: usize) -> Option<Vec<[u32; 2]>> {
     let mut earliest = Vec::with_capacity(candidates.len());
@@ -66,6 +72,70 @@ pub(crate) fn contact_subshape_ids(
     unique_subshape_ids(&candidates, raw.len())
 }
 
+fn order_compound_groups(
+    manifolds: &mut [ContactManifold],
+    ids: &[[u32; 2]],
+    handles: &[ContactConstraintHandle],
+    source_side: usize,
+) {
+    if manifolds.len() < 2 || manifolds.len() != ids.len() || manifolds.len() != handles.len() { return; }
+    let mut slots = (0..manifolds.len()).collect::<Vec<_>>();
+    slots.sort_by_key(|index| {
+        let handle = handles[*index];
+        let color = handle.color_index as usize;
+        (if color == COLOR_OVERFLOW_INDEX { 0 } else { color + 1 }, handle.local_index)
+    });
+    let mut source = (0..manifolds.len()).collect::<Vec<_>>();
+    source.sort_by_key(|index| ids[*index][source_side]);
+    let ordered = source.into_iter().map(|index| manifolds[index].clone()).collect::<Vec<_>>();
+    for (slot, manifold) in slots.into_iter().zip(ordered) { manifolds[slot] = manifold; }
+}
+
+pub(crate) fn order_source_compound_groups(
+    time: Res<Time>,
+    config: Res<NarrowPhaseConfig>,
+    length: Res<PhysicsLengthUnit>,
+    ragdolls: Query<(), With<RagdollActiveMode>>,
+    sources: Query<(), With<SourceCompoundOrder>>,
+    colliders: Query<(&Collider, &Position, &Rotation, Option<&CollisionMargin>, Option<&SpeculativeMargin>)>,
+    bodies: Query<(&RigidBody, &Position, &Rotation, &ComputedCenterOfMass, &LinearVelocity, &AngularVelocity,
+        Option<&CollisionMargin>, Option<&SpeculativeMargin>), Without<RigidBodyDisabled>>,
+    mut graph: ResMut<ContactGraph>,
+) {
+    let delta = time.delta_secs();
+    let mut updates = Vec::new();
+    for pair in graph.iter_active() {
+        if !pair.body1.is_some_and(|body| ragdolls.contains(body))
+            && !pair.body2.is_some_and(|body| ragdolls.contains(body)) { continue; }
+        let source_side = if sources.contains(pair.collider1) { 0 }
+            else if sources.contains(pair.collider2) { 1 } else { continue; };
+        let (Ok(first), Ok(second)) = (colliders.get(pair.collider1), colliders.get(pair.collider2)) else { continue; };
+        let Some((edge, _)) = graph.get_by_id(pair.contact_id) else { continue; };
+        if pair.manifolds.len() < 2 || edge.constraint_handles.len() != pair.manifolds.len() { continue; }
+        let state = |body: Option<Entity>, margin: Option<&CollisionMargin>, speculative: Option<&SpeculativeMargin>| {
+            let body = body.and_then(|entity| bodies.get(entity).ok());
+            let mut velocity = body.as_ref().map_or(Vec3::ZERO, |data| data.4.0);
+            let margin = margin.or_else(|| body.as_ref().and_then(|data| data.6)).map_or(0.0, |value| value.0);
+            let speculative = speculative.or_else(|| body.as_ref().and_then(|data| data.7))
+                .map_or(config.default_speculative_margin * length.0, |value| value.0);
+            if speculative < f32::MAX { velocity = velocity.clamp_length_max(speculative * delta.recip()); }
+            (velocity, margin)
+        };
+        let (velocity1, margin1) = state(pair.body1, first.3, first.4);
+        let (velocity2, margin2) = state(pair.body2, second.3, second.4);
+        let prediction = (delta * (velocity2 - velocity1).length()).max(config.contact_tolerance * length.0)
+            + (margin1 + margin2);
+        let Some(ids) = contact_subshape_ids(first.0, *first.1, *first.2, second.0, *second.1, *second.2,
+            prediction, &pair.manifolds) else { continue; };
+        let mut manifolds = pair.manifolds.clone();
+        order_compound_groups(&mut manifolds, &ids, &edge.constraint_handles, source_side);
+        updates.push((pair.contact_id, manifolds));
+    }
+    for (id, manifolds) in updates {
+        if let Some((_, pair)) = graph.get_mut_by_id(id) { pair.manifolds = manifolds; }
+    }
+}
+
 fn source_capsule_cylinder_contact(axis: Vec3, normal: Vec3) -> bool {
     axis.dot(normal).abs() < SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD
 }
@@ -106,6 +176,93 @@ pub(crate) fn order_source_capsule_box_contacts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_compound_groups_follow_actual_solver_slot_order() {
+        let make = |value: f32| ContactManifold::new(
+            [ContactPoint::new(Vec3::ZERO, Vec3::ZERO, Vec3::splat(value), 0.0)], Vec3::Y,
+        );
+        let mut manifolds = vec![make(2.0), make(0.0), make(1.0)];
+        let ids = [[0, 2], [0, 0], [0, 1]];
+        let handles = [
+            ContactConstraintHandle { color_index: 21, local_index: 1 },
+            ContactConstraintHandle { color_index: COLOR_OVERFLOW_INDEX as u8, local_index: 0 },
+            ContactConstraintHandle { color_index: 3, local_index: 4 },
+        ];
+        order_compound_groups(&mut manifolds, &ids, &handles, 1);
+        assert_eq!(manifolds.iter().map(|value| value.points[0].point.x).collect::<Vec<_>>(), vec![2.0, 0.0, 1.0]);
+        let reversed = [handles[1], handles[0], handles[2]];
+        order_compound_groups(&mut manifolds, &ids, &reversed, 1);
+        assert_eq!(manifolds.iter().map(|value| value.points[0].point.x).collect::<Vec<_>>(), vec![0.0, 2.0, 1.0]);
+        let unchanged = manifolds.clone();
+        order_compound_groups(&mut manifolds, &ids, &handles[..2], 1);
+        assert_eq!(manifolds, unchanged);
+    }
+
+    #[test]
+    fn source_arch_foot_groups_reach_the_solver_in_native_order() {
+        use avian3d::collision::narrow_phase::NarrowPhaseSystems;
+        use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../docs/audit/bf144/d100b3a/arch-foot.native-sample.json")).unwrap();
+        let definitions: std::collections::HashMap<String, Vec<Vec<[f32; 3]>>> = serde_json::from_str(
+            include_str!("../../assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json")).unwrap();
+        let input = &fixture["input"];
+        let name = input["mesh_asset_path"].as_str().unwrap().rsplit('/').next().unwrap();
+        let expected = fixture["aggregate_contacts"].as_array().unwrap().iter()
+            .map(|value| value["mesh_shape_index"].as_u64().unwrap() as u32).collect::<Vec<_>>();
+        let source_vector = |value: &serde_json::Value| Vec3::new(value["x"].as_f64().unwrap() as f32,
+            value["y"].as_f64().unwrap() as f32, value["z"].as_f64().unwrap() as f32);
+        let lower = source_vector(&fixture["geometry"]["minimum_cm"]);
+        let upper = source_vector(&fixture["geometry"]["maximum_cm"]);
+        let center_source = vector(&input["body_translation_cm"]) + (lower + upper) * 0.5;
+        let size_source = upper - lower;
+        let center = Vec3::new(center_source.x, center_source.z, center_source.y) * 0.01;
+        let size = Vec3::new(size_source.x, size_source.z, size_source.y) * 0.01;
+        for source_order in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
+                .insert_resource(Gravity(Vec3::ZERO))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
+                .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
+            app.finish();
+            app.cleanup();
+            let compound = Collider::compound(definitions[name].iter().map(|hull| (
+                Vec3::ZERO, Quat::IDENTITY,
+                Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
+            )).collect());
+            let floor = app.world_mut().spawn((RigidBody::Static, compound, Transform::IDENTITY)).id();
+            if source_order { app.world_mut().entity_mut(floor).insert(SourceCompoundOrder); }
+            let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
+                Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center),
+                RagdollActiveMode(BodyMode::Dynamic))).id();
+            app.update();
+            app.update();
+            let graph = app.world().resource::<ContactGraph>();
+            let (edge, pair) = graph.get(floor, foot).expect("The source foot did not contact the source arch");
+            assert_eq!(pair.manifolds.len(), expected.len());
+            let first = (app.world().get::<Collider>(pair.collider1).unwrap(),
+                *app.world().get::<Position>(pair.collider1).unwrap(), *app.world().get::<Rotation>(pair.collider1).unwrap());
+            let second = (app.world().get::<Collider>(pair.collider2).unwrap(),
+                *app.world().get::<Position>(pair.collider2).unwrap(), *app.world().get::<Rotation>(pair.collider2).unwrap());
+            let source_side = usize::from(pair.collider2 == floor);
+            let mut slots = edge.constraint_handles.iter().enumerate().map(|(index, handle)| {
+                let ids = contact_subshape_ids(first.0, first.1, first.2, second.0, second.1, second.2,
+                    0.005, &pair.manifolds[index..index + 1]).unwrap();
+                let color = handle.color_index as usize;
+                ((if color == COLOR_OVERFLOW_INDEX { 0 } else { color + 1 }, handle.local_index), ids[0][source_side])
+            }).collect::<Vec<_>>();
+            slots.sort_by_key(|value| value.0);
+            let order = slots.iter().map(|value| value.1).collect::<Vec<_>>();
+            if source_order { assert_eq!(order, expected); }
+            else {
+                let mut sorted = order;
+                sorted.sort_unstable();
+                assert_eq!(sorted, expected);
+            }
+        }
+    }
 
     #[test]
     fn subshape_identity_requires_an_unambiguous_ordered_match() {

@@ -1,0 +1,16 @@
+{
+  "request": "docs/audit/bf144/d100b3a/shapes.request.json",
+  "reader_report": "docs/audit/bf144/d100b3a/shapes.native.json.reader.report.json",
+  "native_output": "docs/audit/bf144/d100b3a/shapes.native.json.gz",
+  "raw_bytes": 4958923,
+  "raw_sha256": "adc11692539345ed9d8b0468ce15b32e8559bcfa7d39c8ad2468ade46a674d1f",
+  "gzip_bytes": 252056,
+  "gzip_sha256": "a598708834764f2594618ff9dd83460d6c075e53b383261aa402b3110a2aac47",
+  "request_sha256": "3250938d64543c761caee8bc360a996d3d68daafb1c6bd0e101575f25555b4b1",
+  "target_sha256": "4fd3265734ec78cec9280b6f5fb354f54fe1fe1b3f773206a0a15efc03f7844d",
+  "additional_asset": {
+    "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel_Broken",
+    "bytes": 63216,
+    "sha256": "5432da49a361faa44bb6b28de23b744fec70f570a92bb45102d1373dec2f772b"
+  }
+}
