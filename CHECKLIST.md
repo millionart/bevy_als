@@ -6767,6 +6767,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 01:30 source/static摘要：fresh Cart有14点、Stairs02有8点，各含两种法向；2mm时整体复用，6mm时整体重建。已实现跨目标组的统一点数判断，写分组不足四点但整体七点通过、整体三点失败和形体替换控制，四组原生数据加入逐点测试；真实槽接入、测试、消融及Playground待后续。证据`docs/audit/bf144/d104b3b/`。实际结束：2026-11-09 01:30 +08:00；偏差：−48分钟；结果：子项静态实现完成，未再拆分。
 
 - [ ] BF144-D104b3c / P3 — 将复用结果接入真实trimesh求解槽。
+  - 01:32 source/static摘要：源复用可保留超过四点且局部禁用，目标每个manifold独占solver槽并在数量变化时通过公开`ConstraintGraph::push_manifold/pop_manifold`同步。拆为D104b3c1跨组几何写回、D104b3c2真实槽与睡眠生命周期，避免把点序和槽身份混为一项。
+
+- [x] BF144-D104b3c1 / P3 — 将统一复用点写回各目标组。
+  - 本轮开始：2026-11-09 01:32 +08:00；预计结束：2026-11-09 02:17 +08:00。按源保留初始点索引和每组法向，写回多组几何、深度、质心锚点与法向速度；覆盖部分组点禁用后再次复用及失败不修改缓存。估时依据：D104b3b已实现跨组判定，D104b1已有单组写回；真实槽与统一Gate留后续。
+  - 01:34 source/static摘要：已按原点索引保存模板并复用每组法向，写回中点、质心锚点、深度及法向速度；空组不输出，失败不修改缓存。已写部分禁用后二次复用、整组禁用和整体失败控制，旧box/convex路径保留共享写回。真实solver槽、测试、消融及Playground待后续。证据`docs/audit/bf144/d104b3c1/`。实际结束：2026-11-09 01:34 +08:00；偏差：−43分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D104b3c2 / P3 — 在真实trimesh接触中维护缓存与solver槽。
 
 - [ ] BF144-D105 / P2 — 启动帧先按旧Kinematic图配置重算速度，覆盖应保留的刚体初速。
   - Source：fresh `AlsCharacter_Actions.cpp:792–807`在Start中立即SetSimulatePhysics/ResetAllBodies，再读取pelvis速度；`ChaosEngineInterface.cpp:494–542`转Dynamic保留V/W，`SingleParticlePhysicsProxy.h:1246–1269`亦只在离开Dynamic时清速度。`PhysAnim.cpp:653–655,697–701`普通骨骼更新仅向仍为kinematic的body写新动画目标。

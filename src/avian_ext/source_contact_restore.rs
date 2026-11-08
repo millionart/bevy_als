@@ -186,10 +186,16 @@ pub(super) fn restore_source_contact(
     if !source_restore_manifold(&mut saved.points, saved.last, context.frames, context.tolerance, true, settings) {
         return None;
     }
+    apply_source_restored_contact(manifold, &mut saved, context);
+    Some(saved)
+}
+
+fn apply_source_restored_contact(manifold: &mut ContactManifold, saved: &mut SourceBoxContact, context: &SourceContactContext) {
     let normal = context.frames[1].rotation * saved.points[0].normal_second;
     manifold.normal = (normal * if context.box_first { -1.0 } else { 1.0 }).as_vec3();
     let normal = manifold.normal;
-    manifold.points = saved.points.iter().enumerate().filter(|(_, point)| !point.disabled).map(|(index, point)| {
+    let mut points = Vec::new();
+    for (index, point) in saved.points.iter().enumerate().filter(|(_, point)| !point.disabled) {
         let mut result = manifold.points.get(index).copied().unwrap_or(saved.templates[index]);
         let first = context.frames[0].position_m + context.frames[0].rotation * point.initial_first_m;
         let second = context.frames[1].position_m + context.frames[1].rotation * point.second_m;
@@ -199,10 +205,10 @@ pub(super) fn restore_source_contact(
         result.anchor2 = midpoint - context.centers[1];
         result.penetration = (-point.phi_m) as f32 + context.skin;
         result.normal_speed = contact_normal_speed(context.linear, context.angular, [result.anchor1, result.anchor2], normal);
-        result
-    }).collect();
-    saved.templates = manifold.points.clone();
-    Some(saved)
+        saved.templates[index] = result;
+        points.push(result);
+    }
+    manifold.points = points;
 }
 
 fn source_restore_contact_groups(
@@ -221,6 +227,40 @@ fn source_restore_contact_groups(
         *destination = point;
     }
     true
+}
+
+#[derive(Clone)]
+struct SourceMeshContacts {
+    manifolds: Vec<ContactManifold>,
+    contacts: Vec<SourceBoxContact>,
+}
+
+fn capture_source_mesh_contacts(manifolds: &[ContactManifold], context: &SourceContactContext) -> SourceMeshContacts {
+    let contacts = manifolds.iter().map(|manifold| {
+        let mut context = *context;
+        context.surface_normal = manifold.normal;
+        capture_source_contact(manifold, &context)
+    }).collect();
+    SourceMeshContacts { manifolds: manifolds.to_vec(), contacts }
+}
+
+fn restore_source_mesh_contacts(
+    saved: &mut SourceMeshContacts,
+    context: &SourceContactContext,
+    settings: SourceRestoreSettings,
+) -> Option<Vec<ContactManifold>> {
+    let mut contacts = saved.contacts.clone();
+    if !source_restore_contact_groups(&mut contacts, context, settings) { return None; }
+    let mut manifolds = Vec::new();
+    for (template, contact) in saved.manifolds.iter().zip(&mut contacts) {
+        if contact.points.iter().all(|point| point.disabled) { continue; }
+        let mut manifold = template.clone();
+        manifold.points = contact.templates.clone();
+        apply_source_restored_contact(&mut manifold, contact, context);
+        manifolds.push(manifold);
+    }
+    saved.contacts = contacts;
+    Some(manifolds)
 }
 
 pub(crate) fn restore_source_box_contacts(
@@ -501,6 +541,34 @@ mod tests {
         let mut replaced = context;
         replaced.shape_ticks[0] = Tick::new(3);
         assert!(!source_restore_contact_groups(&mut groups, &replaced, settings()));
+    }
+
+    #[test]
+    fn source_mesh_group_writeback_keeps_initial_point_indices() {
+        let entity = |index| Entity::from_raw_u32(index).unwrap();
+        let pose = SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY };
+        let context = SourceContactContext { colliders: [entity(1), entity(2)], bodies: [entity(3), entity(4)],
+            shape_ticks: [Tick::new(1), Tick::new(2)], frames: [pose; 2], tolerance: 0.01, skin: 0.0,
+            box_first: true, surface_normal: Vec3::Y, centers: [Vec3::ZERO; 2],
+            linear: [Vec3::ZERO; 2], angular: [Vec3::ZERO; 2] };
+        let point = ContactPoint::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, 0.0);
+        let manifolds = [ContactManifold::new([point; 4], Vec3::Y), ContactManifold::new([point; 4], Vec3::X)];
+        let mut saved = capture_source_mesh_contacts(&manifolds, &context);
+        saved.contacts[0].points[0].initial_first_m = DVec3::X * 0.02;
+        for _ in 0..2 {
+            let restored = restore_source_mesh_contacts(&mut saved, &context, settings()).unwrap();
+            assert_eq!(restored.iter().map(|manifold| manifold.points.len()).collect::<Vec<_>>(), vec![3, 4]);
+            assert_eq!(restored[0].normal, Vec3::Y);
+            assert_eq!(restored[1].normal, Vec3::X);
+            assert_eq!(saved.contacts[0].templates.len(), 4);
+        }
+        for point in &mut saved.contacts[0].points { point.disabled = true; }
+        let restored = restore_source_mesh_contacts(&mut saved, &context, settings()).unwrap();
+        assert_eq!(restored.len(), 1);
+        assert_eq!(restored[0].normal, Vec3::X);
+        saved.contacts[1].points[0].disabled = true;
+        assert!(restore_source_mesh_contacts(&mut saved, &context, settings()).is_none());
+        assert_eq!(saved.contacts[1].points.iter().filter(|point| !point.disabled).count(), 3);
     }
 
     #[test]
