@@ -5843,7 +5843,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：世界pitch=60°、uniform胶囊半高0.9m/半径0.3m，朝平墙空中运动。源世界形体前向半径0.81962m，相同目标shape的world-quat查询也验证此值。直接world rotation时中心停在z=0.83009m；挂在60°父级、local rotation=identity时，碰撞阶段走到z=0.31142m，完整角色后置solver一次结果仍只有z=0.53624m。`bf144_air_sweep_uses_world_capsule_rotation`共8组6PASS/2FAIL，证据`target/bf144/06/world_rotation/`。
   - 漏检：旧父空间碰撞回归主要覆盖平移/yaw或uniform尺度；圆截面胶囊对yaw不敏感，因此没有揭示局部quat误用。此反例保持相同世界形体且无非均匀缩放，区别于D11；仅登记，不修改父子变换代码。
 
-- [ ] BF144-D19 / P2 — 漏掉空中两陡坡夹缝的ditch着地分支。
+- [x] BF144-D19 / P2 — 漏掉空中两陡坡夹缝的ditch着地分支；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:16 +08:00；预估结束15:01 +08:00；实际结束14:20 +08:00，提前41分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE双碰撞/落地源和两坡原生几何法线保存在`docs/audit/bf144/d19/`；第三扫/侧移后按几何面资格发布零余时Grounded，已写法线/阈值、单坡和加载角色同帧对照。reader无双坡角色场景，源结论明确为源码与几何组合推导；目标测试与真实Gate尚未执行。
   - Source：fresh UE `PhysFalling:5198–5224`在两个向上、相互法线dot<0的坡面之间，经TwoWallAdjust后竖直delta近零时设置bDitch；随后的sweep不改变这个资格，直接以remainingTime=0调用ProcessLanded。`6373–6440,1445–1456`切到Walking并通知角色，0剩余时间不再运行PhysWalking。
   - Target：`src/als/character/movement/motion.rs:2719–2749`只迭代slide且仅接受普通walkable floor；两个不可行走坡面将velocity投影到近零，但没有ditch状态转换。
   - 反例：以−2m/s下落、50ms帧，完整角色位于两片60°光滑坡组成的V形槽上方；独立sweep确认先后命中两个坡面，normal约(±0.866,0.5,0)，沿交线竖直delta为0，满足源bDitch。target当帧velocity约0但仍Air，源应Grounded。`bf144_air_two_steep_slopes_apply_source_ditch_landing`共4组2PASS/2FAIL，证据`target/bf144/06/ditch/`。

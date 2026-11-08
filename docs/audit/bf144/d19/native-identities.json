@@ -1,0 +1,18 @@
+{
+  "asset": "Content/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.uasset",
+  "asset_identity": {
+    "bytes": 1963,
+    "sha256": "0dafc916b609fc37b42d9d60553b4c4d0c3b43c9c77bbb8330fe2bd8b15d4e7d"
+  },
+  "request": "docs/audit/bf144/d19/geometry.request.json",
+  "native_output": "docs/audit/bf144/d19/geometry.native.json",
+  "raw": {
+    "bytes": 8169,
+    "sha256": "d6cc789d9316b954524940376072c65b3b7e67ca5fbbac8e38b59a9a6d391a9d"
+  },
+  "reader_report": "docs/audit/bf144/d19/geometry.native.json.reader.report.json",
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  }
+}
