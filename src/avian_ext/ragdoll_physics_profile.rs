@@ -1965,6 +1965,8 @@ mod tests {
         app.update();
         let expected = Quat::from_scaled_axis(Vec3::X * 0.5);
         assert!(app.world().get::<Rotation>(free).unwrap().0.abs_diff_eq(expected, 1e-5));
+        let source = Quat::from_xyzw(0.25, 0.0, 0.0, 1.0).normalize();
+        assert!(app.world().get::<Rotation>(ragdoll).unwrap().0.abs_diff_eq(source, 1e-5));
         assert!(app.world().get::<Rotation>(owned).unwrap().0.abs_diff_eq(Quat::IDENTITY, 1e-5));
         assert!(app.world().get::<CustomPositionIntegration>(owned).is_some());
         assert!(app.world().get::<Position>(ragdoll).unwrap().0.abs_diff_eq(app.world().get::<Position>(free).unwrap().0, 1e-6));

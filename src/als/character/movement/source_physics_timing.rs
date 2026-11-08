@@ -12,6 +12,7 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 pub const SOURCE_MAX_PHYSICS_DELTA: Duration = Duration::from_nanos(33_333_333);
+const SOURCE_PHYSICS_SUBSTEPS: u32 = include!("../../settings/physics_substeps.rs");
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourcePhysicsTimingSet {
@@ -34,7 +35,8 @@ pub struct SourcePhysicsTimingPlugin;
 
 impl Plugin for SourcePhysicsTimingPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SourcePhysicsClockRestore>()
+        app.insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
+            .init_resource::<SourcePhysicsClockRestore>()
             .configure_sets(
                 PostUpdate,
                 (
@@ -317,6 +319,54 @@ mod tests {
     use super::*;
     use avian3d::prelude::{Collider, CollisionLayers, GravityScale, LayerMask, LinearVelocity, Position, RigidBody, Sensor};
     use bevy::time::TimeUpdateStrategy;
+
+    #[test]
+    fn world_ragdoll_uses_one_clamped_physics_step_without_fixing_game_frames() {
+        use avian3d::prelude::{AngularDamping, AngularVelocity, ColliderDisabled, Gravity, JointDisabled, LinearDamping, Sleeping, SleepingDisabled};
+        use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+        #[derive(Resource, Default)]
+        struct ObservedSteps { count: u32, delta: f32, physics: f32 }
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..12 { app.update(); }
+        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+        let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+        let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+        for entity in colliders { app.world_mut().entity_mut(entity).insert(ColliderDisabled); }
+        for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+        let body = bodies.iter().find(|(label, _)| label == "spine_01").unwrap().1;
+        app.world_mut().entity_mut(body).insert((SleepingDisabled, LinearDamping(0.0), AngularDamping(0.0))).remove::<Sleeping>();
+        app.init_resource::<ObservedSteps>();
+        app.add_systems(PhysicsSchedule, (|time: Res<Time<Physics>>, mut observed: ResMut<ObservedSteps>| {
+            observed.physics = time.delta_secs();
+        }).in_set(SolverSystems::PreSubstep));
+        app.add_systems(SubstepSchedule, |time: Res<Time>, mut observed: ResMut<ObservedSteps>| {
+            observed.count += 1;
+            observed.delta = time.delta_secs();
+        });
+        assert_eq!(app.world().resource::<SubstepCount>().0, 1);
+        for frame_dt in [1.0_f32 / 60.0, 1.0 / 30.0, 0.1] {
+            for gravity in [Vec3::ZERO, Vec3::NEG_Y * 9.81] {
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(frame_dt)));
+                app.world_mut().insert_resource(Gravity(gravity));
+                app.world_mut().resource_mut::<ObservedSteps>().count = 0;
+                app.world_mut().entity_mut(body).insert((LinearVelocity(Vec3::X), AngularVelocity::ZERO)).remove::<Sleeping>();
+                let before = app.world().get::<Position>(body).unwrap().0;
+                app.update();
+                let observed = app.world().resource::<ObservedSteps>();
+                let dt = frame_dt.min(SOURCE_MAX_PHYSICS_DELTA.as_secs_f32());
+                assert_eq!(observed.count, 1);
+                assert!((observed.delta - dt).abs() < 1e-6 && (observed.physics - dt).abs() < 1e-6);
+                assert!((app.world().resource::<Time<Virtual>>().delta_secs() - frame_dt).abs() < 1e-6);
+                let velocity = Vec3::X + gravity * dt;
+                assert!(app.world().get::<LinearVelocity>(body).unwrap().0.abs_diff_eq(velocity, 1e-5));
+                let displacement = app.world().get::<Position>(body).unwrap().0 - before;
+                assert!(displacement.abs_diff_eq(velocity * dt, 2e-5),
+                    "frame_dt={frame_dt} gravity={gravity:?} displacement={displacement:?}");
+            }
+        }
+    }
 
     #[test]
     fn short_airborne_roll_enables_source_midpoint_integration() {

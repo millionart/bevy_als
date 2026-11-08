@@ -6419,6 +6419,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际加载角色并启动Ragdoll，spine_01保留native惯量/角阻尼/最大速度，隔离关节和碰撞，初始姿态含三轴旋转，W方向为normalize(0.2,0.8,−0.3)。dt=1/60、1/30及100ms帧×速度0/0.1/30/60/80rad/s共15组6PASS/9FAIL；所有速度clamp和物理dt检查通过。60rad/s、实际dt≈1/30时单步姿态差0.429204rad；80rad/s正确clamp后仍差0.477497rad。0/0.1rad/s控制通过，100ms只模拟约33.33ms，未混淆world/physics时钟。证据`bf144_pa_angular_free_body_uses_source_quaternion_integration`、`target/bf144/25/free/`。
   - 漏检：旧PA Gate核对参数、限位或缓慢静止姿态，没有把实际自由旋转积分与当前UE函数逐步比较。仅登记，不为看起来更稳定或更精确而替代source语义。
   - 20:46 source/static摘要：fresh设置确认源未substep并按clamped物理帧更新W/一阶quat；目标仅临时接管动态rig的公开位置积分，在首子步应用一次源角积分并保留线性分步/其他所有者。已写加载spine的三帧长、五速度与非rig/所有权对照；子步内W变化、测试、消融及真实接触/Playground待统一Gate。证据`docs/audit/bf144/d84/`。实际结束：2026-11-08 20:46 +08:00；偏差：−48分钟；结果：静态实现完成，未拆分。
+  - 20:53 有限复开：D86将真实入口改为源单步后，原加载角色测试不再覆盖D84的六子步反例；fresh源积分公式与目标可显式配置六子步的扩展入口共同证明旧Gate可能掩盖重复角积分。补该受控对照，执行与消融仍待统一Gate。
+  - 20:53 静态重闭：六子步扩展夹具新增实际rig body角姿态断言，与普通刚体指数积分及现有owner控制并列；真实入口单步与该六步对照分开验收。
 
 - [x] BF144-D85 / P3 — Soft角阻尼直接使用W×dt，遗漏源预测quat差分。
   - 本轮开始：2026-11-08 20:47 +08:00；预计结束：2026-11-08 21:22 +08:00。重读源初始/预测connector差分与scalar/SIMD阻尼，使用已捕获预测旋转并补native参数及零阻尼对照；统一验证留待升级后。
@@ -6430,11 +6432,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：之前soft fixture的初始角速度为0，此时两公式相同；仅核对D系数无法检查其消费语义。属于随W×dt增大的数值阻尼差异，不把它重复记为自由旋转积分缺陷；仅登记。
   - 20:50 source/static摘要：fresh源确认scalar/SIMD soft限位和角drive共用预测connector quaternion差分；目标cached角阻尼已改用pre-solve差分及累计DQ，非cached不变。已写spine/neck、30/60Hz、正负速度、零阻尼和drive对照；D86单步时钟、测试、消融及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d85/`。实际结束：2026-11-08 20:50 +08:00；偏差：−32分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D86 / P2 — Ragdoll沿用默认六子步，改变源单步物理的位移与求解时钟。
+- [x] BF144-D86 / P2 — Ragdoll沿用默认六子步，改变源单步物理的位移与求解时钟。
+  - 本轮开始：2026-11-08 20:50 +08:00；预计结束：2026-11-08 21:45 +08:00。重读同步/异步和substep设置的实际生效路径，以源世界配置设置物理substep数量，保持帧时长clamp与游戏时钟分离；补真实rig位移/时间对照，统一验证留待升级后。
   - Source：fresh `PhysLevel.cpp:194–212`读取实际PhysicsSettings并传给`ChaosScene.cpp:331–359`；native bSubstepping=False、bTickPhysicsAsync=False，设置MaxSubSteps=1、dt=min(world dt,1/30)。`PhysScene_Chaos.cpp:543–549`把AsyncDt设为−1，`PhysicsSolverBase.cpp:581–619`不走固定/子步分支；`PBDRigidsSolver.cpp:563–591`只调用一次AdvanceOneTimeStep。动态body `PBDRigidsEvolutionGBF.cpp:915–977`先得到本步速度，再用V×dt更新位置。
   - Target：`playable_character.rs:30`使用默认PhysicsPlugins，`source_physics_timing.rs:112–119`只clamp整帧delta；Avian `solver/schedule.rs:187–209`默认SubstepCount(6)并执行六次完整SubstepSchedule。Ragdoll body没有源单步积分适配，同一帧的重力被分成六个速度增量与六次位移。
   - 反例：完整加载角色进入Ragdoll并度过初始限速，spine_01保留native mass/COM，隔离joint/contact、W=0、双方阻尼=0，初速X=1m/s，统一Bevy重力。60/30Hz与100ms帧×default六步/单步×有无重力12组9PASS/3FAIL；无重力恒速全部PASS，单步全部PASS。六步60Hz位移差1.134872mm，30Hz及100ms物理cap位移差4.541397mm，末速度仍相同；实际Time<Physics>和每次SubstepSchedule delta均已记录核对。证据`bf144_pa_linear_substeps_preserve_source_single_step_displacement`、`target/bf144/26/initial/`。
   - 漏检：旧physics timing测试验证了整帧cap与末速度，sleep测试只要求不同子步数保持同一整帧计数，没有比较source单步位移；不能由“都采用约33.33ms上限”推导调度等价。关节在不同dt下求解的整体自然轨迹尚未实测，本项不据此扩大数字结论；仅登记。
+  - 20:56 source/static摘要：fresh PhysicsSettings及PA身份、同步单步调用链和独立目标配置生成已记录；世界物理调度使用源生效的一个子步，游戏帧时钟保持独立。已写加载rig的步数、物理时间、速度和位移对照，并有限复开D84补六步扩展反例；测试、消融和真实Playground待统一Gate。证据`docs/audit/bf144/d86/`。实际结束：2026-11-08 20:56 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D87 / P3 — Ragdoll线性阻尼公式及施加顺序与源不同。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:915–931`先加Acceleration×dt和LinearImpulseVelocity，再乘max(0,1−LinearDamping×dt)。21个native PA body的LinearDamping=0.01；`PerParticleEtherDrag.cpp:9–10`的全局覆盖本次读取为−1，未改写该公式。
