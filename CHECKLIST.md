@@ -6420,12 +6420,15 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧PA Gate核对参数、限位或缓慢静止姿态，没有把实际自由旋转积分与当前UE函数逐步比较。仅登记，不为看起来更稳定或更精确而替代source语义。
   - 20:46 source/static摘要：fresh设置确认源未substep并按clamped物理帧更新W/一阶quat；目标仅临时接管动态rig的公开位置积分，在首子步应用一次源角积分并保留线性分步/其他所有者。已写加载spine的三帧长、五速度与非rig/所有权对照；子步内W变化、测试、消融及真实接触/Playground待统一Gate。证据`docs/audit/bf144/d84/`。实际结束：2026-11-08 20:46 +08:00；偏差：−48分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D85 / P3 — Soft角阻尼直接使用W×dt，遗漏源预测quat差分。
+- [x] BF144-D85 / P3 — Soft角阻尼直接使用W×dt，遗漏源预测quat差分。
+  - 本轮开始：2026-11-08 20:47 +08:00；预计结束：2026-11-08 21:22 +08:00。重读源初始/预测connector差分与scalar/SIMD阻尼，使用已捕获预测旋转并补native参数及零阻尼对照；统一验证留待升级后。
+  - 20:48 source/static摘要：fresh `ApplyRotationDrive`同样消费`ConnectorWDts`，因此除soft limit外一并覆盖同一共享角阻尼consumer；目标非cached与线性drive保持原路径，后续D86负责单步物理时钟。
   - Source：fresh cached solver `17–35`使用初始/预测connector quat，通过`Rotation.cpp:87–104`的2×((Q−R)×inverse(R)).xyz计算ConnectorWDts；soft标量路径`1547–1558`及SIMD路径`1634–1654`在该差分上加入本轮累计DQ，再形成阻尼项。对normalized一阶积分，这个差分是W×dt/sqrt(1+|W×dt/2|²)。
   - Target：`source_physics_joint.rs:551–565`虽正确减去已捕获的预测旋转以求约束校正，却把初始角运动直接写为(child.angular_velocity−parent.angular_velocity)×dt，改变了soft damping输入。
   - 反例：完整角色spine_01保留native 15°twist限位和K=5,000,000/D=5000，在积分后、约束前通过公开SolverBody输入统一设置为源预测quat，确认PreSolveDeltaRotation一致，以隔离D84。预测twist固定0.6rad、unit有效惯量，60/30Hz×W=0/6/−30/30/60rad/s的10组2PASS/8FAIL；W=60、30Hz时单body角修正差0.008454rad，60Hz差0.002960rad。零W通过；同输入的raw-W公式吻合目标，排除了fixture未隔离。证据`bf144_pa_angular_soft_damping_reads_source_predicted_quaternion_delta`、`target/bf144/25/soft_initial/`。
   - 补充控制：同一夹具按native限位设置相同0.3382rad超限量，加入neck_01的非SIMD scalar分支及D=0消融；两条路径24组8PASS/16FAIL，其中零W与4个移除阻尼控制全部PASS。记录`25/soft_final/`及最终Gate。
   - 漏检：之前soft fixture的初始角速度为0，此时两公式相同；仅核对D系数无法检查其消费语义。属于随W×dt增大的数值阻尼差异，不把它重复记为自由旋转积分缺陷；仅登记。
+  - 20:50 source/static摘要：fresh源确认scalar/SIMD soft限位和角drive共用预测connector quaternion差分；目标cached角阻尼已改用pre-solve差分及累计DQ，非cached不变。已写spine/neck、30/60Hz、正负速度、零阻尼和drive对照；D86单步时钟、测试、消融及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d85/`。实际结束：2026-11-08 20:50 +08:00；偏差：−32分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D86 / P2 — Ragdoll沿用默认六子步，改变源单步物理的位移与求解时钟。
   - Source：fresh `PhysLevel.cpp:194–212`读取实际PhysicsSettings并传给`ChaosScene.cpp:331–359`；native bSubstepping=False、bTickPhysicsAsync=False，设置MaxSubSteps=1、dt=min(world dt,1/30)。`PhysScene_Chaos.cpp:543–549`把AsyncDt设为−1，`PhysicsSolverBase.cpp:581–619`不走固定/子步分支；`PBDRigidsSolver.cpp:563–591`只调用一次AdvanceOneTimeStep。动态body `PBDRigidsEvolutionGBF.cpp:915–977`先得到本步速度，再用V×dt更新位置。

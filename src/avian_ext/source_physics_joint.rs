@@ -667,10 +667,12 @@ fn apply_angular_correction(
         } else {
             shortest_quat(child_rotation).to_scaled_axis()
         };
-        let velocity_dt = axis.dot(
-            (child.angular_velocity - parent.angular_velocity) * dt + correction_child
-                - correction_parent,
-        ) - target_velocity * dt;
+        let predicted_velocity = if cached_rotation {
+            let parent = shortest_quat(data.pre_solve_rotation[0]);
+            let child = shortest_quat(data.pre_solve_rotation[1]);
+            Vec3::new(child.x - parent.x, child.y - parent.y, child.z - parent.z) * 2.0
+        } else { (child.angular_velocity - parent.angular_velocity) * dt };
+        let velocity_dt = axis.dot(predicted_velocity + correction_child - correction_parent) - target_velocity * dt;
         spring_impulse(spring, error, velocity_dt, inverse_mass, *lambda, dt)
     } else {
         error / inverse_mass
@@ -1101,6 +1103,78 @@ mod tests {
             0,
             true,
         )
+    }
+
+    #[test]
+    fn cached_soft_damping_uses_predicted_quaternion_delta() {
+        let profile = crate::pa_als::parse_pa_als_profile();
+        for name in ["spine_01", "neck_01"] {
+            for dt in [1.0_f32 / 60.0, 1.0 / 30.0] {
+                for speed in [0.0_f32, 6.0, -30.0, 30.0, 60.0] {
+                    for damping_enabled in [false, true] {
+                        let mut definition = profile.joints.iter().find(|joint| joint.label == name).unwrap().definition.clone();
+                        definition.linear_locked = false;
+                        definition.motors = [SourceAngularMotor::default(); 3];
+                        if !damping_enabled {
+                            definition.twist_spring.as_mut().unwrap().damping = 0.0;
+                            definition.swing_spring.as_mut().unwrap().damping = 0.0;
+                        }
+                        let SourceAngularLimit::Limited(limit) = definition.angular_limits[0] else { unreachable!() };
+                        let angle = limit + 0.3382;
+                        let predicted = Quat::from_xyzw(speed * dt * 0.5, 0.0, 0.0, 1.0).normalize();
+                        let mut data = SourcePhysicsJointSolverData {
+                            frames: [Quat::IDENTITY, predicted.conjugate() * Quat::from_rotation_x(angle)],
+                            pre_solve_rotation: [Quat::IDENTITY, predicted], ..default()
+                        };
+                        let mut parent = SolverBody::default();
+                        let mut child = SolverBody { delta_rotation: avian3d::prelude::Rotation(predicted),
+                            angular_velocity: Vec3::X * speed, ..default() };
+                        let mass = inertia(1.0, Vec3::ONE);
+                        definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, dt);
+                        let spring = definition.twist_spring.unwrap();
+                        let stiffness = spring.stiffness * dt * dt * 0.5;
+                        let damping = spring.damping * dt * 0.5;
+                        let source_velocity = predicted.x * 2.0;
+                        let lambda = (stiffness * (angle - limit) + damping * source_velocity)
+                            / (1.0 + (stiffness + damping) * 2.0);
+                        let parent_expected = Quat::from_xyzw(lambda * 0.5, 0.0, 0.0, 1.0).normalize();
+                        let child_expected = Quat::from_xyzw(-lambda * 0.5, 0.0, 0.0, 1.0).normalize() * predicted;
+                        assert!(parent.delta_rotation.0.abs_diff_eq(parent_expected, 1e-5),
+                            "joint={name} dt={dt} speed={speed} damping={damping_enabled}");
+                        assert!(child.delta_rotation.0.abs_diff_eq(child_expected, 1e-5),
+                            "joint={name} dt={dt} speed={speed} damping={damping_enabled}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cached_drive_damping_uses_predicted_quaternion_delta() {
+        let mut definition = joint();
+        definition.use_linear_solver = true;
+        definition.motors[0] = SourceAngularMotor {
+            spring: SourceAngularSpring { stiffness: 25_000.0, damping: 5_000.0, acceleration_mode: true },
+            position_enabled: true, velocity_enabled: true,
+        };
+        let dt = 1.0_f32 / 30.0;
+        let predicted = Quat::from_xyzw(1.0, 0.0, 0.0, 1.0).normalize();
+        let frame = Quat::from_rotation_x(0.2);
+        let mut data = SourcePhysicsJointSolverData {
+            frames: [Quat::IDENTITY, predicted.conjugate() * frame],
+            pre_solve_rotation: [Quat::IDENTITY, predicted], ..default()
+        };
+        let mut parent = SolverBody::default();
+        let mut child = SolverBody { delta_rotation: avian3d::prelude::Rotation(predicted),
+            angular_velocity: Vec3::X * 60.0, ..default() };
+        let mass = inertia(1.0, Vec3::ONE);
+        definition.solve([&mut parent, &mut child], [&mass, &mass], &mut data, dt);
+        let stiffness = 25_000.0 * dt * dt * 0.5;
+        let damping = 5_000.0 * dt * 0.5;
+        let error = 2.0 * frame.x;
+        let lambda = (stiffness * error + damping * predicted.x * 2.0) / (1.0 + (stiffness + damping) * 2.0);
+        let expected = Quat::from_xyzw(-lambda * 0.5, 0.0, 0.0, 1.0).normalize() * predicted;
+        assert!(child.delta_rotation.0.abs_diff_eq(expected, 1e-5), "actual={:?} source={expected:?}", child.delta_rotation.0);
     }
 
     #[test]

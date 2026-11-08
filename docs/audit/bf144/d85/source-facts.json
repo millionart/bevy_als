@@ -1,0 +1,44 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 17,
+    "end_line": 35,
+    "text": "void FPBDJointCachedSolver::InitDerivedState()\n{\n\tInitConnectorXs[0] = X(0) + R(0) * LocalConnectorXs[0].GetTranslation();\n\tInitConnectorXs[1] = X(1) + R(1) * LocalConnectorXs[1].GetTranslation();\n\tInitConnectorRs[0] = R(0) * LocalConnectorXs[0].GetRotation();\n\tInitConnectorRs[1] = R(1) * LocalConnectorXs[1].GetRotation();\n\tInitConnectorRs[1].EnforceShortestArcWith(InitConnectorRs[0]);\n\n\tComputeBodyState(0);\n\tComputeBodyState(1);\n\n\tConnectorRs[1].EnforceShortestArcWith(ConnectorRs[0]);\n\n\tConnectorWDts[0] = FRotation3::CalculateAngularVelocity(InitConnectorRs[0], ConnectorRs[0], 1.0f);\n\tConnectorWDts[1] = FRotation3::CalculateAngularVelocity(InitConnectorRs[1], ConnectorRs[1], 1.0f);\n\n\tConnectorWDtsSimd[0] = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(ConnectorWDts[0][0], ConnectorWDts[0][1], ConnectorWDts[0][2], 0.0f));\n\tConnectorWDtsSimd[1] = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(ConnectorWDts[1][0], ConnectorWDts[1][1], ConnectorWDts[1][2], 0.0f));\n}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 1540,
+    "end_line": 1561,
+    "text": "\nvoid FPBDJointCachedSolver::SolveRotationConstraintSoft(\n\tconst int32 ConstraintIndex,\n\tconst FReal DeltaConstraint,\n\tconst FReal Dt,\n\tconst FReal TargetVel)\n{\n\t// Damping angular velocity\n\tFReal AngVelDt = 0;\n\tif (RotationConstraints.Data.ConstraintSoftDamping[ConstraintIndex] > UE_KINDA_SMALL_NUMBER)\n\t{\n\t\tconst FVec3 W0Dt = FVec3(Body(0).DQ()) + ConnectorWDts[0];\n\t\tconst FVec3 W1Dt = FVec3(Body(1).DQ()) + ConnectorWDts[1];\n\t\tAngVelDt = TargetVel * Dt + FVec3::DotProduct(RotationConstraints.Data.ConstraintAxis[ConstraintIndex], W0Dt - W1Dt);\n\t}\n\n\tconst FReal DeltaLambda = SolverStiffness * (RotationConstraints.Data.ConstraintSoftStiffness[ConstraintIndex] * DeltaConstraint -\n\t\tRotationConstraints.Data.ConstraintSoftDamping[ConstraintIndex] * AngVelDt - RotationConstraints.Data.ConstraintLambda[ConstraintIndex]) /\n\t\tRotationConstraints.Data.ConstraintSoftIM[ConstraintIndex];\n\tRotationConstraints.Data.ConstraintLambda[ConstraintIndex] += DeltaLambda;\n\n\tSolveRotationConstraintDelta(ConstraintIndex, DeltaLambda, false, RotationConstraints);"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 1634,
+    "end_line": 1654,
+    "text": "\t\t\tAngVelDts[CIndex] = Private::VectorDot3FastX(RotationConstraints.Simd.ConstraintAxis[CIndex], WDiff);\n\t\t}\n\t\tVectorRegister4Float AngVelDt = VectorUnpackLo(AngVelDts[0], AngVelDts[1]);\n\t\tAngVelDt = VectorMoveLh(AngVelDt, AngVelDts[2]);\n\n\t\tconst FRealSingle SolverStiffnessf = FRealSingle(SolverStiffness);\n\t\tVectorRegister4Float Stiffness = VectorLoadFloat1(&SolverStiffnessf);\n\t\tVectorRegister4Float DeltaLambda = VectorMultiply(Stiffness, VectorDivide(VectorSubtract(VectorMultiply(RotationConstraints.Simd.ConstraintSoftStiffness, DeltaAngle),\n\t\t\tVectorAdd(VectorMultiply(RotationConstraints.Simd.ConstraintSoftDamping, AngVelDt), RotationConstraints.Simd.ConstraintLambda)), RotationConstraints.Simd.ConstraintSoftIM));\n\n\t\tDeltaLambda = VectorSelect(NeedsSolve, DeltaLambda, VectorZeroFloat());\n\t\tRotationConstraints.Simd.ConstraintLambda = VectorAdd(RotationConstraints.Simd.ConstraintLambda, DeltaLambda);\n\n\t\tVectorRegister4Float DeltaLambdas[3];\n\t\tDeltaLambdas[0] = VectorReplicate(DeltaLambda, 0);\n\t\tDeltaLambdas[1] = VectorReplicate(DeltaLambda, 1);\n\t\tDeltaLambdas[2] = VectorReplicate(DeltaLambda, 2);\n\n\t\tif (Body(0).IsDynamic())\n\t\t{\n\t\t\tVectorRegister4Float DR0 = VectorZeroFloat();"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Joint/PBDJointCachedSolverGaussSeidel.cpp",
+    "sha256": "7536f0cf984f603c305d97f5a6619ff0d2ae47757290854b4aaac74fa827e1d4",
+    "start_line": 2742,
+    "end_line": 2758,
+    "text": "\t\tconst FReal DX = FVec3::DotProduct(Body(1).DQ() - Body(0).DQ(), RotationDrives.Data.ConstraintAxis[ConstraintIndex]);\n\t\tconst FReal TargetX = RotationDrives.Data.ConstraintCX[ConstraintIndex];\n\t\tCX = TargetX + DX;\n\t}\n\n\t// Damping angular velocity delta\n\tFReal CVDt = 0;\n\tif (Damping > UE_KINDA_SMALL_NUMBER)\n\t{\n\t\tconst FVec3 W0Dt = FVec3(Body(0).DQ()) + ConnectorWDts[0];\n\t\tconst FVec3 W1Dt = FVec3(Body(1).DQ()) + ConnectorWDts[1];\n\t\tconst FReal TargetW = RotationDrives.ConstraintVX[ConstraintIndex];\n\t\tCVDt = (TargetW * Dt) + FVec3::DotProduct(RotationDrives.Data.ConstraintAxis[ConstraintIndex], W0Dt - W1Dt);\n\t}\n\n\tFReal Lambda = RotationDrives.Data.ConstraintLambda[ConstraintIndex];\n\tFReal DeltaLambda = SolverStiffness * (Stiffness * CX - Damping * CVDt - Lambda) / IM;"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Private/Rotation.cpp",
+    "sha256": "6c65555f6b14d7201540615e5a60f5257862561a1c79944b59ebb3c86f543088",
+    "start_line": 85,
+    "end_line": 104,
+    "text": "\t *\n\t * Uses the relation: DQ/DT = (W * Q)/2\n\t */\n\tTVector<FReal, 3> TRotation<FReal, 3>::CalculateAngularVelocity1(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1, const FReal InDt)\n\t{\n\t\tif (!ensure(InDt > UE_SMALL_NUMBER))\n\t\t{\n\t\t\treturn TVector<FReal, 3>(0);\n\t\t}\n\n\t\tconst TRotation<FReal, 3> R0 = InR0;\n\t\tTRotation<FReal, 3> R1 = InR1;\n\t\tR1.EnforceShortestArcWith(R0);\n\n\t\t// W = 2 * dQ/dT * Qinv\n\t\tconst TRotation<FReal, 3> DRDt = (R1 - R0) / InDt;\n\t\tconst TRotation<FReal, 3> RInv = Conjugate(R0);\n\t\tconst TRotation<FReal, 3> W = (DRDt * RInv) * 2.0f;\n\n\t\treturn TVector<FReal, 3>(W.X, W.Y, W.Z);"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/ChaosCore/Public/Chaos/Rotation.h",
+    "sha256": "443f4f68224fcc72d591b82d2fd29f70a73dd8b4755602fdfd4e239b2fcb6b16",
+    "start_line": 445,
+    "end_line": 454,
+    "text": "\t\t * Calculate the angular velocity required to take an object with orientation R0 to orientation R1 in time Dt.\n\t\t *\n\t\t * This should match the algorithm used in PerParticleUpdateFromDeltaPosition rule.\n\t\t */\n\t\tstatic inline TVector<FRealDouble, 3> CalculateAngularVelocity(const TRotation<FRealDouble, 3>& InR0, const TRotation<FRealDouble, 3>& InR1, const FRealDouble InDt)\n\t\t{\n\t\t\treturn CalculateAngularVelocity1(InR0, InR1, InDt);\n\t\t}\n\n\t\t/**"
+  }
+]
