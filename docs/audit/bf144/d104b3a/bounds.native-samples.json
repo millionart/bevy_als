@@ -1,0 +1,85 @@
+{
+  "samples": [
+    {
+      "mesh": "SM_Als_Cart",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "native_max_extent_cm": 237.00112915039062
+    },
+    {
+      "mesh": "SM_Als_Crate_Broken",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "native_max_extent_cm": 154.14260864257812
+    },
+    {
+      "mesh": "SM_Als_Fountain_01",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "native_max_extent_cm": 477.09228515625
+    },
+    {
+      "mesh": "SM_Als_Rock",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "native_max_extent_cm": 640.299560546875
+    },
+    {
+      "mesh": "SM_Als_Stairs_01",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "native_max_extent_cm": 1665.0
+    },
+    {
+      "mesh": "SM_Als_Stairs_02",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "native_max_extent_cm": 1665.0
+    },
+    {
+      "mesh": "SM_Als_Stairs_03",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "native_max_extent_cm": 1665.0
+    },
+    {
+      "mesh": "SM_Als_Fountain_01",
+      "scale": [
+        0.10000000149011612,
+        1.5,
+        -2.0
+      ],
+      "native_max_extent_cm": 954.1845703125
+    },
+    {
+      "mesh": "SM_Als_Stairs_03",
+      "scale": [
+        -0.5,
+        2.0,
+        0.25
+      ],
+      "native_max_extent_cm": 3240.0
+    }
+  ]
+}

@@ -7,6 +7,8 @@ use bevy::ecs::component::Tick;
 use bevy::math::{DQuat, DVec3};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use std::collections::HashMap as SourceBoundsMap;
+use std::sync::LazyLock;
 
 use super::source_contact_polygon::{SOURCE_SMALL_NUMBER, source_direction, source_position};
 use super::ragdoll_physics_profile::RagdollActiveMode;
@@ -96,6 +98,24 @@ pub(super) struct SourceBoxContact {
 pub(crate) struct SourceBoxContactHistory {
     entries: HashMap<u32, SourceBoxContact>,
     pub(super) compounds: HashMap<(u32, u32, Tick), SourceBoxContact>,
+}
+
+#[derive(Component)]
+pub(crate) struct SourceMeshContact(pub String);
+
+static SOURCE_MESH_BOUNDS: LazyLock<SourceBoundsMap<String, [[f64; 3]; 2]>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../../assets/ALSExtras/Environment/Meshes/static_trimesh_bounds.runtime.json"))
+        .expect("Generated source mesh bounds must be valid")
+});
+
+pub(super) fn source_scaled_bounds_max_extent_cm(bounds: [DVec3; 2], scale: Vec3) -> f32 {
+    let scale = scale.as_dvec3();
+    ((bounds[1] * 100.0) * scale - (bounds[0] * 100.0) * scale).abs().max_element() as f32
+}
+
+pub(super) fn source_mesh_max_extent_cm(asset: &str, scale: Vec3) -> Option<f32> {
+    let bounds = (*SOURCE_MESH_BOUNDS.get(asset)?).map(DVec3::from_array);
+    Some(source_scaled_bounds_max_extent_cm(bounds, scale))
 }
 
 pub(super) fn source_box_shape_pose(
@@ -257,6 +277,19 @@ pub(crate) fn restore_source_box_contacts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_mesh_extents_match_native_meshes_and_scales() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d104b3a/bounds.native-samples.json")).unwrap();
+        for sample in fixture["samples"].as_array().unwrap() {
+            let scale = Vec3::new(sample["scale"][0].as_f64().unwrap() as f32,
+                sample["scale"][1].as_f64().unwrap() as f32, sample["scale"][2].as_f64().unwrap() as f32);
+            let actual = source_mesh_max_extent_cm(sample["mesh"].as_str().unwrap(), scale).unwrap();
+            assert_eq!(actual, sample["native_max_extent_cm"].as_f64().unwrap() as f32, "{}", sample["mesh"]);
+        }
+        assert!(source_mesh_max_extent_cm("missing", Vec3::ONE).is_none());
+    }
 
     fn settings() -> SourceRestoreSettings {
         let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],

@@ -13,7 +13,8 @@ use std::sync::LazyLock;
 use super::ragdoll_physics_profile::RagdollActiveMode;
 use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin};
 use super::source_contact_restore::{SourceBoxContactHistory, SourceContactContext, SourceRestorePose,
-    SourceRestoreSettings, capture_source_contact, restore_source_contact, source_box_shape_pose};
+    SourceRestoreSettings, capture_source_contact, restore_source_contact, source_box_shape_pose,
+    source_scaled_bounds_max_extent_cm};
 
 const SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD: f32 = include!("capsule_contact_axis_threshold.rs");
 
@@ -41,9 +42,8 @@ static SOURCE_CONVEX_BOUNDS: LazyLock<HashMap<String, Vec<[DVec3; 2]>>> = LazyLo
 });
 
 pub(super) fn source_convex_max_extent_cm(asset: &str, index: u32, scale: Vec3) -> Option<f32> {
-    let [minimum, maximum] = *SOURCE_CONVEX_BOUNDS.get(asset)?.get(index as usize)?;
-    let scale = scale.as_dvec3();
-    Some(((maximum * 100.0) * scale - (minimum * 100.0) * scale).abs().max_element() as f32)
+    let bounds = *SOURCE_CONVEX_BOUNDS.get(asset)?.get(index as usize)?;
+    Some(source_scaled_bounds_max_extent_cm(bounds, scale))
 }
 
 fn unique_subshape_ids(candidates: &[Vec<(usize, [u32; 2])>], raw_count: usize) -> Option<Vec<[u32; 2]>> {

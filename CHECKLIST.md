@@ -6747,12 +6747,24 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 - [x] BF144-D104b2a / P3 — 保存实际凸包的源包围盒与目标身份。
   - 本轮开始：2026-11-09 01:04 +08:00；预计结束：2026-11-09 01:54 +08:00。fresh读取全部15个环境凸包的源bounds，离线生成与现有hull数组同序的目标数据并接入目标实体身份，编写缩放与身份控制；构建和测试留统一Gate。估时依据：D100b3a已具备15个凸包的源读取请求和一一对应资产，D100b3b1已有离线拓扑转换基础。
   - 01:08 source/static摘要：fresh读取15个源凸包及3个非均匀/负缩放样本，已有源顶点逐轴极值与原生bounds完全一致，缩放后源float最大轴长度一致；因此复用现有topology，不新增重复目标资产。真实Playground标记现携带源资产名，已写18样本、越界和真实Arch身份控制；实际复用、测试、消融与Playground待后续。证据`docs/audit/bf144/d104b2a/`。实际结束：2026-11-09 01:08 +08:00；偏差：−46分钟；结果：子项静态实现完成，未再拆分。
+  - 01:23 有限复开：fresh `ImplicitObjectScaled.h:1153–1158`证明凸包与三角网格的源bounds应用同一缩放规则，旧Gate只覆盖凸包；提取共同计算并保留原18组原生控制，与D104b3a共同静态闭环。本轮开始：2026-11-09 01:23 +08:00；预计结束：2026-11-09 01:43 +08:00。
+  - 01:26 复开闭环：共同边界缩放用于凸包和网格，保留原18组凸包控制并新增9组网格控制。实际结束：2026-11-09 01:26 +08:00；偏差：−17分钟；结果：静态重闭，测试与消融待统一Gate。
 
 - [x] BF144-D104b2b / P3 — 按源hull约束复用真实compound接触。
   - 本轮开始：2026-11-09 01:09 +08:00；预计结束：2026-11-09 01:59 +08:00。先以原始目标窄相位结果确定hull身份，再按源shape粒度保存/复用接触并保持求解槽顺序和睡眠历史；编写多hull、身份更换及普通body控制。估时依据：D104a/b1已有复用合同，D100b3a已有原始身份与solver槽，D104b2a已完成源bounds；测试、消融和Playground待统一Gate。
   - 01:19 source/static摘要：fresh Arch/foot 两个hull各自对±2mm复用、6mm重建，小位移保留点与fresh点相差约2mm；已按目标原始hull身份、资产及形体tick隔离缓存，复用成功跳过核心GJK，重建后再排序到solver槽并保留睡眠历史。已写六组原生复用、真实多hull及身份变更控制；目标身份歧义/缺组由D100b3b等后续处理，测试、消融和Playground待统一Gate。证据`docs/audit/bf144/d104b2b/`。实际结束：2026-11-09 01:19 +08:00；偏差：−40分钟；结果：子项静态实现完成，未再拆分。
 
 - [ ] BF144-D104b3 / P3 — 在真实trimesh接触中复用源几何。
+  - 01:22 source/static摘要：源大型mesh manifold允许超过四点并统一判断有效点，单点可有不同法向；Avian按三角接触生成多个共享各自法向的manifold及solver槽。拆为D104b3a源mesh边界与身份、D104b3b跨组复用合同、D104b3c真实槽重组，先恢复源shape粒度再处理目标分组。
+
+- [x] BF144-D104b3a / P3 — 保存实际trimesh的源包围盒与目标身份。
+  - 本轮开始：2026-11-09 01:22 +08:00；预计结束：2026-11-09 02:12 +08:00。fresh读取Playground七个trimesh的源bounds，核对缩放和目标资产身份，生成可复跑目标数据并编写控制；测试留统一Gate。估时依据：D100b和D104a已有部分mesh原生读数，D104b2a已有身份与bounds导出模式。
+  - 01:23 source/static摘要：七个源mesh bounds均已fresh读取；Cart、Fountain和Rock的源最大轴float厘米与现有目标glTF重算值不相同，不能把目标渲染网格边界当源物理bounds。继续离线生成源bounds并补缩放控制。
+  - 01:26 source/static摘要：已由七个源网格bounds生成独立目标配置并让真实Playground实体携带资产身份；fresh两个非均匀/负缩放读数与共同缩放合同一致。已写离线导入、九组原生边界和Stairs03身份控制；跨组复用、全量转换diff、测试、消融及Playground待后续。证据`docs/audit/bf144/d104b3a/`。实际结束：2026-11-09 01:26 +08:00；偏差：−46分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D104b3b / P3 — 按源shape统一复用跨三角的接触点。
+
+- [ ] BF144-D104b3c / P3 — 将复用结果接入真实trimesh求解槽。
 
 - [ ] BF144-D105 / P2 — 启动帧先按旧Kinematic图配置重算速度，覆盖应保留的刚体初速。
   - Source：fresh `AlsCharacter_Actions.cpp:792–807`在Start中立即SetSimulatePhysics/ResetAllBodies，再读取pelvis速度；`ChaosEngineInterface.cpp:494–542`转Dynamic保留V/W，`SingleParticlePhysicsProxy.h:1246–1269`亦只在离开Dynamic时清速度。`PhysAnim.cpp:653–655,697–701`普通骨骼更新仅向仍为kinematic的body写新动画目标。

@@ -172,6 +172,8 @@ fn playground_mesh_physics_bridge(
         }
         if matches!(source.kind, PlaygroundColliderKind::Convex { .. }) {
             commands.entity(root).insert(crate::extensions::source_contact_order::SourceCompoundOrder(source.mesh_base.clone()));
+        } else if source.kind == PlaygroundColliderKind::TriMesh {
+            commands.entity(root).insert(crate::extensions::source_contact_restore::SourceMeshContact(source.mesh_base.clone()));
         }
         commands.entity(root).insert((
             RigidBody::Static,
@@ -662,6 +664,8 @@ mod tests {
         let actor = app.world_mut().spawn(bundle).id();
         for _ in 0..30 { app.update(); }
         assert!(app.world().get::<PlaygroundMeshColliderBuilt>(root).is_some());
+        assert_eq!(app.world().get::<crate::extensions::source_contact_restore::SourceMeshContact>(root).unwrap().0,
+            "SM_Als_Stairs_03");
         let capsule = app.world().get::<Collider>(actor).unwrap().clone();
         app.world_mut().run_system_once(move |spatial: SpatialQuery| {
             let filter = SpatialQueryFilter::from_excluded_entities([actor]);
