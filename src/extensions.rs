@@ -121,6 +121,8 @@ pub(crate) mod source_contact_friction;
 pub(crate) mod source_contact_gjk;
 #[path = "avian_ext/source_contact_face.rs"]
 pub(crate) mod source_contact_face;
+#[path = "avian_ext/source_contact_epa.rs"]
+pub(crate) mod source_contact_epa;
 #[path = "avian_ext/source_contact_history.rs"]
 pub(crate) mod source_contact_history;
 #[path = "avian_ext/source_contact_margin.rs"]
