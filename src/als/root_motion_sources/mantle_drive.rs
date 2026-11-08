@@ -9,8 +9,8 @@ use crate::extensions::{
     profile_blend::transition_alpha,
 };
 use avian3d::prelude::{
-    CustomPositionIntegration, CustomVelocityIntegration, LinearVelocity, LockedAxes,
-    PhysicsSystems, Position, Rotation,
+    ColliderOf, CustomPositionIntegration, CustomVelocityIntegration, LinearVelocity, LockedAxes,
+    PhysicsSystems, Position, RigidBody, Rotation,
 };
 #[cfg(test)]
 use avian3d::prelude::CollisionLayers;
@@ -658,6 +658,8 @@ fn mantle_drive_system(
         Query<&mut Transform, With<AlsCharacter>>,
     )>,
     target_transforms: Query<&GlobalTransform, Without<crate::als::character::AlsCharacter>>,
+    target_bodies: Query<&RigidBody, Without<AlsCharacter>>,
+    target_colliders: Query<&ColliderOf>,
     assets: Res<MantleAssets>,
     clips: Res<Assets<GraphClip>>,
     skeletons: Res<Assets<Skeleton>>,
@@ -712,7 +714,7 @@ fn mantle_drive_system(
             if let Some(mut rotation) = rotation { rotation.0 = world_rotation; }
             continue;
         }
-        let target_base = mantle_target_base(&m, &target_transforms);
+        let target_base = mantle_target_base(&m, &target_transforms, &target_bodies, &target_colliders);
         if !m.active || (m.target_base.is_some() && target_base.is_none()) {
             *vel = LinearVelocity(Vec3::ZERO);
             continue;
@@ -793,15 +795,18 @@ fn release_mantle_physics(
 fn mantle_target_base(
     state: &AlsMantleState,
     transforms: &Query<&GlobalTransform, Without<crate::als::character::AlsCharacter>>,
+    bodies: &Query<&RigidBody, Without<AlsCharacter>>,
+    colliders: &Query<&ColliderOf>,
 ) -> Option<AlsMantleTargetBase> {
     let base = state.target_base?;
     let transform = transforms.get(base.entity).ok()?;
+    let owner = colliders.get(base.entity).map_or(base.entity, |collider| collider.body);
     Some(AlsMantleTargetBase {
         entity: base.entity,
         translation: transform.translation(),
         rotation: transform.rotation(),
         scale: transform.scale(),
-        relative_location: base.relative_location,
+        relative_location: bodies.get(owner).map_or(base.relative_location, |body| *body != RigidBody::Static),
     })
 }
 
@@ -2279,6 +2284,105 @@ pub(crate) mod tests {
         let expected = (source_delta * previous).normalize();
         assert!(actual.abs_diff_eq(expected, 1e-5) || actual.abs_diff_eq(-expected, 1e-5));
         assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(position, 1e-7));
+    }
+
+    #[test]
+    fn mantle_uses_the_targets_current_mobility_for_warp_space() {
+        let mut app = mantle_clip_test_app();
+        let delta = 0.05_f32;
+        for (initial, current) in [(RigidBody::Static, RigidBody::Static), (RigidBody::Static, RigidBody::Kinematic),
+            (RigidBody::Kinematic, RigidBody::Static), (RigidBody::Kinematic, RigidBody::Kinematic)] {
+            let target_transform = Transform::from_xyz(0.0, 0.4, -1.4);
+            let target = app.world_mut().spawn((initial, target_transform, GlobalTransform::from(target_transform))).id();
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_target_base(MantleKind::High, Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(0.0, 1.8, -1.4), 1.5, 0.35, 0.0,
+                AlsMantleTargetBase { entity: target, translation: target_transform.translation,
+                    rotation: target_transform.rotation, scale: target_transform.scale, relative_location: initial != RigidBody::Static });
+            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.time = 0.2;
+            let start = mantle.target_actor_transform_at(mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            let time = mantle.time + delta;
+            let root = sample_mantle_root(clip, skeleton, mantle.clip_time_at(time)).unwrap();
+            let in_world = |warp: Transform| {
+                if current == RigidBody::Static { warp }
+                else { Transform::from_translation(target_transform.translation + target_transform.rotation * (target_transform.scale * warp.translation))
+                    .with_rotation(target_transform.rotation * warp.rotation) }
+            };
+            let start_warp = in_world(mantle.warp_start);
+            let target_warp = in_world(mantle.warp_target);
+            let location = start_warp.translation.lerp(target_warp.translation, mantle.location_warp_amount_at(time));
+            let blended = start_warp.rotation.lerp(target_warp.rotation, mantle.rotation_warp_amount_at(time)).normalize();
+            let twist = Quat::from_xyzw(0.0, blended.y, 0.0, blended.w).normalize();
+            let expected = location + twist * root.translation;
+            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
+                LinearVelocity::ZERO, start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation))).id();
+            app.world_mut().entity_mut(target).insert(current);
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
+            app.world_mut().run_system_once(mantle_drive_system).unwrap();
+            let actual = app.world().get::<Position>(actor).unwrap().0;
+            let state = app.world().get::<AlsMantleState>(actor).unwrap();
+            assert!(actual.abs_diff_eq(expected, 1e-5),
+                "initial={initial:?} current={current:?} actual={actual:?} expected={expected:?}");
+            assert_eq!(state.target_base.unwrap().relative_location, current != RigidBody::Static);
+            assert_eq!(state.warp_start, mantle.warp_start);
+            assert_eq!(state.warp_target, mantle.warp_target);
+            app.world_mut().run_system_once(release_mantle_physics).unwrap();
+            app.world_mut().despawn(actor);
+            app.world_mut().despawn(target);
+        }
+    }
+
+    #[test]
+    fn loaded_mantle_uses_live_target_mobility() {
+        use bevy::time::TimeUpdateStrategy;
+        for (initial, current) in [(RigidBody::Static, RigidBody::Kinematic), (RigidBody::Kinematic, RigidBody::Static)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let mut ready = false;
+            for _ in 0..600 {
+                ready = {
+                    let assets = app.world().resource::<MantleAssets>();
+                    let clips = app.world().resource::<Assets<GraphClip>>();
+                    let skeletons = app.world().resource::<Assets<Skeleton>>();
+                    clips.get(assets.clip(MantleKind::High)).is_some_and(|clip| skeletons.contains(&clip.skeleton))
+                };
+                if ready { break; }
+                app.update();
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            assert!(ready, "Mantle assets did not load within 600 frames");
+            let base_transform = Transform::from_xyz(0.0, 9.4, -1.4);
+            let base = app.world_mut().spawn((initial, base_transform, GlobalTransform::from(base_transform))).id();
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_target_base(MantleKind::High, Vec3::Y * 10.0, Vec3::new(0.0, 10.8, -1.4), 1.5, 0.35, 0.0,
+                AlsMantleTargetBase { entity: base, translation: base_transform.translation, rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE, relative_location: initial != RigidBody::Static });
+            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.time = 0.2;
+            let start = mantle.target_actor_transform_at(mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            app.world_mut().entity_mut(actor).insert((mantle, LocomotionState::Custom, AlsNotifyLocomotionAction::Mantling,
+                start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation), LinearVelocity::ZERO));
+            app.world_mut().entity_mut(base).insert(current);
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+            app.update();
+            let state = *app.world().get::<AlsMantleState>(actor).unwrap();
+            assert_eq!(state.target_base.unwrap().relative_location, current != RigidBody::Static);
+            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(state.kind)).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            let root = sample_mantle_root(clip, skeleton, state.clip_time()).unwrap();
+            let expected = state.target_actor_transform_at(state.time, root).translation;
+            let actual = app.world().get::<Position>(actor).unwrap().0;
+            assert!(actual.abs_diff_eq(expected, 1e-4),
+                "initial={initial:?} current={current:?} actual={actual:?} expected={expected:?}");
+        }
     }
 
     #[test]

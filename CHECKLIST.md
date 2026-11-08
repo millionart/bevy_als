@@ -6238,7 +6238,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`mantle_drive.rs:704–706`在owner delta≤1e−8直接跳过，随后`update_mantle_movement_base`重写固定RMS时刻的绝对rotation，所以不会累乘上一帧的delta。
   - 反例：完整角色以0.35rad朝向进入Mantle，运行到time约0.21667s，上一帧源rotation delta约−0.01751rad；下一帧owner delta0/5e−9/1e−8时源应再应用这一delta，target保持原角，差约1°。独立native-root/source-warp oracle的`bf144_mantle_physics_tiny_delta_reuses_source_rotation_delta`8组5PASS/3FAIL；无转向的4组和普通16.667ms推进对照通过。与已撤销D61的速度猜测分开记录，未改生产实现。
 
-- [ ] BF144-D64 / P3 — Mantle冻结开始时的相对空间选择，未跟随目标当前可移动性。
+- [x] BF144-D64 / P3 — Mantle冻结开始时的相对空间选择，未跟随目标当前可移动性；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 18:33 +08:00；预估结束19:08 +08:00；实际结束18:36 +08:00，提前32分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS运行期空间选择、UE Mobility与High Montage证据保存在`docs/audit/bf144/d64/`；目标按当前刚体状态解释既有warp，已写双向切换、对照及加载角色用例。旧target报告缺失，组件独立Mobility和动画Gate待验证。
   - Source：fresh RMS `PrepareRootMotion:83–92`每次调用`UseRelativeLocation`；`Character.h:218–220`转发到`Character.cpp:814–816`，`PrimitiveComponentPhysics.cpp:1644–1647`读取当前Mobility是否Movable。源的start/target虽在开始时已存储，运行中仍使用当前选择，因此Mobility切换确实可能造成源空间突变。
   - Target：`mantle_target_base:825–837`及物理后刷新用`base.relative_location`保留旧选择，从不重读当前对应的Static/Kinematic状态。
   - 反例：完整活动Mantle、目标位置(0,0.4,−1.4)m保持不动，Static→Kinematic或反向切换后，源公式分别按新primitive/world空间解释已存warp，target仍按旧空间，位置差约1.456m。`bf144_mantle_physics_live_mobility_controls_relative_space`4组2PASS/2FAIL，同状态两组通过；证据`target/bf144/19/mobility/`。这是外部改变目标可移动性的少见合同边界，记P3；不把源空间突变擅自改写成平滑行为。
