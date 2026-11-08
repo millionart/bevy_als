@@ -5919,7 +5919,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色初始center y=100m/H=0.9m，顶板底面100.98m，初始无重叠；将crouched H设为1.1m后请求蹲下。source目标center100.2m、H1.1查询被顶板阻挡，应保持Standing/旧形体；target提交Crouching/新形体并被后置solver大幅推下。`bf144_crouch_growing_capsule_checks_source_clearance_before_commit`共4组3PASS/1FAIL，普通56cm两组和1.1m无顶板对照通过；证据`target/bf144/08/final/`。
   - 漏检：已有headroom测试都围绕UnCrouch，Crouch夹具默认只缩小胶囊；没有覆盖源明确写出的增高分支。默认配置不触发，未修改生产代码或强行调整尺寸。
 
-- [ ] BF144-D28 / P2 — 缺少顶点子步，跨过顶点的整步位移可能漏掉头顶接触。
+- [x] BF144-D28 / P2 — 缺少顶点子步，跨过顶点的整步位移可能漏掉头顶接触；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 15:00 +08:00；预估结束15:55 +08:00；实际结束15:05 +08:00，提前50分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE顶点切分/GravityTime源、CDO及原生开关/有输入控制保存在`docs/audit/bf144/d28/`；返还余时与迭代并先扫上升段，已写阈值、50/100ms、无顶、加载角色和空控对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `CharacterMovementComponent.cpp:248–253,4970–5006`默认ForceJumpPeakSubstep=1，跨越竖直速度零点时先把timeTick缩到TimeToApex、归零竖直速度，并退回剩余时间；随后5031的SafeMove先扫过真实上升段。fresh CDO允许每轮2次apex切分，项目/引擎配置没有覆盖默认开关。
   - Target：`src/als/character/movement/motion.rs:2765–2782`直接以整子步前后速度的平均值构造一条位移，未在apex拆分。无碰撞时中点积分仍精确，不能据自由抛物线一致排除碰撞路径差异。
   - 反例：完整角色空中向上0.2m/s，顶部与平顶板仅1.5mm间隙，统一使用Bevy重力9.81。源先上升至约2.039mm顶点，必撞顶；target在50ms帧只向下2.263mm，100ms同样跳过首次上升接触。独立源pullback/分段公式的末位置应99.99619/99.96941m，实际99.99773/99.97095m；`bf144_jump_apex_split_keeps_source_ceiling_contact`共6组4PASS/2FAIL，证据`target/bf144/09/apex/`。

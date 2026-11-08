@@ -3467,6 +3467,15 @@ pub(crate) fn falling_movement_sweep(
     (applied, velocity, contact, None, collision_mode)
 }
 
+fn falling_apex_step(old_velocity: Vec3, new_velocity: Vec3, step: f32, attempts: u32) -> Option<(f32, Vec3)> {
+    if old_velocity.y <= 0.0 || new_velocity.y > 0.0 || attempts >= 2 { return None; }
+    let acceleration = (new_velocity - old_velocity) / step;
+    if acceleration.y.abs() <= 1e-10 { return None; }
+    let apex_time = -old_velocity.y / acceleration.y;
+    (apex_time >= 0.0001 && apex_time < step)
+        .then(|| (apex_time, (old_velocity + acceleration * apex_time).with_y(0.0)))
+}
+
 fn falling_movement_transaction(
     spatial: &SpatialQuery, capsule: &Collider, mut transform: Transform, mut velocity: Vec3,
     desired_motion: Vec3, mut max_speed: f32, params: &AlsMovementParams, gravity: Vec3,
@@ -3486,10 +3495,12 @@ fn falling_movement_transaction(
     let mut current_base = None;
     let mut collision_mode = None;
     let mut refreshed_dynamics = None;
+    let mut apex_attempts = 0;
     while remaining >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
         && iterations < params.cmc.max_simulation_iterations {
         iterations += 1;
-        let step = crate::als::dynamics::source_movement_time_step(remaining, &params.cmc, iterations);
+        let full_step = crate::als::dynamics::source_movement_time_step(remaining, &params.cmc, iterations);
+        let mut step = full_step;
         let old_velocity = velocity;
         let horizontal = crate::als::dynamics::grounded_velocity_step_with_braking_friction(
             velocity.with_y(0.0), desired_motion, max_speed,
@@ -3497,9 +3508,15 @@ fn falling_movement_transaction(
             params.cmc.min_analog_walk_speed, 0.0, params.cmc.braking_substep_time, step);
         velocity = crate::als::dynamics::clamp_falling_velocity(horizontal + Vec3::Y * velocity.y + gravity * step,
             gravity, terminal);
+        if let Some((apex_time, apex_velocity)) = falling_apex_step(old_velocity, velocity, step, apex_attempts) {
+            step = apex_time;
+            velocity = apex_velocity;
+            iterations -= 1;
+            apex_attempts += 1;
+        }
         let air_control = if desired_motion.with_y(0.0) != Vec3::ZERO && acceleration > 0.0 {
-            let without_air = crate::als::dynamics::clamp_falling_velocity(old_velocity + gravity * step, gravity, terminal);
-            Some((without_air, ((velocity - without_air) / step).with_y(0.0)))
+            let without_air = crate::als::dynamics::clamp_falling_velocity(old_velocity + gravity * full_step, gravity, terminal);
+            Some((without_air, (velocity - without_air) / step))
         } else { None };
         let requested = (old_velocity + velocity) * (0.5 * step);
         let (applied, deflected, hit, landing_remaining, step_collision_mode) = falling_movement_sweep(spatial, capsule, transform.translation,
@@ -7164,6 +7181,104 @@ mod tests {
         assert_eq!(runtime.simulation_substeps, 2);
         assert_eq!(runtime.grounded_collision_velocity.unwrap().x, 0.0);
         assert!((app.world().get::<Position>(actor).unwrap().x - 0.000006).abs() < 1e-8);
+    }
+
+    #[test]
+    fn falling_apex_split_obeys_source_time_and_attempt_limits() {
+        let old = Vec3::new(1.0, 0.2, 0.0);
+        let next = Vec3::new(1.1, 0.2 - 9.81 * 0.05, 0.0);
+        let (time, velocity) = falling_apex_step(old, next, 0.05, 0).unwrap();
+        assert!((time - 0.2 / 9.81).abs() < 1e-6);
+        assert_eq!(velocity.y, 0.0);
+        assert!((velocity.x - (1.0 + 0.1 * time / 0.05)).abs() < 1e-6);
+        assert!(falling_apex_step(old, next, 0.05, 2).is_none());
+        assert!(falling_apex_step(Vec3::Y * 0.0005, Vec3::NEG_Y, 0.05, 0).is_none());
+        assert!(falling_apex_step(old, Vec3::X, 0.05, 0).is_none());
+        assert!(falling_apex_step(Vec3::NEG_Y, next, 0.05, 0).is_none());
+    }
+
+    #[test]
+    fn falling_apex_substep_sweeps_the_upward_path_before_descending() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (ceiling, duration, expected_y) in [(true, 0.05_f32, 1.9961968_f32),
+            (false, 0.05, 1.9977375), (true, 0.1, 1.9694), (false, 0.1, 1.97095)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<StateTransitionEvent>();
+            app.finish();
+            if ceiling {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0), Transform::from_xyz(0.0, 2.9515, 0.0)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
+                mut transitions: MessageWriter<StateTransitionEvent>| {
+                let mut seed = 123;
+                falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Transform::from_xyz(0.0, 2.0, 0.0),
+                    Vec3::Y * 0.2, Vec3::ZERO, 6.5, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
+                    (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
+                    (0.0, false, false), 40.0, duration, 0, actor, &mut seed,
+                    &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None)
+            }).unwrap();
+            assert!((result.0.translation.y - expected_y).abs() < 0.0002,
+                "ceiling={ceiling} duration={duration} position={:?} source_y={expected_y}", result.0.translation);
+            assert!((result.1.y - (0.2 - 9.81 * duration)).abs() < 1e-4);
+            assert_eq!(result.4, LocomotionState::Air);
+        }
+    }
+
+    #[test]
+    fn loaded_falling_character_preserves_the_apex_ceiling_contact() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0), Transform::from_xyz(0.0, 10.9515, 0.0)));
+        app.update();
+        let start = Vec3::Y * 10.0;
+        app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+            LocomotionState::Air, LinearVelocity(Vec3::Y * 0.2), TnuaMotor::default(),
+            crate::als::character::AlsEffectiveGravity { value: Vec3::NEG_Y * 9.81, ..default() },
+            AlsCmcAdapterRuntime::default()));
+        app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        let position = app.world().get::<Position>(actor).unwrap().0;
+        assert!((position.y - 9.9961968).abs() < 0.0002, "position={position:?}");
+    }
+
+    #[test]
+    fn apex_ceiling_collision_preserves_source_air_control_timing() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .add_message::<StateTransitionEvent>();
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0), Transform::from_xyz(0.0, 2.9515, 0.0)));
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+            permissions: Query<&AlsMantleTargetPermission>,
+            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+            owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
+            mut transitions: MessageWriter<StateTransitionEvent>| {
+            let mut seed = 123;
+            falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Transform::from_xyz(0.0, 2.0, 0.0),
+                Vec3::Y * 0.2, Vec3::X, 6.5, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
+                (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
+                (0.0, false, false), 40.0, 0.05, 0, actor, &mut seed,
+                &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, Some(20.0))
+        }).unwrap();
+        let expected_position = Vec3::new(0.00835248, 1.9963437, 0.0);
+        let expected_velocity = Vec3::new(0.3, -0.2905, 0.0);
+        assert!(result.0.translation.distance(expected_position) < 0.0003,
+            "position={:?} source={expected_position:?}", result.0.translation);
+        assert!(result.1.distance(expected_velocity) < 0.002, "velocity={:?} source={expected_velocity:?}", result.1);
     }
 
     #[test]

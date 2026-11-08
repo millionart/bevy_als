@@ -1,0 +1,46 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 248,
+          "last_line": 253,
+          "text": "\tint32 ForceJumpPeakSubstep = 1;\n\tFAutoConsoleVariableRef CVarForceJumpPeakSubstep(\n\t\tTEXT(\"p.ForceJumpPeakSubstep\"),\n\t\tForceJumpPeakSubstep,\n\t\tTEXT(\"If 1, force a jump substep to always reach the peak position of a jump, which can often be cut off as framerate lowers.\"),\n\t\tECVF_Default);\n"
+        },
+        {
+          "first_line": 695,
+          "last_line": 703,
+          "text": "\tMaxSwimSpeed = 300.0f;\n\tMaxCustomMovementSpeed = MaxWalkSpeed;\n\t\n\tMaxSimulationTimeStep = 0.05f;\n\tMaxSimulationIterations = 8;\n\tMaxJumpApexAttemptsPerSimulation = 2;\n\tNumJumpApexAttempts = 0;\n\n\tMaxDepenetrationWithGeometry = 500.f;\n"
+        },
+        {
+          "first_line": 3024,
+          "last_line": 3035,
+          "text": "\t\tdevCode(ensureMsgf(!Velocity.ContainsNaN(), TEXT(\"UCharacterMovementComponent::PerformMovement: Velocity contains NaN (%s)\\n%s\"), *GetPathNameSafe(this), *Velocity.ToString()));\n\n\t\t// Clear jump input now, to allow movement events to trigger it for next update.\n\t\tCharacterOwner->ClearJumpInput(DeltaSeconds);\n\t\tNumJumpApexAttempts = 0;\n\n\t\t// Give one final chance to update the velocity right before doing the actual position change.\n\t\tUpdateVelocityBeforeMovement(DeltaSeconds);\n\t\t\n\t\t// change position\n\t\tStartNewPhysics(DeltaSeconds, 0);\n\n"
+        },
+        {
+          "first_line": 4948,
+          "last_line": 5006,
+          "text": "\t\t\t// Consume some of the force time. Only the remaining time (if any) is affected by gravity when bApplyGravityWhileJumping=false.\n\t\t\tconst float JumpForceTime = FMath::Min(CharacterOwner->JumpForceTimeRemaining, timeTick);\n\t\t\tGravityTime = bApplyGravityWhileJumping ? timeTick : FMath::Max(0.0f, timeTick - JumpForceTime);\n\t\t\t\n\t\t\t// Update Character state\n\t\t\tCharacterOwner->JumpForceTimeRemaining -= JumpForceTime;\n\t\t\tif (CharacterOwner->JumpForceTimeRemaining <= 0.0f)\n\t\t\t{\n\t\t\t\tCharacterOwner->ResetJumpState();\n\t\t\t\tbEndingJumpForce = true;\n\t\t\t}\n\t\t}\n\n\t\t// Apply gravity\n\t\tVelocity = NewFallVelocity(Velocity, Gravity, GravityTime);\n\n\t\t//UE_LOGF(LogCharacterMovement, Log, \"dt=(%.6f) OldLocation=(%ls) OldVelocity=(%ls) OldVelocityWithRootMotion=(%ls) NewVelocity=(%ls)\", timeTick, *(UpdatedComponent->GetComponentLocation()).ToString(), *OldVelocity.ToString(), *OldVelocityWithRootMotion.ToString(), *Velocity.ToString());\n\t\tApplyRootMotionToVelocity(timeTick);\n\t\tDecayFormerBaseVelocity(timeTick);\n\n\t\t// See if we need to sub-step to exactly reach the apex. This is important for avoiding \"cutting off the top\" of the trajectory as framerate varies.\n\t\tconst FVector::FReal GravityRelativeOldVelocityWithRootMotionZ = GetGravitySpaceZ(OldVelocityWithRootMotion);\n\t\tif (CharacterMovementCVars::ForceJumpPeakSubstep && GravityRelativeOldVelocityWithRootMotionZ > 0.f && GetGravitySpaceZ(Velocity) <= 0.f && NumJumpApexAttempts < MaxJumpApexAttemptsPerSimulation)\n\t\t{\n\t\t\tconst FVector DerivedAccel = (Velocity - OldVelocityWithRootMotion) / timeTick;\n\t\t\tconst FVector::FReal GravityRelativeDerivedAccelZ = GetGravitySpaceZ(DerivedAccel);\n\t\t\tif (!FMath::IsNearlyZero(GravityRelativeDerivedAccelZ))\n\t\t\t{\n\t\t\t\tconst float TimeToApex = -GravityRelativeOldVelocityWithRootMotionZ / GravityRelativeDerivedAccelZ;\n\t\t\t\t\n\t\t\t\t// The time-to-apex calculation should be precise, and we want to avoid adding a substep when we are basically already at the apex from the previous iteration's work.\n\t\t\t\tconst float ApexTimeMinimum = 0.0001f;\n\t\t\t\tif (TimeToApex >= ApexTimeMinimum && TimeToApex < timeTick)\n\t\t\t\t{\n\t\t\t\t\tconst FVector ApexVelocity = OldVelocityWithRootMotion + (DerivedAccel * TimeToApex);\n\t\t\t\t\tif (HasCustomGravity())\n\t\t\t\t\t{\n\t\t\t\t\t\tVelocity = ProjectToGravityFloor(ApexVelocity); // Should be nearly zero anyway, but this makes apex notifications consistent.\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\tVelocity = ApexVelocity;\n\t\t\t\t\t\tVelocity.Z = 0.f; // Should be nearly zero anyway, but this makes apex notifications consistent.\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\t// We only want to move the amount of time it takes to reach the apex, and refund the unused time for next iteration.\n\t\t\t\t\tconst float TimeToRefund = (timeTick - TimeToApex);\n\n\t\t\t\t\tremainingTime += TimeToRefund;\n\t\t\t\t\ttimeTick = TimeToApex;\n\t\t\t\t\tIterations--;\n\t\t\t\t\tNumJumpApexAttempts++;\n\n\t\t\t\t\t// Refund time to any active Root Motion Sources as well\n\t\t\t\t\tfor (TSharedPtr<FRootMotionSource> RootMotionSource : CurrentRootMotion.RootMotionSources)\n\t\t\t\t\t{\n\t\t\t\t\t\tconst float RewoundRMSTime = FMath::Max(0.0f, RootMotionSource->GetTime() - TimeToRefund);\n\t\t\t\t\t\tRootMotionSource->SetTime(RewoundRMSTime);\n\t\t\t\t\t}\n"
+        },
+        {
+          "first_line": 5087,
+          "last_line": 5122,
+          "text": "\t\t\t\t// We moved to the impact point using air control, but may want to deflect from there based on a limited air control acceleration.\n\t\t\t\tFVector VelocityNoAirControl = OldVelocity;\n\t\t\t\tFVector AirControlAccel = Acceleration;\n\t\t\t\tif (bHasLimitedAirControl)\n\t\t\t\t{\n\t\t\t\t\t// Compute VelocityNoAirControl\n\t\t\t\t\t{\n\t\t\t\t\t\t// Find velocity *without* acceleration.\n\t\t\t\t\t\tTGuardValue<FVector> RestoreAcceleration(Acceleration, FVector::ZeroVector);\n\t\t\t\t\t\tTGuardValue<FVector> RestoreVelocity(Velocity, OldVelocity);\n\t\t\t\t\t\tif (HasCustomGravity())\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tVelocity = ProjectToGravityFloor(Velocity);\n\t\t\t\t\t\t\tconst FVector GravityRelativeOffset = OldVelocity - Velocity;\n\t\t\t\t\t\t\tCalcVelocity(timeTick, FallingLateralFriction, false, MaxDecel);\n\t\t\t\t\t\t\tVelocityNoAirControl = Velocity + GravityRelativeOffset;\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tVelocity.Z = 0.f;\n\t\t\t\t\t\t\tCalcVelocity(timeTick, FallingLateralFriction, false, MaxDecel);\n\t\t\t\t\t\t\tVelocityNoAirControl = FVector(Velocity.X, Velocity.Y, OldVelocity.Z);\n\t\t\t\t\t\t}\n\t\t\t\t\t\t\n\t\t\t\t\t\tVelocityNoAirControl = NewFallVelocity(VelocityNoAirControl, Gravity, GravityTime);\n\t\t\t\t\t}\n\n\t\t\t\t\tconst bool bCheckLandingSpot = false; // we already checked above.\n\t\t\t\t\tAirControlAccel = (Velocity - VelocityNoAirControl) / timeTick;\n\t\t\t\t\tconst FVector AirControlDeltaV = LimitAirControl(LastMoveTimeSlice, AirControlAccel, Hit, bCheckLandingSpot) * LastMoveTimeSlice;\n\t\t\t\t\tAdjusted = (VelocityNoAirControl + AirControlDeltaV) * LastMoveTimeSlice;\n\t\t\t\t}\n\n\t\t\t\tconst FVector OldHitNormal = Hit.Normal;\n\t\t\t\tconst FVector OldHitImpactNormal = Hit.ImpactNormal;\t\t\t\t\n\t\t\t\tFVector Delta = ComputeSlideVector(Adjusted, 1.f - Hit.Time, OldHitNormal, Hit);\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Classes/GameFramework/CharacterMovementComponent.h",
+      "sha256": "1193be5e0b09815310a3f65f51e82aebcca1b708240d16932af324d588e1d447",
+      "excerpts": [
+        {
+          "first_line": 759,
+          "last_line": 767,
+          "text": "\tint32 MaxSimulationIterations;\n\n\t/**\n\t * Max number of attempts per simulation to attempt to exactly reach the jump apex when falling movement reaches the top of the arc.\n\t * Limiting this prevents deep recursion when special cases cause collision or other conditions which reactivate the apex condition.\n\t */\n\tUPROPERTY(Category=\"Character Movement (General Settings)\", EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(ClampMin=\"1\", ClampMax=\"4\", UIMin=\"1\", UIMax=\"4\"))\n\tint32 MaxJumpApexAttemptsPerSimulation;\n\n"
+        }
+      ]
+    }
+  ]
+}
