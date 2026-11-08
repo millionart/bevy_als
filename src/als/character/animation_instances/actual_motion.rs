@@ -31,7 +31,7 @@ impl AlsActualMotion {
         Self {
             world_velocity,
             local_velocity: motion.local_velocity,
-            horizontal_speed: Vec2::new(world_velocity.x, world_velocity.z).length(),
+            horizontal_speed: crate::als::motion::source_horizontal_speed_meters(world_velocity),
             velocity_yaw_degrees: world_forward_to_yaw(world_velocity).to_degrees(),
             signed_direction_radians: motion.signed_direction_radians,
             velocity_blend: HorizontalVelocityBlend {
@@ -212,6 +212,18 @@ mod tests {
         app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::new(2.0, 3.0, -1.0);
         app.world_mut().run_schedule(PostUpdate);
         assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().world_velocity, Vec3::new(2.0, 3.0, -1.0));
+    }
+
+    #[test]
+    fn animation_motion_uses_source_centimeter_speed_rounding() {
+        for (velocity, expected) in [
+            (Vec3::new(1.333_333_4, 7.0, 0.0), 1.333_333_5),
+            (Vec3::new(1.485_657_6, -4.0, 0.0), 1.485_657_5),
+        ] {
+            let motion = AlsActualMotion::from_physics_velocity(velocity, Quat::from_rotation_x(1.0));
+            assert_eq!(motion.world_velocity, velocity);
+            assert_eq!(motion.horizontal_speed, expected);
+        }
     }
 
     #[test]
