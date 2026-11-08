@@ -744,6 +744,7 @@ pub struct AlsMantleState {
     pub warp_target: Transform,
     pub target_invalid: bool,
     pub root_motion_ready: bool,
+    pub previous_root_rotation_delta: Quat,
 }
 
 impl Default for AlsMantleState {
@@ -765,6 +766,7 @@ impl Default for AlsMantleState {
             warp_target: Transform::IDENTITY,
             target_invalid: false,
             root_motion_ready: false,
+            previous_root_rotation_delta: Quat::IDENTITY,
         }
     }
 }
@@ -818,6 +820,7 @@ impl AlsMantleState {
             Transform::from_translation(target).with_rotation(Quat::from_rotation_y(yaw_target));
         self.target_invalid = false;
         self.root_motion_ready = false;
+        self.previous_root_rotation_delta = Quat::IDENTITY;
     }
 
     #[allow(clippy::too_many_arguments)]

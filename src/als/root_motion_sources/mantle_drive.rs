@@ -700,6 +700,16 @@ fn mantle_drive_system(
         ));
         if actor_delta <= 1e-8 && m.root_motion_ready {
             m.time += actor_delta;
+            if m.previous_root_rotation_delta.abs_diff_eq(Quat::IDENTITY, 1e-8)
+                || m.previous_root_rotation_delta.abs_diff_eq(-Quat::IDENTITY, 1e-8) { continue; }
+            let Ok(actor_world) = transforms.p0().compute_global_transform(entity) else { continue; };
+            let Ok(parent_world) = parents.get(entity).ok()
+                .map(|parent| transforms.p0().compute_global_transform(parent.parent())).transpose() else { continue; };
+            let world_rotation = (m.previous_root_rotation_delta * actor_world.rotation()).normalize();
+            let mut query = transforms.p1();
+            let Ok(mut transform) = query.get_mut(entity) else { continue; };
+            transform.rotation = parent_world.map_or(world_rotation, |parent| parent.rotation().inverse() * world_rotation);
+            if let Some(mut rotation) = rotation { rotation.0 = world_rotation; }
             continue;
         }
         let target_base = mantle_target_base(&m, &target_transforms);
@@ -738,6 +748,7 @@ fn mantle_drive_system(
         let mut query = transforms.p1();
         let mut transform = query.get_mut(entity).unwrap();
         let translation = target_actor_transform.translation - actor_world.translation();
+        m.previous_root_rotation_delta = (target_actor_transform.rotation * actor_world.rotation().conjugate()).normalize();
         if actor_delta > 1e-8 {
             *vel = LinearVelocity(translation / actor_delta);
         }
@@ -2164,6 +2175,110 @@ pub(crate) mod tests {
             app.world_mut().despawn(actor);
             app.world_mut().despawn(base);
         }
+    }
+
+    #[test]
+    fn mantle_reuses_the_last_rotation_delta_at_a_tiny_owner_delta() {
+        let mut app = mantle_clip_test_app();
+        let world_delta = 0.0625_f32;
+        for (yaw, tiny) in [0.0_f32, 0.35].into_iter().flat_map(|yaw|
+            [0.0_f32, 5e-9, 1e-8].map(move |tiny| (yaw, tiny))) {
+            let target = app.world_mut().spawn((Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
+            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(MantleKind::High)).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_target_base(MantleKind::High, Vec3::Y, Vec3::new(0.0, 2.5, -0.8), 1.5, yaw, 0.0,
+                AlsMantleTargetBase { entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE, relative_location: false });
+            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.time = 0.2;
+            let start = mantle.target_actor_transform_at(mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            let next_time = mantle.time + world_delta;
+            let next = mantle.target_actor_transform_at(next_time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap());
+            let source_delta = (next.rotation * start.rotation.conjugate()).normalize();
+            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
+                LinearVelocity::ZERO, start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation),
+                crate::als_camera::AlsCameraCustomTimeDilation(1.0))).id();
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(world_delta));
+            app.world_mut().run_system_once(mantle_drive_system).unwrap();
+            app.world_mut().run_system_once(release_mantle_physics).unwrap();
+            let previous = app.world().get::<Rotation>(actor).unwrap().0;
+            assert!(previous.abs_diff_eq(next.rotation, 1e-5) || previous.abs_diff_eq(-next.rotation, 1e-5));
+            if yaw != 0.0 { assert!(!source_delta.abs_diff_eq(Quat::IDENTITY, 1e-4)); }
+            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(tiny / world_delta));
+            for repeat in 1..=2 {
+                app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(world_delta));
+                app.world_mut().run_system_once(mantle_drive_system).unwrap();
+                app.world_mut().run_system_once(release_mantle_physics).unwrap();
+                let expected = if repeat == 1 { source_delta * previous } else { source_delta * source_delta * previous };
+                let actual = app.world().get::<Rotation>(actor).unwrap().0;
+                let expected = expected.normalize();
+                assert!(actual.abs_diff_eq(expected, 1e-5) || actual.abs_diff_eq(-expected, 1e-5),
+                    "yaw={yaw} tiny={tiny} repeat={repeat} actual={actual:?} expected={expected:?}");
+            }
+            let state = *app.world().get::<AlsMantleState>(actor).unwrap();
+            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(state.kind)).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            let resume_time = state.time + world_delta;
+            let resume = state.target_actor_transform_at(resume_time,
+                sample_mantle_root(clip, skeleton, state.clip_time_at(resume_time)).unwrap());
+            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(1.0));
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(world_delta));
+            app.world_mut().run_system_once(mantle_drive_system).unwrap();
+            app.world_mut().run_system_once(release_mantle_physics).unwrap();
+            let actual = app.world().get::<Rotation>(actor).unwrap().0;
+            assert!(actual.abs_diff_eq(resume.rotation, 1e-5) || actual.abs_diff_eq(-resume.rotation, 1e-5));
+            app.world_mut().despawn(actor);
+            app.world_mut().despawn(target);
+        }
+    }
+
+    #[test]
+    fn loaded_mantle_reapplies_rotation_while_owner_time_is_zero() {
+        use bevy::time::TimeUpdateStrategy;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let mut ready = false;
+        for _ in 0..600 {
+            ready = {
+                let assets = app.world().resource::<MantleAssets>();
+                let clips = app.world().resource::<Assets<GraphClip>>();
+                let skeletons = app.world().resource::<Assets<Skeleton>>();
+                clips.get(assets.clip(MantleKind::High)).is_some_and(|clip| skeletons.contains(&clip.skeleton))
+            };
+            if ready { break; }
+            app.update();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(ready, "Mantle assets did not load within 600 frames");
+        let target = app.world_mut().spawn((Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
+        let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(MantleKind::High)).unwrap();
+        let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+        let mut mantle = AlsMantleState::default();
+        mantle.begin_with_target_base(MantleKind::High, Vec3::Y * 10.0, Vec3::new(0.0, 11.5, -0.8), 1.5, 0.35, 0.0,
+            AlsMantleTargetBase { entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
+                scale: Vec3::ONE, relative_location: false });
+        mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+            sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+        mantle.time = 0.2;
+        let start = mantle.target_actor_transform_at(mantle.time,
+            sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+        app.world_mut().entity_mut(actor).insert((mantle, LocomotionState::Custom, AlsNotifyLocomotionAction::Mantling,
+            start, GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation), LinearVelocity::ZERO));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        app.update();
+        let previous = app.world().get::<Rotation>(actor).unwrap().0;
+        let source_delta = (previous * start.rotation.conjugate()).normalize();
+        assert!(!source_delta.abs_diff_eq(Quat::IDENTITY, 1e-4));
+        let position = app.world().get::<Position>(actor).unwrap().0;
+        app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+        app.update();
+        let actual = app.world().get::<Rotation>(actor).unwrap().0;
+        let expected = (source_delta * previous).normalize();
+        assert!(actual.abs_diff_eq(expected, 1e-5) || actual.abs_diff_eq(-expected, 1e-5));
+        assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(position, 1e-7));
     }
 
     #[test]

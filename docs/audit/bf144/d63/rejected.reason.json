@@ -1,0 +1,5 @@
+{
+  "reason": "sequence_pose_time_outside_asset",
+  "reader_line": "[2026.11.08-10.29.31:365][  0]LogAlsGraphSourceReader: Error: Sequence pose probe time is outside the asset.",
+  "asset_duration_seconds": 2.6666667461395264
+}
