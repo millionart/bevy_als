@@ -1,0 +1,18 @@
+[
+  {
+    "label": "bench_warm_separated",
+    "restored": false,
+    "initial_points": 4,
+    "next_points": 4,
+    "next_simplex": 3,
+    "direct_warm_gjk_present": false
+  },
+  {
+    "label": "bench_warm_rotated",
+    "restored": false,
+    "initial_points": 4,
+    "next_points": 4,
+    "next_simplex": 3,
+    "direct_warm_gjk_present": false
+  }
+]

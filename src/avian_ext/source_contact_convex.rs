@@ -1,9 +1,11 @@
 use bevy::math::{DQuat, DVec3, Vec3};
 
-use super::source_contact_face::{SourceBoxConvexFaces, SourceConvexTopology};
-use super::source_contact_gjk::SourceGjkResult;
+use super::source_contact_epa::SourceEpaSettings;
+use super::source_contact_face::{SourceBoxConvexFaces, SourceConvexTopology, source_box_convex_faces, source_convex_scale};
+use super::source_contact_gjk::{SourceGjkResult, source_box_convex_gjk, source_gjk_exceeds_cull};
 use super::source_contact_polygon::{source_box_face, source_clip_convex_face, source_direction, source_position};
 use super::source_contact_restore::source_float_position;
+use super::source_gjk_simplex::SourceGjkSimplex;
 
 #[derive(Clone, Copy)]
 pub(super) struct SourceConvexContactPoint {
@@ -11,6 +13,49 @@ pub(super) struct SourceConvexContactPoint {
     pub second_m: DVec3,
     pub normal_second: DVec3,
     pub phi_m: f64,
+}
+
+pub(super) struct SourceBoxConvexManifold {
+    pub gjk: SourceGjkResult,
+    pub contacts: Vec<SourceConvexContactPoint>,
+}
+
+pub(super) fn source_box_convex_manifold(
+    minimum: DVec3,
+    maximum: DVec3,
+    convex: &SourceConvexTopology,
+    scale: DVec3,
+    convex_to_box_translation: DVec3,
+    convex_to_box_rotation: DQuat,
+    box_margin: f64,
+    cull_distance: f64,
+    previous: Option<SourceGjkSimplex>,
+) -> Option<SourceBoxConvexManifold> {
+    let scale = source_convex_scale(scale);
+    let vertices = convex.vertices_m.iter().copied().map(DVec3::from_array).collect::<Vec<_>>();
+    let (epsilon, iterations) = include!("../als/settings/contact_gjk.rs");
+    let (face_area_m4, initial_edge_m2, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon) =
+        include!("../als/settings/contact_epa.rs");
+    let epa = SourceEpaSettings { face_area_m4, initial_edge_m2, visibility_m, witness_m, max_iterations, max_flood, relative_epsilon };
+    let gjk = source_box_convex_gjk(minimum, maximum, box_margin, &vertices, scale, convex_to_box_translation,
+        convex_to_box_rotation, epsilon, iterations, previous, epa)?;
+    let mut contacts = Vec::new();
+    if !source_gjk_exceeds_cull(&gjk, cull_distance) {
+        let [plane_epsilon, reference_bias] = include!("../als/settings/contact_face_classification.rs");
+        let face_search = include!("../als/settings/contact_face_search.rs");
+        if let Some(faces) = source_box_convex_faces(minimum, maximum, convex, scale, &gjk, box_margin,
+            face_search, plane_epsilon, reference_bias) {
+            if faces.plane_contact {
+                contacts = source_box_convex_face_contacts(minimum, maximum, convex, &faces,
+                    convex_to_box_translation, convex_to_box_rotation, &gjk).unwrap_or_default();
+            } else if let Some(contact) = source_box_convex_edge_contact(minimum, maximum, convex, &faces,
+                convex_to_box_translation, convex_to_box_rotation, &gjk, box_margin, cull_distance,
+                include!("../als/settings/contact_edge_zero_cull.rs")) {
+                contacts.push(contact);
+            }
+        }
+    }
+    Some(SourceBoxConvexManifold { gjk, contacts })
 }
 
 fn source_convex_contact(first: DVec3, second: DVec3, normal: DVec3, phi: f64) -> SourceConvexContactPoint {
@@ -136,6 +181,85 @@ mod tests {
 
     fn array(value: &serde_json::Value) -> DVec3 {
         DVec3::new(value[0].as_f64().unwrap(), value[2].as_f64().unwrap(), value[1].as_f64().unwrap())
+    }
+
+    fn rotation(value: &serde_json::Value) -> DQuat {
+        DQuat::from_xyzw(-value[0].as_f64().unwrap(), -value[2].as_f64().unwrap(),
+            -value[1].as_f64().unwrap(), value[3].as_f64().unwrap())
+    }
+
+    fn local_rotation(value: &serde_json::Value) -> DQuat {
+        DQuat::from_xyzw(-value["x"].as_f64().unwrap(), -value["z"].as_f64().unwrap(),
+            -value["y"].as_f64().unwrap(), value["w"].as_f64().unwrap())
+    }
+
+    fn relative_pose(sample: &serde_json::Value, frame: &serde_json::Value) -> (DVec3, DQuat, DQuat) {
+        let body_rotation = rotation(&frame["body_rotation_xyzw"]);
+        let mesh_rotation = rotation(&frame["mesh_rotation_xyzw"]);
+        let box_local = &sample["geometry"]["shape_to_body"];
+        let mesh_local = &sample["other_geometry"]["shape_to_body"];
+        let box_position = array(&frame["body_translation_cm"]) * 0.01
+            + body_rotation * (point(&box_local["translation"]) * 0.01);
+        let mesh_position = array(&frame["mesh_translation_cm"]) * 0.01
+            + mesh_rotation * (point(&mesh_local["translation"]) * 0.01);
+        let box_rotation = body_rotation * local_rotation(&box_local["rotation"]);
+        let mesh_rotation = mesh_rotation * local_rotation(&mesh_local["rotation"]);
+        (box_rotation.inverse() * (mesh_position - box_position), box_rotation.inverse() * mesh_rotation, mesh_rotation)
+    }
+
+    fn assert_native_contacts(actual: &[SourceConvexContactPoint], expected: &serde_json::Value, mesh_rotation: DQuat) {
+        let expected = expected.as_array().unwrap();
+        assert_eq!(actual.len(), expected.len());
+        for (actual, expected) in actual.iter().zip(expected) {
+            assert!(actual.first_m.distance(point(&expected["shape_point_0_cm"]) * 0.01) < 2e-5);
+            assert!(actual.second_m.distance(point(&expected["shape_point_1_cm"]) * 0.01) < 2e-5);
+            assert!(actual.normal_second.distance(mesh_rotation.inverse() * point(&expected["world_normal"])) < 2e-5);
+            assert!((actual.phi_m - expected["phi_cm"].as_f64().unwrap() * 0.01).abs() < 2e-5);
+        }
+    }
+
+    #[test]
+    fn source_complete_convex_manifold_matches_native_faces_edges_and_cull() {
+        let fixtures = [include_str!("../../docs/audit/bf144/d100b3b3c2a/classification.native-samples.json"),
+            include_str!("../../docs/audit/bf144/d100b3b3c4a/cull.native-samples.json")];
+        for fixture in fixtures {
+            let fixture: serde_json::Value = serde_json::from_str(fixture).unwrap();
+            for sample in fixture["samples"].as_array().unwrap() {
+                let input = &sample["input"];
+                let name = input["mesh_asset_path"].as_str().unwrap().rsplit('/').next().unwrap();
+                let index = input["mesh_shape_index"].as_u64().unwrap() as u32;
+                let hull = source_convex_topology(name, index).unwrap();
+                let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
+                let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
+                let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
+                let (translation, orientation, mesh_rotation) = relative_pose(sample, input);
+                let manifold = source_box_convex_manifold(minimum, maximum, hull, array(&input["mesh_scale"]), translation,
+                    orientation, margin, input["cull_distance_cm"].as_f64().unwrap() * 0.01, None).unwrap();
+                assert_native_contacts(&manifold.contacts, &sample["points"], mesh_rotation);
+            }
+        }
+    }
+
+    #[test]
+    fn source_complete_convex_manifold_preserves_native_warm_rebuild() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3c4b/warm.native-samples.json")).unwrap();
+        for sample in fixture["samples"].as_array().unwrap() {
+            assert_eq!(sample["restored"], false);
+            let input = &sample["input"];
+            let hull = source_convex_topology("SM_Als_Bench", 2).unwrap();
+            let minimum = point(&sample["geometry"]["minimum_cm"]) * 0.01;
+            let maximum = point(&sample["geometry"]["maximum_cm"]) * 0.01;
+            let margin = sample["collision_margin_0_cm"].as_f64().unwrap() * 0.01;
+            let cull = input["cull_distance_cm"].as_f64().unwrap() * 0.01;
+            let (translation, orientation, _) = relative_pose(sample, input);
+            let initial = source_box_convex_manifold(minimum, maximum, hull, array(&input["mesh_scale"]), translation,
+                orientation, margin, cull, None).unwrap();
+            let (translation, orientation, mesh_rotation) = relative_pose(sample, &input["next"]);
+            let next = source_box_convex_manifold(minimum, maximum, hull, array(&input["mesh_scale"]), translation,
+                orientation, margin, cull, Some(initial.gjk.simplex_cm)).unwrap();
+            assert_native_contacts(&next.contacts, &sample["next_points"], mesh_rotation);
+        }
     }
 
     #[test]

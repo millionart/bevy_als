@@ -1,0 +1,19 @@
+{
+  "request": "docs/audit/bf144/d100b3b3c4b/warm.request.json",
+  "request_sha256": "65825e835db528934c4558708d90c0defd21910c067e3808d6dd2b10c8874faa",
+  "reader_report": "docs/audit/bf144/d100b3b3c4b/warm.native.json.reader.report.json",
+  "native": "docs/audit/bf144/d100b3b3c4b/warm.native.json.gz",
+  "raw_bytes": 4795398,
+  "raw_sha256": "d84879432f204a486c9551ae81c8c76f2ee05ec07020a607e14b53db48cc5e25",
+  "gzip_bytes": 228480,
+  "gzip_sha256": "11e71790d407fcf0e1e44469535d03d03b22fc202e65fb9b98eda94ba5622877",
+  "source_assets": "docs/audit/bf144/d104b2a/native-identities.json",
+  "summary": "docs/audit/bf144/d100b3b3c4b/native-summary.json",
+  "fixture": {
+    "path": "docs/audit/bf144/d100b3b3c4b/warm.native-samples.json",
+    "bytes": 17982,
+    "sha256": "c001e4d6c105bc1a4433f7dd1dfa780627db1ead254c7266e55566bbecde3462"
+  },
+  "classification": "docs/audit/bf144/d100b3b3c2a/native-identities.json",
+  "cull": "docs/audit/bf144/d100b3b3c4a/native-identities.json"
+}
