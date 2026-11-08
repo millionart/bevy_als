@@ -1,0 +1,88 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 1145,
+          "last_line": 1182,
+          "text": "bool UCharacterMovementComponent::DoJump(bool bReplayingMoves, float DeltaTime)\n{\n\tif ( CharacterOwner && CharacterOwner->CanJump() )\n\t{\n\t\t// Don't jump if we can't move up/down.\n\t\tif (!bConstrainToPlane || !FMath::IsNearlyEqual(FMath::Abs(GetGravitySpaceZ(PlaneConstraintNormal)), 1.f))\n\t\t{\n\t\t\t// If first frame of DoJump, we want to always inject the initial jump velocity.\n\t\t\t// For subsequent frames, during the time Jump is held, it depends... \n\t\t\t// bDontFallXXXX == true means we want to ensure the character's Z velocity is never less than JumpZVelocity in this period\n\t\t\t// bDontFallXXXX == false means we just want to leave Z velocity alone and \"let the chips fall where they may\" (e.g. fall properly in physics)\n\n\t\t\t// NOTE: \n\t\t\t// Checking JumpCurrentCountPreJump instead of JumpCurrentCount because Character::CheckJumpInput might have\n\t\t\t// incremented JumpCurrentCount just before entering this function... in order to compensate for the case when\n\t\t\t// on the first frame of the jump, we're already in falling stage. So we want the original value before any \n\t\t\t// modification here.\n\t\t\t// \n\t\t\tconst bool bFirstJump = (CharacterOwner->JumpCurrentCountPreJump == 0);\n\n\t\t\tif (bFirstJump || bDontFallBelowJumpZVelocityDuringJump)\n\t\t\t{\n\t\t\t\tif (HasCustomGravity())\n\t\t\t\t{\n\t\t\t\t\tSetGravitySpaceZ(Velocity, FMath::Max<FVector::FReal>(GetGravitySpaceZ(Velocity), JumpZVelocity));\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tVelocity.Z = FMath::Max<FVector::FReal>(Velocity.Z, JumpZVelocity);\n\t\t\t\t}\n\t\t\t}\n\t\t\t\n\t\t\tSetMovementMode(MOVE_Falling);\n\t\t\treturn true;\n\t\t}\n\t}\n\t\n\treturn false;\n"
+        },
+        {
+          "first_line": 1456,
+          "last_line": 1474,
+          "text": "\t\tCurrentFloor.Clear();\n\t\tbCrouchMaintainsBaseLocation = false;\n\n\t\tif (MovementMode == MOVE_Falling)\n\t\t{\n\t\t\tif (bStayBasedInAir == false)\n\t\t\t{\n\t\t\t\tApplyImpartedMovementBaseVelocity();\n\t\t\t}\n\t\t\tCharacterOwner->Falling();\n\t\t}\n\n\t\tif (!IsFalling() || bStayBasedInAir == false)\n\t\t{\n\t\t\tFMovementBaseInterfaceData EmptyMovementBaseData;\n\t\t\tSetBase(&EmptyMovementBaseData);\n\t\t}\n\n\t\tif (MovementMode == MOVE_None)\n"
+        },
+        {
+          "first_line": 2830,
+          "last_line": 2845,
+          "text": "#endif\n\t}\n\n\tFVector OldVelocity;\n\tFVector OldLocation;\n\n\t// Scoped updates can improve performance of multiple MoveComponent calls.\n\t{\n\t\tFScopedCapsuleMovementUpdate ScopedMovementUpdate(UpdatedComponent, bEnableScopedMovementUpdates);\n\n\t\tMaybeUpdateBasedMovement(DeltaSeconds);\n\n\t\t// Clean up invalid RootMotion Sources.\n\t\t// This includes RootMotion sources that ended naturally.\n\t\t// They might want to perform a clamp on velocity or an override, \n\t\t// so we want this to happen before ApplyAccumulatedForces and HandlePendingLaunch as to not clobber these.\n"
+        },
+        {
+          "first_line": 6441,
+          "last_line": 6464,
+          "text": "void UCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds)\n{\n\t{\n\t\tSCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);\n\n\t\t// We need to check the jump state before adjusting input acceleration, to minimize latency\n\t\t// and to make sure acceleration respects our potentially new falling state.\n\t\tCharacterOwner->CheckJumpInput(DeltaSeconds);\n\n\t\t// apply input to acceleration\n\t\tAcceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));\n\t\tAnalogInputModifier = ComputeAnalogInputModifier();\n\t}\n\n\tif (CharacterOwner->GetLocalRole() == ROLE_Authority)\n\t{\n\t\tPerformMovement(DeltaSeconds);\n\t}\n\telse if (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy && IsNetMode(NM_Client))\n\t{\n\t\tReplicateMoveToServer(DeltaSeconds, Acceleration);\n\t}\n}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "excerpts": [
+        {
+          "first_line": 1575,
+          "last_line": 1628,
+          "text": "void ACharacter::CheckJumpInput(float DeltaTime)\n{\n\tJumpCurrentCountPreJump = JumpCurrentCount;\n\n\tif (CharacterMovement)\n\t{\n\t\tif (bPressedJump)\n\t\t{\n\t\t\t// If this is the first jump and we're already falling, normally we deny that first jump from happening (by skipping right to the second jump, if available)\n\t\t\t// One exception is if our subclass overrides this to allow first jump to still happen while falling under circumstances they care about\n\t\t\tconst bool bFirstJump = JumpCurrentCount == 0;\n\t\t\tif (bFirstJump && CharacterMovement->IsFalling() && !CanJumpWhileFalling())\n\t\t\t{\n\t\t\t\tJumpCurrentCount++;\n\t\t\t}\n\n\t\t\tconst bool bDidJump = CanJump() && (CharacterCVars::UseLegacyDoJump)? CharacterMovement->DoJump(bClientUpdating) : CharacterMovement->DoJump(bClientUpdating, DeltaTime);\n\t\t\tif (bDidJump)\n\t\t\t{\n\t\t\t\t// Transition from not (actively) jumping to jumping.\n\t\t\t\tif (!bWasJumping)\n\t\t\t\t{\n\t\t\t\t\tJumpCurrentCount++;\n\t\t\t\t\tJumpForceTimeRemaining = GetJumpMaxHoldTime();\n\t\t\t\t\tOnJumped();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tbWasJumping = bDidJump;\n\t\t}\n\t}\n}\n\n\nvoid ACharacter::ClearJumpInput(float DeltaTime)\n{\n\tif (bPressedJump)\n\t{\n\t\tJumpKeyHoldTime += DeltaTime;\n\n\t\t// Don't disable bPressedJump right away if it's still held.\n\t\t// Don't modify JumpForceTimeRemaining because a frame of update may be remaining.\n\t\tif (JumpKeyHoldTime >= GetJumpMaxHoldTime())\n\t\t{\n\t\t\tbPressedJump = false;\n\t\t}\n\t}\n\telse\n\t{\n\t\tJumpForceTimeRemaining = 0.0f;\n\t\tbWasJumping = false;\n\t}\n}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "bevy-tnua/src/controller.rs",
+      "sha256": "3eed3d1ecfad5220230d9a7c7ac2bd5016a96505fa05301ff39b133c1cfbb99d",
+      "excerpts": [
+        {
+          "first_line": 48,
+          "last_line": 65,
+          "text": "}\r\n\r\nimpl<S: TnuaScheme> Plugin for TnuaControllerPlugin<S> {\r\n    fn build(&self, app: &mut App) {\r\n        app.init_asset::<S::Config>();\r\n        app.configure_sets(\r\n            self.schedule,\r\n            (\r\n                TnuaPipelineSystems::Sensors,\r\n                TnuaUserControlsSystems,\r\n                TnuaPipelineSystems::Logic,\r\n                TnuaPipelineSystems::Motors,\r\n            )\r\n                .chain()\r\n                .in_set(TnuaSystems),\r\n        );\r\n        app.register_required_components_with::<TnuaController<S>, _>(\r\n            || TnuaSensorsEntities::<S> {\r\n"
+        },
+        {
+          "first_line": 296,
+          "last_line": 360,
+          "text": "    pub fn action(&mut self, action: S) {\r\n        assert!(\r\n            self.action_feeding_initiated,\r\n            \"Feeding action without invoking `initiate_action_feeding()`\"\r\n        );\r\n        let fed_entry = &mut self.actions_being_fed[action.discriminant().feed_status_slot()];\r\n\r\n        match fed_entry.status {\r\n            FedStatus::Lingering\r\n            | FedStatus::Fresh\r\n            | FedStatus::Trigger\r\n            | FedStatus::Interrupt\r\n            | FedStatus::Held => {\r\n                fed_entry.status = FedStatus::Fresh;\r\n                if let Some(current_action) = self.current_action.as_mut() {\r\n                    match action.update_in_action_state(current_action) {\r\n                        TnuaUpdateInActionStateResult::Success => {\r\n                            // Do nothing farther\r\n                        }\r\n                        TnuaUpdateInActionStateResult::WrongVariant(_) => {\r\n                            // different action is running - will not override because button was\r\n                            // already pressed.\r\n                        }\r\n                    }\r\n                } else if self.contender_action.is_none()\r\n                    && fed_entry\r\n                        .rescheduled_in\r\n                        .as_ref()\r\n                        .is_some_and(|timer| timer.is_finished())\r\n                {\r\n                    // no action is running - but this action is rescheduled and there is no\r\n                    // already-existing contender that would have taken priority\r\n                    self.contender_action = Some(ContenderAction {\r\n                        action,\r\n                        being_fed_for: Stopwatch::new(),\r\n                    });\r\n                } else {\r\n                    // no action is running - will not set because button was already pressed.\r\n                }\r\n            }\r\n            FedStatus::Not => {\r\n                *fed_entry = FedEntry {\r\n                    status: FedStatus::Fresh,\r\n                    rescheduled_in: None,\r\n                };\r\n                if let Some(contender_action) = self.contender_action.as_mut()\r\n                    && action.discriminant() == contender_action.action.discriminant()\r\n                {\r\n                    contender_action.action = action;\r\n                } else if let Some(contender_action) = self.contender_action.as_ref()\r\n                    && self.actions_being_fed\r\n                        [contender_action.action.discriminant().feed_status_slot()]\r\n                    .status\r\n                        == FedStatus::Interrupt\r\n                {\r\n                    // If the existing condender is an interrupt, we will not overwrite it.\r\n                } else {\r\n                    self.contender_action = Some(ContenderAction {\r\n                        action,\r\n                        being_fed_for: Stopwatch::new(),\r\n                    });\r\n                }\r\n            }\r\n        }\r\n    }\r\n"
+        },
+        {
+          "first_line": 720,
+          "last_line": 756,
+          "text": "            if let Some(contender_action) = controller.contender_action.as_mut() {\r\n                if controller.actions_being_fed\r\n                    [contender_action.action.discriminant().feed_status_slot()]\r\n                .status\r\n                .considered_fed()\r\n                {\r\n                    let initiation_decision = contender_action.action.initiation_decision(\r\n                        config,\r\n                        &sensors,\r\n                        TnuaActionContext {\r\n                            frame_duration,\r\n                            tracker,\r\n                            up_direction,\r\n                            basis: &TnuaBasisAccess {\r\n                                input: &controller.basis,\r\n                                config: basis_config,\r\n                                memory: &controller.basis_memory,\r\n                            },\r\n                        },\r\n                        &contender_action.being_fed_for,\r\n                    );\r\n                    contender_action.being_fed_for.tick(time.delta());\r\n                    match initiation_decision {\r\n                        TnuaActionInitiationDirective::Reject => {\r\n                            controller.contender_action = None;\r\n                            false\r\n                        }\r\n                        TnuaActionInitiationDirective::Delay => false,\r\n                        TnuaActionInitiationDirective::Allow => true,\r\n                    }\r\n                } else {\r\n                    controller.contender_action = None;\r\n                    false\r\n                }\r\n            } else {\r\n                false\r\n            };\r\n"
+        }
+      ]
+    },
+    {
+      "path": "bevy-tnua/src/builtins/jump.rs",
+      "sha256": "c4b88be6f8220b4780b21620ca48235f226c0620ea0a9444470910513de917c9",
+      "excerpts": [
+        {
+          "first_line": 217,
+          "last_line": 232,
+          "text": "    fn initiation_decision(\r\n        &self,\r\n        config: &Self::Config,\r\n        _sensors: &B::Sensors<'_>,\r\n        ctx: TnuaActionContext<B>,\r\n        being_fed_for: &Stopwatch,\r\n    ) -> TnuaActionInitiationDirective {\r\n        if self.allow_in_air || !B::is_airborne(ctx.basis) {\r\n            // Either not airborne, or air jumps are allowed\r\n            TnuaActionInitiationDirective::Allow\r\n        } else if (being_fed_for.elapsed().as_secs_f64() as Float) < config.input_buffer_time {\r\n            TnuaActionInitiationDirective::Delay\r\n        } else {\r\n            TnuaActionInitiationDirective::Reject\r\n        }\r\n    }\r\n"
+        }
+      ]
+    },
+    {
+      "path": "bevy-tnua/avian3d/src/lib.rs",
+      "sha256": "3f85eabb6ca24c35452bf208abd4ec78d42a831181a98b0af7719209b21c7402",
+      "excerpts": [
+        {
+          "first_line": 67,
+          "last_line": 83,
+          "text": "                // https://github.com/Jondolf/avian/issues/675\r\n                .before(PhysicsStepSystems::First)\r\n                .run_if(|physics_time: Res<Time<Physics>>| !physics_time.is_paused()),\r\n        );\r\n        app.add_systems(\r\n            self.schedule,\r\n            (\r\n                update_rigid_body_trackers_system,\r\n                update_proximity_sensors_system,\r\n                update_obstacle_radars_system\r\n                    // Both use SpatialQuery, which uses a ResMut\r\n                    .ambiguous_with(update_proximity_sensors_system),\r\n            )\r\n                .in_set(TnuaPipelineSystems::Sensors),\r\n        );\r\n        app.add_systems(\r\n            self.schedule,\r\n"
+        }
+      ]
+    }
+  ],
+  "native_cdo": {
+    "CharMoveComp.bStayBasedInAir": "False",
+    "CharMoveComp.JumpZVelocity": "420.000000"
+  }
+}

@@ -5999,7 +5999,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色落到另一角色胶囊顶部，目标已显式提供allows_step_up=false以排除D14默认metadata遗漏。源应拒绝作为基座并侧向离开、保持Air；target为Grounded、base=该角色、velocity全零。`bf144_inherit_forbidden_pawn_base_runs_source_jump_off`共3组2PASS/1FAIL；同形普通prop即使NoStep仍可站立（AActor默认许可），显式Yes的Pawn也可站立，两对照通过，证据`target/bf144/11/jump_and_permissions/`。
   - 漏检：旧CanStepUp反例只从侧面撞步阶，没有从上方落地触发SetBase→BaseChange。即使修好D14的默认No元数据，这个独立消费者仍缺失；本项不涉及AI控制、网络或随机方向的精确复刻。
 
-- [ ] BF144-D36 / P2 — 当帧起跳前仍跟随旧基座，偏离源检查顺序。
+- [x] BF144-D36 / P2 — 当帧起跳前仍跟随旧基座，偏离源检查顺序；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 15:45 +08:00；预估结束16:40 +08:00；实际结束15:48 +08:00，提前52分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE起跳/基座顺序与Tnua传感器/动作决定保存在`docs/audit/bf144/d36/`；Jump待确认帧推迟跟随，未接受时同帧补执行，已写加载角色及普通跟随对照。旧target报告缺失，源端移动平台未实测；未接受时的传感器边界和调度消融待统一验证。
   - Source：fresh UE `ControlledCharacterMove:6441–6461`先CheckJumpInput；成功后DoJump→Falling→OnMovementModeChanged在`1463–1472`继承速度并清除base，之后`PerformMovement:2840`才MaybeUpdateBasedMovement。因此起跳当帧不再使用旧基座尚未消费的Transform位移。
   - Target：`src/als/character/movement/motion.rs:2554–2559`把follow放在Tnua Sensors之前，accepted_jump_state则在Logic之后；角色仍Grounded时先被携带，再清base起跳。
   - 反例：完整角色稳定站在运动学平台；同帧把平台以保持速度为0的外部位姿更新平移x=0.2m，并按跳键。源角色不应再跟随这次旧base位移，x仍0；target先移到x=0.2再起跳。owner1和0均失败，平台不动起跳及平台移动但不跳两组通过。`bf144_inherit_jump_clears_base_before_same_frame_transform_follow`共4组2PASS/2FAIL，证据`target/bf144/11/final/`。

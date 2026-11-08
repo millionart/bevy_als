@@ -2873,6 +2873,13 @@ pub fn jump_chain(ragdolling: bool, stance: Stance, mantle_available: bool) -> J
 
 pub struct AlsMotionPlugin;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MovementBaseFollowPhase {
+    BeforeSensors,
+    AfterJump,
+    AfterPhysics,
+}
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsActualVelocitySet;
 
@@ -2914,8 +2921,10 @@ impl Plugin for AlsMotionPlugin {
                         .before(crate::als::dynamics::grounded_dynamics_motor_system),
                     cmc_movement_transaction_system.after(crate::als::dynamics::grounded_dynamics_motor_system)
                         .before(TnuaPipelineSystems::Motors),
-                    (|| false).pipe(follow_movement_base_system)
+                    (|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)
                         .after(capsule_reshape_system).before(TnuaPipelineSystems::Sensors),
+                    (|| MovementBaseFollowPhase::AfterJump).pipe(follow_movement_base_system)
+                        .after(accepted_jump_state_system).before(crate::als::dynamics::grounded_dynamics_motor_system),
                     refine_ground_sensor_system.after(TnuaPipelineSystems::Sensors)
                         .before(TnuaPipelineSystems::Logic),
                     capsule_reshape_system.after(crate::als::transition::state_transition_system),
@@ -2936,7 +2945,7 @@ impl Plugin for AlsMotionPlugin {
             )
             .add_systems(
                 PostUpdate,
-                ((|| true).pipe(follow_movement_base_system), locomotion_state_sync_system, snapshot_actual_velocity_system)
+                ((|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system), locomotion_state_sync_system, snapshot_actual_velocity_system)
                     .chain().in_set(AlsActualVelocitySet),
             )
             .add_systems(PostUpdate, (
@@ -3632,7 +3641,7 @@ fn falling_movement_transaction(
 }
 
 fn follow_movement_base_system(
-    In(after_physics): In<bool>,
+    In(phase): In<MovementBaseFollowPhase>,
     time: Res<Time<avian3d::prelude::Physics>>,
     virtual_time: Res<Time<Virtual>>,
     mut characters: Query<(Entity, &LocomotionState, &mut crate::als::dynamics::AlsMovementBase,
@@ -3649,6 +3658,11 @@ fn follow_movement_base_system(
 ) {
     if virtual_time.is_paused() { return; }
     for (entity, mode, mut base, mantle, dynamics, mut runtime, capsule, custom_position) in &mut characters {
+        if phase == MovementBaseFollowPhase::BeforeSensors && runtime.deferred_base_follow { continue; }
+        if phase == MovementBaseFollowPhase::AfterJump {
+            if !runtime.deferred_base_follow { continue; }
+            runtime.deferred_base_follow = false;
+        }
         let target = if *mode == LocomotionState::Custom {
             mantle.and_then(|mantle| mantle.target_base.map(|target| target.entity))
         } else if *mode == LocomotionState::Grounded {
@@ -3661,7 +3675,7 @@ fn follow_movement_base_system(
         let owner = owners.get(target).map_or(target, |owner| owner.body);
         if *mode == LocomotionState::Grounded
             && bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static) {
-            let carried = if !after_physics || custom_position { Vec3::ZERO } else {
+            let carried = if phase != MovementBaseFollowPhase::AfterPhysics || custom_position { Vec3::ZERO } else {
                 dynamics.filter(|dynamics| dynamics.entity == Some(target))
                     .map_or(Vec3::ZERO, |dynamics| dynamics.support_velocity) * time.delta_secs()
             };
@@ -3918,7 +3932,7 @@ type DriveQueryItem<'a> = (
     &'a AlsMovementParamsHandle,
     &'a mut AlsStateRequest,
     Option<&'a mut AlsJumpPrev>,
-    Option<&'a mut AlsCharacterDebug>,
+    (Option<&'a mut AlsCharacterDebug>, &'a mut AlsCmcAdapterRuntime),
 );
 
 #[allow(clippy::type_complexity)]
@@ -3955,9 +3969,10 @@ pub(crate) fn locomotion_drive_system(
         params_handle,
         mut request,
         jump_prev,
-        character_debug,
+        (character_debug, mut runtime),
     ) in &mut q
     {
+        runtime.deferred_base_follow = false;
         let roll = rolls.get(entity).ok();
         controller.initiate_action_feeding();
         let ragdolling = actions.get(entity).ok() == Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling);
@@ -4124,6 +4139,7 @@ pub(crate) fn locomotion_drive_system(
                             jump_z_velocity: params.jump.jump_z_velocity,
                             delta_seconds,
                         }));
+                        runtime.deferred_base_follow = true;
                     }
                 }
             }
@@ -7267,7 +7283,7 @@ mod tests {
                         AlsCmcAdapterRuntime { grounded_move_start: Some(start), ..default() }));
                     let target = base_origin + Vec3::Z;
                     app.world_mut().entity_mut(base).insert((Position(target), Transform::from_translation(target)));
-                    app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+                    app.world_mut().run_system_once((|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)).unwrap();
                     let position = app.world().get::<Position>(actor).unwrap().0;
                     let extent = 0.3 + 0.6 * angle.to_radians().sin().abs();
                     let expected = if wall { movement_sweep_travel(1.0, 1.2 - extent) } else { 1.0 };
@@ -7299,8 +7315,8 @@ mod tests {
             let moved_base = base_origin + Vec3::X * distance;
             app.world_mut().entity_mut(base).insert((Position(moved_base), Transform::from_translation(moved_base)));
             if paused { app.world_mut().resource_mut::<Time<Virtual>>().pause(); }
-            app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
-            app.world_mut().run_system_once((|| true).pipe(follow_movement_base_system)).unwrap();
+            app.world_mut().run_system_once((|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)).unwrap();
+            app.world_mut().run_system_once((|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system)).unwrap();
             let expected = if paused { start } else { start + Vec3::X * distance };
             assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(expected, 1e-6));
             assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().location,
@@ -7308,7 +7324,7 @@ mod tests {
             assert!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_move_start.unwrap().abs_diff_eq(expected, 1e-6));
             if paused {
                 app.world_mut().resource_mut::<Time<Virtual>>().unpause();
-                app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+                app.world_mut().run_system_once((|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)).unwrap();
                 assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(start + Vec3::X * distance, 1e-6));
                 assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().location, moved_base);
             }
@@ -8043,7 +8059,7 @@ mod tests {
                 let before = app.world().get::<Position>(actor).unwrap().0;
                 app.world_mut().get_mut::<Position>(old).unwrap().0.z += 0.2;
                 app.world_mut().get_mut::<Transform>(old).unwrap().translation.z += 0.2;
-                app.world_mut().run_system_once((|| true).pipe(follow_movement_base_system)).unwrap();
+                app.world_mut().run_system_once((|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system)).unwrap();
                 let after = app.world().get::<Position>(actor).unwrap().0;
                 assert!((after.z - before.z).abs() < 1e-5, "the previous base carried the actor: {before:?} -> {after:?}");
             }
@@ -9652,7 +9668,7 @@ mod tests {
             app.world_mut().get_mut::<AlsCmcAdapterRuntime>(character).unwrap().grounded_move_start = Some(origin);
             let target = base_origin + Vec3::X * 0.1;
             app.world_mut().entity_mut(platform).insert((Position(target), Transform::from_translation(target)));
-            app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+            app.world_mut().run_system_once((|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)).unwrap();
             let after = app.world().get::<Position>(character).unwrap().0;
             let applied = (after - origin).x;
             if case == "solid" { assert!(applied > 0.0 && applied < 0.025, "{case}: {applied}"); }
@@ -9661,7 +9677,7 @@ mod tests {
             assert_eq!(app.world().get::<LinearVelocity>(character).unwrap().0, velocity);
             assert!(app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_move_start.unwrap().distance(after) < 0.0001);
             assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().location, target);
-            app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+            app.world_mut().run_system_once((|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)).unwrap();
             assert_eq!(app.world().get::<Position>(character).unwrap().0, after);
         }
     }
@@ -9680,10 +9696,63 @@ mod tests {
         let rotation = Quat::from_rotation_x(0.3);
         app.world_mut().entity_mut(platform).insert((Position(target), Rotation(rotation),
             Transform::from_translation(target).with_rotation(rotation).with_scale(Vec3::splat(2.0))));
-        app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+        app.world_mut().run_system_once((|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)).unwrap();
         let after = app.world().get::<Position>(character).unwrap().0 - target - Vec3::Y * ALS_CHARACTER_CAPSULE_HALF_HEIGHT;
         assert!((rotation.conjugate() * after).abs_diff_eq(before, 1e-5));
         assert_eq!(app.world().get::<Transform>(character).unwrap().rotation, Quat::IDENTITY);
+    }
+
+    #[test]
+    fn deferred_base_follow_runs_only_when_jump_is_not_accepted() {
+        use bevy::ecs::system::RunSystemOnce;
+        for accepted in [false, true] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let center = Vec3::new(0.0, 2.0, 5.0);
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.5, 4.0),
+                Transform::from_translation(center))).id();
+            let position = center + Vec3::Y * 1.174;
+            app.world_mut().entity_mut(character).insert((Position(position), Transform::from_translation(position)));
+            for _ in 0..60 { app.update(); }
+            assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().entity, Some(platform));
+            let start = app.world().get::<Position>(character).unwrap().0;
+            let target = center + Vec3::X * 0.2;
+            app.world_mut().entity_mut(platform).insert((Position(target), Transform::from_translation(target)));
+            app.world_mut().get_mut::<AlsCmcAdapterRuntime>(character).unwrap().deferred_base_follow = true;
+            app.world_mut().run_system_once((|| MovementBaseFollowPhase::BeforeSensors).pipe(follow_movement_base_system)).unwrap();
+            assert_eq!(app.world().get::<Position>(character).unwrap().0, start);
+            if accepted { *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air; }
+            app.world_mut().run_system_once((|| MovementBaseFollowPhase::AfterJump).pipe(follow_movement_base_system)).unwrap();
+            let actual = app.world().get::<Position>(character).unwrap().0;
+            let expected = start + Vec3::X * if accepted { 0.0 } else { 0.2 };
+            assert!(actual.abs_diff_eq(expected, 1e-4), "accepted={accepted} actual={actual:?} expected={expected:?}");
+            assert!(!app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().deferred_base_follow);
+        }
+    }
+
+    #[test]
+    fn accepted_jump_does_not_follow_the_old_base_transform() {
+        for (owner_dilation, jump, shift) in [(1.0, true, 0.2), (0.0, true, 0.2),
+            (1.0, true, 0.0), (1.0, false, 0.2)] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let center = Vec3::new(0.0, 2.0, 5.0);
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.5, 4.0),
+                Transform::from_translation(center))).id();
+            let position = center + Vec3::Y * 1.174;
+            app.world_mut().entity_mut(character).insert((Position(position), Transform::from_translation(position)));
+            for _ in 0..60 { app.update(); }
+            assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().entity, Some(platform));
+            let start = app.world().get::<Position>(character).unwrap().0;
+            let target = center + Vec3::X * shift;
+            app.world_mut().entity_mut(platform).insert((Position(target), Transform::from_translation(target), LinearVelocity::ZERO));
+            app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(owner_dilation));
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = jump;
+            app.update();
+            let actual = app.world().get::<Position>(character).unwrap().0;
+            let expected_x = start.x + if jump { 0.0 } else { shift };
+            assert!((actual.x - expected_x).abs() < 1e-4,
+                "owner={owner_dilation} jump={jump} shift={shift} actual={actual:?} expected_x={expected_x}");
+            if jump { assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air); }
+        }
     }
 
     #[test]
