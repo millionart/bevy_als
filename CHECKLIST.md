@@ -6056,11 +6056,12 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：静止完整角色，1kg球体与胶囊Overlap、重力关闭，源Touch因角色水平速度0而无冲量。球体中心距0.2/0.34m且静止时源首帧vx应+0.041667m/s、target0；距0.31m初速+1时源清0、target+1；距0.32m初速−0.1时源变−0.058333、target−0.1。`bf144_force_overlap_repulsion_keeps_source_radial_and_stop_branches`7组3PASS/4FAIL，向外离开、半径外和Kinematic对照通过；证据`target/bf144/12/overlap/`。
   - 漏检：阻挡接触和Sensor筛选测试都没有验证CMC对已知overlap列表的持续交互；近距离条件还包含源的厘米平方比较，不能以“2.5cm范围”粗略替换。body/bone选择在当前普通刚体成立，Ragdoll多body归其后续批次；仅登记。
 
-- [ ] BF144-D41 / P2 — 地面查询不可站立时丢弃初始穿透命中，提前切到Air。
+- [x] BF144-D41 / P2 — 地面查询不可站立时丢弃初始穿透命中，提前切到Air；D41a/b静态实现完成，统一验证待执行。
   - 子项拆分：D41a保留不可站立floor的原始穿透命中；D41b在真实角色物理步前消费该命中并保持当前迭代模式。各项分别静态实现并提交，父项在两者完成后标记，统一验证延后。
   - [x] BF144-D41a — 保留不可站立floor的初始穿透查询结果。开始2026-11-08 16:37 +08:00；预估结束17:17 +08:00；实际结束16:39 +08:00，提前38分钟；静态实现完成，测试/消融/Gate暂缓。
     - 闭环：fresh ALS不可站立floor仍保留Hit及原生脱穿上限保存在`docs/audit/bf144/d41a/`；地面查询增加可选穿透输出，已写高空墙、有floor和空场景对照。旧target报告缺失，真实角色消费由D41b处理。
-  - [ ] BF144-D41b — 物理前恢复穿透并保持当前Grounded迭代。
+  - [x] BF144-D41b — 物理前恢复穿透并保持当前Grounded迭代。开始2026-11-08 16:40 +08:00；预估结束17:35 +08:00；实际结束16:42 +08:00，提前53分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 闭环：fresh ALS静止Walking穿透恢复顺序、UE脱穿和原生上限保存在`docs/audit/bf144/d41b/`；物理前消费无效floor穿透并保留Grounded，已写系统与加载角色对照。旧target报告缺失，移动跨floor路径和源端高空场景尚未实测；测试和真实Gate待执行。
   - Source：fresh ALS `ComputeFloorDist:797–800`在无可接受floor时只清bWalkableFloor，保留HitResult的start penetration；`PhysWalking:529–559`对该命中执行ResolvePenetration并ForceNextFloorCheck，当前迭代有start penetration时不进入CheckFall。UE `GetPenetrationAdjustment/ResolvePenetration:3621–3646`与MovementComponent的MTD路径不要求walkable floor。
   - Target：`src/als/character/movement/motion.rs:3932`对`!valid`返回None，`4003–4007,4016–4067`只在validated floor存在时使用penetration数据；没有可站立floor时跳过该恢复，随后把None解释为Air。
   - 反例：完整角色Grounded、静止，中心y=100m，墙面x=0.1m，脚下无近地面；retry胶囊实际产生distance0、深度0.198499m、normal≈−X。源应本迭代脱离穿透并保持Grounded，target仅由solver侧推至x=−0.066073m，仍重叠却转Air、vy=−0.1635。`bf144_recovery_invalid_floor_keeps_source_penetration_result`4组3PASS/1FAIL；有walkable地面、无墙和完全无floor对照分别按源保持/落空，证据`target/bf144/13/penetration/`。
