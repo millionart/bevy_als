@@ -222,6 +222,13 @@ pub fn als_character_capsule(half_height: f32, radius: f32) -> Collider {
     Collider::capsule(radius, (2.0 * (half_height - radius)).max(0.0))
 }
 
+pub(crate) fn physical_capsule_dimensions(half: f32, radius: f32, scale: Vec3, minimum_axis_half: f32) -> (f32, f32) {
+    let scale = scale.abs();
+    let scaled_half = (half * scale.y).max(0.001);
+    let scaled_radius = (radius * scale.x.max(scale.z)).clamp(0.001, scaled_half);
+    (scaled_radius, (scaled_half - scaled_radius).max(minimum_axis_half))
+}
+
 pub fn als_character_ground_sensor(
     capsule_radius: f32,
     perch_radius_threshold: f32,
@@ -287,9 +294,7 @@ fn sync_physical_capsules(
             previous.minimum_axis_half = if previous.dimensions.is_some() { 0.000001 } else { 0.0005 };
             previous.dimensions = Some(dimensions);
         }
-        let scaled_half = (half * scale.y).max(0.001);
-        let scaled_radius = (radius * scale.x.max(scale.z)).clamp(0.001, scaled_half);
-        let axis_half = (scaled_half - scaled_radius).max(previous.minimum_axis_half);
+        let (scaled_radius, axis_half) = physical_capsule_dimensions(half, radius, scale, previous.minimum_axis_half);
         let rebuild = collider.shape().as_capsule().is_none_or(|capsule|
             capsule.radius != scaled_radius || capsule.segment.a.y != axis_half || capsule.segment.b.y != -axis_half);
         let rescale = collider.scale() != Vec3::ONE;

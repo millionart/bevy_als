@@ -1,0 +1,48 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 3288,
+          "last_line": 3334,
+          "text": "\t\tACharacter* DefaultCharacter = CharacterOwner->GetClass()->GetDefaultObject<ACharacter>();\n\t\tCharacterOwner->GetCapsuleComponent()->SetCapsuleSize(DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleRadius(), DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight());\n\t\tbShrinkProxyCapsule = true;\n\t}\n\n\t// Change collision size to crouching dimensions\n\tconst float ComponentScale = CharacterOwner->GetCapsuleComponent()->GetShapeScale();\n\tconst float OldUnscaledHalfHeight = CharacterOwner->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();\n\tconst float OldUnscaledRadius = CharacterOwner->GetCapsuleComponent()->GetUnscaledCapsuleRadius();\n\t// Height is not allowed to be smaller than radius.\n\tconst float ClampedCrouchedHalfHeight = FMath::Max3(0.f, OldUnscaledRadius, CrouchedHalfHeight);\n\tCharacterOwner->GetCapsuleComponent()->SetCapsuleSize(OldUnscaledRadius, ClampedCrouchedHalfHeight);\n\tfloat HalfHeightAdjust = (OldUnscaledHalfHeight - ClampedCrouchedHalfHeight);\n\tfloat ScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;\n\n\tif( !bClientSimulation )\n\t{\n\t\t// Crouching to a larger height? (this is rare)\n\t\tif (ClampedCrouchedHalfHeight > OldUnscaledHalfHeight)\n\t\t{\n\t\t\tFCollisionQueryParams CapsuleParams(SCENE_QUERY_STAT(CrouchTrace), false, CharacterOwner);\n\t\t\tFCollisionResponseParams ResponseParam;\n\t\t\tInitCollisionParams(CapsuleParams, ResponseParam);\n\t\t\tconst bool bEncroached = GetWorld()->OverlapBlockingTestByChannel(UpdatedComponent->GetComponentLocation() + ScaledHalfHeightAdjust * GetGravityDirection(), GetWorldToGravityTransform(),\n\t\t\t\tUpdatedComponent->GetCollisionObjectType(), GetPawnCapsuleCollisionShape(SHRINK_None), CapsuleParams, ResponseParam);\n\n\t\t\t// If encroached, cancel\n\t\t\tif( bEncroached )\n\t\t\t{\n\t\t\t\tCharacterOwner->GetCapsuleComponent()->SetCapsuleSize(OldUnscaledRadius, OldUnscaledHalfHeight);\n\t\t\t\treturn;\n\t\t\t}\n\t\t}\n\n\t\tif (bCrouchMaintainsBaseLocation)\n\t\t{\n\t\t\t// Intentionally not using MoveUpdatedComponent, where a horizontal plane constraint would prevent the base of the capsule from staying at the same spot.\n\t\t\tUpdatedComponent->MoveComponent(ScaledHalfHeightAdjust * GetGravityDirection(), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);\n\t\t}\n\n\t\tCharacterOwner->SetIsCrouched(true);\n\t}\n\n\tbForceNextFloorCheck = true;\n\n\t// OnStartCrouch takes the change from the Default size, not the current one (though they are usually the same).\n\tconst float MeshAdjust = ScaledHalfHeightAdjust;\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "first_line": 225,
+          "last_line": 239,
+          "text": "\t{\r\n\t\tSuper::SetMovementMode(NewMovementMode, NewCustomMode);\r\n\t}\r\n}\r\n\r\nvoid UAlsCharacterMovementComponent::OnMovementModeChanged(const EMovementMode PreviousMovementMode, const uint8 PreviousCustomMode)\r\n{\r\n\tSuper::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);\r\n\r\n\t// This removes some very noticeable changes in the mesh location when the\r\n\t// character automatically uncrouches at the end of the roll in the air.\r\n\r\n\tbCrouchMaintainsBaseLocation = true;\r\n}\r\n\r\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CapsuleComponent.cpp",
+      "sha256": "b760fc0e9fa94974a608a318332d7a1d5ba7d3f4971f3b14ce56c8d1f558d961",
+      "excerpts": [
+        {
+          "first_line": 175,
+          "last_line": 191,
+          "text": "\tMarkRenderStateDirty();\n\n\t// do this if already created\n\t// otherwise, it hasn't been really created yet\n\tif (bPhysicsStateCreated)\n\t{\n\t\t// Update physics engine collision shapes\n\t\tBodyInstance.UpdateBodyScale(GetComponentTransform().GetScale3D(), true);\n\n\t\tif ( bUpdateOverlaps && IsCollisionEnabled() && GetOwner() )\n\t\t{\n\t\t\tUpdateOverlaps();\n\t\t}\n\t}\n}\n\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/PhysicsEngine/BodyInstance.cpp",
+      "sha256": "7ca0949be1e3a6eb782ca2ae1123d8b395fcb7a22436df95788a5f840a3f745c",
+      "excerpts": [
+        {
+          "first_line": 2399,
+          "last_line": 2423,
+          "text": "\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\tFKSphylElem* SphylElem = ShapeElem->GetShapeCheck<FKSphylElem>();\n\n\t\t\t\t\t\tconst FReal InitialHeight = SphylElem->Radius * 2.0f + SphylElem->Length;\n\t\t\t\t\t\tRadius = FMath::Max(SphylElem->Radius * ScaleRadius, (FReal)0.1);\n\t\t\t\t\t\tHalfHeight = (SphylElem->Length * 0.5f + SphylElem->Radius) * ScaleLength;\n\n\t\t\t\t\t\t// TODO: For Transformed implicit, do not bake this in. Set Transform instead.\n\t\t\t\t\t\tCenter = RelativeTM.TransformPosition(SphylElem->Center) * InScale3D;\n\t\t\t\t\t\tAxis = SphylElem->Rotation.RotateVector(Chaos::FVec3(0, 0, 1));\n\t\t\t\t\t}\n\n\t\t\t\t\tRadius = FMath::Min(Radius, HalfHeight);\t//radius is capped by half length\n\t\t\t\t\tRadius = FMath::Max(Radius, (FReal)FCollisionShape::MinCapsuleRadius());\n\t\t\t\t\tFReal HalfLength = HalfHeight - Radius;\n\t\t\t\t\tHalfLength = FMath::Max((FReal)FCollisionShape::MinCapsuleAxisHalfHeight(), HalfLength);\n\n\t\t\t\t\tconst FVec3 X1 = Center - HalfLength * Axis;\n\t\t\t\t\tconst FVec3 X2 = Center + HalfLength * Axis;\n\n\t\t\t\t\tChaos::FImplicitObjectPtr NewCapsule =  MakeImplicitObjectPtr<FCapsule>(X1, X2, Radius);\n\t\t\t\t\tNewGeometry.Emplace(MoveTemp(NewCapsule));\n\n"
+        }
+      ]
+    }
+  ]
+}

@@ -5887,7 +5887,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色从0.94m中心高落地，保留下降速度3m/s而当前速度被更新为8m/s时，source应普通落地，target启动Roll；保留8m/s而当前3m/s时，source应Roll，target没有启动。两份速度相同的3/3、8/8对照PASS。`bf144_landing_roll_uses_retained_character_velocity`共4组2PASS/2FAIL，证据`target/bf144/07/retained_velocity/`。
   - 漏检：旧实际落地测试及阈值测试通常让pre-impact和Character快照保持一致，或只验证ragdoll分支；未组合当前帧速度更新与保留快照分离。仅登记，不修改recording或动作实现。
 
-- [ ] BF144-D24 / P2 — 蹲下保持脚底的下移漏掉源碰撞扫掠。
+- [x] BF144-D24 / P2 — 蹲下保持脚底的下移漏掉源碰撞扫掠；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:46 +08:00；预估结束15:41 +08:00；实际结束14:49 +08:00，提前52分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE/ALS蹲姿移动源、CDO及直立/60°/90°原生几何保存在`docs/audit/bf144/d24/`；缩短后按世界quat扫掠下移并写实际中心，复用D11物理尺度，已写加载角色和父级对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `CharacterMovementComponent.cpp:3292–3327`先缩短胶囊，然后以实际世界quat调用`MoveComponent(...,bSweep=true)`沿重力下移；ALS `AlsCharacterMovementComponent.cpp:233–237`在地空模式切换后始终保持base-location策略。倾斜胶囊的缩短并不能保证完整向下位移仍无阻挡。
   - Target：`src/als/character/movement/motion.rs:3361–3370,3440–3455`直接写入缩短形体与目标Position/Transform，没有对这次重定位做sweep；后置物理解穿透及floor调整无法保留先扫掠后运动的源阶段合同。
   - 反例：完整角色站姿倾斜60°/90°，实际胶囊底部距地2.15cm，请求蹲下。源缩短形体的向下sweep在0.34m请求量之前命中地面；target在物理前中心却到y=0.28150/−0.01850m，低于蹲姿实际形体不穿地所需0.43/0.30m。`bf144_crouch_base_shift_keeps_source_swept_move`共6组4PASS/2FAIL，无倾斜和无地面4组对照通过；证据`target/bf144/08/tilted_initial/`。

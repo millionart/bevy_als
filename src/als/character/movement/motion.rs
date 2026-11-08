@@ -4178,6 +4178,15 @@ fn apply_capsule_for_stance(
     match target {
         Stance::Crouching => {
             let (half_height, radius) = capsule_dimensions(params, target);
+            if let Ok((direction, distance)) = Dir3::new_and_length(target_center - center) {
+                let (scaled_radius, axis_half) = crate::als::character::physical_capsule_dimensions(half_height, radius, scale, 0.000001);
+                let capsule = Collider::capsule(scaled_radius, axis_half * 2.0);
+                let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+                let config = ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) };
+                let hit = spatial_query.cast_shape_predicate(&capsule, center, rotation, direction, &config,
+                    &filter, &|candidate| character_blocks_collider(entity, candidate, candidates));
+                target_center = center + *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
+            }
             commands
                 .entity(entity)
                 .remove::<CapsuleReshapeDeferred>()
@@ -5369,6 +5378,34 @@ mod tests {
                 app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
                 assert!((app.world().get::<Position>(actor).unwrap().y - 0.9215).abs() < 1e-4);
             }
+        }
+    }
+
+    #[test]
+    fn crouch_base_shift_sweeps_the_resized_world_capsule() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (angle, parented, floor) in [(0.0_f32, false, true), (60.0, false, true),
+            (60.0, true, true), (90.0, false, true), (90.0, true, true), (60.0, false, false)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let rotation = Quat::from_rotation_x(angle.to_radians());
+            let start = Vec3::new(if floor { 0.0 } else { 200.0 }, 0.3 + 0.6 * angle.to_radians().cos().abs() + 0.0215, 0.0);
+            let local = if parented {
+                let parent = app.world_mut().spawn(Transform::from_rotation(rotation)).id();
+                app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+                Transform::from_translation(rotation.inverse() * start)
+            } else {
+                Transform::from_translation(start).with_rotation(rotation)
+            };
+            app.world_mut().entity_mut(actor).insert((Position(start), local, Stance::Standing,
+                AlsDesiredStance(Stance::Crouching), LocomotionState::Grounded, AlsCrouchTransaction::default()));
+            app.world_mut().run_system_once(capsule_reshape_system).unwrap();
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            let available = 0.34 * angle.to_radians().cos().abs() + 0.0215;
+            let expected_travel = if floor && available < 0.34 { movement_sweep_travel(0.34, available) } else { 0.34 };
+            assert!((position.y - (start.y - expected_travel)).abs() < 0.002,
+                "angle={angle} parented={parented} floor={floor} position={position:?}");
+            assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
+            assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, local.rotation);
         }
     }
 
