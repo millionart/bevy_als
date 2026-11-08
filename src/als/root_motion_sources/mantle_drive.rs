@@ -1,6 +1,6 @@
-use crate::als::character::{
-    AlsCharacter, AlsCollisionLayerOwner, AlsCollisionLayerOwnership, set_collision_layer_owner,
-};
+use crate::als::character::AlsCharacter;
+#[cfg(test)]
+use crate::als::character::AlsCollisionLayerOwnership;
 use crate::als::mantle::{AlsMantleState, AlsMantleTargetBase, MantleKind};
 use crate::als::state::LocomotionState;
 use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
@@ -9,9 +9,11 @@ use crate::extensions::{
     profile_blend::transition_alpha,
 };
 use avian3d::prelude::{
-    CollisionLayers, CustomPositionIntegration, CustomVelocityIntegration, LinearVelocity,
+    CustomPositionIntegration, CustomVelocityIntegration, LinearVelocity, LockedAxes,
     PhysicsSystems, Position, Rotation,
 };
+#[cfg(test)]
+use avian3d::prelude::CollisionLayers;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
@@ -109,9 +111,10 @@ impl AlsMantleMontages {
 pub(crate) struct MantleAssets(Vec<Handle<GraphClip>>);
 
 #[derive(Component)]
-struct AlsMantlePhysicsFrame {
+pub(crate) struct AlsMantlePhysicsFrame {
     custom_position: bool,
     custom_velocity: bool,
+    locked_axes: Option<LockedAxes>,
 }
 
 #[derive(Deserialize)]
@@ -640,8 +643,7 @@ fn mantle_drive_system(
             &LocomotionState,
             &mut LinearVelocity,
             Option<&mut Rotation>,
-            Option<&CollisionLayers>,
-            &mut AlsCollisionLayerOwnership,
+            Option<&LockedAxes>,
             Option<&mut Position>,
             Has<CustomPositionIntegration>,
             Has<CustomVelocityIntegration>,
@@ -666,8 +668,7 @@ fn mantle_drive_system(
         locomotion,
         mut vel,
         rotation,
-        layers,
-        mut ownership,
+        locked_axes,
         position,
         custom_position,
         custom_velocity,
@@ -689,18 +690,12 @@ fn mantle_drive_system(
             AlsMantlePhysicsFrame {
                 custom_position,
                 custom_velocity,
+                locked_axes: locked_axes.copied(),
             },
             CustomPositionIntegration,
             CustomVelocityIntegration,
+            LockedAxes::ALL_LOCKED,
         ));
-        set_collision_layer_owner(
-            &mut commands,
-            entity,
-            &mut ownership,
-            layers.copied(),
-            AlsCollisionLayerOwner::Mantle,
-            true,
-        );
         if actor_delta <= 1e-8 && m.root_motion_ready {
             m.time += actor_delta;
             continue;
@@ -760,14 +755,9 @@ fn mantle_drive_system(
 
 fn release_mantle_physics(
     mut commands: Commands,
-    mut characters: Query<(
-        Entity,
-        &AlsMantlePhysicsFrame,
-        Option<&CollisionLayers>,
-        &mut AlsCollisionLayerOwnership,
-    )>,
+    characters: Query<(Entity, &AlsMantlePhysicsFrame)>,
 ) {
-    for (entity, physics, layers, mut ownership) in &mut characters {
+    for (entity, physics) in &characters {
         let mut entity_commands = commands.entity(entity);
         if !physics.custom_position {
             entity_commands.remove::<CustomPositionIntegration>();
@@ -775,15 +765,12 @@ fn release_mantle_physics(
         if !physics.custom_velocity {
             entity_commands.remove::<CustomVelocityIntegration>();
         }
+        if let Some(locked_axes) = physics.locked_axes {
+            entity_commands.insert(locked_axes);
+        } else {
+            entity_commands.remove::<LockedAxes>();
+        }
         entity_commands.remove::<AlsMantlePhysicsFrame>();
-        set_collision_layer_owner(
-            &mut commands,
-            entity,
-            &mut ownership,
-            layers.copied(),
-            AlsCollisionLayerOwner::Mantle,
-            false,
-        );
     }
 }
 
@@ -1708,6 +1695,42 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_mantle_keeps_queries_and_restores_physics_axes() {
+        use avian3d::prelude::{PhysicsSystems, SpatialQueryFilter};
+        use crate::als::character::AlsCollisionLayer;
+        use crate::extensions::RagdollSpatialQuery;
+        use std::sync::{Arc, Mutex};
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let origin = app.world().get::<Position>(actor).unwrap().0;
+        let original_layers = *app.world().get::<CollisionLayers>(actor).unwrap();
+        let original_axes = app.world().get::<LockedAxes>(actor).map(LockedAxes::to_bits);
+        let samples = Arc::new(Mutex::new(Vec::new()));
+        let captured = samples.clone();
+        app.add_systems(PostUpdate, (move |spatial: RagdollSpatialQuery,
+            actors: Query<(&Position, &CollisionLayers, &LockedAxes), With<AlsMantlePhysicsFrame>>| {
+            let Ok((position, layers, axes)) = actors.get(actor) else { return };
+            let hit = spatial.cast_ray_predicate(position.0 + Vec3::X, Dir3::NEG_X, 2.0, true,
+                &SpatialQueryFilter::from_mask(AlsCollisionLayer::Default), &|entity| entity == actor).is_some();
+            captured.lock().unwrap().push((hit, *layers, axes.to_bits(), position.0));
+        }).after(PhysicsSystems::StepSimulation).before(PhysicsSystems::Writeback));
+        let mut mantle = AlsMantleState::default();
+        mantle.begin(MantleKind::High, origin, origin + Vec3::new(0.0, 1.5, -0.8), 1.5, 0.0, 0.0);
+        app.world_mut().entity_mut(actor).insert(mantle);
+        for _ in 0..10 {
+            app.update();
+            if !samples.lock().unwrap().is_empty() { break; }
+        }
+        let samples = samples.lock().unwrap();
+        let (hit, layers, axes, position) = samples.last().copied().expect("Mantle physics did not run");
+        assert!(hit, "The character capsule must remain queryable during Mantle physics");
+        assert_eq!(layers, original_layers);
+        assert_eq!(axes, LockedAxes::ALL_LOCKED.to_bits());
+        assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(position, 1e-4));
+        assert_eq!(app.world().get::<LockedAxes>(actor).map(LockedAxes::to_bits), original_axes);
+        assert_eq!(*app.world().get::<CollisionLayers>(actor).unwrap(), original_layers);
+    }
+
+    #[test]
     fn loaded_mantle_publishes_owner_velocity_through_physics_and_freeze() {
         use crate::actual_motion::AlsActualMotion;
         for (parented, moving_base) in [(false, false), (true, false), (true, true)] {
@@ -1871,7 +1894,7 @@ pub(crate) mod tests {
             let expected = reference.target_actor_transform_at(reference.time, root);
             let local = GlobalTransform::from(before).reparented_to(&GlobalTransform::from(parent_transform));
             let actor = app.world_mut().spawn((AlsCharacter, mantle, local, ChildOf(parent), GlobalTransform::IDENTITY,
-                Position(before.translation), Rotation(before.rotation), AlsMantlePhysicsFrame { custom_position: false, custom_velocity: false })).id();
+                Position(before.translation), Rotation(before.rotation), AlsMantlePhysicsFrame { custom_position: false, custom_velocity: false, locked_axes: None })).id();
             app.world_mut().run_system_once(update_mantle_movement_base).unwrap();
             let actual = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
                 helper.compute_global_transform(actor).unwrap()

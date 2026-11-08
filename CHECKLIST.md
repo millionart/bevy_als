@@ -6172,7 +6172,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：2.4m宽、0.8m高箱体前，actor x=±1.3m以−Z正向探测；命中侧边x=±1.2m。source目标x应保持命中x、yaw0，target目标横移约5.2cm、yaw约±20°；完整角色实际开始Mantle且保存同方向偏差。`bf144_mantle_corner_uses_geometric_wall_normal`4组2PASS/2FAIL，x=0/1.1m面内对照PASS；证据`target/bf144/16/initial/`。
   - 漏检：旧trace几何测试主要取面内命中，未覆盖侧向越过边缘但capsule仍能接触前墙的组合。与D10共享contact/impact语义差别，但属于独立的Mantle方向消费者；不将同一反例重复计入D10，不补射线或改查询库，仅登记。
 
-- [ ] BF144-D55 / P2 — Mantle期间关闭了胶囊对其他查询的碰撞。
+- [x] BF144-D55 / P2 — Mantle期间关闭了胶囊对其他查询的碰撞；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:48 +08:00；预估结束18:28 +08:00；实际结束17:53 +08:00，提前35分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh源胶囊QueryAndPhysics、非模拟和Custom无sweep证据保存在`docs/audit/bf144/d55/`；目标保留查询层并临时锁定物理轴，已写物理阶段射线、原状态恢复和既有运动对照。旧target报告缺失，动态碰撞冲量与动画Gate待验证。
   - Source：fresh B_Als_Character CollisionCylinder为QueryAndPhysics/Pawn，Mantle启动、RMS PhysCustom及结束路径均保留该碰撞状态；`AlsCharacterMovementComponent.cpp:624–626`的MoveUpdatedComponent(...,false)仅跳过自身移动sweep。native角色回调只清理/恢复Overlay道具，没有关闭胶囊碰撞；动作文件中的NoCollision只属于后续Ragdoll路径。
   - Target：`src/als/root_motion_sources/mantle_drive.rs:684–698`在每帧物理前将Mantle collision owner设为true，`character/character.rs:101–105`使CollisionLayers=NONE；物理完成后才在`mantle_drive.rs:761–787`恢复，其他运动/物理查询因此看不到胶囊。
   - 反例：完整实际攀爬角色，在Physics StepSimulation之后、Writeback之前，从角色中心侧面使用Default mask仅查询该角色；源应命中保留的Pawn胶囊，target无命中且layers全0。`bf144_mantle_lifecycle_keeps_capsule_query_collision_during_physics`3组2PASS/1FAIL；普通角色及夹具只恢复该阶段CollisionLayers的两组均命中，证据`target/bf144/17/initial/`。

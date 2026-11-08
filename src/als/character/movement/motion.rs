@@ -413,7 +413,7 @@ fn rotation_response_system(
     gait_amounts: Query<&crate::als::gait::AlsGaitAmount>,
     first_person: Query<(), With<crate::als::input_request::AlsFirstPersonView>>,
     actions: Query<&crate::als::state::AlsNotifyLocomotionAction>,
-    collision_owners: Query<&crate::als::character::AlsCollisionLayerOwnership>,
+    mantle_frames: Query<(), With<crate::mantle_drive::AlsMantlePhysicsFrame>>,
     stances: Query<&Stance>,
     parents: Query<&ChildOf>,
     mut space: ParamSet<(bevy::transform::helper::TransformHelper, Query<&mut Transform, With<AlsCharacter>>)>,
@@ -458,7 +458,7 @@ fn rotation_response_system(
         let pre_collision_velocity = base.as_deref_mut().and_then(|state| state.pre_collision_velocity.take());
         let Ok(actor_world) = space.p0().compute_global_transform(entity) else { continue; };
         let current_yaw = world_forward_to_yaw(actor_world.rotation() * Vec3::NEG_Z);
-        let action_active = collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
+        let action_active = mantle_frames.contains(entity)
             || roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)
             || actions.get(entity).is_ok_and(|action| *action != crate::als::state::AlsNotifyLocomotionAction::None);
         let invalid_mode = !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air);

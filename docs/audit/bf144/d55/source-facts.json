@@ -1,0 +1,61 @@
+{
+  "native_capsule": {
+    "ObjectType": "ECC_Pawn",
+    "CollisionEnabled": "QueryAndPhysics",
+    "bLockTranslation": "True",
+    "bLockRotation": "True",
+    "bSimulatePhysics": "False"
+  },
+  "native_graphs": [
+    {
+      "name": "OnMantlingEnded",
+      "nodes": [
+        "OnMantlingEnded",
+        "Execute Ubergraph B Als Character"
+      ]
+    },
+    {
+      "name": "OnMantlingStarted",
+      "nodes": [
+        "OnMantlingStarted",
+        "K2Node_SetVariableOnPersistentFrame",
+        "Execute Ubergraph B Als Character"
+      ]
+    }
+  ],
+  "als_custom": {
+    "source_file": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "start_line": 606,
+    "end_line": 630,
+    "text": "void UAlsCharacterMovementComponent::PhysCustom(const float DeltaTime, int32 IterationsCount)\n{\n\tif (DeltaTime < MIN_TICK_TIME)\n\t{\n\t\tSuper::PhysCustom(DeltaTime, IterationsCount);\n\t\treturn;\n\t}\n\n\tIterationsCount += 1;\n\tbJustTeleported = false;\n\n\tRestorePreAdditiveRootMotionVelocity();\n\n\tif (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())\n\t{\n\t\tVelocity = FVector::ZeroVector;\n\t}\n\n\tApplyRootMotionToVelocity(DeltaTime);\n\n\tMoveUpdatedComponent(Velocity * DeltaTime, UpdatedComponent->GetComponentQuat(), false);\n\n\tSuper::PhysCustom(DeltaTime, IterationsCount);\n}\n"
+  },
+  "als_start": {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 464,
+    "end_line": 577,
+    "text": "void AAlsCharacter::StartMantlingImplementation(const FAlsMantlingParameters& Parameters)\n{\n\tif (!IsMantlingAllowedToStart())\n\t{\n\t\treturn;\n\t}\n\n\tif (!Parameters.TargetPrimitive.IsValid())\n\t{\n\t\t// Target primitive may be invalid on clients if the actor that the character is\n\t\t// mantling onto is not network relevant. In this case, simply do not start mantling.\n\t\treturn;\n\t}\n\n\tconst auto* MantlingSettings{SelectMantlingSettings(Parameters.MantlingType)};\n\n\tif (!ALS_ENSURE(IsValid(MantlingSettings)) || !ALS_ENSURE(IsValid(MantlingSettings->Montage)))\n\t{\n\t\treturn;\n\t}\n\n\t// Reset network smoothing.\n\n\tGetCharacterMovement()->NetworkSmoothingMode = ENetworkSmoothingMode::Disabled;\n\n\tGetMesh()->SetRelativeLocationAndRotation(GetBaseTranslationOffset(),\n\t                                          GetMesh()->IsUsingAbsoluteRotation()\n\t\t                                          ? GetActorQuat() * GetBaseRotationOffset()\n\t\t                                          : GetBaseRotationOffset(), false, nullptr, ETeleportType::TeleportPhysics);\n\n\t// Clear the character movement mode and set the locomotion action to mantling.\n\n\tGetCharacterMovement()->SetMovementMode(MOVE_Custom);\n\tAlsCharacterMovement->SetMovementModeLocked(true);\n\n\tFMovementBaseInterfaceData MovementBaseData{Parameters.TargetPrimitive.Get()};\n\tGetCharacterMovement()->SetBase(&MovementBaseData);\n\n\t// Create mantling root motion.\n\n\tconst auto RootMotionSource{MakeShared<FAlsRootMotionSource_Mantling>()};\n\tRootMotionSource->InstanceName = __FUNCTION__;\n\tRootMotionSource->MantlingSettings = MantlingSettings;\n\tRootMotionSource->TargetPrimitive = Parameters.TargetPrimitive;\n\n\tconst auto StartTime{CalculateMantlingStartTime(MantlingSettings, Parameters.MantlingHeight)};\n\tconst auto Duration{MantlingSettings->Montage->GetPlayLength() - StartTime};\n\tconst auto PlayRate{MantlingSettings->Montage->RateScale};\n\n\tRootMotionSource->Duration = Duration / PlayRate;\n\tRootMotionSource->MontageStartTime = StartTime;\n\n\tconst auto bUseTargetPrimitiveSpace{MovementBaseUtility::UseRelativeLocation(&MovementBaseData)};\n\tconst FTransform MeshTransform{GetBaseRotationOffset()};\n\n\t// Extract the initial root transform, invert it, convert it from component space to actor space, and apply it to the actor transform.\n\n\tconst auto ActorTransform{GetActorTransform()};\n\n\tauto StartRootTransform{UAlsMontageUtility::ExtractRootTransformFromMontage(MantlingSettings->Montage, StartTime)};\n\tStartRootTransform.SetScale3D(FVector::OneVector);\n\n\tconst auto StartRootTransformInverse{StartRootTransform.GetRelativeTransformReverse(MeshTransform)};\n\tauto StartTransform{StartRootTransformInverse * ActorTransform};\n\n\tif (bUseTargetPrimitiveSpace)\n\t{\n\t\t// Convert the start transform to the target primitive space.\n\t\tStartTransform.SetToRelativeTransform(Parameters.TargetPrimitive->GetComponentTransform());\n\t}\n\n\tRootMotionSource->StartRotation = StartTransform.Rotator();\n\tRootMotionSource->StartLocation = StartTransform.GetLocation();\n\n\t// Extract the final root transform, invert it, convert it from component space to actor space, and apply it to the target transform.\n\n\tFTransform TargetTransform{Parameters.TargetRotation.GetNormalized(), Parameters.TargetLocation};\n\n\tif (bUseTargetPrimitiveSpace)\n\t{\n\t\t// Convert the relative target transform back to world space.\n\t\tTargetTransform *= Parameters.TargetPrimitive->GetComponentTransform();\n\t\tTargetTransform.SetScale3D(FVector::OneVector);\n\t}\n\n\tauto EndRootTransform{UAlsMontageUtility::ExtractLastRootTransformFromMontage(MantlingSettings->Montage)};\n\tEndRootTransform.SetScale3D(FVector::OneVector);\n\n\tconst auto EndRootTransformInverse{EndRootTransform.GetRelativeTransformReverse(MeshTransform)};\n\tauto NewTargetTransform{EndRootTransformInverse * TargetTransform};\n\n\tif (bUseTargetPrimitiveSpace)\n\t{\n\t\t// Convert the target transform to be relative to the target primitive.\n\t\tNewTargetTransform.SetToRelativeTransform(Parameters.TargetPrimitive->GetComponentTransform());\n\t}\n\n\tRootMotionSource->TargetRotation = NewTargetTransform.Rotator();\n\tRootMotionSource->TargetLocation = NewTargetTransform.GetLocation();\n\n\t// Apply root motion.\n\tMantlingState.RootMotionSourceId = GetCharacterMovement()->ApplyRootMotionSource(RootMotionSource);\n\n\t// Play the animation montage if valid.\n\n\tif (GetMesh()->GetAnimInstance()->Montage_Play(MantlingSettings->Montage) > 0.0f)\n\t{\n\t\tSetLocomotionAction(AlsLocomotionActionTags::Mantling);\n\t}\n\n\tOnMantlingStarted(Parameters);\n}\n\nUAlsMantlingSettings* AAlsCharacter::SelectMantlingSettings_Implementation(EAlsMantlingType MantlingType)"
+  },
+  "als_stop": {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 681,
+    "end_line": 715,
+    "text": "void AAlsCharacter::StopMantling(const bool bStopMontage)\n{\n\tif (MantlingState.RootMotionSourceId <= 0)\n\t{\n\t\treturn;\n\t}\n\n\tauto* RootMotionSource{\n\t\tStaticCastSharedPtr<FAlsRootMotionSource_Mantling>(GetCharacterMovement()\n\t\t\t->GetRootMotionSourceByID(static_cast<uint16>(MantlingState.RootMotionSourceId))).Get()\n\t};\n\n\tif (RootMotionSource != nullptr)\n\t{\n\t\tRootMotionSource->Status.SetFlag(ERootMotionSourceStatusFlags::MarkedForRemoval);\n\t}\n\n\tMantlingState.RootMotionSourceId = 0;\n\n\tif (bStopMontage && RootMotionSource != nullptr)\n\t{\n\t\tGetMesh()->GetAnimInstance()->Montage_Stop(Settings->Mantling.BlendOutDuration, RootMotionSource->MantlingSettings->Montage);\n\t}\n\n\tGetCharacterMovement()->NetworkSmoothingMode = ENetworkSmoothingMode::Exponential;\n\n\tAlsCharacterMovement->SetMovementModeLocked(false);\n\tGetCharacterMovement()->SetMovementMode(MOVE_Walking);\n\n\tOnMantlingEnded();\n\n\tForceNetUpdate();\n}\n\nvoid AAlsCharacter::OnMantlingEnded_Implementation() {}"
+  },
+  "avian_solver": {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/solver_body/mod.rs",
+    "sha256": "10ea34c2a05609235c7e9d19ead3ce4ee98e992fc95136ca672d8994e8a89d68",
+    "start_line": 435,
+    "end_line": 456,
+    "text": "    #[inline]\n    #[cfg(feature = \"3d\")]\n    pub fn effective_inv_mass(&self) -> Vector {\n        let mut inv_mass = Vector::splat(self.inv_mass);\n\n        if self.flags.contains(InertiaFlags::TRANSLATION_X_LOCKED) {\n            inv_mass.x = 0.0;\n        }\n        if self.flags.contains(InertiaFlags::TRANSLATION_Y_LOCKED) {\n            inv_mass.y = 0.0;\n        }\n        if self.flags.contains(InertiaFlags::TRANSLATION_Z_LOCKED) {\n            inv_mass.z = 0.0;\n        }\n\n        inv_mass\n    }\n\n    /// Returns the effective inverse angular inertia of the body,\n    /// taking into account any locked axes.\n    #[inline]\n    #[cfg(feature = \"2d\")]"
+  },
+  "avian_integrator": {
+    "source_file": "avian3d-0.7.0/src/dynamics/integrator/mod.rs",
+    "sha256": "87166e91ce8070de271d42fe92a62eb9038197c72aaa58b2cb556fe0f12ec187",
+    "start_line": 343,
+    "end_line": 367,
+    "text": "pub fn integrate_velocities(\n    mut bodies: Query<\n        VelocityIntegrationQuery,\n        (RigidBodyActiveFilter, Without<CustomVelocityIntegration>),\n    >,\n    mut diagnostics: ResMut<SolverDiagnostics>,\n    #[cfg(feature = \"3d\")] time: Res<Time>,\n) {\n    let start = crate::utils::Instant::now();\n\n    #[cfg(feature = \"3d\")]\n    let delta_secs = time.delta_secs_f64() as Scalar;\n\n    bodies.par_iter_mut().for_each(|mut body| {\n        if body.solver_body.flags.is_kinematic() {\n            // Skip kinematic bodies.\n            return;\n        }\n\n        // Apply velocity damping.\n        body.solver_body.linear_velocity *= body.integration.linear_damping_rhs;\n        body.solver_body.angular_velocity *= body.integration.angular_damping_rhs;\n\n        // Apply velocity increments.\n        body.solver_body.linear_velocity += body.integration.linear_increment;"
+  }
+}
