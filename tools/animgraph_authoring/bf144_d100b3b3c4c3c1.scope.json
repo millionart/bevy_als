@@ -51,7 +51,7 @@
     }
   ],
   "consumer_edges": [
-    "source world bounds and cull -> conservative target discovery bounds -> exact source contact decision"
+    "source positive-gap contact -> target narrow-phase empty manifold -> source lifecycle decision"
   ],
   "static_commands": [
     "tools/validate_animgraph_authoring.py --check",
@@ -62,9 +62,8 @@
     "tools/validate_runtime_graph_asset_boundary.py"
   ],
   "focused_tests": [
-    "source_discovery_bounds_keep_native_barrel_contact",
-    "source_discovery_bounds_round_outward_at_large_coordinates",
-    "source_barrel_positive_gap_discovers_entire_pair"
+    "source_barrel_positive_gap_reaches_solver",
+    "source_bench_isolated_positive_gap_activates_contact"
   ],
   "manual_cases": [
     "startup",

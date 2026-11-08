@@ -554,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn source_barrel_positive_gap_discovers_entire_pair() {
+    fn source_barrel_positive_gap_reaches_solver() {
         check_source_convex_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-inside.native-sample.json"),
             include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-outside.native-sample.json")]);
     }

@@ -25,5 +25,8 @@
     0
   ],
   "separation_lower_bound_m": 0.024000000000000243,
-  "target_each_aabb_growth_m": 0.005
+  "target_each_aabb_growth_m": 0.005,
+  "target_tree_cache_growth_per_side_m": 0.05,
+  "target_initial_total_growth_m": 0.11,
+  "initial_enlarged_bounds_overlap": true
 }

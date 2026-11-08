@@ -1,0 +1,42 @@
+[
+  {
+    "dependency": "avian3d-0.7.0",
+    "source_file": "src/collider_tree/update.rs",
+    "sha256": "44e67ab015f7b7393fd08b8a46cba7bf7bf6eee26e651d441bc91edf636d1759",
+    "start_line": 29,
+    "end_line": 34,
+    "text": "/// An extra margin added around the [`EnlargedAabb`]. This allows proxies\n/// to move a small amount without triggering a tree update.\n///\n/// This is implicitly scaled by the [`PhysicsLengthUnit`].\n// TODO: This should probably be configurable.\nconst AABB_MARGIN: Scalar = 0.05;\n"
+  },
+  {
+    "dependency": "avian3d-0.7.0",
+    "source_file": "src/collider_tree/update.rs",
+    "sha256": "44e67ab015f7b7393fd08b8a46cba7bf7bf6eee26e651d441bc91edf636d1759",
+    "start_line": 74,
+    "end_line": 105,
+    "text": "        // Initialize `ColliderAabb` for colliders.\n        app.add_observer(\n            |trigger: On<Add, C>,\n             mut query: Query<(\n                &C,\n                &Position,\n                &Rotation,\n                Option<&CollisionMargin>,\n                &mut ColliderAabb,\n                &mut EnlargedAabb,\n            )>,\n             narrow_phase_config: Res<NarrowPhaseConfig>,\n             length_unit: Res<PhysicsLengthUnit>,\n             collider_context: StaticSystemParam<C::Context>| {\n                let contact_tolerance = length_unit.0 * narrow_phase_config.contact_tolerance;\n                let margin = length_unit.0 * AABB_MARGIN;\n\n                if let Ok((collider, pos, rot, collision_margin, mut aabb, mut enlarged_aabb)) =\n                    query.get_mut(trigger.entity)\n                {\n                    let collision_margin = collision_margin.map_or(0.0, |m| m.0);\n\n                    // TODO: Should we instead do this in `add_to_tree_on`?\n                    // Update tight-fitting AABB.\n                    let context = AabbContext::new(trigger.entity, &*collider_context);\n                    let growth = Vector::splat(contact_tolerance + collision_margin);\n                    *aabb = collider\n                        .aabb_with_context(pos.0, *rot, context)\n                        .grow(growth);\n\n                    enlarged_aabb.update(&aabb, margin);\n                }\n"
+  },
+  {
+    "dependency": "avian3d-0.7.0",
+    "source_file": "src/collider_tree/update.rs",
+    "sha256": "44e67ab015f7b7393fd08b8a46cba7bf7bf6eee26e651d441bc91edf636d1759",
+    "start_line": 895,
+    "end_line": 913,
+    "text": "                && !collider.last_changed().is_newer_than(last_tick.0, this_run)\n            {\n                return;\n            }\n\n            let collision_margin = collision_margin.map_or(0.0, |margin| margin.0);\n\n            // Update tight-fitting AABB.\n            let context = AabbContext::new(entity, &*collider_context);\n            let growth = Vector::splat(contact_tolerance + collision_margin);\n            *aabb = collider\n                .aabb_with_context(pos.0, *rot, context)\n                .grow(growth);\n\n            // Try to update the enlarged AABB, and if it changed, mark the proxy as moved.\n            let moved = enlarged_aabb.update(&aabb, margin);\n\n            if moved {\n                let tree_type = proxy_key.tree_type();\n"
+  },
+  {
+    "dependency": "avian3d-0.7.0",
+    "source_file": "src/collision/broad_phase/bvh_broad_phase.rs",
+    "sha256": "42367f48d379b4147dfab334f1ef27d6e64c190ff34fd51909cc0d4910a7528e",
+    "start_line": 70,
+    "end_line": 93,
+    "text": "    //       May not be worth it though?\n    let pairs = moved_proxies.proxies().par_splat_map(\n        ComputeTaskPool::get(),\n        None,\n        |_chunk_index, proxies| {\n            let mut pairs = Vec::new();\n\n            par_commands.command_scope(|mut commands| {\n                for proxy_key1 in proxies {\n                    let proxy_id1 = proxy_key1.id();\n                    let proxy_type1 = proxy_key1.tree_type();\n\n                    // Get the proxy from its appropriate tree.\n                    let tree = trees.tree_for_type(proxy_type1);\n                    let proxy1 = tree.get_proxy(proxy_key1.id()).unwrap();\n\n                    let Some(proxy_aabb1) = tree.get_proxy_aabb(proxy_id1) else {\n                        continue;\n                    };\n\n                    // Query dynamic tree.\n                    query_tree(\n                        &trees.dynamic_tree,\n                        ColliderTreeType::Dynamic,\n"
+  },
+  {
+    "dependency": "avian3d-0.7.0",
+    "source_file": "src/collision/narrow_phase/system_param.rs",
+    "sha256": "5bb1f6ad4868e297079694602fb091f9e113f949c767993e5728a9173c342ef6",
+    "start_line": 740,
+    "end_line": 783,
+    "text": "                        point.penetration += collision_margin_sum;\n\n                        // Compute the relative velocity along the contact normal.\n                        #[cfg(feature = \"2d\")]\n                        let relative_velocity = relative_linear_velocity\n                            + ang_vel2 * point.anchor2.perp()\n                            - ang_vel1 * point.anchor1.perp();\n                        #[cfg(feature = \"3d\")]\n                        let relative_velocity = relative_linear_velocity\n                            + ang_vel2.cross(point.anchor2)\n                            - ang_vel1.cross(point.anchor1);\n                        let normal_speed = relative_velocity.dot(normal);\n                        point.normal_speed = normal_speed;\n\n                        // Keep the contact if (1) the separation distance is below the required threshold,\n                        // or if (2) the bodies are expected to come into contact within the next time step.\n                        -point.penetration < effective_speculative_margin || {\n                            let delta_distance = normal_speed * delta_secs;\n                            delta_distance - point.penetration < effective_speculative_margin\n                        }\n                    });\n\n                    // Prune extra contact points.\n                    #[cfg(feature = \"3d\")]\n                    if manifold.points.len() > 4 {\n                        manifold.prune_points();\n                    }\n\n                    !manifold.points.is_empty()\n                });\n\n                // Check if the colliders are now touching.\n                let mut touching = !contacts.manifolds.is_empty();\n\n                if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {\n                    par_commands.command_scope(|mut commands| {\n                        touching = hooks.modify_contacts(contacts, &mut commands);\n                    });\n                    if !touching {\n                        contacts.manifolds.clear();\n                    }\n                }\n\n                contacts.flags.set(ContactPairFlags::TOUCHING, touching);\n"
+  }
+]
