@@ -1,0 +1,72 @@
+{
+  "cases": [
+    {
+      "name": "barrel-simple-convex",
+      "hit_cm": {
+        "x": 0.123456789012,
+        "y": -0.234567891234,
+        "z": 96.0999984741211
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "shapes": [
+        {
+          "complex": false,
+          "simple": true,
+          "query_enabled": true,
+          "triangle_mesh": false
+        },
+        {
+          "complex": true,
+          "simple": false,
+          "query_enabled": true,
+          "triangle_mesh": true,
+          "culls_back_face": true,
+          "core_scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "barrel-complex-mesh",
+      "hit_cm": {
+        "x": 0.123456789012,
+        "y": -0.234567891234,
+        "z": 92.21902507820052
+      },
+      "normal": {
+        "x": 0.002609888700498894,
+        "y": 0.0010713787660419306,
+        "z": 0.9999960203063365
+      },
+      "shapes": [
+        {
+          "complex": false,
+          "simple": true,
+          "query_enabled": true,
+          "triangle_mesh": false
+        },
+        {
+          "complex": true,
+          "simple": false,
+          "query_enabled": true,
+          "triangle_mesh": true,
+          "culls_back_face": true,
+          "core_scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        }
+      ]
+    }
+  ],
+  "source_simple_vs_complex_distinct": true,
+  "target_geometry_note": "F32 points, positions and rotations remain; unsupported shapes retain existing F32 path"
+}
