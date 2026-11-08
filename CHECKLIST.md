@@ -6321,10 +6321,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色的player/mesh从unit scale改为1/0.75/1.5/0.01，4组3PASS/1FAIL；源与target半径均1.4mm，最后一组只有实际几何轴长不等。`bf144_pa_live_scale_matches_source_body_geometry_and_mass`保留native质量控制与当前Collider取样，没有改尺寸阈值。
   - 19:46 source/static摘要：live和初始化按各自源下限构造capsule，live发生尺寸截断时按更新形状复算多shape质量；已写四档全部capsule几何与pelvis/spine等原生质量、质心对照。有效原生body、源公式推导几何及0.001失败reader证据均已持久化；测试、消融、物理轨迹和Playground待统一Gate。证据`docs/audit/bf144/d73/`。实际结束：2026-11-08 19:46 +08:00；偏差：−50分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D74 / P3 — mesh缩放到零后Ragdoll仍保持刚体模拟。
+- [x] BF144-D74 / P3 — mesh缩放到零后Ragdoll仍保持刚体模拟。
+  - 本轮开始：2026-11-08 19:47 +08:00；预计结束：2026-11-08 20:37 +08:00。核对source零scale触发、relative/world变换及刚体模拟所有权，再在真实角色链路补停用与非零对照；统一执行留待升级后。
+  - 19:50 source/static摘要：fresh源码确认使用mesh相对scale，先要求uniform并以逐轴1e-4判断变化及近零；停用逐body设Kinematic且物理混合权重归零。目标同一player既控制body模式也发布ragdoll动态/回读输入，停用时一并关闭这些输入；零→非零重建及速度重置已有D116，保留为独立待修边界。
   - Source：fresh `SkeletalMeshComponentPhysics.cpp:1946–1949,3533–3544`在OnUpdateTransform调用UpdateRigidBodyScaling；relative scale跨到零时立即SetAllBodiesSimulatePhysics(false)，独立于world tick。p.UpdateRigidBodyScaling默认开启，当前项目/源配置没有覆盖。
   - Target：`ragdoll_positive_scale:1199–1206`把零scale回退为ONE，`sync_ragdoll_body_modes:445–451`仍依Ragdolling保持20个Dynamic body，没有源的零scale停用生命周期。
   - 反例：活动Ragdoll在world pause后将已detach的player/mesh scale设为0，下一完整App帧仍有20个Dynamic，源应为0；scale=1对照保留20个。`bf144_pa_zero_mesh_scale_stops_source_body_simulation`2组1PASS/1FAIL。只登记停用分支，恢复非零的source重建路径未在本反例中宣称已验收。
+  - 19:54 source/static摘要：fresh relative-scale阈值、逐body停用和物理混合源码及PA原生身份已持久化；目标在物理交接前按rig身份追踪相对scale过零，将body切为Kinematic并关闭动态/回读输入。已写暂停、阈值及非均匀scale对照；D116重建、动画回读、测试、消融和真实入口待统一Gate。证据`docs/audit/bf144/d74/`。实际结束：2026-11-08 19:54 +08:00；偏差：−43分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D75 / P2 — Ragdoll角驱动在启动限速之后采样pelvis速度，过早降低关节刚度。
   - Source：fresh `AlsCharacter_Actions.cpp:883–885,946–958`先保存pelvis当前linear velocity，以其完整长度/1000cm/s截到[0,1]后乘25000设motor刚度，再递减启动期计数并调用`ConstraintRagdollSpeed`。`PhysInterface_Chaos.cpp:485–489`再应用本机native角drive stiffness scale=1.5，阻尼/最大torque均为0；加速度drive不做厘米平方转换。

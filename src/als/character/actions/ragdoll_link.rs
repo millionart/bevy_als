@@ -55,6 +55,28 @@ struct AlsRagdollColliderLayers(CollisionLayers);
 struct AlsRagdollPhysicsActive;
 
 #[derive(Component, Debug, Clone, Copy)]
+struct AlsRagdollScaleState {
+    root: Entity,
+    previous: Vec3,
+    stopped: bool,
+    ragdolling: bool,
+}
+
+impl AlsRagdollScaleState {
+    fn update(&mut self, scale: Vec3, ragdolling: bool) {
+        if scale.max_element() - scale.min_element() <= 1e-4
+            && (scale - self.previous).abs().max_element() > 1e-4 {
+            let zero = scale.abs().max_element() <= 1e-4;
+            let was_zero = self.previous.abs().max_element() <= 1e-4;
+            if zero != was_zero { self.stopped = zero; }
+            self.previous = scale;
+        }
+        if ragdolling && !self.ragdolling { self.stopped = false; }
+        self.ragdolling = ragdolling;
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy)]
 struct AlsRagdollCharacterPhysics {
     rigid_body: RigidBody,
     tnua_toggle: Option<TnuaToggle>,
@@ -407,8 +429,10 @@ fn sync_ragdoll_body_modes(
     characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>), With<crate::als::character::AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<(
-        &AnimationGraphPlayer,
+        &mut AnimationGraphPlayer,
         Option<&mut RagdollPhysicsProfileApplied>,
+        Option<&Transform>,
+        Option<&mut AlsRagdollScaleState>,
     )>,
     mut bodies: Query<(
         Entity,
@@ -427,13 +451,31 @@ fn sync_ragdoll_body_modes(
         else {
             continue;
         };
-        let Ok((player, profile)) = players.get_mut(player_entity) else {
+        let Ok((mut player, profile, transform, scale_state)) = players.get_mut(player_entity) else {
             continue;
         };
-        let Some(spawned) = player.get_spawned_ragdoll() else {
+        let Some(root) = player.get_spawned_ragdoll().map(|spawned| spawned.root) else {
             continue;
         };
-        let ragdolling = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
+        let action_ragdolling = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
+        let scale = transform.map_or(Vec3::ONE, |transform| transform.scale);
+        let stopped = if let Some(mut state) = scale_state {
+            if state.root != root {
+                *state = AlsRagdollScaleState { root, previous: scale, stopped: false, ragdolling: action_ragdolling };
+            } else {
+                state.update(scale, action_ragdolling);
+            }
+            state.stopped
+        } else {
+            commands.entity(player_entity).insert(AlsRagdollScaleState {
+                root, previous: scale, stopped: false, ragdolling: action_ragdolling,
+            });
+            false
+        };
+        let ragdolling = action_ragdolling && !stopped;
+        player.set_input_data("ragdoll_dynamic", DataValue::from(ragdolling));
+        player.set_input_data("ragdoll_readback", DataValue::from(ragdolling));
+        let Some(spawned) = player.get_spawned_ragdoll() else { continue; };
         let mut handoff = false;
         let mapping = assembly.and_then(|assembly| scene_handles.get(assembly.avatar).ok())
             .and_then(|handle| scene_assets.as_ref()?.get(&handle.handle))
@@ -1232,7 +1274,7 @@ fn ragdoll_link_system(
     mut commands: Commands,
     mut q: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollLink), With<AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    mut players: Query<&mut AnimationGraphPlayer>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRagdollScaleState>)>,
     layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers, Option<&RagdollCollisionMember>, Has<SourceCollisionIgnorePawn>)>,
 ) {
     for (character, action, assembly, mut link) in &mut q {
@@ -1242,13 +1284,14 @@ fn ragdoll_link_system(
             link.prev_ragdoll = is_ragdoll;
             continue;
         };
-        let Ok(mut player) = players.get_mut(player_entity) else {
+        let Ok((mut player, scale_state)) = players.get_mut(player_entity) else {
             link.prev_ragdoll = is_ragdoll;
             continue;
         };
 
-        player.set_input_data("ragdoll_dynamic", DataValue::from(is_ragdoll));
-        player.set_input_data("ragdoll_readback", DataValue::from(is_ragdoll));
+        let simulated = is_ragdoll && !scale_state.is_some_and(|state| state.stopped);
+        player.set_input_data("ragdoll_dynamic", DataValue::from(simulated));
+        player.set_input_data("ragdoll_readback", DataValue::from(simulated));
 
         if let Some(spawned) = player.get_spawned_ragdoll() {
             for collider in spawned.colliders.values() {
@@ -1283,6 +1326,48 @@ fn ragdoll_link_system(
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[test]
+    fn ragdoll_scale_stop_follows_relative_zero_crossings() {
+        for (scale, stopped) in [(Vec3::ZERO, true), (Vec3::splat(0.00005), true),
+            (Vec3::splat(0.0001), true), (Vec3::splat(0.0002), false), (Vec3::new(0.0, 1.0, 1.0), false)] {
+            let mut state = AlsRagdollScaleState { root: Entity::PLACEHOLDER, previous: Vec3::ONE,
+                stopped: false, ragdolling: true };
+            state.update(scale, true);
+            assert_eq!(state.stopped, stopped, "scale={scale:?}");
+        }
+        let mut state = AlsRagdollScaleState { root: Entity::PLACEHOLDER, previous: Vec3::splat(0.0002),
+            stopped: false, ragdolling: true };
+        state.update(Vec3::splat(0.0001), true);
+        assert!(!state.stopped);
+        assert_eq!(state.previous, Vec3::splat(0.0002));
+        state.update(Vec3::ZERO, true);
+        assert!(state.stopped);
+        state.update(Vec3::ONE, true);
+        assert!(!state.stopped);
+    }
+
+    #[test]
+    fn paused_ragdoll_zero_scale_stops_real_bodies_and_readback() {
+        for (scale, active) in [(Vec3::ZERO, false), (Vec3::splat(0.0001), false),
+            (Vec3::splat(0.0002), true), (Vec3::new(0.0, 1.0, 1.0), true)] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            for _ in 0..4 { app.update(); }
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+            let dynamic_count = |app: &App| bodies.iter().filter(|(_, entity)|
+                app.world().get::<RigidBody>(*entity) == Some(&RigidBody::Dynamic)).count();
+            assert_eq!(dynamic_count(&app), 20);
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale = scale;
+            app.update();
+            assert_eq!(dynamic_count(&app), if active { 20 } else { 0 }, "scale={scale:?}");
+            let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert_eq!(graph.get_input_data("ragdoll_dynamic").unwrap().as_bool().unwrap(), active);
+            assert_eq!(graph.get_input_data("ragdoll_readback").unwrap().as_bool().unwrap(), active);
+        }
+    }
+
     pub(crate) fn loaded_ragdoll_bodies(app: &mut App, avatar: Entity) -> (Entity, Vec<(String, Entity)>) {
         let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
         let mut bodies = None;

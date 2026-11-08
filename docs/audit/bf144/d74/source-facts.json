@@ -1,0 +1,79 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/SkeletalMeshComponentPhysics.cpp",
+    "sha256": "1613f738b65c022b6de91a3db2dc72dc6affe0c7c7b54d49c3a66ff6fdb858b4",
+    "start_line": 3507,
+    "end_line": 3552,
+    "text": "void USkeletalMeshComponent::UpdateRigidBodyScaling(ETeleportType TeleportType)\n{\n\tif (bEnablePerPolyCollision)\n\t{\n\t\treturn;\n\t}\n\n\tconst FVector3f SceneRelativeScale = FVector3f(GetRelativeScale3D());\n\n\t// Physics does not support nonuniform scaling of the bodies.\n\tif (!SceneRelativeScale.IsUniform())\n\t{\n\t\treturn;\n\t}\n\n\t// Scale didn't actually change - nothing to do.\n\tif ((PrevRootRigidBodyScale - SceneRelativeScale).IsNearlyZero())\n\t{\n\t\treturn;\n\t}\n\n\t// The legacy code computes a per-frame change factor (SceneRelativeScale / PrevRootRigidBodyScale)\n\t// and applies it to every body. When the scale crosses zero that factor becomes 0 (going to zero) or\n\t// Inf/NaN (coming back from zero), and the NaN corrupts body scale/mass and joint transforms\n\t// irrecoverably. We therefore special-case the two zero crossings and only use the incremental factor\n\t// on the safe nonzero->nonzero path.\n\tconst bool bGoingToZero = SceneRelativeScale.IsNearlyZero() && !PrevRootRigidBodyScale.IsNearlyZero();\n\tconst bool bComingFromZero = PrevRootRigidBodyScale.IsNearlyZero() && !SceneRelativeScale.IsNearlyZero();\n\n\tif (bGoingToZero)\n\t{\n\t\t// NOTE: disabling physics here has two expected side effects for the scale-to-zero case: the\n\t\t// animation / post-process anim blueprint may take over and modify the body transforms while scaled\n\t\t// out, and a runtime SetAllBodiesSimulatePhysics(true) ragdoll returns in its physics-asset default state.\n\t\tSetAllBodiesSimulatePhysics(false);\n\n\t}\n\telse if (bComingFromZero)\n\t{\n\t\t// RecreatePhysicsState() re-instantiates the bodies from the current bone transforms, which already\n\t\t// carry the component's (target) world scale, so they come back at the correct scale. No post-creation\n\t\t// rescale is needed here.\n\t\tRecreatePhysicsState();\n\t}\n\telse\n\t{"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/SkeletalMeshComponentPhysics.cpp",
+    "sha256": "1613f738b65c022b6de91a3db2dc72dc6affe0c7c7b54d49c3a66ff6fdb858b4",
+    "start_line": 1439,
+    "end_line": 1449,
+    "text": "}\n\nvoid USkeletalMeshComponent::SetAllBodiesSimulatePhysics(bool bNewSimulate)\n{\n\tfor(int32 i=0; i<Bodies.Num(); i++)\n\t{\n\t\tBodies[i]->SetInstanceSimulatePhysics(bNewSimulate, false, true);\n\t}\n\n\tSetRootBodyIndex(RootBodyData.BodyIndex);\t//Update the root body data cache in case animation has moved root body relative to root joint\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/PhysicsEngine/BodyInstance.cpp",
+    "sha256": "7ca0949be1e3a6eb782ca2ae1123d8b395fcb7a22436df95788a5f840a3f745c",
+    "start_line": 2581,
+    "end_line": 2593,
+    "text": "void FBodyInstance::UpdateInstanceSimulatePhysics()\n{\n\t// In skeletal case, we need both our bone and skelcomponent flag to be true.\n\t// This might be 'and'ing us with ourself, but thats fine.\n\tconst bool bUseSimulate = IsInstanceSimulatingPhysics();\n\tbool bInitialized = false;\n\n\tFPhysicsCommand::ExecuteWrite(GetPhysicsActor(), [&](const FPhysicsActorHandle& Actor)\n\t{\n\t\tbInitialized = true;\n\t\tFPhysicsInterface::SetIsKinematic_AssumesLocked(Actor, !bUseSimulate);\n\t\tFPhysicsInterface::SetCcdEnabled_AssumesLocked(Actor, bUseCCD);\n\t\tFPhysicsInterface::SetMACDEnabled_AssumesLocked(Actor, bUseMACD);"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/PhysicsEngine/BodyInstance.cpp",
+    "sha256": "7ca0949be1e3a6eb782ca2ae1123d8b395fcb7a22436df95788a5f840a3f745c",
+    "start_line": 2711,
+    "end_line": 2725,
+    "text": "\tbSimulatePhysics = bSimulate;\n\tif ( !bMaintainPhysicsBlending )\n\t{\n\t\tif (bSimulatePhysics)\n\t\t{\n\t\t\tPhysicsBlendWeight = 1.f;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tPhysicsBlendWeight = 0.f;\n\t\t}\n\t}\n\n\tUpdateInstanceSimulatePhysics();\n}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "start_line": 595,
+    "end_line": 600,
+    "text": "     * Checks whether vector is near to zero within a specified tolerance.\n     *\n     * @param Tolerance Error tolerance.\n     * @return true if the vector is near to zero, false otherwise.\n     */\n    [[nodiscard]] bool IsNearlyZero(T Tolerance=UE_KINDA_SMALL_NUMBER) const;"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "start_line": 739,
+    "end_line": 744,
+    "text": "     * Check whether X, Y and Z are nearly equal.\n     *\n     * @param Tolerance Specified Tolerance.\n     * @return true if X == Y == Z within the specified tolerance.\n     */\n    [[nodiscard]] bool IsUniform(T Tolerance=UE_KINDA_SMALL_NUMBER) const;"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "start_line": 1749,
+    "end_line": 1756,
+    "text": "template<typename T>\ninline bool TVector<T>::IsNearlyZero(T Tolerance) const\n{\n    return\n        FMath::Abs(X)<=Tolerance\n        &&\tFMath::Abs(Y)<=Tolerance\n        &&\tFMath::Abs(Z)<=Tolerance;\n}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "start_line": 1603,
+    "end_line": 1608,
+    "text": "\ntemplate<typename T>\nUE_FORCEINLINE_HINT bool TVector<T>::AllComponentsEqual(T Tolerance) const\n{\n    return FMath::Abs(X - Y) <= Tolerance && FMath::Abs(X - Z) <= Tolerance && FMath::Abs(Y - Z) <= Tolerance;\n}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/SkeletalMeshComponentPhysics.cpp",
+    "sha256": "1613f738b65c022b6de91a3db2dc72dc6affe0c7c7b54d49c3a66ff6fdb858b4",
+    "start_line": 70,
+    "end_line": 70,
+    "text": "static TAutoConsoleVariable<bool> CVarUpdateRigidBodyScaling(TEXT(\"p.UpdateRigidBodyScaling\"), true, TEXT(\"Updates the rigid body scaling for simulation when the actor scaling is changed \\n Default: true.\"));"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/SkeletalMeshComponentPhysics.cpp",
+    "sha256": "1613f738b65c022b6de91a3db2dc72dc6affe0c7c7b54d49c3a66ff6fdb858b4",
+    "start_line": 900,
+    "end_line": 911,
+    "text": "\t}\n\n\t// now update root body index because body has BodySetup now\n\tSetRootBodyIndex(RootBodyIndex);\n\n\tInitCollisionRelationships();\n\n\t// Update Flag\n\tPrevRootBoneMatrix = GetBoneMatrix(0); // save the root bone transform\n\n\tPrevRootRigidBodyScale = FVector3f(GetRelativeScale3D()); //Update the root rigid body scale. \n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/SkeletalMeshComponentPhysics.cpp",
+    "sha256": "1613f738b65c022b6de91a3db2dc72dc6affe0c7c7b54d49c3a66ff6fdb858b4",
+    "start_line": 1943,
+    "end_line": 1950,
+    "text": "\t// Mark the cloth simulation transform update as pending (the actual update will happen in the cloth thread if the simulation is running)\n\tUpdateClothTransform(CVarClothPhysicsOnUpdateTransformTeleport.GetValueOnGameThread() ? Teleport : ETeleportType::None);\n\n\tif (CVarUpdateRigidBodyScaling.GetValueOnGameThread())\n\t{\n\t\t//Updates the scale of the rigid bodies for physics. \n\t\tUpdateRigidBodyScaling(Teleport);\n\t}"
+  }
+]
