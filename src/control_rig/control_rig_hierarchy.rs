@@ -24,10 +24,32 @@ impl Default for RigTransform {
 }
 
 pub fn rig_normalize(rotation: DQuat) -> DQuat {
-    if rotation.length_squared() >= 1e-8_f32 as f64 {
-        rotation.normalize()
-    } else {
-        DQuat::IDENTITY
+    #[cfg(target_arch = "aarch64")]
+    {
+        use std::arch::aarch64::{vdupq_n_f64, vgetq_lane_f64, vmulq_f64, vrsqrteq_f64, vrsqrtsq_f64};
+
+        let squared = rotation.y.mul_add(rotation.y, rotation.x * rotation.x)
+            + rotation.w.mul_add(rotation.w, rotation.z * rotation.z);
+        if squared >= 1e-8_f32 as f64 {
+            let reciprocal = unsafe {
+                let value = vdupq_n_f64(squared);
+                let estimate = vrsqrteq_f64(value);
+                let estimate = vmulq_f64(vrsqrtsq_f64(value, vmulq_f64(estimate, estimate)), estimate);
+                let estimate = vmulq_f64(vrsqrtsq_f64(value, vmulq_f64(estimate, estimate)), estimate);
+                vgetq_lane_f64::<0>(estimate)
+            };
+            rotation * reciprocal
+        } else {
+            DQuat::IDENTITY
+        }
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    {
+        if rotation.length_squared() >= 1e-8_f32 as f64 {
+            rotation.normalize()
+        } else {
+            DQuat::IDENTITY
+        }
     }
 }
 
@@ -833,6 +855,30 @@ mod tests {
 
     #[test]
     #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    fn rig_normalization_matches_native_arm64_quaternions() {
+        for (input, expected) in [
+            (DQuat::IDENTITY, DQuat::from_xyzw(0.0, 0.0, 0.0, 0.999_999_999_950_951_3)),
+            (DQuat::from_xyzw(0.073_906_391_859_054_57, 0.073_906_391_859_054_57,
+                0.703_233_897_686_004_6, 0.703_233_897_686_004_6),
+                DQuat::from_xyzw(0.073_906_386_710_638_58, 0.073_906_386_710_638_58,
+                    0.703_233_848_697_811, 0.703_233_848_697_811)),
+            (DQuat::from_xyzw(-0.703_233_957_290_649_4, 0.703_233_838_081_359_9,
+                -0.073_906_227_946_281_43, 0.073_906_272_649_765_01),
+                DQuat::from_xyzw(-0.703_233_923_017_270_8, 0.703_233_803_807_987_1,
+                    -0.073_906_224_344_327_77, 0.073_906_269_047_809_17)),
+            (DQuat::from_xyzw(0.082_567_840_814_590_45, 0.078_878_626_227_378_85,
+                0.702_785_491_943_359_4, 0.702_177_524_566_650_4),
+                DQuat::from_xyzw(0.082_567_840_409_883_48, 0.078_878_625_840_754_58,
+                    0.702_785_488_498_650_3, 0.702_177_521_124_921_3)),
+        ] {
+            assert_eq!(rig_normalize(input), expected);
+        }
+        assert_eq!(RigTransform::default().global(RigTransform::default()).rotation.w,
+            0.999_999_999_950_951_3);
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
     fn rig_slerp_preserves_source_partial_weight_scalar_order() {
         for (before, solved, unnormalized) in [
             (DQuat::from_xyzw(0.633_735_685_482_602, -0.736_975_225_023_681_4,
@@ -943,7 +989,8 @@ mod tests {
             } else {
                 DQuat::from_rotation_y(angle * 0.25)
             };
-            assert!(result.dot(expected).abs() > 1.0 - 1e-14);
+            let cosine = result.dot(expected).abs() / (result.length_squared() * expected.length_squared()).sqrt();
+            assert!(cosine > 1.0 - 1e-14);
         }
     }
 }

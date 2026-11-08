@@ -5538,6 +5538,12 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
 
 - [ ] BF144-D248 / P3 — Rig及动画Pose归一化未保持源ARM64 reciprocal-sqrt路径。
+  - 按精度和消费阶段拆分：D248a处理Rig双精度四元数及层级共享归一化，D248b处理已证动画Pose单精度消费路径；两项各自保存源证据与fixture并提交，统一Gate留到全部静态修复及Bevy/依赖迁移后。
+  - [x] BF144-D248a — Rig双精度源ARM64归一化。开始2026-11-08 10:15 +08:00；预估结束11:05 +08:00。依据：.471/.480/.481已提供原生消费者和消融，需fresh核对UE Dot4、NEON两轮迭代、平台回退及公开调用，补原生primitive与层级fixture。
+    - 10:17 source/static闭环：fresh UE `Quat::Normalize`/Rig层级使用ARM64 Dot4、reciprocal estimate与两轮NEON refinement；映射源XYZW→runtime XZYW后Dot4需保持两组FMA。fresh identity及四个实际足旋转原生primitive已重采，identity w为0.9999999999509513；目标`rig_normalize`供层级、IK、插值及足部等共享调用。此证据限定ARM64，其余平台保留原实现；Quat与Transform各自阈值在极小边界的差异尚无原生反例，不扩大本项。
+    - 10:18直接caller核对：角色Pose发布的既有D276 writer会先转换到源坐标再调用同一helper；新helper在ARM64自身按runtime坐标计算源Dot4，因此该调用必须去掉重复坐标映射，同时保留非ARM旧路径。正在fresh重采D276足骨输入对应的UE归一化输出；这是共享helper调用迁移，不复开写入阶段。
+    - 10:20实现摘要：ARM64共享Rig normalizer使用源Dot4/FMA与NEON estimate两轮refinement，Pose发布直接caller完成坐标迁移；fresh四个足旋转、identity及发布输入原生结果和相关源码在`docs/audit/bf144/d248a/`。非ARM源后端与Quat/Transform极小阈值边界未证，单精度Pose留D248b；测试、消融、图审计及公共Gate待全部静态修复/依赖迁移后执行。实际实现结束2026-11-08 10:20 +08:00，较预估提前45分钟；拆分为D248a/b。
+  - [ ] BF144-D248b — 动画Pose单精度源ARM64归一化，依赖共享平台实现；开始时按余下闭包估时。
   - BF144.481 twist global消费者：从精确1332 IK post79骨原始cache独立lazy求值2664个thigh/calf twist global，全部native精确；已证后继foot/手IK writer literal目标不在twist祖先链才用帧末globals交叉，不借ball。最小回退source normalizer保source自然raw cache与public clean clone两个端点各1精确，却使2个native twist全局失败，证明该归一化是实际后续消费者的必要primitive。源码/输入bytes同target六库重编完整cache/consumer报告byte恢复；见docs/audit/bf144/481/negative-check.json与twist-lifetime.json。未新增编号，不称全Rig/Root或未遇Equals skip通过。
 
   - BF144.480 weighted IK消费者：在source solver core/向量/标量Slerp均固定时，只回退wrapper三骨normalizer，source6 partial有12 quat/8位置double差，current12控制有31/21，F32均同。1332 source完整三骨TQS与1302公开模型先精确；最小双腿物理去normalizer后core2/public2仍过、native TQS101拒，按bytes恢复同target六库重编全报告保持。证据docs/audit/bf144/480/comparison.json、negative-check.json；不将算法控制当实际全Rig修复，后代/dirty/Equals计数仍开。

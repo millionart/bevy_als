@@ -223,10 +223,16 @@ fn apply_animation_to_visible_targets(
         if let Some(value) = bone.rotation {
             transform.rotation = if gate.is_some() {
                 let value = value.as_dquat();
-                let source = crate::extensions::control_rig_hierarchy::rig_normalize(
-                    bevy::math::DQuat::from_xyzw(-value.x, -value.z, -value.y, value.w),
-                );
-                Quat::from_xyzw(-source.x as f32, -source.z as f32, -source.y as f32, source.w as f32)
+                #[cfg(target_arch = "aarch64")]
+                let value = crate::extensions::control_rig_hierarchy::rig_normalize(value);
+                #[cfg(not(target_arch = "aarch64"))]
+                let value = {
+                    let source = crate::extensions::control_rig_hierarchy::rig_normalize(
+                        bevy::math::DQuat::from_xyzw(-value.x, -value.z, -value.y, value.w),
+                    );
+                    bevy::math::DQuat::from_xyzw(-source.x, -source.z, -source.y, source.w)
+                };
+                value.as_quat()
             } else { value };
         }
         if let Some(value) = bone.scale { transform.scale = value; }
