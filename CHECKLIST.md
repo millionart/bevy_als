@@ -6468,11 +6468,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧sleep夹具固定body速度或直接给solver位移，没有通过真实外力预处理阶段；本项与D88的显式速度写入计数重置不同，缺失的是force输入对平滑状态的更新。只声明这类轻推力边界，未声称普通大力同样失败；仅登记。
   - 21:22 source/static摘要：fresh PA确认平滑率，源线/角Dynamics预置、固定预测时间和CMC冲量链已固化；目标在外力累积后、重力前预置，并处理项目接触冲量和D88同帧设速。已写加载hand、连接岛、世界/本地线角力、零力/重力及冲量顺序对照；测试、消融及Playground待统一Gate，项目外直接使用Avian冲量API不属于已识别consumer。证据`docs/audit/bf144/d89/`。实际结束：2026-11-08 21:22 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D90 / P3 — 新物理岛错误继承孤立body的睡眠计数。
+- [x] BF144-D90 / P3 — 新物理岛错误继承孤立body的睡眠计数。
+  - 本轮开始：2026-11-08 21:22 +08:00；预计结束：2026-11-08 22:12 +08:00。重读源岛创建与拆分生命周期，核对Avian岛身份及约束变化，并补新连接/断开对照；统一验证留待升级后。估时依据：BF144.27睡眠与拓扑闭包实耗约30分钟，本项需额外区分岛ID复用及合并场景。
   - Source：fresh `IslandManager.cpp:1855–1903`在两个无岛节点新建连接时调用CreateIsland；`IslandManager.h:399`初始化SleepCounter=0，`IslandManager.cpp:2418–2444`将新岛从初始sleeping切为awake时再次清零。反方向销毁无约束岛时，`1731–1739`明确把岛计数复制给孤立body；这两种拓扑转换不对称。
   - Target：`ragdoll_physics_profile.rs:803–805,835–837`把每body计数的最小值当作当前岛计数，再统一回写，没有辨别新岛创建。两个已有3帧静止进度的孤立body连成新岛后，仍从3继续计数。
   - 反例：完整角色hand_l两body，native质量/COM/阈值保持，关闭其他关节和接触，静止3帧后第4帧启用实际hand_l关节；不覆盖solver采样。60/30Hz两组都在第5帧休眠，source新岛应第8帧；每步实际joint_count已核验。反向在第4帧断开原有连接的两组都正确在第5帧休眠，共4组2PASS/2FAIL。证据`bf144_pa_sleep_new_island_resets_counter_while_split_preserves_it`、`target/bf144/27/topology/`。
   - 漏检：旧测试覆盖断开后的独立睡眠，没有覆盖孤立状态已有进度再新建连接；只登记已复现的岛创建边界，不把所有合并/拆分情况一概判错。
+  - 21:26 source/static摘要：fresh PA确认hand_l两端及当前岛模式，源创建、接入与断开计数生命周期已固化；目标按上一物理帧成员连接状态识别新岛，不依赖可复用的岛编号。已写新连接、拆分、接入已有岛及加载手臂body的受控对照；测试、消融、native关节及Playground待统一Gate。证据`docs/audit/bf144/d90/`。实际结束：2026-11-08 21:26 +08:00；偏差：−46分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D91 / P2 — Ragdoll的原生回弹系数未到达子碰撞体接触。
   - Source：fresh PA全部21个body使用DefaultPhysicalMaterial，Restitution=0.3、Average且无override；UE `BodyInstance.cpp:4580–4613`给每个simple shape设置该材质，`PBDCollisionConstraints.cpp:469–470`组合双方系数。

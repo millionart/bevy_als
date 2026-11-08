@@ -1003,8 +1003,13 @@ fn update_profile_sleep(
         Has<avian3d::prelude::SleepingDisabled>, Has<avian3d::prelude::Sleeping>)>,
     other_bodies: Query<(&BodyIslandNode, &avian3d::prelude::SleepTimer,
         Has<avian3d::prelude::SleepingDisabled>), Without<SourceBodySleep>>,
+    topology: Query<(Entity, &BodyIslandNode)>,
+    mut previous_connected: Local<bevy::platform::collections::HashMap<Entity, bool>>,
 ) {
     let [_, smooth_rate]: [f32; 2] = include!("sleep_force_parameters.rs");
+    let retained_islands = topology.iter().filter_map(|(entity, node)| {
+        previous_connected.get(&entity).copied().unwrap_or(false).then_some(node.island_id().0)
+    }).collect::<bevy::platform::collections::HashSet<_>>();
     let mut groups = bevy::platform::collections::HashMap::<u32, (i32, i32, bool, bool)>::default();
     for (node, mode, solver, rotation, center, mut sleep, disabled, sleeping) in &mut bodies {
         if !mode.is_dynamic() {
@@ -1036,6 +1041,7 @@ fn update_profile_sleep(
             && sleep.smooth_angular.length_squared() <= sleep.angular_threshold_radians_per_second.powi(2);
         let group = groups.entry(node.island_id().0).or_insert((i32::MAX, 0, true, isolated));
         group.0 = group.0.min(sleep.counter);
+        if !isolated && !retained_islands.contains(&node.island_id().0) { group.0 = 0; }
         group.1 = group.1.max(if isolated { sleep.counter_threshold.min(127) } else { sleep.counter_threshold });
         group.2 &= within && (!sleep.explicit_wake || isolated);
     }
@@ -1059,6 +1065,12 @@ fn update_profile_sleep(
     }
     for (node, _, _, _, _, mut sleep, _, _) in &mut bodies {
         if let Some(group) = groups.get(&node.island_id().0) { sleep.counter = group.0; }
+    }
+    previous_connected.clear();
+    for (entity, node) in &topology {
+        if let Some(island) = islands.get(node.island_id()) {
+            previous_connected.insert(entity, island.contact_count() > 0 || island.joint_count() > 0);
+        }
     }
     if !to_sleep.is_empty() { commands.queue(SleepIslands(to_sleep)); }
 }
@@ -2648,6 +2660,92 @@ mod tests {
                 assert_eq!(app.world().get::<Sleeping>(first).is_some(), !moving && step >= 8,
                     "Source connected island counter and threshold: moving={moving} step={step}");
                 assert_eq!(app.world().get::<Sleeping>(first).is_some(), app.world().get::<Sleeping>(second).is_some());
+            }
+        }
+    }
+
+    #[test]
+    fn source_sleep_new_connection_resets_counter_but_split_preserves_it() {
+        use avian3d::prelude::Sleeping;
+        for dt in [1.0 / 60.0, 1.0 / 30.0] {
+            for connect in [false, true] {
+                let (mut app, first) = source_sleep_fixture(dt, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+                let settings = *app.world().get::<SourceBodySleep>(first).unwrap();
+                let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+                    settings, avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+                let initial_joint = (!connect).then(|| app.world_mut().spawn(SphericalJoint::new(first, second)).id());
+                for _ in 0..3 { app.update(); }
+                for body in [first, second] { assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 3); }
+                if let Some(joint) = initial_joint { app.world_mut().despawn(joint); }
+                else { app.world_mut().spawn(SphericalJoint::new(first, second)); }
+                let first_sleep = if connect { 8 } else { 5 };
+                for step in 4..=first_sleep {
+                    app.update();
+                    for body in [first, second] {
+                        assert_eq!(app.world().get::<Sleeping>(body).is_some(), step == first_sleep,
+                            "dt={dt} connect={connect} step={step}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn source_sleep_adding_an_isolated_body_preserves_an_existing_island() {
+        use avian3d::prelude::Sleeping;
+        let (mut app, first) = source_sleep_fixture(1.0 / 60.0, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+        let settings = *app.world().get::<SourceBodySleep>(first).unwrap();
+        let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+            settings, avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+        let third = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+            settings, avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+        app.world_mut().spawn(SphericalJoint::new(first, second));
+        for _ in 0..3 { app.update(); }
+        for body in [first, second, third] { assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 3); }
+        app.world_mut().spawn(SphericalJoint::new(first, third));
+        app.update();
+        for body in [first, second, third] { assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 4); }
+        app.update();
+        for body in [first, second, third] { assert!(app.world().get::<Sleeping>(body).is_some()); }
+    }
+
+    #[test]
+    fn source_sleep_loaded_ragdoll_new_island_starts_a_fresh_counter() {
+        use avian3d::prelude::{AngularVelocity, ColliderDisabled, Gravity, JointDisabled, LinearVelocity, Sleeping};
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..12 { app.update(); }
+        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+        let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+        let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+        for entity in colliders { app.world_mut().entity_mut(entity).insert(ColliderDisabled); }
+        for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+        app.world_mut().insert_resource(Gravity(Vec3::ZERO));
+        let first = bodies.iter().find(|(label, _)| label == "lowerarm_l").unwrap().1;
+        let second = bodies.iter().find(|(label, _)| label == "hand_l").unwrap().1;
+        for body in [first, second] {
+            app.world_mut().entity_mut(body).insert((LinearVelocity::ZERO, AngularVelocity::ZERO)).remove::<Sleeping>();
+            let mut sleep = app.world_mut().get_mut::<SourceBodySleep>(body).unwrap();
+            sleep.counter = 0; sleep.smooth_linear = Vec3::ZERO; sleep.smooth_angular = Vec3::ZERO;
+        }
+        for _ in 0..3 { app.update(); }
+        for body in [first, second] {
+            let node = app.world().get::<BodyIslandNode>(body).unwrap();
+            let island = app.world().resource::<PhysicsIslands>().get(node.island_id()).unwrap();
+            assert_eq!(island.contact_count() + island.joint_count(), 0);
+            assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 3);
+        }
+        let first_position = app.world().get::<Position>(first).unwrap().0;
+        let second_position = app.world().get::<Position>(second).unwrap().0;
+        let center = (first_position + second_position) * 0.5;
+        let first_anchor = app.world().get::<Rotation>(first).unwrap().0.inverse() * (center - first_position);
+        let second_anchor = app.world().get::<Rotation>(second).unwrap().0.inverse() * (center - second_position);
+        app.world_mut().spawn(SphericalJoint::new(first, second).with_local_anchor1(first_anchor).with_local_anchor2(second_anchor));
+        for step in 4..=8 {
+            app.update();
+            for body in [first, second] {
+                assert_eq!(app.world().get::<Sleeping>(body).is_some(), step == 8, "step={step}");
             }
         }
     }
