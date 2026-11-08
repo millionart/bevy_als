@@ -129,7 +129,7 @@ mod tests {
                 .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
             app.finish();
             app.cleanup();
-            let floor = app.world_mut().spawn((RigidBody::Static, compound.clone(), SourceCompoundOrder, Transform::IDENTITY)).id();
+            let floor = app.world_mut().spawn((RigidBody::Static, compound.clone(), SourceCompoundOrder("SM_Als_Bench".into()), Transform::IDENTITY)).id();
             let body = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
                 box_collider.clone(), Transform::from_translation(box_pose.translation))).id();
             if source_pair { app.world_mut().entity_mut(body).insert(RagdollActiveMode(BodyMode::Dynamic)); }

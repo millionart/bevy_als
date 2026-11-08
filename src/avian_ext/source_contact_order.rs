@@ -4,7 +4,10 @@ use avian3d::dynamics::solver::{constraint_graph::{ContactConstraintHandle, COLO
 use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
 use avian3d::prelude::{AngularVelocity, Collider, CollisionMargin, ComputedCenterOfMass, LinearVelocity,
     Position, RigidBody, RigidBodyDisabled, Rotation, SpeculativeMargin};
+use bevy::math::DVec3;
 use bevy::prelude::*;
+use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use super::ragdoll_physics_profile::RagdollActiveMode;
 use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex_core_normal, source_box_margin};
@@ -12,7 +15,33 @@ use super::source_contact_margin::{SourceConvexMarginSettings, source_box_convex
 const SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD: f32 = include!("capsule_contact_axis_threshold.rs");
 
 #[derive(Component)]
-pub(crate) struct SourceCompoundOrder;
+pub(crate) struct SourceCompoundOrder(pub String);
+
+#[derive(serde::Deserialize)]
+struct SourceHullVertices {
+    vertices_m: Vec<[f64; 3]>,
+}
+
+static SOURCE_CONVEX_BOUNDS: LazyLock<HashMap<String, Vec<[DVec3; 2]>>> = LazyLock::new(|| {
+    let shapes: HashMap<String, Vec<SourceHullVertices>> = serde_json::from_str(include_str!(
+        "../../assets/ALSExtras/Environment/Meshes/static_convex_topology.runtime.json"
+    )).expect("Generated source convex topology must be valid");
+    shapes.into_iter().map(|(name, hulls)| {
+        let bounds = hulls.into_iter().map(|hull| {
+            hull.vertices_m.into_iter().map(DVec3::from_array).fold(
+                [DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)],
+                |[minimum, maximum], vertex| [minimum.min(vertex), maximum.max(vertex)],
+            )
+        }).collect();
+        (name, bounds)
+    }).collect()
+});
+
+pub(super) fn source_convex_max_extent_cm(asset: &str, index: u32, scale: Vec3) -> Option<f32> {
+    let [minimum, maximum] = *SOURCE_CONVEX_BOUNDS.get(asset)?.get(index as usize)?;
+    let scale = scale.as_dvec3();
+    Some(((maximum * 100.0) * scale - (minimum * 100.0) * scale).abs().max_element() as f32)
+}
 
 fn unique_subshape_ids(candidates: &[Vec<(usize, [u32; 2])>], raw_count: usize) -> Option<Vec<[u32; 2]>> {
     let mut earliest = Vec::with_capacity(candidates.len());
@@ -199,6 +228,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn source_convex_extents_match_native_hulls_and_scales() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d104b2a/bounds.native-samples.json")).unwrap();
+        for sample in fixture["samples"].as_array().unwrap() {
+            let array = |value: &serde_json::Value| DVec3::new(
+                value[0].as_f64().unwrap(), value[1].as_f64().unwrap(), value[2].as_f64().unwrap());
+            let scale = array(&sample["scale"]).as_vec3();
+            let expected = ((array(&sample["bounds_m"][1]) - array(&sample["bounds_m"][0]))
+                .abs().max_element() * 100.0) as f32;
+            let actual = source_convex_max_extent_cm(sample["mesh"].as_str().unwrap(),
+                sample["shape_index"].as_u64().unwrap() as u32, scale).unwrap();
+            assert_eq!(actual, expected, "{}", sample["mesh"]);
+        }
+        assert!(source_convex_max_extent_cm("missing", 0, Vec3::ONE).is_none());
+        assert!(source_convex_max_extent_cm("SM_Als_Bench", 99, Vec3::ONE).is_none());
+    }
+
+    #[test]
     fn source_compound_groups_follow_actual_solver_slot_order() {
         let make = |value: f32| ContactManifold::new(
             [ContactPoint::new(Vec3::ZERO, Vec3::ZERO, Vec3::splat(value), 0.0)], Vec3::Y,
@@ -258,7 +305,7 @@ mod tests {
                 Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
             )).collect());
             let floor = app.world_mut().spawn((RigidBody::Static, compound, Transform::IDENTITY)).id();
-            if source_order { app.world_mut().entity_mut(floor).insert(SourceCompoundOrder); }
+            if source_order { app.world_mut().entity_mut(floor).insert(SourceCompoundOrder("SM_Als_Arch_01".into())); }
             let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
                 Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center),
                 RagdollActiveMode(BodyMode::Dynamic))).id();

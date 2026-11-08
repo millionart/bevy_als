@@ -171,7 +171,7 @@ fn playground_mesh_physics_bridge(
             commands.entity(root).insert(crate::extensions::ComplexCollider(complex));
         }
         if matches!(source.kind, PlaygroundColliderKind::Convex { .. }) {
-            commands.entity(root).insert(crate::extensions::source_contact_order::SourceCompoundOrder);
+            commands.entity(root).insert(crate::extensions::source_contact_order::SourceCompoundOrder(source.mesh_base.clone()));
         }
         commands.entity(root).insert((
             RigidBody::Static,
@@ -463,6 +463,8 @@ mod tests {
         let root=app.world_mut().spawn((PlaygroundCollisionSource::new("SM_Als_Arch_01"),Transform::IDENTITY,GlobalTransform::IDENTITY)).id();
         app.world_mut().spawn((ChildOf(root),Mesh3d(mesh),Transform::IDENTITY,GlobalTransform::IDENTITY));
         app.update();
+        assert_eq!(app.world().get::<crate::extensions::source_contact_order::SourceCompoundOrder>(root).unwrap().0,
+            "SM_Als_Arch_01");
         let actual=app.world().get::<Collider>(root).unwrap();
         let fixture:serde_json::Value=serde_json::from_str(include_str!("../../../tools/fixtures/arch_source_simple_collision.json")).unwrap();
         let source=Collider::compound(fixture["convexes"].as_array().unwrap().iter().map(|hull|{

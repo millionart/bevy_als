@@ -1,0 +1,37 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Convex.h",
+    "sha256": "790b5d71ee4c7a1159d3e4cb8a7a97946e6300179d3b123e6819fdea92a71db2",
+    "start_line": 60,
+    "end_line": 74,
+    "text": "\t\t// @todo(chaos): Keep track of invalid state and ensure on volume or COM access?\n\t\t// @todo(chaos): Add plane vertex indices in the constructor and call CreateStructureData\n\t\t// @todo(chaos): Merge planes? Or assume the input is a good convex hull?\n\t\tUE_DEPRECATED(4.27, \"Use the constructor version with the face indices.\")\n\t\tFConvex(TArray<FPlaneType>&& InPlanes, TArray<FVec3Type>&& InVertices)\n\t\t    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)\n\t\t\t, Planes(MoveTemp(InPlanes))\n\t\t    , Vertices(MoveTemp(InVertices))\n\t\t{\n\t\t\tfor (int32 ParticleIndex = 0; ParticleIndex < Vertices.Num(); ++ParticleIndex)\n\t\t\t{\n\t\t\t\tLocalBoundingBox.GrowToInclude(Vertices[ParticleIndex]);\n\t\t\t}\n\n\t\t\t// For now we approximate COM and volume with the bounding box\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Convex.h",
+    "sha256": "790b5d71ee4c7a1159d3e4cb8a7a97946e6300179d3b123e6819fdea92a71db2",
+    "start_line": 214,
+    "end_line": 221,
+    "text": "\t\t\treturn 0.0f;\n\t\t}\n\n\t\tvirtual const FAABB3 BoundingBox() const override\n\t\t{\n\t\t\t// LWC : conversion from float to double\n\t\t\treturn FAABB3(LocalBoundingBox.Min(), LocalBoundingBox.Max());\n\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ImplicitObjectScaled.h",
+    "sha256": "f5c4bd7ee327ca7e51308aaac02765cca881b864eb0fa3bc6d74787b36ef2694",
+    "start_line": 1134,
+    "end_line": 1159,
+    "text": "\tvoid InitScaledImplicit(const FVec3& Scale, FRealSingle InMargin = 0)\n\t{\n\t\tensureMsgf((IsScaled(MObject->GetType()) == false), TEXT(\"Scaled objects should not contain each other.\"));\n\t\tensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT(\"Scaled objects should not contain instances.\"));\n\t\tswitch (MObject->GetType())\n\t\t{\n\t\tcase ImplicitObjectType::Transformed:\n\t\tcase ImplicitObjectType::Union:\n\t\t\tcheck(false);\t//scale is only supported for concrete types like sphere, capsule, convex, levelset, etc... Nothing that contains other objects\n\t\tdefault:\n\t\t\tbreak;\n\t\t}\n\t\tthis->bIsConvex = MObject->IsConvex();\n\t\tthis->bDoCollide = MObject->GetDoCollide();\n\t\tthis->OuterMargin = InMargin;\n\t\tSetScale(Scale);\n\t}\n\n\tvoid UpdateBounds()\n\t{\n\t\tconst FAABB3 UnscaledBounds = MObject->BoundingBox();\n\t\tconst FVec3 Vector1 = UnscaledBounds.Min() * MScale;\n\t\tMLocalBoundingBox = FAABB3(Vector1, Vector1);\t//need to grow it out one vector at a time in case scale is negative\n\t\tconst FVec3 Vector2 = UnscaledBounds.Max() * MScale;\n\t\tMLocalBoundingBox.GrowToInclude(Vector2);\n\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/PBDCollisionConstraint.cpp",
+    "sha256": "aca64b551f10a289b4a3a1b81a09b8292dcbc3299b7658f8e6b406f2716fd873",
+    "start_line": 383,
+    "end_line": 409,
+    "text": "\t\t// CollisionTolerance:\n\t\t// For polygonal shapes the collision tolerance is proportional to the size of the smaller object. \n\t\t// For quadratic shapes we want a collision tolerance much smaller than the radius.\n\t\t//\n\t\tconst bool bIsQuadratic0 = ((ImplicitType0 == ImplicitObjectType::Sphere) || (ImplicitType0 == ImplicitObjectType::Capsule));\n\t\tconst bool bIsQuadratic1 = ((ImplicitType1 == ImplicitObjectType::Sphere) || (ImplicitType1 == ImplicitObjectType::Capsule));\n\n\t\t// @todo(chaos): should probably be tunable. Used to use the same settings as the margin scale (for convex), but we want to support zero\n\t\t// margins, but still have a non-zero CollisionTolerance (it is used for matching contact points for friction and manifold reuse)\n\t\tconst FRealSingle ToleranceScale = 0.1f;\n\t\tconst FRealSingle QuadraticToleranceScale = 0.05f;\n\t\t\n\t\tif (!bIsQuadratic0 && !bIsQuadratic1)\n\t\t{\n\t\t\t// Only dynamic polytopes objects use margins\n\t\t\tconst bool bIsDynamic0 = (GetParticle0() != nullptr) && (FConstGenericParticleHandle(GetParticle0())->IsDynamic());\n\t\t\tconst bool bIsDynamic1 = (GetParticle1() != nullptr) && (FConstGenericParticleHandle(GetParticle1())->IsDynamic());\n\t\t\tconst FRealSingle DynamicMargin0 = bIsDynamic0 ? FRealSingle(Margin0) : FRealSingle(0);\n\t\t\tconst FRealSingle DynamicMargin1 = bIsDynamic1 ? FRealSingle(Margin1) : FRealSingle(0);\n\n\t\t\tconst FRealSingle MaxSize0 = ((Implicit[0] != nullptr) && Implicit[0]->HasBoundingBox()) ? FRealSingle(Implicit[0]->BoundingBox().Extents().GetAbsMax()) : FRealSingle(0);\n\t\t\tconst FRealSingle MaxSize1 = ((Implicit[1] != nullptr) && Implicit[1]->HasBoundingBox()) ? FRealSingle(Implicit[1]->BoundingBox().Extents().GetAbsMax()) : FRealSingle(0);\n\t\t\tconst FRealSingle MaxSize = FMath::Min(MaxSize0, MaxSize1);\n\t\t\tCollisionTolerance = ToleranceScale * MaxSize;\n\n\t\t\t// If one shape has a zero margin, enforce a minimum margin to avoid the EPA degenerate case. E.g., Box-Triangle\n\t\t\t// If both shapes have a margin, use the smaller margin on both shapes. E.g., Box-Box\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/ParticlePairMidPhase.cpp",
+    "sha256": "0fbacb4c35a2c3cbd600cf96e071d96cb8b6c3d01d524845189456795f57d8d3",
+    "start_line": 200,
+    "end_line": 214,
+    "text": "\t\tFGeometryParticleHandle* Particle1,\n\t\tconst FPerShapeData* InShape1,\n\t\tconst FReal CullDistance,\n\t\tconst EContactShapesType ShapePairType,\n\t\tconst bool bUseManifold,\n\t\tconst FCollisionContext& Context)\n\t{\n\t\tconst FImplicitObject* Implicit0 = InShape0->GetLeafGeometry();\n\t\tconst FBVHParticles* BVHParticles0 = FConstGenericParticleHandle(Particle0)->CollisionParticles().Get();\n\t\tconst FRigidTransform3& ShapeRelativeTransform0 = (FRigidTransform3)InShape0->GetLeafRelativeTransform();\n\t\tconst FImplicitObject* Implicit1 = InShape1->GetLeafGeometry();\n\t\tconst FBVHParticles* BVHParticles1 = FConstGenericParticleHandle(Particle1)->CollisionParticles().Get();\n\t\tconst FRigidTransform3& ShapeRelativeTransform1 = (FRigidTransform3)InShape1->GetLeafRelativeTransform();\n\n\t\treturn Context.GetAllocator()->CreateConstraint(Particle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);\n"
+  }
+]
