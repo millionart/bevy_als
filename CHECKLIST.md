@@ -6395,11 +6395,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧配置测试把PA导出的6次直接当世界source oracle，没有沿实际SkeletalMesh world body→scene/island路径确认所有权。此前BF144.22核对的配置字段和BF144.23同迭代数反例仍有效，但字段一致不代表使用范围正确；只登记，不修改转换器或重生成资产。
   - 20:33 source/static摘要：fresh PhysicsSettings为8/2/1，PA和mesh均无每体覆盖、三项CVar为−1；独立工具据此生成世界目标参数。世界rig模板的body/joint现消费该预算，PA原始RBAN配置保留；已写19个加载关节及1/2次速度消费对照。其他actor的island覆盖、测试、消融、全量转换与Playground待统一Gate。证据`docs/audit/bf144/d81/`。实际结束：2026-11-08 20:33 +08:00；偏差：−50分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D82 / P2 — Ragdoll线性速度约束沿用积分前的关节轴和力臂。
+- [x] BF144-D82 / P2 — Ragdoll线性速度约束沿用积分前的关节轴和力臂。
+  - 本轮开始：2026-11-08 20:34 +08:00；预计结束：2026-11-08 21:09 +08:00。重读cached预测connector与速度响应，复用已捕获pre-solve旋转并补native spine轴/力臂及双次速度迭代对照；统一执行留待升级后。
   - Source：fresh cached solver `17–45,576–630`由本帧预测body P/Q构造connector及双力臂；`984–1057`的速度约束复用这些缓存，三轴响应都按预测姿态计算。
   - Target：`source_physics_joint.rs:168–185`在积分前prepare保存frames/arms；`735–763`的速度阶段直接读原值，没有应用已经捕获的pre_solve_rotation。角位置/drive的缓存路径已使用该旋转，但线性速度路径遗漏。
   - 反例：完整角色spine_01两body在本帧共同绕Z预测旋转0/0.5/1rad，速度阶段统一输入parent v=0、child v=(1,2,3)m/s、双方w=0，保持native frame/COM与相同有效惯量，并把双方都控制为2次以隔离D81。零旋转PASS；0.5/1rad时角速度结果最大差1.845389/3.767715rad/s，2FAIL。独立参考直接使用捕获的预测姿态作为共同输入，不把UE与Avian的自由旋转积分差异算入本项。证据`target/bf144/24/velocity/`及后续最终记录。
   - 漏检：旧约束速度测试只验证误差降低或没有帧内旋转，未分辨本帧预测几何与prepare时几何。只登记，不改变solver执行顺序。
+  - 20:35 source/static摘要：fresh预测connector初始化与速度消费已核对，PA原生身份与既有记录一致；cached线性速度约束使用已捕获的pre-solve旋转生成parent轴和双力臂，非cached不变。已写native spine几何、0/0.5/1rad及世界两次迭代对照；测试、消融和完整角色/Playground待统一Gate。证据`docs/audit/bf144/d82/`。实际结束：2026-11-08 20:35 +08:00；偏差：−34分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D83 / P2 — 硬角约束速度阶段使用过大的未对标冲量阈值。
   - Source：fresh cached solver `1681–1702,1732–1754`仅对已激活的非soft约束做速度修正；以源单位的累计lambda绝对值>UE_SMALL_NUMBER(1e−8)为条件。角约束lambda含惯量单位，厘米到米会带来平方缩放，且cached quaternion Jacobian另有轴长度；不能直接复用任意无量纲epsilon。

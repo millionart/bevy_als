@@ -850,11 +850,13 @@ fn apply_source_joint_linear_velocity(
     if !joint.linear_locked { return; }
     let position_impulse = if joint.use_linear_solver { data.cached_position_lagrange }
         else { data.point_data.total_position_lagrange() };
-    let frame = data.frames[0];
+    let frame = if joint.use_linear_solver { data.pre_solve_rotation[0] * data.frames[0] } else { data.frames[0] };
     if (frame.inverse() * position_impulse).abs().max_element() <= 1e-10 { return; }
     let conditioned = conditioned_inertias(inertias, joint.mass_conditioning, joint.settings);
     let inertias = [&conditioned[0], &conditioned[1]];
-    let arms = data.arms;
+    let arms = if joint.use_linear_solver {
+        [data.pre_solve_rotation[0] * data.arms[0], data.pre_solve_rotation[1] * data.arms[1]]
+    } else { data.arms };
     let relative = child.linear_velocity + child.angular_velocity.cross(arms[1])
         - parent.linear_velocity - parent.angular_velocity.cross(arms[0]);
     let mut impulse = Vec3::ZERO;
@@ -1097,6 +1099,56 @@ mod tests {
             0,
             true,
         )
+    }
+
+    #[test]
+    fn cached_spine_velocity_uses_predicted_connector_geometry() {
+        use bevy::ecs::system::RunSystemOnce;
+        for angle in [0.0_f32, 0.5, 1.0] {
+            let mut world = World::new();
+            let template = crate::pa_als::PaAlsPhysicsProfileTemplate::from_world(&mut world);
+            let mut joint = template.0.joints.iter().find(|joint| joint.label == "spine_01").unwrap().definition.clone();
+            let parent_center = template.0.bodies.iter().find(|body| body.label == "pelvis").unwrap().mass_properties.unwrap().center_of_mass_m;
+            let child_center = template.0.bodies.iter().find(|body| body.label == "spine_01").unwrap().mass_properties.unwrap().center_of_mass_m;
+            let child_rotation = joint.parent_frame.rotation * joint.child_frame.rotation.conjugate();
+            let arms = [Vec3::from(joint.parent_frame.translation) - parent_center,
+                child_rotation * (Vec3::from(joint.child_frame.translation) - child_center)];
+            let prediction = Quat::from_rotation_z(angle);
+            let predicted_arms = arms.map(|arm| prediction * arm);
+            let frame = prediction * joint.parent_frame.rotation;
+            let parent = world.spawn((SolverBody::default(), inertia(1.0, Vec3::splat(25.0)))).id();
+            let child = world.spawn((SolverBody { linear_velocity: Vec3::new(1.0, 2.0, 3.0), ..default() },
+                inertia(1.0, Vec3::splat(25.0)))).id();
+            joint.parent = parent; joint.child = child;
+            assert_eq!(joint.settings.velocity_iterations, 2);
+            let data = SourcePhysicsJointSolverData { frames: [joint.parent_frame.rotation; 2], arms,
+                pre_solve_rotation: [prediction; 2], cached_position_lagrange: frame * Vec3::X, ..default() };
+            world.spawn((joint, data));
+            world.run_system_once(solve_source_joint_velocity_iterations).unwrap();
+            let mut source_linear = [Vec3::ZERO, Vec3::new(1.0, 2.0, 3.0)];
+            let mut source_angular = [Vec3::ZERO; 2];
+            for _ in 0..2 {
+                let relative = source_linear[1] + source_angular[1].cross(predicted_arms[1])
+                    - source_linear[0] - source_angular[0].cross(predicted_arms[0]);
+                let mut impulse = Vec3::ZERO;
+                let mut angular = [Vec3::ZERO; 2];
+                for axis in Vec3::AXES.map(|axis| frame * axis) {
+                    let lever = [predicted_arms[0].cross(axis), predicted_arms[1].cross(axis)];
+                    let lambda = relative.dot(axis) / (2.0 + 25.0 * (lever[0].length_squared() + lever[1].length_squared()));
+                    impulse += axis * lambda;
+                    angular[0] += lever[0] * (25.0 * lambda);
+                    angular[1] -= lever[1] * (25.0 * lambda);
+                }
+                source_linear[0] += impulse; source_linear[1] -= impulse;
+                source_angular[0] += angular[0]; source_angular[1] += angular[1];
+            }
+            for (index, entity) in [parent, child].into_iter().enumerate() {
+                let actual = world.get::<SolverBody>(entity).unwrap();
+                assert!(actual.linear_velocity.abs_diff_eq(source_linear[index], 1e-5), "angle={angle}");
+                assert!(actual.angular_velocity.abs_diff_eq(source_angular[index], 1e-5),
+                    "angle={angle} actual={:?} source={:?}", actual.angular_velocity, source_angular[index]);
+            }
+        }
     }
 
     #[test]
