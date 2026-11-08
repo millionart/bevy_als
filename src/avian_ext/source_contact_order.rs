@@ -1,10 +1,70 @@
-use avian3d::collision::contact_types::{ContactGraph, ContactPoint};
-use avian3d::prelude::{Collider, Rotation};
+use avian3d::collision::contact_types::{ContactGraph, ContactManifold, ContactPoint};
+use avian3d::parry::{math::Pose, query::{ContactManifold as ParryManifold, DefaultQueryDispatcher, PersistentQueryDispatcher}};
+use avian3d::prelude::{Collider, Position, Rotation};
 use bevy::prelude::*;
 
 use super::ragdoll_physics_profile::RagdollActiveMode;
 
 const SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD: f32 = include!("capsule_contact_axis_threshold.rs");
+
+fn unique_subshape_ids(candidates: &[Vec<(usize, [u32; 2])>], raw_count: usize) -> Option<Vec<[u32; 2]>> {
+    let mut earliest = Vec::with_capacity(candidates.len());
+    let mut start = 0;
+    for choices in candidates {
+        let index = choices.iter().find(|(index, _)| *index >= start)?.0;
+        earliest.push(index);
+        start = index + 1;
+    }
+    let mut latest = vec![0; candidates.len()];
+    let mut end = raw_count;
+    for (index, choices) in candidates.iter().enumerate().rev() {
+        let chosen = choices.iter().rev().find(|(raw, _)| *raw < end)?.0;
+        latest[index] = chosen;
+        end = chosen;
+    }
+    candidates.iter().enumerate().map(|(index, choices)| {
+        let lower = if index == 0 { 0 } else { earliest[index - 1] + 1 };
+        let upper = latest.get(index + 1).copied().unwrap_or(raw_count);
+        let mut possible = choices.iter().filter(|(raw, _)| *raw >= lower && *raw < upper).map(|(_, ids)| *ids);
+        let first = possible.next()?;
+        possible.all(|ids| ids == first).then_some(first)
+    }).collect()
+}
+
+pub(crate) fn contact_subshape_ids(
+    first: &Collider,
+    first_position: Position,
+    first_rotation: Rotation,
+    second: &Collider,
+    second_position: Position,
+    second_rotation: Rotation,
+    prediction_distance: f32,
+    manifolds: &[ContactManifold],
+) -> Option<Vec<[u32; 2]>> {
+    let first_pose = Pose::from_parts(first_position.0, first_rotation.0);
+    let second_pose = Pose::from_parts(second_position.0, second_rotation.0);
+    let mut raw = Vec::<ParryManifold<(), ()>>::new();
+    DefaultQueryDispatcher.contact_manifolds(
+        &first_pose.inv_mul(&second_pose), first.shape_scaled().0.as_ref(),
+        second.shape_scaled().0.as_ref(), prediction_distance, &mut raw, &mut None,
+    ).ok()?;
+    let candidates = manifolds.iter().map(|manifold| {
+        raw.iter().enumerate().filter_map(|(index, candidate)| {
+            let subpose = candidate.subshape_pos1.unwrap_or_default();
+            let normal = first_rotation.0 * (subpose.rotation * candidate.local_n1).normalize();
+            if manifold.points.is_empty() || manifold.normal != normal { return None; }
+            let matches = manifold.points.iter().all(|point| candidate.contacts().iter().any(|raw_point| {
+                let anchor = first_rotation.0 * subpose.transform_point(raw_point.local_p1)
+                    + normal * raw_point.dist * 0.5;
+                point.point == first_position.0 + anchor
+                    && point.feature_id1 == raw_point.fid1.into()
+                    && point.feature_id2 == raw_point.fid2.into()
+            }));
+            matches.then_some((index, [candidate.subshape1, candidate.subshape2]))
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
+    unique_subshape_ids(&candidates, raw.len())
+}
 
 fn source_capsule_cylinder_contact(axis: Vec3, normal: Vec3) -> bool {
     axis.dot(normal).abs() < SOURCE_CAPSULE_AXIS_NORMAL_THRESHOLD
@@ -46,6 +106,61 @@ pub(crate) fn order_source_capsule_box_contacts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn subshape_identity_requires_an_unambiguous_ordered_match() {
+        let a = [1, 0];
+        let b = [2, 0];
+        assert_eq!(unique_subshape_ids(&[vec![(0, a), (1, b)], vec![(1, b)]], 2), Some(vec![a, b]));
+        assert_eq!(unique_subshape_ids(&[vec![(0, a), (1, b)]], 2), None);
+        assert_eq!(unique_subshape_ids(&[vec![(0, a), (1, a)]], 2), Some(vec![a]));
+        assert_eq!(unique_subshape_ids(&[vec![(1, a)], vec![(0, b)]], 2), None);
+        assert_eq!(unique_subshape_ids(&[], 0), Some(Vec::new()));
+    }
+
+    fn assert_composite_subshape_identity(composite: Collider) {
+        use avian3d::collision::collider::contact_query::contact_manifolds;
+        let other = Collider::cuboid(2.0, 0.2, 2.0);
+        let position = Position(Vec3::ZERO);
+        let other_position = Position(Vec3::Y * 0.09);
+        let rotation = Rotation(Quat::IDENTITY);
+        for flipped in [false, true] {
+            let (first, pos1, second, pos2, side) = if flipped {
+                (&other, other_position, &composite, position, 1)
+            } else {
+                (&composite, position, &other, other_position, 0)
+            };
+            let mut manifolds = Vec::new();
+            contact_manifolds(first, pos1, rotation, second, pos2, rotation, 0.05, &mut manifolds);
+            let ids = contact_subshape_ids(first, pos1, rotation, second, pos2, rotation, 0.05, &manifolds).unwrap();
+            let mut indices = ids.iter().map(|ids| ids[side]).collect::<Vec<_>>();
+            indices.sort_unstable();
+            assert_eq!(indices, vec![0, 1]);
+            let retained = vec![manifolds[1].clone()];
+            let retained_ids = contact_subshape_ids(first, pos1, rotation, second, pos2, rotation, 0.05, &retained).unwrap();
+            assert_eq!(retained_ids, vec![ids[1]]);
+            let mut pruned = manifolds.clone();
+            for manifold in &mut pruned { manifold.points.truncate(1); }
+            assert_eq!(contact_subshape_ids(first, pos1, rotation, second, pos2, rotation, 0.05, &pruned), Some(ids));
+            pruned[0].points[0].point += Vec3::Y;
+            assert_eq!(contact_subshape_ids(first, pos1, rotation, second, pos2, rotation, 0.05, &pruned), None);
+        }
+    }
+
+    #[test]
+    fn contact_subshape_identity_matches_compound_and_mesh_after_pruning() {
+        let compound = Collider::compound(vec![
+            (Vec3::new(-0.55, -0.5, 0.0), Quat::IDENTITY, Collider::cuboid(0.8, 1.0, 1.0)),
+            (Vec3::new(0.55, -0.5, 0.0), Quat::IDENTITY, Collider::cuboid(0.8, 1.0, 1.0)),
+        ]);
+        assert_composite_subshape_identity(compound);
+        let vertices = vec![
+            Vec3::new(-1.0, 0.0, -1.0), Vec3::new(-0.1, 0.0, -1.0), Vec3::new(-0.5, 0.0, 1.0),
+            Vec3::new(0.1, 0.0, -1.0), Vec3::new(1.0, 0.0, -1.0), Vec3::new(0.5, 0.0, 1.0),
+        ];
+        let mesh = Collider::try_trimesh(vertices, vec![[0, 2, 1], [3, 5, 4]]).unwrap();
+        assert_composite_subshape_identity(mesh);
+    }
 
     fn vector(value: &serde_json::Value) -> Vec3 {
         Vec3::new(value[0].as_f64().unwrap() as f32, value[1].as_f64().unwrap() as f32,
