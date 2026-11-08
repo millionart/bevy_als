@@ -1,0 +1,28 @@
+{
+  "assets": [
+    {
+      "path": "Content/ALS/Character/AnimationInstances/AB_Als_Head.uasset",
+      "bytes": 90031,
+      "sha256": "5b6670493229e8e64838d7421aa152e4030121b44daf94111975b1af9df67e39"
+    },
+    {
+      "path": "Content/ALS/Character/SKM_Als.uasset",
+      "bytes": 2606592,
+      "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+    }
+  ],
+  "request": "docs/audit/bf144/d248b1/head.request.json",
+  "request_source": "docs/audit/bf144/451b/batch-00.request.json",
+  "native_output": "docs/audit/bf144/d248b1/head.native.json.gz",
+  "raw": {
+    "bytes": 1833802,
+    "sha256": "cacef06ff0111040dce7e85751a3e3ea6f5a34f7a2aebee4274722953b0dfb31"
+  },
+  "compressed": {
+    "bytes": 97579,
+    "sha256": "0e383bcbbd0bc4f3965e7a6bb4ebc5248a8f26b5198aede5126d237fa1729da4"
+  },
+  "reader_report": "docs/audit/bf144/d248b1/head.native.json.reader.report.json",
+  "control": "docs/audit/bf144/454/replay-baseline-fixed.json.gz",
+  "fixture": "docs/audit/bf144/d248b1/head-fixture.json"
+}

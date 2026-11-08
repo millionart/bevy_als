@@ -1,0 +1,29 @@
+{
+  "fresh_native_samples_equal_archived": {
+    "000:cc": true,
+    "000:ss": true
+  },
+  "bone": "VB ik_hand_l",
+  "native_source_rotation": {
+    "x": -0.1710077974247398,
+    "y": -0.7227071521729246,
+    "z": -0.6696646213776692,
+    "w": 1.7121437419121423e-05
+  },
+  "native_runtime_f32": [
+    0.17100779712200165,
+    0.6696646213531494,
+    0.7227071523666382,
+    1.7121437849709764e-05
+  ],
+  "method_control_f32": [
+    0.17100775241851807,
+    0.6696646213531494,
+    0.7227071523666382,
+    1.7113983631134033e-05
+  ],
+  "old_current_y": 0.6696646809577942,
+  "method_control_y_matches_native": true,
+  "whole_rotation_matches_native": false,
+  "qualification": "same current input, method control; not a full source-pose equivalence"
+}

@@ -27,16 +27,35 @@ impl MeshSpaceAdditiveNode {
     pub const OUT_POSE: &'static str = "pose";
 }
 
+pub(crate) fn normalize_pose_rotation(rotation: Quat) -> Quat {
+    #[cfg(target_arch = "aarch64")]
+    {
+        use std::arch::aarch64::{vdupq_n_f32, vgetq_lane_f32, vmulq_f32, vrsqrteq_f32, vrsqrtsq_f32};
+
+        let reciprocal = unsafe {
+            let value = vdupq_n_f32(rotation.length_squared());
+            let estimate = vrsqrteq_f32(value);
+            let estimate = vmulq_f32(vrsqrtsq_f32(value, vmulq_f32(estimate, estimate)), estimate);
+            let estimate = vmulq_f32(vrsqrtsq_f32(value, vmulq_f32(estimate, estimate)), estimate);
+            vgetq_lane_f32::<0>(estimate)
+        };
+        rotation * reciprocal
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    {
+        rotation.normalize()
+    }
+}
+
 fn blend_additive_rotation(base: Quat, additive: Quat, alpha: f32) -> Quat {
     let identity_sign = if additive.w >= 0.0 { 1.0 } else { -1.0 };
-    let weighted = Quat::from_xyzw(
+    let weighted = normalize_pose_rotation(Quat::from_xyzw(
         additive.x * alpha,
         additive.y * alpha,
         additive.z * alpha,
         identity_sign * (1.0 - alpha) + additive.w * alpha,
-    )
-    .normalize();
-    (weighted * base).normalize()
+    ));
+    normalize_pose_rotation(weighted * base)
 }
 
 fn merge_translation(base: Option<Vec3>, additive: Option<Vec3>, alpha: f32) -> Option<Vec3> {
@@ -242,12 +261,11 @@ pub fn apply_mesh_space_additive(
         let Some(rotation) = mesh_rotations.get(bone).copied() else {
             continue;
         };
-        let local = skeleton
+        let local = normalize_pose_rotation(skeleton
             .parent(bone)
             .and_then(|parent| mesh_rotations.get(&parent).copied())
             .map(|parent| parent.inverse() * rotation)
-            .unwrap_or(rotation)
-            .normalize();
+            .unwrap_or(rotation));
         if let Some(base_index) = base.paths.get(bone).copied() {
             base.bones[base_index].rotation = Some(local);
         }
@@ -385,6 +403,36 @@ mod tests {
             Transform::IDENTITY,
         );
         (skeleton, root, child)
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    fn mesh_space_additive_uses_source_reciprocal_for_actual_head_chain() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"), "/docs/audit/bf144/d248b1/head-fixture.json"
+        ))).unwrap();
+        let quaternion = |value: &serde_json::Value| {
+            let values = value.as_array().unwrap();
+            Quat::from_xyzw(values[0].as_f64().unwrap() as f32, values[1].as_f64().unwrap() as f32,
+                values[2].as_f64().unwrap() as f32, values[3].as_f64().unwrap() as f32)
+        };
+        let mut path = EntityPath::default();
+        let mut skeleton = Skeleton::default();
+        let mut base = Pose::default();
+        let mut additive = Pose::default();
+        for (index, node) in fixture["nodes"].as_array().unwrap().iter().enumerate() {
+            path = path.child(node["name"].as_str().unwrap().to_owned());
+            if index == 0 { skeleton.set_root(path.id()); }
+            skeleton.add_bone(path.clone(), Transform::IDENTITY, Transform::IDENTITY);
+            for (pose, key) in [(&mut base, "base_rotation"), (&mut additive, "additive_rotation")] {
+                if !node[key].is_null() {
+                    pose.add_bone(BonePose { rotation: Some(quaternion(&node[key])), ..default() }, path.id());
+                }
+            }
+        }
+        apply_mesh_space_additive(&mut base, &additive, 1.0, &skeleton);
+        assert_eq!(base.get_bone(path.id()).unwrap().rotation.unwrap(),
+            quaternion(&fixture["expected_control_rotation"]));
     }
 
     #[test]

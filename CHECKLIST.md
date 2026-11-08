@@ -5543,7 +5543,11 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
     - 10:17 source/static闭环：fresh UE `Quat::Normalize`/Rig层级使用ARM64 Dot4、reciprocal estimate与两轮NEON refinement；映射源XYZW→runtime XZYW后Dot4需保持两组FMA。fresh identity及四个实际足旋转原生primitive已重采，identity w为0.9999999999509513；目标`rig_normalize`供层级、IK、插值及足部等共享调用。此证据限定ARM64，其余平台保留原实现；Quat与Transform各自阈值在极小边界的差异尚无原生反例，不扩大本项。
     - 10:18直接caller核对：角色Pose发布的既有D276 writer会先转换到源坐标再调用同一helper；新helper在ARM64自身按runtime坐标计算源Dot4，因此该调用必须去掉重复坐标映射，同时保留非ARM旧路径。正在fresh重采D276足骨输入对应的UE归一化输出；这是共享helper调用迁移，不复开写入阶段。
     - 10:20实现摘要：ARM64共享Rig normalizer使用源Dot4/FMA与NEON estimate两轮refinement，Pose发布直接caller完成坐标迁移；fresh四个足旋转、identity及发布输入原生结果和相关源码在`docs/audit/bf144/d248a/`。非ARM源后端与Quat/Transform极小阈值边界未证，单精度Pose留D248b；测试、消融、图审计及公共Gate待全部静态修复/依赖迁移后执行。实际实现结束2026-11-08 10:20 +08:00，较预估提前45分钟；拆分为D248a/b。
-  - [ ] BF144-D248b — 动画Pose单精度源ARM64归一化，依赖共享平台实现；开始时按余下闭包估时。
+  - [ ] BF144-D248b — 动画Pose单精度源ARM64归一化：分为Head mesh-space additive和Layered Pose两个已证消费闭包，分别实现并提交后再关闭本项。
+    - [x] BF144-D248b1 — Head mesh-space additive的F32倒平方根方法。开始2026-11-08 10:23 +08:00；预估结束11:03 +08:00。依据：.454已封存318帧实际输入及三阶段因素矩阵，需fresh核UE/glam方法、三个生产归一化点和公开节点fixture；跨平台及其他消费者独立记录。
+      - 10:26 source/static闭环：fresh UE ARM64 float倒平方根使用estimate与两轮NEON修正，当前glam用sqrt再求倒数；.454在固定当前F32 Dot4、乘法和三阶段时验证Head的delta/product/local方法因子。目标`MeshSpaceAdditive`直接提供这三处，也被local additive、组合和root-motion调用；只替换其同一归一化方法并保留现有阶段。fresh Head 000:cc/ss原生重新读取，实际骨链fixture引用.454受控输出，未冒称完整source F32等价。
+      - 10:28实现摘要：Head additive三个已有阶段使用共享ARM64 F32倒平方根方法，非ARM保留原实现；fresh cc/ss源pose均等于封存原生记录，左手IK骨同输入的y分量与方法控制一致，整骨仍有余差。请求、受控骨链fixture、原生数据与哈希在`docs/audit/bf144/d248b1/`；相邻local/root及全量测试尚未执行。实际实现结束2026-11-08 10:28 +08:00，较预估提前35分钟；Layered Pose留D248b2。
+    - [ ] BF144-D248b2 — Layered Pose已证F32归一化阶段，依赖D248b1的同一F32方法；开始时重新估时。
   - BF144.481 twist global消费者：从精确1332 IK post79骨原始cache独立lazy求值2664个thigh/calf twist global，全部native精确；已证后继foot/手IK writer literal目标不在twist祖先链才用帧末globals交叉，不借ball。最小回退source normalizer保source自然raw cache与public clean clone两个端点各1精确，却使2个native twist全局失败，证明该归一化是实际后续消费者的必要primitive。源码/输入bytes同target六库重编完整cache/consumer报告byte恢复；见docs/audit/bf144/481/negative-check.json与twist-lifetime.json。未新增编号，不称全Rig/Root或未遇Equals skip通过。
 
   - BF144.480 weighted IK消费者：在source solver core/向量/标量Slerp均固定时，只回退wrapper三骨normalizer，source6 partial有12 quat/8位置double差，current12控制有31/21，F32均同。1332 source完整三骨TQS与1302公开模型先精确；最小双腿物理去normalizer后core2/public2仍过、native TQS101拒，按bytes恢复同target六库重编全报告保持。证据docs/audit/bf144/480/comparison.json、negative-check.json；不将算法控制当实际全Rig修复，后代/dirty/Equals计数仍开。

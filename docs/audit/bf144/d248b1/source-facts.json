@@ -1,0 +1,107 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathNeon.h",
+      "sha256": "bfcba580c7c1f4b39dd6d4b45390d5db64c6f63c3579ef645f83ea19dc6a4b7c",
+      "excerpts": [
+        {
+          "first_line": 1022,
+          "last_line": 1028,
+          "text": "FORCEINLINE VectorRegister4Float VectorDot4(VectorRegister4Float Vec1, VectorRegister4Float Vec2)\n{\n\tVectorRegister4Float Temp = VectorMultiply(Vec1, Vec2);\n\tfloat32x2_t sum = vpadd_f32(vget_low_f32(Temp), vget_high_f32(Temp));\n\tsum = vpadd_f32(sum, sum);\n\treturn vdupq_lane_f32(sum, 0);\n}\n"
+        },
+        {
+          "first_line": 1698,
+          "last_line": 1731,
+          "text": "FORCEINLINE VectorRegister4Float VectorReciprocalSqrtEstimate(VectorRegister4Float Vec)\n{\n\treturn vrsqrteq_f32(Vec);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrtEstimate(VectorRegister4Double Vec)\n{\n\tVectorRegister4Double Result;\n\tResult.XY = vrsqrteq_f64(Vec.XY);\n\tResult.ZW = vrsqrteq_f64(Vec.ZW);\n\treturn Result;\n}\n\n/**\n * Return the reciprocal of the square root of each component\n *\n * @param Vector\tVector\n * @return\t\t\tVectorRegister4Float(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))\n */\nFORCEINLINE VectorRegister4Float VectorReciprocalSqrt(VectorRegister4Float Vec)\n{\n\t// Initial estimate\n\tVectorRegister4Float RecipSqrt = VectorReciprocalSqrtEstimate(Vec);\n\n\t// Two refinement\n\tRecipSqrt = VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);\n\treturn VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrt(VectorRegister4Double Vec)\n{\n\t// Initial estimate\n\tVectorRegister4Double RecipSqrt = VectorReciprocalSqrtEstimate(Vec);\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathVectorCommon.h.inl",
+      "sha256": "5f43e189d66b68c76ed29bda5713e8daa1fdf3201a76efee2fa9251d4fc01293",
+      "excerpts": [
+        {
+          "first_line": 374,
+          "last_line": 383,
+          "text": "// Returns accurate reciprocal square root.\nFORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(VectorRegister4Float Vec)\n{\n\treturn VectorReciprocalSqrt(Vec);\n}\n\nFORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(VectorRegister4Double Vec)\n{\n\treturn VectorReciprocalSqrt(Vec);\n}\n"
+        },
+        {
+          "first_line": 424,
+          "last_line": 432,
+          "text": "// Uses accurate 1/sqrt, not the estimate\nFORCEINLINE VectorRegister4Float VectorNormalizeSafe(VectorRegister4Float Vector, VectorRegister4Float DefaultValue)\n{\n\tconst VectorRegister4Float SquareSum = VectorDot4(Vector, Vector);\n\tconst VectorRegister4Float NonZeroMask = VectorCompareGE(SquareSum, GlobalVectorConstants::SmallLengthThreshold);\n\tconst VectorRegister4Float InvLength = VectorReciprocalSqrtAccurate(SquareSum);\n\tconst VectorRegister4Float NormalizedVector = VectorMultiply(InvLength, Vector);\n\treturn VectorSelect(NonZeroMask, NormalizedVector, DefaultValue);\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimationRuntime.cpp",
+      "sha256": "cc1c1ab4a70fd3607deae8792cb48709eb5948c58a07eac704e6dcb264d8d159",
+      "excerpts": [
+        {
+          "first_line": 1150,
+          "last_line": 1210,
+          "text": "void FAnimationRuntime::ConvertPoseToMeshRotation(FCompactPose& LocalPose)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_ConvertPoseToMeshRot);\n\n#if INTEL_ISPC\n\tif (bAnim_ConvertPoseToMeshRotation_ISPC_Enabled)\n\t{\n\t\tUE_AUTORTFM_OPEN_NO_VALIDATION // Open writes are recorded\n\t\t{\n\t\t\tAutoRTFM::RecordOpenWrite(\n\t\t\t\tLocalPose.GetMutableBones().GetData(),\n\t\t\t\tLocalPose.GetNumBones() * sizeof(FTransform));\n\t\t\tispc::ConvertPoseToMeshRotation(\n\t\t\t\treinterpret_cast<ispc::FTransform*>(LocalPose.GetMutableBones().GetData()),\n\t\t\t\treinterpret_cast<const int32*>(LocalPose.GetBoneContainer().GetCompactPoseParentBoneArray().GetData()),\n\t\t\t\tLocalPose.GetNumBones());\n\t\t};\n\t}\n\telse\n#endif\n\t{\n\t\tfor (FCompactPoseBoneIndex BoneIndex(1); BoneIndex < LocalPose.GetNumBones(); ++BoneIndex)\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = LocalPose.GetParentBoneIndex(BoneIndex);\n\t\n\t\t\tconst FQuat MeshSpaceRotation = LocalPose[ParentIndex].GetRotation() * LocalPose[BoneIndex].GetRotation();\n\t\t\tLocalPose[BoneIndex].SetRotation(MeshSpaceRotation);\n\t\t}\n\t}\n}\n\nvoid FAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(FCompactPose& Pose)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_ConvertMeshRotPoseToLocalSpace);\n\n#if INTEL_ISPC\n\tif (bAnim_ConvertMeshRotationPoseToLocalSpace_ISPC_Enabled)\n\t{\n\t\tUE_AUTORTFM_OPEN_NO_VALIDATION // Open writes are recorded\n\t\t{\n\t\t\tAutoRTFM::RecordOpenWrite(\n\t\t\t\tPose.GetMutableBones().GetData(),\n\t\t\t\tPose.GetNumBones() * sizeof(FTransform));\n\t\t\tispc::ConvertMeshRotationPoseToLocalSpace(\n\t\t\t\treinterpret_cast<ispc::FTransform*>(Pose.GetMutableBones().GetData()),\n\t\t\t\treinterpret_cast<const int32*>(Pose.GetBoneContainer().GetCompactPoseParentBoneArray().GetData()),\n\t\t\t\tPose.GetNumBones());\n\t\t};\n\t}\n\telse\n#endif\n\t{\n\t\tfor (FCompactPoseBoneIndex BoneIndex(Pose.GetNumBones() - 1); BoneIndex > 0; --BoneIndex)\n\t\t{\n\t\t\tconst FCompactPoseBoneIndex ParentIndex = Pose.GetParentBoneIndex(BoneIndex);\n\n\t\t\tFQuat LocalSpaceRotation = Pose[ParentIndex].GetRotation().Inverse() * Pose[BoneIndex].GetRotation();\n\t\t\tPose[BoneIndex].SetRotation(LocalSpaceRotation);\n\t\t}\n\t}\n}\n"
+        },
+        {
+          "first_line": 1328,
+          "last_line": 1345,
+          "text": "void FAnimationRuntime::AccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(FCompactPose& BasePose, const FCompactPose& MeshSpaceRotationAdditive, float Weight)\n{\n\tSCOPE_CYCLE_COUNTER(STAT_AccumulateMeshSpaceRotAdditiveToLocalPose);\n\n\tif (FAnimWeight::IsRelevant(Weight))\n\t{\n\t\t// Convert base pose from local space to mesh space rotation.\n\t\tFAnimationRuntime::ConvertPoseToMeshRotation(BasePose);\n\n\t\t// Add MeshSpaceRotAdditive to it\n\t\tFAnimationRuntime::AccumulateLocalSpaceAdditivePoseInternal(BasePose, MeshSpaceRotationAdditive, Weight);\n\n\t\t// Convert back to local space\n\t\tFAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(BasePose);\n\t}\n}\n\nENGINE_API void FAnimationRuntime::AccumulateRootSpaceAdditivePoseInternal(FCompactPose& BasePose, const FCompactPose& RootSpaceAdditivePose, float Weight)\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimNode_ApplyMeshSpaceAdditive.cpp",
+      "sha256": "ffbcb21bdb39852b80e8d19d38569f0a021c4e5a7a09c18f63376ed7f738670a",
+      "excerpts": [
+        {
+          "first_line": 86,
+          "last_line": 110,
+          "text": "\t\tconst bool bExpectsAdditivePose=true;\n\t\tFPoseContext AdditiveEvalContext(Output, bExpectsAdditivePose);\n\n\t\tBase.Evaluate(Output);\n\t\tAdditive.Evaluate(AdditiveEvalContext);\n\n\t\tFAnimationPoseData BaseAnimationPoseData(Output);\n\t\tconst FAnimationPoseData AdditiveAnimationPoseData(AdditiveEvalContext);\n\n\t\t\n\t\tif (bRootSpaceAdditive)\n\t\t{\n\t\t\tFAnimationRuntime::AccumulateRootSpaceRotationAdditiveToLocalPose(BaseAnimationPoseData, AdditiveAnimationPoseData, ActualAlpha);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tFAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, ActualAlpha, AAT_RotationOffsetMeshSpace);\n\t\t}\n\n\t\tOutput.Pose.NormalizeRotations();\n\t}\n\telse\n\t{\n\t\tBase.Evaluate(Output);\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "glam-0.32.1/src/f32/neon/quat.rs",
+      "sha256": "98274e9ae2d8c175c58554bdd23562ab366f8dc356eb238ee99b2d1d9c23093d",
+      "excerpts": [
+        {
+          "first_line": 580,
+          "last_line": 588,
+          "text": "    /// Panics\n    ///\n    /// Will panic if `self` is zero length when `glam_assert` is enabled.\n    #[inline]\n    #[must_use]\n    pub fn normalize(self) -> Self {\n        Self::from_vec4(Vec4::from(self).normalize())\n    }\n\n"
+        }
+      ]
+    },
+    {
+      "path": "glam-0.32.1/src/f32/neon/vec4.rs",
+      "sha256": "b9c679fbcb71ec3c2894a4acbdbd3c1ece54c7e2ae2cfa43cde64dd795845a03",
+      "excerpts": [
+        {
+          "first_line": 548,
+          "last_line": 570,
+          "text": "    #[must_use]\n    pub fn length(self) -> f32 {\n        math::sqrt(self.dot(self))\n    }\n\n    /// Computes the squared length of `self`.\n    ///\n    /// This is faster than `length()` as it avoids a square root operation.\n    #[doc(alias = \"magnitude2\")]\n    #[inline]\n    #[must_use]\n    pub fn length_squared(self) -> f32 {\n        self.dot(self)\n    }\n\n    /// Computes `1.0 / length()`.\n    ///\n    /// For valid results, `self` must _not_ be of length zero.\n    #[inline]\n    #[must_use]\n    pub fn length_recip(self) -> f32 {\n        self.length().recip()\n    }\n"
+        },
+        {
+          "first_line": 620,
+          "last_line": 630,
+          "text": "    /// Will panic if the resulting normalized vector is not finite when `glam_assert` is enabled.\n    #[inline]\n    #[must_use]\n    pub fn normalize(self) -> Self {\n        #[allow(clippy::let_and_return)]\n        let normalized = self.mul(self.length_recip());\n        glam_assert!(normalized.is_finite());\n        normalized\n    }\n\n    /// Returns `self` normalized to length 1.0 if possible, else returns `None`.\n"
+        }
+      ]
+    },
+    {
+      "path": "src/animation_graph_ext/mesh_space_additive.rs",
+      "sha256": "f3c39c55775b6368e04b6f287f4faa0be10da407dd6182ceb0b9546f31ca299e",
+      "excerpts": [
+        {
+          "first_line": 30,
+          "last_line": 40,
+          "text": "fn blend_additive_rotation(base: Quat, additive: Quat, alpha: f32) -> Quat {\n    let identity_sign = if additive.w >= 0.0 { 1.0 } else { -1.0 };\n    let weighted = Quat::from_xyzw(\n        additive.x * alpha,\n        additive.y * alpha,\n        additive.z * alpha,\n        identity_sign * (1.0 - alpha) + additive.w * alpha,\n    )\n    .normalize();\n    (weighted * base).normalize()\n}\n"
+        },
+        {
+          "first_line": 185,
+          "last_line": 261,
+          "text": "pub fn apply_mesh_space_additive(\n    base: &mut Pose,\n    additive: &Pose,\n    alpha: f32,\n    skeleton: &Skeleton,\n) {\n    if alpha.abs() <= ALPHA_THRESHOLD {\n        return;\n    }\n\n    materialize_missing_reference_bones(base, skeleton);\n\n    for (bone, additive_index) in &additive.paths {\n        let additive_bone = &additive.bones[*additive_index];\n        if let Some(base_index) = base.paths.get(bone).copied() {\n            merge_non_rotation(&mut base.bones[base_index], additive_bone, alpha);\n        } else {\n            let mut base_bone = skeleton\n                .default_transforms(*bone)\n                .map(|transform| BonePose {\n                    translation: Some(transform.local.translation),\n                    rotation: Some(transform.local.rotation),\n                    scale: Some(transform.local.scale),\n                    weights: None,\n                })\n                .unwrap_or_default();\n            merge_non_rotation(&mut base_bone, additive_bone, alpha);\n            base.add_bone(base_bone, *bone);\n        }\n    }\n\n    let hierarchy = hierarchy_order(skeleton);\n    let mut mesh_rotations: HashMap<bevy_animation_graph::core::pose::BoneId, Quat> =\n        HashMap::default();\n    for bone in &hierarchy {\n        let local = base_local_rotation(base, skeleton, *bone);\n        let rotation = skeleton\n            .parent(bone)\n            .and_then(|parent| mesh_rotations.get(&parent).copied())\n            .map(|parent| parent * local)\n            .unwrap_or(local);\n        mesh_rotations.insert(*bone, rotation);\n    }\n\n    for bone in &hierarchy {\n        if let (Some(rotation), Some(additive_rotation)) = (\n            mesh_rotations.get(bone).copied(),\n            additive_rotation(additive, *bone),\n        ) {\n            mesh_rotations.insert(\n                *bone,\n                blend_additive_rotation(rotation, additive_rotation, alpha),\n            );\n        }\n    }\n\n    for bone in hierarchy.iter().rev() {\n        let Some(rotation) = mesh_rotations.get(bone).copied() else {\n            continue;\n        };\n        let local = skeleton\n            .parent(bone)\n            .and_then(|parent| mesh_rotations.get(&parent).copied())\n            .map(|parent| parent.inverse() * rotation)\n            .unwrap_or(rotation)\n            .normalize();\n        if let Some(base_index) = base.paths.get(bone).copied() {\n            base.bones[base_index].rotation = Some(local);\n        }\n    }\n\n    base.root_motion = merge_root_motion(\n        base.root_motion.clone(),\n        additive.root_motion.clone(),\n        alpha,\n    );\n}\n"
+        }
+      ],
+      "revision": "before_D248b1"
+    }
+  ]
+}
