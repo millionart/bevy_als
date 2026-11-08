@@ -109,6 +109,7 @@ fn order_compound_groups(
     for (slot, manifold) in slots.into_iter().zip(ordered) { manifolds[slot] = manifold; }
 }
 
+#[derive(Clone, Copy)]
 pub(super) struct SourceCompoundSettings {
     pub restore: SourceRestoreSettings,
     pub lifecycle: SourceConvexLifecycleSettings,
@@ -157,8 +158,10 @@ pub(super) fn generate_source_compound_groups(
             if let Some(gjk) = history.convex_gjk.get(&key).filter(|saved| saved.matches(&context)) {
                 result.gjk.insert(key, gjk.clone());
             }
-            result.contacts.insert(key, saved);
-            result.manifolds.push(manifold);
+            if saved.is_within_cull(settings.cull) {
+                result.contacts.insert(key, saved);
+                result.manifolds.push(manifold);
+            }
             continue;
         }
         let previous = history.convex_gjk.get(&key).filter(|saved| saved.matches(&context))
@@ -379,6 +382,66 @@ pub(crate) fn order_source_capsule_box_contacts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_restored_compound_groups_respect_native_cull() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d104b2b-cull/restore.native-samples.json")).unwrap();
+        let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
+        let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) =
+            include!("../als/settings/contact_lifecycle.rs");
+        let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
+            collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
+        let restore = SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
+            empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points };
+        let lifecycle = SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale,
+            velocity_multiplier, max_velocity_expansion_cm, warm_start };
+        let margins = SourceConvexMarginSettings { fraction, maximum, minimum };
+        let entity = |index| Entity::from_raw_u32(index).unwrap();
+        let identity = (ContactId(5), Tick::new(7));
+        let hulls = source_convex_hulls("SM_Als_Barrel").unwrap();
+        let compound = Collider::sphere(1.0);
+        let template = ContactManifold::new(std::iter::empty::<ContactPoint>(), Vec3::Y);
+        for sample in fixture["samples"].as_array().unwrap() {
+            let vector = |value: &serde_json::Value| DVec3::new(value["x"].as_f64().unwrap(),
+                value["z"].as_f64().unwrap(), value["y"].as_f64().unwrap()) * 0.01;
+            let position = |value: &serde_json::Value| DVec3::new(value[0].as_f64().unwrap(),
+                value[2].as_f64().unwrap(), value[1].as_f64().unwrap()) * 0.01;
+            let lower = vector(&sample["geometry"]["minimum_cm"]);
+            let upper = vector(&sample["geometry"]["maximum_cm"]);
+            let body = position(&sample["input"]["body_translation_cm"]);
+            let next_body = position(&sample["input"]["next"]["body_translation_cm"]);
+            let mut box_position = Position((body + (lower + upper) * 0.5).as_vec3());
+            let box_shape = Cuboid::new(((upper - lower) * 0.5).as_vec3());
+            let frame = SourceRestorePose { position_m: body, rotation: bevy::math::DQuat::IDENTITY };
+            let static_frame = SourceRestorePose { position_m: DVec3::ZERO, rotation: bevy::math::DQuat::IDENTITY };
+            let mut context = SourceContactContext { colliders: [entity(1), entity(2)], bodies: [entity(1), entity(2)],
+                shape_ticks: [Tick::new(1), Tick::new(2)], frames: [frame, static_frame], tolerance: 0.0,
+                skin: 0.0, box_first: true, surface_normal: Vec3::ZERO,
+                centers: [box_position.0, Vec3::ZERO], linear: [Vec3::ZERO; 2], angular: [Vec3::ZERO; 2] };
+            let settings = SourceCompoundSettings { restore, lifecycle, margins, cull: f64::from(3.0_f32) * 0.01,
+                box_size_cm: ((upper - lower).max_element() * 100.0) as f32 };
+            let mut history = SourceBoxContactHistory::default();
+            let first = generate_source_compound_groups(identity, &template, (&box_shape, &box_position),
+                (&compound, hulls), context, settings, &history);
+            assert_eq!(first.manifolds.len(), 1);
+            history.compounds = first.contacts;
+            history.convex_gjk = first.gjk;
+            let delta = next_body - body;
+            context.frames[0].position_m = next_body;
+            box_position.0 += delta.as_vec3();
+            context.centers[0] += delta.as_vec3();
+            let next = generate_source_compound_groups(identity, &template, (&box_shape, &box_position),
+                (&compound, hulls), context, settings, &history);
+            assert_eq!(sample["restored"].as_bool(), Some(true));
+            let nearest_phi = sample["next_points"].as_array().unwrap().iter()
+                .map(|point| point["phi_cm"].as_f64().unwrap()).fold(f64::INFINITY, f64::min);
+            let active = nearest_phi <= sample["input"]["cull_distance_cm"].as_f64().unwrap();
+            assert_eq!(next.manifolds.len(), usize::from(active), "{}", sample["input"]["label"]);
+            assert_eq!(next.contacts.len(), usize::from(active));
+            assert!(next.gjk.contains_key(&(identity.0.0, 0, identity.1)));
+        }
+    }
 
     #[test]
     fn source_compound_generation_preserves_native_barrel_groups() {

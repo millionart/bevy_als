@@ -100,6 +100,10 @@ impl SourceBoxContact {
     pub(super) fn matches(&self, context: &SourceContactContext) -> bool {
         self.colliders == context.colliders && self.bodies == context.bodies && self.shape_ticks == context.shape_ticks
     }
+
+    pub(super) fn is_within_cull(&self, cull: f64) -> bool {
+        self.points.iter().any(|point| !point.disabled && point.phi_m <= cull)
+    }
 }
 
 #[derive(Resource, Default)]
