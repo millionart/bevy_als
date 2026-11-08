@@ -6621,6 +6621,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 23:34 source/static摘要：已从source生成box面序、裁剪阈值和容量；实现参考面局部空间的双精度厘米裁剪、短边回退、四点交换和源多点归约/旋转边界。已写Bench两侧参考面原生序、裁剪交点、近零分母和五点归约测试；参考面选择、实际接入、测试、消融和运行仍待后续条目及统一Gate。证据`docs/audit/bf144/d100b3b2/`。实际结束：2026-11-08 23:34 +08:00；偏差：−46分钟；结果：子项静态实现完成，未再拆分。
 
 - [ ] BF144-D100b3b3 / P3 — 将源凸包点序接入实际接触求解。
+  - 23:35 source/static摘要：源`ConstructConvexConvexOneShotManifold`以带有效margin的GJK接触及支持顶点选择参考面；D143的Bench同一source/target链已证明目标完整box查询会改变GJK法向，因此不能用目标现有法向猜源面。先按依赖完成已登记的D143核心边距查询，再回到本项；D126/D128/D132各自的点集、投影和裁剪面差异仍按原编号处理。
 
 - [ ] BF144-D100b4 / P3 — 接入mesh源接触生成顺序与分组。
 
@@ -6932,10 +6933,19 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/消融：旧首次位置响应及点数合同未检查后续资格，重复点的位置作用被有限精度抵消；保留重复即稳定复现，去重保持其他点及全部字段不变。证据`59/diagnostic/`、`59/final/duplicate_controls/`及`bf144_convex_phase59_duplicate_controls`；只登记，不修改依赖或生产实现。
 
 - [ ] BF144-D143 / P3 — box对凸包直接使用完整形状求法线，遗漏源核心边距。
+  - 本轮开始：2026-11-08 23:35 +08:00；预计结束：2026-11-09 00:30 +08:00。作为D100b3b3的已证实依赖，重新读取PA、PhysicsSettings及box/convex原生GJK输入，移植有效边距和核心查询，保留完整形状/单点控制；测试、消融和Playground待统一Gate。估时依据：BF144.60已隔离核心边距与相同公开GJK的法线结果，D100b3a已持久化环境原生拓扑。
+  - 23:39 source/static摘要：fresh原生GJK探针与世界设置读取完成；源仅对动态多面体保留margin，对静态凸包清零，box margin取最短全边长×世界比例并受最大值限制。已证实手/脚样本分别为0.35/0.6cm；将设置和有效margin合同拆为D143a、核心查询及消费拆为D143b。拆分实际结束：2026-11-08 23:39 +08:00；偏差：−51分钟；结果：父项未完成，拆分为a/b。
+
   - Source：fresh `CollisionOneShotManifolds.cpp:840–853,525–570`取constraint有效margin，通过`TGJKCoreShape`调用GJK；`ChaosCore/Public/Chaos/AABB.h:322–350`把box各面向内移动该边距。Bench foot的实际margin为0.6cm、静态凸包为0；UseGJK2=false。原生三个核心支持点的重心分离为0.5000003cm，法线为+Z，加入边距后接触phi约−0.1cm；由actual simplex独立复算，未进入重叠EPA。
   - Target：Parry `shape.rs:779–781`给Cuboid提供完整多边形且border radius=0，`contact_manifolds_pfm_pfm.rs:64–105`直接查询。相同Bench实际局部输入形成重叠simplex并进入EPA，返回runtime N=(-9.8717e−5,1,0)；用同一公开GJK仅把box半长减0.006m，即得到竖直法线，不需要更换求解器或精度。
   - 反例：完整角色实际foot及生产compound，保留原八点、r/phi、其他hull和已证实的共同阶段。60Hz无摩擦actual wY=0.7256534，source=0.72523594；只应用核心查询的N后为0.7252306。两帧长×摩擦0/0.7×原始/恢复共8组4PASS/4FAIL，四个恢复全PASS。字段不变性与公开API原始结果核验均通过；证据`60/gjk.native.json`、`60/native_check.json`、`60/diagnostic_exact/`、`60/final/`。
   - 漏检/消融：旧box正面样本的外形/核心方向相同，首次位置消费也未放大该微小差异；triangle SAT的D141不是此路径。移除边距即恢复原失败；只增加通用reader取证字段及自测，生产未修复。
+
+- [x] BF144-D143a / P3 — 导入源世界box碰撞margin并计算有效值。
+  - 本轮开始：2026-11-08 23:39 +08:00；预计结束：2026-11-09 00:09 +08:00。按fresh PhysicsSettings与源动态/静态margin规则生成独立目标设置，写手脚实际尺寸、缩放和上限控制；测试及消融留待统一Gate。估时依据：BF144.60和本轮原生探针已有不同尺寸反例，世界设置可复用D81读取合同。
+  - 23:43 source/static摘要：fresh世界设置与GJK原始输出已保存，按源规则生成比例0.05、最大0.1m及zero-margin默认0，并实现动态/静态多面体有效margin；手脚实际margin与生成值一致。旧reader未导出三个margin CVar，已增加字段与测试；现阶段使用源默认及原生样本核对，重建reader后须重采CVar并重生成核对，不能将默认当作已直接观察。核心查询、测试、消融和Playground待D143b及统一Gate。证据`docs/audit/bf144/d143/`。实际结束：2026-11-08 23:43 +08:00；偏差：−26分钟；结果：子项静态实现完成，未再拆分。
+
+- [ ] BF144-D143b / P3 — 将源box核心margin用于实际凸包GJK法向。
 
 - [ ] BF144-D144 / P3 — 胶囊线段裁剪的二维交点数值偏差进入速度摩擦。
   - Source：fresh `CollisionOneShotManifolds.cpp:465–517,1154–1196`按边平面有符号距离逐步裁剪一条线段，再偏移到圆柱表面。原生Arch01 hull 4两个支持点重合；按源三维公式独立复算误差约13nm。

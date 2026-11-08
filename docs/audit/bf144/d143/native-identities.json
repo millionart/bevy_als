@@ -1,0 +1,26 @@
+{
+  "gjk": {
+    "request": "docs/audit/bf144/d143/gjk.request.json",
+    "native": "docs/audit/bf144/d143/gjk.native.json.gz",
+    "raw_bytes": 4776842,
+    "raw_sha256": "0df36f27400b61ba07f5b7773dd26b53415d461e0fe5329d027f0c11bca55be6",
+    "gzip_bytes": 229102,
+    "gzip_sha256": "9a18bb5af37decd01efba4ea5a801f87e6e7ebfff44538bb4be13deba5d5864c",
+    "reader_report": "docs/audit/bf144/d143/gjk.native.json.reader.report.json",
+    "request_sha256": "fadc2b3095bcfb77e0a70c01cb7b0039b1b5dce8d89633f3119fac55d6a52150"
+  },
+  "settings": {
+    "request": "docs/audit/bf144/d143/settings.request.json",
+    "native": "docs/audit/bf144/d81/settings.native.json",
+    "raw_bytes": 86263,
+    "raw_sha256": "d92acc88fc82c19b4be00ecfb2c5f3e1f0c90040393014274b2af9c0e2434249",
+    "reader_report": "docs/audit/bf144/d143/settings.native.json.reader.report.json",
+    "request_sha256": "53a78144d53077375067c5c6a7d86fa088eb2ab15ca0206b5d5658574ea14de9"
+  },
+  "physics_asset_identity": "docs/audit/bf144/d100a/native-identities.json",
+  "target": {
+    "path": "src/als/settings/convex_margin.rs",
+    "bytes": 35,
+    "sha256": "cf94e51e281d4f8e66c3025cd9813b5b412ecbd980ef19f7d7a643494041f1b3"
+  }
+}
