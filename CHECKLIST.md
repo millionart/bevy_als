@@ -6188,7 +6188,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整Air角色中心(0,1.1,0)，面对0.8m ledge，无跳键而自动开始Mantle；world16.667ms、owner1/2时source新RMS时间0，target分别已到0.016667/0.033333s，并向前移动3.92/10.56cm。`bf144_mantle_lifecycle_auto_start_waits_for_next_movement_tick`3组1PASS/2FAIL；owner0保留时间与位置的对照PASS，证据`target/bf144/17/initial/`。
   - 漏检：旧自动Mantle Gate只检查成功开始、持续推进和暂停，未用source真实Tick依赖区分安装帧与首次CMC消费帧。已确认的3个Sequence均bEnableRootMotion=False，不存在动画root tick替代RMS首次推进的解释；仅登记。
 
-- [ ] BF144-D57 / P3 — Mantle尾段对当帧新Aiming的提前淡出晚一帧。
+- [x] BF144-D57 / P3 — Mantle尾段对当帧新Aiming的提前淡出晚一帧；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 18:03 +08:00；预估结束18:33 +08:00；实际结束18:08 +08:00，提前25分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh源角色/mesh Tick顺序、EarlyBlendOut及High/Low Montage证据保存在`docs/audit/bf144/d57/`；通知处理排在当帧瞄准刷新后、Slot发布前，已写调度和加载角色对照。旧target报告缺失，动画Gate待执行。
   - Source：fresh `AlsCharacter.cpp:289–293`先RefreshRotationMode，Mesh受`124`的owner tick依赖约束；原生Mantle EarlyBlendOut的bCheckRotationMode=True、RotationModeEquals=Aiming。`AlsAnimNotifyState_EarlyBlendOut.cpp:44–66`在Mesh branching tick读取当前模式，匹配后立即停止实例，使用原生Low的0.35s HermiteCubic与High的0.4s Cubic淡出。
   - Target：`src/als/root_motion_sources/mantle_drive.rs:352–401`只约束在动画Dispatch之后，没有依赖当前帧aim refresh；`state/aim.rs:117–123`却在物理后的gait刷新之后更新RotationMode。本次真实入口执行中，提前淡出先读到旧ViewDirection，下一帧才停止。
   - 反例：完整low/high Mantle自然退出后，在原生early notify有效区按aim；该帧结束已为Aiming，但发布的Montage sample仍interrupted=false。再过0.1s，low/high实际权重0.856927/0.887876，source应0.801749/0.843750。`bf144_mantle_lifecycle_early_blend_conditions_and_duration_controls`12组10PASS/2FAIL；夹具在该帧开始前提供Aiming状态的两组恢复正确权重，其他input/crouch/air/idle共8组通过，证据`target/bf144/17/final/`。

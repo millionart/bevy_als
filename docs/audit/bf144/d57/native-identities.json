@@ -1,0 +1,36 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Animations/Actions/Mantle/AM_Als_Mantle_High.uasset",
+      "asset_identity": {
+        "bytes": 29930,
+        "sha256": "41dfb315e1e52e2a53337bd06e19e7a990b3c0cf4197b68204d20905e7aeb7e6"
+      },
+      "request": "docs/audit/bf144/d57/high.request.json",
+      "native_output": "docs/audit/bf144/d57/high.native.json",
+      "raw": {
+        "bytes": 64858,
+        "sha256": "e21fbdbe33add19dedd091313355a851b43e8c97218e649ec050aa656e71cca0"
+      },
+      "reader_report": "docs/audit/bf144/d57/high.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.uasset",
+      "asset_identity": {
+        "bytes": 27573,
+        "sha256": "12d4b5a42c426ec6717644d316afa4ff5a483a5c39a36b873bb7c29bd9ef825e"
+      },
+      "request": "docs/audit/bf144/d57/low.request.json",
+      "native_output": "docs/audit/bf144/d57/low.native.json",
+      "raw": {
+        "bytes": 61804,
+        "sha256": "9b39efe04cebdcf666cc49e9f046c6e3a11d002a470adc91865b31ff6ee68b68"
+      },
+      "reader_report": "docs/audit/bf144/d57/low.native.json.reader.report.json"
+    }
+  ],
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  }
+}

@@ -242,7 +242,8 @@ impl Plugin for AlsMantleDrivePlugin {
                     .after(crate::als::motion::AlsRotationResponseSet)
                     .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
                 handle_mantle_early_blend_out
-                    .after(crate::animation_events::AlsAnimationEventSet::Dispatch),
+                    .after(crate::animation_events::AlsAnimationEventSet::Dispatch)
+                    .after(crate::als::aim::aim_rotation_mode_system),
                 publish_mantle_slot
                     .after(handle_mantle_early_blend_out)
                     .after(crate::roll_drive::AlsRollDriveSet)
@@ -1790,6 +1791,114 @@ pub(crate) mod tests {
                 assert!((state.time - delta * dilation).abs() < 1e-5,
                     "dilation={dilation} next_time={}", state.time);
             }
+        }
+    }
+
+    #[test]
+    fn mantle_early_blend_reads_the_current_frame_aim_mode() {
+        use crate::als::aim::{AimStateChanged, AlsLastFreeRotationMode, aim_rotation_mode_system};
+        use crate::als::gait::AlsMaxAllowedGait;
+        use crate::als::input::AlsInputCommand;
+        use crate::als::state::{Gait, RotationMode, Stance};
+        use crate::animation_events::{AlsAnimationEvent, AlsAnimationEventSet};
+        let mut app = mantle_clip_test_app();
+        app.add_message::<AimStateChanged>().add_systems(PostUpdate,
+            aim_rotation_mode_system.after(crate::als::gait::refresh_gait_system));
+        let mut cases = Vec::new();
+        let mut events = Vec::new();
+        for (kind, duration, expected_weight) in [(MantleKind::Low, 0.35, 0.8017493),
+            (MantleKind::High, 0.4, 0.84375)] {
+            for aiming in [false, true] {
+                let mantle = AlsMantleState { kind, ..default() };
+                let mut montages = AlsMantleMontages::default();
+                montages.begin(&mantle);
+                montages.entries[0].elapsed = 1.0;
+                montages.entries[0].weight = 1.0;
+                let actor = app.world_mut().spawn((AlsCharacter, mantle, montages, LocomotionState::Grounded,
+                    Stance::Standing, Gait::Running, RotationMode::ViewDirection, AlsMaxAllowedGait(Gait::Running),
+                    AlsLastFreeRotationMode(RotationMode::ViewDirection), AlsInputCommand { aim_held: aiming, ..default() })).id();
+                events.push(AlsAnimationEvent { character: actor, source: None, instance_id: 1,
+                    source_asset: mantle_montage_settings(kind).source_montage.clone(), graph_clip: String::new(),
+                    event_id: String::new(), class_name: "AlsAnimNotifyState_EarlyBlendOut".to_owned(),
+                    name: String::new(), phase: crate::extensions::EventPhase::Active, time: 1.0,
+                    weight: 1.0, percentage: 0.5, parameters: serde_json::json!({
+                        "bCheckInput": false, "bCheckLocomotionMode": false, "bCheckRotationMode": true,
+                        "bCheckStance": false, "BlendOutDuration": duration,
+                        "RotationModeEquals": {"__tagged__": {"TagName": "Als.RotationMode.Aiming"}}
+                    }) });
+                cases.push((actor, aiming, duration, expected_weight));
+            }
+        }
+        app.add_systems(PostUpdate, (move |mut writer: MessageWriter<AlsAnimationEvent>, mut sent: Local<bool>| {
+            if !*sent {
+                for event in &events { writer.write(event.clone()); }
+                *sent = true;
+            }
+        }).in_set(AlsAnimationEventSet::Dispatch));
+        app.update();
+        for (actor, aiming, duration, expected_weight) in cases {
+            let rotation = *app.world().get::<RotationMode>(actor).unwrap();
+            let mut montages = app.world_mut().get_mut::<AlsMantleMontages>(actor).unwrap();
+            let entry = &mut montages.entries[0];
+            assert_eq!(rotation == RotationMode::Aiming, aiming);
+            assert_eq!(entry.interrupted, aiming, "rotation={rotation:?}");
+            if aiming {
+                assert!((entry.stop.unwrap().1 - duration).abs() < 1e-6);
+                entry.advance(0.1, None);
+                assert!((entry.weight - expected_weight).abs() < 1e-5,
+                    "duration={duration} weight={} expected={expected_weight}", entry.weight);
+            }
+        }
+    }
+
+    #[test]
+    fn loaded_mantle_tail_publishes_same_frame_aim_interruption() {
+        use bevy::time::TimeUpdateStrategy;
+        use crate::als::input::AlsInputCommand;
+        use crate::als::state::RotationMode;
+        use crate::animation_events::{AlsNotifyManifest, ALS_NOTIFY_MANIFEST_PATH};
+        for (kind, clip_time, expected_weight) in [(MantleKind::Low, 1.1, 0.8017493),
+            (MantleKind::High, 2.2, 0.84375)] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let manifest = app.world().resource::<AssetServer>().load::<AlsNotifyManifest>(ALS_NOTIFY_MANIFEST_PATH);
+            let mut ready = false;
+            for _ in 0..600 {
+                ready = {
+                    let assets = app.world().resource::<MantleAssets>();
+                    let clips = app.world().resource::<Assets<GraphClip>>();
+                    let skeletons = app.world().resource::<Assets<Skeleton>>();
+                    app.world().resource::<Assets<AlsNotifyManifest>>().contains(&manifest)
+                        && clips.get(assets.clip(kind)).is_some_and(|clip| skeletons.contains(&clip.skeleton))
+                };
+                if ready { break; }
+                app.update();
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            assert!(ready, "Mantle assets did not load within 600 frames");
+            let mantle = AlsMantleState { kind, ..default() };
+            let mut montages = AlsMantleMontages::default();
+            montages.begin(&mantle);
+            montages.entries[0].elapsed = 1.0;
+            montages.entries[0].clip_time = clip_time;
+            montages.entries[0].previous_clip_time = clip_time;
+            montages.entries[0].weight = 1.0;
+            app.world_mut().entity_mut(actor).remove::<crate::get_up::AlsGetUpState>().insert((mantle, montages,
+                RotationMode::ViewDirection, crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                AlsInputCommand { aim_held: true, ..default() }));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.update();
+            let entry = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
+            assert_eq!(*app.world().get::<RotationMode>(actor).unwrap(), RotationMode::Aiming);
+            assert!(entry.interrupted, "kind={kind:?}");
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+                .slot_input_context(POST_LOCOMOTION_POSE).unwrap();
+            assert!(context.asset_samples.iter().any(|sample| sample.identity == "mantle:1" && sample.interrupted));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+            app.update();
+            let weight = app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0].weight;
+            assert!((weight - expected_weight).abs() < 1e-5,
+                "kind={kind:?} weight={weight} expected={expected_weight}");
         }
     }
 
