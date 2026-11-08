@@ -3357,12 +3357,13 @@ fn falling_movement_transaction(
     owners: &Query<&ColliderOf>,
     shapes: &Query<(&Collider, &Position, &Rotation)>,
     transitions: &mut MessageWriter<StateTransitionEvent>, cached_input_max: Option<f32>,
-) -> (Transform, Vec3, u32, bool, LocomotionState, Option<Entity>, f32, Option<LocomotionState>) {
+) -> (Transform, Vec3, u32, bool, LocomotionState, Option<Entity>, f32, Option<LocomotionState>, Option<crate::als::params::GroundedDynamics>) {
     let mut acceleration = falling_input_acceleration(params, desired_motion, velocity.with_y(0.0).length(), cached_input_max);
     let mut contact = false;
     let mut mode = LocomotionState::Air;
     let mut current_base = None;
     let mut collision_mode = None;
+    let mut refreshed_dynamics = None;
     while remaining >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
         && iterations < params.cmc.max_simulation_iterations {
         iterations += 1;
@@ -3408,12 +3409,14 @@ fn falling_movement_transaction(
             if remaining >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
                 && iterations < params.cmc.max_simulation_iterations {
                 max_speed = speed;
+                if AlsMovementParams::has_gait_settings(stance, rotation) { refreshed_dynamics = Some(dynamics); }
             }
+            let input_dynamics = crate::als::dynamics::with_controlled_input_acceleration(dynamics, cached_input_max);
             let mut cmc = params.cmc.clone();
             cmc.max_simulation_iterations = cmc.max_simulation_iterations.saturating_sub(iterations);
             let (moved, next_velocity, steps, next_remaining, lost_floor, _, last_base) = walking_movement_transaction(
                 spatial, capsule, transform, extent.y, extent.x.min(extent.z), velocity, desired_motion,
-                speed, dynamics, &cmc, landing.0, remaining, entity, candidates, step_permissions, bases, owners, current_base);
+                speed, input_dynamics, &cmc, landing.0, remaining, entity, candidates, step_permissions, bases, owners, current_base);
             transform = moved;
             velocity = next_velocity;
             current_base = last_base;
@@ -3438,7 +3441,7 @@ fn falling_movement_transaction(
         velocity = deflected;
         remaining -= step;
     }
-    (transform, velocity, iterations, contact, mode, current_base, max_speed, collision_mode)
+    (transform, velocity, iterations, contact, mode, current_base, max_speed, collision_mode, refreshed_dynamics)
 }
 
 fn follow_movement_base_system(
@@ -4466,7 +4469,7 @@ pub(crate) fn cmc_movement_transaction_system(
             &Stance,
             Option<&ChildOf>,
             (&RotationMode, &AlsViewYaw, &AlsMaxAllowedGait,
-                Option<&crate::als::dynamics::AlsGroundedDynamics>,
+                Option<&mut crate::als::dynamics::AlsGroundedDynamics>,
                 Option<&crate::als::dynamics::AlsLandingBrakingFriction>,
                 Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>),
         ),
@@ -4474,7 +4477,7 @@ pub(crate) fn cmc_movement_transaction_system(
     >,
 ) {
     let (bases, owners, mut movement_bases, shapes) = base_queries;
-    for (entity, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, mut loco, controller, handle, stance, parent, (rotation_mode, view_yaw, max_allowed_gait, dynamics, braking, mut base)) in &mut q {
+    for (entity, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, mut loco, controller, handle, stance, parent, (rotation_mode, view_yaw, max_allowed_gait, mut dynamics, braking, mut base)) in &mut q {
         let Some(params) = params_assets.get(handle.id()) else { continue };
         let cached_input_max = runtime.controlled_input_max_acceleration;
         let Ok(world) = transforms.p0().compute_global_transform(entity) else { continue };
@@ -4507,11 +4510,12 @@ pub(crate) fn cmc_movement_transaction_system(
             initial_transform.translation = position.0;
             let initial = velocity.0 + motor.lin.boost;
             let max_speed = runtime.grounded_max_speed;
-            let (moved, final_velocity, steps, contact, mode, floor, grounded_max_speed, collision_mode) = falling_movement_transaction(&spatial_query, capsule,
+            let (moved, final_velocity, steps, contact, mode, floor, grounded_max_speed, collision_mode, refreshed) = falling_movement_transaction(&spatial_query, capsule,
                 initial_transform, initial, controller.basis.desired_motion, max_speed, params,
                 gravity.value + motor.lin.acceleration, grounded, landing, volume.unwrap_or(&default_volume.0).terminal_velocity,
                 delta_seconds, 0, entity, &mut runtime.random_seed, &candidates, &step_permissions,
                 &bases, &owners, &shapes, &mut transitions, cached_input_max);
+            if let (Some(refreshed), Some(dynamics)) = (refreshed, dynamics.as_deref_mut()) { dynamics.0 = refreshed; }
             runtime.grounded_max_speed = grounded_max_speed;
             runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
             if *loco != mode { *loco = mode; }
@@ -4560,7 +4564,7 @@ pub(crate) fn cmc_movement_transaction_system(
             }
         }
         if runtime.simulation_substeps > 1 && runtime.grounded_movement_delta.is_some()
-            && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics) {
+            && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics.as_deref_mut()) {
             let initial = position.0;
             let mut current_transform = *transform;
             current_transform.translation = initial;
@@ -4587,10 +4591,11 @@ pub(crate) fn cmc_movement_transaction_system(
                 final_velocity += leaving_support;
                 let terminal = physics_modes.get(entity).ok().and_then(|(_, volume, _)| volume)
                     .unwrap_or(&default_volume.0).terminal_velocity;
-                let (moved, falling_velocity, _, contact, mode, landing_base, grounded_max_speed, collision_mode) = falling_movement_transaction(&spatial_query,
+                let (moved, falling_velocity, _, contact, mode, landing_base, grounded_max_speed, collision_mode, refreshed) = falling_movement_transaction(&spatial_query,
                     capsule, current_transform, final_velocity, controller.basis.desired_motion, max_speed,
                     params, gravity.value, grounded, landing, terminal, remaining_time, iterations, entity,
                     &mut runtime.random_seed, &candidates, &step_permissions, &bases, &owners, &shapes, &mut transitions, cached_input_max);
+                if let Some(refreshed) = refreshed { dynamics.0 = refreshed; }
                 runtime.grounded_max_speed = grounded_max_speed;
                 runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
                 floor = landing_base;
@@ -4675,11 +4680,12 @@ pub(crate) fn cmc_movement_transaction_system(
                     transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
                         from: StateValue::LocomotionState(LocomotionState::Grounded),
                         to: StateValue::LocomotionState(LocomotionState::Air) });
-                    let (moved, falling_velocity, _, contact, mode, floor, grounded_max_speed, collision_mode) =
+                    let (moved, falling_velocity, _, contact, mode, floor, grounded_max_speed, collision_mode, refreshed) =
                         falling_movement_transaction(&spatial_query, capsule, falling_start, initial_velocity,
                             controller.basis.desired_motion, max_speed, params, gravity.value,
                             grounded, landing, terminal, remaining_time, 1, entity, &mut runtime.random_seed,
                             &candidates, &step_permissions, &bases, &owners, &shapes, &mut transitions, cached_input_max);
+                    if let (Some(refreshed), Some(dynamics)) = (refreshed, dynamics.as_deref_mut()) { dynamics.0 = refreshed; }
                     runtime.grounded_max_speed = grounded_max_speed;
                     runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
                     runtime.grounded_movement_delta = None;
@@ -8901,6 +8907,82 @@ mod tests {
         assert!((cached.1.x - (5.0 + 12.007459 * 0.15 * 0.03)).abs() < 1e-5);
         assert!((airborne.1.x - 5.09).abs() < 1e-5);
         assert!((cached.1.y - airborne.1.y).abs() < 1e-6);
+    }
+
+    #[test]
+    fn landing_reuses_controlled_acceleration_and_reports_only_executed_walking_refresh() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .add_message::<StateTransitionEvent>();
+        app.finish();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 0.2, 100.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        let actor = app.world_mut().spawn_empty().id();
+        app.update();
+        app.update();
+        let (slow, fast, exhausted) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+            permissions: Query<&AlsMantleTargetPermission>,
+            bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+            owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
+            mut transitions: MessageWriter<StateTransitionEvent>| {
+            let mut run = |fresh: f64, max_iterations: u32| {
+                let mut params = AlsMovementParams::default();
+                params.cmc.max_simulation_iterations = max_iterations;
+                params.acceleration.grounded.normal.acceleration.keys = vec![crate::als::params::HermiteKey {
+                    time: 0.0, value: fresh, arrive_tangent: 0.0, leave_tangent: 0.0,
+                }];
+                let mut seed = 123;
+                falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Transform::from_xyz(0.0, 1.0, 0.0), Vec3::new(4.0, -2.0, 0.0), Vec3::X,
+                    6.5, &params, Vec3::NEG_Y * 9.81,
+                    (Stance::Standing, RotationMode::ViewDirection, Gait::Sprinting, 0.0),
+                    (0.0, false, false), 40.0, 0.1, 0, actor, &mut seed, &candidates,
+                    &permissions, &bases, &owners, &shapes, &mut transitions, Some(20.0))
+            };
+            (run(7.5, 8), run(20.0, 8), run(7.5, 1))
+        }).unwrap();
+        assert_eq!(slow.4, LocomotionState::Grounded);
+        assert_eq!(fast.4, LocomotionState::Grounded);
+        assert_eq!(slow.1, fast.1);
+        assert_eq!(slow.0.translation, fast.0.translation);
+        assert_eq!(slow.8.unwrap().acceleration, 7.5);
+        assert_eq!(fast.8.unwrap().acceleration, 20.0);
+        assert_eq!(exhausted.4, LocomotionState::Grounded);
+        assert!(exhausted.8.is_none());
+    }
+
+    #[test]
+    fn landing_publishes_the_last_walking_curve_for_the_next_input_frame() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::dynamics::{AlsGroundedDynamics, AlsMovementBase, AlsMovementBaseDynamicsState, grounded_dynamics_motor_system};
+
+        for (iterations, expected) in [(8, 7.5_f32), (1, 3.0_f32)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let handle = app.world().get::<AlsMovementParamsHandle>(actor).unwrap().0.clone();
+            let mut params = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().clone();
+            params.cmc.max_simulation_iterations = iterations;
+            params.acceleration.grounded.normal.acceleration.keys = vec![crate::als::params::HermiteKey {
+                time: 0.0, value: 7.5, arrive_tangent: 0.0, leave_tangent: 0.0,
+            }];
+            let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params);
+            let start = Vec3::new(0.0, 1.0, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                GlobalTransform::from_translation(start), LinearVelocity(Vec3::new(4.0, -2.0, 0.0)),
+                LocomotionState::Air, Stance::Standing, RotationMode::ViewDirection, AlsViewYaw(0.0),
+                AlsMaxAllowedGait(Gait::Sprinting), AlsMovementParamsHandle(handle), TnuaMotor::default(),
+                AlsGroundedDynamics(crate::als::params::GroundedDynamics { acceleration: 3.0, ..default() }),
+                AlsMovementBase::default(), AlsMovementBaseDynamicsState::default(),
+                AlsCmcAdapterRuntime { controlled_input_max_acceleration: Some(20.0), grounded_max_speed: 6.5, ..default() }));
+            app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::X;
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.1));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+            assert_eq!(app.world().get::<AlsGroundedDynamics>(actor).unwrap().0.acceleration, expected);
+            assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().controlled_input_max_acceleration, Some(20.0));
+            app.world_mut().run_system_once(grounded_dynamics_motor_system).unwrap();
+            assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().controlled_input_max_acceleration, Some(expected));
+        }
     }
 
     #[test]

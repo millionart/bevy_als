@@ -5724,11 +5724,14 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 反例：实际加载角色在空中以1m/s水平速度运动，raw帧0.2秒得到delta/位移0.2（PASS）；raw0.3秒得到0.25而source应0.3；raw0.5秒得到0.25而source应0.4。`bf144_cmc_hitch_uses_source_world_delta_bounds` 同时读取Time<Virtual>、CMC simulation delta及实际Position，语义FAIL；机器记录 `target/bf144/03/world_clock/`。
   - 漏检：旧完整帧和hitch验收测试主要使用0.1/0.12/0.2秒，启动器还按target现有max_delta限制注入值，未覆盖250毫秒上方和source WorldSettings的单独合同。只记录世界时钟对运动的影响，不开展性能验收或场景修复。
 
-- [ ] BF144-D07 / P2 — 输入Acceleration使用了本轮刚刷新的曲线，而非源调用顺序中的缓存值。
+- [x] BF144-D07 / P2 — 输入Acceleration使用了本轮刚刷新的曲线，而非源调用顺序中的缓存值。
   - 子项拆分：D07a先修普通Walking motor及同模式多子步输入缓存；D07b再修Falling→Walking余步及跨模式缓存/刷新寿命。两者均只标记静态实现，原父项保留直至两者完成；运行Gate按用户顺序延后。
   - [x] BF144-D07a — Walking的输入加速度使用ControlledCharacterMove阶段缓存，同时保留本轮曲线的制动与摩擦。开始2026-11-08 12:43 +08:00；预估结束13:18 +08:00。依据.514/.515已有真实消费者及source CMC顺序，fresh读原生核并覆盖单步/多步；不提前修改跨模式子项。
     - 12:47 source/static闭环：fresh CMC同输入核，旧20与fresh约16.972分别得到433.333635/428.287406 cm/s；源先缓存输入再刷新步行曲线。motor和同模式Walking多子步已复用缓存而保留fresh制动/摩擦与公开组件，已写首帧/下一帧和60ms fixture并修正D05及旧analog fixture的前帧输入。实现结束2026-11-08 12:47 +08:00，较预估提前31分钟；测试/消融/Gate待依赖升级后执行。Falling交接留D07b。
-  - [ ] BF144-D07b — Falling→Walking及Walking→Falling同帧消费同一输入缓存，并在实际Walking刷新后发布新曲线值。
+  - [x] BF144-D07b — Falling→Walking及Walking→Falling同帧消费同一输入缓存，并在实际Walking刷新后发布新曲线值。
+    - 2026-11-08 12:49 开始：预估结束13:34 +08:00。依据.575/.576已封存真实落地余步、D07a共享缓存与源StartNewPhysics依赖，fresh重采一组正向落地历史，先核余步是否实际执行与新曲线发布，再修跨模式传递和生命周期；测试/消融/Gate暂缓。
+    - 12:52 reader边界：默认package未消费旧请求中的平台参数，fresh结果始终Walking且缺blocking/landing字段，已保留并标INVALID；现有572扩展package及源码hash与.575封存身份一致，改用该仓库诊断reader重新提取。源StartNewPhysics在余时不足或迭代耗尽时不调用PhysWalking，只有实际进入时才刷新曲线；跨模式结果将显式携带该刷新事实。
+    - 12:57 source/static闭环：扩展reader fresh q58 Falling→Walking，源输入仍2000、Walking刷新750 cm/s²，q59输入750；q54–59运动记录与封存源一致。目标落地余步复用本帧缓存，真正进入Walking且设置有效时发布fresh动力曲线；耗尽预算时不发布。已写同缓存不同曲线、耗尽迭代、真实角色发布与下帧控制。实现结束2026-11-08 12:57 +08:00，较预估提前37分钟；测试、消融和公共Gate待依赖升级后执行。
   - BF144.576 反向模式交接补证：Falling→Walking同帧余步仍应消费20m/s²缓存。目标局部计划用7.5，对正负Z贡献+50.89/−51.03µm/s。使用同一实际目标余时只换缓存，局部计划接近原生，再与原生余时对齐后相差小于10⁻⁹m/s；世界差分另归D254。证据 `docs/audit/bf144/576/`。
   - BF144.573 长帧轨迹补证：125ms q54从同5m/s走离，源旧20、目标fresh9.6741。只将目标Walking事务换成其自身旧20，末速5.7087→6.2250m/s，q58前向偏移约15.7cm→小于5µm；余时75ms和竖直速度一致。31.25ms q59在仍Walking时也出现缓存阶段差。证据 `docs/audit/bf144/573/`。
   - BF144.533 125cm台的次帧证据。40两端Walking/同两子步，41窄支撑走离同Air及竖直0，源消费缓存7.60424m/s²、目标计划使用fresh 7.98731m/s²，水平差约0.01278m/s。证据 docs/audit/bf144/533/summary.json。
