@@ -1141,6 +1141,21 @@ mod tests {
     }
 
     #[test]
+    fn foot_limit_keeps_raw_world_product_until_rig_input() {
+        let lock = DQuat::from_xyzw(0.0, 0.642_787_635_326_385_5, 0.0, 0.766_044_437_885_284_4);
+        let mut foot = AlsFootLockFootState {
+            lock_amount: 1.0,
+            lock_rotation: lock,
+            lock_location: Vec3::X,
+            ..default()
+        };
+        source_constrain_foot_lock(&mut foot, &GlobalTransform::IDENTITY, &GlobalTransform::IDENTITY,
+            Vec3::X, &AlsFootLockSettings::default());
+        assert!((foot.lock_rotation.length_squared() - 1.0).abs() > 1e-9);
+        assert_eq!(foot.final_rotation_armature, foot.lock_rotation.normalize().as_quat());
+    }
+
+    #[test]
     fn rotating_base_reversal_keeps_unclamped_rotation_history() {
         let base = AlsFootLockMovementBase { entity:Entity::PLACEHOLDER, translation:Vec3::ZERO, rotation:Quat::IDENTITY };
         let settings = AlsFootLockSettings::default();

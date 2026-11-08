@@ -5353,11 +5353,13 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
     - 07:58 source/static闭环：fresh源确认目标/锁定世界为F64，移动基座缓存、限位前组件旋转和最终组件旋转为F32；新锁定和传送分别从当前组件旋转重建世界值。目标当前把最终及限位前旋转保存在世界空间，不能简单把这些缓存延长为F64，否则会跨帧保留源已舍入的精度。修复须同步采样、锁定、基座、组件缓存及Rig真实消费边界；D259–D261角度与限位末Normalize仍独立。
     - 08:05实现摘要：世界目标/锁定贯通F64，基座、限位前与最终Rig缓存按源阶段投F32；重锁/传送从当前组件重建。fresh UE FastLerp负点积分支对目标端取符号，原glam对锁定端取符号；封存.484第23/172帧右脚前态均为负点积，本项按源顺序混合并保留focused反例。世界字段类型、组件缓存名及两个公开函数签名变更，库外调用者需迁移；目标组件和基座原始输入仍为F32。实现结束08:05、偏差−44分钟；测试、消融和视觉Gate待全部静态修复及Bevy/依赖迁移后执行。
 
-- [ ] BF144-D261 / P3 — Foot Lock限位后额外归一化世界锁旋转，改变源保留的数值状态。
+- [x] BF144-D261 / P3 — Foot Lock限位后额外归一化世界锁旋转，改变源保留的数值状态。
   - Source：fresh `AlsAnimationInstance.cpp:1571`直接写`FQuat{OffsetRotation} * LockRotationWorldSpace`，该位置无Normalize；最终旋转混合在此前1519–1520另有明确Normalize，阶段不能合并。源原生foot_lock_rotation与普通rotation_product保留raw double输出，已用当前相同输入校准。
   - Target：`src/als/state/foot_ik.rs:584`在同一次限位末尾无条件normalize product，`foot_ik_apply.rs:529–539`随后再次混合并归一化Final。只删除前一次Normalize、保留F32乘法/系统Atan/角度系数/目标/前态，独立改变当前frame172/right的LockRotation、FinalRotation和actual RigInput rotation各1份。
   - 实际consumer：同帧lock_amount=1，当前Rig q为(−0.5872513651847839,0.6107494831085205,−0.38707616925239563,0.36372095346450806)，单因素无额外Normalize为(−0.5872514247894287,0.6107495427131653,−0.3870762288570404,0.36372098326683044)。这是精确数值阶段差，不宣称肉眼动作异常或全部源Root已恢复。
   - 证据/漏检：`target/bf144/421/consumers-check.json`、`no-normalize.json`及`controls-check.json`；旧foot-limit测试只检查普通角度与归一化期望，没有将源世界锁缓存的raw乘法与后续Final阶段分开。移除该受控因素回到current精确，源码字节恢复同target重编240产物byte同，其他相对/末乘精度因素保持独立；生产未修。
+  - 修复第1轮：开始2026-11-08 08:06 +08:00；预估结束08:31 +08:00。依据：D262a fresh原生请求已覆盖受控限位raw double结果，D262b已贯通世界F64与最终组件缓存；本项仅分离限位缓存与最终混合的归一化阶段，并补真实入口反例。测试在全部静态修复和Bevy/依赖迁移后执行。
+  - 08:08 source/static与实现摘要：fresh源限位直接保存世界乘积，最终混合才归一化；D262a新原生80°受控样本的raw长度平方复算为1.000000064686079。已删除限位末Normalize并保留最终阶段，写入生产限位→组件Rig输入反例。旧.421三份原始报告缺失，未复用旧摘要替代证据。实现结束08:08、偏差−23分钟；focused测试、消融与视觉Gate待静态修复及Bevy/依赖迁移后执行。
 
 
 - [ ] BF144-D260 / P3 — Foot Lock旋转限位的弧度转角度系数没有保留源float计算阶段。

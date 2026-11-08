@@ -601,7 +601,7 @@ pub fn constrain_foot_lock_rotation(
     source_foot_rotation_product(
         Quat::from_rotation_y((twist_angle.clamp(-limit, limit) - twist_angle).to_radians()).as_dquat(),
         lock_rotation,
-    ).normalize()
+    )
 }
 
 fn move_toward_cap(current: f32, target: f32, max_delta: f32) -> f32 {

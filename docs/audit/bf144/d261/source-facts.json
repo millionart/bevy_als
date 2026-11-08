@@ -1,0 +1,77 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "excerpts": [
+        {
+          "first_line": 1517,
+          "last_line": 1524,
+          "text": "\tconst auto FinalLocation{FMath::Lerp(FootState.TargetLocationWorldSpace, FootState.LockLocationWorldSpace, FootState.LockAmount)};\n\n\tauto FinalRotation{FQuat::FastLerp(FootState.TargetRotationWorldSpace, FootState.LockRotationWorldSpace, FootState.LockAmount)};\n\tFinalRotation.Normalize();\n\n\tFootState.FinalLocation = FVector3f{Context.ComponentTransformInverse.TransformPosition(FinalLocation)};\n\tFootState.FinalRotation = FQuat4f{Context.ComponentTransformInverse.TransformRotation(FinalRotation)};\n}"
+        },
+        {
+          "first_line": 1557,
+          "last_line": 1572,
+          "text": "\n\t// Limit the rotation of the locked foot.\n\n\tconst auto FootDeltaAngle{\n\t\tFMath::RadiansToDegrees(\n\t\t\tFQuat4f{FootState.LockRotationWorldSpace * FootState.TargetRotationWorldSpace.Inverse()}\n\t\t\t.GetTwistAngle(FVector3f::UpVector))\n\t};\n\n\tif (FMath::Abs(FootDeltaAngle) > Settings->FootLock.FootAngleLimit + UE_KINDA_SMALL_NUMBER)\n\t{\n\t\tconst auto ClampedAngle{FMath::Clamp(FootDeltaAngle, -Settings->FootLock.FootAngleLimit, Settings->FootLock.FootAngleLimit)};\n\t\tconst FQuat4f OffsetRotation{FVector3f::UpVector, FMath::DegreesToRadians(ClampedAngle - FootDeltaAngle)};\n\n\t\tFootState.LockRotationWorldSpace = FQuat{OffsetRotation} * FootState.LockRotationWorldSpace;\n\t}"
+        }
+      ]
+    },
+    {
+      "path": "src/als/state/foot_ik.rs",
+      "revision": "before_D261",
+      "sha256": "7ad6264ca08146fac2de4501f994b29af729421a74218b45227c87392d87d0ca",
+      "excerpts": [
+        {
+          "first_line": 592,
+          "last_line": 606,
+          "text": "pub fn constrain_foot_lock_rotation(\n    lock_rotation: DQuat,\n    target_rotation: DQuat,\n    foot_angle_limit_degrees: f32,\n) -> DQuat {\n    let delta = source_foot_rotation_product(lock_rotation, target_rotation.conjugate()).as_quat();\n    let twist_angle = wrap_foot_yaw(2.0 * delta.y.atan2(delta.w)).to_degrees();\n    let limit = foot_angle_limit_degrees;\n    if twist_angle.abs() <= limit + 1e-4 { return lock_rotation; }\n    source_foot_rotation_product(\n        Quat::from_rotation_y((twist_angle.clamp(-limit, limit) - twist_angle).to_radians()).as_dquat(),\n        lock_rotation,\n    ).normalize()\n}\n"
+        }
+      ]
+    }
+  ],
+  "native": {
+    "path": "docs/audit/bf144/d262a/rotation.native.json",
+    "sha256": "63289d67bae40ba28fd785215724b870bd8af867fca7be87c6f479ec8459f8c6",
+    "bytes": 134913,
+    "request": "docs/audit/bf144/d262a/rotation.request.json",
+    "reader_report": "docs/audit/bf144/d262a/rotation.native.json.reader.report.json",
+    "input": {
+      "name": "controlled-80-degree",
+      "rotation_xyzw": [
+        0,
+        0,
+        -0.6427876353263855,
+        0.7660444378852844
+      ],
+      "foot_lock_rotation": {
+        "target_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "limit_degrees": 40
+      }
+    },
+    "offset_rotation_float": {
+      "x": 0,
+      "y": 0,
+      "z": 0.3420198857784271,
+      "w": 0.9396927356719971
+    },
+    "raw_final_rotation": {
+      "x": 0,
+      "y": 0,
+      "z": -0.3420204403492608,
+      "w": 0.9396925470968558
+    },
+    "raw_length_squared_derived_f64": 1.000000064686079
+  },
+  "missing_previous_evidence": [
+    "target/bf144/421/consumers-check.json",
+    "target/bf144/421/no-normalize.json",
+    "target/bf144/421/controls-check.json"
+  ],
+  "scope": "Preserve the raw world lock after a foot-angle limit, while normalizing the subsequent final rotation; angle and offset operators remain D259-D260.",
+  "status": "implementation_complete_static_and_runtime_gates_pending"
+}
