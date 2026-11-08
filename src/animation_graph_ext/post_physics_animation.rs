@@ -194,7 +194,9 @@ pub fn evaluate_players<F: QueryFilter>(
             if delta.is_some() { player.set_global_input_data("animation.delta_seconds", 0.0_f32); }
             inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &Time::default(), &resources));
             if let Some(delta) = delta { player.set_global_input_data("animation.delta_seconds", delta); }
-        } else {
+        }
+        if !initialize || (playing && !player.is_paused() && player.get_error().is_none() && player.get_default_output_pose().is_some()) {
+            player.set_global_input_data("animation.evaluate_pose", gate.as_ref().is_none_or(|gate| gate.refresh_bones));
             let delta = player.get_global_input_data("animation.delta_seconds")
                 .and_then(|value| value.as_f32().ok()).map_or(time.delta_secs(), |value| value);
             let mut animation_time = Time::default();
@@ -312,10 +314,27 @@ mod tests {
                     let entity = world.spawn((player, crate::extensions::SourceAnimationInputs::default(),
                         Name::new("root"), Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
                     world.spawn(ChildOf(entity));
-                    if gated { world.entity_mut(entity).insert(AnimationPoseUpdateGate {
-                        update_graph: true, refresh_bones: true, pending_update: true }); }
+                    if gated {
+                        world.entity_mut(entity).insert(AnimationPoseUpdateGate {
+                            update_graph: false, refresh_bones: true, pending_update: true });
+                        world.run_system_once(evaluate_players::<()>).unwrap();
+                        let player = world.get::<AnimationGraphPlayer>(entity).unwrap();
+                        assert!(player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0));
+                        assert!(player.get_default_output_pose().is_none());
+                        world.get_mut::<AnimationPoseUpdateGate>(entity).unwrap().update_graph = true;
+                    }
                     world.run_system_once(evaluate_players::<()>).unwrap();
-                    let mut position = if gated { 0.0 } else if configured { 0.02 } else { 0.05 };
+                    let mut position = if configured { 0.02 } else { 0.05 };
+                    let player = world.get::<AnimationGraphPlayer>(entity).unwrap();
+                    assert!(player.get_error().is_none(), "{:?}", player.get_error());
+                    let arena = player.get_context_arena().unwrap();
+                    let context = arena.iter_context_ids().find_map(|id| node_context_state(
+                        &arena.get_context(id).unwrap().node_states, StateKey::Default, sequence.id)).unwrap();
+                    let state = context.relevant_asset.as_ref().unwrap();
+                    assert!((state.position - position).abs() < 1e-6,
+                        "First sequence update: linked={linked} configured={configured} gated={gated} position={} expected={position}", state.position);
+                    assert!(player.get_default_output_pose().unwrap().get_bone(bone).unwrap().translation.unwrap()
+                        .abs_diff_eq(Vec3::X * (2.0 * position), 1e-6));
                     let event = TimedEvent { id: "clock crossing".into(), kind: TimedEventKind::Point,
                         start_time: 0.06, end_time: 0.06, weight_threshold: 0.0, track: None,
                         state_boundary: StateIntervalBoundary::StartExclusiveEndInclusive,

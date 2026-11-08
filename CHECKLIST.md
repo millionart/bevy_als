@@ -5630,7 +5630,9 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 漏检/边界：旧BlendList工具仅覆盖Update权重，没有Evaluate pose；.253又误用最终Root作为Rig骨观察，.254实际节点缓存才暴露下游变化。本项是多余单输入阶段，不复用D231“遗漏额外阶段”、D232多输入精度或D214权重时钟根因；上游75骨初始化残差与完整预热反馈仍未归因，不宣称可见故障。证据 `target/bf144/255/difference-check.json`、`native-check.json`；仅登记，生产实现未改，消融恢复/最终身份以.255完成摘要为准。
 
 
-- [ ] BF144-D243 / P3 — 首物理帧仅零步长初始化，丢失源注册后首个普通动画delta（非零引擎帧复验恢复）。
+- [x] BF144-D243 / P3 — 首物理帧仅零步长初始化，丢失源注册后首个普通动画delta（非零引擎帧复验恢复）。
+  - 2026-11-08 11:25 开始：预估结束11:55 +08:00。依据.298已分离首normal时钟且已有root/linked消费者测试，fresh重读非零角色与注册/普通阶段，只修当前首query的时间消费；出生种子D244随后独立处理。验证、消融与公共Gate按用户顺序推迟至全部实现和依赖升级后。
+  - 11:28 source/static闭环：fresh非零frame17角色注册为Grounded/elapsed0，11普通步为Fall×10→Land，首帧状态与两个Fall播放器均消费0.03333333507180214；源码确认实例更新同帧去重但root图仍更新。目标零query成功后同次入口消费普通delta并恢复正常刷新标记，未加载/出错/暂停不加第二查询；已写root/linked、显式/资源时钟、禁用gate及后续帧fixture。原生请求/结果/哈希/源码与scope见`docs/audit/bf144/d243/`；出生种子D244、pending寿命D149仍独立。实现结束2026-11-08 11:28 +08:00，较预估提前27分钟；测试、消融、图审计与公共Gate待依赖升级后执行。
   - Source：fresh真实角色top-level initial_engine_frame=17的2次88步与frame1的88步实际回显已核；InitAnim在注册时先TickAnimation(0)/RefreshBoneTransforms，LastPoseTickFrame仍重置0，正常非零帧首world不会被当成重复pose。首world update/eval=1，真实Fall FSM elapsed及节点17a3fe0e/2b65b93c的Fall/Fall_Fast动画时间均0.03333333507180214；10个落地前正常步持续推进。
   - Target：`post_physics_animation.rs:192–201`的initialize与normal分支互斥，首次物理已推进但只用Time::default执行Absolute0；公开原默认图首query、Fall elapsed及两叶relevant clock均0。缺失发生在查询时间预算，独立于D244注册输入种子、D149 pending寿命与出生实际物理mode。
   - 最小消费者/控制：默认出生与仅将出生mode固定为源Air两组，各保持全部88步actor位置/速度/stance/gait/motion不变，首零query之后只再调用一次原公开evaluate_players normal路径；两组各10个实际Fall elapsed、20个同GUID叶时钟全部逐值恢复native。控制前后pending发布值及gate均保持，首零query的InAir种子未改，不把D149/D244视为已修。实际最终Pose两组各88帧变化、6192/6191骨行变化，仅证明真实消费者受影响，不宣称完整source姿态恢复或可见故障。
