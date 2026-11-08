@@ -6092,7 +6092,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色以vy=−2m/s处于离地约2cm的Air时按Roll，50ms内普通落地，源输入应拒绝且低落地速度不自动Roll，target切Grounded后启动Roll。反向边界：在1m平台x=0.55、Grounded、水平3.75m/s时按Roll，100ms多子步先走离平台，源已接受且应保留Roll，target在Air拒绝；同几何50ms单子步对照仍接受。
   - `bf144_roll_lifecycle_acceptance_uses_input_time_locomotion`6组4PASS/2FAIL，普通Grounded启动、持续Air拒绝、无Roll输入的低速落地与50ms走离均通过；证据`target/bf144/14/lifecycle_core/`。旧入口测试分别在稳定地面/空中按键，未把输入与当帧碰撞模式变化组合；本项只登记许可阶段，不把同帧根位移差异归入此项。
 
-- [ ] BF144-D45 / P2 — 空中Roll根运动写速时清掉原有竖直速度。
+- [x] BF144-D45 / P2 — 空中Roll根运动写速时清掉原有竖直速度；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 16:58 +08:00；预估结束17:43 +08:00；实际结束17:02 +08:00，提前41分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE Falling根速度约束、原生设置及Roll根轨道46帧保存在`docs/audit/bf144/d45/`；驱动和CMC写回均保留原有竖速，已写带竖直根增量及加载角色整帧对照。旧target报告缺失，自定义重力未扩展，动画Gate待执行。
   - Source：fresh UE `PerformMovement:2962–2972`和`ApplyRootMotionToVelocity:4514–4521`均调用`ConstrainAnimRootMotionVelocity:2170–2186`；Falling必须保留当前重力轴速度，随后继续PhysFalling重力积分。fresh CS允许Roll进入Air后继续，A_Als_Roll根轨道的竖直增量恒0，也不代表可以把角色竖直速度置0。
   - Target：`src/als/character/actions/roll_drive.rs:2327–2332`直接以world root translation/world delta覆盖整个LinearVelocity，没有Falling轴约束；`movement/motion.rs:3981–3986`虽在末尾保留physics y，但此时先前速度已经被drive清除。
   - 反例：完整角色先接受Roll，再进入Air、原有vy为−2/0/+2m/s；16.667ms源应为−2.1635/−0.1635/+1.8365，target均−0.1635；100ms源为−2.981/−0.981/+1.019，target均−0.981。`bf144_roll_root_falling_keeps_prior_vertical_velocity`12组8PASS/4FAIL，六组无Roll与两组原vy0对照通过；证据`target/bf144/15/initial/`。

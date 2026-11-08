@@ -1,0 +1,62 @@
+{
+  "assets": [
+    {
+      "label": "roll",
+      "asset": "Content/ALS/Animations/Actions/Roll/A_Als_Roll.uasset",
+      "asset_identity": {
+        "bytes": 162806,
+        "sha256": "03a05babcf094830df7d9ab4bd972595a07ee21269401c564bd466ec706636f4"
+      },
+      "native_output": "docs/audit/bf144/d45/roll.native.json.gz",
+      "raw": {
+        "bytes": 1072158,
+        "sha256": "225eb9a54f098d656d1db4f5d6814e0b2f6e2b4c5b98802a52b5661461314979"
+      },
+      "compressed": {
+        "bytes": 114471,
+        "sha256": "d6b4fe9310352b21c689cd39ded105d1103155aad6bab42596b02a7d4067a05f"
+      },
+      "reader_report": "docs/audit/bf144/d45/roll.native.json.reader.report.json",
+      "request": "docs/audit/bf144/d45/roll.request.json"
+    },
+    {
+      "label": "root",
+      "asset": "Content/ALS/Animations/Actions/Roll/A_Als_Roll.uasset",
+      "asset_identity": {
+        "bytes": 162806,
+        "sha256": "03a05babcf094830df7d9ab4bd972595a07ee21269401c564bd466ec706636f4"
+      },
+      "native_output": "docs/audit/bf144/d45/root.native.json.gz",
+      "raw": {
+        "bytes": 1093824,
+        "sha256": "52184f5ec13d3b20b65742abf5a7bc9006e7577e8a806a76b698f30cb6d0e3a6"
+      },
+      "compressed": {
+        "bytes": 115490,
+        "sha256": "1756a1d1087f7fd1c69628c424accc4611f02a80c07a0bd0924a0db9a4c4b12b"
+      },
+      "reader_report": "docs/audit/bf144/d45/root.native.json.reader.report.json",
+      "request": "docs/audit/bf144/d45/root.request.json"
+    },
+    {
+      "label": "settings",
+      "asset": "Content/ALS/Data/Character/CS_Als_Default.uasset",
+      "asset_identity": {
+        "bytes": 2950,
+        "sha256": "396a58b953c55e8bf103feab2475bc1994a7c0a0463ec73eb73c9c2cc254d2df"
+      },
+      "native_output": "docs/audit/bf144/d43/settings.native.json",
+      "raw": {
+        "bytes": 69993,
+        "sha256": "506b0673d3a7304e97c3bb513d3b149f0be845b7a4ac26a867796501ca5ed64f"
+      },
+      "fresh_output_shared_after_byte_comparison": true,
+      "reader_report": "docs/audit/bf144/d45/settings.native.json.reader.report.json",
+      "request": "docs/audit/bf144/d45/settings.request.json"
+    }
+  ],
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  }
+}

@@ -409,6 +409,53 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn roll_drive_preserves_existing_falling_velocity_before_physics() {
+        use bevy::ecs::system::RunSystemOnce;
+        for speed in [-2.0, 0.0, 2.0] {
+            let mut world = World::new();
+            world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(0.05));
+            world.insert_resource(time);
+            let actor = world.spawn((crate::als::character::AlsCharacter,
+                AlsRollState { active: true, time: 0.1, previous_time: 0.05, ..default() },
+                LocomotionState::Air, avian3d::prelude::RigidBody::Dynamic, Transform::IDENTITY,
+                LinearVelocity(Vec3::new(0.0, speed, 0.0)))).id();
+            let mesh = world.spawn((ChildOf(actor), Transform::IDENTITY)).id();
+            world.spawn((AlsRollSlotSampler { character: actor, target_player: mesh, reported_unready: false },
+                RootMotionOutput { translation_delta: Vec3::new(0.1, 0.2, 0.0), ..default() }));
+            world.run_system_once(roll_drive_system).unwrap();
+            assert_eq!(world.get::<LinearVelocity>(actor).unwrap().y, speed);
+            let runtime = world.get::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap();
+            assert_eq!(runtime.grounded_collision_velocity.unwrap().y, speed);
+            assert!(runtime.has_animation_root_velocity);
+        }
+    }
+
+    #[test]
+    fn loaded_airborne_roll_preserves_vertical_velocity_through_gravity() {
+        use bevy::time::TimeUpdateStrategy;
+        for delta in [1.0 / 60.0, 0.1] {
+            for speed in [-2.0, 0.0, 2.0] {
+                for rolling in [false, true] {
+                    let (mut app, actor, _) = loaded_roll_character();
+                    if rolling { play_loaded_roll(&mut app, actor); }
+                    let start = Vec3::Y * 10.0;
+                    app.world_mut().entity_mut(actor).insert((avian3d::prelude::Position(start),
+                        Transform::from_translation(start), LinearVelocity(Vec3::Y * speed), LocomotionState::Air));
+                    *app.world_mut().resource_mut::<TimeUpdateStrategy>() =
+                        TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
+                    app.update();
+                    let actual = app.world().get::<LinearVelocity>(actor).unwrap().y;
+                    let expected = speed - 9.81 * delta;
+                    assert!((actual - expected).abs() < 0.02,
+                        "rolling={rolling} delta={delta} speed={speed} actual={actual} expected={expected}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn loaded_roll_source_velocity_preserves_owner_clock_displacement_base_and_handoff() {
         for (mode, base_speed) in [(LocomotionState::Grounded, 0.0_f32), (LocomotionState::Grounded, 0.75), (LocomotionState::Custom, 0.0)] {
             for dilation in [0.5_f32, 1.0, 2.0] {
@@ -2530,16 +2577,22 @@ fn roll_drive_system(
         let weight = roll.weight();
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
         if !movement_resolved {
+            let falling = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Air);
+            let prior_vertical = vel.y;
             let support = base.filter(|base| base.entity.is_some()
                 && modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Grounded))
                 .map_or(Vec3::ZERO, |base| base.support_velocity);
             if let Some(cmc) = cmc.as_deref_mut() {
-                cmc.grounded_collision_velocity = Some(if actor_delta > 0.0 { world_translation / actor_delta + support.with_y(0.0) }
-                    else { cmc.grounded_collision_velocity.unwrap_or(vel.0) });
+                let mut root_velocity = if actor_delta > 0.0 { world_translation / actor_delta + support.with_y(0.0) }
+                    else { cmc.grounded_collision_velocity.unwrap_or(vel.0) };
+                if falling { root_velocity.y = prior_vertical; }
+                cmc.grounded_collision_velocity = Some(root_velocity);
                 cmc.has_animation_root_velocity = true;
                 cmc.grounded_move_start = None;
             }
-            vel.0 = world_translation / dt + support;
+            let mut root_velocity = world_translation / dt + support;
+            if falling { root_velocity.y = prior_vertical; }
+            vel.0 = root_velocity;
         }
         if let Ok((mode, body, custom_position)) = modes.get(character)
             && *mode == LocomotionState::Custom {

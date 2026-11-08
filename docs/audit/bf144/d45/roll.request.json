@@ -1,0 +1,6 @@
+{
+  "asset": "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll",
+  "reader": "tools/run_ue_source_reader.ps1",
+  "timeout_seconds": 240,
+  "no_progress_seconds": 90
+}
