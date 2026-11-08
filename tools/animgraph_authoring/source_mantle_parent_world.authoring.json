@@ -166,7 +166,7 @@
         "mantle_fixture_preserves_world_pose_and_cleans_its_parent",
         "fresh_audit_mantle_",
         "mantle_physics_moves_once_with_the_game_delta",
-        "moving_mantle_targets_are_sampled_after_their_current_frame_motion",
+        "moving_mantle_targets_use_the_pre_physics_base_transform",
         "mantle_completion_keeps_the_current_moving_support",
         "mantle_observer",
         "--test-threads=1"

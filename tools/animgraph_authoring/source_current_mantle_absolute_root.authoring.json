@@ -181,7 +181,7 @@
       ]
     },
     {
-      "label": "moving_mantle_targets_are_sampled_after_their_current_frame_motion",
+      "label": "moving_mantle_targets_use_the_pre_physics_base_transform",
       "argv": [
         "cargo",
         "test",
@@ -194,7 +194,7 @@
         "--config",
         "profile.play.package.bevy_als.opt-level=0",
         "--lib",
-        "moving_mantle_targets_are_sampled_after_their_current_frame_motion"
+        "moving_mantle_targets_use_the_pre_physics_base_transform"
       ]
     }
   ]

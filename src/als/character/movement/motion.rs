@@ -3730,8 +3730,12 @@ fn follow_movement_base_system(
         let Some(target) = target else { base.entity = None; continue; };
         let Ok(current) = space.p0().compute_global_transform(target) else { base.entity = None; continue; };
         let owner = owners.get(target).map_or(target, |owner| owner.body);
+        if *mode == LocomotionState::Custom && phase == MovementBaseFollowPhase::AfterPhysics
+            && !bodies.get(owner).is_ok_and(|body| *body == RigidBody::Dynamic) {
+            continue;
+        }
         let mantle_base = mantle.filter(|state| *mode == LocomotionState::Custom
-            && phase != MovementBaseFollowPhase::AfterPhysics && (state.active || state.root_motion_ready))
+            && (state.active || state.root_motion_ready))
             .and_then(|state| state.target_base).filter(|target| target.relative_location);
         if let Some(initial) = mantle_base && base.entity != Some(target) {
             base.entity = Some(target);
@@ -8518,6 +8522,71 @@ mod tests {
             assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(expected, 1e-5));
             assert_eq!(app.world().get::<LinearVelocity>(actor).unwrap().0, velocity);
             assert_eq!(app.world().get::<Transform>(actor).unwrap().rotation, Quat::IDENTITY);
+        }
+    }
+
+    #[test]
+    fn mantle_moving_base_writes_the_current_actor_parent_space() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::mantle::MantleKind;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        app.update();
+        for parented in [false, true] {
+            for dilation in [0.0, 1.0] {
+                for (simulated, translation, rotation, scale) in [
+                    (true, Vec3::ZERO, Quat::IDENTITY, Vec3::ONE),
+                    (true, Vec3::X * 0.2, Quat::IDENTITY, Vec3::ONE),
+                    (true, Vec3::ZERO, Quat::from_rotation_y(0.2), Vec3::ONE),
+                    (true, Vec3::ZERO, Quat::from_rotation_x(0.15), Vec3::ONE),
+                    (true, Vec3::ZERO, Quat::IDENTITY, Vec3::new(1.2, 0.8, 1.1)),
+                    (false, Vec3::X * 0.2, Quat::IDENTITY, Vec3::ONE),
+                ] {
+                    let base_start = Vec3::new(0.0, 4.0, 0.0);
+                    let base_transform = Transform::from_translation(base_start + translation).with_rotation(rotation).with_scale(scale);
+                    let base = app.world_mut().spawn((if simulated { RigidBody::Dynamic } else { RigidBody::Kinematic },
+                        base_transform, GlobalTransform::from(base_transform))).id();
+                    let start = Transform::from_xyz(0.4, 5.0, 0.7).with_rotation(Quat::from_rotation_y(0.35));
+                    let mut mantle = AlsMantleState::default();
+                    mantle.begin_with_target_base(MantleKind::High, start.translation, Vec3::new(0.0, 6.0, -1.0),
+                        1.5, 0.35, 0.0, AlsMantleTargetBase { entity: base, translation: base_start,
+                            rotation: Quat::IDENTITY, scale: Vec3::ONE, relative_location: true });
+                    mantle.root_motion_ready = true;
+                    let parent_transform = Transform::from_xyz(3.0, -1.0, 2.0)
+                        .with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::splat(1.5));
+                    let local = if parented { GlobalTransform::from(start).reparented_to(&GlobalTransform::from(parent_transform)) }
+                        else { start };
+                    let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
+                        Collider::capsule(0.3, 1.2), Position(start.translation), Rotation(start.rotation), local,
+                        crate::als::dynamics::AlsMovementBase { entity: Some(base), location: base_start,
+                            rotation: Quat::IDENTITY, has_relative_rotation: false },
+                        avian3d::prelude::CustomPositionIntegration,
+                        crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+                    let parent = if parented {
+                        let parent = app.world_mut().spawn((parent_transform, GlobalTransform::from(parent_transform))).id();
+                        app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+                        Some(parent)
+                    } else { None };
+                    app.world_mut().run_system_once((|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system)).unwrap();
+                    let offset = Vec3::Y * 0.9;
+                    let expected = if simulated {
+                        rotation * (start.translation - offset - base_start) + base_start + translation + offset
+                    } else { start.translation };
+                    let actual = app.world().get::<Position>(actor).unwrap().0;
+                    let world = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+                        helper.compute_global_transform(actor).unwrap()
+                    }).unwrap();
+                    assert!(actual.abs_diff_eq(expected, 1e-5),
+                        "parented={parented} dilation={dilation} simulated={simulated} actual={actual:?} expected={expected:?}");
+                    assert!(world.translation().abs_diff_eq(expected, 1e-5));
+                    assert!(world.rotation().angle_between(start.rotation) < 1e-4);
+                    assert_eq!(app.world().get::<Rotation>(actor).unwrap().0, start.rotation);
+                    app.world_mut().despawn(actor);
+                    if let Some(parent) = parent { app.world_mut().despawn(parent); }
+                    app.world_mut().despawn(base);
+                }
+            }
         }
     }
 

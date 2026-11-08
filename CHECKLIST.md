@@ -6212,7 +6212,10 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：实际活动Mantle中，kinematic基座在该运动帧前横移2cm，owner0.5/1/2时RMS和发布动画速度分别多出2.4/1.2/0.6m/s；最终位置仍正确。`bf144_mantle_physics_velocity_excludes_pre_movement_base_carry`5组2PASS/3FAIL；静止基座及夹具先携带actor的对照通过。证据`target/bf144/19/initial/`。
   - 漏检：旧移动Mantle速度测试以target自身RMS之前的actor位置计算预期，未先复算源CMC基座携带；这个预期把同一错误带入oracle。仅登记实际速度消费差异，不把位置正确误当速度等价。
 
-- [ ] BF144-D60 / P2 — Mantle物理后重算warp，偏离源基座脚底携带及绝对朝向。
+- [x] BF144-D60 / P2 — Mantle物理后重算warp，偏离源基座脚底携带及绝对朝向；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 18:18 +08:00；预估结束19:03 +08:00；实际结束18:23 +08:00，提前40分钟；未拆分，测试/消融/Gate暂缓。
+  - 复盘：已有限复开归档BF115.09e2b2中的BF116.03c2b物理后消费者；旧Gate以重算warp为oracle，漏掉模拟基座的脚底携带、绝对朝向及scale边界，其他已完成范围不复开。
+  - 闭环：fresh UE post tick/脚底携带及native角色设置保存在`docs/audit/bf144/d60/`；目标移除物理后二次warp并复用模拟基座携带，已写父空间、旋转/scale及亚微秒对照，旧测试oracle同步修正。旧target报告缺失，归档边界和动画Gate待统一验证后恢复。
   - Source：fresh UE `PostPhysicsTickComponent:1827–1836`对simulated base调用UpdateBasedMovement；`2574–2632`以胶囊脚底锚点应用基座location/quat变化，不使用scale。native bIgnoreBaseRotation=True，`SaveBaseLocation:3221–3224`保存absolute rotation，因此这次post携带不再改变actor朝向；源RMS已在物理前完成。
   - Target：`root_motion_sources/mantle_drive.rs:790–821`物理后刷新完整base transform并重新计算同一时刻的整个warp，直接覆盖actor位置与rotation；同时把scale变化也带入，并在owner delta=0时仍执行。
   - 反例：完整Mantle的simulated base在物理阶段后变化，owner0/1各测静止、平移、yaw、pitch和scale，共10组4PASS/6FAIL。基座yaw0.2rad时target额外旋转actor0.2rad；pitch0.15rad时位置偏离源脚底携带约5.62/4.45cm；scale变化时偏离约6.95/6.87cm。静止和纯平移均通过。`bf144_mantle_physics_post_base_uses_feet_carry_without_second_warp`，证据`target/bf144/19/initial/`。

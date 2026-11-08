@@ -233,10 +233,6 @@ impl Plugin for AlsMantleDrivePlugin {
         .add_systems(
             PostUpdate,
             (
-                update_mantle_movement_base
-                    .after(PhysicsSystems::Last)
-                    .before(crate::als::motion::AlsActualVelocitySet)
-                    .before(release_mantle_physics),
                 release_mantle_physics
                     .after(PhysicsSystems::Last)
                     .after(crate::als::motion::AlsRotationResponseSet)
@@ -777,41 +773,6 @@ fn release_mantle_physics(
             entity_commands.remove::<LockedAxes>();
         }
         entity_commands.remove::<AlsMantlePhysicsFrame>();
-    }
-}
-
-fn update_mantle_movement_base(
-    mut mantles: Query<(Entity, &mut AlsMantleState), With<AlsMantlePhysicsFrame>>,
-    parents: Query<&ChildOf>,
-    mut transforms: ParamSet<(
-        bevy::transform::helper::TransformHelper,
-        Query<(&mut Transform, Option<&mut Position>, Option<&mut Rotation>), With<AlsCharacter>>,
-    )>,
-    assets: Res<MantleAssets>,
-    clips: Res<Assets<GraphClip>>,
-    skeletons: Res<Assets<Skeleton>>,
-) {
-    for (entity, mut mantle) in &mut mantles {
-        let Some(base) = mantle.target_base else { continue; };
-        if !mantle.root_motion_ready { continue; }
-        let Ok(latest) = transforms.p0().compute_global_transform(base.entity) else { continue; };
-        let Some(clip) = clips.get(assets.clip(mantle.kind)) else { continue; };
-        let Some(skeleton) = skeletons.get(&clip.skeleton) else { continue; };
-        let Some(root) = sample_mantle_root(clip, skeleton, mantle.clip_time()) else { continue; };
-        mantle.refresh_target_base(Some(AlsMantleTargetBase {
-            translation: latest.translation(), rotation: latest.rotation(), scale: latest.scale(), ..base
-        }));
-        let target = mantle.target_actor_transform_at(mantle.time, root);
-        let Ok(parent_world) = parents.get(entity).ok()
-            .map(|parent| transforms.p0().compute_global_transform(parent.parent())).transpose() else { continue; };
-        let mut query = transforms.p1();
-        let Ok((mut transform, position, rotation)) = query.get_mut(entity) else { continue; };
-        transform.translation = parent_world.map_or(target.translation,
-            |parent| parent.affine().inverse().transform_point3(target.translation));
-        transform.rotation = parent_world.map_or(target.rotation,
-            |parent| parent.rotation().inverse() * target.rotation);
-        if let Some(mut position) = position { position.0 = target.translation; }
-        if let Some(mut rotation) = rotation { rotation.0 = target.rotation; }
     }
 }
 
@@ -2126,45 +2087,45 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn mantle_moving_base_writes_the_current_actor_parent_space() {
+    fn mantle_post_physics_does_not_replay_subminimum_root_motion() {
+        use avian3d::prelude::{Collider, RigidBody};
+        use bevy::time::TimeUpdateStrategy;
         let mut app = mantle_clip_test_app();
-        for parent_transform in [Transform::IDENTITY, Transform::from_xyz(5.0, 2.0, -3.0)
-            .with_rotation(Quat::from_rotation_y(1.1)).with_scale(Vec3::splat(2.0))] {
-            let parent = app.world_mut().spawn((parent_transform, GlobalTransform::IDENTITY)).id();
-            let old_base = Transform::from_xyz(0.0, 2.0, 0.0);
-            let latest_base = old_base.with_translation(Vec3::new(0.4, 2.3, -0.2)).with_rotation(Quat::from_rotation_y(0.3));
-            let base = app.world_mut().spawn((latest_base, GlobalTransform::from(old_base))).id();
+        let delta = 0.05_f32;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+        app.update();
+        for actor_delta in [0.0_f32, 0.5e-6, 1.0e-6, 2.0e-6] {
+            let base_transform = Transform::from_xyz(0.0, 4.0, 0.0);
+            let base = app.world_mut().spawn((RigidBody::Static, base_transform, GlobalTransform::from(base_transform))).id();
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base(MantleKind::High, Vec3::new(0.0, 1.0, 1.0), Vec3::new(0.0, 2.5, 0.0),
-                1.5, 0.0, 0.0, AlsMantleTargetBase { entity: base, translation: old_base.translation,
-                    rotation: old_base.rotation, scale: old_base.scale, relative_location: true });
-            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(MantleKind::High)).unwrap();
+            mantle.begin_with_target_base(MantleKind::High, Vec3::new(0.0, 5.0, 0.0), Vec3::new(0.0, 6.0, -1.0),
+                1.5, 0.0, 0.0, AlsMantleTargetBase { entity: base, translation: base_transform.translation,
+                    rotation: Quat::IDENTITY, scale: Vec3::ONE, relative_location: false });
+            let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(mantle.kind)).unwrap();
             let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
             mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
                 sample_mantle_root(clip, skeleton, clip.duration).unwrap());
-            mantle.time = 0.4;
-            let root = sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap();
-            let before = mantle.target_actor_transform_at(mantle.time, root);
-            let mut reference = mantle.clone();
-            reference.refresh_target_base(Some(AlsMantleTargetBase { entity: base, translation: latest_base.translation,
-                rotation: latest_base.rotation, scale: latest_base.scale, relative_location: true }));
-            let expected = reference.target_actor_transform_at(reference.time, root);
-            let local = GlobalTransform::from(before).reparented_to(&GlobalTransform::from(parent_transform));
-            let actor = app.world_mut().spawn((AlsCharacter, mantle, local, ChildOf(parent), GlobalTransform::IDENTITY,
-                Position(before.translation), Rotation(before.rotation), AlsMantlePhysicsFrame { custom_position: false, custom_velocity: false, locked_axes: None })).id();
-            app.world_mut().run_system_once(update_mantle_movement_base).unwrap();
-            let actual = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
-                helper.compute_global_transform(actor).unwrap()
-            }).unwrap();
-            assert!(actual.translation().distance(expected.translation) < 1e-5,
-                "Moving Mantle base must write the target world pose into actor parent space: actual={actual:?} expected={expected:?}");
-            assert!(actual.rotation().abs_diff_eq(expected.rotation, 1e-5) || actual.rotation().abs_diff_eq(-expected.rotation, 1e-5));
-            assert!(app.world().get::<Transform>(actor).unwrap().scale.abs_diff_eq(local.scale, 1e-6));
-            assert!(app.world().get::<Position>(actor).unwrap().0.distance(expected.translation) < 1e-5);
-            assert!(app.world().get::<Rotation>(actor).unwrap().0.abs_diff_eq(expected.rotation, 1e-5));
+            mantle.time = 0.3;
+            let start = mantle.target_actor_transform_at(mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            let dilation = actor_delta / delta;
+            let applied_delta = delta * dilation;
+            let expected = if applied_delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+                start.translation
+            } else {
+                let time = mantle.time + applied_delta;
+                mantle.target_actor_transform_at(time, sample_mantle_root(clip, skeleton, mantle.clip_time_at(time)).unwrap()).translation
+            };
+            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling, RigidBody::Dynamic, Collider::capsule(0.3, 1.2), start,
+                GlobalTransform::from(start), Position(start.translation), Rotation(start.rotation), LinearVelocity::ZERO,
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+            app.update();
+            let actual = app.world().get::<Position>(actor).unwrap().0;
+            assert!(actual.abs_diff_eq(expected, 1e-7),
+                "actor_delta={actor_delta} actual={actual:?} expected={expected:?}");
             app.world_mut().despawn(actor);
             app.world_mut().despawn(base);
-            app.world_mut().despawn(parent);
         }
     }
 
@@ -2358,7 +2319,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn moving_mantle_targets_are_sampled_after_their_current_frame_motion() {
+    fn moving_mantle_targets_use_the_pre_physics_base_transform() {
         use avian3d::prelude::*;
         use bevy::time::TimeUpdateStrategy;
         let mut app = mantle_clip_test_app();
@@ -2395,13 +2356,13 @@ pub(crate) mod tests {
                 for frame in 0..120 {
                     let delta = [1.0/60.0, 0.05][frame % 2];
                     elapsed += delta;
+                    let before_physics = *app.world().get::<GlobalTransform>(target).unwrap();
+                    reference.refresh_target_base(Some(AlsMantleTargetBase { entity:target, translation:before_physics.translation(),
+                        rotation:before_physics.rotation(), scale:before_physics.scale(), relative_location:true }));
                     app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
                     app.update();
                     let current = app.world().get::<AlsMantleState>(actor).unwrap();
                     assert!((current.time - elapsed.min(current.action_end())).abs() < 1e-5);
-                    let latest = app.world().get::<GlobalTransform>(target).unwrap();
-                    reference.refresh_target_base(Some(AlsMantleTargetBase { entity:target, translation:latest.translation(),
-                        rotation:latest.rotation(), scale:latest.scale(), relative_location:true }));
                     let clip = app.world().resource::<Assets<GraphClip>>().get(&clip_handle).unwrap();
                     let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
                     let root = sample_mantle_root(clip, skeleton, current.clip_time()).unwrap();
@@ -2422,7 +2383,7 @@ pub(crate) mod tests {
                 app.world_mut().despawn(body);
             }
         }
-        assert!(failures.is_empty(), "Mantle used an old movement-base transform: {failures:?}");
+        assert!(failures.is_empty(), "Mantle did not use the pre-physics movement-base transform: {failures:?}");
     }
 
     #[test]

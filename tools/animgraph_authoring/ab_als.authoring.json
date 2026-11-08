@@ -720,7 +720,7 @@
         "--jobs",
         "2",
         "--lib",
-        "moving_mantle_targets_are_sampled_after_their_current_frame_motion"
+        "moving_mantle_targets_use_the_pre_physics_base_transform"
       ],
       "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
     },
