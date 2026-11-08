@@ -275,8 +275,9 @@ impl Plugin for AlsCharacterPlugin {
                 .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
                 .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
             .add_systems(Update, character_sensor_shape_sync_system)
-            .add_systems(PhysicsSchedule, character_contact_friction_system
-                .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
+            .add_systems(PhysicsSchedule, (character_contact_friction_system,
+                crate::extensions::source_contact_order::order_source_capsule_box_contacts)
+                .chain().after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
             .add_systems(PhysicsSchedule, sync_child_collider_poses
                 .in_set(PhysicsStepSystems::Finalize));
     }

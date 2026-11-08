@@ -121,6 +121,8 @@ pub(crate) mod source_contact_friction;
 pub(crate) mod source_contact_history;
 #[path = "avian_ext/source_contact_normal.rs"]
 pub(crate) mod source_contact_normal;
+#[path = "avian_ext/source_contact_order.rs"]
+pub(crate) mod source_contact_order;
 #[path = "avian_ext/ragdoll_physics_profile.rs"]
 pub mod ragdoll_physics_profile;
 #[path = "als/nodes/ragdolling_tag_blend.rs"]

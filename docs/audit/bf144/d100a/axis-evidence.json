@@ -1,0 +1,32 @@
+{
+  "source_endpoint_0_minus_1_runtime_direction": [
+    0.8191520335420177,
+    -6.123234483804898e-17,
+    -0.5735764516993154
+  ],
+  "target_local_negative_y_world_direction": [
+    0.8191520442889919,
+    -2.0816681711721685e-17,
+    -0.5735764363510462
+  ],
+  "dot": 1.0,
+  "target_profile": "assets/ALS/Character/PA_Als.physics.json",
+  "native_sample": "head_0_-0.1_wide",
+  "source_points_body_m": [
+    [
+      0.0868618392944336,
+      -0.09,
+      0.00418906033039093
+    ],
+    [
+      0.013138161897659302,
+      -0.09,
+      0.05581093311309815
+    ]
+  ],
+  "source_normal_runtime": [
+    5.0158604453770094e-17,
+    1,
+    -3.512143368195641e-17
+  ]
+}

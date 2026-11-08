@@ -6583,6 +6583,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.58补充网格入口：fresh gather仍按原生点序，target `solver/plugin.rs:545–575`先overflow再遍历各颜色与manifold，组内按生成点序。已分类几何的18姿态在两种摩擦下共72组50PASS/22FAIL，失败均为同11姿态的自然序；固定位置投影/push、自由V/W、点集及全部已知阶段控制，仅恢复源序全部通过。Stairs02 foot实际遍历[5,4,0,3,1,2,6,7]，60Hz无摩擦vY=−0.640518、wZ=−0.815022，source为−0.677159、+0.410893。Fountain head再次出现端点反序导致角速度反号。source-order基线与.57逐字一致，见`58/final/normal/`、`58/final/friction/`；同根补充，不新增编号。
 
   - BF144.61补充compound入口：30姿态的源序/自然序×两种摩擦120组104PASS/16FAIL，同八姿态在自然序下失败；源序基线与.59逐字一致。Arch01 hull 2 foot的actual visit=[3,4,5,6,2,1,0]，共同位置输入后60Hz无摩擦wZ=−1.739168，source=+0.667201；只恢复点序即通过。原生32组container顺序已核对，24个多manifold保持各自身份；三姿态30Hz四组合保持相同分类。与组阶段组成完整240组，组合失败均由D100/D137解释，见`61/final/`，不新增编号。
+  - 22:44 拆分：源capsule/box端点由线段裁剪顺序确定，而mesh/compound的自然顺序来自不同的三角遍历及约束分组；合并实现预计超过单轮上限。先完成primitive端点顺序D100a，再处理mesh/compound的顺序与分组D100b，不把一种排序规则推广到所有几何。
+
+- [x] BF144-D100a / P3 — 保留水平capsule/box的源端点顺序。
+  - 本轮开始：2026-11-08 22:44 +08:00；预计结束：2026-11-08 23:34 +08:00。重读源端点定义、坐标基及目标manifold消费，以原生head探针和逆向/非水平控制核对顺序；测试、消融与Playground待统一Gate。估时依据：BF144.33已隔离同点集顺序，本项需补旋转轴与缓存顺序闭包。
+  - 22:52 source/static摘要：fresh原生probe与源shape构造证明X1对应目标局部负Y，已离线生成阈值并在约束准备前排列Ragdoll水平capsule/box的完整接触点。已写native轴、双侧、阈值及加载head manifold对照；测试、消融、目标多余中点和Playground待统一Gate/后续条目。证据`docs/audit/bf144/d100a/`。实际结束：2026-11-08 22:52 +08:00；偏差：−42分钟；结果：子项静态实现完成，拆分为a/b。
+
+- [ ] BF144-D100b / P3 — 保留mesh/compound接触顺序与约束分组。
+  - 依赖D100a静态完成；计划开始：2026-11-08 23:34 +08:00；预计结束：2026-11-09 00:29 +08:00，实际开始时按剩余闭包重估。依据fresh源三角遍历、container身份及目标求解分组实现顺序；测试、消融和Playground待统一Gate。
 
 - [ ] BF144-D101 / P3 — 近水平胶囊/箱体接触法向与支持点未保留源规则。
   - Source：fresh `CollisionOneShotManifolds.cpp:1133–1196`在abs(axis·normal)<0.01时使用垂直胶囊轴的CylinderPlaneNormal，并沿此法向生成/投影两个裁剪端点。native head倾斜0.5度时，转换后的normal为(0.00585553,0.99997443,−0.00410024)，支持点相较目标偏约0.64mm。
