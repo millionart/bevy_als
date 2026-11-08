@@ -155,13 +155,15 @@ fn locomotion_input_writer(
     mut commands: Commands,
     spatial: SpatialQuery,
     configs: Res<Assets<AlsControlSchemeConfig>>,
+    movement_params: Res<Assets<crate::als::params::AlsMovementParams>>,
     transforms: bevy::transform::helper::TransformHelper,
     characters: Query<
         (
             &TnuaController<AlsControlScheme>,
             &TnuaConfig<AlsControlScheme>,
             &avian3d::prelude::Position,
-            &Collider,
+            &crate::als::state::Stance,
+            &crate::als::character::AlsMovementParamsHandle,
             &AlsActualMotion,
         ),
         With<AlsCharacter>,
@@ -173,7 +175,7 @@ fn locomotion_input_writer(
     let filter = SpatialQueryFilter::from_excluded_entities(non_world_colliders.iter()).with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
     for (avatar, parent, instance) in &avatars {
         let Ok(mesh) = transforms.compute_global_transform(avatar) else { continue; };
-        let Ok((controller, config, position, capsule, motion)) =
+        let Ok((controller, config, position, stance, params, motion)) =
             characters.get(parent.parent())
         else {
             commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
@@ -181,6 +183,10 @@ fn locomotion_input_writer(
         };
         let Ok(transform) = transforms.compute_global_transform(parent.parent()) else { continue; };
         let Some(config) = configs.get(&config.0) else {
+            commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
+            continue;
+        };
+        let Some(params) = movement_params.get(params.id()) else {
             commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
             continue;
         };
@@ -198,11 +204,16 @@ fn locomotion_input_writer(
                 .and_then(|context| context.f32("GroundPredictionBlock"))
                 .unwrap_or(0.0)
                 .clamp(0.0, 1.0);
+        let scale = transform.to_scale_rotation_translation().0;
+        let half = if *stance == crate::als::state::Stance::Crouching { params.crouch.crouched_capsule_half_height }
+            else { params.crouch.standing_capsule_half_height } * scale.y;
+        let capsule = crate::als::character::als_character_capsule(half,
+            params.crouch.standing_capsule_radius * scale.x.min(scale.z));
         let (prediction, trace) = ground_prediction_amount(
             &spatial,
             position.0,
             motion.world_velocity,
-            capsule,
+            &capsule,
             mesh.to_scale_rotation_translation().0.y,
             config.basis.max_slope.cos(),
             &filter,
@@ -493,6 +504,31 @@ mod tests {
             let amount = app.world().get::<AnimationGraphPlayer>(player).unwrap()
                 .get_global_input_data("in_air_source.ground_prediction_amount").unwrap().as_f32().unwrap();
             assert_eq!(amount > 0.0, angle == 30.0, "angle={angle} amount={amount}");
+        }
+    }
+
+    #[test]
+    fn scaled_animation_prediction_keeps_the_source_logical_capsule() {
+        for parented in [false, true] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            if parented {
+                let parent = app.world_mut().spawn(Transform::from_scale(Vec3::new(2.0, 1.0, 1.0))).id();
+                app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+            } else {
+                app.world_mut().get_mut::<Transform>(actor).unwrap().scale = Vec3::new(2.0, 1.0, 1.0);
+            }
+            app.update();
+            app.update();
+            app.world_mut().entity_mut(actor).insert(AlsActualMotion { world_velocity: Vec3::NEG_Y * 10.0, ..default() });
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            app.world_mut().entity_mut(player).remove::<AlsRootAnimationContext>();
+            app.world_mut().run_system_once(locomotion_input_writer).unwrap();
+            app.world_mut().flush();
+            let physical = app.world().get::<Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents();
+            let prediction = app.world().get::<AlsGroundPredictionTrace>(avatar).unwrap()
+                .shape.shape_scaled().compute_local_aabb().half_extents();
+            assert!(physical.abs_diff_eq(Vec3::new(0.6, 0.9, 0.6), 1e-5), "parented={parented} physical={physical:?}");
+            assert!(prediction.abs_diff_eq(Vec3::new(0.3, 0.9, 0.3), 1e-5), "parented={parented} prediction={prediction:?}");
         }
     }
 

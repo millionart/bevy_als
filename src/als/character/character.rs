@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    SimpleCollider, Collider, ColliderOf, CollisionLayers, ContactGraph, Sensor, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
+    SimpleCollider, Collider, ColliderDensity, ColliderMassProperties, ColliderOf, CollisionLayers, ComputeMassProperties3d, ContactGraph, Sensor, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
     PhysicsStepSystems, PhysicsSystems, Position, RigidBody,
     SpeculativeMargin,
 };
@@ -46,7 +46,14 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::als::motion::AlsCrouchTransaction)]
 #[require(AlsCollisionLayerOwnership)]
 #[require(AlsEffectiveGravity)]
+#[require(AlsPhysicalCapsuleScale)]
 pub struct AlsCharacter;
+
+#[derive(Component, Debug, Default)]
+struct AlsPhysicalCapsuleScale {
+    dimensions: Option<(Vec3, f32, f32)>,
+    minimum_axis_half: f32,
+}
 
 #[derive(Component, Debug, Default)]
 pub(crate) struct AlsInitialMovementModePending;
@@ -240,11 +247,56 @@ impl Plugin for AlsCharacterPlugin {
                 PostUpdate,
                 character_crush_recovery_system.in_set(PhysicsSystems::Last),
             )
+            .add_systems(Update, sync_physical_capsules
+                .after(crate::als::motion::capsule_reshape_system)
+                .before(crate::als::motion::cmc_movement_transaction_system)
+                .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
+                .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
+            .add_systems(PostUpdate, sync_physical_capsules
+                .in_set(PhysicsSystems::Prepare)
+                .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
+                .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
+            .add_systems(FixedPostUpdate, sync_physical_capsules
+                .in_set(PhysicsSystems::Prepare)
+                .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
+                .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
             .add_systems(Update, character_sensor_shape_sync_system)
             .add_systems(PhysicsSchedule, character_contact_friction_system
                 .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
             .add_systems(PhysicsSchedule, sync_child_collider_poses
                 .in_set(PhysicsStepSystems::Last));
+    }
+}
+
+fn sync_physical_capsules(
+    params_assets: Res<Assets<AlsMovementParams>>,
+    transforms: bevy::transform::helper::TransformHelper,
+    mut characters: Query<(Entity, &Stance, &AlsMovementParamsHandle, &mut Collider,
+        &mut AlsPhysicalCapsuleScale, Option<&ColliderDensity>, Option<&mut ColliderMassProperties>, Has<Sensor>), With<AlsCharacter>>,
+) {
+    for (entity, stance, handle, mut collider, mut previous, density, mass, sensor) in &mut characters {
+        let Some(params) = params_assets.get(handle.id()) else { continue };
+        let Ok(world) = transforms.compute_global_transform(entity) else { continue };
+        let scale = world.to_scale_rotation_translation().0.abs();
+        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
+            else { params.crouch.standing_capsule_half_height };
+        let radius = params.crouch.standing_capsule_radius;
+        let dimensions = (scale, half, radius);
+        if previous.dimensions != Some(dimensions) {
+            previous.minimum_axis_half = if previous.dimensions.is_some() { 0.000001 } else { 0.0005 };
+            previous.dimensions = Some(dimensions);
+        }
+        let scaled_half = (half * scale.y).max(0.001);
+        let scaled_radius = (radius * scale.x.max(scale.z)).clamp(0.001, scaled_half);
+        let axis_half = (scaled_half - scaled_radius).max(previous.minimum_axis_half);
+        let rebuild = collider.shape().as_capsule().is_none_or(|capsule|
+            capsule.radius != scaled_radius || capsule.segment.a.y != axis_half || capsule.segment.b.y != -axis_half);
+        let rescale = collider.scale() != Vec3::ONE;
+        if rebuild { *collider = Collider::capsule(scaled_radius, axis_half * 2.0); }
+        else if rescale { collider.set_scale(Vec3::ONE, 10); }
+        if (rebuild || rescale) && !sensor && let (Some(density), Some(mut mass)) = (density, mass) {
+            *mass = ColliderMassProperties::from(collider.mass_properties(density.0));
+        }
     }
 }
 
@@ -495,6 +547,73 @@ mod tests {
         assert_eq!(bundle.aiming_yaw_constraint.active_limit_degrees, 180.0);
         assert_eq!(bundle.stance, Stance::Standing);
         assert_eq!(bundle.desired_stance.0, Stance::Standing);
+    }
+
+    #[test]
+    fn physical_capsule_keeps_the_source_circle_for_parent_and_direct_scale() {
+        use avian3d::prelude::{PhysicsPlugins, ShapeCastConfig, SpatialQueryFilter};
+        use bevy::{asset::AssetPlugin, ecs::system::RunSystemOnce};
+        for parented in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), AlsCharacterPlugin));
+            app.finish();
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+            let parent = parented.then(|| app.world_mut().spawn(Transform::from_xyz(0.0, 3.0, 0.0)).id());
+            let actor = app.world_mut().spawn((AlsCharacter, Stance::Standing, AlsMovementParamsHandle(params),
+                RigidBody::Kinematic, als_character_capsule(0.9, 0.3),
+                if parented { Transform::IDENTITY } else { Transform::from_xyz(0.0, 3.0, 0.0) })).id();
+            if let Some(parent) = parent { app.world_mut().entity_mut(actor).insert(ChildOf(parent)); }
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 0.1),
+                Transform::from_xyz(0.0, 3.0, -1.05)));
+            for (scale, stance, expected) in [
+                (Vec3::new(2.0, 1.0, 1.0), Stance::Standing, Vec3::new(0.6, 0.9, 0.6)),
+                (Vec3::new(1.0, 1.0, 2.0), Stance::Standing, Vec3::new(0.6, 0.9, 0.6)),
+                (Vec3::splat(2.0), Stance::Standing, Vec3::new(0.6, 1.8, 0.6)),
+                (Vec3::new(2.0, 0.25, 1.0), Stance::Crouching, Vec3::splat(0.14)),
+            ] {
+                app.world_mut().get_mut::<Transform>(parent.unwrap_or(actor)).unwrap().scale = scale;
+                *app.world_mut().get_mut::<Stance>(actor).unwrap() = stance;
+                app.update();
+                app.update();
+                let collider = app.world().get::<Collider>(actor).unwrap();
+                let extent = collider.shape_scaled().compute_local_aabb().half_extents();
+                assert!(extent.abs_diff_eq(expected, 2e-5), "parented={parented} scale={scale:?} extent={extent:?}");
+                let density = app.world().get::<ColliderDensity>(actor).unwrap().0;
+                assert_eq!(*app.world().get::<ColliderMassProperties>(actor).unwrap(),
+                    ColliderMassProperties::from_shape(collider, density));
+                if scale == Vec3::new(2.0, 1.0, 1.0) {
+                    let capsule = collider.clone();
+                    let origin = app.world().get::<Position>(actor).unwrap().0;
+                    let hit = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery| {
+                        spatial.cast_shape(&capsule, origin, Quat::IDENTITY, Dir3::NEG_Z,
+                            &ShapeCastConfig::from_max_distance(2.0), &SpatialQueryFilter::from_excluded_entities([actor]))
+                    }).unwrap().unwrap();
+                    assert!((hit.distance - 0.4).abs() < 1e-4, "parented={parented} hit={hit:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn clamped_physical_capsule_uses_source_creation_and_scale_update_lengths() {
+        use avian3d::prelude::PhysicsPlugins;
+        use bevy::asset::AssetPlugin;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            PhysicsPlugins::new(PostUpdate), AlsCharacterPlugin));
+        app.finish();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let actor = app.world_mut().spawn((AlsCharacter, Stance::Standing, AlsMovementParamsHandle(params),
+            RigidBody::Kinematic, als_character_capsule(0.9, 0.3),
+            Transform::from_scale(Vec3::new(2.0, 0.25, 1.0)))).id();
+        app.update();
+        let initial = app.world().get::<Collider>(actor).unwrap().shape_scaled().as_capsule().unwrap();
+        assert!((initial.segment.a.y - 0.0005).abs() < 1e-7);
+        app.world_mut().get_mut::<Transform>(actor).unwrap().scale.y = 0.3;
+        app.update();
+        let updated = app.world().get::<Collider>(actor).unwrap().shape_scaled().as_capsule().unwrap();
+        assert!((updated.segment.a.y - 0.000001).abs() < 1e-8);
     }
 
     #[test]

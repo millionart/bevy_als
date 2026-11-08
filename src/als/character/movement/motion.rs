@@ -3950,7 +3950,7 @@ pub(crate) fn locomotion_drive_system(
     }
 }
 
-type ReshapeQueryItem<'a> = (
+pub(crate) type ReshapeQueryItem<'a> = (
     Entity,
     &'a mut Stance,
     &'a AlsDesiredStance,
@@ -3965,7 +3965,7 @@ type ReshapeQueryItem<'a> = (
     &'a mut AlsCrouchTransaction,
 );
 
-fn capsule_reshape_system(
+pub(crate) fn capsule_reshape_system(
     mut commands: Commands,
     spatial_query: SpatialQuery,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -5135,6 +5135,40 @@ mod tests {
         assert_eq!(character_floor_scale(&scaled, false, &GlobalTransform::from(scaled)), scaled.scale);
         let parented_world = GlobalTransform::from(Transform::from_scale(Vec3::new(2.0, 3.0, 4.0)));
         assert_eq!(character_floor_scale(&scaled, true, &parented_world), parented_world.to_scale_rotation_translation().0);
+    }
+
+    #[test]
+    fn loaded_scaled_character_uses_the_circular_collider_for_movement() {
+        use bevy::ecs::system::RunSystemOnce;
+        for parented in [false, true] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            if parented {
+                let parent = app.world_mut().spawn(Transform::from_scale(Vec3::new(2.0, 1.0, 1.0))).id();
+                app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+            } else {
+                app.world_mut().get_mut::<Transform>(actor).unwrap().scale = Vec3::new(2.0, 1.0, 1.0);
+            }
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 0.1),
+                Transform::from_xyz(0.0, 5.0, -1.05)));
+            app.update();
+            app.update();
+            let (walking, falling) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                capsules: Query<&Collider>,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>, shapes: Query<(&Collider, &Position, &Rotation)>| {
+                let capsule = capsules.get(actor).unwrap();
+                let start = Vec3::Y * 5.0;
+                let walking = grounded_movement_transaction(&spatial, capsule, start, Quat::IDENTITY, 0.9, 0.3,
+                    Vec3::NEG_Z, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                    actor, &candidates, &permissions).unwrap();
+                let falling = falling_movement_sweep(&spatial, capsule, start, Quat::IDENTITY, Vec3::NEG_Z,
+                    Vec3::NEG_Z * 10.0, 0.1, None, None, actor, &candidates, &shapes);
+                (walking.0.z, falling.0.z)
+            }).unwrap();
+            for distance in [walking, falling] {
+                assert!((-0.4..-0.37).contains(&distance), "parented={parented} distance={distance}");
+            }
+        }
     }
 
     #[test]

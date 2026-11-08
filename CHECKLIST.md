@@ -5771,7 +5771,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - BF144.70补充地面预测消费者：fresh `RefreshGroundPrediction:1191`同样检查ImpactNormal；当前`locomotion_layer.rs:142`直接用normal1。30°/60°同一凸体边缘，接触normal.y均0.942273，源60°全部候选面均不可行走，目标仍给Fall预测权重0.377691；只恢复源资格便为0，活动Fall混合节点同步归零。四组3PASS/1FAIL，30°控制通过；`70/full_initial/`与`bf144_animation_phase70_prediction_face_normal`，归并同一面法线遗漏。
   - 547补充StepUp首次滑动消费者：同一43cm墙上沿在前向扫掠用竖直侧面判不可走，在下扫用水平顶面判可走。高顶板组接触normal.y约0.777，目标误保留向上滑动，起点相对原生多前进74.12 mm、偏高60.02 mm。只读重放替换面资格后起点余差0.010 mm；低顶板两重放相同。两端均实际提交。证据 `docs/audit/bf144/547/`。
 
-- [ ] BF144-D11 / P2 — 非均匀水平缩放改变了角色物理胶囊的源圆截面。
+- [x] BF144-D11 / P2 — 非均匀水平缩放改变了角色物理胶囊的源圆截面；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 13:24 +08:00；预估结束14:14 +08:00；实际结束13:35 +08:00，提前39分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh角色胶囊、UE物理创建/动态重缩放、逻辑查询与Avian时序见`docs/audit/bf144/d11/`。按世界尺度同步源圆胶囊及质量属性，CMC和物理使用真实形体；保持floor及动画预测的较小轴逻辑形体。已写直接/父级、蹲姿、半径约束、创建/更新、移动sweep及动画消费者对照，尚未运行目标测试和真实Gate。
   - Source：fresh `CapsuleComponent.cpp:192–214`生成单一Sphyl；`BodySetup.cpp:2144–2181`、`ChaosInterfaceUtils.cpp:174–190`创建圆胶囊，半径取水平绝对尺度最大值并受半高约束；`BodyInstance.cpp:2132–2140,2377–2421`动态缩放保持同一规则。`PrimitiveComponent.cpp:3354`→`WorldCollision.cpp:545–560`的真实移动使用该物理形体，不是floor查询中取水平小轴的尺寸helper。
   - Target：`src/als/character/character.rs:197–199`直接建立Avian Capsule，自动非均匀缩放走当前依赖的`Capsule::scaled`凸体近似；`character/movement/motion.rs:3527`真实移动sweep直接消费这个形体，没有移植源圆截面的尺度规则。
   - 反例：完整角色世界scale=(2,1,1)，source物理半高0.9m、水平圆半径0.6m；target形体半extent=(0.6,0.9,0.285317)m。面对距中心1m的−Z墙，源形体sweep距离0.4m，target初始sweep为0.714679m，实际前进后停在z=−0.700251m，越过源允许位置约0.30m。直接缩放与父级缩放均失败；scale=1/2的4个uniform对照通过。`bf144_floor_capsule_scale_keeps_source_circular_horizontal_shape`语义FAIL，证据`target/bf144/04/scale/`。
