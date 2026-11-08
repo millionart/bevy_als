@@ -8,6 +8,7 @@ use avian3d::prelude::{
     Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SphericalJoint, Substeps,
 };
 use avian3d::dynamics::integrator::{IntegrationSystems, VelocityIntegrationData, pre_process_velocity_increments};
+use avian3d::dynamics::solver::{constraint_graph::ConstraintGraph, softness_parameters::SoftnessCoefficients};
 use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
 use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
 use avian3d::collider_tree::{ColliderTreeProxyKey, ColliderTrees, MovedProxies};
@@ -853,6 +854,8 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
         .add_systems(PhysicsSchedule, disable_ragdoll_gyroscopic_torque
             .in_set(SolverSystems::PreSubstep))
+        .add_systems(PhysicsSchedule, apply_source_ragdoll_hard_contacts
+            .in_set(SolverSystems::PreSubstep))
         .add_systems(PhysicsSchedule, apply_source_linear_damping
             .in_set(IntegrationSystems::UpdateVelocityIncrements)
             .after(pre_process_velocity_increments))
@@ -878,6 +881,19 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .after(avian3d::prelude::PhysicsStepSystems::Sleeping)
             .before(avian3d::prelude::PhysicsStepSystems::Finalize)
             .run_if(resource_exists::<PhysicsIslands>));
+    }
+}
+
+fn apply_source_ragdoll_hard_contacts(
+    time: Res<Time<Substeps>>,
+    ragdoll_bodies: Query<(), With<RagdollActiveMode>>,
+    mut graph: ResMut<ConstraintGraph>,
+) {
+    let softness = SoftnessCoefficients { bias: time.delta_secs().recip(), mass_scale: 1.0, impulse_scale: 0.0 };
+    for constraint in graph.colors.iter_mut().flat_map(|color| &mut color.contact_constraints) {
+        if ragdoll_bodies.contains(constraint.body1) || ragdoll_bodies.contains(constraint.body2) {
+            for point in &mut constraint.points { point.normal_part.softness = softness; }
+        }
     }
 }
 
@@ -2116,6 +2132,55 @@ mod tests {
                 let expected = if speed > 10.0 * dt { speed * 0.3 } else { 0.0 };
                 assert!((actual - expected).abs() < 0.025,
                     "dt={dt} incoming={speed} actual={actual} source={expected}");
+            }
+        }
+    }
+
+    #[test]
+    fn source_ragdoll_hard_contacts_recover_source_penetration() {
+        use avian3d::prelude::{AngularVelocity, ColliderDisabled, ComputedCenterOfMass, Gravity, JointDisabled,
+            LinearVelocity, Sleeping, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+        for dt in [1.0_f32 / 60.0, 1.0 / 30.0] {
+            for depth in [0.001_f32, 0.01, 0.1, 0.2] {
+                let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                let (player, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+                for _ in 0..12 { app.update(); }
+                let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+                let colliders = spawned.colliders.values().copied().collect::<Vec<_>>();
+                let joints = spawned.joints.values().copied().collect::<Vec<_>>();
+                let head = bodies.iter().find(|(label, _)| label == "head").unwrap().1;
+                let profile = app.world().get::<RagdollPhysicsProfile>(player).unwrap();
+                let head_index = profile.bodies.iter().find(|body| body.label == "head").unwrap().source_index;
+                let shape = colliders.iter().copied().find(|entity| {
+                    let label = &app.world().get::<ColliderLabel>(*entity).unwrap().0;
+                    find_collider_profile(profile, label).unwrap().source_body_index == head_index
+                }).unwrap();
+                for entity in colliders { if entity != shape { app.world_mut().entity_mut(entity).insert(ColliderDisabled); } }
+                for entity in joints { app.world_mut().entity_mut(entity).insert(JointDisabled); }
+                app.world_mut().insert_resource(Gravity(Vec3::ZERO));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(dt)));
+                let local_center = app.world().get::<ComputedCenterOfMass>(head).unwrap().0;
+                let position = app.world().get::<Position>(head).unwrap().0;
+                let rotation = app.world().get::<Rotation>(head).unwrap().0;
+                let center = position + rotation * local_center;
+                app.world_mut().entity_mut(shape).insert((Collider::sphere(0.1), Transform::from_translation(local_center),
+                    Restitution::new(0.0), Friction::new(0.0)));
+                app.world_mut().entity_mut(head).insert((SleepingDisabled, LinearDamping(0.0), AngularDamping(0.0),
+                    LinearVelocity::ZERO, AngularVelocity::ZERO)).remove::<Sleeping>();
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                    Transform::from_translation(center - Vec3::Y * (0.2 - depth)), Restitution::new(0.0), Friction::new(0.0)));
+                let ordinary = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.1),
+                    Transform::from_translation(center + Vec3::X), SleepingDisabled,
+                    Restitution::new(0.0), Friction::new(0.0))).id();
+                app.update();
+                let moved = app.world().get::<Position>(head).unwrap().y - position.y;
+                let ordinary_moved = app.world().get::<Position>(ordinary).unwrap().y - center.y;
+                let expected = depth.min(10.0 * dt);
+                assert!((moved - expected).abs() < 0.003,
+                    "dt={dt} depth={depth} actual={moved} source={expected}");
+                assert!(ordinary_moved < expected * 0.8, "ordinary contact must keep its own solver behavior");
             }
         }
     }

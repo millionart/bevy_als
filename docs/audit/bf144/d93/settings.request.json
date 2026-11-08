@@ -1,0 +1,6 @@
+{
+  "asset": "/Script/Engine.Default__PhysicsSettings",
+  "reader": "tools/run_ue_source_reader.ps1",
+  "timeout_seconds": 240,
+  "no_progress_seconds": 90
+}

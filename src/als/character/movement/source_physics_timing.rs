@@ -15,6 +15,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 pub const SOURCE_MAX_PHYSICS_DELTA: Duration = Duration::from_nanos(33_333_333);
 const SOURCE_PHYSICS_SUBSTEPS: u32 = include!("../../settings/physics_substeps.rs");
 const SOURCE_RESTITUTION_ACCELERATION: f32 = include!("../../settings/restitution_acceleration.rs");
+const SOURCE_CONTACT_PUSHOUT_SPEED: f32 = include!("../../settings/contact_pushout_speed.rs");
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourcePhysicsTimingSet {
@@ -70,7 +71,7 @@ impl Plugin for SourcePhysicsTimingPlugin {
                     .after(avian3d::dynamics::integrator::pre_process_velocity_increments),
             )
             .add_systems(PhysicsSchedule, preserve_unobstructed_grounded_displacement.in_set(SolverSystems::PostSubstep))
-            .add_systems(PhysicsSchedule, update_source_restitution_threshold.in_set(SolverSystems::PreSubstep))
+            .add_systems(PhysicsSchedule, update_source_contact_limits.in_set(SolverSystems::PreSubstep))
             .add_systems(
                 SubstepSchedule,
                 record_character_velocity
@@ -86,12 +87,13 @@ impl Plugin for SourcePhysicsTimingPlugin {
     }
 }
 
-fn update_source_restitution_threshold(
+fn update_source_contact_limits(
     time: Res<Time<Physics>>,
     length_unit: Res<PhysicsLengthUnit>,
     mut solver: ResMut<SolverConfig>,
 ) {
     solver.restitution_threshold = (SOURCE_RESTITUTION_ACCELERATION * time.delta_secs() / length_unit.0).next_up();
+    solver.max_overlap_solve_speed = SOURCE_CONTACT_PUSHOUT_SPEED / length_unit.0;
 }
 
 fn integrate_character_velocity(
@@ -343,6 +345,7 @@ mod tests {
                 let physics_dt = app.world().resource::<Time<Physics>>().delta_secs();
                 let threshold = 10.0 * physics_dt;
                 let actual = app.world().resource::<SolverConfig>().restitution_threshold * unit;
+                assert_eq!(app.world().resource::<SolverConfig>().max_overlap_solve_speed * unit, 10.0);
                 assert_eq!(actual, threshold.next_up(), "unit={unit} frame_dt={frame_dt}");
                 for speed in [threshold.next_down(), threshold, threshold.next_up()] {
                     assert_eq!(speed >= actual, speed > threshold,

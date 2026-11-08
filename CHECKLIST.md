@@ -6494,11 +6494,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧回弹验证集中于自定义CCD或较大速度，未覆盖原生普通接触阈值及其dt语义。属于低速回弹差异，未将截图或整段跌倒观感当作证据。
   - 21:34 source/static摘要：fresh PA确认世界覆盖关闭，源默认加速度、物理delta与严格比较已固化；离线生成目标加速度，物理帧内更新Avian阈值并适配等号边界。已写多帧长、长度单位、等号两侧及加载head接触对照；测试、消融、非默认单位舍入与Playground待统一Gate。证据`docs/audit/bf144/d92/`。实际结束：2026-11-08 21:34 +08:00；偏差：−41分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D93 / P2 — Ragdoll硬材质接触被目标的柔性接触参数延迟恢复。
+- [x] BF144-D93 / P2 — Ragdoll硬材质接触被目标的柔性接触参数延迟恢复。
+  - 本轮开始：2026-11-08 21:35 +08:00；预计结束：2026-11-08 22:30 +08:00。重读源硬接触、pushout和目标constraint准备/求解，优先复用目标可公开调整的每接触参数；补native角色及非rig控制，统一验证留待升级后。估时依据：BF144.28接触/材质闭包实耗约29分钟，此项跨求解阶段且需排除其他碰撞consumer。
+  - 21:37 source/static摘要：源world配置与目标默认值还在同一法向bias路径分别限制pushout为10和4m/s；硬接触修复需同时覆盖高于4m/s的合法恢复，否则较深重叠仍不能消除。该上限属于世界配置，计划按fresh native生成目标值并补边界控制。
   - Source：fresh native PA材质SoftCollisionMode=None、body非one-way且无穿透速度override，world初始穿透恢复−1映射无限制，pushout上限10m/s。`PBDCollisionConstraint.cpp:518–524`实际stiffness=1；`PBDCollisionSolver.h:454–466,593–644,1114–1138`按当前法向误差乘有效质量作位置修正，中心单点无转矩时一轮可清零误差。
   - Target：Avian `solver/plugin.rs:292–299,326–351`默认contact damping ratio=10/frequency factor=1.5，`contact/normal_part.rs:132–149`把所有普通穿透接触按softness缩放后推动。PA soft=None未关闭这条柔性规则，最终速度relax到零也不恢复残余位置误差。
   - 反例：完整角色head保留native mass/inertia，以中心单点和零速度/重力隔离其它差异；60/30Hz×1/默认6子步×0/1mm/1cm重叠×原参数/完整法向修正，共24组16PASS/8FAIL。1cm重叠时单步只恢复约1.890mm、默认六子步约3.561mm，源应全部恢复；均未触及源pushout上限。将bias设为1/substep、mass scale=1、impulse scale=0后恢复，零重叠控制通过。证据`bf144_pa_contact_hard_surface_resolves_source_normal_separation`、`target/bf144/28/`。
   - 漏检：旧接触测试检查有限值、碰撞阻挡或inertia conditioning相对变化，没有以同一法向误差核对native硬材质的绝对恢复量。这里只证明单点法向规则不同，不宣称已对齐复杂多接触Ragdoll轨迹；仅登记。
+  - 21:41 source/static摘要：fresh PA/PhysicsSettings确认硬材质、非one-way及world pushout配置；目标仅修改rig相关已准备接触的法向参数，并以离线目标配置更新world推出速度。已写加载head浅/深重叠、30/60Hz与普通刚体控制；测试、消融、源软材质另一侧和复杂接触/Playground待统一Gate。证据`docs/audit/bf144/d93/`。实际结束：2026-11-08 21:41 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D94 / P3 — Ragdoll切向摩擦缺少源独立的位置修正阶段，改变首接触滑移距离。
   - Source：fresh `PBDCollisionContainerSolver.cpp:318–336,851–860,900–904`和实际world/CVar证明8个位置迭代中的末4轮执行friction、2个速度迭代中的末1轮执行friction；位置stiffness=0.5、速度stiffness=1。`PBDCollisionSolver.h:472–590,668–744`分别累加位置/速度冲量并共享Coulomb限制；`ConstraintGroupSolver.cpp:468–484`在两阶段之间把DP/DQ写入速度。

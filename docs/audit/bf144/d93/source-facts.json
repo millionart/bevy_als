@@ -1,0 +1,65 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/PBDCollisionConstraint.cpp",
+    "sha256": "aca64b551f10a289b4a3a1b81a09b8292dcbc3299b7658f8e6b406f2716fd873",
+    "start_line": 510,
+    "end_line": 528,
+    "text": "\t\t\t}\n\t\t\tStiffness = Chaos_Collision_OneWayStiffness;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tMaterial.InvMassScale0 = 1;\n\t\t\tMaterial.InvInertiaScale0 = 1;\n\t\t\tMaterial.InvMassScale1 = 1;\n\t\t\tMaterial.InvInertiaScale1 = 1;\n\t\t\tStiffness = 1;\n\n\t\t\t// Debug testing for solver stiffness\n\t\t\tif (Chaos_Collision_Stiffness >= 0)\n\t\t\t{\n\t\t\t\tSetStiffness(Chaos_Collision_Stiffness);\n\t\t\t}\n\t\t}\n\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/PBDCollisionContainerSolver.cpp",
+    "sha256": "b92ce7e6ffec23d4285268bcdb8f0f7fabe7263ccff4230179d9921849305e79",
+    "start_line": 230,
+    "end_line": 237,
+    "text": "\t\t// Limit the depenetration for this tick if desired\n\t\tif (MaxPushOut > 0)\n\t\t{\n\t\t\tif (WorldContactDeltaNormal < -MaxPushOut)\n\t\t\t{\n\t\t\t\tWorldContactDeltaNormal = -MaxPushOut;\n\t\t\t}\n\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/PBDCollisionContainerSolver.cpp",
+    "sha256": "b92ce7e6ffec23d4285268bcdb8f0f7fabe7263ccff4230179d9921849305e79",
+    "start_line": 276,
+    "end_line": 285,
+    "text": "\t{\n\t\tconst FConstraintSolverBody& Body0 = Solver.SolverBody0();\n\t\tconst FConstraintSolverBody& Body1 = Solver.SolverBody1();\n\n\t\t// MaxDepenetrationVelocity controls the rate at which initial-overlaps are resolved\n\t\tconst FSolverReal MaxDepenetrationVelocity = Constraint->GetInitialOverlapDepenetrationVelocity();\n\n\t\t// The maximum correction we can apply in one frame\n\t\t// @todo(chaos): consider removing this functionality?\n\t\tconst FSolverReal MaxPushOut = (SolverSettings.MaxPushOutVelocity > 0) ? (FSolverReal(SolverSettings.MaxPushOutVelocity) * Dt) : FSolverReal(0);"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PBDRigidsSolver.cpp",
+    "sha256": "8d810ddcab03ca703abd57f4bdc6319fb6b78c1940037422ca43bd305752dc9f",
+    "start_line": 3694,
+    "end_line": 3700,
+    "text": "\t\tGetEvolution()->GetRigidClustering().ApplySettings(InConfig);\n\t\tSetPositionIterations(InConfig.PositionIterations);\n\t\tSetVelocityIterations(InConfig.VelocityIterations);\n\t\tSetProjectionIterations(InConfig.ProjectionIterations);\n\t\tSetCollisionCullDistance(InConfig.CollisionCullDistance);\n\t\tSetCollisionMaxPushOutVelocity(InConfig.CollisionMaxPushOutVelocity);\n\t\tSetCollisionDepenetrationVelocity(InConfig.CollisionInitialOverlapDepenetrationVelocity);"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PBDRigidsSolver.cpp",
+    "sha256": "8d810ddcab03ca703abd57f4bdc6319fb6b78c1940037422ca43bd305752dc9f",
+    "start_line": 3788,
+    "end_line": 3791,
+    "text": "\t\t\tif (ChaosSolverMaxPushOutVelocity >= 0.0f)\n\t\t\t{\n\t\t\t\tSetCollisionMaxPushOutVelocity(ChaosSolverMaxPushOutVelocity);\n\t\t\t}"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/plugin.rs",
+    "sha256": "b8c96fa4fcdc013ef28830afe5821a013676252519fb1169fb08b8d33227ceea",
+    "start_line": 363,
+    "end_line": 370,
+    "text": "fn prepare_contact_constraints(\n    contact_graph: Res<ContactGraph>,\n    mut constraint_graph: ResMut<ConstraintGraph>,\n    mut diagnostics: ResMut<SolverDiagnostics>,\n    bodies: Query<BodyQuery, RigidBodyActiveFilter>,\n    narrow_phase_config: Res<NarrowPhaseConfig>,\n    contact_softness: Res<ContactSoftnessCoefficients>,\n) {"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/plugin.rs",
+    "sha256": "b8c96fa4fcdc013ef28830afe5821a013676252519fb1169fb08b8d33227ceea",
+    "start_line": 425,
+    "end_line": 438,
+    "text": "                body1_entity,\n                body2_entity,\n                body1,\n                body2,\n                contact_pair.contact_id,\n                manifold,\n                manifold_index,\n                narrow_phase_config.match_contacts,\n                &contact_softness,\n            );\n\n            if !constraint.points.is_empty() {\n                color.contact_constraints.push(constraint);\n            }"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/contact/normal_part.rs",
+    "sha256": "82af86487b609b416b67e807aa9addd7252b1a14584ebe08a2904bd8401ea778",
+    "start_line": 125,
+    "end_line": 151,
+    "text": "        // Compute the relative velocity along the normal.\n        let normal_speed = relative_velocity.dot(normal);\n\n        // Compute the incremental normal impulse.\n        let mut impulse = if separation > 0.0 {\n            // Speculative contact: Push back the part of the velocity that would cause penetration.\n            -self.effective_mass * (normal_speed + separation / delta_secs)\n        } else if use_bias {\n            // Contact using bias: Incorporate softness parameters.\n            //\n            // 1. Velocity bias: Allows the constraint to solve overlap by boosting\n            //    the constraint response a bit, taking into account the current overlap.\n            //    This is known as Baumgarte stabilization.\n            //\n            // 2. Mass coefficient: Scales the effective mass \"seen\" by the constraint.\n            //\n            // 3. Impulse coefficient: Scales the accumulated impulse that is subtracted\n            //    from the total impulse to prevent the total impulse from becoming too large.\n            //\n            // See the `softness_parameters` module for more details and references.\n\n            // TODO: We might want optional slop, a small amount of allowed penetration.\n            let bias = (self.softness.bias * separation).max(-max_overlap_solve_speed);\n            let scaled_mass = self.softness.mass_scale * self.effective_mass;\n            let scaled_impulse = self.softness.impulse_scale * self.impulse;\n\n            -scaled_mass * (normal_speed + bias) - scaled_impulse"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/dynamics/solver/constraint_graph.rs",
+    "sha256": "0340a115f03d53e0e7c66eea42faabaaeafd86e10b07663421816b5ef442da3e",
+    "start_line": 66,
+    "end_line": 79,
+    "text": "pub struct GraphColor {\n    /// A bit vector representing the [`SolverBody`]s that are part of this color.\n    ///\n    /// The bit vector is indexed by the body index, so it also contains static and sleeping bodies.\n    /// However, these bits are never iterated over, and the bit count is not used,\n    /// so it should not be a problem.\n    ///\n    /// [`SolverBody`]: crate::dynamics::solver::solver_body::SolverBody\n    pub body_set: BitVec,\n    /// The handles of the contact manifolds in this color.\n    pub manifold_handles: Vec<ContactManifoldHandle>,\n    /// The contact constraints in this color.\n    pub contact_constraints: Vec<ContactConstraint>,\n    // TODO: Joints"
+  }
+]

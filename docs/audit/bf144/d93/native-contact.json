@@ -1,0 +1,132 @@
+{
+  "bodies": [
+    {
+      "bone": "pelvis",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "spine_01",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "spine_02",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "spine_03",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "neck_01",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "head",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "thigh_l",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "thigh_r",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "calf_l",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "calf_r",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "clavicle_l",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "clavicle_r",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "upperarm_l",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "upperarm_r",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "lowerarm_l",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "lowerarm_r",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "hand_l",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "hand_r",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "root",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "foot_l",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    },
+    {
+      "bone": "foot_r",
+      "soft_mode": "None",
+      "one_way": "False",
+      "override_depenetration_velocity": "False"
+    }
+  ],
+  "max_pushout_override": "-1",
+  "stiffness_override": "-1"
+}
