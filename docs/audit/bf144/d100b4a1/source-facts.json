@@ -1,0 +1,16 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/TriangleMeshImplicitObject.h",
+    "sha256": "d9254f3434215d7e1ae4352b6aac6c890d72c3b557168b1370a1bcc3024b911f",
+    "start_line": 544,
+    "end_line": 566,
+    "text": "\tinline void TriangleMeshTransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const ParticlesType& Particles,\n\t\tconst TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)\n\t{\n\t\tOutA = Particles.GetX(Elements[TriIdx][0]) * TriMeshScale;\n\t\tOutB = Particles.GetX(Elements[TriIdx][1]) * TriMeshScale;\n\t\tOutC = Particles.GetX(Elements[TriIdx][2]) * TriMeshScale;\n\t}\n\n\ttemplate <typename IdxType, typename ParticlesType>\n\tinline void TriangleMeshTransformVertsHelper(const FRigidTransform3& Transform, int32 TriIdx, const ParticlesType& Particles,\n\t\tconst TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC,\n\t\tint32& OutVertexIndexA, int32& OutVertexIndexB, int32& OutVertexIndexC)\n\t{\n\t\tconst int32 VertexIndexA = Elements[TriIdx][0];\n\t\tconst int32 VertexIndexB = Elements[TriIdx][1];\n\t\tconst int32 VertexIndexC = Elements[TriIdx][2];\n\t\t// Note: deliberately using scaled transform here. See VisitTriangles\n\t\tOutA = Transform.TransformPosition(FVector(Particles.GetX(VertexIndexA)));\n\t\tOutB = Transform.TransformPosition(FVector(Particles.GetX(VertexIndexB)));\n\t\tOutC = Transform.TransformPosition(FVector(Particles.GetX(VertexIndexC)));\n\t\tOutVertexIndexA = VertexIndexA;\n\t\tOutVertexIndexB = VertexIndexB;\n\t\tOutVertexIndexC = VertexIndexC;\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/TriangleMeshImplicitObject.h",
+    "sha256": "d9254f3434215d7e1ae4352b6aac6c890d72c3b557168b1370a1bcc3024b911f",
+    "start_line": 840,
+    "end_line": 867,
+    "text": "\t\t}\n\n\t\tCHAOS_API virtual uint32 GetTypeHash() const override;\n\n\t\tCHAOS_API FVec3 GetFaceNormal(const int32 FaceIdx) const;\n\n\t\tCHAOS_API virtual uint16 GetMaterialIndex(uint32 HintIndex) const override;\n\n\t\tCHAOS_API const ParticlesType& Particles() const;\n\t\tCHAOS_API const FTrimeshIndexBuffer& Elements() const;\n\n\t\tCHAOS_API void UpdateVertices(const TArray<FVector>& Positions);\n\n\t\t/**\n\t\t * @brief Generate the triangle at the specified index with the specified transform (including scale)\n\t\t * @note does not correct winding for negative scales\n\t\t*/\n\t\tvoid GetTransformedTriangle(const int32 TriangleIndex, const FRigidTransform3& Transform, FTriangle& OutTriangle, int32& OutVertexIndex0, int32& OutVertexIndex1, int32& OutVertexIndex2) const\n\t\t{\n\t\t\tif (MElements.RequiresLargeIndices())\n\t\t\t{\n\t\t\t\tTriangleMeshTransformVertsHelper(Transform, TriangleIndex, MParticles, MElements.GetLargeIndexBuffer(), OutTriangle[0], OutTriangle[1], OutTriangle[2], OutVertexIndex0, OutVertexIndex1, OutVertexIndex2);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tTriangleMeshTransformVertsHelper(Transform, TriangleIndex, MParticles, MElements.GetSmallIndexBuffer(), OutTriangle[0], OutTriangle[1], OutTriangle[2], OutVertexIndex0, OutVertexIndex1, OutVertexIndex2);\n\t\t\t}\n\t\t}\n"
+  }
+]

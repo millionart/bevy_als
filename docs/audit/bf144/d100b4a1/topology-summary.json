@@ -1,0 +1,58 @@
+[
+  {
+    "asset": "SM_Als_Cart",
+    "vertices": 750,
+    "triangles": 1051,
+    "source_geometry_sha256": "80717294c18bc485820fcc9952cb3c11eb8e0b763822d3a090d4998640ee1183",
+    "matches_prior_native": true,
+    "f32_basis_roundtrip": true
+  },
+  {
+    "asset": "SM_Als_Crate_Broken",
+    "vertices": 415,
+    "triangles": 650,
+    "source_geometry_sha256": "f22f54aa5b2e21549b72aae30d50579d1681d2d2a3b7d59b910ccefb84455d71",
+    "matches_prior_native": true,
+    "f32_basis_roundtrip": true
+  },
+  {
+    "asset": "SM_Als_Fountain_01",
+    "vertices": 636,
+    "triangles": 1180,
+    "source_geometry_sha256": "0d6415656eee87fa53b04bdd1262491e67ed40a2bc2c96de6f28f1f737fca162",
+    "matches_prior_native": true,
+    "f32_basis_roundtrip": true
+  },
+  {
+    "asset": "SM_Als_Rock",
+    "vertices": 593,
+    "triangles": 1142,
+    "source_geometry_sha256": "c6ee4d6378dd8e83794430a0258b7abcb9c4a09681460433afa209e443c12fed",
+    "matches_prior_native": true,
+    "f32_basis_roundtrip": true
+  },
+  {
+    "asset": "SM_Als_Stairs_01",
+    "vertices": 272,
+    "triangles": 364,
+    "source_geometry_sha256": "3395a4ca84cdab246eeb672ce3f3404b66d5e5e8e75ead51e87f1ad66473acf6",
+    "matches_prior_native": true,
+    "f32_basis_roundtrip": true
+  },
+  {
+    "asset": "SM_Als_Stairs_02",
+    "vertices": 272,
+    "triangles": 364,
+    "source_geometry_sha256": "5fc2e6c41d83f072f2ebc15e87d989891cc04d73dc3af102ff9b89f7641247b3",
+    "matches_prior_native": true,
+    "f32_basis_roundtrip": true
+  },
+  {
+    "asset": "SM_Als_Stairs_03",
+    "vertices": 272,
+    "triangles": 364,
+    "source_geometry_sha256": "1e801afe6abdf45d47f1230d5d38dac97bf816b61cc692322097196085ca099f",
+    "matches_prior_native": true,
+    "f32_basis_roundtrip": true
+  }
+]
