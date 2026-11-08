@@ -1,0 +1,476 @@
+{
+  "samples": [
+    {
+      "label": "crossing",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "segment_nearest": {
+        "first_start_cm": [
+          -2,
+          0,
+          0
+        ],
+        "first_end_cm": [
+          2,
+          0,
+          0
+        ],
+        "second_start_cm": [
+          0,
+          -1,
+          0
+        ],
+        "second_end_cm": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "label": "parallel",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "segment_nearest": {
+        "first_start_cm": [
+          -2,
+          0,
+          0
+        ],
+        "first_end_cm": [
+          2,
+          0,
+          0
+        ],
+        "second_start_cm": [
+          -1,
+          1,
+          0
+        ],
+        "second_end_cm": [
+          1,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "label": "clamp_start",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "segment_nearest": {
+        "first_start_cm": [
+          -2,
+          0,
+          0
+        ],
+        "first_end_cm": [
+          2,
+          0,
+          0
+        ],
+        "second_start_cm": [
+          3,
+          1,
+          0
+        ],
+        "second_end_cm": [
+          3,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "label": "clamp_end",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "segment_nearest": {
+        "first_start_cm": [
+          -2,
+          0,
+          0
+        ],
+        "first_end_cm": [
+          2,
+          0,
+          0
+        ],
+        "second_start_cm": [
+          -3,
+          -2,
+          0
+        ],
+        "second_end_cm": [
+          -3,
+          -1,
+          0
+        ]
+      }
+    },
+    {
+      "label": "first_point",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "segment_nearest": {
+        "first_start_cm": [
+          3,
+          0,
+          0
+        ],
+        "first_end_cm": [
+          3,
+          0,
+          0
+        ],
+        "second_start_cm": [
+          0,
+          0,
+          0
+        ],
+        "second_end_cm": [
+          4,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "label": "second_point",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "segment_nearest": {
+        "first_start_cm": [
+          0,
+          0,
+          0
+        ],
+        "first_end_cm": [
+          4,
+          0,
+          0
+        ],
+        "second_start_cm": [
+          3,
+          0,
+          0
+        ],
+        "second_end_cm": [
+          3,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "label": "nearly_point",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "segment_nearest": {
+        "first_start_cm": [
+          0,
+          0,
+          0
+        ],
+        "first_end_cm": [
+          5e-05,
+          0,
+          0
+        ],
+        "second_start_cm": [
+          -10,
+          1,
+          0
+        ],
+        "second_end_cm": [
+          990,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "label": "skew",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "segment_nearest": {
+        "first_start_cm": [
+          1,
+          2,
+          3
+        ],
+        "first_end_cm": [
+          7,
+          5,
+          11
+        ],
+        "second_start_cm": [
+          -4,
+          3,
+          2
+        ],
+        "second_end_cm": [
+          8,
+          -5,
+          6
+        ]
+      }
+    }
+  ]
+}

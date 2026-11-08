@@ -78,6 +78,7 @@
 #include "Chaos/GJKShape.h"
 #include "Chaos/Segment.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
+#include "Chaos/Utilities.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/GeometryQueries.h"
@@ -1818,6 +1819,26 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         Sample->SetObjectField(TEXT("input"), Input.ToSharedRef());
         Sample->SetObjectField(TEXT("geometry"), GeometryValue);
         if (OtherGeometryValue.IsValid()) { Sample->SetObjectField(TEXT("other_geometry"), OtherGeometryValue.ToSharedRef()); }
+        if (Input->HasField(TEXT("segment_nearest")))
+        {
+            const TSharedPtr<FJsonObject>* Segment = nullptr;
+            FVector FirstStart, FirstEnd, SecondStart, SecondEnd;
+            if (!Input->TryGetObjectField(TEXT("segment_nearest"), Segment)
+                || !ReadVector(*Segment, TEXT("first_start_cm"), FirstStart)
+                || !ReadVector(*Segment, TEXT("first_end_cm"), FirstEnd)
+                || !ReadVector(*Segment, TEXT("second_start_cm"), SecondStart)
+                || !ReadVector(*Segment, TEXT("second_end_cm"), SecondEnd)) { return nullptr; }
+            Chaos::FReal FirstParameter, SecondParameter;
+            Chaos::FVec3 FirstPoint, SecondPoint;
+            Chaos::Utilities::NearestPointsOnLineSegments(Chaos::FVec3(FirstStart), Chaos::FVec3(FirstEnd),
+                Chaos::FVec3(SecondStart), Chaos::FVec3(SecondEnd), FirstParameter, SecondParameter, FirstPoint, SecondPoint);
+            TSharedRef<FJsonObject> Nearest = MakeShared<FJsonObject>();
+            Nearest->SetNumberField(TEXT("first_parameter"), FirstParameter);
+            Nearest->SetNumberField(TEXT("second_parameter"), SecondParameter);
+            Nearest->SetObjectField(TEXT("first_point_cm"), CaptureVector(FVector(FirstPoint)));
+            Nearest->SetObjectField(TEXT("second_point_cm"), CaptureVector(FVector(SecondPoint)));
+            Sample->SetObjectField(TEXT("segment_nearest"), Nearest);
+        }
         bool CaptureMeshTriangleQuery = false;
         if (Input->HasField(TEXT("capture_mesh_triangle_query"))
             && !Input->TryGetBoolField(TEXT("capture_mesh_triangle_query"), CaptureMeshTriangleQuery)) { return nullptr; }
