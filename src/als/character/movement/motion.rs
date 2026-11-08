@@ -3012,14 +3012,21 @@ fn prepare_subminimum_custom_physics(
     time: Res<Time<Virtual>>,
     mut commands: Commands,
     characters: Query<(Entity, &LocomotionState, Option<&AlsMantleState>, &avian3d::prelude::RigidBody,
-        Has<avian3d::prelude::CustomPositionIntegration>),
+        Has<avian3d::prelude::CustomPositionIntegration>, Option<&crate::als::roll::AlsRollState>,
+        Option<&crate::als_camera::AlsCameraCustomTimeDilation>),
         (With<AlsCharacter>, Without<AlsCustomMovementPhysicsFrame>)>,
 ) {
-    if time.delta_secs() <= 0.0 || time.delta_secs() >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { return; }
-    for (entity, mode, mantle, body, custom_position) in &characters {
-        if *mode == LocomotionState::Custom && mantle.is_none_or(|state| !state.active && !state.root_motion_ready) {
+    if time.delta_secs() <= 0.0 { return; }
+    for (entity, mode, mantle, body, custom_position, roll, dilation) in &characters {
+        if *mode == LocomotionState::Custom && time.delta_secs() < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
+            && mantle.is_none_or(|state| !state.active && !state.root_motion_ready) {
             commands.entity(entity).insert((avian3d::prelude::RigidBody::Kinematic,
                 avian3d::prelude::CustomPositionIntegration,
+                AlsCustomMovementPhysicsFrame { rigid_body: *body, custom_position }));
+        } else if *mode == LocomotionState::Grounded
+            && time.delta_secs() * dilation.map_or(1.0, |value| value.0) < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
+            && roll.is_some_and(|roll| roll.active && roll.previous_time < crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS) {
+            commands.entity(entity).insert((avian3d::prelude::CustomPositionIntegration,
                 AlsCustomMovementPhysicsFrame { rigid_body: *body, custom_position }));
         }
     }
@@ -5824,6 +5831,25 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn subminimum_grounded_roll_suppresses_one_physics_position_step() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (dilation, suppressed) in [(0.0, true), (0.00001, true), (0.0001, false), (1.0, false)] {
+            let mut world = World::new();
+            let mut time = Time::<Virtual>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+            world.insert_resource(time);
+            let actor = world.spawn((AlsCharacter, LocomotionState::Grounded, RigidBody::Dynamic,
+                crate::als::roll::AlsRollState { active: true, time: 0.3, previous_time: 0.29, ..default() },
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+            world.run_system_once(prepare_subminimum_custom_physics).unwrap();
+            assert_eq!(world.get::<avian3d::prelude::CustomPositionIntegration>(actor).is_some(), suppressed);
+            world.run_system_once(release_custom_movement_physics).unwrap();
+            assert!(world.get::<avian3d::prelude::CustomPositionIntegration>(actor).is_none());
+            assert_eq!(*world.get::<RigidBody>(actor).unwrap(), RigidBody::Dynamic);
+        }
+    }
+
     #[test]
     fn normal_aiming_rotation_resumes_during_the_roll_blend_tail() {
         for (time, active, expected) in [(0.3, true, 0.0), (0.9, true, 0.0318133),

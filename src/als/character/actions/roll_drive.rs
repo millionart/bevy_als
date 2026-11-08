@@ -458,6 +458,25 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_grounded_roll_respects_the_owner_minimum_movement_delta() {
+        for dilation in [0.0_f32, 0.00001, 0.0001, 1.0] {
+            let (mut app, actor, _) = loaded_roll_character();
+            play_loaded_roll(&mut app, actor);
+            app.world_mut().entity_mut(actor).insert((LinearVelocity::ZERO,
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation)));
+            let start = app.world().get::<avian3d::prelude::Position>(actor).unwrap().0;
+            app.update();
+            let displacement = (app.world().get::<avian3d::prelude::Position>(actor).unwrap().0 - start).with_y(0.0).length();
+            if dilation <= 0.00001 {
+                assert!(displacement < 1e-7, "dilation={dilation} displacement={displacement}");
+            } else {
+                assert!(displacement > 1e-7, "dilation={dilation} displacement={displacement}");
+            }
+            assert!(app.world().get::<crate::als::motion::AlsCustomMovementPhysicsFrame>(actor).is_none());
+        }
+    }
+
+    #[test]
     fn loaded_roll_first_frame_uses_root_motion_in_the_clamped_physics_window() {
         use bevy::time::TimeUpdateStrategy;
         for (delta, expected) in [(0.034, 0.01636579), (0.04, 0.02207679), (0.05, 0.03159513)] {
@@ -2706,7 +2725,9 @@ fn roll_drive_system(
         let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale, runtime, mut cmc, base) = query.get_mut(character).unwrap();
         let custom = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Custom);
         let delta_too_small = if custom { dt <= 0.0 } else { dt <= 1e-5 };
-        if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || blend_outs.contains(character)
+        let grounded_subminimum = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Grounded)
+            && actor_delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS;
+        if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || grounded_subminimum || blend_outs.contains(character)
             || roll.previous_time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
             continue;
         }

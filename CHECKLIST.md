@@ -6140,7 +6140,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色自然Roll到0.9/1.05s，action=None、root_motion_active=False；输入移动并瞄准view yaw1.2rad，源下帧应从0转到0.0318133rad，target仍0。`bf144_roll_root_blend_tail_restores_normal_rotation`6组4PASS/2FAIL；1.2s自然结束对照及夹具仅清已结束root的roll.active后三组均到0.03181338，证据`target/bf144/15/blend_tail/`。
   - 漏检：旧blend tail回归检查重新启动、权重和动作tag，没有验证正常Character rotation恢复的时点。D48是root尚活动但action结束时继续Roll专用转向；本项是root已停止后普通rotation仍被阻挡，两个独立消费者。消融仅改夹具数据，生产实现未改。
 
-- [ ] BF144-D51 / P3 — Grounded Roll未按owner最小运动时间阻止根位移。
+- [x] BF144-D51 / P3 — Grounded Roll未按owner最小运动时间阻止根位移；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:21 +08:00；预估结束18:06 +08:00；实际结束17:24 +08:00，提前42分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE owner倍率/最小运动时间、Avian位置积分及原生默认倍率保存在`docs/audit/bf144/d51/`；Grounded Roll低于门槛时跳过根写速并暂缓位置积分，已写倍率与恢复对照。旧target报告缺失，源端微小倍率未复测，动画Gate待执行。
   - Source：fresh UE `CharacterMovementComponent.cpp:97,3531–3536`定义MIN_TICK_TIME=1e−6s，StartNewPhysics对owner delta低于该值直接返回；`TickCharacterPose:12027–12033`也不在该CMC阶段提取新root。静态基座和零外力下，这种tick不应移动胶囊。
   - Target：`src/als/character/actions/roll_drive.rs:2270,2285–2288`对普通Grounded/Air只检查world dt>1e−5，没有检查actor_delta；随后仍按动画微小增量写物理速度。Custom在`2338–2340`另有正确的actor最小时间门槛。
   - 反例：完整已启动Grounded Roll、world dt16.667ms、owner=1e−5，actor delta0.166667µs；源水平位移0，实际前移约0.834µm。`bf144_roll_root_owner_subminimum_does_not_move_capsule`8组7PASS/1FAIL；owner0冻结、owner1e−4/1正常移动及Custom四组对照符合源，证据`target/bf144/15/owner_minimum/`。只核对XZ，已有D12/D31的离地高度问题未重复记入。
