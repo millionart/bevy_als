@@ -633,6 +633,37 @@ mod tests {
     }
 
     #[test]
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    fn control_rig_pole_and_ik_preserve_source_vector_order() {
+        let geometry = geometry();
+        let (projection, direction) = geometry.pole(
+            DVec3::ZERO, DVec3::new(0.5, 2.0, 1.0), DVec3::new(3.0, 5.0, 4.0),
+        ).unwrap();
+        assert_eq!(projection, DVec3::new(0.93, 1.55, 1.24));
+        assert_eq!(direction, DVec3::new(-0.644_597_252_536_441, 0.674_578_520_096_275_3,
+            -0.359_775_210_718_013_55));
+
+        let (projection, direction) = geometry.pole(
+            DVec3::new(8.925_669_401_805_589, 94.925_253_710_169_7, -1.717_870_670_449_023_2),
+            DVec3::new(15.873_860_534_693_453, 53.219_259_420_003_425, 3.023_558_198_420_145_6),
+            DVec3::new(18.975_329_039_394_797, 13.409_921_254_359_077, -1.599_313_650_113_666_4),
+        ).unwrap();
+        assert_eq!(projection, DVec3::new(14.095_286_683_713_653, 52.993_179_729_490_16,
+            -1.656_884_085_497_952));
+        assert_eq!(direction, DVec3::new(0.354_857_215_564_911_07, 0.045_106_931_841_553_17,
+            0.933_831_741_408_140_3));
+
+        let mut bones = [RigTransform::default(); 3];
+        bones[0].translation = DVec3::new(-9.017_389_605_395_621, 94.903_783_166_794_78, -3.242_183_316_710_252_5);
+        bones[2].translation = DVec3::new(-17.076_301_574_707_03, 13.465_195_894_241_333, -5.072_212_219_238_281);
+        geometry.solve(&mut bones,
+            DVec3::new(-35.484_576_782_270_3, 52.930_200_444_555, 33.857_362_981_432_14),
+            DVec3::X, DVec3::Y, 0.0, [42.572_25, 40.196_82], false, 0.75, 1.25);
+        assert_eq!(bones[1].translation,
+            DVec3::new(-16.246_864_416_758_697, 53.175_769_941_310_58, 1.105_702_083_001_855_1));
+    }
+
+    #[test]
     fn control_rig_foot_location_preserves_two_stage_spring_and_final_leg_limit() {
         use RigValue::*;
         let mut hierarchy = hierarchy();

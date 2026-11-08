@@ -15,19 +15,24 @@ pub struct RigGeometry {
     pub basis: [DVec3; 3],
 }
 
+pub(crate) fn source_vector_dot(a: DVec3, b: DVec3) -> f64 {
+    (a.x * b.x + a.z * b.z) + a.y * b.y
+}
+
 fn safe_normal(value: DVec3, tolerance: f64) -> DVec3 {
-    let squared = value.length_squared();
+    let squared = source_vector_dot(value, value);
     if squared == 1.0 {
         value
     } else if squared < tolerance {
         DVec3::ZERO
     } else {
-        value / squared.sqrt()
+        value * (1.0 / squared.sqrt())
     }
 }
 
 fn normalize(value: DVec3, tolerance: f64) -> Option<DVec3> {
-    (value.length_squared() > tolerance).then(|| value / value.length())
+    let squared = source_vector_dot(value, value);
+    (squared > tolerance).then(|| value * (1.0 / squared.sqrt()))
 }
 
 impl RigGeometry {
@@ -37,9 +42,9 @@ impl RigGeometry {
             return None;
         }
         let Some(ac) = normalize(c - a, self.normalize_squared) else {
-            return Some((a, ab / ab.length()));
+            return Some((a, ab * (1.0 / source_vector_dot(ab, ab).sqrt())));
         };
-        let projection = a + ac * ab.dot(ac);
+        let projection = a + ac * source_vector_dot(ab, ac);
         normalize(b - projection, self.normalize_squared).map(|pole| (projection, pole))
     }
 
@@ -48,11 +53,11 @@ impl RigGeometry {
     }
 
     pub fn between_vectors(&self, a: DVec3, b: DVec3) -> DQuat {
-        self.between(a, b, (a.length_squared() * b.length_squared()).sqrt())
+        self.between(a, b, (source_vector_dot(a, a) * source_vector_dot(b, b)).sqrt())
     }
 
     fn between(&self, a: DVec3, b: DVec3, norm_ab: f64) -> DQuat {
-        let w = norm_ab + a.dot(b);
+        let w = norm_ab + source_vector_dot(a, b);
         let (axis, w) = if w >= 1e-6_f32 as f64 * norm_ab {
             (a.cross(b), w)
         } else {
@@ -79,7 +84,7 @@ impl RigGeometry {
         stretch_max: f64,
     ) -> (DVec3, DVec3) {
         let delta = effector - root;
-        let mut distance = delta.length();
+        let mut distance = source_vector_dot(delta, delta).sqrt();
         let direction = if distance < self.solve_near_zero {
             distance = self.solve_near_zero;
             self.basis[0]
@@ -88,19 +93,22 @@ impl RigGeometry {
         };
         let pole_delta = pole - root;
         let near_squared = self.solve_near_zero * self.solve_near_zero;
-        let bend = if pole_delta.length_squared() < near_squared {
+        let bend = if source_vector_dot(pole_delta, pole_delta) < near_squared {
             self.basis[1]
-        } else if direction.cross(pole_delta).length_squared() < near_squared {
+        } else if {
+            let plane = direction.cross(pole_delta);
+            source_vector_dot(plane, plane) < near_squared
+        } {
             let magnitudes = self.basis.map(|axis| direction.dot(axis).abs());
             let basis = if magnitudes[2] > magnitudes[0] && magnitudes[2] > magnitudes[1] {
                 self.basis[0]
             } else {
                 self.basis[2]
             };
-            let first = safe_normal(basis - direction * basis.dot(direction), 1e-8_f32 as f64);
+            let first = safe_normal(basis - direction * source_vector_dot(basis, direction), 1e-8_f32 as f64);
             first.cross(direction) * self.handedness()
         } else {
-            let bend = pole_delta - direction * pole_delta.dot(direction);
+            let bend = pole_delta - direction * source_vector_dot(pole_delta, direction);
             normalize(bend, self.normalize_squared).unwrap_or(bend)
         };
         let mut maximum = upper + lower;
@@ -174,7 +182,7 @@ impl RigGeometry {
             target = safe_normal(target, self.normalize_squared);
             if index == 0 {
                 let base = safe_normal(effector - root, self.normalize_squared);
-                fully_extended = (base.dot(target) - 1.0).abs() < 1e-4_f32 as f64;
+                fully_extended = (source_vector_dot(base, target) - 1.0).abs() < 1e-4_f32 as f64;
             }
             bones[index].rotation =
                 rig_normalize(self.between(axis, target, 1.0) * bones[index].rotation);
@@ -192,7 +200,7 @@ impl RigGeometry {
             {
                 continue;
             }
-            secondary_target -= secondary_target.dot(target) * target;
+            secondary_target -= source_vector_dot(secondary_target, target) * target;
             secondary_target = safe_normal(secondary_target, self.normalize_squared);
             let mut rotation = self.between(axis, secondary_target, 1.0);
             if (secondary_weight - 1.0).abs() > 1e-8 {

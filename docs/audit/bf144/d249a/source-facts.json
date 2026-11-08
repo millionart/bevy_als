@@ -1,0 +1,178 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/Utility/AlsMath.cpp",
+      "sha256": "d958fabdb0daed8a8c51db87ee5d5368cec9ca8ef24a4f4f63d1f27750b85e33",
+      "excerpts": [
+        {
+          "first_line": 31,
+          "last_line": 69,
+          "text": "bool UAlsMath::TryCalculatePoleVector(const FVector& ALocation, const FVector& BLocation, const FVector& CLocation,\r\n                                      FVector& ProjectionLocation, FVector& PoleDirection)\r\n{\r\n\tconst auto AbVector{BLocation - ALocation};\r\n\tif (AbVector.IsNearlyZero())\r\n\t{\r\n\t\t// Can't do anything if A and B are equal.\r\n\r\n\t\tProjectionLocation = ALocation;\r\n\t\tPoleDirection = FVector::ZeroVector;\r\n\r\n\t\treturn false;\r\n\t}\r\n\r\n\tauto AcVector{CLocation - ALocation};\r\n\tif (!AcVector.Normalize())\r\n\t{\r\n\t\t// Only A and C are equal.\r\n\r\n\t\tProjectionLocation = ALocation;\r\n\t\tPoleDirection = AbVector.GetUnsafeNormal(); // A and B are not equal, so normalization will be safe.\r\n\r\n\t\treturn true;\r\n\t}\r\n\r\n\tProjectionLocation = ALocation + AbVector.ProjectOnToNormal(AcVector);\r\n\tPoleDirection = BLocation - ProjectionLocation;\r\n\r\n\treturn PoleDirection.Normalize(); // Direction will be zero and cannot be normalized if A, B and C are collinear.\r\n}\r\n"
+        }
+      ]
+    },
+    {
+      "path": "Source/ALS/Private/Nodes/AlsRigUnits.cpp",
+      "sha256": "3ce54b6ed7786ee737a09d26872125505bcdd2983aa8cf6eccab23d2593f4913",
+      "excerpts": [
+        {
+          "first_line": 13,
+          "last_line": 33,
+          "text": "void FAlsRigVMFunction_DamperExactVector::Initialize()\r\n{\r\n\tbInitialized = false;\r\n}\r\n\r\nFAlsRigVMFunction_DamperExactVector_Execute()\r\n{\r\n\tDECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()\r\n\r\n\tif (!bInitialized)\r\n\t{\r\n\t\tbInitialized = true;\r\n\t\tCurrent = Target;\r\n\t}\r\n\r\n\tCurrent = UAlsMath::DamperExact(Current, Target, UE_REAL_TO_FLOAT(ExecuteContext.GetDeltaTime()), HalfLife);\r\n}\r\n\r\nvoid FAlsRigVMFunction_DamperExactQuaternion::Initialize()\r\n{\r\n\tbInitialized = false;\r\n"
+        },
+        {
+          "first_line": 60,
+          "last_line": 76,
+          "text": "\t\treturn;\r\n\t}\r\n\r\n\tconst auto NewItemBLocation{Hierarchy->GetGlobalTransformByIndex(CachedItemB, bInitial).GetLocation()};\r\n\tFVector NewItemBProjectionLocation;\r\n\tFVector NewPoleDirection;\r\n\r\n\tif (!UAlsMath::TryCalculatePoleVector(Hierarchy->GetGlobalTransformByIndex(CachedItemA, bInitial).GetLocation(), NewItemBLocation,\r\n\t                                      Hierarchy->GetGlobalTransformByIndex(CachedItemC, bInitial).GetLocation(),\r\n\t                                      NewItemBProjectionLocation, NewPoleDirection))\r\n\t{\r\n\t\t// Reuse the last successful result if a new pole vector can't be calculated.\r\n\t\tbSuccess = false;\r\n\t\treturn;\r\n\t}\r\n\r\n\tItemBLocation = NewItemBLocation;\r\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+      "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+      "excerpts": [
+        {
+          "first_line": 1543,
+          "last_line": 1549,
+          "text": "\ntemplate<typename T>\nUE_FORCEINLINE_HINT T TVector<T>::operator|(const TVector<T>& V) const\n{\n    return X*V.X + Y*V.Y + Z*V.Z;\n}\n\n"
+        },
+        {
+          "first_line": 1765,
+          "last_line": 1778,
+          "text": "inline bool TVector<T>::Normalize(T Tolerance)\n{\n    const T SquareSum = X*X + Y*Y + Z*Z;\n    if(SquareSum > Tolerance)\n    {\n        const T Scale = FMath::InvSqrt(SquareSum);\n        X *= Scale; Y *= Scale; Z *= Scale;\n        return true;\n    }\n    return false;\n}\n\ntemplate<typename T>\nUE_FORCEINLINE_HINT bool TVector<T>::IsUnit(T LengthSquaredTolerance) const\n"
+        },
+        {
+          "first_line": 2058,
+          "last_line": 2075,
+          "text": "inline TVector<T> TVector<T>::GetSafeNormal(T Tolerance, const TVector<T>& ResultIfZero) const\n{\n    const T SquareSum = X*X + Y*Y + Z*Z;\n\n    // Not sure if it's safe to add tolerance in there. Might introduce too many errors\n    if(SquareSum == 1.f)\n    {\n        return *this;\n    }\t\t\n    else if(SquareSum < Tolerance)\n    {\n        return ResultIfZero;\n    }\n    const T Scale = (T)FMath::InvSqrt(SquareSum);\n    return TVector<T>(X*Scale, Y*Scale, Z*Scale);\n}\n\ntemplate<typename T>\n"
+        },
+        {
+          "first_line": 2119,
+          "last_line": 2123,
+          "text": "UE_FORCEINLINE_HINT TVector<T> TVector<T>::ProjectOnToNormal(const TVector<T>& Normal) const\n{\n    return (Normal * (*this | Normal));\n}\n\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/GenericPlatform/GenericPlatformMath.h",
+      "sha256": "f8f04febb4df4cb8a58f145fbac30e72a2400707ca261120e7444a1ff0798908",
+      "excerpts": [
+        {
+          "first_line": 559,
+          "last_line": 565,
+          "text": "\t/** Computes a fully accurate inverse square root */\n\t[[nodiscard]] static UE_FORCEINLINE_HINT float InvSqrt( float F ) { return 1.0f / sqrtf( F ); }\n\t[[nodiscard]] static UE_FORCEINLINE_HINT double InvSqrt( double F ) { return 1.0 / sqrt( F ); }\n\n\t/** Computes a faster but less accurate inverse square root */\n\t[[nodiscard]] static UE_FORCEINLINE_HINT float InvSqrtEst( float F ) { return InvSqrt( F ); }\n\t[[nodiscard]] static UE_FORCEINLINE_HINT double InvSqrtEst( double F ) { return InvSqrt( F ); }\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Private/Math/UnrealMath.cpp",
+      "sha256": "0e0bfe3cb82a6f322f45d159ab97ea37666d4e0744861372d5885a652dd4a6e6",
+      "excerpts": [
+        {
+          "first_line": 1402,
+          "last_line": 1451,
+          "text": "\tFORCEINLINE_DEBUGGABLE TQuat<T> FindBetween_Helper(const TVector<T>& A, const TVector<T>& B, T NormAB)\n\t{\n\t\tT W = NormAB + TVector<T>::DotProduct(A, B);\n\t\tTQuat<T> Result;\n\n\t\tif (W >= 1e-6f * NormAB)\n\t\t{\n\t\t\t//Result = FVector::CrossProduct(A, B);\n\t\t\tResult = TQuat<T>(\n\t\t\t\tA.Y * B.Z - A.Z * B.Y,\n\t\t\t\tA.Z * B.X - A.X * B.Z,\n\t\t\t\tA.X * B.Y - A.Y * B.X,\n\t\t\t\tW);\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// A and B point in opposite directions\n\t\t\tW = 0.f;\n\t\t\tconst T X = FMath::Abs(A.X);\n\t\t\tconst T Y = FMath::Abs(A.Y);\n\t\t\tconst T Z = FMath::Abs(A.Z);\n\n\t\t\t// Find orthogonal basis. \n\t\t\tconst TVector<T> Basis = (X > Y && X > Z) ? TVector<T>::YAxisVector : -TVector<T>::XAxisVector;\n\n\t\t\t//Result = FVector::CrossProduct(A, Basis);\n\t\t\tResult = TQuat<T>(\n\t\t\t\tA.Y * Basis.Z - A.Z * Basis.Y,\n\t\t\t\tA.Z * Basis.X - A.X * Basis.Z,\n\t\t\t\tA.X * Basis.Y - A.Y * Basis.X,\n\t\t\t\tW);\n\t\t}\n\n\t\tResult.Normalize();\n\t\treturn Result;\n\t}\n\n\ttemplate<typename T>\n\tTQuat<T> TQuat<T>::FindBetweenNormals(const TVector<T>& A, const TVector<T>& B)\n\t{\n\t\tconst T NormAB = 1.f;\n\t\treturn UE::Math::FindBetween_Helper(A, B, NormAB);\n\t}\n\n\ttemplate<typename T>\n\tTQuat<T> TQuat<T>::FindBetweenVectors(const TVector<T>& A, const TVector<T>& B)\n\t{\n\t\tconst T NormAB = FMath::Sqrt(A.SizeSquared() * B.SizeSquared());\n\t\treturn UE::Math::FindBetween_Helper(A, B, NormAB);\n\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/AnimationCore/Private/TwoBoneIK.cpp",
+      "sha256": "c29c6ffe26ed4239127d450ae1e9bfb70bc3a2419b700d9848f5c11c9ed4a415",
+      "excerpts": [
+        {
+          "first_line": 70,
+          "last_line": 121,
+          "text": "void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, double UpperLimbLength, double LowerLimbLength, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale)\n{\n\t// This is our reach goal.\n\tFVector DesiredPos = Effector;\n\tFVector DesiredDelta = DesiredPos - RootPos;\n\tdouble DesiredLength = DesiredDelta.Size();\n\n\t// Find lengths of upper and lower limb in the ref skeleton.\n\t// Use actual sizes instead of ref skeleton, so we take into account translation and scaling from other bone controllers.\n\tdouble MaxLimbLength = LowerLimbLength + UpperLimbLength;\n\n\t// Check to handle case where DesiredPos is the same as RootPos.\n\tFVector\tDesiredDir;\n\tif (DesiredLength < DOUBLE_KINDA_SMALL_NUMBER)\n\t{\n\t\tDesiredLength = DOUBLE_KINDA_SMALL_NUMBER;\n\t\tDesiredDir = FVector(1, 0, 0);\n\t}\n\telse\n\t{\n\t\tDesiredDir = DesiredDelta.GetSafeNormal();\n\t}\n\n\t// Get joint target (used for defining plane that joint should be in).\n\tFVector JointTargetDelta = JointTarget - RootPos;\n\tconst double JointTargetLengthSqr = JointTargetDelta.SizeSquared();\n\n\t// Same check as above, to cover case when JointTarget position is the same as RootPos.\n\tFVector JointPlaneNormal, JointBendDir;\n\tif (JointTargetLengthSqr < FMath::Square(DOUBLE_KINDA_SMALL_NUMBER))\n\t{\n\t\tJointBendDir = FVector(0, 1, 0);\n\t\tJointPlaneNormal = FVector(0, 0, 1);\n\t}\n\telse\n\t{\n\t\tJointPlaneNormal = DesiredDir ^ JointTargetDelta;\n\n\t\t// If we are trying to point the limb in the same direction that we are supposed to displace the joint in, \n\t\t// we have to just pick 2 random vector perp to DesiredDir and each other.\n\t\tif (JointPlaneNormal.SizeSquared() < FMath::Square(DOUBLE_KINDA_SMALL_NUMBER))\n\t\t{\n\t\t\tDesiredDir.FindBestAxisVectors(JointPlaneNormal, JointBendDir);\n\t\t}\n\t\telse\n\t\t{\n\t\t\tJointPlaneNormal.Normalize();\n\n\t\t\t// Find the final member of the reference frame by removing any component of JointTargetDelta along DesiredDir.\n\t\t\t// This should never leave a zero vector, because we've checked DesiredDir and JointTargetDelta are not parallel.\n\t\t\tJointBendDir = JointTargetDelta - ((JointTargetDelta | DesiredDir) * DesiredDir);\n\t\t\tJointBendDir.Normalize();\n"
+        },
+        {
+          "first_line": 146,
+          "last_line": 183,
+          "text": "\t// If we are trying to reach a goal beyond the length of the limb, clamp it to something solvable and extend limb fully.\n\tif (DesiredLength >= MaxLimbLength)\n\t{\n\t\tOutEndPos = RootPos + (MaxLimbLength * DesiredDir);\n\t\tOutJointPos = RootPos + (UpperLimbLength * DesiredDir);\n\t}\n\telse\n\t{\n\t\t// So we have a triangle we know the side lengths of. We can work out the angle between DesiredDir and the direction of the upper limb\n\t\t// using the sin rule:\n\t\tconst double TwoAB = 2.0 * UpperLimbLength * DesiredLength;\n\n\t\tconst double CosAngle = (TwoAB != 0.0) ? ((UpperLimbLength*UpperLimbLength) + (DesiredLength*DesiredLength) - (LowerLimbLength*LowerLimbLength)) / TwoAB : 0.0;\n\n\t\t// If CosAngle is less than 0, the upper arm actually points the opposite way to DesiredDir, so we handle that.\n\t\tconst bool bReverseUpperBone = (CosAngle < 0.0);\n\n\t\t// Angle between upper limb and DesiredDir\n\t\t// ACos clamps internally so we dont need to worry about out-of-range values here.\n\t\tconst double Angle = FMath::Acos(CosAngle);\n\n\t\t// Now we calculate the distance of the joint from the root -> effector line.\n\t\t// This forms a right-angle triangle, with the upper limb as the hypotenuse.\n\t\tconst double JointLineDist = UpperLimbLength * FMath::Sin(Angle);\n\n\t\t// And the final side of that triangle - distance along DesiredDir of perpendicular.\n\t\t// ProjJointDistSqr can't be neg, because JointLineDist must be <= UpperLimbLength because appSin(Angle) is <= 1.\n\t\tconst double ProjJointDistSqr = (UpperLimbLength*UpperLimbLength) - (JointLineDist*JointLineDist);\n\t\t// although this shouldn't be ever negative, sometimes Xbox release produces -0.f, causing ProjJointDist to be NaN\n\t\t// so now I branch it. \t\t\t\t\t\t\n\t\tdouble ProjJointDist = (ProjJointDistSqr > 0.0) ? FMath::Sqrt(ProjJointDistSqr) : 0.0;\n\t\tif (bReverseUpperBone)\n\t\t{\n\t\t\tProjJointDist *= -1.f;\n\t\t}\n\n\t\t// So now we can work out where to put the joint!\n\t\tOutJointPos = RootPos + (ProjJointDist * DesiredDir) + (JointLineDist * JointBendDir);\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Plugins/Animation/ControlRig/Source/ControlRig/Private/Math/ControlRigMathLibrary.cpp",
+      "sha256": "e5c45c8c8cba751d11c06d305edfb7b553aa3108765403ff2c05bba6054ccdc2",
+      "excerpts": [
+        {
+          "first_line": 16,
+          "last_line": 59,
+          "text": "\n\tFVector Axis = BoneA.TransformVectorNoScale(PrimaryAxis);\n\tFVector Target1 = BoneB.GetLocation() - BoneA.GetLocation();\n\tbool bIsFullyExtended = false;\n\n\tFVector BoneBLocation = BoneB.GetLocation();\n\tif (!Target1.IsNearlyZero() && !Axis.IsNearlyZero())\n\t{\n\t\tTarget1 = Target1.GetSafeNormal();\n\n\t\t// Compute if the elbow is placed in the segment between the root and the effector (the limb is completely extended)\n\t\t{\n\t\t\tFVector BaseDirection = (EffectorPos - RootPos).GetSafeNormal();\n\t\t\tif (FMath::Abs(FVector::DotProduct(BaseDirection, Target1) - 1.0f) < KINDA_SMALL_NUMBER)\n\t\t\t{\n\t\t\t\tbIsFullyExtended = true;\n\t\t\t}\n\t\t}\n\t\t\n\t\tFQuat Rotation1 = FQuat::FindBetweenNormals(Axis, Target1);\n\t\tBoneA.SetRotation((Rotation1 * BoneA.GetRotation()).GetNormalized());\n\n\t\tAxis = BoneA.TransformVectorNoScale(SecondaryAxis);\n\n\t\tif (SecondaryAxisWeight > SMALL_NUMBER)\n\t\t{\n\t\t\tFVector Target2 =  bIsFullyExtended ? PoleVector - RootPos : BoneBLocation - (Effector.GetLocation() + BoneA.GetLocation()) * 0.5f;\n\t\t\tif (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())\n\t\t\t{\n\t\t\t\tTarget2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;\n\t\t\t\tTarget2 = Target2.GetSafeNormal();\n\n\t\t\t\tFQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);\n\t\t\t\tif (!FMath::IsNearlyEqual(SecondaryAxisWeight, 1.f))\n\t\t\t\t{\n\t\t\t\t\tFVector RotationAxis = Rotation2.GetRotationAxis();\n\t\t\t\t\tfloat RotationAngle = Rotation2.GetAngle();\n\t\t\t\t\tRotation2 = FQuat(RotationAxis, RotationAngle * FMath::Clamp<float>(SecondaryAxisWeight, 0.f, 1.f));\n\t\t\t\t}\n\t\t\t\tBoneA.SetRotation((Rotation2 * BoneA.GetRotation()).GetNormalized());\n\t\t\t}\n\t\t}\n\t}\n\n"
+        },
+        {
+          "first_line": 64,
+          "last_line": 86,
+          "text": "\t\tTarget1 = Target1.GetSafeNormal();\n\t\tFQuat Rotation1 = FQuat::FindBetweenNormals(Axis, Target1);\n\t\tBoneB.SetRotation((Rotation1 * BoneB.GetRotation()).GetNormalized());\n\n\t\tif (SecondaryAxisWeight > SMALL_NUMBER)\n\t\t{\n\t\t\tAxis = BoneB.TransformVectorNoScale(SecondaryAxis);\n\t\t\tFVector Target2 = bIsFullyExtended ?  PoleVector - BoneBLocation : BoneBLocation - (Effector.GetLocation() + BoneA.GetLocation()) * 0.5f;\n\t\t\tif (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())\n\t\t\t{\n\t\t\t\tTarget2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;\n\t\t\t\tTarget2 = Target2.GetSafeNormal();\n\n\t\t\t\tFQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);\n\t\t\t\tif (!FMath::IsNearlyEqual(SecondaryAxisWeight, 1.f))\n\t\t\t\t{\n\t\t\t\t\tFVector RotationAxis = Rotation2.GetRotationAxis();\n\t\t\t\t\tfloat RotationAngle = Rotation2.GetAngle();\n\t\t\t\t\tRotation2 = FQuat(RotationAxis, RotationAngle * FMath::Clamp<float>(SecondaryAxisWeight, 0.f, 1.f));\n\t\t\t\t}\n\t\t\t\tBoneB.SetRotation((Rotation2 * BoneB.GetRotation()).GetNormalized());\n\t\t\t}\n\t\t}\n"
+        }
+      ]
+    },
+    {
+      "path": "glam-0.32.1/src/f64/dvec3.rs",
+      "sha256": "beb2932d9904d92b21c0ccff379f57ba9613e5f40da8efb95b3b88e0b859ec24",
+      "excerpts": [
+        {
+          "first_line": 240,
+          "last_line": 246,
+          "text": "    /// Computes the dot product of `self` and `rhs`.\n    #[inline]\n    #[must_use]\n    pub fn dot(self, rhs: Self) -> f64 {\n        (self.x * rhs.x) + (self.y * rhs.y) + (self.z * rhs.z)\n    }\n\n"
+        },
+        {
+          "first_line": 547,
+          "last_line": 560,
+          "text": "    pub fn length(self) -> f64 {\n        math::sqrt(self.dot(self))\n    }\n\n    /// Computes the squared length of `self`.\n    ///\n    /// This is faster than `length()` as it avoids a square root operation.\n    #[doc(alias = \"magnitude2\")]\n    #[inline]\n    #[must_use]\n    pub fn length_squared(self) -> f64 {\n        self.dot(self)\n    }\n\n"
+        }
+      ]
+    },
+    {
+      "path": "tools/import/coordinate_basis.py",
+      "sha256": "cdb545e870644e1756b210f9bede438dc6d9b3bd918638b07be5bce9e7d894d9",
+      "excerpts": [
+        {
+          "first_line": 24,
+          "last_line": 29,
+          "text": "def source_direction_to_runtime(values):\n    return [values[0], values[2], values[1]]\n\n\ndef runtime_direction_to_source(values):\n    return [values[0], values[2], values[1]]\n"
+        }
+      ],
+      "revision": "before_D249a"
+    },
+    {
+      "path": "src/control_rig/control_rig_ik.rs",
+      "sha256": "2e30ced4fca43886c329610c082e0d4d3a012c980bb1950d8df2e781f5a0128b",
+      "excerpts": [
+        {
+          "first_line": 18,
+          "last_line": 43,
+          "text": "fn safe_normal(value: DVec3, tolerance: f64) -> DVec3 {\n    let squared = value.length_squared();\n    if squared == 1.0 {\n        value\n    } else if squared < tolerance {\n        DVec3::ZERO\n    } else {\n        value / squared.sqrt()\n    }\n}\n\nfn normalize(value: DVec3, tolerance: f64) -> Option<DVec3> {\n    (value.length_squared() > tolerance).then(|| value / value.length())\n}\n\nimpl RigGeometry {\n    pub fn pole(&self, a: DVec3, b: DVec3, c: DVec3) -> Option<(DVec3, DVec3)> {\n        let ab = b - a;\n        if ab.abs().max_element() <= self.near_zero {\n            return None;\n        }\n        let Some(ac) = normalize(c - a, self.normalize_squared) else {\n            return Some((a, ab / ab.length()));\n        };\n        let projection = a + ac * ab.dot(ac);\n        normalize(b - projection, self.normalize_squared).map(|pole| (projection, pole))\n"
+        },
+        {
+          "first_line": 50,
+          "last_line": 60,
+          "text": "    pub fn between_vectors(&self, a: DVec3, b: DVec3) -> DQuat {\n        self.between(a, b, (a.length_squared() * b.length_squared()).sqrt())\n    }\n\n    fn between(&self, a: DVec3, b: DVec3, norm_ab: f64) -> DQuat {\n        let w = norm_ab + a.dot(b);\n        let (axis, w) = if w >= 1e-6_f32 as f64 * norm_ab {\n            (a.cross(b), w)\n        } else {\n            let magnitudes = self.basis.map(|axis| a.dot(axis).abs());\n            let basis = if magnitudes[0] > magnitudes[1] && magnitudes[0] > magnitudes[2] {\n"
+        },
+        {
+          "first_line": 81,
+          "last_line": 111,
+          "text": "        let delta = effector - root;\n        let mut distance = delta.length();\n        let direction = if distance < self.solve_near_zero {\n            distance = self.solve_near_zero;\n            self.basis[0]\n        } else {\n            safe_normal(delta, self.normalize_squared)\n        };\n        let pole_delta = pole - root;\n        let near_squared = self.solve_near_zero * self.solve_near_zero;\n        let bend = if pole_delta.length_squared() < near_squared {\n            self.basis[1]\n        } else if direction.cross(pole_delta).length_squared() < near_squared {\n            let magnitudes = self.basis.map(|axis| direction.dot(axis).abs());\n            let basis = if magnitudes[2] > magnitudes[0] && magnitudes[2] > magnitudes[1] {\n                self.basis[0]\n            } else {\n                self.basis[2]\n            };\n            let first = safe_normal(basis - direction * basis.dot(direction), 1e-8_f32 as f64);\n            first.cross(direction) * self.handedness()\n        } else {\n            let bend = pole_delta - direction * pole_delta.dot(direction);\n            normalize(bend, self.normalize_squared).unwrap_or(bend)\n        };\n        let mut maximum = upper + lower;\n        if stretch {\n            let range = stretch_max - stretch_start;\n            if range > 1e-4 && maximum > self.solve_near_zero {\n                let factor = (stretch_max - 1.0)\n                    * ((distance / maximum - stretch_start) / range).clamp(0.0, 1.0);\n"
+        },
+        {
+          "first_line": 169,
+          "last_line": 205,
+          "text": "            if target.abs().max_element() <= self.near_zero\n                || axis.abs().max_element() <= 1e-4_f32 as f64\n            {\n                continue;\n            }\n            target = safe_normal(target, self.normalize_squared);\n            if index == 0 {\n                let base = safe_normal(effector - root, self.normalize_squared);\n                fully_extended = (base.dot(target) - 1.0).abs() < 1e-4_f32 as f64;\n            }\n            bones[index].rotation =\n                rig_normalize(self.between(axis, target, 1.0) * bones[index].rotation);\n            if secondary_weight <= 1e-8 {\n                continue;\n            }\n            axis = bones[index].rotation * secondary;\n            let mut secondary_target = if fully_extended {\n                pole - bones[index].translation\n            } else {\n                joint - (effector + root) * 0.5\n            };\n            if secondary_target.abs().max_element() <= self.near_zero\n                || axis.abs().max_element() <= 1e-4_f32 as f64\n            {\n                continue;\n            }\n            secondary_target -= secondary_target.dot(target) * target;\n            secondary_target = safe_normal(secondary_target, self.normalize_squared);\n            let mut rotation = self.between(axis, secondary_target, 1.0);\n            if (secondary_weight - 1.0).abs() > 1e-8 {\n                let vector = DVec3::new(rotation.x, rotation.y, rotation.z);\n                let axis = if vector.length_squared() >= 1e-8 {\n                    vector / vector.length()\n                } else {\n                    self.basis[0] * self.handedness()\n                };\n                let angle = (2.0 * rotation.w.clamp(-1.0, 1.0).acos()) as f32;\n"
+        }
+      ],
+      "revision": "before_D249a"
+    },
+    {
+      "path": "src/control_rig/control_rig_units.rs",
+      "sha256": "aa05e0c81d08ea31fbb9c176f3235610da79893db8010e09fbd5638985547c48",
+      "excerpts": [
+        {
+          "first_line": 300,
+          "last_line": 330,
+          "text": "                    let a = self\n                        .hierarchy\n                        .transform(a, RigSpace::Global, *initial)?\n                        .translation;\n                    let b = self\n                        .hierarchy\n                        .transform(b, RigSpace::Global, *initial)?\n                        .translation;\n                    let c = self\n                        .hierarchy\n                        .transform(c, RigSpace::Global, *initial)?\n                        .translation;\n                    let pole = self.geometry.pole(a, b, c);\n                    *success = pole.is_some();\n                    if let Some((new_projection, new_direction)) = pole {\n                        *location = b;\n                        *projection = new_projection;\n                        *direction = new_direction;\n                    }\n                }\n            }\n            (\n                \"FRigUnit_TwoBoneIKSimplePerItem::Execute\",\n                [\n                    a,\n                    b,\n                    end,\n                    effector,\n                    Vector(primary),\n                    Vector(secondary),\n                    F32(secondary_weight),\n"
+        }
+      ],
+      "revision": "before_D249a"
+    }
+  ]
+}

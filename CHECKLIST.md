@@ -5518,6 +5518,11 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
 
 - [ ] BF144-D249 / P3 — Pole Vector的dot累加与归一化算序未保持source，改变double方向及持续IK输入。
+  - 按消费闭包拆分：D249a先统一Pole Vector和两骨IK共用的源坐标点积/向量归一化；D249b再处理依赖同一源向量长度的FootLocation限长。两项各自实现、登记证据并提交，全部静态修复及Bevy/依赖迁移后统一执行其测试和Gate。
+  - [x] BF144-D249a — Pole Vector与两骨IK的源向量计算。开始2026-11-08 10:05 +08:00；预估结束10:55 +08:00。依据：.478/.479已封存两骨求解及因素对照，但共享源顺序点积、归一化和两处公开消费者须逐一核对并重采最小native控制。
+    - 10:07 source/static闭环：fresh ALS `TryCalculatePoleVector`先规范化AC，再用源XYZ点积投影并规范化方向；UE TwoBoneIK的距离、平面、投影及旋转主/次轴也调用相同FVector算子。源XYZ对应runtime XZY，`Vector.h`按左结合求平方和并以`1/sqrt`乘各分量。已写Pole精确最小反例与.478第19行两骨位置fixture，fresh源IK复采中；退化/拉伸及D248四元数归一化不借此宣称通过。
+    - 10:10实现摘要：Pole和两骨IK已证向量消费者共用源坐标顺序点积与倒数乘法；fresh两腿Pole输入/输出和两个独立IK源结果分别与源公式及.478封存值逐值对应。证据、请求、坐标假设和fixture在`docs/audit/bf144/d249a/`；自定义坐标基、退化/拉伸及所有目标Gate未验证，FootLocation留D249b。实际实现结束2026-11-08 10:10 +08:00，较预估提前45分钟；拆分为D249a/b。
+  - [ ] BF144-D249b — FootLocation最终腿向量限长，依赖D249a共享源向量长度；开始时按剩余源闭包重新估时。
   - BF144.479旋转内向量运算：source位置固定，只将XYZ dot换runtime XZY使3322 quaternion double改变、F32同；只将乘sqrt倒数换分量除法使5438 double/1 F32改变。唯一F32属于current米数字Primary-only控制，完整current核在该控制域F32原本全同，不能称默认缺陷或已恢复实际source角色。两因素各有最小真实输入对，public两条仍精确而native旋转101拒；去位置固定会混入4048条位置变化并被独立隔离Gate拒，保该必要边界。源码/输入bytes同target六库重编5192完整报告byte恢复，证据docs/audit/bf144/479/comparison.json、witnesses.json及negative-check.json；不重复计D或混入D165/初始数据。
 
   - BF144.478实际新319历史位置核：以476合格pre与477独立骨长为输入，fresh原生1324 source厘米/1272 current原米数字共2596位置对照，source XYZ累加与乘sqrt倒数两因素恢复全部joint/end double。当前算序在两域分别798/811 joint double差，所有F32投影和end均同；只source dot仍695/671、只倒数325/333，不相加归因。当前模型先与两域public solve逐值校准，actual1272另核完整VM BC位置；固定原length float值，隔离D165/D242与不同上游数据。去两数学因素分别101拒、最小夹具去倒数再拒，源码bytes恢复同target六库重编完整最小报告byte精确。未访问退化/stretch/完全伸直/反向骨分支不计本批动态通过，旋转/partial/descendant继续开。证据docs/audit/bf144/478/comparison.json、difference-table.json及原始native/失败恢复，生产未修。
