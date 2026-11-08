@@ -5746,7 +5746,11 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
 
 BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重力加速度统一使用Bevy的值；不把源9.80与当前Bevy/Avian默认9.81的区别视为缺陷，不据此修改运行时。原取证保留在`target/bf144/03/gravity/`，仅作本次决策依据；D08从有效缺陷和失败反例集合移除。
 
-- [ ] BF144-D09 / P2 — 地面射线回退丢失源贴地高度保护。
+- [x] BF144-D09 / P2 — 地面射线回退丢失源贴地高度保护。
+  - 2026-11-08 12:58 开始：预估结束13:33 +08:00。依据.04墙侧line fallback反例和当前已保存的sweep/line双距离，fresh重读ALS穿透保留、UE高度guard及真实源墙/地面控制；在所有已证高度调整入口复用源guard，不屏蔽独立侧向穿透恢复，测试/消融/Gate暂缓。
+  - 13:02 reader失败复盘：扩展reader对未提供落地点的控制请求解引用空LandingDeck，UE发生SIGSEGV；原请求、看门狗无进展退出报告和脱敏堆栈已保留。源码定位到无条件GetPhysicsLinearVelocity，已在不影响边墙/地面的远处加入必需落地点后重采；不把失败当源事实。
+  - 13:04 source/static闭环：fresh源侧墙100cm控制的FloorDist=−30cm、LineDist=10cm，首帧维持100cm并横向脱离；无墙100cm控制降至约92.15cm，低位控制保持。现有目标数据结构已保留双距离，两处高度调整入口共用源guard且保留侧向脱离；已写阈值及加载角色真实碰撞fixture，测试未运行。
+  - 13:05实现摘要：源native请求/控制、一次reader SIGSEGV与看门狗报告、诊断reader身份和源码均在`docs/audit/bf144/d09/`。目标两个高度入口按源FloorDist/LineDist条件抑制垂直调整，仍保留墙侧脱离；实现结束2026-11-08 13:05 +08:00，较预估提前28分钟。focused测试、消融、图审计与公共Gate待依赖升级后执行。
   - Source：fresh ALS `ComputeFloorDist:781–796` 保留sweep FloorDist/穿透数据并另存LineDist；UE `AdjustFloorHeight:6305–6319` 在line fallback、FloorDist<MIN且LineDist≥MIN时立即返回，避免错误沿墙调整高度，后续PhysWalking仍独立做侧向脱离穿透。
   - Target：`src/als/character/movement/motion.rs:3905–3910` 只保留line距离；`4011–4074` 与`adjust_walking_floor_height:3608`按这个单一距离调整高度，无法执行源guard。
   - 反例：完整加载角色和最小运动插件从中心高1m、侧墙面距中心0.1m进入普通物理帧；floor consumer前中心高0.9950988m，retry sweep仍穿透、FloorDist=−0.3m，中心射线LineDist≈0.0951m。source应保留这一阶段高度，target侧向脱离后降到0.9215m，多下移约7.36cm。`bf144_floor_line_fallback_preserves_adjust_height_guard`在8组中有2个语义FAIL；无侧墙以及0.9215m贴地位置的6个对照PASS。证据`target/bf144/04/line_final/`。

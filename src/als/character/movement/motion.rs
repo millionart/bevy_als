@@ -4376,8 +4376,10 @@ fn adjust_walking_floor_height(
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
 ) -> Option<Entity> {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-    let (center, _, floor) = find_ground_floor(spatial, transform.translation, half, radius, cmc,
-        LocomotionState::Grounded, &filter, entity, candidates)?;
+    let floor = find_ground_floor_with_penetration(spatial, transform.translation, half, radius, cmc,
+        LocomotionState::Grounded, &filter, entity, candidates, None)?;
+    if line_floor_blocks_height_adjustment(floor.sweep_distance, floor.line_distance) { return Some(floor.hit.entity); }
+    let center = floor.center_y;
     if !(MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&(transform.translation.y - center)) {
         let adjustment = Vec3::Y * (center + (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5 - transform.translation.y);
         if let Ok((direction, distance)) = Dir3::new_and_length(adjustment) {
@@ -4388,7 +4390,7 @@ fn adjust_walking_floor_height(
             transform.translation += *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
         }
     }
-    Some(floor)
+    Some(floor.hit.entity)
 }
 
 fn walking_movement_transaction(
@@ -4809,6 +4811,10 @@ struct GroundFloorResult {
     trace: GroundFloorTrace,
 }
 
+fn line_floor_blocks_height_adjustment(sweep_distance: f32, line_distance: Option<f32>) -> bool {
+    line_distance.is_some_and(|line| sweep_distance < MIN_FLOOR_DISTANCE && line >= MIN_FLOOR_DISTANCE)
+}
+
 pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
     cmc: &crate::als::params::CmcAdapterParams, mode: LocomotionState,
     filter: &SpatialQueryFilter, character: Entity,
@@ -4985,7 +4991,8 @@ pub(crate) fn locomotion_state_sync_system(
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
             if let Some((floor_center_y, _, floor)) = validated_floor {
                 let floor_distance = position.y - floor_center_y;
-                let next_y = if (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&floor_distance) {
+                let next_y = if floor_result.is_some_and(|floor| line_floor_blocks_height_adjustment(floor.sweep_distance, floor.line_distance))
+                    || (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&floor_distance) {
                     position.y
                 } else {
                     floor_center_y + (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5
@@ -7209,6 +7216,56 @@ mod tests {
         let actual = app.world().get::<Position>(character).unwrap().0;
         assert!(actual.x <= source_minimum_x + 0.002,
             "Source walkable line floor still resolves side penetration before the final walking iteration: before={before:?}, actual={actual:?}, maximum_x={source_minimum_x}");
+    }
+
+    #[test]
+    fn line_floor_height_guard_uses_both_source_distances() {
+        let min = MIN_FLOOR_DISTANCE;
+        for (sweep, line, expected) in [
+            (-0.3_f32, Some(0.095_f32), true),
+            (min - 0.0001, Some(min), true),
+            (min, Some(min), false),
+            (min - 0.0001, Some(min - 0.0001), false),
+            (-0.3, None, false),
+        ] {
+            assert_eq!(line_floor_blocks_height_adjustment(sweep, line), expected, "sweep={sweep} line={line:?}");
+        }
+    }
+
+    #[test]
+    fn line_floor_preserves_height_while_resolving_side_penetration() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let wall_x = 0.1;
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 0.5, 4.0),
+            Transform::from_xyz(wall_x + 0.05, 1.0, 0.0)));
+        app.update();
+        let start = Vec3::new(0.0, 1.0, 0.0);
+        app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start),
+            GlobalTransform::from_translation(start), LinearVelocity::ZERO, LocomotionState::Grounded,
+            AlsCmcAdapterRuntime::default()));
+        let (floor, adjusted) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            let cmc = crate::als::params::CmcAdapterParams::default();
+            let filter = SpatialQueryFilter::from_excluded_entities([character]);
+            let floor = find_ground_floor_with_penetration(&spatial, start, 0.9, 0.3, &cmc,
+                LocomotionState::Grounded, &filter, character, &candidates, None).unwrap();
+            let mut transform = Transform::from_translation(start);
+            let support = adjust_walking_floor_height(&spatial, &als_character_capsule(0.9, 0.3),
+                &mut transform, 0.9, 0.3, &cmc, character, &candidates);
+            assert_eq!(support, Some(floor.hit.entity));
+            (floor, transform.translation)
+        }).unwrap();
+        assert_eq!(floor.origin, GroundFloorOrigin::Line);
+        assert!(floor.sweep_distance < MIN_FLOOR_DISTANCE);
+        assert!(floor.line_distance.unwrap() >= MIN_FLOOR_DISTANCE);
+        assert!(floor.penetration.is_some());
+        assert_eq!(adjusted.y, start.y);
+        app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+        let actual = app.world().get::<Position>(character).unwrap().0;
+        assert!((actual.y - start.y).abs() < 1e-6, "before={start:?} after={actual:?}");
+        assert!(actual.x <= wall_x - 0.3 + 0.002, "Side penetration was not resolved: {actual:?}");
     }
 
     #[test]

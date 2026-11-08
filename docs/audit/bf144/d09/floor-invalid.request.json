@@ -1,0 +1,88 @@
+{
+  "gravity_cm_s2": -981,
+  "initial_engine_frame": 17,
+  "cases": [
+    {
+      "name": "wall-100",
+      "dynamic_base": false,
+      "local_controller": false,
+      "spawn_height_cm": 100,
+      "simulate_landing_deck": false,
+      "enable_impact": false,
+      "frames": [
+        {
+          "delta_seconds": 0.01666666753590107,
+          "rendered": true,
+          "observe_blocking_hits": true
+        },
+        {
+          "delta_seconds": 0.01666666753590107,
+          "rendered": true,
+          "observe_blocking_hits": true
+        }
+      ],
+      "wall_x_cm": 17.0
+    },
+    {
+      "name": "wall-92.15",
+      "dynamic_base": false,
+      "local_controller": false,
+      "spawn_height_cm": 92.15,
+      "simulate_landing_deck": false,
+      "enable_impact": false,
+      "frames": [
+        {
+          "delta_seconds": 0.01666666753590107,
+          "rendered": true,
+          "observe_blocking_hits": true
+        },
+        {
+          "delta_seconds": 0.01666666753590107,
+          "rendered": true,
+          "observe_blocking_hits": true
+        }
+      ],
+      "wall_x_cm": 17.0
+    },
+    {
+      "name": "clear-100",
+      "dynamic_base": false,
+      "local_controller": false,
+      "spawn_height_cm": 100,
+      "simulate_landing_deck": false,
+      "enable_impact": false,
+      "frames": [
+        {
+          "delta_seconds": 0.01666666753590107,
+          "rendered": true,
+          "observe_blocking_hits": true
+        },
+        {
+          "delta_seconds": 0.01666666753590107,
+          "rendered": true,
+          "observe_blocking_hits": true
+        }
+      ]
+    },
+    {
+      "name": "clear-92.15",
+      "dynamic_base": false,
+      "local_controller": false,
+      "spawn_height_cm": 92.15,
+      "simulate_landing_deck": false,
+      "enable_impact": false,
+      "frames": [
+        {
+          "delta_seconds": 0.01666666753590107,
+          "rendered": true,
+          "observe_blocking_hits": true
+        },
+        {
+          "delta_seconds": 0.01666666753590107,
+          "rendered": true,
+          "observe_blocking_hits": true
+        }
+      ]
+    }
+  ]
+}
