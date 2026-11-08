@@ -3565,7 +3565,7 @@ fn falling_movement_transaction(
             remaining = next_remaining;
             if !lost_floor { break; }
             velocity += crate::als::dynamics::support_velocity_from_base(last_base,
-                transform.translation - Vec3::Y * extent.y, bases, owners).1.with_y(0.0);
+                transform.translation - Vec3::Y * extent.y, bases, owners).1;
             current_base = None;
             mode = LocomotionState::Air;
             transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
@@ -4795,10 +4795,9 @@ pub(crate) fn cmc_movement_transaction_system(
                 transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
                     from: StateValue::LocomotionState(LocomotionState::Grounded),
                     to: StateValue::LocomotionState(LocomotionState::Air) });
-                let leaving_support = if floor == initial_base { support } else {
-                    crate::als::dynamics::support_velocity_from_base(floor, current_transform.translation - Vec3::Y * half,
-                        &bases, &owners).1.with_y(0.0)
-                };
+                let current_support = crate::als::dynamics::support_velocity_from_base(floor,
+                    current_transform.translation - Vec3::Y * half, &bases, &owners).1;
+                let leaving_support = if floor == initial_base { support.with_y(current_support.y) } else { current_support };
                 final_velocity += leaving_support;
                 let terminal = physics_modes.get(entity).ok().and_then(|(_, volume, _)| volume)
                     .unwrap_or(&default_volume.0).terminal_velocity;
@@ -4826,6 +4825,7 @@ pub(crate) fn cmc_movement_transaction_system(
             runtime.grounded_collision_velocity = Some(if *loco == LocomotionState::None { Vec3::ZERO }
                 else if lost_floor { final_velocity } else { final_velocity + support });
             runtime.grounded_move_start = None;
+            if lost_floor && *loco == LocomotionState::Air { base.entity = None; }
             base.pre_collision_velocity = Some(last_input);
             let world_position = current_transform.translation;
             *transform = current_transform;
@@ -4882,9 +4882,14 @@ pub(crate) fn cmc_movement_transaction_system(
                     let remaining_time = crate::als::dynamics::walking_fall_remaining(0.0, delta_seconds,
                         delta.length(), destination - center);
                     let support = base.as_deref().filter(|base| base.entity.is_some())
-                        .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));
+                        .map_or(Vec3::ZERO, |base| {
+                            let current = crate::als::dynamics::support_velocity_from_base(base.entity,
+                                destination - Vec3::Y * half, &bases, &owners).1;
+                            base.support_velocity.with_y(current.y)
+                        });
                     let initial_velocity = base.as_deref().and_then(|base| base.pre_collision_velocity)
-                        .map_or(next_velocity.with_y(0.0), |relative| relative.with_y(0.0) + support);
+                        .map_or(next_velocity.with_y(0.0) + Vec3::Y * support.y,
+                            |relative| relative.with_y(0.0) + support);
                     let terminal = physics_modes.get(entity).ok().and_then(|(_, volume, _)| volume)
                         .unwrap_or(&default_volume.0).terminal_velocity;
                     let max_speed = runtime.grounded_max_speed;
@@ -4908,6 +4913,7 @@ pub(crate) fn cmc_movement_transaction_system(
                     runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { falling_velocity });
                     runtime.airborne_sweep_contact |= contact;
                     *loco = mode;
+                    if mode == LocomotionState::Air && let Some(base) = base.as_deref_mut() { base.entity = None; }
                     if mode == LocomotionState::None {
                         commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
                             crate::als::dynamics::AlsMovementBase::default(), LinearVelocity::ZERO));
@@ -7571,6 +7577,91 @@ mod tests {
             assert!((runtime.grounded_max_speed - expected_cap).abs() < 1e-5);
             let actual = runtime.grounded_collision_velocity.unwrap();
             assert!((actual.x - expected_speed).abs() < 1e-4, "stance={stance:?} velocity={actual:?}");
+        }
+    }
+
+    #[test]
+    fn landing_then_walking_off_inherits_vertical_base_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut baseline = None;
+        for speed in [0.0, -2.0, 2.0] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .add_message::<StateTransitionEvent>();
+            app.finish();
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(1.0, 0.2, 2.0),
+                Transform::from_xyz(0.0, 1.9, 0.0), LinearVelocity::ZERO)).id();
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::Y * speed;
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                permissions: Query<&AlsMantleTargetPermission>,
+                bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>, Option<&RigidBody>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
+                owners: Query<&ColliderOf>, shapes: Query<(&Collider, &Position, &Rotation)>,
+                mut transitions: MessageWriter<StateTransitionEvent>| {
+                let mut seed = 123;
+                falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
+                    Transform::from_xyz(0.2, 3.02, 0.0), Vec3::new(3.75, -1.0, 0.0), Vec3::X,
+                    3.75, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
+                    (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
+                    (0.0, false, false), 40.0, 0.2, 0, actor, &mut seed,
+                    &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None)
+            }).unwrap();
+            assert_eq!(result.4, LocomotionState::Air, "The character must land and leave the platform: {result:?}");
+            let initial = *baseline.get_or_insert(result.1.y);
+            assert!((result.1.y - initial - speed).abs() < 1e-4,
+                "Landing and walk-off must inherit vertical base velocity: speed={speed} result={result:?} baseline={initial}");
+        }
+    }
+
+    #[test]
+    fn walking_off_inherits_vertical_base_velocity_before_falling() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (speed, steps) in [(-2.0, 1), (0.0, 1), (2.0, 1), (-2.0, 2), (0.0, 2), (2.0, 2)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(1.0, 0.2, 2.0),
+                Transform::from_xyz(0.0, 1.9, 0.0), LinearVelocity::ZERO)).id();
+            app.update();
+            app.update();
+            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::Y * speed;
+            let start = Vec3::new(0.55, 2.9215, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LinearVelocity(Vec3::X * 3.75), LocomotionState::Grounded, TnuaMotor::default()));
+            {
+                let mut base = app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBase>(actor).unwrap();
+                base.entity = Some(platform);
+                base.location = Vec3::new(0.0, 1.9, 0.0);
+                base.rotation = Quat::IDENTITY;
+            }
+            {
+                let mut base = app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor).unwrap();
+                base.entity = Some(platform);
+                base.relative_velocity = Vec3::X * 3.75;
+                base.support_velocity = Vec3::Y * speed;
+                base.pre_collision_velocity = Some(Vec3::X * 3.75);
+            }
+            app.world_mut().get_mut::<crate::als::dynamics::AlsGroundedDynamics>(actor).unwrap().0 =
+                crate::als::params::GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
+            app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
+            let delta = if steps == 1 { 0.05 } else { 0.1 };
+            {
+                let mut runtime = app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap();
+                runtime.simulation_substeps = steps;
+                runtime.simulation_delta_seconds = delta;
+                runtime.grounded_movement_delta = Some(Vec3::X * (3.75 * delta));
+            }
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Air);
+            let velocity = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+            let expected = speed - if steps == 1 { 0.0 } else { 0.4905 };
+            assert!((velocity.y - expected).abs() < 1e-4,
+                "Walk-off vertical velocity differs: speed={speed} steps={steps} actual={velocity:?} expected={expected}");
+            app.world_mut().run_system_once(crate::als::dynamics::grounded_dynamics_motor_system).unwrap();
+            assert_eq!(app.world().get::<TnuaMotor>(actor).unwrap().lin.boost.y, 0.0,
+                "The following airborne update must not inherit the base twice");
         }
     }
 

@@ -5972,11 +5972,12 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色从运动学平台跳离，component x速度1/physical0时source应继承1m/s、target为0；component3/physical1时source应3、target仅1。`bf144_inherit_linear_velocity_uses_source_component_priority`共6组4PASS/2FAIL，零速、物理fallback、Dynamic优先physics和Static不继承对照通过，证据`target/bf144/11/jump_and_permissions/`。
   - 漏检：旧基座夹具仅设置LinearVelocity，未给component与physical不同的合法输入；本项只证明已提供组件速度时的选择遗漏，不宣称所有默认平台都有非零ComponentVelocity，也未展开平台脚本实现。
 
-- [ ] BF144-D34 / P2 — 跳离和走离基座丢弃竖直支持速度。
+- [x] BF144-D34 / P2 — 跳离和走离基座丢弃竖直支持速度；D34a/b静态实现完成，统一验证待执行。
   - 子项拆分：D34a处理跳离及离地切换时的竖直支持速度；D34b处理物理子步内走离后剩余时间的速度。两项分别静态实现并提交，父项待两者完成后标记，统一运行验证延后。
   - [x] BF144-D34a — 跳离时在自身起跳速度后继承竖直基座速度。开始2026-11-08 15:24 +08:00；预估结束16:04 +08:00；实际结束15:26 +08:00，提前38分钟；静态实现完成，测试/消融/Gate暂缓。
     - 闭环：fresh UE起跳与Falling继承顺序及原生开关保存在`docs/audit/bf144/d34a/`；已写有符号线速度、角速度、只继承一次和加载角色跳跃对照。旧target报告缺失，原生运动平台未实测；走离事务留给D34b。
-  - [ ] BF144-D34b — 同帧走离时在剩余Falling预算前继承竖直基座速度。
+  - [x] BF144-D34b — 同帧走离时在剩余Falling预算前继承竖直基座速度。开始2026-11-08 15:27 +08:00；预估结束16:12 +08:00；实际结束15:30 +08:00，提前42分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 闭环：fresh ALS走离及UE剩余预算和继承顺序保存在`docs/audit/bf144/d34b/`；已覆盖单步、多步和落地后再走离的实现，写有符号基座速度及重复继承对照。旧target报告缺失；新增夹具和原生运动平台均待实际验证。
   - Source：fresh UE `DoJump:1163–1177`先设置自身起跳速度，Falling的`OnMovementModeChanged:1459–1470`随即调用ApplyImpartedMovementBaseVelocity；`1194–1230,2744–2758`把线速度和脚底角速度的各开启轴完整相加。native bImpartBaseVelocityZ=True，StayBasedInAir=False，包含上升和下降平台的有符号速度。
   - Target：`src/als/character/movement/dynamics.rs:517–531`把离地继承强制with_y(0)且只写XZ motor；`movement/motion.rs:2662–2666`的起跳boost没有补入平台竖直速度，`3769–3787`的walking→falling剩余预算也只加入with_y(0)的support。
   - 反例：完整角色从竖直速度+2/−2m/s的动态平台跳离，源首帧vy应6.0365/2.0365m/s，target均4.0365m/s；静止平台对照通过。`bf144_inherit_vertical_base_velocity_keeps_source_signed_value`共3组1PASS/2FAIL，初始角速度偏心组合也复现丢失−0.2m/s竖直贡献；证据`target/bf144/11/jump_and_permissions/`与`11/initial/`。
