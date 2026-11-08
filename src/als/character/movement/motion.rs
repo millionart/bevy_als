@@ -2857,6 +2857,9 @@ pub enum JumpChain {
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct AlsJumpPrev(pub bool);
 
+#[derive(Component)]
+pub(crate) struct AlsAutoMantlePending;
+
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct AlsRagdollAirExit;
 
@@ -2944,6 +2947,8 @@ impl Plugin for AlsMotionPlugin {
                         .before(crate::als::dynamics::grounded_dynamics_motor_system),
                     cmc_movement_transaction_system.after(crate::als::dynamics::grounded_dynamics_motor_system)
                         .before(TnuaPipelineSystems::Motors),
+                    auto_mantle_after_movement.after(cmc_movement_transaction_system)
+                        .after(TnuaPipelineSystems::Motors),
                     resolve_stationary_floor_state.after(cmc_movement_transaction_system)
                         .before(TnuaPipelineSystems::Motors),
                     apply_standing_downward_force.after(resolve_stationary_floor_state)
@@ -3969,6 +3974,39 @@ fn tnua_config_sync_system(
     }
 }
 
+fn mantle_probe_input(
+    world: &GlobalTransform, motion: Option<&crate::actual_motion::AlsActualMotion>,
+    locomotion: LocomotionState, stance: Stance, overlay: OverlayState, params: Option<&AlsMovementParams>,
+) -> MantleDetectionInput {
+    let (half, radius) = params.map_or((ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
+        crate::als::character::ALS_CHARACTER_CAPSULE_RADIUS), |params| (
+        if stance == Stance::Crouching { params.crouch.actual_crouched_half_height() }
+        else { params.crouch.standing_capsule_half_height }, params.crouch.standing_capsule_radius));
+    let (scale, _, _) = world.to_scale_rotation_translation();
+    let (capsule_half_height, capsule_radius, capsule_scale) = scaled_mantle_capsule_dimensions(half, radius, scale);
+    MantleDetectionInput {
+        origin: world.translation(), actor_yaw: yaw_from_direction(world.forward().as_vec3()),
+        velocity_yaw: motion.filter(|motion| locomotion_movement_flags(motion.has_input, motion.horizontal_speed).0)
+            .map(|motion| motion.velocity_yaw_degrees.to_radians()),
+        input_yaw: motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees.to_radians())),
+        locomotion, stance, overlay, capsule_half_height, capsule_radius, capsule_scale,
+    }
+}
+
+fn mantle_target_base(
+    intent: crate::als::mantle::MantleIntent,
+    transforms: &Query<&GlobalTransform, Without<AlsCharacter>>,
+    bodies: &Query<&RigidBody, Without<AlsCharacter>>,
+    colliders: &Query<&ColliderOf>,
+) -> Option<(crate::als::mantle::MantleIntent, AlsMantleTargetBase)> {
+    let transform = transforms.get(intent.target_entity).ok()?;
+    let body = colliders.get(intent.target_entity).map_or(intent.target_entity, |collider| collider.body);
+    Some((intent, AlsMantleTargetBase {
+        entity: intent.target_entity, translation: transform.translation(), rotation: transform.rotation(),
+        scale: transform.scale(), relative_location: bodies.get(body).is_ok_and(|body| *body != RigidBody::Static),
+    }))
+}
+
 type DriveQueryItem<'a> = (
     Entity,
     &'a mut TnuaController<AlsControlScheme>,
@@ -4082,41 +4120,13 @@ pub(crate) fn locomotion_drive_system(
             && mantle_start_allowed(mantle_control, action_active);
         let auto_mantle = !time.is_paused() && mantle.as_deref().is_some_and(|m| !m.active)
             && auto_mantle_start_allowed(mantle_control, action_active, *loco);
-        let should_probe_mantle = mantle_ready && (jump_edge || auto_mantle);
+        if auto_mantle && !jump_edge { commands.entity(entity).insert(AlsAutoMantlePending); }
+        let should_probe_mantle = mantle_ready && jump_edge;
         let detection = if should_probe_mantle {
-            let origin = gtf.translation();
-            let fwd = gtf.forward().as_vec3();
-            let (base_half_height, base_radius) = params_assets
-                .get(params_handle.id())
-                .map(|params| {
-                    (
-                        if *stance == Stance::Crouching { params.crouch.actual_crouched_half_height() } else { params.crouch.standing_capsule_half_height },
-                        params.crouch.standing_capsule_radius,
-                    )
-                })
-                .unwrap_or((
-                    ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
-                    crate::als::character::ALS_CHARACTER_CAPSULE_RADIUS,
-                ));
-            let (scale, _, _) = gtf.to_scale_rotation_translation();
-            let (capsule_half_height, capsule_radius, vertical_scale) =
-                scaled_mantle_capsule_dimensions(base_half_height, base_radius, scale);
             let mut detection = detect_mantle(
                 &spatial,
                 entity,
-                MantleDetectionInput {
-                    origin,
-                    actor_yaw: yaw_from_direction(fwd),
-                    velocity_yaw: motion.filter(|motion| locomotion_movement_flags(motion.has_input, motion.horizontal_speed).0)
-                        .map(|motion| motion.velocity_yaw_degrees.to_radians()),
-                    input_yaw: motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees.to_radians())),
-                    locomotion: *loco,
-                    stance: *stance,
-                    overlay: *overlay,
-                    capsule_half_height,
-                    capsule_radius,
-                    capsule_scale: vertical_scale,
-                },
+                mantle_probe_input(gtf, motion, *loco, *stance, *overlay, params_assets.get(params_handle.id())),
                 &velocities,
                 &target_permissions,
                 &target_colliders,
@@ -4129,27 +4139,8 @@ pub(crate) fn locomotion_drive_system(
         if let (Some(detection), Some(mut debug)) = (detection, character_debug) {
             debug.0.mantle_probe = Some(detection.trace);
         }
-        let intent = detection.and_then(|detection| {
-            detection.intent.and_then(|intent| {
-                target_transforms
-                    .get(intent.target_entity)
-                    .ok()
-                    .map(|transform| {
-                        let body = target_colliders.get(intent.target_entity)
-                            .map_or(intent.target_entity, |collider| collider.body);
-                        (
-                            intent,
-                            AlsMantleTargetBase {
-                                entity: intent.target_entity,
-                                translation: transform.translation(),
-                                rotation: transform.rotation(),
-                                scale: transform.scale(),
-                                relative_location: target_bodies.get(body).is_ok_and(|body| *body != RigidBody::Static),
-                            },
-                        )
-                    })
-            })
-        });
+        let intent = detection.and_then(|detection| detection.intent)
+            .and_then(|intent| mantle_target_base(intent, &target_transforms, &target_bodies, &target_colliders));
         if jump_edge {
             match jump_chain(ragdolling, *stance, intent.is_some()) {
                 JumpChain::ExitRagdoll => {
@@ -4196,29 +4187,56 @@ pub(crate) fn locomotion_drive_system(
                     }
                 }
             }
-        } else if auto_mantle
-            && let (Some(m), Some((i, target_base))) = (mantle.as_deref_mut(), intent)
-        {
-            let origin = gtf.translation();
-            let yaw_start = yaw_from_direction(gtf.forward().as_vec3());
-            let start_time =
-                configured_mantle_start_time(mantle_start_time_settings, i.kind, i.mantling_height);
-            m.begin_with_target_base_and_start_time(
-                i.kind,
-                origin,
-                i.target,
-                start_time,
-                yaw_start,
-                i.yaw_target,
-                target_base,
-            );
-            info!(
-                "[MOTION] entity={entity:?} auto mantle begin kind={:?} height={:.2} start_time={start_time:.3}",
-                i.kind, i.mantling_height,
-            );
         } else if effective.jump_held && controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump) {
             controller.prolong_action();
         }
+    }
+}
+
+fn auto_mantle_after_movement(
+    mut commands: Commands,
+    spatial: SpatialQuery,
+    velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
+    permissions: Query<Option<&AlsMantleTargetPermission>>,
+    target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
+    target_bodies: Query<&RigidBody, Without<AlsCharacter>>,
+    colliders: Query<&ColliderOf>,
+    params: Res<Assets<AlsMovementParams>>,
+    blocked: Query<(), With<AlsMovementInputBlocked>>,
+    transforms: bevy::transform::helper::TransformHelper,
+    mut characters: Query<(Entity, &mut AlsMantleState, &LocomotionState, &Stance, &OverlayState,
+        &AlsMovementParamsHandle, Option<&crate::actual_motion::AlsActualMotion>, Option<&AlsMantleControlSettings>,
+        Option<&AlsMantleStartTimeSettings>, Option<&crate::als::roll::AlsRollState>,
+        Option<&crate::als::state::AlsNotifyLocomotionAction>, Option<&mut AlsCharacterDebug>),
+        (With<AlsCharacter>, With<AlsAutoMantlePending>)>,
+) {
+    for (entity, mut mantle, locomotion, stance, overlay, handle, motion, control, start_settings, roll, action, debug) in &mut characters {
+        if mantle.active { continue; }
+        let action_active = blocked.contains(entity) || action.map_or_else(
+            || roll.is_some_and(|state| state.active),
+            |action| *action != crate::als::state::AlsNotifyLocomotionAction::None);
+        let control = control.copied().unwrap_or_default();
+        if !auto_mantle_start_allowed(control, action_active, *locomotion) {
+            commands.entity(entity).remove::<AlsAutoMantlePending>();
+            continue;
+        }
+        let Ok(world) = transforms.compute_global_transform(entity) else {
+            commands.entity(entity).remove::<AlsAutoMantlePending>();
+            continue;
+        };
+        let mut detection = detect_mantle(&spatial, entity,
+            mantle_probe_input(&world, motion, *locomotion, *stance, *overlay, params.get(handle.id())),
+            &velocities, &permissions, &colliders);
+        detection.trace.draw_failed_traces = control.draw_failed_traces(*locomotion);
+        if let Some(mut debug) = debug { debug.0.mantle_probe = Some(detection.trace); }
+        let Some((intent, base)) = detection.intent
+            .and_then(|intent| mantle_target_base(intent, &target_transforms, &target_bodies, &colliders)) else {
+            commands.entity(entity).remove::<AlsAutoMantlePending>();
+            continue;
+        };
+        let start_time = configured_mantle_start_time(start_settings, intent.kind, intent.mantling_height);
+        mantle.begin_with_target_base_and_start_time(intent.kind, world.translation(), intent.target, start_time,
+            yaw_from_direction(world.forward().as_vec3()), intent.yaw_target, base);
     }
 }
 
@@ -11885,6 +11903,28 @@ mod tests {
                 allow_mantling && auto_start_in_air && !action_active,
                 "Source resumed Character must auto start the same valid air mantle");
         }
+    }
+
+    #[test]
+    fn auto_mantle_does_not_start_after_the_movement_tick_lands() {
+        use bevy::time::TimeUpdateStrategy;
+        use crate::als::character::AlsCollisionLayer;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.4, 0.8, 1.2),
+            Transform::from_xyz(0.0, 0.4, -1.4), CollisionLayers::new(
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL)));
+        app.update();
+        app.update();
+        let start = Vec3::new(0.0, 0.94, 0.0);
+        app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start),
+            LocomotionState::Air, LinearVelocity(Vec3::NEG_Y * 4.0), TnuaMotor::default(),
+            crate::als::dynamics::AlsMovementBase::default(), crate::als::dynamics::AlsMovementBaseDynamicsState::default(),
+            AlsCmcAdapterRuntime::default(), crate::als::state::AlsNotifyLocomotionAction::None));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        app.update();
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+        assert!(!app.world().get::<AlsMantleState>(character).unwrap().active);
+        assert!(app.world().get::<AlsAutoMantlePending>(character).is_none());
     }
 
     #[test]

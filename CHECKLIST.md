@@ -6180,7 +6180,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整实际攀爬角色，在Physics StepSimulation之后、Writeback之前，从角色中心侧面使用Default mask仅查询该角色；源应命中保留的Pawn胶囊，target无命中且layers全0。`bf144_mantle_lifecycle_keeps_capsule_query_collision_during_physics`3组2PASS/1FAIL；普通角色及夹具只恢复该阶段CollisionLayers的两组均命中，证据`target/bf144/17/initial/`。
   - 漏检：旧Mantle测试验证自己可穿过障碍、帧后layers恢复及多个动作owner并存，没有检查物理阶段其他消费者的query。无sweep不能等价为关闭全部query/physics；本项不推测尚未测试的碰撞冲量数值，仅登记。
 
-- [ ] BF144-D56 / P2 — 自动Mantle在安装RMS的同帧提前推进根运动。
+- [x] BF144-D56 / P2 — 自动Mantle在安装RMS的同帧提前推进根运动；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 17:54 +08:00；预估结束18:39 +08:00；实际结束18:02 +08:00，提前37分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh源CMC先于角色Tick、RMS Pending及InAir Sequence证据保存在`docs/audit/bf144/d56/`；自动探测移至运动事务后并延后一帧消费根运动，已写倍率、手动、落地及暂停对照。旧target报告缺失，方向快照与动画Gate待验证。
   - Source：fresh CMC native bTickBeforeOwner=True；`MovementComponent.cpp:186–188`建立CMC先于角色的依赖，`AlsCharacter.cpp:292`在角色Tick才AutoStartMantling。`RootMotionSource.cpp:184,1809–1829`新RMS时间为0并加入PendingAdd，下一次CMC Prepare才推进；安装当帧不应推进RMS时间或产生其位移。
   - Target：`src/als/character/movement/motion.rs:3114–3116,3229–3245`在Update提前检测并启动自动Mantle，`root_motion_sources/mantle_drive.rs:730–757`在同帧PostUpdate已按owner delta推进并写回位置；手动与自动入口共用同一开始阶段。
   - 反例：完整Air角色中心(0,1.1,0)，面对0.8m ledge，无跳键而自动开始Mantle；world16.667ms、owner1/2时source新RMS时间0，target分别已到0.016667/0.033333s，并向前移动3.92/10.56cm。`bf144_mantle_lifecycle_auto_start_waits_for_next_movement_tick`3组1PASS/2FAIL；owner0保留时间与位置的对照PASS，证据`target/bf144/17/initial/`。

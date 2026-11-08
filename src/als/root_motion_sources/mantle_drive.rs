@@ -647,6 +647,7 @@ fn mantle_drive_system(
             Option<&mut Position>,
             Has<CustomPositionIntegration>,
             Has<CustomVelocityIntegration>,
+            Has<crate::als::motion::AlsAutoMantlePending>,
             Option<&mut crate::als::character::AlsCmcAdapterRuntime>,
         ),
         (With<AlsCharacter>, With<Transform>),
@@ -672,6 +673,7 @@ fn mantle_drive_system(
         position,
         custom_position,
         custom_velocity,
+        auto_pending,
         mut cmc,
     ) in &mut q
     {
@@ -721,6 +723,10 @@ fn mantle_drive_system(
                 continue;
             };
             m.prepare_root_motion(start_root, end_root);
+        }
+        if auto_pending {
+            commands.entity(entity).remove::<crate::als::motion::AlsAutoMantlePending>();
+            continue;
         }
         let current_time = (m.time + actor_delta).min(m.action_end());
         let Some(root) = sample_mantle_root(clip, skeleton, m.clip_time_at(current_time)) else {
@@ -1728,6 +1734,63 @@ pub(crate) mod tests {
         assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(position, 1e-4));
         assert_eq!(app.world().get::<LockedAxes>(actor).map(LockedAxes::to_bits), original_axes);
         assert_eq!(*app.world().get::<CollisionLayers>(actor).unwrap(), original_layers);
+    }
+
+    #[test]
+    fn loaded_auto_mantle_starts_after_movement_and_defers_root_time() {
+        use avian3d::prelude::{Collider, CollisionLayers, LayerMask, RigidBody};
+        use bevy::time::TimeUpdateStrategy;
+        use crate::als::character::AlsCollisionLayer;
+        for (automatic, dilation) in [(true, 0.0_f32), (true, 1.0), (true, 2.0), (false, 1.0)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.4, 0.8, 1.2),
+                Transform::from_xyz(0.0, 0.4, -1.4),
+                CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL)));
+            let mut ready = false;
+            for _ in 0..600 {
+                ready = {
+                    let assets = app.world().resource::<MantleAssets>();
+                    let clips = app.world().resource::<Assets<GraphClip>>();
+                    let skeletons = app.world().resource::<Assets<Skeleton>>();
+                    assets.0.iter().all(|handle| clips.get(handle)
+                        .is_some_and(|clip| skeletons.contains(&clip.skeleton)))
+                };
+                if ready { break; }
+                app.update();
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            assert!(ready, "Mantle assets did not load within 600 frames");
+            app.update();
+            app.update();
+            let start = Vec3::new(0.0, 1.1, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LocomotionState::Air, LinearVelocity::ZERO, bevy_tnua::TnuaMotor::default(),
+                crate::als::dynamics::AlsMovementBase::default(),
+                crate::als::dynamics::AlsMovementBaseDynamicsState::default(),
+                crate::als::character::AlsCmcAdapterRuntime::default(),
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                crate::als::state::AlsNotifyLocomotionAction::None));
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap().jump_pressed = !automatic;
+            let delta = 1.0_f32 / 60.0;
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.update();
+            let state = app.world().get::<AlsMantleState>(actor).unwrap();
+            assert!(state.active && state.root_motion_ready, "automatic={automatic} dilation={dilation}");
+            let expected_time = if automatic { 0.0 } else { delta * dilation };
+            assert!((state.time - expected_time).abs() < 1e-5,
+                "automatic={automatic} dilation={dilation} time={}", state.time);
+            if automatic {
+                let position = app.world().get::<Position>(actor).unwrap().0;
+                let expected_y = start.y - 0.5 * 9.81 * (delta * dilation).powi(2);
+                assert!((position.y - expected_y).abs() < 0.0001 && position.with_y(0.0) == start.with_y(0.0),
+                    "dilation={dilation} position={position:?} expected_y={expected_y}");
+                assert!(state.start.abs_diff_eq(position, 0.0001));
+                app.update();
+                let state = app.world().get::<AlsMantleState>(actor).unwrap();
+                assert!((state.time - delta * dilation).abs() < 1e-5,
+                    "dilation={dilation} next_time={}", state.time);
+            }
+        }
     }
 
     #[test]

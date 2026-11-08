@@ -1,0 +1,40 @@
+{
+  "asset": "Content/ALS/Character/B_Als_Character.uasset",
+  "asset_identity": {
+    "bytes": 261358,
+    "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+  },
+  "request": "docs/audit/bf144/d56/character.request.json",
+  "native_output": "docs/audit/bf144/d56/character.native.json.gz",
+  "raw": {
+    "bytes": 9918886,
+    "sha256": "0827fcf2343a04642d94384f2b1c34f90cfc0d662cd935749ce0b153353f0443"
+  },
+  "compressed": {
+    "bytes": 327417,
+    "sha256": "0e5cc375329e0df4fae3220589c5877d108ee4e835a9c8675ba91f5a9c291e54"
+  },
+  "reader_report": "docs/audit/bf144/d56/character.native.json.reader.report.json",
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  },
+  "sequence": {
+    "asset": "Content/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.uasset",
+    "asset_identity": {
+      "bytes": 250628,
+      "sha256": "8a674172e9cad6c8b891434a7522a1b96a032539101ff60fc9e5e1f5ad202504"
+    },
+    "request": "docs/audit/bf144/d56/sequence.request.json",
+    "native_output": "docs/audit/bf144/d56/sequence.native.json.gz",
+    "raw": {
+      "bytes": 1700355,
+      "sha256": "9174e69f07d5363412096d48ef0154fa9c818adda9ba96db1be8341018de3577"
+    },
+    "compressed": {
+      "bytes": 166669,
+      "sha256": "b6ae8f8c1d87fe3ef8d9a62a194da8f4af90b4bca494a6392fd43e2705b2c5f6"
+    },
+    "reader_report": "docs/audit/bf144/d56/sequence.native.json.reader.report.json"
+  }
+}
