@@ -382,6 +382,71 @@ mod tests {
     }
 
     #[test]
+    fn source_bench_positive_gap_hull_reaches_solver_in_native_order() {
+        use avian3d::collision::narrow_phase::NarrowPhaseSystems;
+        use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+        use crate::extensions::source_contact_convex::SourceConvexLifecycleSettings;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b3b3c4c1/aggregate.native-sample.json")).unwrap();
+        let definitions: HashMap<String, Vec<Vec<[f32; 3]>>> = serde_json::from_str(include_str!(
+            "../../assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json")).unwrap();
+        let vector = |value: &serde_json::Value| Vec3::new(value["x"].as_f64().unwrap() as f32,
+            value["z"].as_f64().unwrap() as f32, value["y"].as_f64().unwrap() as f32);
+        let lower = vector(&fixture["geometry"]["minimum_cm"]);
+        let upper = vector(&fixture["geometry"]["maximum_cm"]);
+        let body = &fixture["input"]["body_translation_cm"];
+        let body = Vec3::new(body[0].as_f64().unwrap() as f32, body[2].as_f64().unwrap() as f32,
+            body[1].as_f64().unwrap() as f32);
+        let size = (upper - lower) * 0.01;
+        let center = (body + (lower + upper) * 0.5) * 0.01;
+        let mut app = App::new();
+        let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
+        let ([cull_cm, inverse_size_cm, minimum_scale], warm_start) = include!("../als/settings/contact_lifecycle.rs");
+        app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
+            .insert_resource(Gravity(Vec3::ZERO))
+            .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
+            .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, warm_start })
+            .init_resource::<SourceBoxContactHistory>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
+            .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
+        app.finish();
+        app.cleanup();
+        let compound = Collider::compound(definitions["SM_Als_Bench"].iter().map(|hull| (
+            Vec3::ZERO, Quat::IDENTITY,
+            Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
+        )).collect());
+        let ground = app.world_mut().spawn((RigidBody::Static, compound,
+            SourceCompoundOrder("SM_Als_Bench".into()), Transform::IDENTITY)).id();
+        let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
+            Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center),
+            RagdollActiveMode(BodyMode::Dynamic))).id();
+        app.update();
+        app.update();
+        let (edge, pair) = app.world().resource::<ContactGraph>().get(ground, foot).unwrap();
+        let native = fixture["aggregate_contacts"].as_array().unwrap();
+        assert_eq!(pair.manifolds.len(), native.len());
+        let mut slots = (0..edge.constraint_handles.len()).collect::<Vec<_>>();
+        slots.sort_by_key(|index| {
+            let handle = edge.constraint_handles[*index];
+            let color = handle.color_index as usize;
+            (if color == COLOR_OVERFLOW_INDEX { 0 } else { color + 1 }, handle.local_index)
+        });
+        for (slot, source) in slots.into_iter().zip(native) {
+            let manifold = &pair.manifolds[slot];
+            let normal = manifold.normal * if pair.collider1 == foot { -1.0 } else { 1.0 };
+            let expected = source["points"].as_array().unwrap();
+            assert_eq!(manifold.points.len(), expected.len());
+            assert!(normal.abs_diff_eq(vector(&expected[0]["world_normal"]), 2e-5));
+            for (actual, expected) in manifold.points.iter().zip(expected) {
+                let midpoint = (vector(&expected["world_point_0_cm"]) + vector(&expected["world_point_1_cm"])) * 0.005;
+                assert!(actual.point.abs_diff_eq(midpoint, 2e-5));
+            }
+        }
+    }
+
+    #[test]
     fn source_compound_groups_follow_actual_solver_slot_order() {
         let make = |value: f32| ContactManifold::new(
             [ContactPoint::new(Vec3::ZERO, Vec3::ZERO, Vec3::splat(value), 0.0)], Vec3::Y,

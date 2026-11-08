@@ -1,0 +1,86 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/PBDRigidsEvolutionGBF.h",
+    "sha256": "99da3b38d8e53976c040d1e41e83f70109b298908aedf37ad5aed7d405e447ed",
+    "start_line": 63,
+    "end_line": 68,
+    "text": "\t\tstatic constexpr int32 DefaultNumVelocityIterations = 2;\n\t\tstatic constexpr int32 DefaultNumProjectionIterations = 1;\n\t\tstatic constexpr FRealSingle DefaultCollisionMarginFraction = 0.05f;\n\t\tstatic constexpr FRealSingle DefaultCollisionMarginMax = 10.0f;\n\t\tstatic constexpr FRealSingle DefaultCollisionCullDistance = 3.0f;\n\t\tstatic constexpr FRealSingle DefaultCollisionMaxPushOutVelocity = 1000.0f;\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/ChaosSolverConfiguration.cpp",
+    "sha256": "2ce6133ab8808ce4cbc29de0987dd41c58a9c4d397bbab49853c93c5bbc6c6cb",
+    "start_line": 8,
+    "end_line": 16,
+    "text": "FChaosSolverConfiguration::FChaosSolverConfiguration()\n\t: PositionIterations(Chaos::FPBDRigidsEvolutionGBF::DefaultNumPositionIterations)\n\t, VelocityIterations(Chaos::FPBDRigidsEvolutionGBF::DefaultNumVelocityIterations)\n\t, ProjectionIterations(Chaos::FPBDRigidsEvolutionGBF::DefaultNumProjectionIterations)\n\t, CollisionMarginFraction(Chaos::FPBDRigidsEvolutionGBF::DefaultCollisionMarginFraction)\n\t, CollisionMarginMax(Chaos::FPBDRigidsEvolutionGBF::DefaultCollisionMarginMax)\n\t, CollisionCullDistance(Chaos::FPBDRigidsEvolutionGBF::DefaultCollisionCullDistance)\n\t, CollisionMaxPushOutVelocity(Chaos::FPBDRigidsEvolutionGBF::DefaultCollisionMaxPushOutVelocity)\n\t, CollisionInitialOverlapDepenetrationVelocity(Chaos::FPBDRigidsEvolutionGBF::DefaultCollisionDepenetrationVelocity)\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PBDRigidsSolver.cpp",
+    "sha256": "8d810ddcab03ca703abd57f4bdc6319fb6b78c1940037422ca43bd305752dc9f",
+    "start_line": 3690,
+    "end_line": 3700,
+    "text": "\t}\n\n\tvoid FPBDRigidsSolver::ApplyConfig(const FChaosSolverConfiguration& InConfig)\n\t{\n\t\tGetEvolution()->GetRigidClustering().ApplySettings(InConfig);\n\t\tSetPositionIterations(InConfig.PositionIterations);\n\t\tSetVelocityIterations(InConfig.VelocityIterations);\n\t\tSetProjectionIterations(InConfig.ProjectionIterations);\n\t\tSetCollisionCullDistance(InConfig.CollisionCullDistance);\n\t\tSetCollisionMaxPushOutVelocity(InConfig.CollisionMaxPushOutVelocity);\n\t\tSetCollisionDepenetrationVelocity(InConfig.CollisionInitialOverlapDepenetrationVelocity);\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PBDRigidsSolver.cpp",
+    "sha256": "8d810ddcab03ca703abd57f4bdc6319fb6b78c1940037422ca43bd305752dc9f",
+    "start_line": 370,
+    "end_line": 372,
+    "text": "\t\t// These override the engine config if >= 0\n\t\tFRealSingle ChaosSolverCullDistance = -1.0f;\n\t\tFAutoConsoleVariableRef CVarChaosSolverCullDistance(TEXT(\"p.Chaos.Solver.Collision.CullDistance\"), ChaosSolverCullDistance, TEXT(\"Override cull distance (if >= 0)\"), OnCollisionConfigCVarChanged);\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PBDRigidsSolver.cpp",
+    "sha256": "8d810ddcab03ca703abd57f4bdc6319fb6b78c1940037422ca43bd305752dc9f",
+    "start_line": 3774,
+    "end_line": 3779,
+    "text": "\t\t\t\tSetProjectionIterations(ChaosSolverProjectionIterations);\n\t\t\t}\n\t\t\tif (ChaosSolverCullDistance >= 0.0f)\n\t\t\t{\n\t\t\t\tSetCollisionCullDistance(ChaosSolverCullDistance);\n\t\t\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/ParticlePairMidPhase.cpp",
+    "sha256": "0fbacb4c35a2c3cbd600cf96e071d96cb8b6c3d01d524845189456795f57d8d3",
+    "start_line": 52,
+    "end_line": 57,
+    "text": "\tnamespace CVars\n\t{\n\t\tFRealSingle Chaos_Collision_CullDistanceScaleInverseSize = 0.01f;\t// 100cm\n\t\tFRealSingle Chaos_Collision_MinCullDistanceScale = 1.0f;\n\t\tFAutoConsoleVariableRef CVarChaos_Collision_CullDistanceReferenceSize(TEXT(\"p.Chaos.Collision.CullDistanceReferenceSize\"), Chaos_Collision_CullDistanceScaleInverseSize, TEXT(\"\"));\n\t\tFAutoConsoleVariableRef CVarChaos_Collision_MinCullDistanecScale(TEXT(\"p.Chaos.Collision.MinCullDistanceScale\"), Chaos_Collision_MinCullDistanceScale, TEXT(\"\"));\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/ParticlePairMidPhase.cpp",
+    "sha256": "0fbacb4c35a2c3cbd600cf96e071d96cb8b6c3d01d524845189456795f57d8d3",
+    "start_line": 966,
+    "end_line": 1008,
+    "text": "\tvoid FParticlePairMidPhase::InitThresholds()\n\t{\n\t\t// @todo(chaos): improve this threshold calculation for thin objects? Dynamic thin objects have bigger problems so maybe we don't care\n\t\t// @todo(chaos): Spheres and capsules need smaller position tolerance - the restore test doesn't work well with rolling\n\t\tconst bool bIsDynamic0 = FConstGenericParticleHandle(Particle0)->IsDynamic();\n\t\tconst bool bIsDynamic1 = FConstGenericParticleHandle(Particle1)->IsDynamic();\n\t\tconst bool bIsBounded0 = Particle0->HasBounds();\n\t\tconst bool bIsBounded1 = Particle1->HasBounds();\n\n\t\t// NOTE: If CullDistance ends up smaller than the thresholds used to restore collisions, we can end up missing\n\t\t// collisions as the objects move if we restore a \"zero contact\" manifold after movement greater than the cull distance. \n\t\t// Currently this should not happen, but it is not explicitly ensured by the way the thresholds and CullDistanceScale are calculated.\n\t\t// @todo(chaos): Add a way to enforce a CullDistance big enough to support the reuse thresholds\n\t\tconst FReal CullDistanceReferenceSizeInv = FReal(Chaos_Collision_CullDistanceScaleInverseSize);\n\t\tconst FReal MinCullDistanceScale = FReal(Chaos_Collision_MinCullDistanceScale);\n\t\tconst FReal MaxBoundsSize0 = (bIsDynamic0 && bIsBounded0) ? Particle0->LocalBounds().Extents().GetMax() : FReal(0);\n\t\tconst FReal MaxBoundsSize1 = (bIsDynamic1 && bIsBounded1) ? Particle1->LocalBounds().Extents().GetMax() : FReal(0);\n\t\tconst FReal CullDistanceScale0 = MaxBoundsSize0 * CullDistanceReferenceSizeInv;\n\t\tconst FReal CullDistanceScale1 = MaxBoundsSize1 * CullDistanceReferenceSizeInv;\n\t\tCullDistanceScale = (FRealSingle)FMath::Max3(CullDistanceScale0, CullDistanceScale1, MinCullDistanceScale);\n\t}\n\n\tvoid FParticlePairMidPhase::GenerateCollisions(\n\t\tconst FReal InCullDistance,\n\t\tconst FReal InDt,\n\t\tconst FCollisionContext& Context)\n\t{\n\t\tif (!IsValid())\n\t\t{\n\t\t\treturn;\n\t\t}\n\n\t\tCHAOS_MIDPHASE_SCOPE_CYCLE_TIMER(FParticlePairMidPhase_GenerateCollision);\n\n\t\tif (Flags.bIsActive)\n\t\t{\n\t\t\tFConstGenericParticleHandle P0 = GetParticle0();\n\t\t\tFConstGenericParticleHandle P1 = GetParticle1();\n\n\t\t\tFRealSingle Dt = FRealSingle(InDt);\n\n\t\t\t// CullDistance is scaled by the size of the dynamic objects.\n\t\t\tFRealSingle CullDistance = FRealSingle(InCullDistance) * CullDistanceScale;\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 72,
+    "end_line": 73,
+    "text": "\tbool bChaos_Manifold_EnableGjkWarmStart = true;\n\tFAutoConsoleVariableRef CVarChaos_Manifold_EnableGjkWarmStart(TEXT(\"p.Chaos.Collision.Manifold.EnableGjkWarmStart\"), bChaos_Manifold_EnableGjkWarmStart, TEXT(\"\"));\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/CollisionOneShotManifolds.cpp",
+    "sha256": "30d4151daea3a9331cde8ba46526cee895b0c3ac3fb8842249f594b4a8f3d131",
+    "start_line": 841,
+    "end_line": 846,
+    "text": "\t\t\tconst FReal Margin2 = Constraint.GetCollisionMargin1();\n\t\t\tconst FRigidTransform3 Convex2ToConvex1Transform = Convex2Transform.GetRelativeTransformNoScale(Convex1Transform);\n\n\t\t\tif (!bChaos_Manifold_EnableGjkWarmStart)\n\t\t\t{\n\t\t\t\tConstraint.GetGJKWarmStartData().Reset();\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collision/narrow_phase/mod.rs",
+    "sha256": "f488f5054d5b7bc502b086dab272f8af928490151d64a81eb11a703c2854c56b",
+    "start_line": 219,
+    "end_line": 253,
+    "text": "    /// This is implicitly scaled by the [`PhysicsLengthUnit`].\n    ///\n    /// Default: `MAX` (unbounded)\n    pub default_speculative_margin: Scalar,\n\n    /// A contact tolerance that acts as a minimum bound for the [speculative margin](dynamics::ccd#speculative-collision).\n    ///\n    /// A small, positive contact tolerance helps ensure that contacts are not missed\n    /// due to numerical issues or solver jitter for objects that are in continuous\n    /// contact, such as pushing against each other.\n    ///\n    /// Making the contact tolerance too large will have a negative impact on performance,\n    /// as contacts will be computed even for objects that are not in close proximity.\n    ///\n    /// This is implicitly scaled by the [`PhysicsLengthUnit`].\n    ///\n    /// Default: `0.005`\n    pub contact_tolerance: Scalar,\n\n    /// If `true`, the current contacts will be matched with the previous contacts\n    /// based on feature IDs or contact positions, and the contact impulses from\n    /// the previous frame will be copied over for the new contacts.\n    ///\n    /// Using these impulses as the initial guess is referred to as *warm starting*,\n    /// and it can help the contact solver resolve overlap and stabilize much faster.\n    ///\n    /// Default: `true`\n    pub match_contacts: bool,\n}\n\nimpl Default for NarrowPhaseConfig {\n    fn default() -> Self {\n        Self {\n            default_speculative_margin: Scalar::MAX,\n            contact_tolerance: 0.005,\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collision/narrow_phase/system_param.rs",
+    "sha256": "5bb1f6ad4868e297079694602fb091f9e113f949c767993e5728a9173c342ef6",
+    "start_line": 661,
+    "end_line": 704,
+    "text": "                    });\n\n                let relative_linear_velocity: Vector;\n\n                // Compute the effective speculative margin, clamping it based on velocities and the maximum bound.\n                let effective_speculative_margin = {\n                    let speculative_margin1 =\n                        speculative_margin1.unwrap_or(*self.default_speculative_margin);\n                    let speculative_margin2 =\n                        speculative_margin2.unwrap_or(*self.default_speculative_margin);\n                    let inv_delta_secs = delta_secs.recip();\n\n                    // Clamp velocities to the maximum speculative margins.\n                    if speculative_margin1 < Scalar::MAX {\n                        lin_vel1 = lin_vel1.clamp_length_max(speculative_margin1 * inv_delta_secs);\n                    }\n                    if speculative_margin2 < Scalar::MAX {\n                        lin_vel2 = lin_vel2.clamp_length_max(speculative_margin2 * inv_delta_secs);\n                    }\n\n                    // Compute the effective margin based on how much the bodies\n                    // are expected to move relative to each other.\n                    relative_linear_velocity = lin_vel2 - lin_vel1;\n                    delta_secs * relative_linear_velocity.length()\n                };\n\n                // The maximum distance at which contacts are detected.\n                // At least as large as the contact tolerance.\n                let max_contact_distance = effective_speculative_margin\n                    .max(*self.contact_tolerance)\n                    + collision_margin_sum;\n\n                let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);\n\n                // Save the old manifolds for warm starting.\n                let old_manifolds = contacts.manifolds.clone();\n\n                // TODO: It'd be good to persist the manifolds and let Parry match contacts.\n                //       This isn't currently done because it requires using Parry's contact manifold type.\n                // Compute the contact manifolds using the effective speculative margin.\n                let context = ContactManifoldContext::new(\n                    collider1.entity,\n                    collider2.entity,\n                    collider_context,\n"
+  },
+  {
+    "source_file": "avian3d-0.7.0/src/collider_tree/update.rs",
+    "sha256": "44e67ab015f7b7393fd08b8a46cba7bf7bf6eee26e651d441bc91edf636d1759",
+    "start_line": 706,
+    "end_line": 757,
+    "text": "    let delta_secs = time.delta_seconds_adjusted();\n    let default_speculative_margin = length_unit.0 * narrow_phase_config.default_speculative_margin;\n    let contact_tolerance = length_unit.0 * narrow_phase_config.contact_tolerance;\n    let margin = length_unit.0 * AABB_MARGIN;\n\n    let collider_query = colliders.p0();\n\n    body_query.par_iter().for_each(\n        |(rb_pos, center_of_mass, lin_vel, ang_vel, body_colliders, has_swept_ccd)| {\n            for collider_entity in body_colliders.iter() {\n                let Ok((\n                    collider,\n                    mut aabb,\n                    mut enlarged_aabb,\n                    proxy_key,\n                    pos,\n                    rot,\n                    collision_margin,\n                    speculative_margin,\n                )) = (unsafe { collider_query.get_unchecked(collider_entity) })\n                else {\n                    continue;\n                };\n\n                let collision_margin = collision_margin.map_or(0.0, |margin| margin.0);\n                let speculative_margin = if has_swept_ccd {\n                    Scalar::MAX\n                } else {\n                    speculative_margin.map_or(default_speculative_margin, |margin| margin.0)\n                };\n\n                let context = AabbContext::new(collider_entity, &*collider_context);\n                let growth = Vector::splat(contact_tolerance + collision_margin);\n\n                if speculative_margin <= 0.0 {\n                    *aabb = collider\n                        .aabb_with_context(pos.0, *rot, context)\n                        .grow(growth);\n                } else {\n                    // If the rigid body is rotating, off-center colliders will orbit around it,\n                    // which affects their linear velocities. We need to compute the linear velocity\n                    // at the offset position.\n                    // TODO: This assumes that the colliders would continue moving in the same direction,\n                    //       but because they are orbiting, the direction will change. We should take\n                    //       into account the uniform circular motion.\n                    let offset = pos.0 - rb_pos.0 - center_of_mass.0;\n                    #[cfg(feature = \"2d\")]\n                    let vel = lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x);\n                    #[cfg(feature = \"3d\")]\n                    let vel = lin_vel.0 + ang_vel.cross(offset);\n                    let movement = (vel * delta_secs)\n                        .clamp_length_max(speculative_margin.max(contact_tolerance));\n"
+  }
+]

@@ -1,4 +1,7 @@
-use bevy::math::{DQuat, DVec3, Vec3};
+use avian3d::parry::math::Pose;
+use avian3d::prelude::{Collider, ColliderOf, ColliderTransform};
+use bevy::math::{DQuat, DVec3, Quat, Vec3};
+use bevy::prelude::{Entity, Resource};
 
 use super::source_contact_epa::SourceEpaSettings;
 use super::source_contact_face::{SourceBoxConvexFaces, SourceConvexTopology, source_box_convex_faces, source_convex_scale};
@@ -18,6 +21,39 @@ pub(super) struct SourceConvexContactPoint {
 pub(super) struct SourceBoxConvexManifold {
     pub gjk: SourceGjkResult,
     pub contacts: Vec<SourceConvexContactPoint>,
+}
+
+#[derive(Resource, Clone, Copy)]
+pub(crate) struct SourceConvexLifecycleSettings {
+    pub cull_cm: f32,
+    pub inverse_size_cm: f32,
+    pub minimum_scale: f32,
+    pub warm_start: bool,
+}
+
+pub(super) fn source_convex_cull_distance(maximum_extent_m: f64, settings: SourceConvexLifecycleSettings) -> f64 {
+    let scale = (maximum_extent_m * 100.0 * f64::from(settings.inverse_size_cm))
+        .max(0.0).max(f64::from(settings.minimum_scale)) as f32;
+    f64::from(settings.cull_cm * scale) * 0.01
+}
+
+pub(super) fn source_body_local_max_extent<'a>(
+    body: Entity,
+    shapes: impl IntoIterator<Item = (Entity, &'a Collider, Option<&'a ColliderOf>, Option<&'a ColliderTransform>)>,
+) -> Option<f64> {
+    let mut minimum = Vec3::splat(f32::INFINITY);
+    let mut maximum = Vec3::splat(f32::NEG_INFINITY);
+    let mut found = false;
+    for (entity, collider, owner, local) in shapes {
+        if owner.map_or(entity != body, |owner| owner.body != body) { continue; }
+        let pose = Pose::from_parts(local.map_or(Vec3::ZERO, |value| value.translation),
+            local.map_or(Quat::IDENTITY, |value| value.rotation.0));
+        let bounds = collider.shape_scaled().compute_aabb(&pose);
+        minimum = minimum.min(bounds.mins);
+        maximum = maximum.max(bounds.maxs);
+        found = true;
+    }
+    found.then(|| f64::from((maximum - minimum).max_element()))
 }
 
 pub(super) fn source_box_convex_manifold(
@@ -260,6 +296,33 @@ mod tests {
                 orientation, margin, cull, Some(initial.gjk.simplex_cm)).unwrap();
             assert_native_contacts(&next.contacts, &sample["next_points"], mesh_rotation);
         }
+    }
+
+    #[test]
+    fn source_cull_distance_uses_whole_dynamic_body_extent() {
+        let ([cull_cm, inverse_size_cm, minimum_scale], warm_start) = include!("../als/settings/contact_lifecycle.rs");
+        let settings = SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, warm_start };
+        assert!(settings.warm_start);
+        assert_eq!(source_convex_cull_distance(0.28, settings), f64::from(3.0_f32) * 0.01);
+        assert_eq!(source_convex_cull_distance(1.0, settings), f64::from(3.0_f32) * 0.01);
+        assert_eq!(source_convex_cull_distance(2.0, settings), f64::from(6.0_f32) * 0.01);
+        let overridden = SourceConvexLifecycleSettings { cull_cm: 5.0, minimum_scale: 2.0, warm_start: false, ..settings };
+        assert_eq!(source_convex_cull_distance(0.28, overridden), f64::from(10.0_f32) * 0.01);
+        assert!(!overridden.warm_start);
+        let entity = |index| Entity::from_raw_u32(index).unwrap();
+        let body = entity(1);
+        let owner = ColliderOf { body };
+        let other = ColliderOf { body: entity(2) };
+        let collider = Collider::cuboid(0.4, 0.2, 0.2);
+        let giant = Collider::cuboid(100.0, 100.0, 100.0);
+        let left = ColliderTransform { translation: Vec3::X * -0.8, ..Default::default() };
+        let right = ColliderTransform { translation: Vec3::X * 0.8, ..Default::default() };
+        let shapes = [(entity(3), &collider, Some(&owner), Some(&left)),
+            (entity(4), &collider, Some(&owner), Some(&right)), (entity(5), &giant, Some(&other), None)];
+        let extent = source_body_local_max_extent(body, shapes).unwrap();
+        assert_eq!(extent, 2.0);
+        assert_eq!(source_convex_cull_distance(extent, settings), f64::from(6.0_f32) * 0.01);
+        assert!(source_body_local_max_extent(entity(9), shapes).is_none());
     }
 
     #[test]

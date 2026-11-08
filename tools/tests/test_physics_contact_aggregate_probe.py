@@ -18,6 +18,7 @@ for sample in samples:
     counts.add(len(contacts))
     for contact in contacts:
         assert not contact["disabled"] and contact["points"]
+        assert math.isfinite(contact["cull_distance_cm"]) and contact["cull_distance_cm"] > 0
         assert 0 <= contact["mesh_shape_index"] < sample["aggregate_shape_count"]
         for point in contact["points"]:
             assert math.isfinite(point["phi_cm"])
