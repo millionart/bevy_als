@@ -1,0 +1,51 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Classes/PhysicsEngine/PhysicsAsset.h",
+    "sha256": "3468438f02e9ebec810b0b6eb562909dcb60994ff90866c95f6ba7c914ff3964",
+    "start_line": 220,
+    "end_line": 231,
+    "text": "\tTArray<TObjectPtr<class UPhysicsConstraintTemplate>> ConstraintSetup;\n\npublic:\n\n\t/** \n\t * Solver settings when the asset is used with a RigidBody Anim Node (RBAN).\n\t */\n\tUPROPERTY(EditAnywhere, Category = SolverSettings, Config)\n\tFPhysicsAssetSolverSettings SolverSettings;\n\n\t/** \n\t * Old solver settings shown for reference. These will be removed at some point."
+  },
+  {
+    "source_file": "Engine/Source/Runtime/PhysicsCore/Private/ChaosScene.cpp",
+    "sha256": "923b5f2907b3ff3a6bd06f4c507cb77365f22edae7fd35d275665aef36718fe8",
+    "start_line": 88,
+    "end_line": 96,
+    "text": "\n\t// Apply project settings to the solver\n\tif (CVar_ApplyProjectSettings.GetValueOnAnyThread() != 0)\n\t{\n\t\tUPhysicsSettingsCore* Settings = UPhysicsSettingsCore::Get();\n\t\tSceneSolver->ApplyConfig(Settings->SolverOptions);\n\t\tSceneSolver->SetIsDeterministic(Settings->bEnableEnhancedDeterminism);\n\t}\n"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/PBDRigidsSolver.cpp",
+    "sha256": "8d810ddcab03ca703abd57f4bdc6319fb6b78c1940037422ca43bd305752dc9f",
+    "start_line": 3690,
+    "end_line": 3700,
+    "text": "\t}\n\n\tvoid FPBDRigidsSolver::ApplyConfig(const FChaosSolverConfiguration& InConfig)\n\t{\n\t\tGetEvolution()->GetRigidClustering().ApplySettings(InConfig);\n\t\tSetPositionIterations(InConfig.PositionIterations);\n\t\tSetVelocityIterations(InConfig.VelocityIterations);\n\t\tSetProjectionIterations(InConfig.ProjectionIterations);\n\t\tSetCollisionCullDistance(InConfig.CollisionCullDistance);\n\t\tSetCollisionMaxPushOutVelocity(InConfig.CollisionMaxPushOutVelocity);\n\t\tSetCollisionDepenetrationVelocity(InConfig.CollisionInitialOverlapDepenetrationVelocity);"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Island/IslandGroup.cpp",
+    "sha256": "d4a1b7732de44112d1f6bdd486309bf82c82ddbc117270d5f5299705580bb38f",
+    "start_line": 98,
+    "end_line": 144,
+    "text": "\n\t\tvoid FPBDIslandConstraintGroupSolver::SetIterationSettings(const FIterationSettings& InDefaultIterations)\n\t\t{\n\t\t\t// Start with undefined iteration counts\n\t\t\tIterations = FIterationSettings::MakeEmpty();\n\n\t\t\t// Here we set the iteration count for the island group to be the largest of any of the islands.\n\t\t\t// @todo(chaos): we should support per-island iteration counts rather than pushing the max to all\n\t\t\t// island solved in the same group.\n\t\t\tfor (FPBDIsland* Island : Islands)\n\t\t\t{\n\t\t\t\tIterations = FIterationSettings::Merge(Iterations, Island->GetIterationSettings());\n\t\t\t}\n\n\t\t\t// If we still have undefined iterations counts, apply the defaults\n\t\t\tif (Iterations.GetNumPositionIterations() < 0)\n\t\t\t{\n\t\t\t\tIterations.SetNumPositionIterations(InDefaultIterations.GetNumPositionIterations());\n\t\t\t}\n\t\t\tif (Iterations.GetNumVelocityIterations() < 0)\n\t\t\t{\n\t\t\t\tIterations.SetNumVelocityIterations(InDefaultIterations.GetNumVelocityIterations());\n\t\t\t}\n\t\t\tif (Iterations.GetNumProjectionIterations() < 0)\n\t\t\t{\n\t\t\t\tIterations.SetNumProjectionIterations(InDefaultIterations.GetNumProjectionIterations());\n\t\t\t}\n\n\t\t\t// Apply cvar overrides\n\t\t\tApplyIterationSettingsOverrides();\n\t\t}\n\n\t\tvoid FPBDIslandConstraintGroupSolver::ApplyIterationSettingsOverrides()\n\t\t{\n\t\t\tif (CVars::ChaosSolverPositionIterations >= 0)\n\t\t\t{\n\t\t\t\tIterations.SetNumPositionIterations(CVars::ChaosSolverPositionIterations);\n\t\t\t}\n\t\t\tif (CVars::ChaosSolverVelocityIterations >= 0)\n\t\t\t{\n\t\t\t\tIterations.SetNumVelocityIterations(CVars::ChaosSolverVelocityIterations);\n\t\t\t}\n\t\t\tif (CVars::ChaosSolverProjectionIterations >= 0)\n\t\t\t{\n\t\t\t\tIterations.SetNumProjectionIterations(CVars::ChaosSolverProjectionIterations);\n\t\t\t}\n\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Classes/PhysicsEngine/BodyInstance.h",
+    "sha256": "e64d9f49e8897a0787c8d0796cff4f7c24a0556454db36017949023334b1f405",
+    "start_line": 1099,
+    "end_line": 1110,
+    "text": "\tENGINE_API void SetOverrideIterationCounts(bool bOverride);\n\n\t// Get the per-body position iterations (or -1 if bOverrideIterationCounts is false)\n\tint32 GetPositionSolverIterationCount() const { return (!!bOverrideIterationCounts) ? PositionSolverIterationCount : -1; }\n\n\t// Get the per-body velocity iterations (or -1 if bOverrideIterationCounts is false)\n\tint32 GetVelocitySolverIterationCount() const { return (!!bOverrideIterationCounts) ? VelocitySolverIterationCount : -1; }\n\n\t// Get the per-body projection iterations (or -1 if bOverrideIterationCounts is false)\n\tint32 GetProjectionSolverIterationCount() const { return (!!bOverrideIterationCounts) ? ProjectionSolverIterationCount : -1; }\n\n\t/** [EXPERIMENTAL] Whether Motion-Aware Collision Detection is enabled */"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/PhysicsCore/Private/PhysicsSettingsCore.cpp",
+    "sha256": "c0b02e1911ca166a0221ae8bd806ec43cbc86fb9bf5c02b0d28ca3ec3954b7ae",
+    "start_line": 15,
+    "end_line": 27,
+    "text": "UPhysicsSettingsCore* UPhysicsSettingsCore::Get()\n{\n\t// Use the override if we have it.\n\tif (DefaultSettings != nullptr)\n\t{\n\t\treturn DefaultSettings;\n\t}\n\n\t// Use CDO otherwise\n\treturn CastChecked<UPhysicsSettingsCore>(UPhysicsSettingsCore::StaticClass()->GetDefaultObject());\n}\n\nUPhysicsSettingsCore::UPhysicsSettingsCore(const FObjectInitializer& ObjectInitializer)"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Engine/Private/PhysicsEngine/PhysicsSettings.cpp",
+    "sha256": "9ac3dd82335f982240e46adee962c48c9d01f1f29510d3a8c94dafa2da45449f",
+    "start_line": 92,
+    "end_line": 103,
+    "text": "\t// thread is hidden until that threading mode is made to work with the world physics system overall\n\tif(ChaosSettings.DefaultThreadingModel == EChaosThreadingMode::DedicatedThread)\n\t{\n\t\tChaosSettings.DefaultThreadingModel = EChaosThreadingMode::TaskGraph;\n\t}\n\n\t// Override the core Chaos default settings with this one if its the CDO (the one edited in Project Settings)\n\tif (UPhysicsSettings::Get() == this)\n\t{\n\t\tUPhysicsSettingsCore::SetDefaultSettings(this);\n\t}\n}"
+  }
+]

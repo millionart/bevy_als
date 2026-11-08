@@ -1,0 +1,68 @@
+{
+  "reader": {
+    "source_sha256": "d07673dd40f53d6f24997c4221cbbf52c5c4fe9dbb5a4dd136e1c661c2a70660",
+    "package_sha256": "f088bf286bb9ee4a2fe087c4c672c27fc5fe74f9290b9764fb48f570fbb30dff"
+  },
+  "runs": {
+    "settings": {
+      "request": "docs/audit/bf144/d81/settings.request.json",
+      "native_output": "docs/audit/bf144/d81/settings.native.json",
+      "reader_report": "docs/audit/bf144/d81/settings.native.json.reader.report.json",
+      "raw": {
+        "bytes": 86263,
+        "sha256": "d92acc88fc82c19b4be00ecfb2c5f3e1f0c90040393014274b2af9c0e2434249"
+      },
+      "stored": {
+        "bytes": 86263,
+        "sha256": "d92acc88fc82c19b4be00ecfb2c5f3e1f0c90040393014274b2af9c0e2434249"
+      }
+    },
+    "physics_asset": {
+      "request": "docs/audit/bf144/d81/physics_asset.request.json",
+      "native_output": "docs/audit/bf144/d65a/physics_asset.native.json.gz",
+      "reader_report": "docs/audit/bf144/d81/physics_asset.native.json.reader.report.json",
+      "raw": {
+        "bytes": 4751605,
+        "sha256": "e206bef0e4012ebba808a6558ff5209a4afe58a287dca8a7ca4b7bd68af14e9b"
+      },
+      "stored": {
+        "bytes": 224912,
+        "sha256": "ed167540559d0d1e93ad56c375523342343602810cf468fcb337fc8e30cc0ac6"
+      },
+      "asset": {
+        "path": "Content/ALS/Character/PA_Als.uasset",
+        "bytes": 52745,
+        "sha256": "299d44f90d97cfca296cf888df9727c9f3cc9435cc86e11b3525f6f04d45ebb6"
+      }
+    },
+    "character": {
+      "request": "docs/audit/bf144/d81/character.request.json",
+      "native_output": "docs/audit/bf144/d81/character.native.json.gz",
+      "reader_report": "docs/audit/bf144/d81/character.native.json.reader.report.json",
+      "raw": {
+        "bytes": 9918884,
+        "sha256": "c36137880301ce0beaed32421bbd4a871f4d918955eb1d01240f2fbe6a479cca"
+      },
+      "stored": {
+        "bytes": 327425,
+        "sha256": "4116fc3a4a2be76ac33670537958172c1c25dbd5b4c18b20d9ea57f2fd919c5d"
+      },
+      "asset": {
+        "path": "Content/ALS/Character/B_Als_Character.uasset",
+        "bytes": 261358,
+        "sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036"
+      }
+    }
+  },
+  "target": {
+    "path": "src/als/settings/world_solver_iterations.rs",
+    "bytes": 10,
+    "sha256": "96f21823c52b085ad0d86da327dc164b72ee3df3a51084b2ca8a58637e0ae4e2",
+    "generator": "tools/import/import_world_solver_iterations.py"
+  },
+  "settings_config": {
+    "path": "Config/DefaultEngine.ini",
+    "bytes": 2974,
+    "sha256": "e2ef4bad0d65cb55d773cb1e6202aea38f8873a2f02ebdac50985efc7d4decbe"
+  }
+}

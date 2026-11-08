@@ -1,0 +1,3087 @@
+{
+	"format": "ue_asset_source_v1",
+	"asset_path": "/Script/Engine.Default__PhysicsSettings",
+	"asset_class": "/Script/Engine.PhysicsSettings",
+	"asset_properties": [
+		{
+			"name": "PhysicsPrediction",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FPhysicsPredictionSettings",
+			"flags": "0x10001000004001",
+			"exported_text": "(MaxSupportedLatencyPrediction=1000.000000,ResimulationSettings=(bEnableResimulationErrorPositionThreshold=True,ResimulationErrorPositionThreshold=10.000000,bEnableResimulationErrorRotationThreshold=True,ResimulationErrorRotationThreshold=4.000000,ResimulationErrorLinearVelocityThreshold=5.000000,ResimulationErrorAngularVelocityThreshold=2.000000),PhysicsReplicationLODSettings=(MinimumBaseDistance=200.000000,BaseDistanceRadiusMultiplier=0.750000,BaseDistancesForResimulationMode=0.250000,BaseDistancesForFullPrediction=0.800000,TimeOverDistance=0.150000))",
+			"fields": [
+				{
+					"name": "bEnablePhysicsPrediction",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bEnablePhysicsHistoryCapture",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "MaxSupportedLatencyPrediction",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "1000.000000",
+					"numeric_value": 1000
+				},
+				{
+					"name": "ResimulationSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FPhysicsReplicationResimulationSettings",
+					"flags": "0x10001000000001",
+					"exported_text": "(bEnableResimulationErrorPositionThreshold=True,ResimulationErrorPositionThreshold=10.000000,bEnableResimulationErrorRotationThreshold=True,ResimulationErrorRotationThreshold=4.000000,ResimulationErrorLinearVelocityThreshold=5.000000,ResimulationErrorAngularVelocityThreshold=2.000000)",
+					"fields": [
+						{
+							"name": "bEnableResimulationErrorPositionThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040014201",
+							"exported_text": "True"
+						},
+						{
+							"name": "ResimulationErrorPositionThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "10.000000",
+							"numeric_value": 10
+						},
+						{
+							"name": "bEnableResimulationErrorRotationThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040014201",
+							"exported_text": "True"
+						},
+						{
+							"name": "ResimulationErrorRotationThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "4.000000",
+							"numeric_value": 4
+						},
+						{
+							"name": "bEnableResimulationErrorLinearVelocityThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040014201",
+							"exported_text": "False"
+						},
+						{
+							"name": "ResimulationErrorLinearVelocityThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "5.000000",
+							"numeric_value": 5
+						},
+						{
+							"name": "bEnableResimulationErrorAngularVelocityThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040014201",
+							"exported_text": "False"
+						},
+						{
+							"name": "ResimulationErrorAngularVelocityThreshold",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "2.000000",
+							"numeric_value": 2
+						}
+					]
+				},
+				{
+					"name": "PhysicsReplicationLODSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FPhysicsReplicationLODSettings",
+					"flags": "0x10001000000001",
+					"exported_text": "(MinimumBaseDistance=200.000000,BaseDistanceRadiusMultiplier=0.750000,BaseDistancesForResimulationMode=0.250000,BaseDistancesForFullPrediction=0.800000,TimeOverDistance=0.150000)",
+					"fields": [
+						{
+							"name": "bEnablePhysicsReplicationLOD",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040014201",
+							"exported_text": "False"
+						},
+						{
+							"name": "MinimumBaseDistance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "200.000000",
+							"numeric_value": 200
+						},
+						{
+							"name": "BaseDistanceRadiusMultiplier",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.750000",
+							"numeric_value": 0.75
+						},
+						{
+							"name": "BaseDistancesForResimulationMode",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.250000",
+							"numeric_value": 0.25
+						},
+						{
+							"name": "BaseDistancesForFullPrediction",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.800000",
+							"numeric_value": 0.80000001192092896
+						},
+						{
+							"name": "TimeOverDistance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.150000",
+							"numeric_value": 0.15000000596046448
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "PhysicErrorCorrection",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FRigidBodyErrorCorrection",
+			"flags": "0x10001000004001",
+			"exported_text": "(PingExtrapolation=0.100000,PingLimit=100.000000,ErrorPerLinearDifference=1.000000,ErrorPerAngularDifference=1.000000,MaxRestoredStateError=1.000000,MaxLinearHardSnapDistance=400.000000,AngleLerp=0.400000,LinearVelocityCoefficient=100.000000,AngularVelocityCoefficient=10.000000,ErrorAccumulationSeconds=0.500000,ErrorAccumulationDistanceSq=15.000000,ErrorAccumulationSimilarity=100.000000)",
+			"fields": [
+				{
+					"name": "PingExtrapolation",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "0.100000",
+					"numeric_value": 0.10000000149011612
+				},
+				{
+					"name": "PingLimit",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "100.000000",
+					"numeric_value": 100
+				},
+				{
+					"name": "ErrorPerLinearDifference",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "ErrorPerAngularDifference",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "MaxRestoredStateError",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "MaxLinearHardSnapDistance",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "400.000000",
+					"numeric_value": 400
+				},
+				{
+					"name": "PositionLerp",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "AngleLerp",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "0.400000",
+					"numeric_value": 0.40000000596046448
+				},
+				{
+					"name": "LinearVelocityCoefficient",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "100.000000",
+					"numeric_value": 100
+				},
+				{
+					"name": "AngularVelocityCoefficient",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "10.000000",
+					"numeric_value": 10
+				},
+				{
+					"name": "ErrorAccumulationSeconds",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "0.500000",
+					"numeric_value": 0.5
+				},
+				{
+					"name": "ErrorAccumulationDistanceSq",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "15.000000",
+					"numeric_value": 15
+				},
+				{
+					"name": "ErrorAccumulationSimilarity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "100.000000",
+					"numeric_value": 100
+				}
+			]
+		},
+		{
+			"name": "DefaultDegreesOfFreedom",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ByteProperty",
+			"cpp_type": "TEnumAsByte<ESettingsDOF::Type>",
+			"flags": "0x18001040004201",
+			"exported_text": "Full3D"
+		},
+		{
+			"name": "bSuppressFaceRemapTable",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bSupportUVFromHitResults",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bDisableActiveActors",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bDisableKinematicStaticPairs",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bDisableKinematicKinematicPairs",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bDisableCCD",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "AnimPhysicsMinDeltaTime",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.000000",
+			"numeric_value": 0
+		},
+		{
+			"name": "bSimulateAnimPhysicsAfterReset",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "MinPhysicsDeltaTime",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.000000",
+			"numeric_value": 9.9999999392252903e-09
+		},
+		{
+			"name": "MaxPhysicsDeltaTime",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.033333",
+			"numeric_value": 0.033333335071802139
+		},
+		{
+			"name": "bSubstepping",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bSubsteppingAsync",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bTickPhysicsAsync",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "AsyncFixedTimeStepSize",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.033333",
+			"numeric_value": 0.033333335071802139
+		},
+		{
+			"name": "MaxSubstepDeltaTime",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.016667",
+			"numeric_value": 0.01666666753590107
+		},
+		{
+			"name": "MaxSubsteps",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18001040004201",
+			"exported_text": "6"
+		},
+		{
+			"name": "SyncSceneSmoothingFactor",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18041040004201",
+			"exported_text": "0.000000",
+			"numeric_value": 0
+		},
+		{
+			"name": "InitialAverageFrameRate",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18041040004201",
+			"exported_text": "0.016667",
+			"numeric_value": 0.01666666753590107
+		},
+		{
+			"name": "PhysXTreeRebuildRate",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18041040004201",
+			"exported_text": "10"
+		},
+		{
+			"name": "PhysicalSurfaces",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x10000000004201",
+			"exported_text": ""
+		},
+		{
+			"name": "DefaultBroadphaseSettings",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FBroadphaseSettings",
+			"flags": "0x10001000004001",
+			"exported_text": "(MBPBounds=(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=False),MBPOuterBounds=(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=False),MBPNumSubdivs=2)",
+			"fields": [
+				{
+					"name": "bUseMBPOnClient",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bUseMBPOnServer",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bUseMBPOuterBounds",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "MBPBounds",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FBox",
+					"flags": "0x18001040000201",
+					"exported_text": "(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=False)",
+					"fields": [
+						{
+							"name": "Min",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001041000205",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "Max",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001041000205",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "IsValid",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001041000205",
+							"exported_text": "False"
+						}
+					]
+				},
+				{
+					"name": "MBPOuterBounds",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FBox",
+					"flags": "0x18001040000201",
+					"exported_text": "(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=False)",
+					"fields": [
+						{
+							"name": "Min",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001041000205",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "Max",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FVector",
+							"flags": "0x18001041000205",
+							"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+							"fields": [
+								{
+									"name": "X",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Y",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Z",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "DoubleProperty",
+									"cpp_type": "double",
+									"flags": "0x18001041000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "IsValid",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001041000205",
+							"exported_text": "False"
+						}
+					]
+				},
+				{
+					"name": "MBPNumSubdivs",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "UInt32Property",
+					"cpp_type": "uint32",
+					"flags": "0x18001040000201",
+					"exported_text": "2"
+				}
+			]
+		},
+		{
+			"name": "MinDeltaVelocityForHitEvents",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.000000",
+			"numeric_value": 0
+		},
+		{
+			"name": "ChaosSettings",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FChaosPhysicsSettings",
+			"flags": "0x10001000004001",
+			"exported_text": "(DefaultThreadingModel=TaskGraph,DedicatedThreadTickMode=VariableCappedWithTarget)",
+			"fields": [
+				{
+					"name": "DefaultThreadingModel",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EChaosThreadingMode",
+					"flags": "0x18001040000201",
+					"exported_text": "TaskGraph",
+					"enum_underlying_value": "1",
+					"enum_value_name": "TaskGraph"
+				},
+				{
+					"name": "DedicatedThreadTickMode",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EChaosSolverTickMode",
+					"flags": "0x18001040000201",
+					"exported_text": "VariableCappedWithTarget",
+					"enum_underlying_value": "3",
+					"enum_value_name": "VariableCappedWithTarget"
+				},
+				{
+					"name": "DedicatedThreadBufferMode",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EChaosBufferMode",
+					"flags": "0x18001040000201",
+					"exported_text": "Double",
+					"enum_underlying_value": "0",
+					"enum_value_name": "Double"
+				}
+			]
+		},
+		{
+			"name": "bPartialIslandSleep",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "MomentumPropagation",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.300000",
+			"numeric_value": 0.30000001192092896
+		},
+		{
+			"name": "PostStepWakeThreshold",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "20.000000",
+			"numeric_value": 20
+		},
+		{
+			"name": "MinimumMotionless",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.100000",
+			"numeric_value": 0.10000000149011612
+		},
+		{
+			"name": "LinearWakeThresholdMultiplier",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "10.000000",
+			"numeric_value": 10
+		},
+		{
+			"name": "AngularWakeThresholdMultiplier",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "10.000000",
+			"numeric_value": 10
+		},
+		{
+			"name": "DefaultGravityZ",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "-980.000000",
+			"numeric_value": -980
+		},
+		{
+			"name": "DefaultTerminalVelocity",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "4000.000000",
+			"numeric_value": 4000
+		},
+		{
+			"name": "DefaultFluidFriction",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.300000",
+			"numeric_value": 0.30000001192092896
+		},
+		{
+			"name": "SimulateScratchMemorySize",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18001040004201",
+			"exported_text": "262144"
+		},
+		{
+			"name": "RagdollAggregateThreshold",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18001040004201",
+			"exported_text": "4"
+		},
+		{
+			"name": "TriangleMeshTriangleMinAreaThreshold",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18041040004201",
+			"exported_text": "5.000000",
+			"numeric_value": 5
+		},
+		{
+			"name": "bEnableEnhancedDeterminism",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bEnableShapeSharing",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18041040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bEnablePCM",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18041040004201",
+			"exported_text": "True"
+		},
+		{
+			"name": "bEnableStabilization",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18041040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "bWarnMissingLocks",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18041040004201",
+			"exported_text": "True"
+		},
+		{
+			"name": "bEnable2DPhysics",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "False"
+		},
+		{
+			"name": "BounceThresholdVelocity",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "200.000000",
+			"numeric_value": 200
+		},
+		{
+			"name": "FrictionCombineMode",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ByteProperty",
+			"cpp_type": "TEnumAsByte<EFrictionCombineMode::Type>",
+			"flags": "0x18001040004201",
+			"exported_text": "Average"
+		},
+		{
+			"name": "RestitutionCombineMode",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ByteProperty",
+			"cpp_type": "TEnumAsByte<EFrictionCombineMode::Type>",
+			"flags": "0x18001040004201",
+			"exported_text": "Average"
+		},
+		{
+			"name": "MaxAngularVelocity",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "3600.000000",
+			"numeric_value": 3600
+		},
+		{
+			"name": "MaxDepenetrationVelocity",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.000000",
+			"numeric_value": 0
+		},
+		{
+			"name": "ContactOffsetMultiplier",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "0.020000",
+			"numeric_value": 0.019999999552965164
+		},
+		{
+			"name": "MinContactOffset",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "2.000000",
+			"numeric_value": 2
+		},
+		{
+			"name": "MaxContactOffset",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040004201",
+			"exported_text": "8.000000",
+			"numeric_value": 8
+		},
+		{
+			"name": "bSimulateSkeletalMeshOnDedicatedServer",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040004201",
+			"exported_text": "True"
+		},
+		{
+			"name": "DefaultShapeComplexity",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ByteProperty",
+			"cpp_type": "TEnumAsByte<ECollisionTraceFlag>",
+			"flags": "0x18001040004201",
+			"exported_text": "CTF_UseSimpleAndComplex"
+		},
+		{
+			"name": "SolverOptions",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FChaosSolverConfiguration",
+			"flags": "0x10001000004001",
+			"exported_text": "(PositionIterations=8,VelocityIterations=2,ProjectionIterations=1,CollisionMarginFraction=0.050000,CollisionMarginMax=10.000000,CollisionCullDistance=3.000000,CollisionMaxPushOutVelocity=1000.000000,CollisionInitialOverlapDepenetrationVelocity=-1.000000,ClusterConnectionFactor=1.000000,ClusterUnionConnectionType=DelaunayTriangulation,DestructionSettings=(PerAdvanceBreaksAllowed=2147483647,PerAdvanceBreaksRescheduleLimit=2147483647,ClusteringParticleReleaseThrottlingMinCount=-1,ClusteringParticleReleaseThrottlingMaxCount=-1),CollisionFilterSettings=(),BreakingFilterSettings=(),TrailingFilterSettings=())",
+			"fields": [
+				{
+					"name": "PositionIterations",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000201",
+					"exported_text": "8"
+				},
+				{
+					"name": "VelocityIterations",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000201",
+					"exported_text": "2"
+				},
+				{
+					"name": "ProjectionIterations",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000201",
+					"exported_text": "1"
+				},
+				{
+					"name": "CollisionMarginFraction",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "0.050000",
+					"numeric_value": 0.05000000074505806
+				},
+				{
+					"name": "CollisionMarginMax",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "10.000000",
+					"numeric_value": 10
+				},
+				{
+					"name": "CollisionCullDistance",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "3.000000",
+					"numeric_value": 3
+				},
+				{
+					"name": "CollisionMaxPushOutVelocity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "1000.000000",
+					"numeric_value": 1000
+				},
+				{
+					"name": "CollisionInitialOverlapDepenetrationVelocity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "-1.000000",
+					"numeric_value": -1
+				},
+				{
+					"name": "ClusterConnectionFactor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "ClusterUnionConnectionType",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EClusterUnionMethod",
+					"flags": "0x18001040000201",
+					"exported_text": "DelaunayTriangulation",
+					"enum_underlying_value": "1",
+					"enum_value_name": "DelaunayTriangulation"
+				},
+				{
+					"name": "DestructionSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FChaosSolverDestructionSettings",
+					"flags": "0x10001000000001",
+					"exported_text": "(PerAdvanceBreaksAllowed=2147483647,PerAdvanceBreaksRescheduleLimit=2147483647,ClusteringParticleReleaseThrottlingMinCount=-1,ClusteringParticleReleaseThrottlingMaxCount=-1)",
+					"fields": [
+						{
+							"name": "PerAdvanceBreaksAllowed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000201",
+							"exported_text": "2147483647"
+						},
+						{
+							"name": "PerAdvanceBreaksRescheduleLimit",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000201",
+							"exported_text": "2147483647"
+						},
+						{
+							"name": "ClusteringParticleReleaseThrottlingMinCount",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000201",
+							"exported_text": "-1"
+						},
+						{
+							"name": "ClusteringParticleReleaseThrottlingMaxCount",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000201",
+							"exported_text": "-1"
+						},
+						{
+							"name": "bOptimizeForRuntimeMemory",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						}
+					]
+				},
+				{
+					"name": "bGenerateCollisionData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "CollisionFilterSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FSolverCollisionFilterSettings",
+					"flags": "0x10001000000001",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "FilterEnabled",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000205",
+							"exported_text": "False"
+						},
+						{
+							"name": "MinMass",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "MinSpeed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "MinImpulse",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "bGenerateBreakData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "BreakingFilterSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FSolverBreakingFilterSettings",
+					"flags": "0x10001000000001",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "FilterEnabled",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000205",
+							"exported_text": "False"
+						},
+						{
+							"name": "MinMass",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "MinSpeed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "MinVolume",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "bGenerateTrailingData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "TrailingFilterSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FSolverTrailingFilterSettings",
+					"flags": "0x10001000000001",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "FilterEnabled",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000205",
+							"exported_text": "False"
+						},
+						{
+							"name": "MinMass",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "MinSpeed",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "MinVolume",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000205",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				}
+			]
+		}
+	],
+	"engine_debug_fonts":
+	{
+		"tiny":
+		{
+			"size_points": 8,
+			"max_char_height": 13,
+			"style": "Light"
+		},
+		"medium":
+		{
+			"size_points": 10,
+			"max_char_height": 15,
+			"style": "Regular"
+		}
+	},
+	"blueprint_cdo_path": "None",
+	"blueprint_cdo_properties": [],
+	"blueprint_cdo_subobjects": [],
+	"asset_objects": [
+		{
+			"index": 0,
+			"object_path": "/Script/Engine.Default__PhysicsSettings",
+			"class_path": "/Script/Engine.PhysicsSettings",
+			"properties": [
+				{
+					"name": "PhysicsPrediction",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FPhysicsPredictionSettings",
+					"flags": "0x10001000004001",
+					"exported_text": "(MaxSupportedLatencyPrediction=1000.000000,ResimulationSettings=(bEnableResimulationErrorPositionThreshold=True,ResimulationErrorPositionThreshold=10.000000,bEnableResimulationErrorRotationThreshold=True,ResimulationErrorRotationThreshold=4.000000,ResimulationErrorLinearVelocityThreshold=5.000000,ResimulationErrorAngularVelocityThreshold=2.000000),PhysicsReplicationLODSettings=(MinimumBaseDistance=200.000000,BaseDistanceRadiusMultiplier=0.750000,BaseDistancesForResimulationMode=0.250000,BaseDistancesForFullPrediction=0.800000,TimeOverDistance=0.150000))",
+					"fields": [
+						{
+							"name": "bEnablePhysicsPrediction",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						},
+						{
+							"name": "bEnablePhysicsHistoryCapture",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						},
+						{
+							"name": "MaxSupportedLatencyPrediction",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "1000.000000",
+							"numeric_value": 1000
+						},
+						{
+							"name": "ResimulationSettings",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FPhysicsReplicationResimulationSettings",
+							"flags": "0x10001000000001",
+							"exported_text": "(bEnableResimulationErrorPositionThreshold=True,ResimulationErrorPositionThreshold=10.000000,bEnableResimulationErrorRotationThreshold=True,ResimulationErrorRotationThreshold=4.000000,ResimulationErrorLinearVelocityThreshold=5.000000,ResimulationErrorAngularVelocityThreshold=2.000000)",
+							"fields": [
+								{
+									"name": "bEnableResimulationErrorPositionThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040014201",
+									"exported_text": "True"
+								},
+								{
+									"name": "ResimulationErrorPositionThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "10.000000",
+									"numeric_value": 10
+								},
+								{
+									"name": "bEnableResimulationErrorRotationThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040014201",
+									"exported_text": "True"
+								},
+								{
+									"name": "ResimulationErrorRotationThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "4.000000",
+									"numeric_value": 4
+								},
+								{
+									"name": "bEnableResimulationErrorLinearVelocityThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040014201",
+									"exported_text": "False"
+								},
+								{
+									"name": "ResimulationErrorLinearVelocityThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "5.000000",
+									"numeric_value": 5
+								},
+								{
+									"name": "bEnableResimulationErrorAngularVelocityThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040014201",
+									"exported_text": "False"
+								},
+								{
+									"name": "ResimulationErrorAngularVelocityThreshold",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "2.000000",
+									"numeric_value": 2
+								}
+							]
+						},
+						{
+							"name": "PhysicsReplicationLODSettings",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FPhysicsReplicationLODSettings",
+							"flags": "0x10001000000001",
+							"exported_text": "(MinimumBaseDistance=200.000000,BaseDistanceRadiusMultiplier=0.750000,BaseDistancesForResimulationMode=0.250000,BaseDistancesForFullPrediction=0.800000,TimeOverDistance=0.150000)",
+							"fields": [
+								{
+									"name": "bEnablePhysicsReplicationLOD",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040014201",
+									"exported_text": "False"
+								},
+								{
+									"name": "MinimumBaseDistance",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "200.000000",
+									"numeric_value": 200
+								},
+								{
+									"name": "BaseDistanceRadiusMultiplier",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "0.750000",
+									"numeric_value": 0.75
+								},
+								{
+									"name": "BaseDistancesForResimulationMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "0.250000",
+									"numeric_value": 0.25
+								},
+								{
+									"name": "BaseDistancesForFullPrediction",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "0.800000",
+									"numeric_value": 0.80000001192092896
+								},
+								{
+									"name": "TimeOverDistance",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000201",
+									"exported_text": "0.150000",
+									"numeric_value": 0.15000000596046448
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "PhysicErrorCorrection",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FRigidBodyErrorCorrection",
+					"flags": "0x10001000004001",
+					"exported_text": "(PingExtrapolation=0.100000,PingLimit=100.000000,ErrorPerLinearDifference=1.000000,ErrorPerAngularDifference=1.000000,MaxRestoredStateError=1.000000,MaxLinearHardSnapDistance=400.000000,AngleLerp=0.400000,LinearVelocityCoefficient=100.000000,AngularVelocityCoefficient=10.000000,ErrorAccumulationSeconds=0.500000,ErrorAccumulationDistanceSq=15.000000,ErrorAccumulationSimilarity=100.000000)",
+					"fields": [
+						{
+							"name": "PingExtrapolation",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.100000",
+							"numeric_value": 0.10000000149011612
+						},
+						{
+							"name": "PingLimit",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "100.000000",
+							"numeric_value": 100
+						},
+						{
+							"name": "ErrorPerLinearDifference",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "ErrorPerAngularDifference",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "MaxRestoredStateError",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "MaxLinearHardSnapDistance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "400.000000",
+							"numeric_value": 400
+						},
+						{
+							"name": "PositionLerp",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "AngleLerp",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.400000",
+							"numeric_value": 0.40000000596046448
+						},
+						{
+							"name": "LinearVelocityCoefficient",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "100.000000",
+							"numeric_value": 100
+						},
+						{
+							"name": "AngularVelocityCoefficient",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "10.000000",
+							"numeric_value": 10
+						},
+						{
+							"name": "ErrorAccumulationSeconds",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.500000",
+							"numeric_value": 0.5
+						},
+						{
+							"name": "ErrorAccumulationDistanceSq",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "15.000000",
+							"numeric_value": 15
+						},
+						{
+							"name": "ErrorAccumulationSimilarity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "100.000000",
+							"numeric_value": 100
+						}
+					]
+				},
+				{
+					"name": "DefaultDegreesOfFreedom",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ESettingsDOF::Type>",
+					"flags": "0x18001040004201",
+					"exported_text": "Full3D"
+				},
+				{
+					"name": "bSuppressFaceRemapTable",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bSupportUVFromHitResults",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bDisableActiveActors",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bDisableKinematicStaticPairs",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bDisableKinematicKinematicPairs",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bDisableCCD",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "AnimPhysicsMinDeltaTime",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "bSimulateAnimPhysicsAfterReset",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "MinPhysicsDeltaTime",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.000000",
+					"numeric_value": 9.9999999392252903e-09
+				},
+				{
+					"name": "MaxPhysicsDeltaTime",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.033333",
+					"numeric_value": 0.033333335071802139
+				},
+				{
+					"name": "bSubstepping",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bSubsteppingAsync",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bTickPhysicsAsync",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "AsyncFixedTimeStepSize",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.033333",
+					"numeric_value": 0.033333335071802139
+				},
+				{
+					"name": "MaxSubstepDeltaTime",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.016667",
+					"numeric_value": 0.01666666753590107
+				},
+				{
+					"name": "MaxSubsteps",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040004201",
+					"exported_text": "6"
+				},
+				{
+					"name": "SyncSceneSmoothingFactor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18041040004201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "InitialAverageFrameRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18041040004201",
+					"exported_text": "0.016667",
+					"numeric_value": 0.01666666753590107
+				},
+				{
+					"name": "PhysXTreeRebuildRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18041040004201",
+					"exported_text": "10"
+				},
+				{
+					"name": "PhysicalSurfaces",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000004201",
+					"exported_text": ""
+				},
+				{
+					"name": "DefaultBroadphaseSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FBroadphaseSettings",
+					"flags": "0x10001000004001",
+					"exported_text": "(MBPBounds=(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=False),MBPOuterBounds=(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=False),MBPNumSubdivs=2)",
+					"fields": [
+						{
+							"name": "bUseMBPOnClient",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						},
+						{
+							"name": "bUseMBPOnServer",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						},
+						{
+							"name": "bUseMBPOuterBounds",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						},
+						{
+							"name": "MBPBounds",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FBox",
+							"flags": "0x18001040000201",
+							"exported_text": "(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=False)",
+							"fields": [
+								{
+									"name": "Min",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "StructProperty",
+									"cpp_type": "FVector",
+									"flags": "0x18001041000205",
+									"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+									"fields": [
+										{
+											"name": "X",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Y",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Z",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										}
+									]
+								},
+								{
+									"name": "Max",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "StructProperty",
+									"cpp_type": "FVector",
+									"flags": "0x18001041000205",
+									"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+									"fields": [
+										{
+											"name": "X",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Y",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Z",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										}
+									]
+								},
+								{
+									"name": "IsValid",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001041000205",
+									"exported_text": "False"
+								}
+							]
+						},
+						{
+							"name": "MBPOuterBounds",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FBox",
+							"flags": "0x18001040000201",
+							"exported_text": "(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=False)",
+							"fields": [
+								{
+									"name": "Min",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "StructProperty",
+									"cpp_type": "FVector",
+									"flags": "0x18001041000205",
+									"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+									"fields": [
+										{
+											"name": "X",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Y",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Z",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										}
+									]
+								},
+								{
+									"name": "Max",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "StructProperty",
+									"cpp_type": "FVector",
+									"flags": "0x18001041000205",
+									"exported_text": "(X=0.000000,Y=0.000000,Z=0.000000)",
+									"fields": [
+										{
+											"name": "X",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Y",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Z",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "DoubleProperty",
+											"cpp_type": "double",
+											"flags": "0x18001041000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										}
+									]
+								},
+								{
+									"name": "IsValid",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001041000205",
+									"exported_text": "False"
+								}
+							]
+						},
+						{
+							"name": "MBPNumSubdivs",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "UInt32Property",
+							"cpp_type": "uint32",
+							"flags": "0x18001040000201",
+							"exported_text": "2"
+						}
+					]
+				},
+				{
+					"name": "MinDeltaVelocityForHitEvents",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "ChaosSettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FChaosPhysicsSettings",
+					"flags": "0x10001000004001",
+					"exported_text": "(DefaultThreadingModel=TaskGraph,DedicatedThreadTickMode=VariableCappedWithTarget)",
+					"fields": [
+						{
+							"name": "DefaultThreadingModel",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "EChaosThreadingMode",
+							"flags": "0x18001040000201",
+							"exported_text": "TaskGraph",
+							"enum_underlying_value": "1",
+							"enum_value_name": "TaskGraph"
+						},
+						{
+							"name": "DedicatedThreadTickMode",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "EChaosSolverTickMode",
+							"flags": "0x18001040000201",
+							"exported_text": "VariableCappedWithTarget",
+							"enum_underlying_value": "3",
+							"enum_value_name": "VariableCappedWithTarget"
+						},
+						{
+							"name": "DedicatedThreadBufferMode",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "EChaosBufferMode",
+							"flags": "0x18001040000201",
+							"exported_text": "Double",
+							"enum_underlying_value": "0",
+							"enum_value_name": "Double"
+						}
+					]
+				},
+				{
+					"name": "bPartialIslandSleep",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "MomentumPropagation",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.300000",
+					"numeric_value": 0.30000001192092896
+				},
+				{
+					"name": "PostStepWakeThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "20.000000",
+					"numeric_value": 20
+				},
+				{
+					"name": "MinimumMotionless",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.100000",
+					"numeric_value": 0.10000000149011612
+				},
+				{
+					"name": "LinearWakeThresholdMultiplier",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "10.000000",
+					"numeric_value": 10
+				},
+				{
+					"name": "AngularWakeThresholdMultiplier",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "10.000000",
+					"numeric_value": 10
+				},
+				{
+					"name": "DefaultGravityZ",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "-980.000000",
+					"numeric_value": -980
+				},
+				{
+					"name": "DefaultTerminalVelocity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "4000.000000",
+					"numeric_value": 4000
+				},
+				{
+					"name": "DefaultFluidFriction",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.300000",
+					"numeric_value": 0.30000001192092896
+				},
+				{
+					"name": "SimulateScratchMemorySize",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040004201",
+					"exported_text": "262144"
+				},
+				{
+					"name": "RagdollAggregateThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040004201",
+					"exported_text": "4"
+				},
+				{
+					"name": "TriangleMeshTriangleMinAreaThreshold",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18041040004201",
+					"exported_text": "5.000000",
+					"numeric_value": 5
+				},
+				{
+					"name": "bEnableEnhancedDeterminism",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bEnableShapeSharing",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bEnablePCM",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041040004201",
+					"exported_text": "True"
+				},
+				{
+					"name": "bEnableStabilization",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "bWarnMissingLocks",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041040004201",
+					"exported_text": "True"
+				},
+				{
+					"name": "bEnable2DPhysics",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "False"
+				},
+				{
+					"name": "BounceThresholdVelocity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "200.000000",
+					"numeric_value": 200
+				},
+				{
+					"name": "FrictionCombineMode",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<EFrictionCombineMode::Type>",
+					"flags": "0x18001040004201",
+					"exported_text": "Average"
+				},
+				{
+					"name": "RestitutionCombineMode",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<EFrictionCombineMode::Type>",
+					"flags": "0x18001040004201",
+					"exported_text": "Average"
+				},
+				{
+					"name": "MaxAngularVelocity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "3600.000000",
+					"numeric_value": 3600
+				},
+				{
+					"name": "MaxDepenetrationVelocity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "ContactOffsetMultiplier",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "0.020000",
+					"numeric_value": 0.019999999552965164
+				},
+				{
+					"name": "MinContactOffset",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "2.000000",
+					"numeric_value": 2
+				},
+				{
+					"name": "MaxContactOffset",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040004201",
+					"exported_text": "8.000000",
+					"numeric_value": 8
+				},
+				{
+					"name": "bSimulateSkeletalMeshOnDedicatedServer",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040004201",
+					"exported_text": "True"
+				},
+				{
+					"name": "DefaultShapeComplexity",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ECollisionTraceFlag>",
+					"flags": "0x18001040004201",
+					"exported_text": "CTF_UseSimpleAndComplex"
+				},
+				{
+					"name": "SolverOptions",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FChaosSolverConfiguration",
+					"flags": "0x10001000004001",
+					"exported_text": "(PositionIterations=8,VelocityIterations=2,ProjectionIterations=1,CollisionMarginFraction=0.050000,CollisionMarginMax=10.000000,CollisionCullDistance=3.000000,CollisionMaxPushOutVelocity=1000.000000,CollisionInitialOverlapDepenetrationVelocity=-1.000000,ClusterConnectionFactor=1.000000,ClusterUnionConnectionType=DelaunayTriangulation,DestructionSettings=(PerAdvanceBreaksAllowed=2147483647,PerAdvanceBreaksRescheduleLimit=2147483647,ClusteringParticleReleaseThrottlingMinCount=-1,ClusteringParticleReleaseThrottlingMaxCount=-1),CollisionFilterSettings=(),BreakingFilterSettings=(),TrailingFilterSettings=())",
+					"fields": [
+						{
+							"name": "PositionIterations",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000201",
+							"exported_text": "8"
+						},
+						{
+							"name": "VelocityIterations",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000201",
+							"exported_text": "2"
+						},
+						{
+							"name": "ProjectionIterations",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000201",
+							"exported_text": "1"
+						},
+						{
+							"name": "CollisionMarginFraction",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "0.050000",
+							"numeric_value": 0.05000000074505806
+						},
+						{
+							"name": "CollisionMarginMax",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "10.000000",
+							"numeric_value": 10
+						},
+						{
+							"name": "CollisionCullDistance",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "3.000000",
+							"numeric_value": 3
+						},
+						{
+							"name": "CollisionMaxPushOutVelocity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "1000.000000",
+							"numeric_value": 1000
+						},
+						{
+							"name": "CollisionInitialOverlapDepenetrationVelocity",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "-1.000000",
+							"numeric_value": -1
+						},
+						{
+							"name": "ClusterConnectionFactor",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "1.000000",
+							"numeric_value": 1
+						},
+						{
+							"name": "ClusterUnionConnectionType",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "EClusterUnionMethod",
+							"flags": "0x18001040000201",
+							"exported_text": "DelaunayTriangulation",
+							"enum_underlying_value": "1",
+							"enum_value_name": "DelaunayTriangulation"
+						},
+						{
+							"name": "DestructionSettings",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FChaosSolverDestructionSettings",
+							"flags": "0x10001000000001",
+							"exported_text": "(PerAdvanceBreaksAllowed=2147483647,PerAdvanceBreaksRescheduleLimit=2147483647,ClusteringParticleReleaseThrottlingMinCount=-1,ClusteringParticleReleaseThrottlingMaxCount=-1)",
+							"fields": [
+								{
+									"name": "PerAdvanceBreaksAllowed",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000201",
+									"exported_text": "2147483647"
+								},
+								{
+									"name": "PerAdvanceBreaksRescheduleLimit",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000201",
+									"exported_text": "2147483647"
+								},
+								{
+									"name": "ClusteringParticleReleaseThrottlingMinCount",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000201",
+									"exported_text": "-1"
+								},
+								{
+									"name": "ClusteringParticleReleaseThrottlingMaxCount",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "IntProperty",
+									"cpp_type": "int32",
+									"flags": "0x18001040000201",
+									"exported_text": "-1"
+								},
+								{
+									"name": "bOptimizeForRuntimeMemory",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000201",
+									"exported_text": "False"
+								}
+							]
+						},
+						{
+							"name": "bGenerateCollisionData",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						},
+						{
+							"name": "CollisionFilterSettings",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FSolverCollisionFilterSettings",
+							"flags": "0x10001000000001",
+							"exported_text": "()",
+							"fields": [
+								{
+									"name": "FilterEnabled",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000205",
+									"exported_text": "False"
+								},
+								{
+									"name": "MinMass",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "MinSpeed",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "MinImpulse",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "bGenerateBreakData",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						},
+						{
+							"name": "BreakingFilterSettings",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FSolverBreakingFilterSettings",
+							"flags": "0x10001000000001",
+							"exported_text": "()",
+							"fields": [
+								{
+									"name": "FilterEnabled",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000205",
+									"exported_text": "False"
+								},
+								{
+									"name": "MinMass",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "MinSpeed",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "MinVolume",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"name": "bGenerateTrailingData",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "BoolProperty",
+							"cpp_type": "bool",
+							"flags": "0x18001040000201",
+							"exported_text": "False"
+						},
+						{
+							"name": "TrailingFilterSettings",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FSolverTrailingFilterSettings",
+							"flags": "0x10001000000001",
+							"exported_text": "()",
+							"fields": [
+								{
+									"name": "FilterEnabled",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "BoolProperty",
+									"cpp_type": "bool",
+									"flags": "0x18001040000205",
+									"exported_text": "False"
+								},
+								{
+									"name": "MinMass",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "MinSpeed",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "MinVolume",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	],
+	"graphs": [
+		{
+			"index": 0,
+			"object_path": "/Script/Engine.Default__EdGraph",
+			"class_path": "/Script/Engine.EdGraph",
+			"name": "Default__EdGraph",
+			"properties": [
+				{
+					"name": "Schema",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ClassProperty",
+					"cpp_type": "TSubclassOf<UEdGraphSchema>",
+					"flags": "0x1C001000000200",
+					"exported_text": "None"
+				},
+				{
+					"name": "Nodes",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x114000000000200",
+					"exported_text": ""
+				},
+				{
+					"name": "bEditable",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "True"
+				},
+				{
+					"name": "bAllowDeletion",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "True"
+				},
+				{
+					"name": "bAllowRenaming",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18001000000000",
+					"exported_text": "False"
+				},
+				{
+					"name": "SubGraphs",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x114000800000200",
+					"exported_text": ""
+				},
+				{
+					"name": "GraphGuid",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FGuid",
+					"flags": "0x18001840000200",
+					"exported_text": "00000000000000000000000000000000",
+					"fields": [
+						{
+							"name": "A",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001041000201",
+							"exported_text": "0"
+						},
+						{
+							"name": "B",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001041000201",
+							"exported_text": "0"
+						},
+						{
+							"name": "C",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001041000201",
+							"exported_text": "0"
+						},
+						{
+							"name": "D",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001041000201",
+							"exported_text": "0"
+						}
+					]
+				},
+				{
+					"name": "InterfaceGuid",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FGuid",
+					"flags": "0x18001840000200",
+					"exported_text": "00000000000000000000000000000000",
+					"fields": [
+						{
+							"name": "A",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001041000201",
+							"exported_text": "0"
+						},
+						{
+							"name": "B",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001041000201",
+							"exported_text": "0"
+						},
+						{
+							"name": "C",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001041000201",
+							"exported_text": "0"
+						},
+						{
+							"name": "D",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001041000201",
+							"exported_text": "0"
+						}
+					]
+				}
+			],
+			"nodes": []
+		}
+	]
+}

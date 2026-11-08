@@ -1099,6 +1099,59 @@ mod tests {
         )
     }
 
+    #[test]
+    fn world_iteration_budget_reaches_cached_anchor_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        let frame = Quat::from_euler(EulerRot::YXZ, 0.3, -0.2, 0.1);
+        let arms = [Vec3::new(0.1, -0.2, 0.3), Vec3::new(-0.15, 0.25, 0.05)];
+        let initial_parent = SolverBody { linear_velocity: Vec3::new(0.1, -0.2, 0.3),
+            angular_velocity: Vec3::new(-0.1, 0.3, 0.2), ..default() };
+        let initial_child = SolverBody { linear_velocity: Vec3::new(0.4, 1.0, -0.7),
+            angular_velocity: Vec3::new(0.2, -0.3, 0.1), ..default() };
+        let mut results = Vec::new();
+        for count in [1, 2] {
+            let mut world = World::new();
+            let template = crate::pa_als::PaAlsPhysicsProfileTemplate::from_world(&mut world);
+            let mut definition = template.0.joints.iter().find(|joint| joint.label == "spine_01").unwrap().definition.clone();
+            assert_eq!(definition.settings.velocity_iterations, 2);
+            definition.settings.velocity_iterations = count;
+            let parent = world.spawn((initial_parent.clone(), inertia(1.0, Vec3::splat(25.0)))).id();
+            let child = world.spawn((initial_child.clone(), inertia(1.0, Vec3::splat(25.0)))).id();
+            definition.parent = parent; definition.child = child;
+            let data = SourcePhysicsJointSolverData { frames: [frame; 2], arms,
+                cached_position_lagrange: frame * Vec3::X, ..default() };
+            world.spawn((definition, data));
+            world.run_system_once(solve_source_joint_velocity_iterations).unwrap();
+            let actual_parent = world.get::<SolverBody>(parent).unwrap();
+            let actual_child = world.get::<SolverBody>(child).unwrap();
+            let mut expected_parent = initial_parent.clone();
+            let mut expected_child = initial_child.clone();
+            for _ in 0..count {
+                let relative = expected_child.linear_velocity + expected_child.angular_velocity.cross(arms[1])
+                    - expected_parent.linear_velocity - expected_parent.angular_velocity.cross(arms[0]);
+                let mut impulse = Vec3::ZERO;
+                let mut angular = [Vec3::ZERO; 2];
+                for axis in Vec3::AXES.map(|axis| frame * axis) {
+                    let a = [arms[0].cross(axis), arms[1].cross(axis)];
+                    let lambda = relative.dot(axis) / (2.0 + 25.0 * (a[0].length_squared() + a[1].length_squared()));
+                    impulse += axis * lambda;
+                    angular[0] += a[0] * (25.0 * lambda);
+                    angular[1] -= a[1] * (25.0 * lambda);
+                }
+                expected_parent.linear_velocity += impulse;
+                expected_child.linear_velocity -= impulse;
+                expected_parent.angular_velocity += angular[0];
+                expected_child.angular_velocity += angular[1];
+            }
+            assert!(actual_parent.linear_velocity.abs_diff_eq(expected_parent.linear_velocity, 1e-5));
+            assert!(actual_child.linear_velocity.abs_diff_eq(expected_child.linear_velocity, 1e-5));
+            assert!(actual_parent.angular_velocity.abs_diff_eq(expected_parent.angular_velocity, 1e-5));
+            assert!(actual_child.angular_velocity.abs_diff_eq(expected_child.angular_velocity, 1e-5));
+            results.push(actual_child.linear_velocity);
+        }
+        assert!(results[0].distance(results[1]) > 1e-5);
+    }
+
     fn source_locked_position_reference(frame: Quat, arms: [Vec3; 2], separation: Vec3,
         inverse_mass: [f32; 2], inverse_inertia: [Mat3; 2], iterations: u32) -> ([Vec3; 2], [Quat; 2]) {
         let axes = Vec3::AXES.map(|axis| frame * axis);

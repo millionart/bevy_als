@@ -6387,11 +6387,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 依赖D80a；按本地Chaos projection三轴、parent固定/child球形惯量及projection前提交清零语义实现。沿用D80原projection反例、单轴与超过5cm的teleport控制，独立记录source/target证据并提交；不把位置阶段修复当作projection通过。
   - 20:27 source/static摘要：fresh全body提交、全joint预初始化、三轴projection/teleport及末轮速度交接已闭合；cached目标按阶段冻结起点并逐轮执行，非cached保留原路径。已写单/多轴、已提交位姿、关节链、零角响应和PhysicsSchedule对照；混合solver次序、测试、消融及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d80b/`。实际结束：2026-11-08 20:27 +08:00；偏差：−48分钟；结果：静态projection子项完成，未继续拆分。
 
-- [ ] BF144-D81 / P2 — 世界Ragdoll错误使用PhysicsAsset的RBAN迭代预算。
+- [x] BF144-D81 / P2 — 世界Ragdoll错误使用PhysicsAsset的RBAN迭代预算。
+  - 本轮开始：2026-11-08 20:28 +08:00；预计结束：2026-11-08 21:23 +08:00。重读世界PhysicsSettings、body覆盖与island预算，提取native设置并让世界rig消费独立目标配置；保留PA原始导出，统一测试/转换留待升级后。
   - Source：fresh `PhysicsAsset.h:223–228`说明SolverSettings只用于RigidBody Anim Node；实际世界经`ChaosScene.cpp:88–95→PBDRigidsSolver.cpp:3692–3697`应用PhysicsSettings。此次native PhysicsSettings为8次position/2次velocity/1次projection；三项solver override CVar均−1。`BodyInstance.h:1102–1108`在bOverrideIterationCounts=False时返回−1，native mesh及PA body不覆盖；`IslandGroup.cpp:98–144`才回落世界配置。引擎未应用项目配置时的默认同样为8/2/1。
   - Target：`tools/import/gen_ragdoll.py:993–995`把PA的6/1/1写入target_solver；实际`source_physics_joint.rs:684–693,795–800`按每joint该字段循环，没有世界/island预算来源。`bf144_pa_point_default_budget_matches_world_solver_instead_of_rban`检查完整角色19个活动joint，全部为6/1/1，19FAIL。
   - 反例：完整角色spine_01在相同零预测旋转、native力臂及相同速度阶段输入下，1次实际线性速度结果与源2次相差0.006645m/s；仅把夹具预算改为2，生产速度solver与独立源公式完全吻合。证据`bf144_pa_point_velocity_uses_source_predicted_geometry_and_world_budget`的两组零角速度对照；并非仅比较未消费的配置字符串。
   - 漏检：旧配置测试把PA导出的6次直接当世界source oracle，没有沿实际SkeletalMesh world body→scene/island路径确认所有权。此前BF144.22核对的配置字段和BF144.23同迭代数反例仍有效，但字段一致不代表使用范围正确；只登记，不修改转换器或重生成资产。
+  - 20:33 source/static摘要：fresh PhysicsSettings为8/2/1，PA和mesh均无每体覆盖、三项CVar为−1；独立工具据此生成世界目标参数。世界rig模板的body/joint现消费该预算，PA原始RBAN配置保留；已写19个加载关节及1/2次速度消费对照。其他actor的island覆盖、测试、消融、全量转换与Playground待统一Gate。证据`docs/audit/bf144/d81/`。实际结束：2026-11-08 20:33 +08:00；偏差：−50分钟；结果：静态实现完成，未拆分。
 
 - [ ] BF144-D82 / P2 — Ragdoll线性速度约束沿用积分前的关节轴和力臂。
   - Source：fresh cached solver `17–45,576–630`由本帧预测body P/Q构造connector及双力臂；`984–1057`的速度约束复用这些缓存，三轴响应都按预测姿态计算。
