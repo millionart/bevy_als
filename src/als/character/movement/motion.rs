@@ -3217,12 +3217,30 @@ fn falling_ditch(first_impact: Vec3, second_impact: Vec3, delta: Vec3) -> bool {
         && first_impact.dot(second_impact) < 0.0
 }
 
+#[derive(bevy::ecs::system::SystemParam)]
+pub(crate) struct FallingImpactBodies<'w, 's> {
+    bodies: Query<'w, 's, (&'static RigidBody, &'static Position, &'static LinearVelocity,
+        Option<&'static AngularVelocity>, Has<avian3d::prelude::RigidBodyDisabled>)>,
+    owners: Query<'w, 's, &'static ColliderOf>,
+}
+
+impl FallingImpactBodies<'_, '_> {
+    fn contact_velocity(&self, collider: Entity, point: Vec3) -> Option<Vec3> {
+        let entity = self.owners.get(collider).map_or(collider, |owner| owner.body);
+        let (body, position, linear, angular, disabled) = self.bodies.get(entity).ok()?;
+        if *body != RigidBody::Dynamic || disabled { return None; }
+        Some(crate::als::dynamics::support_point_velocity(position.0, linear.0,
+            angular.map_or(Vec3::ZERO, |velocity| velocity.0), point))
+    }
+}
+
 pub(crate) fn falling_movement_sweep(
     spatial: &SpatialQuery, capsule: &Collider, start: Vec3, rotation: Quat,
     movement: Vec3, mut velocity: Vec3, step: f32, air_control: Option<(Vec3, Vec3)>,
     mut landing: Option<(&crate::als::params::CmcAdapterParams, f32, f32, &mut u32)>, entity: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     shapes: &Query<(&Collider, &Position, &Rotation)>,
+    impact_bodies: &FallingImpactBodies,
 ) -> (Vec3, Vec3, bool, Option<(f32, bool)>, Option<LocomotionState>) {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let accepts = |candidate| character_blocks_collider(entity, candidate, candidates);
@@ -3370,7 +3388,12 @@ pub(crate) fn falling_movement_sweep(
             ditch = falling_ditch(first, impact_normal, slide);
         }
         previous_normal = Some(normal);
-        if remaining_time > f32::EPSILON { velocity = slide / remaining_time; }
+        if sweep == 0 && velocity.abs().max_element() > 1e-6
+            && let Some(contact_velocity) = impact_bodies.contact_velocity(hit.entity, hit.point1) {
+            velocity -= impact_normal * (velocity - contact_velocity).dot(impact_normal);
+        } else if remaining_time > f32::EPSILON {
+            velocity = slide / remaining_time;
+        }
         if sweep == 0 && slide.dot(budget) <= 0.0 { break; }
         remaining = slide;
     }
@@ -3387,6 +3410,7 @@ fn falling_movement_transaction(
     bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
     owners: &Query<&ColliderOf>,
     shapes: &Query<(&Collider, &Position, &Rotation)>,
+    impact_bodies: &FallingImpactBodies,
     transitions: &mut MessageWriter<StateTransitionEvent>, cached_input_max: Option<f32>,
 ) -> (Transform, Vec3, u32, bool, LocomotionState, Option<Entity>, f32, Option<LocomotionState>, Option<crate::als::params::GroundedDynamics>) {
     let mut acceleration = falling_input_acceleration(params, desired_motion, velocity.with_y(0.0).length(), cached_input_max);
@@ -3413,7 +3437,7 @@ fn falling_movement_transaction(
         let requested = (old_velocity + velocity) * (0.5 * step);
         let (applied, deflected, hit, landing_remaining, step_collision_mode) = falling_movement_sweep(spatial, capsule, transform.translation,
             transform.rotation, requested, velocity, step, air_control,
-            Some((&params.cmc, params.jump.jump_z_velocity, max_speed, &mut *random_seed)), entity, candidates, shapes);
+            Some((&params.cmc, params.jump.jump_z_velocity, max_speed, &mut *random_seed)), entity, candidates, shapes, impact_bodies);
         collision_mode = step_collision_mode;
         transform.translation += applied;
         contact |= hit;
@@ -4530,6 +4554,7 @@ pub(crate) fn cmc_movement_transaction_system(
         Query<&ColliderOf>,
         Query<&mut crate::als::dynamics::AlsMovementBase, With<AlsCharacter>>,
         Query<(&Collider, &Position, &Rotation)>,
+        FallingImpactBodies,
     ),
     mut q: Query<
         (
@@ -4554,7 +4579,7 @@ pub(crate) fn cmc_movement_transaction_system(
         (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
 ) {
-    let (bases, owners, mut movement_bases, shapes) = base_queries;
+    let (bases, owners, mut movement_bases, shapes, impact_bodies) = base_queries;
     for (entity, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, mut loco, controller, handle, stance, parent, (rotation_mode, view_yaw, max_allowed_gait, mut dynamics, braking, mut base)) in &mut q {
         let Some(params) = params_assets.get(handle.id()) else { continue };
         let cached_input_max = runtime.controlled_input_max_acceleration;
@@ -4593,7 +4618,7 @@ pub(crate) fn cmc_movement_transaction_system(
                 initial_transform, initial, controller.basis.desired_motion, max_speed, params,
                 gravity.value + motor.lin.acceleration, grounded, landing, volume.unwrap_or(&default_volume.0).terminal_velocity,
                 delta_seconds, 0, entity, &mut runtime.random_seed, &candidates, &step_permissions,
-                &bases, &owners, &shapes, &mut transitions, cached_input_max);
+                &bases, &owners, &shapes, &impact_bodies, &mut transitions, cached_input_max);
             if let (Some(refreshed), Some(dynamics)) = (refreshed, dynamics.as_deref_mut()) { dynamics.0 = refreshed; }
             runtime.grounded_max_speed = grounded_max_speed;
             runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
@@ -4674,7 +4699,7 @@ pub(crate) fn cmc_movement_transaction_system(
                 let (moved, falling_velocity, _, contact, mode, landing_base, grounded_max_speed, collision_mode, refreshed) = falling_movement_transaction(&spatial_query,
                     capsule, falling_transform, final_velocity, controller.basis.desired_motion, max_speed,
                     params, gravity.value, grounded, landing, terminal, remaining_time, iterations, entity,
-                    &mut runtime.random_seed, &candidates, &step_permissions, &bases, &owners, &shapes, &mut transitions, cached_input_max);
+                    &mut runtime.random_seed, &candidates, &step_permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, cached_input_max);
                 if let Some(refreshed) = refreshed { dynamics.0 = refreshed; }
                 runtime.grounded_max_speed = grounded_max_speed;
                 runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
@@ -4766,7 +4791,7 @@ pub(crate) fn cmc_movement_transaction_system(
                         falling_movement_transaction(&spatial_query, capsule, falling_start, initial_velocity,
                             controller.basis.desired_motion, max_speed, params, gravity.value,
                             grounded, landing, terminal, remaining_time, 1, entity, &mut runtime.random_seed,
-                            &candidates, &step_permissions, &bases, &owners, &shapes, &mut transitions, cached_input_max);
+                            &candidates, &step_permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, cached_input_max);
                     if let (Some(refreshed), Some(dynamics)) = (refreshed, dynamics.as_deref_mut()) { dynamics.0 = refreshed; }
                     runtime.grounded_max_speed = grounded_max_speed;
                     runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
@@ -5229,7 +5254,7 @@ mod tests {
                 Transform::from_xyz(0.0, 5.0, -1.05)));
             app.update();
             app.update();
-            let (walking, falling) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let (walking, falling) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 capsules: Query<&Collider>,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>, shapes: Query<(&Collider, &Position, &Rotation)>| {
@@ -5239,7 +5264,7 @@ mod tests {
                     Vec3::NEG_Z, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
                     actor, &candidates, &permissions).unwrap();
                 let falling = falling_movement_sweep(&spatial, capsule, start, Quat::IDENTITY, Vec3::NEG_Z,
-                    Vec3::NEG_Z * 10.0, 0.1, None, None, actor, &candidates, &shapes);
+                    Vec3::NEG_Z * 10.0, 0.1, None, None, actor, &candidates, &shapes, &impact_bodies);
                 (walking.0.z, falling.0.z)
             }).unwrap();
             for distance in [walking, falling] {
@@ -5792,7 +5817,7 @@ mod tests {
         let actor = app.world_mut().spawn_empty().id();
         app.update();
         app.update();
-        let (hit, result) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        let (hit, result) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             shapes: Query<(&Collider, &Position, &Rotation)>| {
             let capsule = als_character_capsule(0.9, 0.3);
@@ -5804,7 +5829,7 @@ mod tests {
                 &ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) },
                 &SpatialQueryFilter::from_excluded_entities([actor]));
             let result = falling_movement_sweep(&spatial, &capsule, start, Quat::IDENTITY, movement,
-                velocity, 0.038710073, None, None, actor, &candidates, &shapes);
+                velocity, 0.038710073, None, None, actor, &candidates, &shapes, &impact_bodies);
             (hit, result)
         }).unwrap();
         let hit = hit.unwrap();
@@ -5836,7 +5861,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 shapes: Query<(&Collider, &Position, &Rotation)>| {
                 let cmc = crate::als::params::CmcAdapterParams::default();
@@ -5844,7 +5869,7 @@ mod tests {
                 falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.7582617, 2.9012036, -15.0849314), Quat::IDENTITY,
                     Vec3::new(0.24020796, -0.00735, 0.0), Vec3::new(6.230996, -0.379746, 0.0),
-                    0.03871007, None, Some((&cmc, 4.2, 6.5, &mut seed)), actor, &candidates, &shapes)
+                    0.03871007, None, Some((&cmc, 4.2, 6.5, &mut seed)), actor, &candidates, &shapes, &impact_bodies)
             }).unwrap();
             assert_eq!(result.3.is_some(), lands, "wall={wall_top} deck={deck_x}/{deck_top} result={result:?}");
             if lands {
@@ -5853,7 +5878,7 @@ mod tests {
                 assert_eq!(result.4, Some(LocomotionState::Air), "a later floor query must not replace the stop result");
             }
             if wall_top == 2.16 && deck_x == -12.7 {
-                let frame = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                let frame = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                     permissions: Query<&AlsMantleTargetPermission>,
                     bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
@@ -5867,7 +5892,7 @@ mod tests {
                         Vec3::X, 6.5, &params, Vec3::NEG_Y * 9.81,
                         (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                         (0.0, false, false), 40.0, 0.03871007, 0, actor, &mut seed,
-                        &candidates, &permissions, &bases, &owners, &shapes, &mut transitions, None)
+                        &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None)
                 }).unwrap();
                 assert_eq!(frame.4, LocomotionState::Grounded);
                 assert!(frame.0.translation.x > -13.57, "the returned time did not advance Walking: {:?}", frame.0);
@@ -5975,13 +6000,13 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let contact = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let contact = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 shapes: Query<(&Collider, &Position, &Rotation)>| {
                 falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(-13.7582617, 2.9012036, -15.0849314), Quat::IDENTITY,
                     Vec3::new(0.24020796, -0.00735, 0.0), Vec3::new(6.230996, -0.379746, 0.0),
-                    0.03871007, None, None, actor, &candidates, &shapes).2
+                    0.03871007, None, None, actor, &candidates, &shapes, &impact_bodies).2
             }).unwrap();
             assert_eq!(contact, expected, "top={top} pitch={pitch}");
         }
@@ -6475,7 +6500,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
@@ -6486,7 +6511,7 @@ mod tests {
                     6.5, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
                     (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                     (0.0, false, false), 40.0, 0.05, 0, actor, &mut seed,
-                    &candidates, &permissions, &bases, &owners, &shapes, &mut transitions, None)
+                    &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None)
             }).unwrap();
             assert_eq!(result.4, LocomotionState::Air);
             assert!(result.1.distance(expected) < 0.002, "input={desired:?} actual={:?} expected={expected:?}", result.1);
@@ -6524,7 +6549,7 @@ mod tests {
             (Vec3::new(-n, 0.0, n), Vec3::new(0.2855370, -0.8726250, 0.4269584)),
             (Vec3::ZERO, Vec3::new(0.3562477, -0.8726250, 0.3562477)),
         ] {
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
@@ -6536,7 +6561,7 @@ mod tests {
                     &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
                     (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                     (0.0, false, false), 40.0, 1.0 / 60.0, 0, actor, &mut seed,
-                    &candidates, &permissions, &bases, &owners, &shapes, &mut transitions, Some(20.0))
+                    &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, Some(20.0))
             }).unwrap();
             assert_eq!(result.4, LocomotionState::Air);
             assert!(result.1.distance(expected) < 0.003, "input={desired:?} actual={:?} source={expected:?}", result.1);
@@ -6630,7 +6655,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let (result, forced_landing) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let (result, forced_landing) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
@@ -6642,14 +6667,14 @@ mod tests {
                 let final_velocity = Vec3::NEG_Y * (2.0 + 9.81 * 0.05);
                 let forced_landing = falling_movement_sweep(&spatial, &capsule, Vec3::Y * 1.25, Quat::IDENTITY,
                     (Vec3::NEG_Y * 2.0 + final_velocity) * 0.025, final_velocity, 0.05, None,
-                    Some((&params.cmc, 4.2, 6.5, &mut seed)), actor, &candidates, &shapes).3;
+                    Some((&params.cmc, 4.2, 6.5, &mut seed)), actor, &candidates, &shapes, &impact_bodies).3;
                 seed = 123;
                 let result = falling_movement_transaction(&spatial, &capsule,
                     Transform::from_xyz(0.0, 1.25, 0.0), Vec3::NEG_Y * 2.0, Vec3::ZERO, 6.5,
                     &params, Vec3::NEG_Y * 9.81,
                     (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                     (0.0, false, false), 40.0, 0.05, 0, actor, &mut seed,
-                    &candidates, &permissions, &bases, &owners, &shapes, &mut transitions, None);
+                    &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None);
                 (result, forced_landing)
             }).unwrap();
             assert_eq!(result.4, if opposing { LocomotionState::Grounded } else { LocomotionState::Air }, "result={result:?}");
@@ -6687,6 +6712,75 @@ mod tests {
     }
 
     #[test]
+    fn falling_impact_uses_only_simulated_body_contact_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (kind, speed, angular, child, actor_speed) in [
+            (RigidBody::Dynamic, 1.0_f32, 0.0_f32, false, 5.0_f32),
+            (RigidBody::Dynamic, -1.0, 0.0, false, 5.0),
+            (RigidBody::Dynamic, 0.0, 0.0, false, 5.0),
+            (RigidBody::Kinematic, 1.0, 0.0, false, 5.0),
+            (RigidBody::Static, 1.0, 0.0, false, 5.0),
+            (RigidBody::Dynamic, 1.0, 1.0, true, 5.0),
+            (RigidBody::Dynamic, 1.0, 0.0, false, 0.0),
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            let body = app.world_mut().spawn((kind, Transform::from_xyz(0.0, 2.0, 0.0),
+                LinearVelocity::ZERO, AngularVelocity::ZERO, GravityScale(0.0))).id();
+            if child {
+                app.world_mut().spawn((ChildOf(body), Collider::cuboid(0.1, 4.0, 4.0), Transform::IDENTITY));
+            } else {
+                app.world_mut().entity_mut(body).insert(Collider::cuboid(0.1, 4.0, 4.0));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            app.world_mut().entity_mut(body).insert((LinearVelocity(Vec3::X * speed), AngularVelocity(Vec3::Z * angular)));
+            let (result, hit, body_position) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                impact_bodies: FallingImpactBodies,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+                shapes: Query<(&Collider, &Position, &Rotation)>, positions: Query<&Position>| {
+                let capsule = als_character_capsule(0.9, 0.3);
+                let start = Vec3::new(-1.0, 3.0, 0.0);
+                let filter = SpatialQueryFilter::from_excluded_entities([actor]);
+                let hit = spatial.cast_shape(&capsule, start, Quat::IDENTITY, Dir3::X,
+                    &ShapeCastConfig::from_max_distance(1.0), &filter).unwrap();
+                let result = falling_movement_sweep(&spatial, &capsule, start, Quat::IDENTITY,
+                    Vec3::X, Vec3::X * actor_speed, 0.2, None, None, actor, &candidates, &shapes, &impact_bodies);
+                (result, hit, positions.get(body).unwrap().0)
+            }).unwrap();
+            let expected = if kind == RigidBody::Dynamic && actor_speed != 0.0 {
+                speed - angular * (hit.point1.y - body_position.y)
+            } else { 0.0 };
+            assert!((result.1.x - expected).abs() < 0.002,
+                "kind={kind:?} speed={speed} angular={angular} child={child} actual={:?} expected={expected}", result.1);
+        }
+    }
+
+    #[test]
+    fn loaded_falling_impact_publishes_dynamic_wall_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (kind, speed, expected) in [(RigidBody::Dynamic, 1.0_f32, 1.0_f32),
+            (RigidBody::Dynamic, -1.0, -1.0), (RigidBody::Kinematic, 1.0, 0.0), (RigidBody::Static, 1.0, 0.0)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let wall = app.world_mut().spawn((kind, Collider::cuboid(0.1, 4.0, 4.0),
+                Transform::from_xyz(0.0, 10.0, 0.0), LinearVelocity::ZERO, GravityScale(0.0))).id();
+            app.update();
+            app.world_mut().entity_mut(wall).insert(LinearVelocity(Vec3::X * speed));
+            let start = Vec3::new(-0.4, 10.0, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LocomotionState::Air, LinearVelocity(Vec3::X * 5.0), TnuaMotor::default(),
+                crate::als::character::AlsEffectiveGravity::default(), AlsCmcAdapterRuntime::default()));
+            app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            let actual = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+            assert!((actual.x - expected).abs() < 0.002, "kind={kind:?} speed={speed} actual={actual:?}");
+        }
+    }
+
+    #[test]
     fn third_zero_time_hit_uses_the_side_sweep_to_choose_locomotion() {
         use bevy::ecs::system::RunSystemOnce;
         for (case, value) in [("floor-stuck", 3.0803), ("floor-positive", 3.077),
@@ -6714,7 +6808,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 shapes: Query<(&Collider, &Position, &Rotation)>| {
                 let cmc = crate::als::params::CmcAdapterParams::default();
@@ -6724,7 +6818,7 @@ mod tests {
                 let velocity = Vec3::new(4.0, old_y - 9.81 * step, 4.0);
                 let movement = Vec3::new(0.2, (old_y + velocity.y) * 0.5 * step, 0.2);
                 falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3), start, Quat::IDENTITY,
-                    movement, velocity, step, None, Some((&cmc, 4.2, 3.75, &mut seed)), actor, &candidates, &shapes)
+                    movement, velocity, step, None, Some((&cmc, 4.2, 3.75, &mut seed)), actor, &candidates, &shapes, &impact_bodies)
             }).unwrap();
             match case {
                 "floor-stuck" => {
@@ -6780,7 +6874,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let result = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 permissions: Query<&AlsMantleTargetPermission>,
                 bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
@@ -6791,7 +6885,7 @@ mod tests {
                     7.0, &AlsMovementParams::default(), Vec3::NEG_Y * 9.81,
                     (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                     (0.0, false, false), 40.0, 0.1, 0, actor, &mut seed,
-                    &candidates, &permissions, &bases, &owners, &shapes, &mut transitions, None)
+                    &candidates, &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None)
             }).unwrap();
             assert_eq!(result.4, LocomotionState::Grounded, "floor={floor_top}");
             let expected_cap = if third_impact { 7.0 } else { 3.75 };
@@ -7146,7 +7240,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let (result, seed) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let (result, seed) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
                 shapes: Query<(&Collider, &Position, &Rotation)>| {
                 let cmc = crate::als::params::CmcAdapterParams { perch_radius_threshold: perch, ..default() };
@@ -7154,7 +7248,7 @@ mod tests {
                 let result = falling_movement_sweep(&spatial, &als_character_capsule(0.9, 0.3),
                     Vec3::new(0.0, 4.0, 0.0), Quat::IDENTITY, Vec3::new(-0.025, -0.1122625, 0.001),
                     Vec3::new(-0.5, -2.4905, 0.02), 0.05, None, Some((&cmc, jump_z, 3.75, &mut seed)),
-                    actor, &candidates, &shapes);
+                    actor, &candidates, &shapes, &impact_bodies);
                 (result, seed)
             }).unwrap();
             assert_eq!(seed, if expected_y.is_some() { 1238442549 } else { 123 }, "gap={gap:?} perch={perch}");
@@ -9681,7 +9775,7 @@ mod tests {
         app.finish();
         let actor = app.world_mut().spawn_empty().id();
         app.update();
-        let (cached, airborne) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        let (cached, airborne) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>,
             bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
@@ -9694,12 +9788,12 @@ mod tests {
                 Vec3::X * 5.0, Vec3::X, 6.5, &params, Vec3::NEG_Y * 9.81,
                 (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                 (0.0, false, false), 40.0, 0.03, 1, actor, &mut seed, &candidates,
-                &permissions, &bases, &owners, &shapes, &mut transitions, Some(12.007459));
+                &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, Some(12.007459));
             let airborne = falling_movement_transaction(&spatial, &capsule, Transform::from_xyz(0.0, 4.0, 0.0),
                 Vec3::X * 5.0, Vec3::X, 6.5, &params, Vec3::NEG_Y * 9.81,
                 (Stance::Standing, RotationMode::ViewDirection, Gait::Running, 0.0),
                 (0.0, false, false), 40.0, 0.03, 1, actor, &mut seed, &candidates,
-                &permissions, &bases, &owners, &shapes, &mut transitions, None);
+                &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, None);
             (cached, airborne)
         }).unwrap();
         assert!((cached.1.x - (5.0 + 12.007459 * 0.15 * 0.03)).abs() < 1e-5);
@@ -9718,7 +9812,7 @@ mod tests {
         let actor = app.world_mut().spawn_empty().id();
         app.update();
         app.update();
-        let (slow, fast, exhausted) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        let (slow, fast, exhausted) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
             permissions: Query<&AlsMantleTargetPermission>,
             bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
@@ -9736,7 +9830,7 @@ mod tests {
                     6.5, &params, Vec3::NEG_Y * 9.81,
                     (Stance::Standing, RotationMode::ViewDirection, Gait::Sprinting, 0.0),
                     (0.0, false, false), 40.0, 0.1, 0, actor, &mut seed, &candidates,
-                    &permissions, &bases, &owners, &shapes, &mut transitions, Some(20.0))
+                    &permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, Some(20.0))
             };
             (run(7.5, 8), run(20.0, 8), run(7.5, 1))
         }).unwrap();

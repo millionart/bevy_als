@@ -205,6 +205,7 @@ fn integrate_character_position(
     physics_time: Res<Time<Physics>>,
     substeps: Res<SubstepCount>,
     spatial: SpatialQuery,
+    impact_bodies: crate::als::motion::FallingImpactBodies,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     shapes: Query<(&Collider, &Position, &Rotation)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
@@ -238,7 +239,7 @@ fn integrate_character_position(
         let start = position.0 + body.delta_position;
         if *locomotion == LocomotionState::Air {
             let (applied, velocity, contact, _, _) = crate::als::motion::falling_movement_sweep(&spatial, collider,
-                start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, None, entity, &candidates, &shapes);
+                start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, None, entity, &candidates, &shapes, &impact_bodies);
             body.delta_position += applied;
             body.linear_velocity = velocity;
             runtime.airborne_sweep_contact |= contact;

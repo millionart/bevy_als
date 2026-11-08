@@ -1,0 +1,41 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "first_line": 288,
+          "last_line": 294,
+          "text": "\t\tTEXT(\"If enabled, character velocity corrections will be treated as relative to dynamic movement bases.\"));\n\n\tstatic int32 UseTargetVelocityOnImpact = 1;\n\tFAutoConsoleVariableRef CVarUseTargetVelocityOnImpact(\n\t\tTEXT(\"p.UseTargetVelocityOnImpact\"),\n\t\tUseTargetVelocityOnImpact, TEXT(\"When disabled, we recalculate velocity after impact by comparing our position before we moved to our position after we moved. This doesn't work correctly when colliding with physics objects, so setting this to 1 fixes this one the hit object is moving.\"));\n\n"
+        },
+        {
+          "first_line": 5123,
+          "last_line": 5140,
+          "text": "\n\t\t\t\t// Compute velocity after deflection (only gravity component for RootMotion)\n\t\t\t\tFMovementBaseInterfaceData HitMovementBaseInterfaceData(MovementBaseUtility::GetMovementBaseDataFromHitResult(&Hit));\n\t\t\t\t\n\t\t\t\tif (CharacterMovementCVars::UseTargetVelocityOnImpact && !Velocity.IsNearlyZero() && MovementBaseUtility::IsSimulatedBase(&HitMovementBaseInterfaceData))\n\t\t\t\t{\n\t\t\t\t\tconst FVector ContactVelocity = MovementBaseUtility::GetMovementBaseVelocity(&HitMovementBaseInterfaceData, NAME_None) + MovementBaseUtility::GetMovementBaseTangentialVelocity(&HitMovementBaseInterfaceData, NAME_None, Hit.ImpactPoint);\n\t\t\t\t\tconst FVector NewVelocity = Velocity - Hit.ImpactNormal * FVector::DotProduct(Velocity - ContactVelocity, Hit.ImpactNormal);\n\t\t\t\t\tVelocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? ProjectToGravityFloor(Velocity) + GetGravitySpaceComponentZ(NewVelocity) : NewVelocity;\n\t\t\t\t}\n\t\t\t\telse if (subTimeTickRemaining > UE_KINDA_SMALL_NUMBER && !bJustTeleported)\n\t\t\t\t{\n\t\t\t\t\tconst FVector NewVelocity = (Delta / subTimeTickRemaining);\n\t\t\t\t\tVelocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? ProjectToGravityFloor(Velocity) + GetGravitySpaceComponentZ(NewVelocity) : NewVelocity;\n\t\t\t\t}\n\n\t\t\t\tif (subTimeTickRemaining > UE_KINDA_SMALL_NUMBER && (Delta | Adjusted) > 0.f)\n\t\t\t\t{\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "excerpts": [
+        {
+          "first_line": 819,
+          "last_line": 823,
+          "text": "\tbool IsSimulatedBase(const FMovementBaseInterfaceData* MovementBase)\n\t{\n\t\treturn (MovementBase && MovementBase->IsValid() && MovementBase->GetBodyInstanceOwner()->IsPhysicsOwnerSimulatingPhysics());\n\t}\n\n"
+        },
+        {
+          "first_line": 891,
+          "last_line": 925,
+          "text": "\tFVector GetMovementBaseVelocity(const FMovementBaseInterfaceData* MovementBase, const FName BoneName)\n\t{\n\t\tFVector BaseVelocity = FVector::ZeroVector;\n\t\tif (IsDynamicBase(MovementBase))\n\t\t{\n\t\t\tif (BoneName != NAME_None)\n\t\t\t{\n\t\t\t\tif (const FBodyInstance* BodyInstance = MovementBase->GetBodyInstanceOwner()->GetBodyInstance(BoneName))\n\t\t\t\t{\n\t\t\t\t\tBaseVelocity = BodyInstance->GetUnrealWorldVelocity();\n\t\t\t\t\treturn BaseVelocity;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tBaseVelocity = MovementBase->GetBodyInstanceOwner()->GetPhysicsOwnerVelocity();\n\t\t\tif (BaseVelocity.IsZero())\n\t\t\t{\n\t\t\t\t// Fall back to actor's Root component\n\t\t\t\tconst AActor* Owner = Cast<const AActor>(MovementBase->GetMovementBaseObjectOwner());\n\t\t\t\tif (Owner)\n\t\t\t\t{\n\t\t\t\t\t// Component might be moved manually (not by simulated physics or a movement component), see if the root component of the actor has a velocity.\n\t\t\t\t\tBaseVelocity = Owner->GetVelocity();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Fall back to physics velocity.\n\t\t\tif (BaseVelocity.IsZero())\n\t\t\t{\n\t\t\t\tif (const FBodyInstance* BodyInstance = MovementBase->GetBodyInstanceOwner()->GetBodyInstance())\n\t\t\t\t{\n\t\t\t\t\tBaseVelocity = BodyInstance->GetUnrealWorldVelocity();\n\t\t\t\t}\n\t\t\t}\n\t\t}\n"
+        },
+        {
+          "first_line": 930,
+          "last_line": 960,
+          "text": "\tFVector GetMovementBaseTangentialVelocity(const FMovementBaseInterfaceData* MovementBase, const FName BoneName, const FVector& WorldLocation)\n\t{\n\t\tif (IsDynamicBase(MovementBase))\n\t\t{\n\t\t\tif (const FBodyInstance* BodyInstance = MovementBase->GetBodyInstanceOwner()->GetBodyInstance(BoneName))\n\t\t\t{\n\t\t\t\tconst FVector BaseAngVelInRad = BodyInstance->GetUnrealWorldAngularVelocityInRadians();\n\t\t\t\tif (!BaseAngVelInRad.IsNearlyZero())\n\t\t\t\t{\n\t\t\t\t\tFVector BaseLocation;\n\t\t\t\t\tFQuat BaseRotation;\n\t\t\t\t\tif (GetMovementBaseTransform(MovementBase, BoneName, BaseLocation, BaseRotation))\n\t\t\t\t\t{\n\t\t\t\t\t\tconst FVector RadialDistanceToBase = WorldLocation - BaseLocation;\n\t\t\t\t\t\tconst FVector TangentialVel = BaseAngVelInRad ^ RadialDistanceToBase;\n\t\t\t\t\t\treturn TangentialVel;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\t\n\t\t\tconst FBodyInstance* BodyInstance = MovementBase->GetBodyInstanceOwner()->GetBodyInstance();\n\t\t\tconst FVector BaseAngVelInRad = BodyInstance ? BodyInstance->GetUnrealWorldAngularVelocityInRadians() : FVector::ZeroVector;\n\t\t\tif (!BaseAngVelInRad.IsNearlyZero())\n\t\t\t{\n\t\t\t\tFVector BaseLocation;\n\t\t\t\tFQuat BaseRotation;\n\t\t\t\tif (GetMovementBaseTransform(MovementBase, BoneName, BaseLocation, BaseRotation))\n\t\t\t\t{\n\t\t\t\t\tconst FVector RadialDistanceToBase = WorldLocation - BaseLocation;\n\t\t\t\t\tconst FVector TangentialVel = BaseAngVelInRad ^ RadialDistanceToBase;\n\t\t\t\t\treturn TangentialVel;\n"
+        }
+      ]
+    }
+  ]
+}

@@ -5851,7 +5851,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：以−2m/s下落、50ms帧，完整角色位于两片60°光滑坡组成的V形槽上方；独立sweep确认先后命中两个坡面，normal约(±0.866,0.5,0)，沿交线竖直delta为0，满足源bDitch。target当帧velocity约0但仍Air，源应Grounded。`bf144_air_two_steep_slopes_apply_source_ditch_landing`共4组2PASS/2FAIL，证据`target/bf144/06/ditch/`。
   - 漏检：旧两墙测试只断言几何投影/限位结果，单陡坡测试只要求保持Air；没有对两坡夹缝的源特殊着地资格核对实际状态。仅记录已验证的当帧差异，不宣称源后续帧如何稳定或修正。
 
-- [ ] BF144-D20 / P2 — 空中撞击移动物理刚体时丢失其法向速度。
+- [x] BF144-D20 / P2 — 空中撞击移动物理刚体时丢失其法向速度；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 14:22 +08:00；预估结束15:17 +08:00；实际结束14:28 +08:00，提前49分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh UE simulated base、接触点线/角速度、CVar与配置扫描保存在`docs/audit/bf144/d20/`；主Falling及物理补时共用的sweep使用模拟刚体接触速度，已写动态/静态/运动学、角速度、子collider和加载角色对照。reader不能设置动态体初速，±1 m/s源期望为公式推导；目标测试与真实Gate尚未执行。
   - Source：fresh UE `CharacterMovementComponent.cpp:290–293`默认UseTargetVelocityOnImpact=1；`PhysFalling:5127–5133`对simulated base计算`Velocity−ImpactNormal·dot(Velocity−ContactVelocity,ImpactNormal)`。fresh `Character.cpp:819–822,891–959`确认ContactVelocity包含物理线速度和接触点角速度贡献；本地源/项目配置未覆盖此CVar。
   - Target：`src/als/character/movement/motion.rs:2742–2746`统一从投影slide/remaining_time写回velocity，没有读取hit实体的动态body速度；`3982–3986`最终又用这个缓存覆写velocity，后置物理响应没有补回该合同。
   - 反例：完整角色以5m/s水平空中撞击竖直动态壁，壁速度分别+1/−1m/s。实际首次命中非穿透且normal≈−X，consumer前壁速度保持输入；源应保留角色法向速度+1/−1m/s，target最终均约0。`bf144_air_impact_velocity_uses_simulated_body_motion`共10组6PASS/4FAIL，静态/静止动态/运动学壁对照通过，证据`target/bf144/06/moving_body/`。
