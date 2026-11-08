@@ -1,0 +1,16 @@
+[
+  {
+    "label": "barrel_within_cull",
+    "constraints": [
+      {
+        "shape_index": 0,
+        "point_count": 4,
+        "min_phi_cm": 2.3999996185302734
+      }
+    ]
+  },
+  {
+    "label": "barrel_outside_cull",
+    "constraints": []
+  }
+]

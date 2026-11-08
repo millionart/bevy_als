@@ -461,7 +461,7 @@ mod tests {
         }
     }
 
-    fn check_source_bench_aggregate(fixtures: &[&str]) {
+    fn check_source_convex_aggregate(fixtures: &[&str]) {
         use avian3d::collision::narrow_phase::NarrowPhaseSystems;
         use avian3d::prelude::{Gravity, LockedAxes, PhysicsPlugins, PhysicsSchedule, SleepingDisabled};
         use bevy::time::TimeUpdateStrategy;
@@ -473,6 +473,7 @@ mod tests {
             value["z"].as_f64().unwrap() as f32, value["y"].as_f64().unwrap() as f32);
         for fixture in fixtures {
             let fixture: serde_json::Value = serde_json::from_str(fixture).unwrap();
+            let name = fixture["input"]["mesh_asset_path"].as_str().unwrap().rsplit('/').next().unwrap();
             let lower = vector(&fixture["geometry"]["minimum_cm"]);
             let upper = vector(&fixture["geometry"]["maximum_cm"]);
             let body = &fixture["input"]["body_translation_cm"];
@@ -496,26 +497,28 @@ mod tests {
                 .add_systems(PhysicsSchedule, order_source_compound_groups.in_set(NarrowPhaseSystems::Last));
             app.finish();
             app.cleanup();
-            let compound = Collider::compound(definitions["SM_Als_Bench"].iter().map(|hull| (
+            let compound = Collider::compound(definitions[name].iter().map(|hull| (
                 Vec3::ZERO, Quat::IDENTITY,
                 Collider::convex_hull(hull.iter().copied().map(Vec3::from_array).collect()).unwrap(),
             )).collect());
             let ground = app.world_mut().spawn((RigidBody::Static, compound,
-                SourceCompoundOrder("SM_Als_Bench".into()), Transform::IDENTITY)).id();
+                SourceCompoundOrder(name.into()), Transform::IDENTITY)).id();
             let foot = app.world_mut().spawn((RigidBody::Dynamic, LockedAxes::ALL_LOCKED, SleepingDisabled,
                 Collider::cuboid(size.x, size.y, size.z), Transform::from_translation(center),
                 RagdollActiveMode(BodyMode::Dynamic))).id();
             app.update();
             app.update();
-            let (edge, pair) = app.world().resource::<ContactGraph>().get(ground, foot).unwrap();
             let native = fixture["aggregate_contacts"].as_array().unwrap();
+            let pair = app.world().resource::<ContactGraph>().get(ground, foot);
+            if native.is_empty() && pair.is_none() { continue; }
+            let (edge, pair) = pair.expect("The source active contact pair was not discovered");
             assert_eq!(pair.manifolds.len(), native.len());
             let history = app.world().resource::<SourceBoxContactHistory>();
             let mut shapes = history.compounds.keys().filter(|key| key.0 == pair.contact_id.0)
                 .map(|key| key.1).collect::<Vec<_>>();
             shapes.sort_unstable();
             assert_eq!(shapes, native.iter().map(|value| value["mesh_shape_index"].as_u64().unwrap() as u32).collect::<Vec<_>>());
-            if !native.iter().any(|value| value["mesh_shape_index"] == 2) {
+            if name == "SM_Als_Bench" && !native.iter().any(|value| value["mesh_shape_index"] == 2) {
                 assert!(!history.convex_gjk.keys().any(|key| key.0 == pair.contact_id.0 && key.1 == 2));
             }
             let mut slots = (0..edge.constraint_handles.len()).collect::<Vec<_>>();
@@ -540,14 +543,20 @@ mod tests {
 
     #[test]
     fn source_bench_positive_gap_hull_reaches_solver_in_native_order() {
-        check_source_bench_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c1/aggregate.native-sample.json"),
+        check_source_convex_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c1/aggregate.native-sample.json"),
             include_str!("../../docs/audit/bf144/d100b3b3c4c3b/aggregate-outside.native-sample.json")]);
     }
 
     #[test]
     fn source_bench_isolated_positive_gap_activates_contact() {
-        check_source_bench_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c3b/isolated-inside.native-sample.json"),
+        check_source_convex_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c3b/isolated-inside.native-sample.json"),
             include_str!("../../docs/audit/bf144/d100b3b3c4c3b/isolated-outside.native-sample.json")]);
+    }
+
+    #[test]
+    fn source_barrel_positive_gap_discovers_entire_pair() {
+        check_source_convex_aggregate(&[include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-inside.native-sample.json"),
+            include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-outside.native-sample.json")]);
     }
 
     #[test]

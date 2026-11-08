@@ -1,5 +1,5 @@
 use avian3d::parry::math::Pose;
-use avian3d::prelude::{Collider, ColliderOf, ColliderTransform};
+use avian3d::prelude::{Collider, ColliderAabb, ColliderOf, ColliderTransform};
 use bevy::math::{DQuat, DVec3, Quat, Vec3};
 use bevy::prelude::{Entity, Resource};
 
@@ -82,6 +82,24 @@ fn source_transformed_bounds(bounds: [DVec3; 2], translation: DVec3, rotation: D
     }
     let center = source_position(translation) + rotation * ((minimum + maximum) * 0.5);
     [center - rotated, center + rotated]
+}
+
+pub(super) fn source_contact_discovery_bounds(
+    bounds: [DVec3; 2],
+    frame: SourceRestorePose,
+    cull_distance: f64,
+) -> ColliderAabb {
+    let [minimum, maximum] = source_transformed_bounds(bounds, frame.position_m, frame.rotation);
+    let cull_cm = f64::from((cull_distance * 100.0) as f32);
+    let minimum = source_direction(minimum - DVec3::splat(cull_cm)) * 0.01;
+    let maximum = source_direction(maximum + DVec3::splat(cull_cm)) * 0.01;
+    let mut lower = minimum.as_vec3();
+    let mut upper = maximum.as_vec3();
+    for axis in 0..3 {
+        if f64::from(lower[axis]) > minimum[axis] { lower[axis] = lower[axis].next_down(); }
+        if f64::from(upper[axis]) < maximum[axis] { upper[axis] = upper[axis].next_up(); }
+    }
+    ColliderAabb::from_min_max(lower, upper)
 }
 
 fn source_bounds_intersect(first: [DVec3; 2], second: [DVec3; 2], cull_cm: f64) -> bool {
@@ -434,6 +452,37 @@ mod tests {
             SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY }];
         let source = source_convex_topology("SM_Als_Bench", 2).unwrap();
         assert!(source_convex_hull_candidate(box_bounds, source, DVec3::ONE, frames, 0.03, false, true));
+    }
+
+    #[test]
+    fn source_discovery_bounds_keep_native_barrel_contact() {
+        let hull = source_convex_topology("SM_Als_Barrel", 0).unwrap();
+        let ground = source_contact_discovery_bounds(hull.bounds_m,
+            SourceRestorePose { position_m: DVec3::ZERO, rotation: DQuat::IDENTITY }, 0.0);
+        for (fixture, expected) in [
+            (include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-inside.native-sample.json"), true),
+            (include_str!("../../docs/audit/bf144/d100b3b3c4c3c1/barrel-outside.native-sample.json"), false),
+        ] {
+            let sample: serde_json::Value = serde_json::from_str(fixture).unwrap();
+            let bounds = [point(&sample["geometry"]["minimum_cm"]) * 0.01,
+                point(&sample["geometry"]["maximum_cm"]) * 0.01];
+            let frame = SourceRestorePose { position_m: array(&sample["input"]["body_translation_cm"]) * 0.01,
+                rotation: rotation(&sample["input"]["body_rotation_xyzw"]) };
+            let candidate = source_contact_discovery_bounds(bounds, frame, 0.03);
+            assert_eq!(candidate.intersects(&ground), expected);
+            assert_eq!(!sample["aggregate_contacts"].as_array().unwrap().is_empty(), expected);
+        }
+    }
+
+    #[test]
+    fn source_discovery_bounds_round_outward_at_large_coordinates() {
+        let point = DVec3::new(16_777_217.0, -16_777_217.0, 0.1);
+        let frame = SourceRestorePose { position_m: point, rotation: DQuat::IDENTITY };
+        let bounds = source_contact_discovery_bounds([DVec3::ZERO; 2], frame, 0.0);
+        for axis in 0..3 {
+            assert!(f64::from(bounds.min[axis]) <= point[axis]);
+            assert!(f64::from(bounds.max[axis]) >= point[axis]);
+        }
     }
 
     #[test]
