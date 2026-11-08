@@ -304,7 +304,8 @@ pub fn ground_prediction_sweep(
     match hit {
         Some(h) => {
             result.sweep_end = Some(origin + dir * h.distance);
-            result.ground_valid = h.normal1.y >= WALKABLE_FLOOR_COS;
+            result.ground_valid = crate::als::motion::source_sweep_impact_normal(
+                spatial, &h, *dir * distance, origin, Quat::IDENTITY, &shape).y >= WALKABLE_FLOOR_COS;
             if result.ground_valid {
                 let time_frac = (h.distance / distance).clamp(0.0, 1.0);
                 result.hit_fraction = Some(time_frac);

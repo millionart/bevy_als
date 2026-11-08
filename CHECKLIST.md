@@ -5760,7 +5760,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 子项拆分：D10a复用源几何面算法并修地面资格；D10b接入空中GroundPrediction；D10c接入StepUp首滑面资格。依次静态实现并分别提交，父项在三者完成后标记；运行Gate仍统一延后。
   - [x] BF144-D10a — 保留接触Normal并以源最反向几何ImpactNormal判定地面sweep。开始2026-11-08 13:06 +08:00；预估结束13:46 +08:00；实际结束13:16 +08:00，提前30分钟；静态实现完成，拆分为D10a/b/c，测试/消融/Gate暂缓。
     - 闭环：fresh ALS/UE地面、结果转换与Chaos面选择源，以及原生盒体前向/向下控制已保存在`docs/audit/bf144/d10a/`；新增30°/60°凸体和初始重叠focused fixture，复用已有多形体/穿透测试。尚未运行目标测试，GroundPrediction和StepUp分别由后续子项覆盖。
-  - [ ] BF144-D10b — GroundPrediction按相同几何ImpactNormal判可行走。
+  - [x] BF144-D10b — GroundPrediction按相同几何ImpactNormal判可行走。开始2026-11-08 13:17 +08:00；预估结束13:47 +08:00；实际结束13:20 +08:00，提前27分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 闭环：fresh ALS预测逻辑、动画设置和曲线保存在`docs/audit/bf144/d10b/`，几何面与初始重叠复用D10a源证据；动画图输入和`AlsAirState`均接入同一资格，已写30°/60°边缘和加载角色动画输入对照。目标测试与真实图混合尚未执行，StepUp仍留给D10c。
   - [ ] BF144-D10c — StepUp首次滑动按同一ImpactNormal判可行走。
   - Source：fresh UE `IsWalkable:6987–7032`检查ImpactNormal；`CollisionConversions:499–540,445`、`PhysicsInterfaceUtilsCore:32–37`对正距离sweep取最反向几何面，`Chaos Convex.h:552–564`返回该面法线，不能直接使用胶囊接触Normal。凸体60°上表面的竖直法线分量0.5小于源WalkableFloorZ≈0.71，相邻侧面为竖直面，同样不可行走。
   - Target：`src/als/character/movement/motion.rs:3854–3862`仅在原始接触normal1已不可行走时尝试短射线重建；若凸体边缘的接触normal1较竖直，就直接交给`3880`判断walkable。实际floor consumer随后据此保持Grounded并调整高度。

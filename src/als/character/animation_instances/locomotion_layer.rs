@@ -143,7 +143,8 @@ fn ground_prediction_amount(
         &ShapeCastConfig::from_max_distance(distance),
         filter,
     );
-    let hit = hit.as_ref().filter(|hit| hit.normal1.y >= walkable_floor_cos);
+    let hit = hit.as_ref().filter(|hit| crate::als::motion::source_sweep_impact_normal(
+        spatial, hit, *direction * distance, origin, Quat::IDENTITY, capsule).y >= walkable_floor_cos);
     (hit.map_or(0.0, |hit| settings.ground_prediction.sample(hit.distance / distance) * allowance),
         Some(AlsGroundPredictionTrace { start: origin, end: origin + direction * distance, shape: capsule.clone(),
             hit: hit.map(|hit| (origin + direction * hit.distance, hit.point1)) }))
@@ -331,6 +332,16 @@ mod tests {
     use avian3d::prelude::*;
     use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce};
 
+    fn prediction_edge(angle: f32) -> Collider {
+        let slope = angle.to_radians().tan();
+        let mut points = Vec::new();
+        for z in [-1.0_f32, 1.0] {
+            points.extend([Vec3::new(-1.0, 0.08 - slope, z), Vec3::new(0.0, 0.08, z),
+                Vec3::new(-1.0, -3.0, z), Vec3::new(0.0, -3.0, z)]);
+        }
+        Collider::convex_hull(points).unwrap()
+    }
+
     #[test]
     fn prediction_trace_is_published_by_the_actual_query_and_cleared_when_blocked_or_unavailable() {
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
@@ -425,6 +436,64 @@ mod tests {
         let rotation = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
         let velocity = rotation * Vec3::new(3.5, 0.0, -3.5);
         assert!(in_air_lean_target(velocity, rotation).distance(Vec2::ONE) < 1e-6);
+    }
+
+    #[test]
+    fn ground_prediction_consumers_use_the_geometric_edge_face() {
+        for angle in [30.0_f32, 60.0] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(Update)))
+                .init_resource::<Assets<Mesh>>()
+                .add_message::<AssetEvent<Mesh>>();
+            app.finish();
+            app.world_mut().spawn((RigidBody::Static, prediction_edge(angle),
+                CollisionLayers::new([crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Visibility], LayerMask::ALL), Transform::IDENTITY));
+            app.update();
+            app.update();
+            let (contact, animation, trace, state) = app.world_mut().run_system_once(|spatial: SpatialQuery| {
+                let origin = Vec3::new(0.1, 2.0, 0.0);
+                let velocity = Vec3::NEG_Y * 10.0;
+                let capsule = crate::als::character::als_character_capsule(0.9, 0.3);
+                let filter = SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
+                let contact = spatial.cast_shape(&capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+                    &ShapeCastConfig::from_max_distance(5.0), &filter).unwrap();
+                let (animation, trace) = ground_prediction_amount(&spatial, origin, velocity, &capsule,
+                    1.0, crate::als::air::WALKABLE_FLOOR_COS, &filter, 1.0);
+                let state = crate::als::air::ground_prediction_sweep(&spatial, Entity::PLACEHOLDER,
+                    origin, velocity, 0.9, 0.3);
+                (contact, animation, trace.unwrap(), state)
+            }).unwrap();
+            assert!(contact.distance > 0.0 && contact.normal1.y > crate::als::air::WALKABLE_FLOOR_COS);
+            assert_eq!(animation > 0.0, angle == 30.0, "angle={angle} animation={animation}");
+            assert_eq!(trace.hit.is_some(), angle == 30.0);
+            assert_eq!(state.ground_valid, angle == 30.0);
+            assert_eq!(state.amount > 0.0, angle == 30.0);
+        }
+    }
+
+    #[test]
+    fn loaded_animation_prediction_uses_the_geometric_edge_face() {
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        for (angle, x) in [(30.0, 0.0), (60.0, 5.0)] {
+            app.world_mut().spawn((RigidBody::Static, prediction_edge(angle),
+                CollisionLayers::new([crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
+                Transform::from_xyz(x, 20.0, 0.0)));
+        }
+        app.update();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(player).remove::<AlsRootAnimationContext>();
+        app.world_mut().entity_mut(actor).insert(AlsActualMotion { world_velocity: Vec3::NEG_Y * 10.0, ..default() });
+        for (angle, x) in [(30.0, 0.0), (60.0, 5.0)] {
+            let origin = Vec3::new(x + 0.1, 22.0, 0.0);
+            app.world_mut().get_mut::<Position>(actor).unwrap().0 = origin;
+            app.world_mut().get_mut::<Transform>(actor).unwrap().translation = origin;
+            app.world_mut().run_system_once(locomotion_input_writer).unwrap();
+            let amount = app.world().get::<AnimationGraphPlayer>(player).unwrap()
+                .get_global_input_data("in_air_source.ground_prediction_amount").unwrap().as_f32().unwrap();
+            assert_eq!(amount > 0.0, angle == 30.0, "angle={angle} amount={amount}");
+        }
     }
 
     #[test]
