@@ -1,0 +1,33 @@
+{
+  "standing_graph_count": 258,
+  "turn_slot_guid": "63d1e290-46eb-6b6f-4722-90a914ab60d5",
+  "turn_slot_name": "TurnInPlaceStanding",
+  "turn_duration": 2,
+  "rotation_yaw_speed_samples": [
+    {
+      "time": 0,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "time": 0.1,
+      "rotation_yaw_speed": 10.555139541625977
+    },
+    {
+      "time": 0.2,
+      "rotation_yaw_speed": 50.555023193359375
+    },
+    {
+      "time": 0.3,
+      "rotation_yaw_speed": 119.53446960449219
+    },
+    {
+      "time": 0.4,
+      "rotation_yaw_speed": 175.5276641845703
+    },
+    {
+      "time": 0.5,
+      "rotation_yaw_speed": 214.56581115722656
+    }
+  ],
+  "source_small_number_degrees": 1e-08
+}

@@ -5688,7 +5688,10 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 反例：用实际运动插件新建静止角色，出生模式 VelocityDirection，yaw分别0°/45°/−90°/170°。零度对照通过；其余三组首帧实际 yaw为43.542°/−88.542°/168.542°，target均为0，source应保持出生角度。`bf144_spawn_velocity_direction_initializes_target_from_actor` 语义FAIL，证据 `target/bf144/02/spawn/`。该触发依赖初始速度朝向配置，当前默认 ViewDirection 出生不受此分支影响。
   - 漏检：已有旋转测试大多从 identity 出生或手动填入 initialized=true 的 response；父空间测试验证 world/physics 一致，未核对第一次静止 VelocityDirection 的目标。仅登记，不改实现。
 
-- [ ] BF144-D03 / P2 — 转身曲线在切换到 VelocityDirection 后被旧目标抵消。
+- [x] BF144-D03 / P2 — 转身曲线在切换到 VelocityDirection 后被旧目标抵消。
+  - 2026-11-08 12:12 开始：预估结束12:42 +08:00。依据.02真实Turn曲线/模式切换反例与既有ViewDirection单项测试，fresh重读源曲线消费、Standing图和曲线资产，修正共享目标同步并补模式转换与零曲线控制；测试和公共Gate待用户指定阶段。
+  - 12:15 source/static闭环：源在静止状态先将曲线delta应用于actor，再同步target/smooth，blocked VelocityDirection读取该新目标；目标已在源非零delta门槛后同步target。已写正反曲线、零曲线、零delta与View→Velocity切换fixture，并补加载Turn资源/真实输入开关/图曲线消费者测试；真实播放和runner仍待统一执行。
+  - 12:18实现摘要：fresh Standing Turn slot及180°右转序列原生0.2/0.3秒曲线分别约50.555/119.534度每秒，源请求与完整读取在`docs/audit/bf144/d03/`。目标同步曲线后的世界yaw至target，新增直接与加载动画的切换测试；实现结束2026-11-08 12:18 +08:00，较预估提前24分钟。极小曲线入口及零delta的其他旧行为单列边界；测试、消融、图审计与公共Gate均待依赖升级后执行。
   - Source：fresh `AlsCharacter.cpp:1529–1573,1812–1823` 先应用 RotationYawSpeed，再由 RefreshTargetYawAngleUsingActorRotation 同步 target/smooth target；静止 blocked VelocityDirection 随后使用更新后的目标。fresh AB_Als_Standing 的实际 Turn 曲线经现有 Standing/Crouching producer 进入消费者。
   - Target：`src/als/character/movement/motion.rs:477–497` 只更新局部 current_yaw/smooth_target_yaw，没有同步 target_yaw；blocked VelocityDirection 又取旧 target，后续插值抵消曲线转向。
   - 反例：实际加载角色和动画，静止 ViewDirection 朝120°触发 Turn；按真实 rotation_mode_pressed 切换为 VelocityDirection。捕获位于 `AlsCrouchingLayerSet` 后、`AlsRotationResponseSet` 前，当帧曲线47.6275度/秒、dt=1/60；source yaw应0.0380855rad，target为0.0365703rad。`bf144_turn_to_velocity_rotation_uses_actual_curve` 的可见mesh、Turn曲线、静止和切换前置均通过后语义FAIL；固定90度/秒消费者反例也失败，记录在 `target/bf144/02/turn/`。

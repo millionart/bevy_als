@@ -1,0 +1,36 @@
+{
+  "sources": [
+    {
+      "path": "Source/ALS/Private/AlsCharacter.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+      "excerpts": [
+        {
+          "first_line": 1515,
+          "last_line": 1573,
+          "text": "{\n\tif (LocomotionAction.IsValid() || LocomotionMode != AlsLocomotionModeTags::Grounded)\n\t{\n\t\treturn;\n\t}\n\n\tif (HasAnyRootMotion())\n\t{\n\t\tRefreshTargetYawAngleUsingActorRotation();\n\t\treturn;\n\t}\n\n\tif (!LocomotionState.bMoving)\n\t{\n\t\t// Not moving.\n\n\t\tApplyRotationYawSpeedAnimationCurve(DeltaTime);\n\n\t\tif (RefreshCustomGroundedNotMovingRotation(DeltaTime))\n\t\t{\n\t\t\treturn;\n\t\t}\n\n\t\tif (RotationMode == AlsRotationModeTags::Aiming || ViewMode == AlsViewModeTags::FirstPerson)\n\t\t{\n\t\t\tRefreshGroundedAimingRotation(DeltaTime);\n\t\t\treturn;\n\t\t}\n\n\t\tif (RotationMode == AlsRotationModeTags::VelocityDirection)\n\t\t{\n\t\t\tfloat TargetYawAngle;\n\n\t\t\tif (LocomotionState.bRotationTowardsLastInputDirectionBlocked)\n\t\t\t{\n\t\t\t\t// Rotate to the last target yaw angle, relative to the movement base or not.\n\n\t\t\t\tTargetYawAngle = LocomotionState.TargetYawAngle;\n\n\t\t\t\tif (MovementBase.bHasRelativeLocation && !MovementBase.bHasRelativeRotation &&\n\t\t\t\t    Settings->bInheritMovementBaseRotationInVelocityDirectionRotationMode)\n\t\t\t\t{\n\t\t\t\t\tTargetYawAngle = UE_REAL_TO_FLOAT(TargetYawAngle + MovementBase.DeltaRotation.Yaw);\n\t\t\t\t}\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\t// Rotate to the last velocity direction. Rotation of the movement\n\t\t\t\t// base handled in the AAlsCharacter::RefreshLocomotionEarly() function.\n\n\t\t\t\tTargetYawAngle = Settings->bRotateTowardsDesiredVelocityInVelocityDirectionRotationMode\n\t\t\t\t\t                 ? DesiredVelocityYawAngle\n\t\t\t\t\t                 : LocomotionState.VelocityYawAngle;\n\t\t\t}\n\n\t\t\tstatic constexpr auto RotationInterpolationHalfLife{0.1f};\n\t\t\tstatic constexpr auto TargetYawAngleRotationSpeed{800.0f};\n\n\t\t\tSetRotationExtraSmooth(TargetYawAngle, DeltaTime, RotationInterpolationHalfLife, TargetYawAngleRotationSpeed);\n"
+        },
+        {
+          "first_line": 1812,
+          "last_line": 1827,
+          "text": "void AAlsCharacter::ApplyRotationYawSpeedAnimationCurve(const float DeltaTime)\n{\n\tconst auto DeltaYawAngle{GetMesh()->GetAnimInstance()->GetCurveValue(UAlsConstants::RotationYawSpeedCurveName()) * DeltaTime};\n\tif (FMath::Abs(DeltaYawAngle) > UE_SMALL_NUMBER)\n\t{\n\t\tauto NewRotation{GetActorRotation()};\n\t\tNewRotation.Yaw += DeltaYawAngle;\n\n\t\tSetActorRotation(NewRotation);\n\n\t\tRefreshTargetYawAngleUsingActorRotation();\n\t}\n}\n\nvoid AAlsCharacter::RefreshInAirRotation(const float DeltaTime)\n{\n"
+        },
+        {
+          "first_line": 1927,
+          "last_line": 1940,
+          "text": "{\n\tconst auto YawAngle{UE_REAL_TO_FLOAT(GetActorRotation().Yaw)};\n\n\tSetTargetYawAngle(YawAngle);\n}\n\nvoid AAlsCharacter::SetTargetYawAngle(const float TargetYawAngle)\n{\n\tLocomotionState.TargetYawAngle = FMath::UnwindDegrees(TargetYawAngle);\n\n\tLocomotionState.SmoothTargetYawAngle = LocomotionState.TargetYawAngle;\n\n\tRefreshTargetYawAngleViewSpace();\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+      "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+      "excerpts": [
+        {
+          "first_line": 128,
+          "last_line": 132,
+          "text": "\n#define UE_PI \t\t\t\t\t(3.1415926535897932f)\t/* Extra digits if needed: 3.1415926535897932384626433832795f */\n#define UE_SMALL_NUMBER\t\t\t(1.e-8f)\n#define UE_KINDA_SMALL_NUMBER\t(1.e-4f)\n#define UE_BIG_NUMBER\t\t\t(3.4e+38f)\n"
+        }
+      ]
+    }
+  ]
+}

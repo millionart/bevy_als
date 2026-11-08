@@ -974,6 +974,45 @@ mod tests {
     }
 
     #[test]
+    fn live_turn_curve_survives_switch_to_velocity_direction() {
+        use crate::als::{input::AlsInputCommand, motion::{AlsRotationAnimationState, AlsRotationResponseSet}};
+
+        #[derive(Resource, Default)]
+        struct Capture {
+            armed: bool,
+            value: Option<(f32, f32, f32, RotationMode)>,
+        }
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.init_resource::<Capture>().add_systems(PostUpdate, (move |time: Res<Time>, mut capture: ResMut<Capture>,
+            actors: Query<(&Transform, &AlsRotationAnimationState, &RotationMode)>| {
+            if !capture.armed { return; }
+            let (transform, animation, mode) = actors.get(character).unwrap();
+            capture.value = Some((crate::als::orientation::world_forward_to_yaw(transform.rotation * Vec3::NEG_Z),
+                animation.yaw_speed_degrees, time.delta_secs(), *mode));
+        }).after(crate::crouching_layer::AlsCrouchingLayerSet)
+            .after(crate::als::aim::aim_rotation_mode_system).before(AlsRotationResponseSet));
+        app.world_mut().run_system_once(move |mut commands: Commands| {
+            crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
+                SourceTurnRequest { variant: TurnVariant::Right180, yaw: 120.0, crouching: false });
+        }).unwrap();
+        for _ in 0..18 { app.update(); }
+        assert!(app.world().get::<AlsRotationAnimationState>(character)
+            .is_some_and(|animation| animation.yaw_speed_degrees.abs() > 10.0),
+            "The loaded turn did not produce its rotation curve");
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().rotation_mode_pressed = true;
+        app.world_mut().resource_mut::<Capture>().armed = true;
+        app.update();
+        let (before, curve, delta, mode) = app.world().resource::<Capture>().value.unwrap();
+        assert_eq!(mode, RotationMode::VelocityDirection);
+        assert!(curve.abs() > 1e-4 && delta > 0.0);
+        let expected = before + curve.to_radians() * delta;
+        let actual = crate::als::orientation::world_forward_to_yaw(
+            app.world().get::<Transform>(character).unwrap().rotation * Vec3::NEG_Z);
+        assert!(crate::als::motion::wrap_yaw_radians(actual - expected).abs() < 1e-5,
+            "before={before} curve={curve} delta={delta} actual={actual} expected={expected}");
+    }
+
+    #[test]
     fn native_turn_blend_shape_reaches_the_actual_slot_pose() {
         use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
         for frame_delta in [0.1_f32, 0.05] {

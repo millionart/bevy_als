@@ -1,0 +1,63 @@
+{
+  "assets": [
+    {
+      "asset": "Content/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.uasset",
+      "asset_identity": {
+        "bytes": 2145227,
+        "sha256": "52470475c15cd33106b1e964bd0ed9bb239e4331cd28b3b9388334c80e0b11df"
+      },
+      "request": "docs/audit/bf144/d03/standing.request.json",
+      "native_output": "docs/audit/bf144/d03/standing.native.json.gz",
+      "raw": {
+        "bytes": 94113422,
+        "sha256": "790eb12dd3ba0d21af25856e57f5f7aeee7ad8927d6303a261e61dec7df2ea51"
+      },
+      "compressed": {
+        "bytes": 3870990,
+        "sha256": "a07f89691a73d0f6a1edb65c951dc4d64a99330ba05495d23ed58503076fba20"
+      },
+      "reader_report": "docs/audit/bf144/d03/standing.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.uasset",
+      "asset_identity": {
+        "bytes": 203520,
+        "sha256": "c43b796b98f368273bd44b81da471d8fb904651374519de067e82cb943f273ff"
+      },
+      "request": "docs/audit/bf144/d03/turn.request.json",
+      "native_output": "docs/audit/bf144/d03/turn.native.json.gz",
+      "raw": {
+        "bytes": 1038891,
+        "sha256": "ea60fb0bad7281b346067fcbae9fbe7420eafc15feced35d0ea43b7937f811d9"
+      },
+      "compressed": {
+        "bytes": 82899,
+        "sha256": "bd44edb2a32088889f28764d85f13b8314fddb494f10528a973f00afff48d835"
+      },
+      "reader_report": "docs/audit/bf144/d03/turn.native.json.reader.report.json"
+    },
+    {
+      "asset": "Content/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.uasset",
+      "asset_identity": {
+        "bytes": 203520,
+        "sha256": "c43b796b98f368273bd44b81da471d8fb904651374519de067e82cb943f273ff"
+      },
+      "request": "docs/audit/bf144/d03/turn-pose.request.json",
+      "native_output": "docs/audit/bf144/d03/turn-pose.native.json.gz",
+      "raw": {
+        "bytes": 1283026,
+        "sha256": "67cb98f02451b115f6555948ace7aff9fdaa899def689ab6bc026f7ed9611e51"
+      },
+      "compressed": {
+        "bytes": 121697,
+        "sha256": "d154be6892e8c221e78d68e34e027314c7727d174e59efcf4e927197474ebd64"
+      },
+      "reader_report": "docs/audit/bf144/d03/turn-pose.native.json.reader.report.json"
+    }
+  ],
+  "mesh_asset": {
+    "path": "Content/ALS/Character/SKM_Als.uasset",
+    "bytes": 2606592,
+    "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+  }
+}
