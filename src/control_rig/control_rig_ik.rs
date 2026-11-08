@@ -4,7 +4,7 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize};
+use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize, source_rotate_vector};
 
 #[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RigGeometry {
@@ -172,7 +172,7 @@ impl RigGeometry {
         bones[2].translation = effector;
         let mut fully_extended = false;
         for index in 0..2 {
-            let mut axis = bones[index].rotation * primary;
+            let mut axis = source_rotate_vector(bones[index].rotation, primary);
             let mut target = bones[index + 1].translation - bones[index].translation;
             if target.abs().max_element() <= self.near_zero
                 || axis.abs().max_element() <= 1e-4_f32 as f64
@@ -189,7 +189,7 @@ impl RigGeometry {
             if secondary_weight <= 1e-8 {
                 continue;
             }
-            axis = bones[index].rotation * secondary;
+            axis = source_rotate_vector(bones[index].rotation, secondary);
             let mut secondary_target = if fully_extended {
                 pole - bones[index].translation
             } else {

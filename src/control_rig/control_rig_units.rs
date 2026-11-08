@@ -4,7 +4,7 @@ use bevy::{
 
 use crate::extensions::{
     control_rig_hierarchy::{
-        RigHierarchy, RigSpace, RigTransform, rig_normalize, rig_quat_near, rig_slerp,
+        RigHierarchy, RigSpace, RigTransform, rig_normalize, rig_quat_near, rig_slerp, source_rotate_vector,
     },
     control_rig_ik::{RigGeometry, source_vector_dot},
     control_rig_math::{
@@ -362,7 +362,7 @@ impl RigUnitContext<'_> {
                 let mut pole = *pole;
                 if let Some(space) = pole_space {
                     let transform = self.hierarchy.transform(space, RigSpace::Global, false)?;
-                    pole = transform.rotation * pole;
+                    pole = source_rotate_vector(transform.rotation, pole);
                     if pole_kind != "Direction" {
                         pole += transform.translation;
                     }
@@ -1087,6 +1087,24 @@ mod tests {
             .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
             .unwrap();
         assert_eq!(args[8], Bool(false));
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    fn control_rig_ik_uses_source_rotated_axes_for_recorded_input() {
+        let mut bones = [RigTransform::default(); 3];
+        bones[0].translation = DVec3::new(-0.107_983_336_080_343_25, 0.820_029_764_262_862_6,
+            0.012_280_340_777_750_365);
+        bones[2].translation = DVec3::new(-0.017_576_217_651_367_188, 0.184_527_194_127_440_45,
+            -0.431_320_190_429_687_5);
+        let initial = DQuat::from_xyzw(0.680_567_360_775_579_1, -0.702_881_658_872_854_5,
+            0.100_461_295_035_963_95, -0.180_811_972_133_496_28);
+        bones[0].rotation = initial;
+        bones[1].rotation = initial;
+        geometry().solve(&mut bones,
+            DVec3::new(-0.265_311_954_503_788_14, 0.251_595_211_436_327_24, 0.390_121_188_974_275_5),
+            DVec3::X, DVec3::NEG_Z, 1.0, [0.425_722_5, 0.401_968_18], false, 0.75, 1.25);
+        assert_eq!(bones[0].rotation.w as f32, -0.210_394_19);
     }
 
     #[test]
