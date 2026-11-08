@@ -3233,7 +3233,7 @@ fn edge_floor_landing(
 ) -> bool {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let Some(floor) = find_ground_floor_with_penetration(spatial, position, half, radius, cmc,
-        LocomotionState::Air, &filter, entity, candidates, None) else { return false };
+        LocomotionState::Air, &filter, entity, candidates, None, None) else { return false };
     if floor.origin != GroundFloorOrigin::Sweep { return false; }
     let trace = floor.trace;
     let hit_location = trace.origin - Vec3::Y * floor.hit.distance;
@@ -3243,7 +3243,7 @@ fn edge_floor_landing(
         half, radius, penetrating).0 { return false; }
     let supplied = ShapeHitData { normal1: impact_normal, ..floor.hit };
     find_ground_floor_with_penetration(spatial, position, half, radius, cmc, LocomotionState::Air,
-        &filter, entity, candidates, Some((supplied, trace))).is_some()
+        &filter, entity, candidates, Some((supplied, trace)), None).is_some()
 }
 
 fn limit_falling_air_control(acceleration: Vec3, normal: Vec3, penetrating: bool) -> Vec3 {
@@ -4579,7 +4579,7 @@ fn grounded_movement_transaction(
         let body = candidates.get(candidate).ok().and_then(|parts| parts.2).map_or(candidate, |collider| collider.body);
         step_permissions.get(candidate).or_else(|_| step_permissions.get(body)).map_or(true, |permission| permission.allows_step_up)
     };
-    let floor = find_ground_floor_with_penetration(spatial_query, center, half, radius, cmc, mode, &filter, entity, candidates, None);
+    let floor = find_ground_floor_with_penetration(spatial_query, center, half, radius, cmc, mode, &filter, entity, candidates, None, None);
     let ramp_delta = floor.map_or(delta, |floor| ground_ramp_movement(delta, floor.hit.normal1, floor.impact_normal,
         floor.origin != GroundFloorOrigin::Sweep));
     let ramp_movement = ramp_delta != delta;
@@ -4762,7 +4762,7 @@ fn adjust_walking_floor_height(
 ) -> Option<Entity> {
     let filter = SpatialQueryFilter::from_excluded_entities([entity]);
     let floor = find_ground_floor_with_penetration(spatial, transform.translation, half, radius, cmc,
-        LocomotionState::Grounded, &filter, entity, candidates, None)?;
+        LocomotionState::Grounded, &filter, entity, candidates, None, None)?;
     if line_floor_blocks_height_adjustment(floor.sweep_distance, floor.line_distance) { return Some(floor.hit.entity); }
     let center = floor.center_y;
     if !(MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&(transform.translation.y - center)) {
@@ -5415,7 +5415,7 @@ fn apply_standing_downward_force(
         let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
         let Some(floor) = find_ground_floor_with_penetration(&spatial, position.0, half, radius,
-            &params.cmc, *mode, &filter, entity, &candidates, None) else { continue };
+            &params.cmc, *mode, &filter, entity, &candidates, None, None) else { continue };
         let body = owners.get(floor.hit.entity).map_or(floor.hit.entity, |owner| owner.body);
         if let Ok((RigidBody::Dynamic, mut forces, false)) = bodies.get_mut(body) {
             forces.apply_force_at_point(force, floor.hit.point1);
@@ -5427,7 +5427,7 @@ pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius
     cmc: &crate::als::params::CmcAdapterParams, mode: LocomotionState,
     filter: &SpatialQueryFilter, character: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>) -> Option<(f32, f32, Entity)> {
-    find_ground_floor_with_penetration(spatial, origin, half, radius, cmc, mode, filter, character, candidates, None)
+    find_ground_floor_with_penetration(spatial, origin, half, radius, cmc, mode, filter, character, candidates, None, None)
         .map(|floor| (floor.center_y, floor.hit.point1.y, floor.hit.entity))
 }
 
@@ -5435,12 +5435,13 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
     cmc: &crate::als::params::CmcAdapterParams, mode: LocomotionState,
     filter: &SpatialQueryFilter, character: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
-    supplied: Option<(ShapeHitData, GroundFloorTrace)>)
+    supplied: Option<(ShapeHitData, GroundFloorTrace)>,
+    mut rejected_penetration: Option<&mut Option<ShapeHitData>>)
     -> Option<GroundFloorResult> {
     let accepts = |candidate| character_blocks_collider(character, candidate, candidates);
     let walkable = |hit: &ShapeHitData, impact_normal: Vec3| impact_normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
         && !(hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0);
-    let compute = |at: Vec3, test_radius: f32, line_distance: f32, sweep_distance: f32| {
+    let mut compute = |at: Vec3, test_radius: f32, line_distance: f32, sweep_distance: f32| {
         let mut result = None;
         for (shrink_scale, radius_reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
             (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {
@@ -5453,6 +5454,8 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
                 sweep_distance + shrink_height, filter, &accepts) {
                 let floor_distance = (hit.distance - shrink_height).max(-MAX_FLOOR_DISTANCE.max(radius));
                 let valid = walkable(&hit, impact_normal) && floor_distance <= sweep_distance;
+                if !valid && hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0
+                    && let Some(rejected) = rejected_penetration.as_deref_mut() { *rejected = Some(hit); }
                 result = Some((hit, floor_distance, valid, false, None, floor_distance, trace, impact_normal));
                 if valid { return result; }
                 if hit.distance != 0.0 { break; }
@@ -5597,7 +5600,7 @@ pub(crate) fn locomotion_state_sync_system(
                 else { params.crouch.standing_capsule_half_height } * scale.y;
             let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
             find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc, *current,
-                &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates, None)
+                &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates, None, None)
         });
         let validated_floor = floor_result.map(|floor| (floor.center_y, floor.hit.point1.y, floor.hit.entity));
         let floor_penetration = floor_result.and_then(|floor| floor.penetration);
@@ -5754,6 +5757,41 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn unwalkable_floor_query_preserves_initial_penetration() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (wall, floor, expect_walkable, expect_penetration) in [(true, false, false, true),
+            (true, true, true, true), (false, true, true, false), (false, false, false, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            app.finish();
+            let wall_entity = wall.then(|| app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.5, 4.0, 4.0),
+                Transform::from_xyz(0.35, 100.0, 0.0))).id());
+            if floor {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                    Transform::from_xyz(0.0, 98.9785, 0.0)));
+            }
+            let actor = app.world_mut().spawn_empty().id();
+            app.update();
+            app.update();
+            let (found, rejected) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                let mut rejected = None;
+                let found = find_ground_floor_with_penetration(&spatial, Vec3::Y * 100.0, 0.9, 0.3,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                    &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates, None, Some(&mut rejected));
+                (found, rejected)
+            }).unwrap();
+            assert_eq!(found.is_some(), expect_walkable, "wall={wall} floor={floor}");
+            assert_eq!(rejected.is_some(), expect_penetration, "wall={wall} floor={floor}");
+            if let Some(hit) = rejected {
+                assert_eq!(Some(hit.entity), wall_entity);
+                assert_eq!(hit.distance, 0.0);
+                assert!(hit.normal1.x < -0.9 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.19);
+            }
+        }
+    }
+
     #[test]
     fn source_repulsion_uses_capsule_trace_distance_and_body_center_of_mass() {
         let capsule = als_character_capsule(0.9, 0.3);
@@ -7074,7 +7112,7 @@ mod tests {
             let filter = SpatialQueryFilter::from_excluded_entities([actor]);
             let cmc = crate::als::params::CmcAdapterParams::default();
             let floor = |origin| find_ground_floor_with_penetration(&spatial, origin, 0.9, 0.3, &cmc,
-                LocomotionState::Grounded, &filter, actor, &candidates, None);
+                LocomotionState::Grounded, &filter, actor, &candidates, None, None);
             let origin = Vec3::NEG_Y * 0.2;
             let solid = spatial.cast_ray(origin, Dir3::NEG_Y, 2.0, true, &filter).unwrap();
             let exit = spatial.cast_ray(origin, Dir3::NEG_Y, 2.0, false, &filter).unwrap();
@@ -7464,7 +7502,7 @@ mod tests {
                 let overlap_impact = source_sweep_impact_normal(&spatial, &overlap, Vec3::NEG_Y, origin, Quat::IDENTITY, &capsule);
                 let floor = find_ground_floor_with_penetration(&spatial, origin, 0.9, 0.3,
                     &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
-                    &filter, actor, &candidates, None);
+                    &filter, actor, &candidates, None, None);
                 let line_hit = spatial.cast_ray(origin, Dir3::NEG_Y, 2.0, false, &filter).is_some();
                 (hit, impact, overlap_impact, floor, line_hit)
             }).unwrap();
@@ -7531,7 +7569,7 @@ mod tests {
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
                 find_ground_floor_with_penetration(&spatial, position, 0.9, 0.3,
                     &crate::als::params::CmcAdapterParams::default(), LocomotionState::Air,
-                    &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates, None)
+                    &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates, None, None)
             }).unwrap().unwrap();
             if blocker {
                 assert_eq!(floor.origin, expected_origin);
@@ -7857,7 +7895,7 @@ mod tests {
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
             find_ground_floor_with_penetration(&spatial, Vec3::Y * 0.9215, 0.9, 0.3,
                 &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
-                &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates, None)
+                &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates, None, None)
         }).unwrap().unwrap();
         assert!(floor.penetration.is_some() && floor.hit.normal1.y > 0.99);
         assert!(floor.sweep_distance < MIN_FLOOR_DISTANCE && 0.9215 - floor.center_y > MIN_FLOOR_DISTANCE);
@@ -10065,7 +10103,7 @@ mod tests {
             let cmc = crate::als::params::CmcAdapterParams::default();
             let filter = SpatialQueryFilter::from_excluded_entities([character]);
             let floor = find_ground_floor_with_penetration(&spatial, start, 0.9, 0.3, &cmc,
-                LocomotionState::Grounded, &filter, character, &candidates, None).unwrap();
+                LocomotionState::Grounded, &filter, character, &candidates, None, None).unwrap();
             let mut transform = Transform::from_translation(start);
             let support = adjust_walking_floor_height(&spatial, &als_character_capsule(0.9, 0.3),
                 &mut transform, 0.9, 0.3, &cmc, character, &candidates);
