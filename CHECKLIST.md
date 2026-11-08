@@ -5504,7 +5504,10 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - BF144.290最终local消费者：同其它源输入/算法，仅换本constructor后，97个unit double差在最终foot local只有8个quat double差、F32全同；152满权重场景因源Equals早退保留旧global，另10次零权重跳过。独立源全174 foot local TQS native精确，不把unit差的数量或符号扩大为可见姿态。证据`target/bf144/290/factors-check.json`、`controls-check.json`与`summary.json`，未修生产。
 
 
-- [ ] BF144-D250 / P3 — Rig Slerp未保持源四元数点积及正弦倒数复用算序，改变部分权重IK写回。
+- [x] BF144-D250 / P3 — Rig Slerp未保持源四元数点积及正弦倒数复用算序，改变部分权重IK写回。
+  - 修复第1轮：开始2026-11-08 09:56 +08:00；预估结束10:46 +08:00。依据：.480已封存部分权重原生请求、完整消费者和消融，仍须重新提取UE插值与IK写回调用链、核对公共helper所有调用，并从已验证原生入口重采最小输入；测试与消融待全部静态修复及Bevy/依赖迁移后执行。
+  - 10:00 source/static闭环：fresh UE `Slerp_NotNormalized`按源XYZW顺序累加点积，依符号选短弧，三角分支先取一次`1/sin(Omega)`并复用；`Slerp`末尾归一化。部分权重IK将三骨旋转插值后重建B/C位置，目标同一helper也供加权Transform与分布旋转。源→runtime四元数映射为`(-x,-z,-y,w)`，所以点积应以runtime XZYW累加；归一化仍属D248。已重采0.25权重前状态，后状态及独立原生IK核采集中。
+  - 10:03实现摘要：共享Slerp改用源点积顺序及倒数复用，新增隔离归一化的双骨原生输入fixture与负短弧控制。fresh左右腿0.25权重三骨前后状态及独立IK核均与已存.480源记录逐值对应；请求、原生结果、源码与哈希在`docs/audit/bf144/d250/`，源公式中间量明确标为复算。D248归一化与跨平台三角函数仍待验证；测试、消融、图审计和公共Gate待全部静态修复及Bevy/依赖迁移后执行。实际实现结束2026-11-08 10:03 +08:00，较预估提前43分钟；未拆分。
   - BF144.480 source partial wrapper消费：1332完整三骨TQS全native精确，其中6 partial的三骨Slerp与局部BC位置保留/混合后位置重建从独立core复算；1272 actual满权重及30公共控制完整结果同。固定同一source core，仅回退Slerp标量dot/InvSin复用，在source六例改变5 quat/6位置double，current十二partial控制改变15/12；F32全同。最小双腿去标量因素保持core2/public2但native TQS101拒，源码/输入bytes同target六库重编全量恢复；见docs/audit/bf144/480/comparison.json及negative-check.json。不外推自然current partial或全部descendant，未修生产。
 
   - Source：fresh `UnrealMath.cpp:1226–1261`的Slerp_NotNormalized按source XYZW点积求最短弧，在trig分支先算InvSin=1/sin(Omega)，再将两sin项乘同一InvSin；`Quat.h:658–660`最后GetNormalized。`RigUnit_TwoBoneIKSimple.cpp:200–214`将当帧三骨旧/解算rotation按Weight混合，再用保留的local joint/tip重建位置，因此旋转double差会进入calf位置与local写回。

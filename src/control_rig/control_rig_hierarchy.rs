@@ -32,14 +32,15 @@ pub fn rig_normalize(rotation: DQuat) -> DQuat {
 }
 
 pub fn rig_slerp(a: DQuat, b: DQuat, weight: f64) -> DQuat {
-    let dot = a.dot(b);
+    let dot = ((a.x * b.x + a.z * b.z) + a.y * b.y) + a.w * b.w;
     let sign = if dot >= 0.0 { 1.0 } else { -1.0 };
     let mut a_weight = 1.0 - weight;
     let mut b_weight = weight * sign;
     if dot * sign < 0.9999 {
         let angle = (dot * sign).acos();
-        a_weight = (a_weight * angle).sin() / angle.sin();
-        b_weight = (b_weight * angle).sin() / angle.sin();
+        let inverse_sine = 1.0 / angle.sin();
+        a_weight = (a_weight * angle).sin() * inverse_sine;
+        b_weight = (b_weight * angle).sin() * inverse_sine;
     }
     rig_normalize(a * a_weight + b * b_weight)
 }
@@ -828,6 +829,29 @@ mod tests {
             serde_json::from_str::<Vec<RigBone>>(&encoded).unwrap(),
             rig.bones
         );
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    fn rig_slerp_preserves_source_partial_weight_scalar_order() {
+        for (before, solved, unnormalized) in [
+            (DQuat::from_xyzw(0.633_735_685_482_602, -0.736_975_225_023_681_4,
+                0.193_413_863_622_010_02, -0.133_557_762_439_721_62),
+                DQuat::from_xyzw(0.631_203_251_261_262, -0.728_302_773_287_365_3,
+                    0.231_574_036_973_998_34, -0.132_404_650_291_106_93),
+                DQuat::from_xyzw(0.633_193_895_569_690_7, -0.734_912_962_656_805_3,
+                    0.202_984_118_571_771_62, -0.133_288_692_261_303_35)),
+            (DQuat::from_xyzw(0.695_247_581_071_448, -0.695_145_745_365_060_7,
+                0.129_272_117_010_432_8, -0.129_197_187_975_249_87),
+                DQuat::from_xyzw(0.703_233_957_290_649_4, -0.703_233_838_081_359_9,
+                    0.073_906_227_946_281_43, -0.073_906_272_649_765_01),
+                DQuat::from_xyzw(0.697_654_066_685_290_4, -0.697_577_625_220_709_1,
+                    0.115_492_958_476_517_05, -0.115_436_747_242_431_15)),
+        ] {
+            let expected = rig_normalize(unnormalized);
+            assert_eq!(rig_slerp(before, solved, 0.25), expected);
+            assert_eq!(rig_slerp(before, -solved, 0.25), expected);
+        }
     }
 
     #[test]
