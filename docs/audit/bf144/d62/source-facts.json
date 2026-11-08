@@ -1,0 +1,71 @@
+{
+  "native_graphs": [
+    {
+      "name": "AnimGraph",
+      "node_count": 32
+    },
+    {
+      "name": "AnimGraph__AnimFunc",
+      "node_count": 2
+    },
+    {
+      "name": "AnimGraph__AnimFunc_MERGED",
+      "node_count": 2
+    },
+    {
+      "name": "EventGraph",
+      "node_count": 0
+    },
+    {
+      "name": "ExecuteUbergraph_AB_Als",
+      "node_count": 1
+    },
+    {
+      "name": "Overlay",
+      "node_count": 2
+    },
+    {
+      "name": "Overlay__AnimFunc",
+      "node_count": 2
+    },
+    {
+      "name": "Overlay__AnimFunc_MERGED",
+      "node_count": 2
+    }
+  ],
+  "als_refresh": {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 646,
+    "end_line": 660,
+    "text": "void AAlsCharacter::RefreshMantling()\n{\n\tif (MantlingState.RootMotionSourceId <= 0)\n\t{\n\t\treturn;\n\t}\n\n\tif (LocomotionAction != AlsLocomotionActionTags::Mantling)\n\t{\n\t\tStopMantling();\n\t\treturn;\n\t}\n\n\tif (GetCharacterMovement()->MovementMode != MOVE_Custom)\n\t{"
+  },
+  "als_stop": {
+    "source_file": "Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "start_line": 681,
+    "end_line": 715,
+    "text": "void AAlsCharacter::StopMantling(const bool bStopMontage)\n{\n\tif (MantlingState.RootMotionSourceId <= 0)\n\t{\n\t\treturn;\n\t}\n\n\tauto* RootMotionSource{\n\t\tStaticCastSharedPtr<FAlsRootMotionSource_Mantling>(GetCharacterMovement()\n\t\t\t->GetRootMotionSourceByID(static_cast<uint16>(MantlingState.RootMotionSourceId))).Get()\n\t};\n\n\tif (RootMotionSource != nullptr)\n\t{\n\t\tRootMotionSource->Status.SetFlag(ERootMotionSourceStatusFlags::MarkedForRemoval);\n\t}\n\n\tMantlingState.RootMotionSourceId = 0;\n\n\tif (bStopMontage && RootMotionSource != nullptr)\n\t{\n\t\tGetMesh()->GetAnimInstance()->Montage_Stop(Settings->Mantling.BlendOutDuration, RootMotionSource->MantlingSettings->Montage);\n\t}\n\n\tGetCharacterMovement()->NetworkSmoothingMode = ENetworkSmoothingMode::Exponential;\n\n\tAlsCharacterMovement->SetMovementModeLocked(false);\n\tGetCharacterMovement()->SetMovementMode(MOVE_Walking);\n\n\tOnMantlingEnded();\n\n\tForceNetUpdate();\n}\n\nvoid AAlsCharacter::OnMantlingEnded_Implementation() {}"
+  },
+  "als_mode": {
+    "source_file": "Source/ALS/Private/AlsCharacter.cpp",
+    "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+    "start_line": 469,
+    "end_line": 490,
+    "text": "void AAlsCharacter::OnMovementModeChanged(const EMovementMode PreviousMovementMode, const uint8 PreviousCustomMode)\n{\n\t// Use the character movement mode to set the locomotion mode to the right value. This allows you to have a\n\t// custom set of movement modes but still use the functionality of the default character movement component.\n\n\tswitch (GetCharacterMovement()->MovementMode) // NOLINT(clang-diagnostic-switch-enum)\n\t{\n\t\tcase MOVE_Walking:\n\t\tcase MOVE_NavWalking:\n\t\t\tSetLocomotionMode(AlsLocomotionModeTags::Grounded);\n\t\t\tbreak;\n\n\t\tcase MOVE_Falling:\n\t\t\tSetLocomotionMode(AlsLocomotionModeTags::InAir);\n\t\t\tbreak;\n\n\t\tdefault:\n\t\t\tSetLocomotionMode(FGameplayTag::EmptyTag);\n\t\t\tbreak;\n\t}\n\n\tSuper::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);"
+  },
+  "ue_walking_entry": {
+    "source_file": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "start_line": 1438,
+    "end_line": 1455,
+    "text": "\t\t}\n\t}\n\n\t// React to changes in the movement mode.\n\tif (MovementMode == MOVE_Walking)\n\t{\n\t\t// Walking uses only XY velocity, and must be on a walkable floor, with a Base.\n\t\tVelocity = FVector::VectorPlaneProject(Velocity, -GetGravityDirection());\n\t\tbCrouchMaintainsBaseLocation = true;\n\t\tGroundMovementMode = MovementMode;\n\n\t\t// make sure we update our new floor/base on initial entry of the walking physics\n\t\tFindFloor(UpdatedComponent->GetComponentLocation(), CurrentFloor, false);\n\t\tAdjustFloorHeight();\n\t\tSetBaseFromFloor(CurrentFloor);\n\t}\n\telse\n\t{"
+  },
+  "ue_falling": {
+    "source_file": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+    "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "start_line": 5427,
+    "end_line": 5451,
+    "text": "void UCharacterMovementComponent::StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc)\n{\n\t// start falling \n\tconst float DesiredDist = Delta.Size();\n\tconst float ActualDist = ProjectToGravityFloor(UpdatedComponent->GetComponentLocation() - subLoc).Size();\n\tremainingTime = (DesiredDist < UE_KINDA_SMALL_NUMBER)\n\t\t\t\t\t? 0.f\n\t\t\t\t\t: remainingTime + timeTick * (1.f - FMath::Min(1.f,ActualDist/DesiredDist));\n\n\tif ( IsMovingOnGround() )\n\t{\n\t\t// This is to catch cases where the first frame of PIE is executed, and the\n\t\t// level is not yet visible. In those cases, the player will fall out of the\n\t\t// world... So, don't set MOVE_Falling straight away.\n\t\tif ( !GIsEditor || (GetWorld()->HasBegunPlay() && (GetWorld()->GetTimeSeconds() >= 1.f)) )\n\t\t{\n\t\t\tSetMovementMode(MOVE_Falling); //default behavior if script didn't change physics\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// Make sure that the floor check code continues processing during this delay.\n\t\t\tbForceNextFloorCheck = true;\n\t\t}\n\t}\n\tStartNewPhysics(remainingTime,Iterations);"
+  }
+}

@@ -6224,7 +6224,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
 
 BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FRootMotionMovementParams::Clear()`清空transform；fresh `AnimationAsset.h:781–785,812`证明它只清bHasRootMotion/BlendWeight，getter仍返回旧transform，`RootMotionSource.cpp:1689–1691,1719–1724`不检查该标志而继续读取旧速度。目标在静态小delta场景保留旧速度与源相同，原失败属于oracle错误；证据保留于`target/bf144/19/clock/`，从有效缺陷和失败集合移除。
 
-- [ ] BF144-D62 / P3 — Mantle在无地面支撑处中断时，同帧过早发布InAir。
+- [x] BF144-D62 / P3 — Mantle在无地面支撑处中断时，同帧过早发布InAir；静态实现完成，统一验证待执行。
+  - 活动：开始2026-11-08 18:24 +08:00；预估结束18:59 +08:00；实际结束18:27 +08:00，提前32分钟；未拆分，测试/消融/Gate暂缓。
+  - 闭环：fresh ALS中断→Walking/角色标签、UE下一运动帧和AB_Als原生证据保存在`docs/audit/bf144/d62/`；同步阶段仅保留退出当帧Grounded，已写加载角色动画标签与下一帧InAir对照。旧target报告缺失，动画Gate待执行。
   - Source：fresh `RefreshMantling:653–657`在owner Tick检测action结束，`StopMantling:707–708`解锁并切Walking，发生在该帧CMC之后；UE `OnMovementModeChanged:1442–1452`去掉重力轴速度并查floor/base，但没有在该回调中改为Falling。正常物理下落检查在下一CMC帧执行，当前动画帧应读Grounded。
   - Target：`mantle_drive.rs:603–614`在物理前先结束Mantle并置Grounded；同帧物理后的`movement/motion.rs:4073–4098`再次按无支撑改为Air，`ab_als_root`立即把它发布为`Als.LocomotionMode.InAir`。
   - 反例：完整low Mantle到clip约0.41936s、脚底未受地面/台阶支撑时清动作，源当前帧应Grounded，target及实际SourceAnimationInputs已经InAir；该帧水平退出速度仍与源公式一致。`bf144_mantle_physics_interruption_keeps_source_exit_velocity_and_mode`3组2PASS/1FAIL，起始地面段与已登上台阶段的中断对照通过。证据`target/bf144/19/`；限定一个帧的模式提前，不推测尚未验证的后续轨迹影响。

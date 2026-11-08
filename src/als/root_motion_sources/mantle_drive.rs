@@ -561,12 +561,13 @@ fn mantle_pose_system(
             &mut LinearVelocity,
             Option<&AlsNotifyLocomotionAction>,
             Option<&mut AlsMantleMontages>,
+            Option<&mut crate::als::character::AlsCmcAdapterRuntime>,
         ),
         With<AlsCharacter>,
     >,
 ) {
     if time.is_paused() { return; }
-    for (entity, mut m, mut locomotion, mut vel, action, montages) in &mut q {
+    for (entity, mut m, mut locomotion, mut vel, action, montages, runtime) in &mut q {
         if !m.active && !m.root_motion_ready {
             continue;
         }
@@ -603,6 +604,8 @@ fn mantle_pose_system(
             m.active = false;
             m.root_motion_ready = false;
             if *locomotion != LocomotionState::Grounded {
+                if action_ended && *locomotion == LocomotionState::Custom && !start_ragdoll
+                    && let Some(mut runtime) = runtime { runtime.mantle_exit_grounded = true; }
                 vel.y = 0.0;
                 transitions.write(StateTransitionEvent {
                     entity,
@@ -1860,6 +1863,40 @@ pub(crate) mod tests {
             assert!((weight - expected_weight).abs() < 1e-5,
                 "kind={kind:?} weight={weight} expected={expected_weight}");
         }
+    }
+
+    #[test]
+    fn unsupported_mantle_exit_publishes_grounded_until_the_next_movement_tick() {
+        use avian3d::prelude::RigidBody;
+        use crate::als::state::LocomotionState;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let start = Vec3::new(0.0, 10.0, 0.0);
+        let mut mantle = AlsMantleState::default();
+        mantle.begin(MantleKind::Low, start, start + Vec3::new(0.0, 0.8, -0.6), 0.8, 0.0, 0.0);
+        app.world_mut().entity_mut(actor).insert((mantle, LocomotionState::Custom, Position(start),
+            Transform::from_translation(start), GlobalTransform::from_translation(start), LinearVelocity::ZERO,
+            RigidBody::Dynamic, AlsNotifyLocomotionAction::Mantling));
+        let mut ready = false;
+        for _ in 0..600 {
+            app.update();
+            let state = app.world().get::<AlsMantleState>(actor).unwrap();
+            if state.root_motion_ready && state.time > 0.1 { ready = true; break; }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(ready, "Mantle did not enter its active interval within 600 frames");
+        app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
+        app.update();
+        assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+        assert!(app.world().get::<LinearVelocity>(actor).unwrap().y.abs() < 1e-5);
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let mode = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+            .gameplay_tag_input("locomotion_mode").unwrap();
+        assert_eq!(mode.as_str(), "Als.LocomotionMode.Grounded");
+        app.update();
+        assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Air);
+        let mode = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+            .gameplay_tag_input("locomotion_mode").unwrap();
+        assert_eq!(mode.as_str(), "Als.LocomotionMode.InAir");
     }
 
     #[test]

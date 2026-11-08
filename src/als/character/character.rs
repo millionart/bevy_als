@@ -184,6 +184,7 @@ pub struct AlsCmcAdapterRuntime {
     pub has_animation_root_velocity: bool,
     pub airborne_sweep_contact: bool,
     pub post_collision_mode: Option<LocomotionState>,
+    pub mantle_exit_grounded: bool,
     pub deferred_base_follow: bool,
     pub random_seed: u32,
 }
@@ -203,6 +204,7 @@ impl Default for AlsCmcAdapterRuntime {
             has_animation_root_velocity: false,
             airborne_sweep_contact: false,
             post_collision_mode: None,
+            mantle_exit_grounded: false,
             deferred_base_follow: false,
             random_seed: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |time| time.as_nanos() as u32),

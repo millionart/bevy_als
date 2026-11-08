@@ -5674,6 +5674,7 @@ pub(crate) fn locomotion_state_sync_system(
         let sweep_contact = std::mem::take(&mut runtime.airborne_sweep_contact);
         let has_animation_root_velocity = std::mem::take(&mut runtime.has_animation_root_velocity);
         let collision_mode = std::mem::take(&mut runtime.post_collision_mode);
+        let mantle_exit_grounded = std::mem::take(&mut runtime.mantle_exit_grounded);
         if let Some(mut source_velocity) = runtime.grounded_collision_velocity.take() {
             if *current == LocomotionState::Air && has_animation_root_velocity {
                 source_velocity.y = velocity.y;
@@ -5790,7 +5791,8 @@ pub(crate) fn locomotion_state_sync_system(
                 validated_floor.is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
                         && impact < position.y - half + radius)
             });
-        let target = if airborne && !landed_on_contact && !floor_supported && !landed_on_capsule {
+        let target = if airborne && !landed_on_contact && !floor_supported && !landed_on_capsule
+            && !(mantle_exit_grounded && *current == LocomotionState::Grounded) {
             LocomotionState::Air
         } else {
             LocomotionState::Grounded
