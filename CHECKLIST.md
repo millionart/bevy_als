@@ -5989,6 +5989,10 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - [x] BF144-D35a — 下落落到禁止站立的Pawn时立即执行源JumpOff。开始2026-11-08 15:31 +08:00；预估结束16:26 +08:00；实际结束15:34 +08:00，提前52分钟；静态实现完成，测试/消融/Gate暂缓。
     - 闭环：fresh UE基座许可与JumpOff算法、角色胶囊原生No及起跳因子0保存在`docs/audit/bf144/d35a/`；落地事务已写许可、速度结构和Pawn/普通物体对照。旧target报告缺失，本次原生未运行角色叠落，其他入口留给D35b。
   - [ ] BF144-D35b — 其他基座绑定入口应用同一Pawn许可及JumpOff。
+    - 子项拆分：D35b1处理出生及帧末基座同步；D35b2处理步行子步更换基座时的即时切换与剩余时间。
+    - [x] BF144-D35b1 — 出生及帧末同步时拒绝禁止站立的Pawn。开始2026-11-08 15:36 +08:00；预估结束16:21 +08:00；实际结束15:38 +08:00，提前43分钟；静态实现完成，测试/消融/Gate暂缓。
+      - 闭环：fresh UE基座物理所有者变更与通知顺序、原生根胶囊权限保存在`docs/audit/bf144/d35b1/`；出生和帧末同步已复用JumpOff，写有基座所有者、允许Pawn和普通prop对照。源端角色叠落未实测，步行子步留给D35b2。
+    - [ ] BF144-D35b2 — 步行过程中更换到禁止站立的Pawn时立即JumpOff。
   - Source：fresh `Character.cpp:1263–1265,1452–1461`在SetBase时通知BaseChange；`Pawn.cpp:241–249`按根primitive的CanCharacterStepUpOn判断是否可作为基座，No时拒绝。`CharacterMovementComponent.cpp:1251–1285`随后JumpOff提供侧向脱离并切Falling；ALS原生角色胶囊为ECB_No，JumpOffJumpZFactor=0只去掉上弹，不取消侧向脱离。
   - Target：`src/als/character/movement/motion.rs:2784–2801,4125–4132`落地及保存基座直接接受floor实体，未调用Pawn基座许可/JumpOff；现有allows_step_up仅用于步阶和Mantle，params中的jump_off_jump_z_factor没有运行时消费者。
   - 反例：完整角色落到另一角色胶囊顶部，目标已显式提供allows_step_up=false以排除D14默认metadata遗漏。源应拒绝作为基座并侧向离开、保持Air；target为Grounded、base=该角色、velocity全零。`bf144_inherit_forbidden_pawn_base_runs_source_jump_off`共3组2PASS/1FAIL；同形普通prop即使NoStep仍可站立（AActor默认许可），显式Yes的Pawn也可站立，两对照通过，证据`target/bf144/11/jump_and_permissions/`。

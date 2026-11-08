@@ -3486,6 +3486,11 @@ fn pawn_rejects_character_base(
     pawns.contains(owner) && permissions.get(owner).is_ok_and(|permission| !permission.allows_step_up)
 }
 
+fn movement_base_changed(previous: Option<Entity>, floor: Entity, owners: &Query<&ColliderOf>) -> bool {
+    let owner = owners.get(floor).map_or(floor, |collider| collider.body);
+    previous.is_none_or(|previous| owners.get(previous).map_or(previous, |collider| collider.body) != owner)
+}
+
 fn jump_off_velocity(velocity: Vec3, max_speed: f32, jump_z: f32, factor: f32, seed: &mut u32) -> Vec3 {
     *seed = seed.wrapping_mul(196314165).wrapping_add(907633515);
     let angle = (f32::from_bits(0x3f800000 | (*seed >> 9)) - 1.0) * std::f32::consts::TAU;
@@ -3695,15 +3700,20 @@ pub(crate) fn initialize_spawn_movement_mode(
     mut commands: Commands,
     spatial: SpatialQuery,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+    pawns: Query<(), With<AlsCharacter>>,
+    permissions: Query<&AlsMantleTargetPermission>,
+    owners: Query<&ColliderOf>,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut transforms: ParamSet<(bevy::transform::helper::TransformHelper, Query<&mut Transform>)>,
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut characters: Query<(Entity, &RigidBody, &mut LocomotionState, &Stance, &AlsMovementParamsHandle,
-        Option<&ChildOf>, &Position, &mut LinearVelocity, &mut crate::als::dynamics::AlsMovementBase),
+        Option<&ChildOf>, &Position, &mut LinearVelocity, &mut crate::als::dynamics::AlsMovementBase,
+        &mut AlsCmcAdapterRuntime, (Option<&RotationMode>, &AlsMaxAllowedGait, &AlsViewYaw)),
         (With<AlsCharacter>, With<Collider>, With<crate::als::character::AlsInitialMovementModePending>,
             Without<crate::als::character::AlsBirthAnimationPending>)>,
 ) {
-    for (entity, body, mut locomotion, stance, handle, parent, position, mut velocity, mut base) in &mut characters {
+    for (entity, body, mut locomotion, stance, handle, parent, position, mut velocity, mut base,
+        mut runtime, (rotation, gait, yaw)) in &mut characters {
         if *body != RigidBody::Dynamic || *locomotion != LocomotionState::Grounded {
             commands.entity(entity).remove::<crate::als::character::AlsInitialMovementModePending>();
             continue;
@@ -3739,7 +3749,20 @@ pub(crate) fn initialize_spawn_movement_mode(
         }
         if let Some(floor) = floor {
             velocity.y = 0.0;
-            bind_walking_base(Some(floor), &mut base, &transforms.p0());
+            if movement_base_changed(base.entity, floor, &owners)
+                && pawn_rejects_character_base(floor, &pawns, &permissions, &owners) {
+                let max_speed = crate::als::dynamics::max_allowed_speed(params, *stance,
+                    rotation.copied().unwrap_or(RotationMode::ViewDirection), gait.0, velocity.0, yaw.0);
+                velocity.0 = jump_off_velocity(velocity.0, max_speed, params.jump.jump_z_velocity,
+                    params.cmc.jump_off_jump_z_factor, &mut runtime.random_seed);
+                *base = default();
+                *locomotion = LocomotionState::Air;
+                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
+                    from: StateValue::LocomotionState(LocomotionState::Grounded),
+                    to: StateValue::LocomotionState(LocomotionState::Air) });
+            } else {
+                bind_walking_base(Some(floor), &mut base, &transforms.p0());
+            }
         } else {
             *base = default();
             *locomotion = LocomotionState::Air;
@@ -5169,6 +5192,8 @@ pub(crate) fn locomotion_state_sync_system(
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     pawns: Query<(), With<AlsCharacter>>,
+    permissions: Query<&AlsMantleTargetPermission>,
+    owners: Query<&ColliderOf>,
     collisions: Collisions,
     mut transitions: MessageWriter<StateTransitionEvent>,
     transforms: bevy::transform::helper::TransformHelper,
@@ -5189,12 +5214,14 @@ pub(crate) fn locomotion_state_sync_system(
             &Stance,
             Option<&ChildOf>,
             &mut AlsCmcAdapterRuntime,
+            (Option<&RotationMode>, &AlsMaxAllowedGait, &AlsViewYaw),
         ),
         (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
 ) {
     if time.is_paused() { return; }
-    for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, parent, mut runtime) in &mut q {
+    for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit,
+        action, handle, stance, parent, mut runtime, (rotation, gait, yaw)) in &mut q {
         let sweep_contact = std::mem::take(&mut runtime.airborne_sweep_contact);
         let has_animation_root_velocity = std::mem::take(&mut runtime.has_animation_root_velocity);
         let collision_mode = std::mem::take(&mut runtime.post_collision_mode);
@@ -5348,6 +5375,22 @@ pub(crate) fn locomotion_state_sync_system(
         }
         if let Ok((mut base, dynamics)) = movement_bases.get_mut(entity) {
             if floor_entity.is_none() { floor_entity = validated_floor.map(|(_, _, entity)| entity); }
+            if *current == LocomotionState::Grounded && floor_entity.is_some_and(|floor|
+                movement_base_changed(base.entity, floor, &owners)
+                    && pawn_rejects_character_base(floor, &pawns, &permissions, &owners))
+                && let Some(params) = params_assets.get(handle.id()) {
+                let max_speed = crate::als::dynamics::max_allowed_speed(params, *stance,
+                    rotation.copied().unwrap_or(RotationMode::ViewDirection), gait.0, velocity.0, yaw.0);
+                velocity.0 = jump_off_velocity(velocity.0, max_speed, params.jump.jump_z_velocity,
+                    params.cmc.jump_off_jump_z_factor, &mut runtime.random_seed);
+                *current = LocomotionState::Air;
+                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
+                    from: StateValue::LocomotionState(LocomotionState::Grounded),
+                    to: StateValue::LocomotionState(LocomotionState::Air) });
+                *base = default();
+                if let Some(mut dynamics) = dynamics { *dynamics = default(); }
+                continue;
+            }
             base.entity = if *current == LocomotionState::Grounded { floor_entity } else { None };
             if let Some(entity) = base.entity && let Ok(global) = transforms.compute_global_transform(entity) {
                 base.location = global.translation();
@@ -5380,6 +5423,21 @@ mod tests {
             assert!(pawn_rejects_character_base(child, &pawns, &permissions, &owners));
             assert!(!pawn_rejects_character_base(allowed, &pawns, &permissions, &owners));
             assert!(!pawn_rejects_character_base(prop, &pawns, &permissions, &owners));
+        }).unwrap();
+    }
+
+    #[test]
+    fn base_change_compares_physics_owners() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let body = world.spawn_empty().id();
+        let child = world.spawn(ColliderOf { body }).id();
+        let other = world.spawn_empty().id();
+        world.run_system_once(move |owners: Query<&ColliderOf>| {
+            assert!(movement_base_changed(None, child, &owners));
+            assert!(!movement_base_changed(Some(body), child, &owners));
+            assert!(!movement_base_changed(Some(child), body, &owners));
+            assert!(movement_base_changed(Some(other), child, &owners));
         }).unwrap();
     }
 
@@ -5431,6 +5489,70 @@ mod tests {
             } else {
                 assert_eq!(result.4, LocomotionState::Grounded, "The permitted base must remain grounded: {result:?}");
                 assert_eq!(result.5, Some(floor));
+            }
+        }
+    }
+
+    #[test]
+    fn spawn_rejects_forbidden_pawn_bases() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (pawn, allowed) in [(true, false), (true, true), (false, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .insert_resource(Assets::<AlsMovementParams>::default()).add_message::<StateTransitionEvent>();
+            app.finish();
+            let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, -0.1, 0.0), AlsMantleTargetPermission { allows_step_up: allowed })).id();
+            if pawn { app.world_mut().entity_mut(floor).insert(AlsCharacter); }
+            app.update();
+            app.update();
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+            let actor = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, als_character_capsule(0.9, 0.3),
+                Transform::from_xyz(0.0, 0.9215, 0.0), LocomotionState::Grounded,
+                Stance::Standing, AlsMovementParamsHandle(params))).id();
+            app.world_mut().run_system_once(initialize_spawn_movement_mode).unwrap();
+            let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+            let base = app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().entity;
+            if pawn && !allowed {
+                assert_eq!(mode, LocomotionState::Air);
+                assert!(base.is_none());
+                assert!(app.world().get::<LinearVelocity>(actor).unwrap().0.with_y(0.0).length() > 0.0);
+            } else {
+                assert_eq!(mode, LocomotionState::Grounded);
+                assert_eq!(base, Some(floor));
+            }
+        }
+    }
+
+    #[test]
+    fn state_sync_rejects_new_forbidden_pawn_bases() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (pawn, allowed, already_based) in [(true, false, false), (true, true, false),
+            (false, false, false), (true, false, true)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
+                Transform::from_xyz(0.0, 1.9, 0.0), AlsMantleTargetPermission { allows_step_up: allowed })).id();
+            if pawn { app.world_mut().entity_mut(floor).insert(AlsCharacter); }
+            app.update();
+            app.update();
+            let position = Vec3::new(0.0, 2.9215, 0.0);
+            app.world_mut().entity_mut(actor).insert((Position(position), Transform::from_translation(position),
+                LinearVelocity::ZERO, LocomotionState::Grounded));
+            *app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBase>(actor).unwrap() = default();
+            if already_based {
+                app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().entity = Some(floor);
+            }
+            app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap().post_collision_mode = None;
+            app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+            let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+            let base = app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().entity;
+            if pawn && !allowed && !already_based {
+                assert_eq!(mode, LocomotionState::Air);
+                assert!(base.is_none());
+                assert!(app.world().get::<LinearVelocity>(actor).unwrap().0.with_y(0.0).length() > 0.0);
+            } else {
+                assert_eq!(mode, LocomotionState::Grounded);
+                assert_eq!(base, Some(floor));
             }
         }
     }
