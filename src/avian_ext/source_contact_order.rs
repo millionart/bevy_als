@@ -194,10 +194,10 @@ pub(crate) fn order_source_compound_groups(
         } else { None };
         let box_pose = Pose::from_parts(box_shape.1.0, box_shape.2.0);
         let compound_pose = Pose::from_parts(compound_shape.1.0, compound_shape.2.0);
-        let generation = if let (Some(lifecycle), Some(margins), Some((_, _, context, _))) =
-            (lifecycle_settings.as_deref(), margin_settings.as_deref(), restore_base) {
+        let generation = if let (Some(lifecycle), Some(margins), Some((_, _, context, _)), Some((_, _, box_data, _))) =
+            (lifecycle_settings.as_deref(), margin_settings.as_deref(), restore_base, box_pair) {
             source_body_local_max_extent(context.bodies[0], ownership.iter())
-                .map(|extent| (lifecycle, margins, source_convex_cull_distance(extent, *lifecycle)))
+                .map(|extent| (lifecycle, margins, source_convex_cull_distance(extent, [box_data.4.0, Vec3::ZERO], delta, *lifecycle)))
         } else { None };
         let mut retained = vec![true; manifolds.len()];
         for (index, (manifold, shape_ids)) in manifolds.iter_mut().zip(&ids).enumerate() {
@@ -475,13 +475,13 @@ mod tests {
         let center = (body + (lower + upper) * 0.5) * 0.01;
         let mut app = App::new();
         let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
-        let ([cull_cm, inverse_size_cm, minimum_scale], warm_start) = include!("../als/settings/contact_lifecycle.rs");
+        let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) = include!("../als/settings/contact_lifecycle.rs");
         let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
             collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
         app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
             .insert_resource(Gravity(Vec3::ZERO))
             .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
-            .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, warm_start })
+            .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm, warm_start })
             .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
                 empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
             .init_resource::<SourceBoxContactHistory>()
@@ -545,13 +545,13 @@ mod tests {
         for source_body in [false, true] {
             let mut app = App::new();
             let [fraction, maximum, minimum] = include!("../als/settings/convex_margin.rs");
-            let ([cull_cm, inverse_size_cm, minimum_scale], warm_start) = include!("../als/settings/contact_lifecycle.rs");
+            let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) = include!("../als/settings/contact_lifecycle.rs");
             let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
                 collision_tolerance_scale, minimum_points) = include!("../als/settings/contact_restore.rs");
             app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)))
                 .insert_resource(Gravity(Vec3::ZERO))
                 .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
-                .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, warm_start })
+                .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm, warm_start })
                 .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
                     empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
                 .init_resource::<SourceBoxContactHistory>()

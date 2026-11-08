@@ -65,7 +65,8 @@
     "source_arch_edge_manifold_and_simplex_reach_actual_solver",
     "source_generated_contacts_keep_both_native_surfaces_for_restore",
     "source_complete_convex_manifold_preserves_native_warm_rebuild",
-    "source_arch_compound_restores_each_hull_before_solver_ordering"
+    "source_arch_compound_restores_each_hull_before_solver_ordering",
+    "source_cull_expands_by_pre_velocity_and_physics_delta"
   ],
   "manual_cases": [
     "startup",
@@ -866,5 +867,5 @@
       "reader_report": "docs/audit/bf144/d104a/mesh.native.json.reader.report.json"
     }
   ],
-  "closure_state": "Source generation and warm cache are connected statically for existing uniquely identified target hulls; absent hull discovery, direct native reader recapture, tests, ablation, full conversion diff and public runtime remain pending."
+  "closure_state": "Existing source hull generation includes source pre-velocity cull expansion; velocity native probe and missing target hull, tests, ablation, full conversion diff and public runtime remain pending."
 }

@@ -22,13 +22,16 @@ def parameters(facts, settings, native):
                                   number(source, "Chaos_Collision_CullDistanceScaleInverseSize")))
     minimum = float(variables.get("p.Chaos.Collision.MinCullDistanceScale",
                                   number(source, "Chaos_Collision_MinCullDistanceScale")))
+    velocity_multiplier = float(variables["p.Chaos.Solver.Collision.VelocityBoundsMultiplier"])
+    max_velocity_expansion = float(variables["p.Chaos.Solver.Collision.MaxVelocityBoundsExpansion"])
     defaults = re.findall(r"bool\s+bChaos_Manifold_EnableGjkWarmStart\s*=\s*(true|false)\s*;", source)
     if len(defaults) != 1:
         raise ValueError("Source GJK warm start default is missing or ambiguous")
     warm = variables.get("p.Chaos.Collision.Manifold.EnableGjkWarmStart", defaults[0])
-    if not all(math.isfinite(value) for value in (base, override, inverse, minimum)) or base < 0 or warm not in ("true", "false"):
+    if (not all(math.isfinite(value) for value in (base, override, inverse, minimum, velocity_multiplier, max_velocity_expansion))
+            or base < 0 or velocity_multiplier < 0 or max_velocity_expansion < 0 or warm not in ("true", "false")):
         raise ValueError("Source contact lifecycle settings are invalid")
-    return [f32(base), f32(inverse), f32(minimum)], warm == "true"
+    return [f32(base), f32(inverse), f32(minimum), f32(velocity_multiplier), f32(max_velocity_expansion)], warm == "true"
 
 
 def read(path):

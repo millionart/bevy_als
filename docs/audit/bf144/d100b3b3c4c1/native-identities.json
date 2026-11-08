@@ -25,9 +25,14 @@
   },
   "target": {
     "path": "src/als/settings/contact_lifecycle.rs",
-    "bytes": 42,
-    "sha256": "1b8f9e52b37797bfb451369585a0b4f8abf6dbe313f35a41615b05d2791019bc"
+    "bytes": 56,
+    "sha256": "397fbba6de44e582dd24f86164f8ed916b7015c46a281188e35340f3d39d320a"
   },
   "physics_asset_cvars": "docs/audit/bf144/d100b3b3c4a/native-identities.json",
-  "source_cull_scale_cvars_observed": false
+  "source_cull_scale_cvars_observed": false,
+  "velocity_request": {
+    "path": "docs/audit/bf144/d100b3b3c4c1/velocity.request.json",
+    "sha256": "c202e886f137ae0874a08d11bbf9fdc38165878e3996b8a2ff7297f90f9904ca",
+    "native_result": "pending_reader_rebuild"
+  }
 }

@@ -1,0 +1,92 @@
+{
+  "samples": [
+    {
+      "label": "bench_velocity_cull_rest",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        82.253502,
+        20.666794,
+        49.520798
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Bench",
+      "mesh_shape_index": 2,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1,
+      "aggregate_mesh": true,
+      "capture_cold_gjk": true,
+      "body_pre_velocity_cm_s": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "label": "bench_velocity_cull_moving",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        82.253502,
+        20.666794,
+        49.520798
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Bench",
+      "mesh_shape_index": 2,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1,
+      "aggregate_mesh": true,
+      "capture_cold_gjk": true,
+      "body_pre_velocity_cm_s": [
+        0,
+        0,
+        100
+      ]
+    }
+  ]
+}

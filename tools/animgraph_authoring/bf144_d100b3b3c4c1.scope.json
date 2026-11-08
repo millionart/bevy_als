@@ -65,7 +65,9 @@
     "test_import_contact_lifecycle_settings",
     "test_physics_convex_candidate_probe",
     "source_cull_distance_uses_whole_dynamic_body_extent",
-    "source_bench_positive_gap_hull_reaches_solver_in_native_order"
+    "source_bench_positive_gap_hull_reaches_solver_in_native_order",
+    "source_cull_expands_by_pre_velocity_and_physics_delta",
+    "test_physics_convex_velocity_cull_probe"
   ],
   "manual_cases": [
     "startup",
@@ -866,5 +868,5 @@
       "reader_report": "docs/audit/bf144/d104a/mesh.native.json.reader.report.json"
     }
   ],
-  "closure_state": "Source lifecycle settings are implemented statically; native cull scale CVars and direct constraint cull need rebuilt reader, and the newly identified missing target hull, runtime integration, tests, ablation, full conversion diff and public runtime remain pending."
+  "closure_state": "Source cull and pre-velocity expansion are implemented statically; direct velocity probe and source cull scale CVars require reader rebuild, followed by missing target hull, tests, ablation, full conversion diff and public runtime."
 }

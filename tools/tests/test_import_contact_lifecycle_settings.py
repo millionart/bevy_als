@@ -21,15 +21,17 @@ class ContactLifecycleSettingsTest(unittest.TestCase):
                           "bool bChaos_Manifold_EnableGjkWarmStart = true;"}]
         settings = {"asset_properties": [{"name": "SolverOptions", "fields": [
             {"name": "CollisionCullDistance", "numeric_value": 3.0}]}]}
-        native = {"physics_asset": {"constraint_console_variables": {"p.Chaos.Solver.Collision.CullDistance": "-1"}}}
+        native = {"physics_asset": {"constraint_console_variables": {"p.Chaos.Solver.Collision.CullDistance": "-1",
+                  "p.Chaos.Solver.Collision.VelocityBoundsMultiplier": "1",
+                  "p.Chaos.Solver.Collision.MaxVelocityBoundsExpansion": "3"}}}
         values, warm = module.parameters(facts, settings, native)
-        self.assertEqual(values, [3.0, module.f32(0.01), 1.0])
+        self.assertEqual(values, [3.0, module.f32(0.01), 1.0, 1.0, 3.0])
         self.assertTrue(warm)
         changed = copy.deepcopy(native)
         changed["physics_asset"]["constraint_console_variables"].update({
             "p.Chaos.Solver.Collision.CullDistance": "5", "p.Chaos.Collision.MinCullDistanceScale": "2",
             "p.Chaos.Collision.Manifold.EnableGjkWarmStart": "false"})
-        self.assertEqual(module.parameters(facts, settings, changed), ([5.0, module.f32(0.01), 2.0], False))
+        self.assertEqual(module.parameters(facts, settings, changed), ([5.0, module.f32(0.01), 2.0, 1.0, 3.0], False))
         changed["physics_asset"]["constraint_console_variables"]["p.Chaos.Solver.Collision.CullDistance"] = "nan"
         with self.assertRaises(ValueError):
             module.parameters(facts, settings, changed)

@@ -28,13 +28,27 @@ pub(crate) struct SourceConvexLifecycleSettings {
     pub cull_cm: f32,
     pub inverse_size_cm: f32,
     pub minimum_scale: f32,
+    pub velocity_multiplier: f32,
+    pub max_velocity_expansion_cm: f32,
     pub warm_start: bool,
 }
 
-pub(super) fn source_convex_cull_distance(maximum_extent_m: f64, settings: SourceConvexLifecycleSettings) -> f64 {
+pub(super) fn source_convex_cull_distance(
+    maximum_extent_m: f64,
+    previous_velocity: [Vec3; 2],
+    delta: f32,
+    settings: SourceConvexLifecycleSettings,
+) -> f64 {
     let scale = (maximum_extent_m * 100.0 * f64::from(settings.inverse_size_cm))
         .max(0.0).max(f64::from(settings.minimum_scale)) as f32;
-    f64::from(settings.cull_cm * scale) * 0.01
+    let mut cull = settings.cull_cm * scale;
+    if settings.velocity_multiplier > 0.0 && settings.max_velocity_expansion_cm > 0.0 {
+        let speed_cm = previous_velocity.into_iter().map(|velocity| velocity.abs().max_element() * 100.0)
+            .fold(0.0_f32, f32::max);
+        let movement_cm = speed_cm * delta;
+        cull += (settings.velocity_multiplier * movement_cm).min(settings.max_velocity_expansion_cm);
+    }
+    f64::from(cull) * 0.01
 }
 
 pub(super) fn source_body_local_max_extent<'a>(
@@ -300,14 +314,14 @@ mod tests {
 
     #[test]
     fn source_cull_distance_uses_whole_dynamic_body_extent() {
-        let ([cull_cm, inverse_size_cm, minimum_scale], warm_start) = include!("../als/settings/contact_lifecycle.rs");
-        let settings = SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, warm_start };
+        let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) = include!("../als/settings/contact_lifecycle.rs");
+        let settings = SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm, warm_start };
         assert!(settings.warm_start);
-        assert_eq!(source_convex_cull_distance(0.28, settings), f64::from(3.0_f32) * 0.01);
-        assert_eq!(source_convex_cull_distance(1.0, settings), f64::from(3.0_f32) * 0.01);
-        assert_eq!(source_convex_cull_distance(2.0, settings), f64::from(6.0_f32) * 0.01);
+        assert_eq!(source_convex_cull_distance(0.28, [Vec3::ZERO; 2], 0.0, settings), f64::from(3.0_f32) * 0.01);
+        assert_eq!(source_convex_cull_distance(1.0, [Vec3::ZERO; 2], 0.0, settings), f64::from(3.0_f32) * 0.01);
+        assert_eq!(source_convex_cull_distance(2.0, [Vec3::ZERO; 2], 0.0, settings), f64::from(6.0_f32) * 0.01);
         let overridden = SourceConvexLifecycleSettings { cull_cm: 5.0, minimum_scale: 2.0, warm_start: false, ..settings };
-        assert_eq!(source_convex_cull_distance(0.28, overridden), f64::from(10.0_f32) * 0.01);
+        assert_eq!(source_convex_cull_distance(0.28, [Vec3::ZERO; 2], 0.0, overridden), f64::from(10.0_f32) * 0.01);
         assert!(!overridden.warm_start);
         let entity = |index| Entity::from_raw_u32(index).unwrap();
         let body = entity(1);
@@ -321,8 +335,23 @@ mod tests {
             (entity(4), &collider, Some(&owner), Some(&right)), (entity(5), &giant, Some(&other), None)];
         let extent = source_body_local_max_extent(body, shapes).unwrap();
         assert_eq!(extent, 2.0);
-        assert_eq!(source_convex_cull_distance(extent, settings), f64::from(6.0_f32) * 0.01);
+        assert_eq!(source_convex_cull_distance(extent, [Vec3::ZERO; 2], 0.0, settings), f64::from(6.0_f32) * 0.01);
         assert!(source_body_local_max_extent(entity(9), shapes).is_none());
+    }
+
+    #[test]
+    fn source_cull_expands_by_pre_velocity_and_physics_delta() {
+        let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) =
+            include!("../als/settings/contact_lifecycle.rs");
+        let settings = SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale,
+            velocity_multiplier, max_velocity_expansion_cm, warm_start };
+        let step = 1.0_f32 / 60.0;
+        let at_rest = source_convex_cull_distance(0.28, [Vec3::ZERO; 2], step, settings);
+        let one_metre = source_convex_cull_distance(0.28, [Vec3::ONE, Vec3::ZERO], step, settings);
+        assert_eq!(at_rest, f64::from(3.0_f32) * 0.01);
+        assert_eq!(one_metre, f64::from(3.0_f32 + 100.0_f32 * step) * 0.01);
+        assert_eq!(source_convex_cull_distance(0.28, [Vec3::X * 3.0, Vec3::ZERO], step, settings), f64::from(6.0_f32) * 0.01);
+        assert_eq!(source_convex_cull_distance(0.28, [Vec3::ZERO, Vec3::X], 1.0 / 30.0, settings), f64::from(6.0_f32) * 0.01);
     }
 
     #[test]
