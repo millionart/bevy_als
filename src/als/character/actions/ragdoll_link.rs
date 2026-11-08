@@ -1254,30 +1254,37 @@ fn ragdoll_link_system(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
+    pub(crate) fn loaded_ragdoll_bodies(app: &mut App, avatar: Entity) -> (Entity, Vec<(String, Entity)>) {
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let mut bodies = None;
+        for _ in 0..600 {
+            bodies = app.world().get::<AnimationGraphPlayer>(player).and_then(|player| player.get_spawned_ragdoll())
+                .map(|spawned| spawned.bodies.values().filter_map(|entity| {
+                    app.world().get::<BodyLabel>(*entity).map(|label| (label.0.clone(), *entity))
+                }).collect::<Vec<_>>());
+            if bodies.as_ref().is_some_and(|bodies| ["pelvis", "spine_03", "foot_l"].into_iter()
+                .all(|label| bodies.iter().any(|(name, _)| name == label))) { break; }
+            app.update();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let bodies = bodies.expect("Ragdoll bodies did not load within 600 frames");
+        assert!(["pelvis", "spine_03", "foot_l"].into_iter()
+            .all(|label| bodies.iter().any(|(name, _)| name == label)), "Required fixture bodies are missing");
+        (player, bodies)
+    }
+
+    pub(crate) fn remove_ragdoll_body(app: &mut App, bodies: &[(String, Entity)], label: &str) {
+        let body = bodies.iter().find(|(name, _)| name == label).unwrap().1;
+        app.world_mut().entity_mut(body).remove::<RigidBody>();
+    }
+
     #[test]
     fn ragdoll_start_requires_both_source_body_instances() {
         for missing in [None, Some("pelvis"), Some("spine_03"), Some("foot_l")] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-            let mut bodies = None;
-            for _ in 0..600 {
-                bodies = app.world().get::<AnimationGraphPlayer>(player).and_then(|player| player.get_spawned_ragdoll())
-                    .map(|spawned| spawned.bodies.values().filter_map(|entity| {
-                        app.world().get::<BodyLabel>(*entity).map(|label| (label.0.clone(), *entity))
-                    }).collect::<Vec<_>>());
-                if bodies.as_ref().is_some_and(|bodies| ["pelvis", "spine_03", "foot_l"].into_iter()
-                    .all(|label| bodies.iter().any(|(name, _)| name == label))) { break; }
-                app.update();
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-            let bodies = bodies.expect("Ragdoll bodies did not load within 600 frames");
-            assert!(["pelvis", "spine_03", "foot_l"].into_iter()
-                .all(|label| bodies.iter().any(|(name, _)| name == label)), "Required fixture bodies are missing");
-            if let Some(missing) = missing {
-                let body = bodies.iter().find(|(label, _)| label == missing).unwrap().1;
-                app.world_mut().entity_mut(body).remove::<RigidBody>();
-            }
+            let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+            if let Some(missing) = missing { remove_ragdoll_body(&mut app, &bodies, missing); }
             let initial_layers = *app.world().get::<CollisionLayers>(actor).unwrap();
             app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
             app.update();

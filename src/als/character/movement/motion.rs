@@ -4866,7 +4866,8 @@ pub(crate) fn cmc_movement_transaction_system(
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     motion: Query<&crate::actual_motion::AlsActualMotion>,
     mut commands: Commands,
-    (mut transitions, mut impacts): (MessageWriter<StateTransitionEvent>, Option<ResMut<Messages<SourceCharacterImpact>>>),
+    (mut transitions, mut impacts, ragdoll_eligibility): (MessageWriter<StateTransitionEvent>,
+        Option<ResMut<Messages<SourceCharacterImpact>>>, crate::ragdoll_link::AlsRagdollStartEligibility),
     spatial_query: SpatialQuery,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     step_permissions: Query<&AlsMantleTargetPermission>,
@@ -4921,11 +4922,16 @@ pub(crate) fn cmc_movement_transaction_system(
             crate::als::dynamics::update_landing_braking_friction(&mut landing_braking, LocomotionState::Grounded,
                 motion.has_input, motion.world_velocity.y <= -crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD);
         }
-        let landing = (landing_braking.factor, crate::get_up::RAGDOLL_SETTINGS.start_on_land
-            && motion.get(entity).is_ok_and(|motion| motion.world_velocity.y <= -crate::get_up::RAGDOLL_SETTINGS.on_land_speed_threshold_mps),
-            motion.get(entity).is_ok_and(|motion| motion.world_velocity.y <= -crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD)
+        let ragdoll_on_land = crate::get_up::RAGDOLL_SETTINGS.start_on_land
+            && motion.get(entity).is_ok_and(|motion| motion.world_velocity.y <= -crate::get_up::RAGDOLL_SETTINGS.on_land_speed_threshold_mps);
+        let roll_on_land = !ragdoll_on_land
+            && motion.get(entity).is_ok_and(|motion| motion.world_velocity.y <= -crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD)
                 && motion_roots.get(entity).is_ok_and(|(_, _, action)| action.is_none_or(|action|
-                    *action == crate::als::state::AlsNotifyLocomotionAction::None)));
+                    *action == crate::als::state::AlsNotifyLocomotionAction::None));
+        let can_ragdoll = (ragdoll_on_land || (roll_on_land && params.rolling.interrupt_when_in_air))
+            && motion_roots.get(entity).is_ok_and(|(_, _, action)| action != Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling))
+            && ragdoll_eligibility.allows(entity);
+        let landing = (landing_braking.factor, ragdoll_on_land && can_ragdoll, roll_on_land && can_ragdoll);
         let grounded = (*stance, *rotation_mode, max_allowed_gait.0, view_yaw.0);
         let root_motion_active = motion_roots.get(entity).is_ok_and(|(roll, mantle, _)|
             roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)
@@ -5643,7 +5649,7 @@ pub(crate) fn locomotion_state_sync_system(
     pawns: Query<(), With<AlsCharacter>>,
     permissions: Query<&AlsMantleTargetPermission>,
     owners: Query<&ColliderOf>,
-    collisions: Collisions,
+    (collisions, ragdoll_eligibility): (Collisions, crate::ragdoll_link::AlsRagdollStartEligibility),
     mut transitions: MessageWriter<StateTransitionEvent>,
     transforms: bevy::transform::helper::TransformHelper,
     mut movement_bases: Query<(&mut crate::als::dynamics::AlsMovementBase, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
@@ -5817,7 +5823,7 @@ pub(crate) fn locomotion_state_sync_system(
                 && params_assets.get(handle.id()).is_some_and(|params| params.rolling.interrupt_when_in_air);
             *current = target;
             if target == LocomotionState::Grounded { velocity.y = 0.0; }
-            if ragdoll_on_land || ragdoll_on_air_roll {
+            if (ragdoll_on_land || ragdoll_on_air_roll) && ragdoll_eligibility.allows(entity) {
                 *current = LocomotionState::None;
                 transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
                     from: StateValue::LocomotionState(target), to: StateValue::LocomotionState(LocomotionState::None) });
@@ -7559,6 +7565,39 @@ mod tests {
                 assert_eq!(motor.lin.boost, Vec3::ZERO);
                 assert_eq!(motor.lin.acceleration, Vec3::ZERO);
             }
+        }
+    }
+
+    #[test]
+    fn automatic_landing_and_air_roll_require_ragdoll_bodies() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (landing, missing) in [(true, None), (true, Some("pelvis")),
+            (false, None), (false, Some("spine_03"))] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let (_, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+            if let Some(label) = missing { crate::ragdoll_link::tests::remove_ragdoll_body(&mut app, &bodies, label); }
+            if landing {
+                let start = Vec3::Y;
+                app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                    LinearVelocity(Vec3::new(0.0, -11.0, -3.75)), LocomotionState::Air,
+                    AlsStateRequest::default(), TnuaMotor::default(), crate::als::state::AlsNotifyLocomotionAction::None));
+                app.world_mut().get_mut::<crate::actual_motion::AlsActualMotion>(actor).unwrap().world_velocity = Vec3::new(0.0, -11.0, -3.75);
+                app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.2));
+                app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            } else {
+                let handle = app.world().get::<AlsMovementParamsHandle>(actor).unwrap().0.clone();
+                app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap().rolling.interrupt_when_in_air = true;
+                let start = Vec3::Y * 10.0;
+                app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                    LocomotionState::Grounded, AlsCmcAdapterRuntime::default(), crate::als::state::AlsNotifyLocomotionAction::Rolling));
+                app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
+            }
+            let expected = if missing.is_none() { LocomotionState::None }
+                else if landing { LocomotionState::Grounded } else { LocomotionState::Air };
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), expected,
+                "landing={landing} missing={missing:?}");
+            assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(actor)
+                == Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling), missing.is_none());
         }
     }
 

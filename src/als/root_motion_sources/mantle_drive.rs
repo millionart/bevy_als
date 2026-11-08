@@ -552,6 +552,7 @@ fn mantle_pose_system(
     time: Res<Time<Virtual>>,
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
+    ragdoll_eligibility: crate::ragdoll_link::AlsRagdollStartEligibility,
     target_transforms: Query<&GlobalTransform, Without<crate::als::character::AlsCharacter>>,
     mut q: Query<
         (
@@ -584,7 +585,8 @@ fn mantle_pose_system(
         }
         if action_ended || mode_changed || !target_valid {
             let start_ragdoll =
-                !target_valid && MANTLE_SETTINGS.start_ragdoll_on_target_destruction;
+                !target_valid && MANTLE_SETTINGS.start_ragdoll_on_target_destruction
+                    && ragdoll_eligibility.allows(entity);
             if !action_ended && let Some(mut montages) = montages {
                 for entry in &mut montages.entries {
                     if entry.kind.action_settings().montage_index
@@ -604,7 +606,7 @@ fn mantle_pose_system(
             m.active = false;
             m.root_motion_ready = false;
             if *locomotion != LocomotionState::Grounded {
-                if action_ended && *locomotion == LocomotionState::Custom && !start_ragdoll
+                if *locomotion == LocomotionState::Custom && !start_ragdoll
                     && let Some(mut runtime) = runtime { runtime.mantle_exit_grounded = true; }
                 vel.y = 0.0;
                 transitions.write(StateTransitionEvent {
@@ -1152,15 +1154,11 @@ pub(crate) mod tests {
             }
             app.world_mut().run_schedule(Update);
             app.world_mut().run_schedule(PostUpdate);
-            let ragdolling = interruption >= 2;
+            let ragdolling = interruption == 2;
             assert!(!app.world().get::<AlsMantleState>(actor).unwrap().active);
             assert_eq!(
                 app.world().get::<LocomotionState>(actor),
-                Some(&if interruption == 3 {
-                    LocomotionState::None
-                } else {
-                    LocomotionState::Grounded
-                })
+                Some(&LocomotionState::Grounded)
             );
             assert_eq!(
                 app.world().get::<RigidBody>(actor),
@@ -1199,7 +1197,7 @@ pub(crate) mod tests {
             if interruption == 3 {
                 let entry = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
                 assert!(entry.interrupted);
-                assert_eq!(entry.stop.unwrap().1, 0.2);
+                assert_eq!(entry.stop.unwrap().1, 0.3);
             }
             if ragdolling {
                 app.world_mut()
@@ -1290,7 +1288,8 @@ pub(crate) mod tests {
         world.run_system_once(mantle_pose_system).unwrap();
         assert!(!world.get::<AlsMantleState>(actor).unwrap().active);
         assert!(world.get::<AlsMantleState>(actor).unwrap().target_invalid);
-        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Mantling));
+        assert_eq!(world.get::<LocomotionState>(actor), Some(&LocomotionState::Grounded));
     }
 
     #[test]
@@ -1351,7 +1350,7 @@ pub(crate) mod tests {
                 LocomotionState::Custom,
                 AlsNotifyLocomotionAction::Mantling,
                 true,
-                LocomotionState::None,
+                LocomotionState::Grounded,
                 true,
             ),
         ] {
@@ -1392,11 +1391,7 @@ pub(crate) mod tests {
             assert_eq!(world.get::<LocomotionState>(actor), Some(&expected));
             assert_eq!(
                 world.get::<AlsNotifyLocomotionAction>(actor),
-                Some(&if invalid {
-                    AlsNotifyLocomotionAction::Ragdolling
-                } else {
-                    action
-                })
+                Some(&action)
             );
             assert_eq!(
                 world.get::<AlsMantleState>(actor).unwrap().active,
@@ -1420,7 +1415,7 @@ pub(crate) mod tests {
             assert_eq!(entry.interrupted, interrupted);
             assert_eq!(
                 entry.stop.map(|(_, duration, _)| duration),
-                interrupted.then_some(if invalid { 0.2 } else { 0.3 })
+                interrupted.then_some(0.3)
             );
             let events: Vec<_> = world
                 .resource_mut::<Messages<StateTransitionEvent>>()
@@ -1428,11 +1423,7 @@ pub(crate) mod tests {
                 .collect();
             assert_eq!(
                 events.len(),
-                if invalid {
-                    2
-                } else {
-                    usize::from(mode != expected)
-                }
+                usize::from(mode != expected)
             );
             if let Some(event) = events.first() {
                 assert_eq!(event.entity, actor);
@@ -1440,21 +1431,7 @@ pub(crate) mod tests {
                 assert_eq!(event.from, StateValue::LocomotionState(mode));
                 assert_eq!(
                     event.to,
-                    StateValue::LocomotionState(if invalid {
-                        LocomotionState::Grounded
-                    } else {
-                        expected
-                    })
-                );
-            }
-            if invalid {
-                assert_eq!(
-                    events[1].from,
-                    StateValue::LocomotionState(LocomotionState::Grounded)
-                );
-                assert_eq!(
-                    events[1].to,
-                    StateValue::LocomotionState(LocomotionState::None)
+                    StateValue::LocomotionState(expected)
                 );
             }
             world.run_system_once(mantle_pose_system).unwrap();
@@ -1913,6 +1890,36 @@ pub(crate) mod tests {
         let mode = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
             .gameplay_tag_input("locomotion_mode").unwrap();
         assert_eq!(mode.as_str(), "Als.LocomotionMode.InAir");
+    }
+
+    #[test]
+    fn destroyed_mantle_target_requires_ragdoll_bodies() {
+        for missing in [None, Some("pelvis")] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let (_, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+            if let Some(label) = missing { crate::ragdoll_link::tests::remove_ragdoll_body(&mut app, &bodies, label); }
+            let target = app.world_mut().spawn((Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
+            let start = Vec3::Y * 10.0;
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_target_base(MantleKind::High, start, start + Vec3::Y, 1.5, 0.0, 0.0,
+                AlsMantleTargetBase { entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE, relative_location: false });
+            mantle.root_motion_ready = true;
+            app.world_mut().entity_mut(actor).insert((mantle, LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling, Position(start), Transform::from_translation(start),
+                LinearVelocity(Vec3::new(1.0, 2.0, 0.0)), crate::als::character::AlsCmcAdapterRuntime::default()));
+            app.world_mut().despawn(target);
+            app.world_mut().run_system_once(mantle_pose_system).unwrap();
+            let expected = if missing.is_none() { LocomotionState::None } else { LocomotionState::Grounded };
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), expected, "missing={missing:?}");
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor) == Some(&AlsNotifyLocomotionAction::Ragdolling),
+                missing.is_none());
+            if missing.is_some() {
+                app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
+                assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+                assert!(!app.world().get::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap().mantle_exit_grounded);
+            }
+        }
     }
 
     #[test]

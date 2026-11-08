@@ -63,7 +63,8 @@
   ],
   "focused_tests": [
     "unsupported_mantle_exit_publishes_grounded_until_the_next_movement_tick",
-    "mantle_physics_moves_once_with_the_game_delta"
+    "mantle_physics_moves_once_with_the_game_delta",
+    "destroyed_mantle_target_requires_ragdoll_bodies"
   ],
   "manual_cases": [
     "startup",

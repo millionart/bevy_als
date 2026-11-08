@@ -6224,9 +6224,11 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
 
 BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FRootMotionMovementParams::Clear()`清空transform；fresh `AnimationAsset.h:781–785,812`证明它只清bHasRootMotion/BlendWeight，getter仍返回旧transform，`RootMotionSource.cpp:1689–1691,1719–1724`不检查该标志而继续读取旧速度。目标在静态小delta场景保留旧速度与源相同，原失败属于oracle错误；证据保留于`target/bf144/19/clock/`，从有效缺陷和失败集合移除。
 
-- [x] BF144-D62 / P3 — Mantle在无地面支撑处中断时，同帧过早发布InAir；静态实现完成，统一验证待执行。
+- [x] BF144-D62 / P3 — Mantle在无地面支撑处中断时，同帧过早发布InAir；目标丢失的同一退出帧边界已补静态实现，统一验证待执行。
   - 活动：开始2026-11-08 18:24 +08:00；预估结束18:59 +08:00；实际结束18:27 +08:00，提前32分钟；未拆分，测试/消融/Gate暂缓。
   - 闭环：fresh ALS中断→Walking/角色标签、UE下一运动帧和AB_Als原生证据保存在`docs/audit/bf144/d62/`；同步阶段仅保留退出当帧Grounded，已写加载角色动画标签与下一帧InAir对照。旧target报告缺失，动画Gate待执行。
+  - D65b复开：fresh `RefreshMantling`目标失效同样先StopMantling切Walking，再尝试可能被拒绝的Ragdoll；原修复只覆盖action结束，漏掉同一无支撑退出的目标失效分支。复用本编号与现有同步边界，不扩展其他状态。
+  - D65b恢复静态闭环：目标失效且许可失败也保留当帧Walking；已补`destroyed_mantle_target_requires_ragdoll_bodies`，测试及公共Gate仍待统一执行。
   - Source：fresh `RefreshMantling:653–657`在owner Tick检测action结束，`StopMantling:707–708`解锁并切Walking，发生在该帧CMC之后；UE `OnMovementModeChanged:1442–1452`去掉重力轴速度并查floor/base，但没有在该回调中改为Falling。正常物理下落检查在下一CMC帧执行，当前动画帧应读Grounded。
   - Target：`mantle_drive.rs:603–614`在物理前先结束Mantle并置Grounded；同帧物理后的`movement/motion.rs:4073–4098`再次按无支撑改为Air，`ab_als_root`立即把它发布为`Als.LocomotionMode.InAir`。
   - 反例：完整low Mantle到clip约0.41936s、脚底未受地面/台阶支撑时清动作，源当前帧应Grounded，target及实际SourceAnimationInputs已经InAir；该帧水平退出速度仍与源公式一致。`bf144_mantle_physics_interruption_keeps_source_exit_velocity_and_mode`3组2PASS/1FAIL，起始地面段与已登上台阶段的中断对照通过。证据`target/bf144/19/`；限定一个帧的模式提前，不推测尚未验证的后续轨迹影响。
@@ -6245,11 +6247,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`mantle_target_base:825–837`及物理后刷新用`base.relative_location`保留旧选择，从不重读当前对应的Static/Kinematic状态。
   - 反例：完整活动Mantle、目标位置(0,0.4,−1.4)m保持不动，Static→Kinematic或反向切换后，源公式分别按新primitive/world空间解释已存warp，target仍按旧空间，位置差约1.456m。`bf144_mantle_physics_live_mobility_controls_relative_space`4组2PASS/2FAIL，同状态两组通过；证据`target/bf144/19/mobility/`。这是外部改变目标可移动性的少见合同边界，记P3；不把源空间突变擅自改写成平滑行为。
 
-- [ ] BF144-D65 / P2 — Ragdoll启动遗漏pelvis与spine_03刚体许可检查。
-  - 拆分：D65a先建立真实物理体许可并修复显式请求；D65b再将相同许可接入源已证实的落地、翻滚中断和Mantle目标丢失入口。两项各自提交，统一测试后关闭父项。
+- [x] BF144-D65 / P2 — Ragdoll启动遗漏pelvis与spine_03刚体许可检查；静态实现完成，统一验证待执行。
+  - 拆分：D65a先建立真实物理体许可并修复显式请求；D65b再将相同许可接入源已证实的落地、翻滚中断和Mantle目标丢失入口。两项各自提交，父项静态闭合后统一测试。
   - [x] BF144-D65a — 显式Ragdoll请求的物理体许可；静态实现完成。开始2026-11-08 18:37 +08:00；预估结束19:22 +08:00；实际结束18:43 +08:00，提前39分钟；测试/消融/Gate暂缓。
     - 闭环：fresh ALS许可、UE命名body查找及PA_Als原生21体证据保存在`docs/audit/bf144/d65a/`；真实角色缺任一必需体时拒绝请求，已写完整角色与非必需体对照。旧反例无可恢复报告路径；旧无rig优先级gate及归档BF-Char5许可边界已有限复开，统一验证后恢复。
-  - [ ] BF144-D65b — 已证实的自动Ragdoll入口复用同一物理体许可；等待D65a静态实现。
+  - [x] BF144-D65b — 已证实的自动Ragdoll入口复用同一物理体许可；静态实现完成。开始2026-11-08 18:44 +08:00；预估结束19:24 +08:00；实际结束18:50 +08:00，提前34分钟；测试/消融/Gate暂缓。
+    - 闭环：fresh ALS落地、空中翻滚及目标失效调用链保存在`docs/audit/bf144/d65b/`并复用D65a原生PA；自动入口复用同一许可，高速拒绝不回退翻滚，已写缺体/完整体与Walking退出对照。旧反例无可恢复报告路径；归档BF-Char5和公共Gate待验证。
   - Source：fresh `AlsCharacter_Actions.cpp:717–723,759–764`要求两处`GetBodyInstance`都非空，否则在修改montage、mesh/capsule物理、movement mode和action之前拒绝启动；fresh PA_Als确认实际命名与默认实例存在。
   - Target：`state/transition.rs:359–370`只检查当前action不是Ragdolling，直接提交Ragdolling/None；`ragdoll_link.rs:787–830`随后关闭capsule collision并禁用Tnua，rig同步遇到缺失body只是continue，没有回退许可。
   - 反例：完整角色的physics body实例中分别移除pelvis或spine_03，再请求Ragdoll；源应拒绝，target却进入Ragdolling/None、capsule变Kinematic且layers=NONE。`bf144_ragdoll_lifecycle_requires_pelvis_and_spine_body_instances`4组2PASS/2FAIL，完整rig与只缺非必需foot_l的许可对照通过，实际图没有求值错误。旧入口测试默认完整PA实例，未覆盖源显式前置条件；生产未改。

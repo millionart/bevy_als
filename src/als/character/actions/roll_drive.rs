@@ -309,6 +309,28 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn denied_high_speed_ragdoll_does_not_fall_back_to_a_landing_roll() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
+        for (speed, roll_expected) in [(8.0_f32, true), (11.0, false)] {
+            let (mut app, actor, avatar) = loaded_roll_character();
+            let (_, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
+            if !roll_expected { crate::ragdoll_link::tests::remove_ragdoll_body(&mut app, &bodies, "pelvis"); }
+            app.world_mut().entity_mut(actor).insert((LocomotionState::Grounded, AlsRollState::default(),
+                AlsNotifyLocomotionAction::None, crate::actual_motion::AlsActualMotion {
+                    world_velocity: Vec3::NEG_Y * speed, ..default()
+                }));
+            app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().write(StateTransitionEvent {
+                entity: actor, dimension: Dimension::LocomotionState,
+                from: StateValue::LocomotionState(LocomotionState::Air),
+                to: StateValue::LocomotionState(LocomotionState::Grounded),
+            });
+            app.world_mut().run_system_once(advance_rolls).unwrap();
+            assert_eq!(app.world().get::<AlsRollState>(actor).unwrap().active, roll_expected, "speed={speed}");
+        }
+    }
+
+    #[test]
     fn actual_landing_roll_starts_after_a_same_frame_platform_crossing() {
         let (mut app, actor, _) = loaded_roll_character();
         app.world_mut().spawn((avian3d::prelude::RigidBody::Static, avian3d::prelude::Collider::cuboid(4.0, 0.6, 0.1),
@@ -2674,6 +2696,8 @@ fn advance_rolls(
         let landing_ready = (landed || (*loco == LocomotionState::Grounded
             && air.is_some_and(|air| air.landing_time <= dt.max(0.05))))
             && !blocked.contains(character) && !action_blocked
+            && !(crate::get_up::RAGDOLL_SETTINGS.start_on_land
+                && landing_speed >= crate::get_up::RAGDOLL_SETTINGS.on_land_speed_threshold_mps)
             && landing_speed >= crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD;
         let empty_action = actions.get(character).ok().is_none_or(|action| *action == AlsNotifyLocomotionAction::None);
         if empty_action && *loco == LocomotionState::Grounded && effective.roll_pressed { roll.active = false; }
