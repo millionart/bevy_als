@@ -4885,6 +4885,8 @@
 
 - [ ] BF144-RAGDOLL-AVIAN-RUNTIME — 验证布娃娃倒下、碰撞和起身。
   - 预计开始：2026-11-11 18:21 +08:00。预估结束：2026-11-11 19:06 +08:00。先走 startup，再走真实 Playground 的 ragdoll/get_up 功能 Gate。实际开始时按构建状态更新。
+  - 本轮开始：2026-11-11 17:53 +08:00。预估结束：18:38 +08:00。已核对默认窄相位和碰撞过滤接线，已通过同 target_game 预构建。启动公共 runner 的 startup 场景，关闭截图，验证功能，保留性能预算读数。
+  - 17:53真实 startup 在首帧前失败，PhysicsSchedule 报三组读写歧义。公共 runner 记录退出码101及缺失帧报告，已用源/目标调用闭包定位至 D40、D87、D253 并复开，先修正调度顺序再运行相同入口。原生碰撞和过滤静态注册已通过，尚未取得真实接触与起身证据。
 
 - [ ] BF144-RAGDOLL-AVIAN-REGRESSION — 回归普通行走、台阶、攀爬和脚部 IK。
   - 预计开始：2026-11-11 19:06 +08:00。预估结束：2026-11-11 19:51 +08:00。沿现有真实场景和自动场景的公共入口验证，保留仍服务普通角色的查询及动画路径。实际开始时按场景闭包更新。
@@ -5494,7 +5496,8 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
     - 09:16 source/static闭环：.576正负落地各有一个自由Walking余步，按源double位置差复算与目标计划一致，原F32世界位置差分别损失约20.53/23.95µm/s。内部步仅在无穿透、无前向阻挡/step、有效floor且支撑点速度为零时，以相同请求位移重建double厘米位置差；实际碰撞与移动支撑仍用目标实际位移。已写两侧原历史及移动支撑控制，未执行目标测试。
     - 09:21实现摘要：已接通落地及多CMC步的静止支撑自由路径，源角色资产fresh身份与.575历史身份一致，原生压缩字节与两侧.576记录已封存；碰撞、移动支撑及极大世界坐标未声称完整源精度。实现结束09:21、偏差−42分钟；D254a/b静态实现完成，测试、消融和公共Gate待全部静态修复及Bevy/依赖迁移后执行。
 
-- [x] BF144-D253 / P3 — 地面CMC计划位移再经六次float累计，改变首移动帧的位置与回算速度。
+- [ ] BF144-D253 / P3 — 地面CMC计划位移再经六次float累计，改变首移动帧的位置与回算速度。
+  - 2026-11-11 17:55 +08:00 因真实 startup 复开，预估结束18:15。地面计划位移复原须看到关节投影后的实际 solver body。旧静态 Gate 未初始化联合调度，先让位移守卫读取投影后的结果。证据 `docs/audit/bf144/ragdoll-avian-runtime/startup/diagnostics.json`。
   - Source：fresh真实角色40步标准AddMovementInput历史中，第4帧由静止输入world+X，实际delta为0.03333333507180214，CDO MaxSimulationTimeStep为0.05000000074505806、Iterations8；`CharacterMovementComponent.cpp:5690,5716–5738,5870–5875,8162–8186`在本帧只走一个CMC步，用FVector厘米位移移动后按该步时长回算速度。原生位置2.222222454018069cm、速度66.66667014360428cm/s，换米后F32分别为0.02222222462296486、0.6666666865348816。
   - Target：`dynamics.rs:562–571`已产出正确F32计划位移0.02222222462296486；`source_physics_timing.rs:172–185`在该默认30Hz控制路径以frame_step=frame_delta/6累计Grounded位置，`motion.rs:2681–2690`再从F32实际位置回算速度。实际得到位置0.02222222276031971、速度0.6666666269302368；六次F32乘加模型逐值复现，首速度差随后进入AlsActualMotion和动画provider。
   - 最小反例与控制：未改图、标准动态角色、原floor、4步空输入后首步world+X；默认6步红测稳定失败，只在独立夹具将SubstepCount改1，两项都恢复原生投影。控制保留实际输入、初速与CMC计划值；这不是修改引擎或生产，也不是性能验收。后续帧仍有米制F32位置反馈和动画Speed标量换算余差，一步控制不恢复整段40帧；当前差异微小，未宣称可见故障。
@@ -6072,7 +6075,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整角色以3.75m/s横移，与相侧0.45m处的半径0.2m模拟物体开始重叠；fixture明确使用Overlap语义，COM始终在0.36m排斥半径外，分离D40。质量100/10/0.001kg时源冲量产生速度0.025/0.25/3.75m/s，target均0。`bf144_force_overlap_touch_keeps_source_impulse`5组2PASS/3FAIL；静止角色和Kinematic物体对照通过，ContactGraph确认实际重叠且无接触约束；证据`target/bf144/12/overlap/`。
   - 漏检：旧碰撞筛选只证明Sensor不阻挡角色，未核对源允许的simulated Overlap仍应收到交互冲量。本项限定双方开启overlap事件的模拟物体，不宣称普通Block物件都触发CapsuleTouched；仅登记，不改场景profile。
 
-- [x] BF144-D40 / P2 — 持续overlap物体缺少源排斥和近距离停速；静态实现完成，统一验证待执行。
+- [ ] BF144-D40 / P2 — 持续overlap物体缺少源排斥和近距离停速；静态实现完成，统一验证待执行。
+  - 2026-11-11 17:55 +08:00 因真实 startup 复开，预估结束18:15。排斥读窄相位接触图，角色摩擦写同一图的摩擦字段。旧静态 Gate 未初始化两套插件并存的 PhysicsSchedule，先明确摩擦写入和排斥读取的顺序。证据 `docs/audit/bf144/ragdoll-avian-runtime/startup/diagnostics.json`。
   - 活动：开始2026-11-08 16:31 +08:00；预估结束17:26 +08:00；实际结束16:36 +08:00，提前50分钟；未拆分，测试/消融/Gate暂缓。
   - 闭环：fresh UE持续overlap、Chaos质心与Avian接触/射线保存在`docs/audit/bf144/d40/`；生成目标半径、平方阈值及力参数并在物理积分前处理，已写方向/停速/缩放与加载角色对照。旧target报告缺失，源端动态球未复测；首次触碰同帧顺序及穿透深度边界待统一验证。生成器自测浮点精确比较的静态不一致已同步修正，测试仍未执行。
   - Source：fresh UE `ApplyRepulsionForce:11798–11892`在普通tick遍历movable simulated overlap body；native RepulsionForce2.5、Mass100，半径=scaled capsule radius×1.2。body线段到胶囊表面有hit、未penetrate且水平DistanceNow²<2.5（源厘米数值）时清速度；否则靠近/静止或penetrate且COM在半径内时施加250 kg·cm/s²径向力。`ChaosEngineInterface.cpp:976–1028`确认按COM距离筛选及Constant力，非直接速度或加速度。
@@ -6466,7 +6470,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧physics timing测试验证了整帧cap与末速度，sleep测试只要求不同子步数保持同一整帧计数，没有比较source单步位移；不能由“都采用约33.33ms上限”推导调度等价。关节在不同dt下求解的整体自然轨迹尚未实测，本项不据此扩大数字结论；仅登记。
   - 20:56 source/static摘要：fresh PhysicsSettings及PA身份、同步单步调用链和独立目标配置生成已记录；世界物理调度使用源生效的一个子步，游戏帧时钟保持独立。已写加载rig的步数、物理时间、速度和位移对照，并有限复开D84补六步扩展反例；测试、消融和真实Playground待统一Gate。证据`docs/audit/bf144/d86/`。实际结束：2026-11-08 20:56 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
-- [x] BF144-D87 / P3 — Ragdoll线性阻尼公式及施加顺序与源不同。
+- [ ] BF144-D87 / P3 — Ragdoll线性阻尼公式及施加顺序与源不同。
+  - 2026-11-11 17:55 +08:00 因真实 startup 复开，预估结束18:15。角色整帧积分增量与布娃娃线性阻尼都写公开积分数据。旧静态 Gate 未初始化联合调度，先明确同阶段次序。证据 `docs/audit/bf144/ragdoll-avian-runtime/startup/diagnostics.json`。
   - 本轮开始：2026-11-08 20:57 +08:00；预计结束：2026-11-08 21:47 +08:00。重读源外力、冲量和阻尼顺序及Avian积分调度，基于真实rig保留非ragdoll控制与零阻尼对照；统一测试和消融留待升级后。估时依据：BF144.26单步线性源码与完整角色夹具实耗8分钟，本项需修改共享积分阶段并核对额外力、冲量及普通刚体，按独立闭包预留。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:915–931`先加Acceleration×dt和LinearImpulseVelocity，再乘max(0,1−LinearDamping×dt)。21个native PA body的LinearDamping=0.01；`PerParticleEtherDrag.cpp:9–10`的全局覆盖本次读取为−1，未改写该公式。
   - Target：`ragdoll_physics_profile.rs:1361`把源系数直接交给Avian LinearDamping；Avian `integrator/mod.rs:248–249,362–368`先对旧速度乘1/(1+damping×dt)，随后加本步加速度增量，既改变系数公式也漏掉本步重力/外力的阻尼。

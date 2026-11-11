@@ -1,0 +1,30 @@
+{
+  "schedule": "PhysicsSchedule",
+  "frame_report_exists": false,
+  "conflicts": [
+    {
+      "item": "D40",
+      "systems": [
+        "apply_character_repulsion",
+        "character_contact_friction_system"
+      ],
+      "component_or_resource": "ContactGraph"
+    },
+    {
+      "item": "D87",
+      "systems": [
+        "integrate_character_velocity",
+        "apply_source_linear_damping"
+      ],
+      "component_or_resource": "VelocityIntegrationData"
+    },
+    {
+      "item": "D253",
+      "systems": [
+        "project_source_joints",
+        "preserve_unobstructed_grounded_displacement"
+      ],
+      "component_or_resource": "SolverBody"
+    }
+  ]
+}
