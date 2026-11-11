@@ -1,4 +1,4 @@
-use bevy::{math::DVec3, platform::collections::HashMap, prelude::*};
+use bevy::{math::{DQuat, DVec3}, platform::collections::HashMap, prelude::*};
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
@@ -13,6 +13,7 @@ use crate::extensions::animation_context::{
     AnimationContextState, context_time_update, pose_input_context_state,
     resolve_named_context_curves,
 };
+use crate::extensions::control_rig_math::rig_quat_product;
 use crate::extensions::inertialization::source_inertial_float;
 
 const SOURCE_KINDA_SMALL_NUMBER: f32 = 1e-4;
@@ -217,26 +218,38 @@ fn rotation_difference(
             angle
         }
     };
-    let difference = (previous * target.inverse()).normalize();
-    let (mut axis, mut angle) = difference.to_axis_angle();
-    angle = unwind(angle);
+    let inverse = target.as_dquat().conjugate();
+    let source_vector = |quaternion: DQuat| DVec3::new(-quaternion.x, -quaternion.z, -quaternion.y);
+    let difference = rig_quat_product(previous.as_dquat(), inverse);
+    let mut angle = unwind((2.0 * difference.w.clamp(-1.0, 1.0).acos()) as f32);
+    let vector = source_vector(difference);
+    let squared = vector.length_squared();
+    let mut axis = if squared < 1e-8 { DVec3::X } else { vector * squared.sqrt().recip() };
     if angle < 0.0 {
         axis = -axis;
         angle = -angle;
     }
-    if !axis.is_finite() || !angle.is_finite() || angle <= f32::EPSILON {
+    if !axis.is_finite() || !angle.is_finite() {
         return (Vec3::ZERO, 0.0, 0.0);
     }
-    let previous_difference = (previous_previous * target.inverse()).normalize();
-    let previous_angle = unwind(2.0 * Vec3::new(
-        previous_difference.x, previous_difference.y, previous_difference.z,
-    ).dot(axis).atan2(previous_difference.w));
     let speed = if delta > SOURCE_KINDA_SMALL_NUMBER && angle > SOURCE_KINDA_SMALL_NUMBER {
+        let previous_difference = rig_quat_product(previous_previous.as_dquat(), inverse);
+        let projected = source_vector(previous_difference).dot(axis);
+        let previous_angle = 2.0 * projected.atan2(previous_difference.w);
+        let pi = f64::from(std::f32::consts::PI);
+        let tau = f64::from(std::f32::consts::TAU);
+        let previous_angle = if previous_angle > pi {
+            previous_angle - tau
+        } else if previous_angle < -pi {
+            previous_angle + tau
+        } else {
+            previous_angle
+        } as f32;
         unwind(angle - previous_angle) / delta
     } else {
         0.0
     };
-    (axis, angle, speed)
+    (Vec3::new(-axis.x as f32, -axis.z as f32, -axis.y as f32), angle, speed)
 }
 
 fn source_inertial_bones(
@@ -334,7 +347,7 @@ fn apply_source_inertialization(target: &Pose, state: &SourceInertializationStat
             bone.translation = Some((position_cm / 100.0).as_vec3());
         }
         if let Some(rotation) = bone.rotation
-            && difference.rotation_angle > f32::EPSILON
+            && difference.rotation_angle > 0.0
         {
             let angle = source_inertial_float(
                 difference.rotation_angle,
@@ -342,9 +355,10 @@ fn apply_source_inertialization(target: &Pose, state: &SourceInertializationStat
                 state.elapsed,
                 difference.duration,
             );
-            bone.rotation = Some(
-                (Quat::from_axis_angle(difference.rotation_axis, angle) * rotation).normalize(),
-            );
+            let (sine, cosine) = (f64::from(angle) * 0.5).sin_cos();
+            let axis = difference.rotation_axis.as_dvec3() * sine;
+            let offset = DQuat::from_xyzw(axis.x, axis.y, axis.z, cosine);
+            bone.rotation = Some(rig_quat_product(offset, rotation.as_dquat()).as_quat());
         }
         if let Some(scale) = bone.scale {
             bone.scale = Some(
@@ -1116,6 +1130,44 @@ mod tests {
             Some(Quat::from_rotation_y(-179.0_f32.to_radians())), 0.02,
         );
         assert!((speed + 2.0_f32.to_radians() / 0.02).abs() < 1e-4);
+    }
+
+    #[test]
+    fn raw_rotation_difference_matches_native_pose_samples() {
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d195/rotation.replay.json"
+        )).unwrap();
+        let bone = BoneId::default();
+        for case in reference["cases"].as_array().unwrap() {
+            let scalar = |key: &str| case[key].as_f64().unwrap() as f32;
+            let quaternion = |key: &str| {
+                let row = case[key].as_array().unwrap();
+                Quat::from_array(std::array::from_fn(|index| row[index].as_f64().unwrap() as f32))
+            };
+            let target = quaternion("target");
+            let (axis, angle, speed) = rotation_difference(
+                Some(target), Some(quaternion("previous")), Some(quaternion("older")), scalar("delta"),
+            );
+            let mut pose = Pose::default();
+            pose.add_bone(BonePose::from_transform(Transform::from_rotation(target)), bone);
+            let state = SourceInertializationState {
+                elapsed: scalar("elapsed"),
+                bones: vec![SourceInertialBone {
+                    bone,
+                    duration: scalar("duration"),
+                    rotation_axis: axis,
+                    rotation_angle: angle,
+                    rotation_speed: speed,
+                    ..default()
+                }],
+                ..default()
+            };
+            let output = apply_source_inertialization(&pose, &state);
+            let actual = Vec4::from_array(output.get_bone(bone).unwrap().rotation.unwrap().to_array());
+            let expected = Vec4::from_array(quaternion("native_rotation").to_array());
+            let error = (actual - expected).length().min((actual + expected).length());
+            assert!(error < 1e-5, "{}: {error}", case["name"]);
+        }
     }
 
     #[test]

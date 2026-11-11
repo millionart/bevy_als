@@ -1,0 +1,524 @@
+{
+  "node_property": "AnimGraphNode_Inertialization",
+  "samples": [
+    {
+      "name": "near_unit_positive",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            0.9999999403953552
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            0.9999999403953552
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        }
+      ]
+    },
+    {
+      "name": "near_unit_negative",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            -0.9999999403953552
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            -0.9999999403953552
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        }
+      ]
+    },
+    {
+      "name": "near_unit_fallback",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            2.9999999242136255e-05,
+            0,
+            0.9999999403953552
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            2.9999999242136255e-05,
+            0,
+            0.9999999403953552
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        }
+      ]
+    },
+    {
+      "name": "identity_control",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        }
+      ]
+    },
+    {
+      "name": "short_arc_twist",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            -0.9999619126319885,
+            0.008726535364985466
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0.9999619126319885,
+            0.008726535364985466
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        }
+      ]
+    },
+    {
+      "name": "ordinary",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0.258819043636322,
+            0.9659258127212524
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0.2164396196603775,
+            0.9762960076332092
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        }
+      ]
+    },
+    {
+      "name": "consecutive_requests",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            0.9999999403953552
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            0.9999999403953552
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0.0001308996870648116,
+            1.0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    }
+  ]
+}
