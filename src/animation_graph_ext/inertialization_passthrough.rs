@@ -293,16 +293,13 @@ fn apply_source_inertialization(target: &Pose, state: &SourceInertializationStat
             continue;
         };
         if let Some(translation) = bone.translation {
-            bone.translation = Some(
-                translation
-                    + difference.translation_direction
-                        * source_inertial_float(
-                            difference.translation_magnitude,
-                            difference.translation_speed,
-                            state.elapsed,
-                            difference.duration,
-                        ),
-            );
+            let offset = source_inertial_float(
+                difference.translation_magnitude * 100.0,
+                difference.translation_speed * 100.0,
+                state.elapsed,
+                difference.duration,
+            ) / 100.0;
+            bone.translation = Some(translation + difference.translation_direction * offset);
         }
         if let Some(rotation) = bone.rotation
             && difference.rotation_angle > f32::EPSILON
@@ -1145,6 +1142,37 @@ mod tests {
             let scale = transform.scale.unwrap().x as f64;
             assert!((translation - expected["translation_m"].as_f64().unwrap()).abs() < 2e-9, "{}", sample["name"]);
             assert!((scale - expected["scale"].as_f64().unwrap()).abs() < 2e-7, "{}", sample["name"]);
+        }
+    }
+
+    #[test]
+    fn translation_decay_matches_native_centimeter_samples() {
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d191/translation.replay.json"
+        )).unwrap();
+        let bone = BoneId::default();
+        let mut target = Pose::default();
+        target.add_bone(BonePose::from_transform(Transform::IDENTITY), bone);
+        for case in reference["cases"].as_array().unwrap() {
+            let mut state = SourceInertializationState {
+                bones: vec![SourceInertialBone {
+                    bone,
+                    duration: case["duration_seconds"].as_f64().unwrap() as f32,
+                    translation_direction: Vec3::X,
+                    translation_magnitude: case["magnitude_m"].as_f64().unwrap() as f32,
+                    translation_speed: case["speed_mps"].as_f64().unwrap() as f32,
+                    ..default()
+                }],
+                ..default()
+            };
+            let tolerance = if case["name"] == "centimeter_stop_window" { 1e-11 } else { 1e-9 };
+            for frame in case["frames"].as_array().unwrap() {
+                state.elapsed = frame["elapsed_seconds"].as_f64().unwrap() as f32;
+                let output = apply_source_inertialization(&target, &state);
+                let actual = output.get_bone(bone).unwrap().translation.unwrap().x as f64;
+                let expected = frame["translation_m"].as_f64().unwrap();
+                assert!((actual - expected).abs() <= tolerance, "{} at {}: {actual} vs {expected}", case["name"], state.elapsed);
+            }
         }
     }
 
