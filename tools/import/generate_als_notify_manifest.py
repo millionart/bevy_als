@@ -1,6 +1,7 @@
 import argparse
 import json
 from pathlib import Path
+from ue_animation_timing import f32
 
 
 class ValidationError(Exception):
@@ -112,6 +113,13 @@ def manifest(audit, assets_root):
                 raise ValidationError("unsupported_notify_tick_type:" + event_id)
             if type(event.get("filter_lod")) is not int or not -(2**31) <= event["filter_lod"] < 2**31:
                 raise ValidationError("invalid_notify_filter_lod:" + event_id)
+            start_offset = event.get("trigger_time_offset", 0.0)
+            trigger_time = f32(start + start_offset)
+            end_trigger_time = trigger_time
+            if event.get("kind") == "state":
+                duration = f32(end - start)
+                end_offset = event.get("end_trigger_time_offset", 0.0)
+                end_trigger_time = f32(f32(trigger_time + duration) + end_offset)
             events.append(
                 {
                     "id": source_id,
@@ -121,9 +129,9 @@ def manifest(audit, assets_root):
                     "class": event_class(event),
                     "track": event.get("track_name"),
                     "track_index": event.get("track_index"),
-                    "start_time": start + event.get("trigger_time_offset", 0.0),
-                    "end_time": end + event.get("trigger_time_offset", 0.0) + event.get("end_trigger_time_offset", 0.0),
-                    "trigger_time_offset": event.get("trigger_time_offset", 0.0),
+                    "start_time": trigger_time,
+                    "end_time": end_trigger_time,
+                    "trigger_time_offset": start_offset,
                     "weight_threshold": event.get("weight_threshold"),
                     "filter": {
                         "type": event.get("filter_type"),
@@ -166,7 +174,7 @@ def manifest(audit, assets_root):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--audit", default=Path("docs/bf103-notify-source-audit.json"), type=Path)
+    parser.add_argument("--audit", default=Path("docs/audit/bf144/d121a/notify-source-audit.json"), type=Path)
     parser.add_argument("--assets-root", default=Path("assets"), type=Path)
     parser.add_argument("--output", default=Path("assets/ALS/Animations/als_notify_manifest.json"), type=Path)
     parser.add_argument("--check", action="store_true")

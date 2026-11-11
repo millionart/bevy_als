@@ -1,0 +1,1804 @@
+{
+	"format": "ue_asset_source_v1",
+	"asset_path": "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low",
+	"asset_class": "/Script/Engine.AnimMontage",
+	"asset_properties": [
+		{
+			"name": "BlendModeIn",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "EnumProperty",
+			"cpp_type": "EMontageBlendMode",
+			"flags": "0x18001040000215",
+			"exported_text": "Standard",
+			"enum_underlying_value": "0",
+			"enum_value_name": "Standard"
+		},
+		{
+			"name": "BlendModeOut",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "EnumProperty",
+			"cpp_type": "EMontageBlendMode",
+			"flags": "0x18001040000215",
+			"exported_text": "Standard",
+			"enum_underlying_value": "0",
+			"enum_value_name": "Standard"
+		},
+		{
+			"name": "BlendIn",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlphaBlend",
+			"flags": "0x10001000000001",
+			"exported_text": "(BlendTime=0.200000,BlendOption=HermiteCubic)",
+			"fields": [
+				{
+					"name": "CustomCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x14C001000000201",
+					"exported_text": "None"
+				},
+				{
+					"name": "BlendTime",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040000201",
+					"exported_text": "0.200000",
+					"numeric_value": 0.20000000298023224
+				},
+				{
+					"name": "BlendOption",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EAlphaBlendOption",
+					"flags": "0x48001040000201",
+					"exported_text": "HermiteCubic",
+					"enum_underlying_value": "2",
+					"enum_value_name": "HermiteCubic"
+				}
+			]
+		},
+		{
+			"name": "BlendOut",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FAlphaBlend",
+			"flags": "0x10001000000001",
+			"exported_text": "(BlendTime=0.200000,BlendOption=HermiteCubic)",
+			"fields": [
+				{
+					"name": "CustomCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UCurveFloat>",
+					"flags": "0x14C001000000201",
+					"exported_text": "None"
+				},
+				{
+					"name": "BlendTime",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040000201",
+					"exported_text": "0.200000",
+					"numeric_value": 0.20000000298023224
+				},
+				{
+					"name": "BlendOption",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EAlphaBlendOption",
+					"flags": "0x48001040000201",
+					"exported_text": "HermiteCubic",
+					"enum_underlying_value": "2",
+					"enum_value_name": "HermiteCubic"
+				}
+			]
+		},
+		{
+			"name": "BlendOutTriggerTime",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040000201",
+			"exported_text": "0.000000",
+			"numeric_value": 0
+		},
+		{
+			"name": "SyncGroup",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "NameProperty",
+			"cpp_type": "FName",
+			"flags": "0x18001040000201",
+			"exported_text": "None"
+		},
+		{
+			"name": "SyncSlotIndex",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18001040000201",
+			"exported_text": "0"
+		},
+		{
+			"name": "MarkerData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FMarkerSyncData",
+			"flags": "0x10000000000000",
+			"exported_text": "()",
+			"fields": [
+				{
+					"name": "AuthoredSyncMarkers",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000200",
+					"exported_text": ""
+				}
+			]
+		},
+		{
+			"name": "CompositeSections",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x10008000000200",
+			"exported_text": "((SectionName=\"Default\",LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,LinkMethod=Proportional,CachedLinkMethod=Proportional,SegmentLength=1.500000,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"))"
+		},
+		{
+			"name": "SlotAnimTracks",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x10000000000214",
+			"exported_text": "((SlotName=\"PostLocomotion\",AnimTrack=(AnimSegments=((AnimReference=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\",AnimEndTime=1.500000)))))"
+		},
+		{
+			"name": "bEnableRootMotionTranslation",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000200",
+			"exported_text": "False"
+		},
+		{
+			"name": "bEnableRootMotionRotation",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000200",
+			"exported_text": "False"
+		},
+		{
+			"name": "bEnableAutoBlendOut",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000201",
+			"exported_text": "True"
+		},
+		{
+			"name": "BlendProfileIn",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UBlendProfile>",
+			"flags": "0x11C001000000215",
+			"exported_text": "None"
+		},
+		{
+			"name": "BlendProfileOut",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UBlendProfile>",
+			"flags": "0x11C001000000215",
+			"exported_text": "None"
+		},
+		{
+			"name": "RootMotionRootLock",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ByteProperty",
+			"cpp_type": "TEnumAsByte<ERootMotionRootLock::Type>",
+			"flags": "0x18001040000200",
+			"exported_text": "RefPose"
+		},
+		{
+			"name": "PreviewBasePose",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UAnimSequence>",
+			"flags": "0x11C001800000201",
+			"exported_text": "None"
+		},
+		{
+			"name": "BranchingPointMarkers",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x40000000000200",
+			"exported_text": "((NotifyIndex=0,TriggerTime=-0.000100),(NotifyIndex=0,TriggerTime=0.966567,NotifyEventType=End),(NotifyIndex=1,TriggerTime=1.000000),(NotifyIndex=1,TriggerTime=1.499900,NotifyEventType=End))"
+		},
+		{
+			"name": "BranchingPointStateNotifyIndices",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x10000000000200",
+			"exported_text": "(0,1)"
+		},
+		{
+			"name": "TimeStretchCurve",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FTimeStretchCurve",
+			"flags": "0x10000000000001",
+			"exported_text": "(SamplingRate=60.000000,CurveValueMinPrecision=0.010000)",
+			"fields": [
+				{
+					"name": "SamplingRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040000201",
+					"exported_text": "60.000000",
+					"numeric_value": 60
+				},
+				{
+					"name": "CurveValueMinPrecision",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040000201",
+					"exported_text": "0.010000",
+					"numeric_value": 0.0099999997764825821
+				},
+				{
+					"name": "Markers",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x40000000020201",
+					"exported_text": ""
+				},
+				{
+					"name": "Sum_dT_i_by_C_i",
+					"array_index": 0,
+					"array_dim": 3,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040020201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "Sum_dT_i_by_C_i",
+					"array_index": 1,
+					"array_dim": 3,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040020201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "Sum_dT_i_by_C_i",
+					"array_index": 2,
+					"array_dim": 3,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040020201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				}
+			]
+		},
+		{
+			"name": "TimeStretchCurveName",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "NameProperty",
+			"cpp_type": "FName",
+			"flags": "0x18001040000201",
+			"exported_text": "MontageTimeStretchCurve"
+		},
+		{
+			"name": "CommonTargetFrameRate",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FFrameRate",
+			"flags": "0x28081000020001",
+			"exported_text": "(Numerator=30,Denominator=1)",
+			"fields": [
+				{
+					"name": "Numerator",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "30"
+				},
+				{
+					"name": "Denominator",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "1"
+				}
+			]
+		},
+		{
+			"name": "Notifies",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x10008000000200",
+			"exported_text": "((TriggerTimeOffset=-0.000100,NotifyName=\"BMNotifyStateMovementAction\",NotifyStateClass=\"/Script/ALS.AlsAnimNotifyState_SetLocomotionAction'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:BMNotifyStateMovementAction_0'\",Duration=0.966667,EndLink=(LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,SegmentLength=1.500000,LinkValue=0.966667,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"),Guid=8F74899A416521DF10948FB0BF46FD92,LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,SegmentLength=1.500000,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"),(EndTriggerTimeOffset=-0.000100,NotifyName=\"BMNotifyStateEarlyBlendOut\",NotifyStateClass=\"/Script/ALS.AlsAnimNotifyState_EarlyBlendOut'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:BMNotifyStateEarlyBlendOut_0'\",Duration=0.500000,EndLink=(LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,SegmentLength=1.500000,LinkValue=1.500000,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"),Guid=55D501AC4C6D0BC6EDC0E1A0D3C4BD36,TrackIndex=1,LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,SegmentLength=1.500000,LinkValue=1.000000,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"))"
+		},
+		{
+			"name": "SequenceLength",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x28091040020215",
+			"exported_text": "1.500000",
+			"numeric_value": 1.5
+		},
+		{
+			"name": "RawCurveData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FRawCurveTracks",
+			"flags": "0x20080000000000",
+			"exported_text": "(FloatCurves=((FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=1.166667),(Time=1.266667,Value=1.000000))),Color=(R=0.177839,G=0.187070,B=0.768628,A=1.000000),CurveName=\"FootLeftIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=0.566667),(Time=0.700000,Value=1.000000))),Color=(R=0.768628,G=0.662470,B=0.177839,A=1.000000),CurveName=\"FootRightIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=1.233333,Value=-0.000000),(Time=1.266667,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.357845,A=1.000000),CurveName=\"FootLeftLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=0.700000,Value=-0.000000),(Time=0.733333,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.371691,A=1.000000),CurveName=\"FootRightLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.283996,B=0.768628,A=1.000000),CurveName=\"LayerArmLeft\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.431694,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerArmRight\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.237841,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerHead\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.223995,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerLegs\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.768628,B=0.436309,A=1.000000),CurveName=\"LayerPelvis\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.514773,G=0.768628,B=0.177839,A=1.000000),CurveName=\"LayerSpine\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.300000,Value=1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.966667,Value=1.000000),(Time=1.233333))),Color=(R=0.362460,G=0.768628,B=0.177839,A=1.000000),CurveName=\"ViewBlock\",CurveTypeFlags=4)))",
+			"fields": [
+				{
+					"name": "FloatCurves",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000200",
+					"exported_text": "((FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=1.166667),(Time=1.266667,Value=1.000000))),Color=(R=0.177839,G=0.187070,B=0.768628,A=1.000000),CurveName=\"FootLeftIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=0.566667),(Time=0.700000,Value=1.000000))),Color=(R=0.768628,G=0.662470,B=0.177839,A=1.000000),CurveName=\"FootRightIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=1.233333,Value=-0.000000),(Time=1.266667,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.357845,A=1.000000),CurveName=\"FootLeftLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=0.700000,Value=-0.000000),(Time=0.733333,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.371691,A=1.000000),CurveName=\"FootRightLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.283996,B=0.768628,A=1.000000),CurveName=\"LayerArmLeft\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.431694,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerArmRight\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.237841,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerHead\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.223995,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerLegs\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.768628,B=0.436309,A=1.000000),CurveName=\"LayerPelvis\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.514773,G=0.768628,B=0.177839,A=1.000000),CurveName=\"LayerSpine\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.300000,Value=1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.966667,Value=1.000000),(Time=1.233333))),Color=(R=0.362460,G=0.768628,B=0.177839,A=1.000000),CurveName=\"ViewBlock\",CurveTypeFlags=4))"
+				},
+				{
+					"name": "VectorCurves",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000800002200",
+					"exported_text": ""
+				},
+				{
+					"name": "TransformCurves",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000800000200",
+					"exported_text": ""
+				}
+			]
+		},
+		{
+			"name": "RateScale",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "FloatProperty",
+			"cpp_type": "float",
+			"flags": "0x18001040000201",
+			"exported_text": "1.000000",
+			"numeric_value": 1
+		},
+		{
+			"name": "bLoop",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000201",
+			"exported_text": "False"
+		},
+		{
+			"name": "AnimNotifyTracks",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x10000800000200",
+			"exported_text": "((TrackName=\"1\",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000)),(TrackName=\"2\",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000)))"
+		},
+		{
+			"name": "DataModel",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UAnimDataModel>",
+			"flags": "0x12C081800020215",
+			"exported_text": "None"
+		},
+		{
+			"name": "DataModelInterface",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "InterfaceProperty",
+			"cpp_type": "TScriptInterface",
+			"flags": "0x2C081840020215",
+			"exported_text": "AnimDataModel'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:AnimDataModel'"
+		},
+		{
+			"name": "Controller",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "InterfaceProperty",
+			"cpp_type": "TScriptInterface",
+			"flags": "0x2C081840222215",
+			"exported_text": "AnimDataController'/Engine/Transient.AnimDataController_0'"
+		},
+		{
+			"name": "Skeleton",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<USkeleton>",
+			"flags": "0x14C011000020201",
+			"exported_text": "/Script/Engine.Skeleton'/ALS/ALS/Character/SK_Als.SK_Als'"
+		},
+		{
+			"name": "MetaData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x144008000000209",
+			"exported_text": ""
+		},
+		{
+			"name": "ParentAsset",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UAnimationAsset>",
+			"flags": "0x11C011800020201",
+			"exported_text": "None"
+		},
+		{
+			"name": "ChildrenAssets",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x114000800002200",
+			"exported_text": ""
+		},
+		{
+			"name": "AssetMappingTable",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UAssetMappingTable>",
+			"flags": "0x12C081800020201",
+			"exported_text": "None"
+		},
+		{
+			"name": "AssetUserData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x1240C8000000209",
+			"exported_text": ""
+		},
+		{
+			"name": "ThumbnailInfo",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UThumbnailInfo>",
+			"flags": "0x11E0018000A0209",
+			"exported_text": "/Script/UnrealEd.SceneThumbnailInfo'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:SceneThumbnailInfo_0'"
+		},
+		{
+			"name": "PreviewPoseAsset",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UPoseAsset>",
+			"flags": "0x11C001800200201",
+			"exported_text": "None"
+		},
+		{
+			"name": "PreviewSkeletalMesh",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "SoftObjectProperty",
+			"cpp_type": "TSoftObjectPtr<USkeletalMesh>",
+			"flags": "0x4C010800200000",
+			"exported_text": "/ALS/ALS/Character/SKM_Als.SKM_Als"
+		}
+	],
+	"engine_debug_fonts":
+	{
+		"tiny":
+		{
+			"size_points": 8,
+			"max_char_height": 13,
+			"style": "Light"
+		},
+		"medium":
+		{
+			"size_points": 10,
+			"max_char_height": 15,
+			"style": "Regular"
+		}
+	},
+	"blueprint_cdo_path": "None",
+	"blueprint_cdo_properties": [],
+	"blueprint_cdo_subobjects": [],
+	"asset_objects": [
+		{
+			"index": 0,
+			"object_path": "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low",
+			"class_path": "/Script/Engine.AnimMontage",
+			"properties": [
+				{
+					"name": "BlendModeIn",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EMontageBlendMode",
+					"flags": "0x18001040000215",
+					"exported_text": "Standard",
+					"enum_underlying_value": "0",
+					"enum_value_name": "Standard"
+				},
+				{
+					"name": "BlendModeOut",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EMontageBlendMode",
+					"flags": "0x18001040000215",
+					"exported_text": "Standard",
+					"enum_underlying_value": "0",
+					"enum_value_name": "Standard"
+				},
+				{
+					"name": "BlendIn",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlphaBlend",
+					"flags": "0x10001000000001",
+					"exported_text": "(BlendTime=0.200000,BlendOption=HermiteCubic)",
+					"fields": [
+						{
+							"name": "CustomCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x14C001000000201",
+							"exported_text": "None"
+						},
+						{
+							"name": "BlendTime",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x48001040000201",
+							"exported_text": "0.200000",
+							"numeric_value": 0.20000000298023224
+						},
+						{
+							"name": "BlendOption",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "EAlphaBlendOption",
+							"flags": "0x48001040000201",
+							"exported_text": "HermiteCubic",
+							"enum_underlying_value": "2",
+							"enum_value_name": "HermiteCubic"
+						}
+					]
+				},
+				{
+					"name": "BlendOut",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAlphaBlend",
+					"flags": "0x10001000000001",
+					"exported_text": "(BlendTime=0.200000,BlendOption=HermiteCubic)",
+					"fields": [
+						{
+							"name": "CustomCurve",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ObjectProperty",
+							"cpp_type": "TObjectPtr<UCurveFloat>",
+							"flags": "0x14C001000000201",
+							"exported_text": "None"
+						},
+						{
+							"name": "BlendTime",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x48001040000201",
+							"exported_text": "0.200000",
+							"numeric_value": 0.20000000298023224
+						},
+						{
+							"name": "BlendOption",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "EnumProperty",
+							"cpp_type": "EAlphaBlendOption",
+							"flags": "0x48001040000201",
+							"exported_text": "HermiteCubic",
+							"enum_underlying_value": "2",
+							"enum_value_name": "HermiteCubic"
+						}
+					]
+				},
+				{
+					"name": "BlendOutTriggerTime",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "SyncGroup",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "NameProperty",
+					"cpp_type": "FName",
+					"flags": "0x18001040000201",
+					"exported_text": "None"
+				},
+				{
+					"name": "SyncSlotIndex",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000201",
+					"exported_text": "0"
+				},
+				{
+					"name": "MarkerData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FMarkerSyncData",
+					"flags": "0x10000000000000",
+					"exported_text": "()",
+					"fields": [
+						{
+							"name": "AuthoredSyncMarkers",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000200",
+							"exported_text": ""
+						}
+					]
+				},
+				{
+					"name": "CompositeSections",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10008000000200",
+					"exported_text": "((SectionName=\"Default\",LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,LinkMethod=Proportional,CachedLinkMethod=Proportional,SegmentLength=1.500000,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"))"
+				},
+				{
+					"name": "SlotAnimTracks",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000214",
+					"exported_text": "((SlotName=\"PostLocomotion\",AnimTrack=(AnimSegments=((AnimReference=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\",AnimEndTime=1.500000)))))"
+				},
+				{
+					"name": "bEnableRootMotionTranslation",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000200",
+					"exported_text": "False"
+				},
+				{
+					"name": "bEnableRootMotionRotation",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000200",
+					"exported_text": "False"
+				},
+				{
+					"name": "bEnableAutoBlendOut",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "True"
+				},
+				{
+					"name": "BlendProfileIn",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UBlendProfile>",
+					"flags": "0x11C001000000215",
+					"exported_text": "None"
+				},
+				{
+					"name": "BlendProfileOut",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UBlendProfile>",
+					"flags": "0x11C001000000215",
+					"exported_text": "None"
+				},
+				{
+					"name": "RootMotionRootLock",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ERootMotionRootLock::Type>",
+					"flags": "0x18001040000200",
+					"exported_text": "RefPose"
+				},
+				{
+					"name": "PreviewBasePose",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimSequence>",
+					"flags": "0x11C001800000201",
+					"exported_text": "None"
+				},
+				{
+					"name": "BranchingPointMarkers",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x40000000000200",
+					"exported_text": "((NotifyIndex=0,TriggerTime=-0.000100),(NotifyIndex=0,TriggerTime=0.966567,NotifyEventType=End),(NotifyIndex=1,TriggerTime=1.000000),(NotifyIndex=1,TriggerTime=1.499900,NotifyEventType=End))"
+				},
+				{
+					"name": "BranchingPointStateNotifyIndices",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000200",
+					"exported_text": "(0,1)"
+				},
+				{
+					"name": "TimeStretchCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FTimeStretchCurve",
+					"flags": "0x10000000000001",
+					"exported_text": "(SamplingRate=60.000000,CurveValueMinPrecision=0.010000)",
+					"fields": [
+						{
+							"name": "SamplingRate",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x48001040000201",
+							"exported_text": "60.000000",
+							"numeric_value": 60
+						},
+						{
+							"name": "CurveValueMinPrecision",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x48001040000201",
+							"exported_text": "0.010000",
+							"numeric_value": 0.0099999997764825821
+						},
+						{
+							"name": "Markers",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x40000000020201",
+							"exported_text": ""
+						},
+						{
+							"name": "Sum_dT_i_by_C_i",
+							"array_index": 0,
+							"array_dim": 3,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x48001040020201",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Sum_dT_i_by_C_i",
+							"array_index": 1,
+							"array_dim": 3,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x48001040020201",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						},
+						{
+							"name": "Sum_dT_i_by_C_i",
+							"array_index": 2,
+							"array_dim": 3,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x48001040020201",
+							"exported_text": "0.000000",
+							"numeric_value": 0
+						}
+					]
+				},
+				{
+					"name": "TimeStretchCurveName",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "NameProperty",
+					"cpp_type": "FName",
+					"flags": "0x18001040000201",
+					"exported_text": "MontageTimeStretchCurve"
+				},
+				{
+					"name": "CommonTargetFrameRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FFrameRate",
+					"flags": "0x28081000020001",
+					"exported_text": "(Numerator=30,Denominator=1)",
+					"fields": [
+						{
+							"name": "Numerator",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "30"
+						},
+						{
+							"name": "Denominator",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "1"
+						}
+					]
+				},
+				{
+					"name": "Notifies",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10008000000200",
+					"exported_text": "((TriggerTimeOffset=-0.000100,NotifyName=\"BMNotifyStateMovementAction\",NotifyStateClass=\"/Script/ALS.AlsAnimNotifyState_SetLocomotionAction'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:BMNotifyStateMovementAction_0'\",Duration=0.966667,EndLink=(LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,SegmentLength=1.500000,LinkValue=0.966667,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"),Guid=8F74899A416521DF10948FB0BF46FD92,LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,SegmentLength=1.500000,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"),(EndTriggerTimeOffset=-0.000100,NotifyName=\"BMNotifyStateEarlyBlendOut\",NotifyStateClass=\"/Script/ALS.AlsAnimNotifyState_EarlyBlendOut'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:BMNotifyStateEarlyBlendOut_0'\",Duration=0.500000,EndLink=(LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,SegmentLength=1.500000,LinkValue=1.500000,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"),Guid=55D501AC4C6D0BC6EDC0E1A0D3C4BD36,TrackIndex=1,LinkedMontage=\"/Script/Engine.AnimMontage'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low'\",SegmentIndex=0,SegmentLength=1.500000,LinkValue=1.000000,LinkedSequence=\"/Script/Engine.AnimSequence'/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right'\"))"
+				},
+				{
+					"name": "SequenceLength",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x28091040020215",
+					"exported_text": "1.500000",
+					"numeric_value": 1.5
+				},
+				{
+					"name": "RawCurveData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FRawCurveTracks",
+					"flags": "0x20080000000000",
+					"exported_text": "(FloatCurves=((FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=1.166667),(Time=1.266667,Value=1.000000))),Color=(R=0.177839,G=0.187070,B=0.768628,A=1.000000),CurveName=\"FootLeftIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=0.566667),(Time=0.700000,Value=1.000000))),Color=(R=0.768628,G=0.662470,B=0.177839,A=1.000000),CurveName=\"FootRightIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=1.233333,Value=-0.000000),(Time=1.266667,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.357845,A=1.000000),CurveName=\"FootLeftLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=0.700000,Value=-0.000000),(Time=0.733333,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.371691,A=1.000000),CurveName=\"FootRightLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.283996,B=0.768628,A=1.000000),CurveName=\"LayerArmLeft\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.431694,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerArmRight\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.237841,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerHead\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.223995,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerLegs\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.768628,B=0.436309,A=1.000000),CurveName=\"LayerPelvis\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.514773,G=0.768628,B=0.177839,A=1.000000),CurveName=\"LayerSpine\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.300000,Value=1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.966667,Value=1.000000),(Time=1.233333))),Color=(R=0.362460,G=0.768628,B=0.177839,A=1.000000),CurveName=\"ViewBlock\",CurveTypeFlags=4)))",
+					"fields": [
+						{
+							"name": "FloatCurves",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000200",
+							"exported_text": "((FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=1.166667),(Time=1.266667,Value=1.000000))),Color=(R=0.177839,G=0.187070,B=0.768628,A=1.000000),CurveName=\"FootLeftIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=0.566667),(Time=0.700000,Value=1.000000))),Color=(R=0.768628,G=0.662470,B=0.177839,A=1.000000),CurveName=\"FootRightIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=1.233333,Value=-0.000000),(Time=1.266667,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.357845,A=1.000000),CurveName=\"FootLeftLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=0.700000,Value=-0.000000),(Time=0.733333,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.371691,A=1.000000),CurveName=\"FootRightLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.283996,B=0.768628,A=1.000000),CurveName=\"LayerArmLeft\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.431694,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerArmRight\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.237841,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerHead\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.223995,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerLegs\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.768628,B=0.436309,A=1.000000),CurveName=\"LayerPelvis\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.514773,G=0.768628,B=0.177839,A=1.000000),CurveName=\"LayerSpine\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.300000,Value=1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.966667,Value=1.000000),(Time=1.233333))),Color=(R=0.362460,G=0.768628,B=0.177839,A=1.000000),CurveName=\"ViewBlock\",CurveTypeFlags=4))"
+						},
+						{
+							"name": "VectorCurves",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000800002200",
+							"exported_text": ""
+						},
+						{
+							"name": "TransformCurves",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000800000200",
+							"exported_text": ""
+						}
+					]
+				},
+				{
+					"name": "RateScale",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "1.000000",
+					"numeric_value": 1
+				},
+				{
+					"name": "bLoop",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000201",
+					"exported_text": "False"
+				},
+				{
+					"name": "AnimNotifyTracks",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000800000200",
+					"exported_text": "((TrackName=\"1\",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000)),(TrackName=\"2\",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000)))"
+				},
+				{
+					"name": "DataModel",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimDataModel>",
+					"flags": "0x12C081800020215",
+					"exported_text": "None"
+				},
+				{
+					"name": "DataModelInterface",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "InterfaceProperty",
+					"cpp_type": "TScriptInterface",
+					"flags": "0x2C081840020215",
+					"exported_text": "AnimDataModel'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:AnimDataModel'"
+				},
+				{
+					"name": "Controller",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "InterfaceProperty",
+					"cpp_type": "TScriptInterface",
+					"flags": "0x2C081840222215",
+					"exported_text": "AnimDataController'/Engine/Transient.AnimDataController_0'"
+				},
+				{
+					"name": "Skeleton",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<USkeleton>",
+					"flags": "0x14C011000020201",
+					"exported_text": "/Script/Engine.Skeleton'/ALS/ALS/Character/SK_Als.SK_Als'"
+				},
+				{
+					"name": "MetaData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x144008000000209",
+					"exported_text": ""
+				},
+				{
+					"name": "ParentAsset",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAnimationAsset>",
+					"flags": "0x11C011800020201",
+					"exported_text": "None"
+				},
+				{
+					"name": "ChildrenAssets",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x114000800002200",
+					"exported_text": ""
+				},
+				{
+					"name": "AssetMappingTable",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAssetMappingTable>",
+					"flags": "0x12C081800020201",
+					"exported_text": "None"
+				},
+				{
+					"name": "AssetUserData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x1240C8000000209",
+					"exported_text": ""
+				},
+				{
+					"name": "ThumbnailInfo",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UThumbnailInfo>",
+					"flags": "0x11E0018000A0209",
+					"exported_text": "/Script/UnrealEd.SceneThumbnailInfo'/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:SceneThumbnailInfo_0'"
+				},
+				{
+					"name": "PreviewPoseAsset",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UPoseAsset>",
+					"flags": "0x11C001800200201",
+					"exported_text": "None"
+				},
+				{
+					"name": "PreviewSkeletalMesh",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "SoftObjectProperty",
+					"cpp_type": "TSoftObjectPtr<USkeletalMesh>",
+					"flags": "0x4C010800200000",
+					"exported_text": "/ALS/ALS/Character/SKM_Als.SKM_Als"
+				}
+			]
+		},
+		{
+			"index": 1,
+			"object_path": "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:AnimDataModel",
+			"class_path": "/Script/Engine.AnimDataModel",
+			"properties": [
+				{
+					"name": "BracketCounter",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x48001040002200",
+					"exported_text": "0"
+				},
+				{
+					"name": "ModifiedEventDynamic",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "MulticastInlineDelegateProperty",
+					"cpp_type": "FAnimDataModelModifiedDynamicEvent",
+					"flags": "0x40000010082200",
+					"exported_text": "()"
+				},
+				{
+					"name": "BoneAnimationTracks",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x40000000020215",
+					"exported_text": ""
+				},
+				{
+					"name": "PlayLength",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x48001040020215",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				},
+				{
+					"name": "FrameRate",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FFrameRate",
+					"flags": "0x48001000020015",
+					"exported_text": "(Numerator=60000,Denominator=1)",
+					"fields": [
+						{
+							"name": "Numerator",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "60000"
+						},
+						{
+							"name": "Denominator",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "IntProperty",
+							"cpp_type": "int32",
+							"flags": "0x18001040000205",
+							"exported_text": "1"
+						}
+					]
+				},
+				{
+					"name": "NumberOfFrames",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x48001040020215",
+					"exported_text": "90000"
+				},
+				{
+					"name": "NumberOfKeys",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x48001040020215",
+					"exported_text": "90001"
+				},
+				{
+					"name": "CurveData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAnimationCurveData",
+					"flags": "0x40000000020015",
+					"exported_text": "(FloatCurves=((FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=1.166667),(Time=1.266667,Value=1.000000))),Color=(R=0.177839,G=0.187070,B=0.768628,A=1.000000),CurveName=\"FootLeftIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=0.566667),(Time=0.700000,Value=1.000000))),Color=(R=0.768628,G=0.662470,B=0.177839,A=1.000000),CurveName=\"FootRightIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=1.233333,Value=-0.000000),(Time=1.266667,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.357845,A=1.000000),CurveName=\"FootLeftLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=0.700000,Value=-0.000000),(Time=0.733333,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.371691,A=1.000000),CurveName=\"FootRightLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.283996,B=0.768628,A=1.000000),CurveName=\"LayerArmLeft\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.431694,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerArmRight\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.237841,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerHead\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.223995,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerLegs\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.768628,B=0.436309,A=1.000000),CurveName=\"LayerPelvis\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.514773,G=0.768628,B=0.177839,A=1.000000),CurveName=\"LayerSpine\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.300000,Value=1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.966667,Value=1.000000),(Time=1.233333))),Color=(R=0.362460,G=0.768628,B=0.177839,A=1.000000),CurveName=\"ViewBlock\",CurveTypeFlags=4)))",
+					"fields": [
+						{
+							"name": "FloatCurves",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000020215",
+							"exported_text": "((FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=1.166667),(Time=1.266667,Value=1.000000))),Color=(R=0.177839,G=0.187070,B=0.768628,A=1.000000),CurveName=\"FootLeftIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,Time=0.566667),(Time=0.700000,Value=1.000000))),Color=(R=0.768628,G=0.662470,B=0.177839,A=1.000000),CurveName=\"FootRightIk\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=1.233333,Value=-0.000000),(Time=1.266667,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.357845,A=1.000000),CurveName=\"FootLeftLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((),(Time=0.700000,Value=-0.000000),(Time=0.733333,Value=1.000000))),Color=(R=0.768628,G=0.177839,B=0.371691,A=1.000000),CurveName=\"FootRightLock\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.283996,B=0.768628,A=1.000000),CurveName=\"LayerArmLeft\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.431694,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerArmRight\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.237841,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerHead\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.223995,G=0.177839,B=0.768628,A=1.000000),CurveName=\"LayerLegs\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.177839,G=0.768628,B=0.436309,A=1.000000),CurveName=\"LayerPelvis\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic,TangentMode=RCTM_User),(Time=0.366667,Value=-1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.933333,Value=-1.000000),(Time=1.200000))),Color=(R=0.514773,G=0.768628,B=0.177839,A=1.000000),CurveName=\"LayerSpine\",CurveTypeFlags=4),(FloatCurve=(Keys=((InterpMode=RCIM_Cubic),(Time=0.300000,Value=1.000000),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.966667,Value=1.000000),(Time=1.233333))),Color=(R=0.362460,G=0.768628,B=0.177839,A=1.000000),CurveName=\"ViewBlock\",CurveTypeFlags=4))"
+						},
+						{
+							"name": "TransformCurves",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000020215",
+							"exported_text": ""
+						}
+					]
+				},
+				{
+					"name": "AnimatedBoneAttributes",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x40000000020215",
+					"exported_text": ""
+				},
+				{
+					"name": "bPopulated",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x48001040000200",
+					"exported_text": "True"
+				}
+			]
+		},
+		{
+			"index": 2,
+			"object_path": "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:BMNotifyStateEarlyBlendOut_0",
+			"class_path": "/Script/ALS.AlsAnimNotifyState_EarlyBlendOut",
+			"properties": [
+				{
+					"name": "BlendOutDuration",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x28081040000215",
+					"exported_text": "0.350000",
+					"numeric_value": 0.34999999403953552
+				},
+				{
+					"name": "bCheckInput",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x28081000000015",
+					"exported_text": "True"
+				},
+				{
+					"name": "bCheckLocomotionMode",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x28081000000015",
+					"exported_text": "True"
+				},
+				{
+					"name": "bCheckRotationMode",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x28081000000015",
+					"exported_text": "True"
+				},
+				{
+					"name": "bCheckStance",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "uint8",
+					"flags": "0x28081000000015",
+					"exported_text": "True"
+				},
+				{
+					"name": "LocomotionModeEquals",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FGameplayTag",
+					"flags": "0x28081000000015",
+					"exported_text": "(TagName=\"Als.LocomotionMode.InAir\")",
+					"fields": [
+						{
+							"name": "TagName",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "NameProperty",
+							"cpp_type": "FName",
+							"flags": "0x28081041020201",
+							"exported_text": "Als.LocomotionMode.InAir"
+						}
+					]
+				},
+				{
+					"name": "RotationModeEquals",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FGameplayTag",
+					"flags": "0x28081000000015",
+					"exported_text": "(TagName=\"Als.RotationMode.Aiming\")",
+					"fields": [
+						{
+							"name": "TagName",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "NameProperty",
+							"cpp_type": "FName",
+							"flags": "0x28081041020201",
+							"exported_text": "Als.RotationMode.Aiming"
+						}
+					]
+				},
+				{
+					"name": "StanceEquals",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FGameplayTag",
+					"flags": "0x28081000000015",
+					"exported_text": "(TagName=\"Als.Stance.Crouching\")",
+					"fields": [
+						{
+							"name": "TagName",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "NameProperty",
+							"cpp_type": "FName",
+							"flags": "0x28081041020201",
+							"exported_text": "Als.Stance.Crouching"
+						}
+					]
+				},
+				{
+					"name": "NotifyColor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FColor",
+					"flags": "0x18001840000215",
+					"exported_text": "(B=255,G=200,R=200,A=255)",
+					"fields": [
+						{
+							"name": "B",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "255"
+						},
+						{
+							"name": "G",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "200"
+						},
+						{
+							"name": "R",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "200"
+						},
+						{
+							"name": "A",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "255"
+						}
+					]
+				},
+				{
+					"name": "bShouldFireInEditor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041840000215",
+					"exported_text": "False"
+				},
+				{
+					"name": "NotifyStateBehaviorFlags",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041040000215",
+					"exported_text": "0"
+				}
+			]
+		},
+		{
+			"index": 3,
+			"object_path": "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:BMNotifyStateMovementAction_0",
+			"class_path": "/Script/ALS.AlsAnimNotifyState_SetLocomotionAction",
+			"properties": [
+				{
+					"name": "LocomotionAction",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FGameplayTag",
+					"flags": "0x28081000000015",
+					"exported_text": "(TagName=\"Als.LocomotionAction.Mantling\")",
+					"fields": [
+						{
+							"name": "TagName",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "NameProperty",
+							"cpp_type": "FName",
+							"flags": "0x28081041020201",
+							"exported_text": "Als.LocomotionAction.Mantling"
+						}
+					]
+				},
+				{
+					"name": "NotifyColor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FColor",
+					"flags": "0x18001840000215",
+					"exported_text": "(B=255,G=200,R=200,A=255)",
+					"fields": [
+						{
+							"name": "B",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "255"
+						},
+						{
+							"name": "G",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "200"
+						},
+						{
+							"name": "R",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "200"
+						},
+						{
+							"name": "A",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "uint8",
+							"flags": "0x18001041000205",
+							"exported_text": "255"
+						}
+					]
+				},
+				{
+					"name": "bShouldFireInEditor",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18041840000215",
+					"exported_text": "True"
+				},
+				{
+					"name": "NotifyStateBehaviorFlags",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "uint8",
+					"flags": "0x18041040000215",
+					"exported_text": "0"
+				}
+			]
+		},
+		{
+			"index": 4,
+			"object_path": "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low:SceneThumbnailInfo_0",
+			"class_path": "/Script/UnrealEd.SceneThumbnailInfo",
+			"properties": [
+				{
+					"name": "OrbitPitch",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "-11.250000",
+					"numeric_value": -11.25
+				},
+				{
+					"name": "OrbitYaw",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "-157.500000",
+					"numeric_value": -157.5
+				},
+				{
+					"name": "OrbitZoom",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "0.000000",
+					"numeric_value": 0
+				}
+			]
+		}
+	],
+	"graphs": [],
+	"notify_clock_probe":
+	{
+		"duration": 1.5,
+		"cases": [
+			{
+				"looping": false,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": 0.30000001192092896,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					}
+				]
+			},
+			{
+				"looping": false,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": -0.30000001192092896,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					}
+				]
+			},
+			{
+				"looping": false,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": 1.8000000715255737,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					}
+				]
+			},
+			{
+				"looping": false,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": -1.8000000715255737,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					}
+				]
+			},
+			{
+				"looping": false,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": 3.8999998569488525,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					}
+				]
+			},
+			{
+				"looping": false,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": -3.8999998569488525,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					}
+				]
+			},
+			{
+				"looping": true,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": 0.30000001192092896,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					}
+				]
+			},
+			{
+				"looping": true,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": -0.30000001192092896,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					}
+				]
+			},
+			{
+				"looping": true,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": 1.8000000715255737,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					},
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					}
+				]
+			},
+			{
+				"looping": true,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": -1.8000000715255737,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					}
+				]
+			},
+			{
+				"looping": true,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": 3.8999998569488525,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					},
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					}
+				]
+			},
+			{
+				"looping": true,
+				"start_time": 0.90000003576278687,
+				"delta_seconds": -3.8999998569488525,
+				"events": [
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 0,
+						"trigger_time": -9.9999997473787516e-05,
+						"end_trigger_time": 0.96656662225723267
+					},
+					{
+						"event_index": 1,
+						"trigger_time": 1,
+						"end_trigger_time": 1.4998999834060669
+					}
+				]
+			}
+		]
+	}
+}

@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 from uasset_base import UAsset
 from uasset_reader import PropReader
+from ue_animation_timing import f32
 
 
 SEQUENCE_PROPERTIES = {
@@ -146,7 +147,7 @@ def event_rows(asset, reader, sequence_index, source):
             start = numeric(values.get("LinkValue"))
             duration = numeric(values.get("Duration"))
             end_link = nested(values.get("EndLink"))
-            end = numeric(end_link.get("LinkValue"), start + duration)
+            end = numeric(end_link.get("LinkValue"), f32(start + duration))
             state_ref = scalar(values.get("NotifyStateClass"))
             notify_ref = scalar(values.get("Notify"))
             state = detail_for_reference(asset, reader, indexes, state_ref)
@@ -221,13 +222,13 @@ def audit(content_root, manifest):
     failures = []
     targets = manifest_targets(manifest)
     seen_targets = set()
-    for path in sorted(content_root.rglob("*.uasset")):
+    for path in sorted(content_root.rglob("*.uasset"), key=lambda path: path.as_posix().casefold()):
         try:
             asset = UAsset(str(path))
         except Exception as error:
             failures.append({"source_object": "/ALS/" + path.relative_to(content_root).as_posix(), "error": type(error).__name__})
             continue
-        reader = PropReader(asset)
+        reader = PropReader(asset, precise_float_properties=True)
         for index in range(len(asset.exports)):
             source = source_for_file(content_root, path, asset, index, targets)
             if source["target_gltf"]:
@@ -425,8 +426,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--content-root", required=True, type=Path)
     parser.add_argument("--manifest", default=Path("assets/docs/export-manifest.md"), type=Path)
-    parser.add_argument("--json", default=Path("docs/bf103-notify-source-audit.json"), type=Path)
-    parser.add_argument("--report", default=Path("docs/bf103-notify-source-audit.md"), type=Path)
+    parser.add_argument("--json", default=Path("docs/audit/bf144/d121a/notify-source-audit.json"), type=Path)
+    parser.add_argument("--report", default=Path("target/notify-source-audit.md"), type=Path)
     args = parser.parse_args()
     rows, failures = audit(args.content_root, args.manifest)
     result = summary(rows, failures)

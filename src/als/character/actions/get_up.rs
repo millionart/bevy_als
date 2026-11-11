@@ -804,7 +804,7 @@ mod tests {
         let terminal_request: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../docs/audit/bf144/d120/clock.request.json"
         )).unwrap();
-        for (facing_up, mut settings, clock, notify, terminal) in [
+        for (facing_up, settings, clock, notify, terminal) in [
             (false, settings.front, include_str!("../../../../docs/audit/bf144/d118a/front.native.json"),
                 include_str!("../../../../docs/audit/bf144/d118a/front-notify.native.json"),
                 include_str!("../../../../docs/audit/bf144/d120/front.native.json")),
@@ -818,7 +818,7 @@ mod tests {
                 .map(|event| event["end_trigger_time"].as_f64().unwrap() as f32);
             let marker = ends.next().unwrap();
             assert!(ends.all(|time| time == marker));
-            settings.notify_end_clip_seconds = marker;
+            assert_eq!(settings.notify_end_clip_seconds, marker);
 
             for (clock, request) in [(clock, None), (terminal, Some(&terminal_request))] {
                 let clock: serde_json::Value = serde_json::from_str(clock).unwrap();

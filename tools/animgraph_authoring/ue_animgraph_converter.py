@@ -200,7 +200,7 @@ def source_reader_failure(report_path, exit_code):
     return f"native UE source reader failed with exit code {exit_code}"
 
 
-def read_uasset_source(uasset, content_root, mount, source_reader, timeout_seconds, no_progress_seconds):
+def read_uasset_source(uasset, content_root, mount, source_reader, timeout_seconds, no_progress_seconds, *, notify_clock=False):
     if not source_reader.is_file():
         raise ConversionError("native UE source reader is unavailable")
     if timeout_seconds <= 0 or no_progress_seconds <= 0:
@@ -211,21 +211,24 @@ def read_uasset_source(uasset, content_root, mount, source_reader, timeout_secon
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
         intermediate = Path(directory) / "source.ue.json"
         reader_report = Path(str(intermediate) + ".reader.report.json")
+        command = [
+            "pwsh",
+            "-NoProfile",
+            "-File",
+            str(source_reader),
+            "-Asset",
+            package_path,
+            "-Output",
+            str(intermediate),
+            "-TimeoutSeconds",
+            str(timeout_seconds),
+            "-NoProgressSeconds",
+            str(no_progress_seconds),
+        ]
+        if notify_clock:
+            command.append("-NotifyClockProbe")
         process = subprocess.run(
-            [
-                "pwsh",
-                "-NoProfile",
-                "-File",
-                str(source_reader),
-                "-Asset",
-                package_path,
-                "-Output",
-                str(intermediate),
-                "-TimeoutSeconds",
-                str(timeout_seconds),
-                "-NoProgressSeconds",
-                str(no_progress_seconds),
-            ],
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,

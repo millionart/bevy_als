@@ -28,8 +28,9 @@ class Skip(Exception):
 
 
 class PropReader:
-    def __init__(self, asset: UAsset):
+    def __init__(self, asset: UAsset, *, precise_float_properties=False):
         self.a = asset
+        self.precise_float_properties = precise_float_properties
 
     # ------------------------------------------------------------------ refs
 
@@ -260,7 +261,8 @@ class PropReader:
         if tname == "UInt64Property":
             return struct.unpack("<Q", r.read(8))[0]
         if tname == "FloatProperty":
-            return round(struct.unpack("<f", r.read(4))[0], 6)
+            value = r.f32()
+            return value if self.precise_float_properties else round(value, 6)
         if tname == "DoubleProperty":
             return r.f64()
         if tname == "NameProperty":

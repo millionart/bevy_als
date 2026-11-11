@@ -2,6 +2,7 @@ import argparse
 import json
 import re
 from pathlib import Path
+from ue_animation_timing import native_notify_times
 
 
 def branching_points(document):
@@ -11,13 +12,7 @@ def branching_points(document):
     if not markers or len(markers) != field.count("NotifyIndex="):
         raise ValueError("Unsupported native montage branching point records")
 
-    events = {}
-    for case in document["notify_clock_probe"]["cases"]:
-        for event in case["events"]:
-            times = event["trigger_time"], event["end_trigger_time"]
-            if events.setdefault(event["event_index"], times) != times:
-                raise ValueError("Native notify clock samples disagree")
-
+    events = native_notify_times(document)
     exact = []
     for index, printed, event_type in markers:
         time = events[int(index)][int(event_type == "End")]

@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from gen_ragdoll import bool_after, expanded_text, number_after, props
+from ue_animation_timing import native_notify_times
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -68,9 +69,13 @@ def montage_settings(asset, assets_root):
     notifies = values["Notifies"]
     if "AlsAnimNotifyState_SetLocomotionAction" not in notifies:
         raise ValueError("missing get-up locomotion action notify")
-    notify_ends = re.findall(r"TriggerTime=([-+0-9.]+),NotifyEventType=End", values["BranchingPointMarkers"])
+    notify_ends = re.findall(r"NotifyIndex=(\d+),TriggerTime=([-+0-9.eE]+),NotifyEventType=End", values["BranchingPointMarkers"])
     if len(notify_ends) != 1:
         raise ValueError("unsupported get-up branching end markers")
+    index, printed_time = notify_ends[0]
+    notify_end = native_notify_times(asset)[int(index)][1]
+    if abs(notify_end - float(printed_time)) > 5.0e-7:
+        raise ValueError("native get-up notify end does not match its branching point")
     return {
         "source_montage": asset["asset_path"],
         "source_sequence": sequence,
@@ -79,7 +84,7 @@ def montage_settings(asset, assets_root):
         "sequence_length": float(values["SequenceLength"]),
         "play_rate": float(values["RateScale"]),
         "blend_out_seconds": number_after(blend_out, "BlendTime"),
-        "notify_end_clip_seconds": float(notify_ends[0]),
+        "notify_end_clip_seconds": notify_end,
     }
 
 
@@ -116,10 +121,13 @@ def main():
                 "BranchingPointMarkers": "((NotifyIndex=0,TriggerTime=-0.000100),(NotifyIndex=0,TriggerTime=1.166567,NotifyEventType=End))",
                 "SequenceLength": "1.500000", "RateScale": "1.200000",
             }.items()]}
+        montage["notify_clock_probe"] = {"cases": [{"events": [
+            {"event_index": 0, "trigger_time": -0.0001, "end_trigger_time": 1.1665666103363037}
+        ]}]}
         converted = montage_settings(montage, ROOT / "assets")
         assert converted["clip"] == "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron"
         assert converted["curves"] == "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf#AlsCurves"
-        assert converted["notify_end_clip_seconds"] == 1.166567
+        assert converted["notify_end_clip_seconds"] == 1.1665666103363037
         print("ALS ragdoll settings self-test PASS")
         return
     report = {"success": False}
@@ -147,7 +155,7 @@ def main():
                 raise ValueError("get-up montage belongs to another mount")
             asset_path = content_root / (reference.split(".", 1)[0][len(prefix):] + ".uasset")
             print(f"read get-up {direction}", flush=True)
-            asset, _ = read_uasset_source(asset_path, content_root, args.mount, reader, 300, 150)
+            asset, _ = read_uasset_source(asset_path, content_root, args.mount, reader, 300, 150, notify_clock=True)
             output[direction] = montage_settings(asset, ROOT / "assets")
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")

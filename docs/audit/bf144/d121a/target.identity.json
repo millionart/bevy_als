@@ -1,0 +1,50 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "1f1f2928d3dc8b89902db8a9e5b20986609629725b5b82d992f91b3fc61a8a18"
+  },
+  {
+    "path": "assets/ALS/Animations/als_notify_manifest.json",
+    "sha256": "df52a1ac1f29c8da212b783e4192a00d42fdfa3cb4280a84f7adb487d417b239"
+  },
+  {
+    "path": "assets/ALS/Data/Character/als_ragdoll_settings.json",
+    "sha256": "2e289136ad0fbb804ea7008066410a3ffe0f9dc03b03958cd45fe13d460eabed"
+  },
+  {
+    "path": "src/als/character/actions/get_up.rs",
+    "sha256": "9a5bc82357a277fdb40bca6d91e2409c7f7d73e1a29f049bc9c581e1279b4f9c"
+  },
+  {
+    "path": "tools/animgraph_authoring/ue_animgraph_converter.py",
+    "sha256": "330e9a94c41520b28336058f949a3e398d69e799e0c27211f8e0ac2ef9272146"
+  },
+  {
+    "path": "tools/import/audit_als_animation_events.py",
+    "sha256": "c95e1d8dde5640f2c149c17160585afe10d00283111aef6f4968e617bbf798ba"
+  },
+  {
+    "path": "tools/import/gen_als_ragdoll_settings.py",
+    "sha256": "93a5323b9398e9ade3a3f14fc036a7682e20044afad8c8b5bd125e1d6143c22d"
+  },
+  {
+    "path": "tools/import/gen_roll_montage_clock.py",
+    "sha256": "7c09f8b002be385fb4fe6c122a5580ba31f494058ccab11b04060676a6f2c1cd"
+  },
+  {
+    "path": "tools/import/generate_als_notify_manifest.py",
+    "sha256": "bc4c7dcd1ae2e573f3d32885e477e67d68ae720d3a573fef745c6f07dbbb7056"
+  },
+  {
+    "path": "tools/import/test_generate_als_notify_manifest.py",
+    "sha256": "e012ef63148127d2220fa3b3775b82976b234e7daf2e6dce263c0f96038d82bb"
+  },
+  {
+    "path": "tools/import/uasset_reader.py",
+    "sha256": "60d8b0c85338fdb5b123ef8d3f410dae080aa66616e9826c740d7104fa75e4b6"
+  },
+  {
+    "path": "tools/import/ue_animation_timing.py",
+    "sha256": "9edbf5a059ed87df12f180a1fd006389ab3490d90479d71d6c9d02a9b3ba3c1a"
+  }
+]

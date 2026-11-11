@@ -6549,6 +6549,15 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.432共同Forward输入域补充：fresh两原曲线键/76原生source-time采样；当前106活跃回调的stride/rate由公共sampler和standing_play_rate逐值重建。同一目标speed/权重/算序，仅将六位舍入键换为独立离线精确换算数据，18 stride及18 rate改变，首20 stride从0.6495429873466492变0.6495451927185059。源实际stride为0.6495453715324402，尚余实际speed及算序因素，不能把精确数据控制称整反馈已恢复。精确键移除后36项信号全消失、其余cohort不变，源码bytes恢复同target重编后182包字节一致。证据`target/bf144/432/curve-check.json`、`controls-check.json`、`summary.json`；仅扩既有D121，不修生产。
 
+  - D121拆分：确认三个有独立读数与产物的源链路。按通知、同步、曲线顺序修复，共用的转换变更完成后各做全量生成与产物比较；合并估时超过60分钟。
+  - [x] BF144-D121a — 通知触发时点及起身分支点原生精度。
+    - 21:31 source/static 闭环：重新生成全部137个动画、177个通知、60个标记的运行时清单，资产、通知身份及顺序一致。九个动作Montage和Roll Sequence共22个原生通知起止逐值相同，六位舍入消融14个通知失败；另有非零起点的原生F32算序最小反例。双朝向GetUp的设置、branch和manifest都使用1.1665666103363037秒。旧审计保留为舍入对照，精确源记录、生成对照和11个工具用例见 `docs/audit/bf144/d121a/`。开始21:25，预估22:10，实际结束2026-11-11 21:31 +08:00，偏差−39分钟。结果：静态实现完成，Rust 与真实入口验证待统一 Gate。
+    - 本轮开始2026-11-11 21:25 +08:00，预估结束22:10 +08:00。依据：.41/.92/.94的九个动作Montage和Roll点通知边界，沿现有137资产通知清单生成器重读 tagged float，并取相关原生通知触发时间作逐值对照。
+  - [ ] BF144-D121b — Sequence/BlendSpace 同步点、时长与公共相位精度。
+    - 预计开始2026-11-11 22:10 +08:00，预估结束23:05 +08:00。依据：.126/.128/.129/.135/.154/.157的6个Crouch、18个Movement、Sprint和组相位；使用既有公共时钟编译路径，包含历史全量重转约30分钟。
+  - [ ] BF144-D121c — CurveFloat 原生键和单位转换精度。
+    - 预计开始2026-11-11 23:05 +08:00，预估结束2026-11-12 00:00 +08:00。依据：.123/.155/.159/.432已定位StanceChange、Stride Walk/Run的键、切线与直接消费者，核对共享曲线转换和相关全量产物。
+
 - [ ] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
   - Source：fresh两套GetUp montage的原生RawCurveData包含FootLeft/RightIk、FootLeft/RightLock、LayerArmLeft/Right、LayerHead/Legs/Pelvis/Spine、ViewBlock；sequence另有PoseCrouching和PoseGrounded。`AnimInstanceProxy.cpp:1968–1978`先采样AnimTrack，再EvaluateCurveData并Combine montage曲线。
   - Target：`get_up.rs:130–146,270–280`仅加载、采样sequence的GraphClip和AlsCurves；目标glTF的ALS_float_curves只含上述两条sequence曲线，没有montage曲线数据或组合步骤。

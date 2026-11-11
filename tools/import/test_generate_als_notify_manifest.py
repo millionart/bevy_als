@@ -74,6 +74,14 @@ class NotifyManifestTests(unittest.TestCase):
             self.assertAlmostEqual(output["start_time"], start + start_offset)
             self.assertAlmostEqual(output["end_time"], end + start_offset + end_offset)
 
+    def test_state_end_uses_source_float_addition_order(self):
+        value = event(start=0.014999999664723873, end=0.6000000238418579)
+        value.update(kind="state", trigger_time_offset=-9.999999747378752e-05)
+        row = sequence(self.source, "assets/animations/Test/Test.gltf", [value])
+        output = manifest({"animations": [row]}, self.assets)["clips"][0]["events"][0]
+        self.assertEqual(output["start_time"], 0.01489999983459711)
+        self.assertEqual(output["end_time"], 0.5999000668525696)
+
     def test_duplicate_ids_are_rejected(self):
         duplicate = sequence(self.source, "assets/animations/Test/Test.gltf", [event(), event()])
         with self.assertRaisesRegex(ValidationError, "duplicate_event_id"):
