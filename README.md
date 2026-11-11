@@ -33,6 +33,12 @@
 
 **M0–M11 与 BF102 已完成并归档**：详见 [归档清单索引](docs/archive/archivedchecklist.md)（逐项 Gate 证据）与 [docs/parity-report.md](docs/parity-report.md)（与 ALS-Refactored 差异对照）。
 
+## 布娃娃物理边界
+
+ALS-Refactored 使用 UE Chaos。本项目使用 Avian 的原生碰撞与接触求解，几何接触由 Parry 计算。布娃娃的接触点、法线、处理顺序、摩擦结果及碰撞后的姿态和轨迹可以与源工程不同。
+
+布娃娃仍须正常倒下、与场景碰撞并起身。碰撞体、关节和必要的碰撞过滤继续提供这些行为。行走、上下台阶、攀爬、脚部 IK 及其他普通角色移动和动画功能继续按 ALS 的既定目标验证。这项豁免仅适用于布娃娃碰撞的引擎差异。
+
 ## 快速上手
 
 Mac 与 Windows 共用 PowerShell 7、Rust 和 Python 3.10+。Mac 还需要 Xcode；UE 原生读取器使用对应平台的 UE 5.8.3 安装。PowerShell 安装见 [官方说明](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)。
