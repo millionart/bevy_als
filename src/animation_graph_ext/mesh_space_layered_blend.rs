@@ -12,6 +12,8 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
+use super::mesh_space_additive::{normalize_pose_rotation, source_pose_rotation_product};
+
 const WEIGHT_THRESHOLD: f32 = 1e-6;
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -82,7 +84,7 @@ fn mesh_rotations(pose: &Pose, skeleton: &Skeleton, hierarchy: &[(BoneId, Option
         let local = local_rotation(pose, skeleton, *bone);
         let mesh = parent
             .and_then(|parent| rotations.get(parent).copied())
-            .map(|parent| parent * local)
+            .map(|parent| source_pose_rotation_product(parent, local))
             .unwrap_or(local);
         rotations.push(mesh);
     }
@@ -141,8 +143,8 @@ pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(
                     overlay_rotation
                 };
                 let blended = source_rotation * (1.0 - weight) + overlay_rotation * weight;
-                let normalized = crate::extensions::mesh_space_additive::normalize_pose_rotation(blended);
-                crate::extensions::mesh_space_additive::normalize_pose_rotation(normalized)
+                let normalized = normalize_pose_rotation(blended);
+                normalize_pose_rotation(normalized)
             }
             #[cfg(not(target_arch = "aarch64"))]
             {
@@ -160,10 +162,12 @@ pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(
         {
             continue;
         }
-        let local = crate::extensions::mesh_space_additive::normalize_pose_rotation(parent
-            .and_then(|parent| output_mesh.get(parent).copied())
-            .map(|parent| parent.inverse() * rotation)
-            .unwrap_or(rotation));
+        let local = normalize_pose_rotation(
+            parent
+                .and_then(|parent| output_mesh.get(parent).copied())
+                .map(|parent| source_pose_rotation_product(parent.inverse(), rotation))
+                .unwrap_or(rotation),
+        );
         if let Some(index) = base.paths.get(&bone).copied() {
             base.bones[index].rotation = Some(local);
         } else {
@@ -252,6 +256,42 @@ mod tests {
         skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
         skeleton.add_bone(child_path, Transform::IDENTITY, Transform::IDENTITY);
         (skeleton, root, child)
+    }
+
+    #[test]
+    fn layered_pose_uses_source_component_and_local_products() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            parent: [f32; 4],
+            child: [f32; 4],
+            mesh: [f32; 4],
+            local: [f32; 4],
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d163c/layered.replay.json"
+        )).unwrap();
+        let (skeleton, root, child) = skeleton();
+        let hierarchy = layered_bone_hierarchy(&skeleton);
+        for case in fixture.cases {
+            let mut base = Pose::default();
+            for (bone, rotation) in [(root, case.parent), (child, case.child)] {
+                base.add_bone(BonePose { rotation: Some(Quat::from_array(rotation)), ..default() }, bone);
+            }
+            assert_eq!(mesh_rotations(&base, &skeleton, &hierarchy)[1], Quat::from_array(case.mesh), "{}", case.name);
+            apply_mesh_space_layered_blend(&mut base, &Pose::default(), 1.0, &BoneMask::none(), &skeleton);
+            assert_eq!(
+                base.get_bone(child).unwrap().rotation,
+                Some(normalize_pose_rotation(Quat::from_array(case.local))),
+                "{}", case.name,
+            );
+        }
     }
 
     #[test]

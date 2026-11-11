@@ -6793,8 +6793,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
     - 2026-11-12 02:30 +0800 实际结束，较03:16预估提前46分钟，未拆分。fresh NEON/SSE W→X→Y→Z、实际足旋转与Rig FK/IK闭包见 `docs/audit/bf144/d163b/`。19组原生double乘积精确，去基转换16组失败，受控 −180° 翻至 +180° 并误裁目标。已接入真实足旋转回调 fixture，Cargo/Playground 待统一验证。
     - 依赖D163a。核对初始相对、当前/目标小腿空间及最终还原的源基乘法，保留实际足旋转回调和普通FK对照。
     - 本轮开始2026-11-12 02:21 +08:00，预估结束2026-11-12 03:16 +08:00。核对源W→X→Y→Z累加、实际Rig和普通FK/IK的直接double消费者。
-  - [ ] BF144-D163c / P3 — 恢复普通层化中组件组合与局部还原的源float乘法。
+  - [x] BF144-D163c / P3 — 恢复普通层化中组件组合与局部还原的源float乘法。
+    - 2026-11-12 02:36 +0800 实际结束，较03:11预估提前35分钟，未拆分。fresh 层化组件/局部与NEON算序见 `docs/audit/bf144/d163c/`。24个FQuat4f原生乘积精确，分别消融组件/局部路径导致5/9个局部失配。Layered Pose真实入口 fixture已加入，Cargo/Playground 待统一验证。
     - 依赖D163b。核对源NEON算序与Layered Pose的骨骼消费者。
+    - 本轮开始2026-11-12 02:31 +08:00，预估结束2026-11-12 03:11 +08:00。沿UE层化的父组件积、还原局部积及真实双骨回放核对F32数值边界。
   - BF144.479主/次轴consumer：5192 source/current×次轴1/0全原生10384 quat精确，mask15只回退source基quat product且保source位置/其它算子，使3067 quaternion double不同、F32全同。最小两输入物理去乘法基后public2仍精确、native旋转101拒（1条失配），源码bytes/5192输入恢复同target六库重编全报告byte同。只扩已证乘法消费者，不混合Euler分支或上游pose数据，证据docs/audit/bf144/479/comparison.json、negative-check.json；生产未修。
 
   - BF144.471完整足旋转源基product消费者：固定精确source数据/normal/全部其它源primitive，runtime基product使633/684最终quat double不同、F32全同；current全模型在source输入下与public全684逐值一致。该域手写UE乘法改库UE基后全native与全部阶段矩阵byte不变，因此删手写fixture实现，只保必要source基求值；不撤销其它乘法/Euler半转域，源Euler重复函数也在本域全阶段无信号后删除。source最终684完整native已校准，证据docs/audit/bf144/471/comparison.json/summary.json，未改generic生产。

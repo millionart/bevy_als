@@ -1284,7 +1284,10 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
         {
             const TArray<TSharedPtr<FJsonValue>>* Factors = nullptr;
             if (!(*Input)->TryGetArrayField(TEXT("rotation_factors"), Factors)) { return nullptr; }
+            bool bCaptureFloatProduct = false;
+            (*Input)->TryGetBoolField(TEXT("capture_float_product"), bCaptureFloatProduct);
             FQuat Product = Rotation;
+            FQuat4f FloatProduct(Rotation);
             for (const TSharedPtr<FJsonValue>& FactorValue : *Factors)
             {
                 const TSharedPtr<FJsonObject>* Factor = nullptr;
@@ -1293,10 +1296,12 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
                 const FQuat FactorRotation(Values[0], Values[1], Values[2], Values[3]);
                 if (!FactorRotation.IsNormalized()) { return nullptr; }
                 Product = Product * FactorRotation;
+                if (bCaptureFloatProduct) { FloatProduct = FloatProduct * FQuat4f(FactorRotation); }
             }
             Sample->SetObjectField(TEXT("rotation_product"), CaptureQuaternion(Product));
             Sample->SetObjectField(TEXT("rotation_product_degrees"), CaptureRotator(Product.Rotator()));
             Sample->SetObjectField(TEXT("normalized_rotation_product"), CaptureQuaternion(Product.GetNormalized()));
+            if (bCaptureFloatProduct) { Sample->SetObjectField(TEXT("rotation_product_f32"), CaptureQuaternion(FQuat(FloatProduct))); }
         }
         if ((*Input)->HasField(TEXT("rotation_between_vectors")))
         {

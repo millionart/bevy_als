@@ -27,6 +27,16 @@ impl MeshSpaceAdditiveNode {
     pub const OUT_POSE: &'static str = "pose";
 }
 
+pub(crate) fn source_pose_rotation_product(left: Quat, right: Quat) -> Quat {
+    let (x, y, z, w) = (-left.x, -left.z, -left.y, left.w);
+    let (a, b, c, d) = (-right.x, -right.z, -right.y, right.w);
+    let source_x = w * a + x * d + y * c - z * b;
+    let source_y = w * b - x * c + y * d + z * a;
+    let source_z = w * c + x * b - y * a + z * d;
+    let source_w = w * d - x * a - y * b - z * c;
+    Quat::from_xyzw(-source_x, -source_z, -source_y, source_w)
+}
+
 pub(crate) fn normalize_pose_rotation(rotation: Quat) -> Quat {
     #[cfg(target_arch = "aarch64")]
     {
