@@ -6785,7 +6785,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/范围：旧测试核对命中位置或大平面的法线，未覆盖共享边附近的候选接受与距离收紧。证据`74/visits.typed.native.json`、`74/expanded_full.native.json`及`74/final/`。原五条长射线映射实际Rig距离后会被坡度门槛拒绝，不把这些raw法线差异重复计作运动缺陷；早期远处缩放夹具的11µm位置干扰已用逐顶点完全相同的输入排除，未作生产缺陷或阈值调整。
 
 - [ ] BF144-D163 / P3 — Euler半转分支与四元数组合算序未保持源合同，影响足旋转和普通Pose。
-  - 本轮按三个独立Gate执行：Euler有符号端点、Rig的double乘法、普通层化的float乘法。三者各自保留独立原生对照。
+  - 本轮按四个独立Gate执行：Euler有符号端点、Rig的double乘法、普通层化与Head加性的float乘法。各自保留原生对照。
   - [x] BF144-D163a / P3 — 按原生double Rotator顺序保留Euler半转端点。
     - 2026-11-12 02:21 +0800 实际结束早于02:58预估，未拆分。fresh double Rotator、精确有符号零与半转区间见 `docs/audit/bf144/d163a/`。按源基计算后返回目标Euler，21组原生静态重放通过，旧代数在四个精确半转选错端点。Rust fixture已加入，实际组合由D163b接续。
     - 本轮开始2026-11-12 02:17 +08:00，预估结束2026-11-12 02:58 +08:00。核对精确有符号零、半转两侧及常规/奇异输入的原生Rotator。
@@ -6797,6 +6797,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
     - 2026-11-12 02:36 +0800 实际结束，较03:11预估提前35分钟，未拆分。fresh 层化组件/局部与NEON算序见 `docs/audit/bf144/d163c/`。24个FQuat4f原生乘积精确，分别消融组件/局部路径导致5/9个局部失配。Layered Pose真实入口 fixture已加入，Cargo/Playground 待统一验证。
     - 依赖D163b。核对源NEON算序与Layered Pose的骨骼消费者。
     - 本轮开始2026-11-12 02:31 +08:00，预估结束2026-11-12 03:11 +08:00。沿UE层化的父组件积、还原局部积及真实双骨回放核对F32数值边界。
+  - [x] BF144-D163d / P3 — 修复.454已证Head mesh-space additive的三个单精度乘积。
+    - 2026-11-12 02:40 +0800 实际结束，较03:13预估提前33分钟。fresh 源Head两份原生重放逐值一致，.454的旧乘法删除控制与首骨数值重验见 `docs/audit/bf144/d163d/`。已接入三处共用F32乘积与真实加性入口 fixture，Cargo/Playground 待统一验证。
+    - 本轮开始2026-11-12 02:38 +08:00，预估结束2026-11-12 03:13 +08:00。D163c已校准共用F32乘法，复用.454的318帧矩阵并重采源Head，对组件、加性累乘与局部还原各自保留实际入口测试。
   - BF144.479主/次轴consumer：5192 source/current×次轴1/0全原生10384 quat精确，mask15只回退source基quat product且保source位置/其它算子，使3067 quaternion double不同、F32全同。最小两输入物理去乘法基后public2仍精确、native旋转101拒（1条失配），源码bytes/5192输入恢复同target六库重编全报告byte同。只扩已证乘法消费者，不混合Euler分支或上游pose数据，证据docs/audit/bf144/479/comparison.json、negative-check.json；生产未修。
 
   - BF144.471完整足旋转源基product消费者：固定精确source数据/normal/全部其它源primitive，runtime基product使633/684最终quat double不同、F32全同；current全模型在source输入下与public全684逐值一致。该域手写UE乘法改库UE基后全native与全部阶段矩阵byte不变，因此删手写fixture实现，只保必要source基求值；不撤销其它乘法/Euler半转域，源Euler重复函数也在本域全阶段无信号后删除。source最终684完整native已校准，证据docs/audit/bf144/471/comparison.json/summary.json，未改generic生产。

@@ -65,7 +65,7 @@ fn accumulate_additive_rotation(base: Quat, additive: Quat, alpha: f32) -> Quat 
         additive.z * alpha,
         identity_sign * (1.0 - alpha) + additive.w * alpha,
     ));
-    weighted * base
+    source_pose_rotation_product(weighted, base)
 }
 
 fn blend_additive_rotation(base: Quat, additive: Quat, alpha: f32) -> Quat {
@@ -254,7 +254,7 @@ pub fn apply_mesh_space_additive(
         let rotation = skeleton
             .parent(bone)
             .and_then(|parent| mesh_rotations.get(&parent).copied())
-            .map(|parent| parent * local)
+            .map(|parent| source_pose_rotation_product(parent, local))
             .unwrap_or(local);
         mesh_rotations.insert(*bone, rotation);
     }
@@ -278,7 +278,7 @@ pub fn apply_mesh_space_additive(
         let local = normalize_pose_rotation(skeleton
             .parent(bone)
             .and_then(|parent| mesh_rotations.get(&parent).copied())
-            .map(|parent| parent.inverse() * rotation)
+            .map(|parent| source_pose_rotation_product(parent.inverse(), rotation))
             .unwrap_or(rotation));
         if let Some(base_index) = base.paths.get(bone).copied() {
             base.bones[base_index].rotation = Some(local);
@@ -438,12 +438,48 @@ mod tests {
         }
         for (rotation, node) in mesh.iter_mut().zip(nodes) {
             if !node["additive_rotation"].is_null() {
-                *rotation = blend_additive_rotation(*rotation, quaternion(&node["additive_rotation"]), 1.0);
+                let delta = normalize_pose_rotation(quaternion(&node["additive_rotation"]));
+                *rotation = normalize_pose_rotation(delta * *rotation);
             }
         }
         let last = mesh.len() - 1;
         let local = normalize_pose_rotation(mesh[last - 1].inverse() * mesh[last]);
         assert_eq!(local, quaternion(&fixture["expected_control_rotation"]));
+    }
+
+    #[test]
+    fn mesh_space_additive_keeps_source_product_order_through_public_pose() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            parent: [f32; 4],
+            child: [f32; 4],
+            mesh: [f32; 4],
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d163c/layered.replay.json"
+        )).unwrap();
+        let (skeleton, root, child) = test_skeleton();
+        let delta = Quat::from_xyzw(0.5, -0.5, 0.5, -0.5);
+        let weighted = normalize_pose_rotation(Quat::from_xyzw(0.25, -0.25, 0.25, -0.75));
+        let mut additive = Pose::default();
+        additive.add_bone(BonePose { rotation: Some(delta), ..default() }, child);
+        for case in fixture.cases {
+            let parent = Quat::from_array(case.parent);
+            let mut base = Pose::default();
+            base.add_bone(BonePose { rotation: Some(parent), ..default() }, root);
+            base.add_bone(BonePose { rotation: Some(Quat::from_array(case.child)), ..default() }, child);
+            let mesh = source_pose_rotation_product(weighted, Quat::from_array(case.mesh));
+            let expected = normalize_pose_rotation(source_pose_rotation_product(parent.inverse(), mesh));
+            apply_mesh_space_additive(&mut base, &additive, 0.5, &skeleton);
+            assert_eq!(base.get_bone(child).unwrap().rotation, Some(expected), "{}", case.name);
+        }
     }
 
     #[test]
