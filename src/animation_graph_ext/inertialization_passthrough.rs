@@ -15,6 +15,9 @@ use crate::extensions::animation_context::{
 };
 use crate::extensions::inertialization::source_inertial_float;
 
+const SOURCE_KINDA_SMALL_NUMBER: f32 = 1e-4;
+const TRANSLATION_DISTANCE_THRESHOLD: f32 = 1e-6;
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -137,6 +140,7 @@ fn vector_difference(
     previous: Option<Vec3>,
     previous_previous: Option<Vec3>,
     delta: f32,
+    distance_threshold: f32,
 ) -> (Vec3, f32, f32) {
     let (Some(target), Some(previous), Some(previous_previous)) =
         (target, previous, previous_previous)
@@ -145,12 +149,15 @@ fn vector_difference(
     };
     let difference = previous - target;
     let magnitude = difference.length();
-    if !magnitude.is_finite() || magnitude <= f32::EPSILON {
+    if !magnitude.is_finite() {
         return (Vec3::ZERO, 0.0, 0.0);
     }
+    if magnitude <= distance_threshold {
+        return (Vec3::ZERO, magnitude, 0.0);
+    }
     let direction = difference / magnitude;
-    let previous_magnitude = (previous_previous - target).dot(direction);
-    let speed = if delta > f32::EPSILON {
+    let speed = if delta > SOURCE_KINDA_SMALL_NUMBER {
+        let previous_magnitude = (previous_previous - target).dot(direction);
         (magnitude - previous_magnitude) / delta
     } else {
         0.0
@@ -192,7 +199,7 @@ fn rotation_difference(
     let previous_angle = unwind(2.0 * Vec3::new(
         previous_difference.x, previous_difference.y, previous_difference.z,
     ).dot(axis).atan2(previous_difference.w));
-    let speed = if delta > 1e-4 && angle > 1e-4 {
+    let speed = if delta > SOURCE_KINDA_SMALL_NUMBER && angle > SOURCE_KINDA_SMALL_NUMBER {
         unwind(angle - previous_angle) / delta
     } else {
         0.0
@@ -220,6 +227,7 @@ fn source_inertial_bones(
                     previous_bone.translation,
                     previous_previous_bone.translation,
                     delta,
+                    TRANSLATION_DISTANCE_THRESHOLD,
                 );
             let (rotation_axis, rotation_angle, rotation_speed) = rotation_difference(
                 target_bone.rotation,
@@ -232,6 +240,7 @@ fn source_inertial_bones(
                 previous_bone.scale,
                 previous_previous_bone.scale,
                 delta,
+                SOURCE_KINDA_SMALL_NUMBER,
             );
             Some(SourceInertialBone {
                 bone,
@@ -1090,6 +1099,53 @@ mod tests {
                 .data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
                 .is_some()
         );
+    }
+
+    #[test]
+    fn native_vector_thresholds_match_inertial_bone_output() {
+        use serde_json::Value;
+
+        let request: Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d190/inertia.request.json"
+        )).unwrap();
+        let reference: Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d190/thresholds.replay.json"
+        )).unwrap();
+        let bone = BoneId::default();
+        let pose = |step: &Value| {
+            let transform = Transform {
+                translation: Vec3::X * (step["translation_cm"][0].as_f64().unwrap() / 100.0) as f32,
+                scale: Vec3::new(step["scale"][0].as_f64().unwrap() as f32, 1.0, 1.0),
+                ..default()
+            };
+            let mut pose = Pose::default();
+            pose.add_bone(BonePose::from_transform(transform), bone);
+            pose
+        };
+        for (sample, expected) in request["samples"].as_array().unwrap().iter()
+            .zip(reference["cases"].as_array().unwrap()) {
+            assert_eq!(sample["name"], expected["name"]);
+            let steps = &sample["steps"];
+            let target = pose(&steps[2]);
+            let mut state = SourceInertializationState {
+                previous: Some(pose(&steps[1])),
+                previous_previous: Some(pose(&steps[0])),
+                previous_delta: steps[1]["delta_seconds"].as_f64().unwrap() as f32,
+                ..default()
+            };
+            begin_source_inertialization(&mut state, &target,
+                &[crate::extensions::animation_context::SourceInertializationPart {
+                    duration: steps[2]["request_duration"].as_f64().unwrap() as f32,
+                    ..default()
+                }], None, None, None, None, 0.0, false);
+            state.elapsed = steps[2]["delta_seconds"].as_f64().unwrap() as f32;
+            let result = apply_source_inertialization(&target, &state);
+            let transform = result.get_bone(bone).unwrap();
+            let translation = transform.translation.unwrap().x as f64;
+            let scale = transform.scale.unwrap().x as f64;
+            assert!((translation - expected["translation_m"].as_f64().unwrap()).abs() < 2e-9, "{}", sample["name"]);
+            assert!((scale - expected["scale"].as_f64().unwrap()).abs() < 2e-7, "{}", sample["name"]);
+        }
     }
 
     #[test]

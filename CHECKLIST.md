@@ -7072,7 +7072,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧GetUp测试核对通知、blocked和槽姿态，旋转测试只独立设动作状态，未贯通同一结束帧的consumer。与D118/D121播放/精度误差隔离；本项只确认动作阶段到actor旋转的影响，未运行UE完整角色世界或公共Playground视觉Gate。证据`99/static.json`、`bf144_animation_phase99_get_up_consumers`；只登记，不修生产。
 
 
-- [ ] BF144-D190 / P3 — 骨骼惯性化用机器epsilon代替源距离与历史时间门槛。
+- [x] BF144-D190 / P3 — 骨骼惯性化用机器epsilon代替源距离与历史时间门槛。
+  - 2026-11-12 06:39 +0800 实际结束，较07:15预估提前36分钟，未拆分。fresh主AB九例验证平移1µm、scale 0.0001、历史100µs的严格门槛，旧路径五例失配，三项消融均失配。原始读数及惯性骨骼夹具见 `docs/audit/bf144/d190/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 06:35 +08:00，预估结束2026-11-12 07:15 +08:00。核对主AB惯性节点及平移、scale、历史时间门槛；对照原生输出并隔离D191衰减单位与D192混合精度。
   - Source：fresh `AnimNode_Inertialization.cpp:875–900,927–950`仅在平移/缩放差值大于`UE_KINDA_SMALL_NUMBER`时保留方向，且上一帧时间大于同一源常量才求速度。平移单位为厘米，目标距离门槛应为1e−6米；scale无单位仍为1e−4，时间仍为1e−4秒。
   - Target：`inertialization_passthrough.rs:135–158`的共享`vector_difference`两处都用`f32::EPSILON`，小于源门槛的偏移和极短历史帧仍产生惯性差值/速度；实际`apply_source_inertialization`消费这些字段。
   - 反例：前两姿态平移为2mm/1mm、历史delta=50µs、目标0、请求0.2秒、当前delta=1/60，原生输出0.994912mm，目标输出0，提前抹掉偏移。稳定scale=1.00005→1时，原生直接为1，目标首帧为1.00004971。640组生产节点/原生节点对照中104组属此根因；清除源本应忽略的方向或历史导数后恢复。正常delta及超过对应距离门槛的控制保留。

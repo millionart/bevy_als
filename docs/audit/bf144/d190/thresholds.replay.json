@@ -1,0 +1,64 @@
+{
+  "legacy_failures": 5,
+  "ablation_failures": {
+    "translation_distance": 2,
+    "scale_distance": 1,
+    "history_delta": 2
+  },
+  "cases": [
+    {
+      "name": "translation_below",
+      "translation_m": 0.0,
+      "scale": 1,
+      "legacy_failed": true
+    },
+    {
+      "name": "translation_at",
+      "translation_m": 0.0,
+      "scale": 1,
+      "legacy_failed": true
+    },
+    {
+      "name": "translation_above",
+      "translation_m": 1.98982423171401e-06,
+      "scale": 1,
+      "legacy_failed": false
+    },
+    {
+      "name": "scale_below",
+      "translation_m": 0.0,
+      "scale": 1,
+      "legacy_failed": true
+    },
+    {
+      "name": "scale_above",
+      "translation_m": 0.0,
+      "scale": 1.0001989824231714,
+      "legacy_failed": false
+    },
+    {
+      "name": "history_short",
+      "translation_m": 0.0009949122369289397,
+      "scale": 1,
+      "legacy_failed": true
+    },
+    {
+      "name": "history_at",
+      "translation_m": 0.0009949122369289397,
+      "scale": 1,
+      "legacy_failed": true
+    },
+    {
+      "name": "history_above",
+      "translation_m": 0.0,
+      "scale": 1,
+      "legacy_failed": false
+    },
+    {
+      "name": "history_regular",
+      "translation_m": 0.00032767996191978454,
+      "scale": 1,
+      "legacy_failed": false
+    }
+  ]
+}
