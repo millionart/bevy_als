@@ -12,6 +12,7 @@ const FACE_CONTACT_SIN_ANGLE_THRESHOLD: f64 = 0.34;
 pub(super) enum SourceTriangleContactKind {
     VertexPlane,
     EdgeEdge,
+    PlaneVertex,
 }
 
 pub(super) struct SourceTriangleContact {
@@ -406,6 +407,7 @@ mod tests {
             let contact_type = match actual.kind {
                 SourceTriangleContactKind::VertexPlane => 1,
                 SourceTriangleContactKind::EdgeEdge => 2,
+                SourceTriangleContactKind::PlaneVertex => 3,
             };
             assert_eq!(contact_type, expected.contact_type, "{label:?}");
             assert!(actual.first_cm.distance(DVec3::from_array(expected.first_cm)) < 1e-5, "{label:?}");
