@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::source_physics_timing::source_physics_delta;
 use avian3d::prelude::{PhysicsSystems, Position, Rotation};
-use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, math::Isometry3d, prelude::*, transform::TransformSystems};
+use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, math::{Affine3A, Isometry3d}, prelude::*, transform::TransformSystems};
 use bevy_animation_graph::core::{
     animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance},
     animation_graph::DEFAULT_OUTPUT_RAGDOLL_CONFIG,
@@ -147,20 +147,41 @@ fn successful_readback_bones(
 
 fn normalize_ragdoll_pose_scale(
     pose: &mut Pose, map: &RagdollBoneMap, skeleton: &Skeleton,
-    conversions: SpaceConversionContext, scale: f32, readback: &HashSet<BoneId>,
+    conversions: SpaceConversionContext, uniform_scale: Option<f32>, readback: &HashSet<BoneId>,
 ) {
     let mut targets = map.bones_from_bodies.keys().filter(|path| readback.contains(&path.id()))
         .filter_map(|path| {
             let index = *pose.paths.get(&path.id())?;
-            let mut target = conversions.global_transform_of_bone(pose, skeleton, path.id());
-            target.scale *= scale;
+            let target = conversions.global_transform_of_bone(pose, skeleton, path.id());
             Some((path, index, target))
         }).collect::<Vec<_>>();
     targets.sort_by_key(|(path, _, _)| path.parts.len());
-    for (path, index, target) in targets {
+    for (path, index, mut target) in targets {
         let parent = path.parent().map(|path|
             conversions.global_transform_of_bone(pose, skeleton, path.id())).unwrap_or_default();
-        let local = Transform::from_matrix((parent.compute_affine().inverse() * target.compute_affine()).into());
+        let local = if let Some(scale) = uniform_scale {
+            target.scale *= scale;
+            Transform::from_matrix((parent.compute_affine().inverse() * target.compute_affine()).into())
+        } else {
+            let fallback = &conversions.pose_fallback;
+            let mut parent_affine = Affine3A::IDENTITY;
+            let mut ancestor = skeleton.parent(&path.id());
+            while let Some(id) = ancestor {
+                if id == skeleton.root() {
+                    parent_affine = fallback.root_global_transform(skeleton).unwrap_or_default().affine() * parent_affine;
+                    break;
+                }
+                let base = fallback.local_transform(id).unwrap_or_default();
+                let transform = pose.get_bone(id).map_or(base, |bone| bone.to_transform_with_base(base));
+                parent_affine = transform.compute_affine() * parent_affine;
+                ancestor = skeleton.parent(&id);
+            }
+            Transform {
+                translation: parent_affine.inverse().transform_point3(target.translation),
+                rotation: (parent.rotation.conjugate() * target.rotation).normalize(),
+                scale: fallback.local_transform(path.id()).unwrap_or_default().scale,
+            }
+        };
         let bone = &mut pose.bones[index];
         bone.translation = Some(local.translation);
         bone.rotation = Some(local.rotation);
@@ -169,7 +190,7 @@ fn normalize_ragdoll_pose_scale(
 }
 
 fn normalize_scaled_readback_pose(
-    mut players: Query<(Entity, &mut AnimationGraphPlayer, &GlobalTransform)>,
+    mut players: Query<(Entity, &mut AnimationGraphPlayer, &GlobalTransform, Has<crate::extensions::RagdollPhysicsProfile>)>,
     hosts: Query<(&AnimatedSceneHandle, &AnimatedSceneInstance)>,
     scenes: Option<Res<Assets<AnimatedScene>>>,
     maps: Res<Assets<RagdollBoneMap>>,
@@ -177,12 +198,13 @@ fn normalize_scaled_readback_pose(
     resources: SystemResources,
 ) {
     let Some(scenes) = scenes else { return; };
-    for (entity, mut player, world) in &mut players {
+    for (entity, mut player, world, source_profile) in &mut players {
         if !has_physics_readback(&player) { continue; }
         let scale = world.to_scale_rotation_translation().0;
+        let uniform_scale = (scale.max_element() - scale.min_element() <= 1e-4).then_some(scale.x);
         if !scale.is_finite() || scale.min_element() <= 0.0
-            || scale.max_element() - scale.min_element() > 1e-4
-            || (scale.x - 1.0).abs() <= 1e-4 { continue; }
+            || (uniform_scale.is_none() && !source_profile)
+            || uniform_scale.is_some_and(|scale| (scale - 1.0).abs() <= 1e-4) { continue; }
         let Some(map) = hosts.iter().find(|(_, instance)| instance.player_entity() == entity)
             .and_then(|(handle, _)| scenes.get(&handle.handle))
             .and_then(|scene| scene.ragdoll_bone_map.as_ref())
@@ -198,7 +220,7 @@ fn normalize_scaled_readback_pose(
         let conversions = SpaceConversionContext { pose_fallback: PoseFallbackContext {
             entity_map: &entities, resources: &resources, fallback_to_identity: true,
         }};
-        normalize_ragdoll_pose_scale(&mut pose, map, skeleton, conversions, scale.x, &readback);
+        normalize_ragdoll_pose_scale(&mut pose, map, skeleton, conversions, uniform_scale, &readback);
         player.set_default_output_pose(pose);
     }
 }
@@ -709,7 +731,7 @@ mod tests {
             let mut pose = read_pose(&spawned, &map, skeleton, &bodies, fallback, &input, &config);
             let before = ids.map(|id| conversions.global_transform_of_bone(&pose, skeleton, id));
             let readback = successful_readback_bones(&map, &spawned, &config, &bodies);
-            normalize_ragdoll_pose_scale(&mut pose, &map, skeleton, conversions, scale, &readback);
+            normalize_ragdoll_pose_scale(&mut pose, &map, skeleton, conversions, Some(scale), &readback);
             let after = ids.map(|id| conversions.global_transform_of_bone(&pose, skeleton, id));
             (pose, before, after)
         }
@@ -805,6 +827,78 @@ mod tests {
             }
             }
         }
+    }
+
+    #[test]
+    fn nonuniform_readback_keeps_animated_scales_and_world_bone_positions() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+        use bevy_animation_graph::core::ragdoll::bone_mapping::BoneMapping;
+
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<StateMachine>>();
+        world.init_resource::<Assets<Skeleton>>();
+        let scene_path = EntityPath::from_slashed_string("scene".into());
+        let root = scene_path.child("root");
+        let gap = root.child("gap");
+        let child = gap.child("child");
+        let paths = [root, gap, child];
+        let ids = paths.each_ref().map(|path| path.id());
+        let scene = Transform::from_xyz(2.0, 3.0, 4.0)
+            .with_rotation(Quat::from_rotation_y(0.4)).with_scale(Vec3::new(1.4, 0.8, 0.6));
+        let locals = [
+            Transform::from_xyz(0.0, 0.3, 0.0).with_rotation(Quat::from_rotation_x(0.4)).with_scale(Vec3::new(1.1, 0.9, 1.2)),
+            Transform::from_xyz(0.7, 0.1, 0.2).with_rotation(Quat::from_rotation_z(0.25)),
+            Transform::from_xyz(0.5, 0.0, -0.3).with_scale(Vec3::new(0.8, 1.3, 1.0)),
+        ];
+        let scene_entity = world.spawn((scene, GlobalTransform::from(scene))).id();
+        let mut entities = HashMap::from([(scene_path.id(), scene_entity)]);
+        let mut skeleton = Skeleton::default();
+        skeleton.add_bone(scene_path.clone(), Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.set_root(scene_path.id());
+        let mut character = Transform::IDENTITY;
+        for (path, local) in paths.iter().zip(locals) {
+            character = character * local;
+            skeleton.add_bone(path.clone(), local, character);
+            let entity = world.spawn((local, GlobalTransform::from(scene * character))).id();
+            entities.insert(path.id(), entity);
+        }
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let mut raw_pose = Pose { skeleton: skeleton.clone(), ..default() };
+        let raw_locals = [locals[0].with_scale(scene.scale.recip()), locals[1], locals[2].with_scale(Vec3::ONE)];
+        for (id, local) in ids.into_iter().zip(raw_locals) { raw_pose.add_bone(BonePose::from_transform(local), id); }
+        let map = RagdollBoneMap {
+            skeleton, ragdoll: default(), skeleton_symmetry: default(), bodies_from_bones: default(),
+            bones_from_bodies: [0, 2].map(|index| {
+                let path = paths[index].clone();
+                (path.clone(), BoneMapping { bone_id: path, ..default() })
+            }).into(),
+        };
+        let (pose, before, after) = world.run_system_once_with(
+            move |In(mut pose): In<Pose>, resources: SystemResources| {
+                let skeleton = resources.skeleton_assets.get(&pose.skeleton).unwrap();
+                let conversions = SpaceConversionContext { pose_fallback: PoseFallbackContext {
+                    entity_map: &entities, resources: &resources, fallback_to_identity: true,
+                }};
+                let before = ids.map(|id| conversions.global_transform_of_bone(&pose, skeleton, id));
+                let readback = HashSet::from([ids[0], ids[2]]);
+                normalize_ragdoll_pose_scale(&mut pose, &map, skeleton, conversions, None, &readback);
+                let after = ids.map(|id| conversions.global_transform_of_bone(&pose, skeleton, id));
+                (pose, before, after)
+            }, raw_pose,
+        ).unwrap();
+
+        let corrected = ids.map(|id| pose.get_bone(id).unwrap().to_transform());
+        assert_eq!(corrected.map(|transform| transform.scale), locals.map(|transform| transform.scale));
+        assert_eq!(corrected[1], locals[1]);
+        let root_world = scene.compute_affine() * corrected[0].compute_affine();
+        let child_world = root_world * corrected[1].compute_affine() * corrected[2].compute_affine();
+        assert!(root_world.transform_point3(Vec3::ZERO).distance(before[0].translation) < 1e-5);
+        assert!(child_world.transform_point3(Vec3::ZERO).distance(before[2].translation) < 1e-5);
+        for index in [0, 2] { assert!(before[index].rotation.dot(after[index].rotation).abs() > 1.0 - 1e-6); }
     }
 
     #[test]

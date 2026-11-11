@@ -6463,7 +6463,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`restore_ragdoll_player_parent:992–996,1037–1041`使用当前actor scale与旧local scale重建mesh，缺少源的世界scale保留语义。
   - 反例：进入时actor/mesh scale均1，活动Ragdoll期间只把actor scale改为1.25，退出mesh scale变为1.25，source应保持1；站/蹲、直接/父级四组均复现。原始0.75及非均匀scale也复现，共12个改变scale样本失败，12个不改变scale的控制通过。证据同D113；该判据独立于位置offset及pelvis跟随，旧退出测试未覆盖脱离期间改变actor scale。
 
-- [ ] BF144-D115 / P2 — 非均匀mesh缩放在物理姿态回读中被根骨倒数scale抵消，并进入最终快照。
+- [x] BF144-D115 / P2 — 非均匀mesh缩放在物理姿态回读中被根骨倒数scale抵消，并进入最终快照。 静态实现完成，统一验证待执行。
+  - 20:14 source/static 闭环：非均匀 ALS profile 回读取用物理写回前的动画局部 scale，以完整父链 affine 重算同一世界位置的 local translation，并保留相对旋转。现有 uniform 路径继续消费其标量补偿。新增旋转未映射中间骨和非单位动画 scale 夹具，源身份与约束 `docs/audit/bf144/d115/`。编译、测试、消融和真实入口待统一 Gate。开始20:07，预估20:52，实际结束2026-11-11 20:14 +08:00，偏差−38分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 20:07 +08:00，预估结束20:52 +08:00。依据：fresh PhysAnim 用动画局部 scale 与物理位姿合成，目标已有统一回读消费者和 uniform 保护。沿实际骨骼父链处理非均匀 scale，在旋转 gap 的 fixture 核对保持局部 scale 和物理位姿。
   - Source：fresh `PhysAnim.cpp:200–206,339–345,355–363`将component scale用于物理位置换算，却保留输入动画的骨骼scale；kinematic root在当前bUpdateMeshWhenKinematic=False时保留动画值。native SKM_Als根骨与Flail的0/0.1/0.5秒根轨道均scale=1。
   - Target：依赖`read_pose_avian.rs:43–66`从无scale的刚体Isometry回写局部Transform；`post_physics_animation.rs:142–145`只补偿uniform mesh，非均匀scale直接跳过。真实root被写入mesh scale倒数，`restore_ragdoll_player_parent`又将该错误值复制进final pose。
   - 反例：完整角色mesh scale=(1.4,0.8,0.6)，实际readback前root scale=(1,1,1)，之后为(0.7142857,1.25,1.6666666)，抵消mesh缩放。unit/0.75/1.5/非均匀×开启/关闭readback共8组7PASS/1FAIL；同一非均匀角色关闭readback即保持1，独立于D113/D114的退出变换。证据`bf144_ragdoll_phase39_nonuniform_readback_preserves_source_root_scale`、`39/readback_initial/`与`39/final/`；退出快照矩阵中8个非均匀样本也保留该root值。
