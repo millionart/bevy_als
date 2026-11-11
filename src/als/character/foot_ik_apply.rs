@@ -28,7 +28,7 @@ use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, CrAls
 pub(crate) struct FootLockLifecycleState {
     previous_character_transform: Option<Transform>,
     previous_actor_location: Option<Vec3>,
-    teleported_at: Option<f64>,
+    teleported_at: f64,
 }
 
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
@@ -419,14 +419,14 @@ fn record_foot_lock_teleports(
 ) {
     for teleport in teleports.read() {
         if let Ok(mut lifecycle) = lifecycles.get_mut(teleport.entity) {
-            lifecycle.teleported_at = Some(time.elapsed_secs_f64());
+            lifecycle.teleported_at = time.elapsed_secs_f64();
         } else {
             commands
                 .entity(teleport.entity)
                 .insert(FootLockLifecycleState {
                     previous_character_transform: None,
                     previous_actor_location: None,
-                    teleported_at: Some(time.elapsed_secs_f64()),
+                    teleported_at: time.elapsed_secs_f64(),
                 });
         }
         if let Ok(mut value) = telemetry.get_mut(teleport.entity) {
@@ -641,7 +641,7 @@ fn refresh_foot_lock_inputs(
             *lock_state = AlsFootLockState::default();
             *dynamic_transition = default();
             lifecycle.previous_character_transform = Some(current_character_transform);
-            lifecycle.teleported_at = None;
+            lifecycle.teleported_at = 0.0;
             continue;
         }
         let left_ik_amount = lock_input.left_ik_amount.clamp(0.0, 1.0);
@@ -661,8 +661,8 @@ fn refresh_foot_lock_inputs(
                 .entity
                 .and_then(|entity| foot_lock_movement_base(entity, &transforms, &owners, &bodies))
         });
-        let teleport_elapsed = lifecycle.teleported_at.map(|marked_at| time.elapsed_secs_f64() - marked_at);
-        let teleport_active = teleport_elapsed.is_some_and(|elapsed| elapsed <= f64::from(FOOT_LOCK_TELEPORT_WINDOW_SECONDS));
+        let teleport_elapsed = time.elapsed_secs_f64() - lifecycle.teleported_at;
+        let teleport_active = teleport_elapsed <= f64::from(FOOT_LOCK_TELEPORT_WINDOW_SECONDS);
         if let Some(previous_character_transform) = lifecycle.previous_character_transform {
             for (side, ik_amount) in [left_ik_amount, right_ik_amount].into_iter().enumerate() {
                 let foot_state = if side == 0 { &mut lock_state.left } else { &mut lock_state.right };
@@ -738,7 +738,7 @@ fn refresh_foot_lock_inputs(
         );
         lifecycle.previous_character_transform = Some(current_character_transform);
         if let Ok(mut value) = telemetry.get_mut(entity) {
-            value.remaining_seconds = teleport_elapsed.map_or(0.0, |elapsed| (f64::from(FOOT_LOCK_TELEPORT_WINDOW_SECONDS) - elapsed).max(0.0) as f32);
+            value.remaining_seconds = (f64::from(FOOT_LOCK_TELEPORT_WINDOW_SECONDS) - teleport_elapsed).max(0.0) as f32;
         }
     }
 }
@@ -1549,14 +1549,14 @@ mod tests {
                 FootLockLifecycleState {
                     previous_character_transform: Some(previous_character_transform),
                     previous_actor_location: None,
-                    teleported_at: Some(0.0),
+                    teleported_at: 0.0,
                 },
             ))
             .id();
         let incomplete = app.world_mut().spawn((crate::als::character::AlsCharacter, FootLockLifecycleState {
             previous_character_transform: Some(previous_character_transform),
             previous_actor_location: None,
-            teleported_at: Some(0.0),
+            teleported_at: 0.0,
         })).id();
         app.update();
         assert!(app.world().get::<FootLockLifecycleState>(incomplete).unwrap().previous_character_transform.is_none());
@@ -1568,7 +1568,7 @@ mod tests {
         let lifecycle = app.world().get::<FootLockLifecycleState>(entity).unwrap();
         let reload_reset = !lock_state.valid
             && *dynamic_transition == AlsDynamicTransitionState::default()
-            && lifecycle.teleported_at.is_none()
+            && lifecycle.teleported_at == 0.0
             && lifecycle.previous_character_transform.is_none();
         let left_thigh = app.world_mut().spawn_empty().id();
         let left_calf = app.world_mut().spawn_empty().id();
@@ -1605,7 +1605,7 @@ mod tests {
             .world()
             .get::<FootLockLifecycleState>(teleport_entity)
             .unwrap()
-            .teleported_at.unwrap()
+            .teleported_at
             - app.world().resource::<Time>().elapsed_secs_f64())
             .abs()
             < 1e-6;
@@ -1691,13 +1691,69 @@ mod tests {
     }
 
     #[test]
+    fn startup_foot_lock_rebases_before_the_default_window_expires() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..5 { app.update(); }
+        let original = *app.world().get::<Transform>(actor).unwrap();
+        let previous = app.world_mut().run_system_once(move |transforms: TransformHelper| {
+            transforms.compute_global_transform(avatar).unwrap().compute_transform()
+        }).unwrap();
+        let mut state = *app.world().get::<AlsFootLockState>(actor).unwrap();
+        assert!(state.valid);
+        state.left.lock_amount = 1.0;
+        state.left.lock_location = state.left.target_location;
+        state.left.movement_base = None;
+        let anchor = state.left.lock_location;
+        let shift = Vec3::X * 0.1;
+        let mut input = *app.world().get::<AlsFootLockInput>(actor).unwrap();
+        input.left_ik_amount = 1.0;
+        input.left_lock_amount = 1.0;
+        input.moving_smooth = false;
+
+        for (seconds, active) in [(0.1, true), (0.2, true), (0.3, false), (1.0, false)] {
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f64(seconds));
+            app.insert_resource(time);
+            app.world_mut().resource_mut::<Messages<AlsFootLockTeleported>>().clear();
+            app.world_mut().entity_mut(actor).insert((
+                Transform::from_translation(original.translation + shift).with_rotation(original.rotation).with_scale(original.scale),
+                LocomotionState::Grounded,
+                state,
+                input,
+                FootLockLifecycleState {
+                    previous_character_transform: Some(previous),
+                    previous_actor_location: Some(original.translation),
+                    ..default()
+                },
+                AlsFootLockTeleportTelemetry::default(),
+            ));
+            app.world_mut().run_system_once(detect_foot_lock_teleports).unwrap();
+            app.world_mut().run_system_once(record_foot_lock_teleports).unwrap();
+            app.world_mut().run_system_once(refresh_foot_lock_inputs).unwrap();
+            let telemetry = app.world().get::<AlsFootLockTeleportTelemetry>(actor).unwrap();
+            assert_eq!(telemetry.detected_count, 0);
+            assert_eq!(telemetry.left_rebase_count, u32::from(active), "Startup rebase at {seconds}s");
+            let input = app.world().get::<AlsControlRigInput>(actor).unwrap();
+            assert!(input.foot_transforms_valid);
+            let local = input.foot_left_location_armature;
+            let rig_point = app.world_mut().run_system_once(move |transforms: TransformHelper| {
+                transforms.compute_global_transform(avatar).unwrap().affine().transform_point3(local)
+            }).unwrap();
+            let expected = if active { anchor + shift } else { anchor };
+            assert!(rig_point.abs_diff_eq(expected, 1e-4), "Wrong startup foot lock at {seconds}s: {rig_point:?}");
+        }
+    }
+
+    #[test]
     fn foot_teleport_window_uses_game_time_across_skipped_updates_and_pause() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         for _ in 0..60 { app.update(); }
         app.world_mut().write_message(AlsFootLockTeleported { entity: character });
         app.world_mut().run_system_once(record_foot_lock_teleports).unwrap();
-        let marked_at = app.world().get::<FootLockLifecycleState>(character).unwrap().teleported_at.unwrap();
+        let marked_at = app.world().get::<FootLockLifecycleState>(character).unwrap().teleported_at;
         app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_millis(300));
         let before = *app.world().get::<AlsFootLockTeleportTelemetry>(character).unwrap();
         app.world_mut().run_system_once(refresh_foot_lock_inputs).unwrap();
@@ -1783,7 +1839,7 @@ mod tests {
             if !world.resource::<SourceReplay>().active { return; }
             let actual = *world.get::<AlsFootLockState>(character).unwrap();
             let (mut life, lock, dynamic, input, telemetry, rig) = world.resource_mut::<SourceReplay>().inputs.take().unwrap();
-            life.teleported_at = None;
+            life.teleported_at = 0.0;
             world.entity_mut(character).insert((life, lock, dynamic, input, telemetry, rig));
             world.run_system_once(refresh_foot_lock_inputs).unwrap();
             let source = *world.get::<AlsFootLockState>(character).unwrap();
@@ -1884,7 +1940,7 @@ mod tests {
             let (mut life, lock, dynamic, input, telemetry) = world.resource_mut::<FootReplay>().0.take().unwrap();
             assert_eq!(telemetry.detected_count, before.detected_count + 1,
                 "Source actor displacement must mark teleportation even when crouching offsets the avatar");
-            life.teleported_at = Some(world.resource::<Time>().elapsed_secs_f64());
+            life.teleported_at = world.resource::<Time>().elapsed_secs_f64();
             world.entity_mut(character).insert((life, lock, dynamic, input, telemetry));
             world.run_system_once(refresh_foot_lock_inputs).unwrap();
             let source = *world.get::<AlsFootLockState>(character).unwrap();
@@ -1936,7 +1992,7 @@ mod tests {
                 FootLockLifecycleState {
                     previous_character_transform: Some(Transform::IDENTITY),
                     previous_actor_location: Some(Vec3::ZERO),
-                    teleported_at: None,
+                    teleported_at: 0.0,
                 },
                 AlsFootLockTeleportTelemetry::default(),
             ))
@@ -1977,7 +2033,7 @@ mod tests {
         assert!(
             (above_threshold.remaining_seconds - FOOT_LOCK_TELEPORT_WINDOW_SECONDS).abs() < 1e-6
         );
-        assert!((lifecycle.teleported_at.unwrap() - app.world().resource::<Time>().elapsed_secs_f64()).abs() < 1e-8);
+        assert!((lifecycle.teleported_at - app.world().resource::<Time>().elapsed_secs_f64()).abs() < 1e-8);
     }
 
     #[test]

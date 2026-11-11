@@ -6718,7 +6718,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色mesh scale=(1.4,0.8,0.6)、actor yaw=0.7，Foot Lock关闭以隔离其他算法，实际Rig输入为(0.196194,0.134653,0.073582)，source为(0.284042,0.134653,−0.072761)，相差0.170685m。仅恢复该输入字段即通过；unit、uniform1.5与零yaw控制均通过，共8组7PASS/1FAIL。
   - 漏检：旧空间测试验证数学往返或uniform scale，没有以源Inverse QST顺序复算实际Feet读者。证据`71/initial/`、`bf144_animation_phase71_component_inverse`；本项只登记Feet直接消费者，不修改通用空间helper或其他调用者。
 
-- [ ] BF144-D156 / P3 — 初始瞬移时间用None代替源零值，丢失世界启动时的Foot Lock重定位窗口。
+- [x] BF144-D156 / P3 — 初始瞬移时间用None代替源零值，丢失世界启动时的Foot Lock重定位窗口。
+  - 2026-11-12 01:15 +0800 实际结束早于01:43预估，未拆分。fresh双精度CDO值、世界时间与Feet消费闭包见 `docs/audit/bf144/d156/`。默认数值0参与相同窗口，事件仍记当前游戏时间。六组静态重放通过，恢复可选时间仅在0.1s无事件组漏10cm重定位，包含0.2秒边界。旧71原始运行证据未随当前Git保留，加载角色反例、Rust消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 01:13 +08:00，预估结束2026-11-12 01:43 +08:00。核对源双精度时间戳、窗口边界与无事件启动的已有脚锁。
   - Source：fresh AB_Als CDO与`AlsAnimationInstance.h:58`均为TeleportedTime=0；`ProcessFootLockTeleport:1340–1347`在Feet已有有效历史、IK×Lock相关且World.TimeSince(0)≤0.2时重建世界锁定位置。UE `World.h:4714–4716`以游戏时钟直接相减，没有“尚未瞬移”例外。
   - Target：`FootLockLifecycleState:30–34`默认teleported_at=None，`foot_ik_apply.rs:613–620`只在Some时启用窗口，直到收到事件才存在源对应时间。
   - 反例：完整角色保留有效锁定，受控世界时钟0.1s、当帧移动10cm且未超过自动瞬移阈值，source应跟随组件重定位，实际Rig输入多出10cm偏移、rebase次数0。通过公开事件在游戏时间0建立源时间后，同输入恢复；0.3s/1s及恢复控制全部通过，共6组5PASS/1FAIL。
