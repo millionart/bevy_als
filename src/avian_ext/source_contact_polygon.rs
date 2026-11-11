@@ -1,6 +1,7 @@
 use bevy::math::{DQuat, DVec3};
 
 const SOURCE_POLYGON_DATA: ([[usize; 4]; 6], f32, f32, usize) = include!("source_contact_polygon_data.rs");
+pub(super) const SOURCE_BOX_FACE_VERTICES: [[usize; 4]; 6] = SOURCE_POLYGON_DATA.0;
 pub(super) const SOURCE_SMALL_NUMBER: f32 = SOURCE_POLYGON_DATA.1;
 pub(super) const SOURCE_KINDA_SMALL_NUMBER: f32 = SOURCE_POLYGON_DATA.2;
 
@@ -19,7 +20,7 @@ pub(super) fn source_direction(value: DVec3) -> DVec3 {
 pub(crate) fn source_box_face(minimum: DVec3, maximum: DVec3, face: usize) -> (Vec<DVec3>, DVec3) {
     let minimum = source_position(minimum);
     let maximum = source_position(maximum);
-    let vertices = SOURCE_POLYGON_DATA.0[face].into_iter().map(|index| {
+    let vertices = SOURCE_BOX_FACE_VERTICES[face].into_iter().map(|index| {
         runtime_position(DVec3::new(
             if index & 1 == 0 { minimum.x } else { maximum.x },
             if index & 2 == 0 { minimum.y } else { maximum.y },
@@ -32,7 +33,7 @@ pub(crate) fn source_box_face(minimum: DVec3, maximum: DVec3, face: usize) -> (V
     (vertices, source_direction(normal))
 }
 
-fn clip_plane(points: &[DVec3], normal: DVec3, distance: f64) -> Vec<DVec3> {
+pub(super) fn clip_plane(points: &[DVec3], normal: DVec3, distance: f64) -> Vec<DVec3> {
     let mut output = Vec::with_capacity(points.len());
     let mut current = *points.last().expect("A source clipping polygon must not be empty");
     let mut current_dot = current.dot(normal);
@@ -108,6 +109,21 @@ fn reduce_source_points(points: &mut Vec<DVec3>) {
     points.truncate(4);
 }
 
+pub(super) fn reduce_source_points_along(points: &mut Vec<DVec3>, normal: DVec3) {
+    if points.len() <= 4 {
+        return;
+    }
+    let rotation = source_rotation_to_z(normal);
+    for point in points.iter_mut() {
+        *point = rotation * *point;
+    }
+    reduce_source_points(points);
+    let inverse = rotation.conjugate();
+    for point in points.iter_mut() {
+        *point = inverse * *point;
+    }
+}
+
 pub(crate) fn source_clip_convex_face(
     reference: &[DVec3],
     normal: DVec3,
@@ -129,13 +145,7 @@ pub(crate) fn source_clip_convex_face(
         previous = current;
     }
     if points.len() == 4 { points.swap(1, 2); }
-    if points.len() > 4 {
-        let rotation = source_rotation_to_z(normal);
-        for point in &mut points { *point = rotation * *point; }
-        reduce_source_points(&mut points);
-        let inverse = rotation.conjugate();
-        for point in &mut points { *point = inverse * *point; }
-    }
+    reduce_source_points_along(&mut points, normal);
     points.into_iter().map(runtime_position).collect()
 }
 

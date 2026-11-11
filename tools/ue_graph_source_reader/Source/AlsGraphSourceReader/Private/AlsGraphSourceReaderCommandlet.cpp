@@ -89,6 +89,7 @@
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/CollisionFilter.h"
 #include "Chaos/Collision/CapsuleTriangleContactPoint.h"
+#include "Chaos/Collision/ConvexTriangleContactPoint.h"
 #include "Chaos/Collision/BasicCollisionDetector.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsEngine/BodySetup.h"
@@ -2001,12 +2002,13 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         {
             const TArray<TSharedPtr<FJsonValue>>* Indices = nullptr;
             const Chaos::FImplicitCapsule3* Capsule = Implicit->GetObject<Chaos::FImplicitCapsule3>();
+            const Chaos::FImplicitBox3* Box = Implicit->GetObject<Chaos::FImplicitBox3>();
             Chaos::FVec3 CoreScale;
             Chaos::FReal WrapperMargin;
             const Chaos::FTriangleMeshImplicitObject* Core = Chaos::UnwrapImplicit<Chaos::FTriangleMeshImplicitObject>(*Other, CoreScale, WrapperMargin);
-            if (Capsule == nullptr || Core == nullptr || !Input->TryGetArrayField(TEXT("triangle_indices"), Indices)) { return nullptr; }
-            Chaos::FRigidTransform3 MeshToCapsule = Chaos::FRigidTransform3(BoxWorld).GetRelativeTransformNoScale(ShapeWorld);
-            MeshToCapsule.SetScale3D(CoreScale);
+            if ((Capsule == nullptr && Box == nullptr) || Core == nullptr || !Input->TryGetArrayField(TEXT("triangle_indices"), Indices)) { return nullptr; }
+            Chaos::FRigidTransform3 MeshToShape = Chaos::FRigidTransform3(BoxWorld).GetRelativeTransformNoScale(ShapeWorld);
+            MeshToShape.SetScale3D(CoreScale);
             TArray<TSharedPtr<FJsonValue>> TriangleContacts;
             for (const TSharedPtr<FJsonValue>& IndexValue : *Indices)
             {
@@ -2014,13 +2016,27 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                 if (!IndexValue->TryGetNumber(Index) || Index < 0 || Index >= Core->Elements().GetNumTriangles()) { return nullptr; }
                 Chaos::FTriangle Triangle;
                 int32 Vertex0, Vertex1, Vertex2;
-                Core->GetTransformedTriangle(Index, MeshToCapsule, Triangle, Vertex0, Vertex1, Vertex2);
+                Core->GetTransformedTriangle(Index, MeshToShape, Triangle, Vertex0, Vertex1, Vertex2);
+                if (CoreScale.X * CoreScale.Y * CoreScale.Z < 0.0) { Triangle.ReverseWinding(); }
                 Chaos::FContactPointManifold Contacts;
-                Chaos::ConstructCapsuleTriangleOneShotManifold2(*Capsule, Triangle, CullDistance, Contacts);
+                if (Capsule != nullptr)
+                {
+                    Chaos::ConstructCapsuleTriangleOneShotManifold2(*Capsule, Triangle, CullDistance, Contacts);
+                }
+                else
+                {
+                    Chaos::ConstructConvexTriangleOneShotManifold2(*Box, Triangle, CullDistance, Contacts);
+                }
                 TArray<TSharedPtr<FJsonValue>> TrianglePoints;
                 for (const Chaos::FContactPoint& Contact : Contacts) { TrianglePoints.Add(CapturePoint(Contact, ShapeWorld, ShapeWorld)); }
+                TArray<TSharedPtr<FJsonValue>> TriangleVertices;
+                for (int32 Vertex = 0; Vertex < 3; ++Vertex)
+                {
+                    TriangleVertices.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(Triangle.GetVertex(Vertex)))));
+                }
                 TSharedRef<FJsonObject> TriangleValue = MakeShared<FJsonObject>();
                 TriangleValue->SetNumberField(TEXT("triangle_index"), Index);
+                TriangleValue->SetArrayField(TEXT("vertices_cm"), TriangleVertices);
                 TriangleValue->SetArrayField(TEXT("points"), TrianglePoints);
                 TriangleContacts.Add(MakeShared<FJsonValueObject>(TriangleValue));
             }

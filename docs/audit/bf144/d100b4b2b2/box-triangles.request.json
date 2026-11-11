@@ -1,0 +1,169 @@
+{
+  "samples": [
+    {
+      "label": "cart_box_production",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -12.185264587402344,
+        -15.160499572753906,
+        60.864403788248694
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Cart",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "triangle_indices": [
+        988,
+        491,
+        498,
+        989
+      ]
+    },
+    {
+      "label": "stairs_box_production",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        451.6666569627384,
+        -661.1666666666666,
+        448.4
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_02",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "triangle_indices": [
+        252,
+        253,
+        270
+      ]
+    },
+    {
+      "label": "rock_box_production",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        222.78787740071616,
+        0.8618557055791225,
+        178.53383992513022
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Rock",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "triangle_indices": [
+        1053
+      ]
+    },
+    {
+      "label": "cart_box_backfaces",
+      "bone_name": "foot_l",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -12.185264587402344,
+        -15.160499572753906,
+        47.864403788248694
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Cart",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "aggregate_mesh": false,
+      "triangle_indices": [
+        988,
+        989
+      ]
+    }
+  ]
+}
