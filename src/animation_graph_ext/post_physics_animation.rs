@@ -948,7 +948,7 @@ mod tests {
         for frame in 1..=2 {
             for entity in [sampler, character] {
                 app.world_mut().get_mut::<crate::extensions::SourceAnimationInputs>(entity).unwrap().set_rig_query_context(Some(crate::extensions::control_rig_query::RigQueryContext {
-                    world: std::sync::Arc::new(crate::extensions::control_rig_query::RigQueryWorld { colliders: default() }),
+                    world: std::sync::Arc::new(crate::extensions::control_rig_query::RigQueryWorld::default()),
                     to_world: default(), channel: "Visibility".into(), filter: default(),
                 }));
             }

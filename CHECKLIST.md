@@ -6760,7 +6760,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色的脚侧查询盒覆盖trace起点0.5m，query确实返回起点与零法线，实际偏移消费者为0而source应为+0.5m。仅恢复偏移变量即通过；把同一盒顶面降到起点表面的源等价控制也通过。查询单元与完整角色均复现，未用放宽坡度阈值掩盖结果。
   - 漏检：旧Rig trace单元测试传入预制非零法线，query集成测试从形体外开始，未串起inside-ray→命中转换→walkability。证据同D159；未修改生产query或Rig实现。
 
-- [ ] BF144-D161 / P2 — Foot Trace复杂网格射线遗漏实际单面剔除，背面命中进入脚底偏移。
+- [x] BF144-D161 / P2 — Foot Trace复杂网格射线遗漏实际单面剔除，背面命中进入脚底偏移。
+  - 2026-11-12 01:50 +0800 实际结束早于02:29预估，未拆分。fresh 12种BodySetup和10133个精确绕序匹配、实际Barrel正背面原生证据见 `docs/audit/bf144/d161/`。离线标志随现有复杂Collider进入Rig，按未缩放局部方向剔背面。生成产物复跑字节一致，双面字段、反绕序、缩放桶内及正面消融通过。旧73原始报告未随当前Git保留，实际Playground bridge场景反例已补，Rust消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 01:38 +08:00，预估结束2026-11-12 02:29 +08:00。fresh读取12种复杂mesh的BodySetup与三角绕序，核对局部射线方向和缩放后的真实Foot Trace。
   - Source：fresh `ChaosInterfaceUtils.cpp:325`从BodySetup双面字段设置culls_back_face，12种实际Playground复杂mesh均为False/True；`TriangleMeshImplicitObject.cpp:169–181`以Dir·TriangleNormal>0拒绝背面。源FootOffsetTrace的Visibility复杂查询直接消费该结果。
   - Target：`playground_collision.rs:229–252`建立普通Parry trimesh；`control_rig_apply.rs:437–442`正确选用复杂几何及缩放，但`control_rig_query.rs:42–50`调用默认双面cast_ray，未传入源剔除规则。此处是ray独立算法，不归并接触生成D140。
   - 反例：完整角色实际CR_Als，桶底置于−0.3m、脚底射线起于+0.5m且位于桶内。原生无命中，目标命中底部背面并将−0.261963m送入ApplyFootOffsetLocation；scale=1.5时同根偏移−0.542933m。只在夹具按当前ray方向剔背面，两个实际消费者均恢复0；正面和非均匀缩放控制通过，8组6PASS/2FAIL。

@@ -1,0 +1,140 @@
+{
+  "samples": [
+    {
+      "name": "inside_unit",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel.SM_Als_Barrel",
+        "translation_cm": [
+          0,
+          0,
+          -30
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          2.5,
+          -3.5,
+          50
+        ],
+        "end_cm": [
+          2.5,
+          -3.5,
+          -80
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "inside_scaled",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel.SM_Als_Barrel",
+        "translation_cm": [
+          0,
+          0,
+          -30
+        ],
+        "scale": [
+          1.5,
+          1.5,
+          1.5
+        ],
+        "start_cm": [
+          2.5,
+          -3.5,
+          50
+        ],
+        "end_cm": [
+          2.5,
+          -3.5,
+          -80
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "front_unit",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel.SM_Als_Barrel",
+        "translation_cm": [
+          0,
+          0,
+          -30
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          2.5,
+          -3.5,
+          250
+        ],
+        "end_cm": [
+          2.5,
+          -3.5,
+          -80
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "front_nonuniform",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel.SM_Als_Barrel",
+        "translation_cm": [
+          0,
+          0,
+          -30
+        ],
+        "scale": [
+          1.25,
+          0.75,
+          1.5
+        ],
+        "start_cm": [
+          2.5,
+          -3.5,
+          250
+        ],
+        "end_cm": [
+          2.5,
+          -3.5,
+          -80
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    }
+  ]
+}

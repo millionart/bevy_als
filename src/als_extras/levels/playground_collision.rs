@@ -1,5 +1,6 @@
 use crate::als::character::AlsCollisionLayer;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use crate::extensions::{
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
@@ -12,6 +13,12 @@ use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 
 pub struct PlaygroundCollisionPlugin;
+
+static SOURCE_MESH_RAY_CULLING: LazyLock<HashMap<String, bool>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!(
+        "../../../assets/ALSExtras/Environment/Meshes/playground_mesh_ray_culling.runtime.json"
+    )).expect("Source mesh ray culling must parse")
+});
 
 impl Plugin for PlaygroundCollisionPlugin {
     fn build(&self, app: &mut App) {
@@ -169,6 +176,9 @@ fn playground_mesh_physics_bridge(
         );
         if let Some(complex) = template.complex {
             commands.entity(root).insert(crate::extensions::ComplexCollider(complex));
+        }
+        if SOURCE_MESH_RAY_CULLING.get(&source.mesh_base).copied().unwrap_or(false) {
+            commands.entity(root).insert(crate::extensions::control_rig_query::RigRayCullBackfaces);
         }
         commands.entity(root).insert((
             RigidBody::Static,
@@ -481,6 +491,7 @@ mod tests {
 
     #[test]
     fn current_convex_foot_queries_use_the_source_complex_surface() {
+        use avian3d::parry::{query::{Ray, RayCast}, shape::TypedShape};
         for name in ["SM_Als_Arch_01","SM_Als_Arch_02","SM_Als_Barrel","SM_Als_Barrel_Broken","SM_Als_Bench"] {
             let folder=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/ALSExtras/Environment/Meshes");
             let data:serde_json::Value=serde_json::from_str(&std::fs::read_to_string(folder.join(format!("{name}.gltf"))).unwrap()).unwrap();
@@ -519,6 +530,8 @@ mod tests {
             let player=app.world().get::<bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>(avatar).unwrap().player_entity();
             let query=app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().rig_query_context()
                 .expect("Actual source rig query context is missing");
+            assert!(query.world.cull_back_faces.contains(&root));
+            let TypedShape::TriMesh(surface) = complex.shape().as_typed_shape() else { panic!("Expected source mesh"); };
             let offset=|hit:Option<(f32,Vec3)>,root_y:f32| {
                 hit.filter(|(_,normal)|normal.y>=45.0_f32.to_radians().cos())
                     .map_or((0.0,Vec3::Y),|(height,normal)|(height-root_y+0.135/normal.y-0.135,normal))
@@ -532,14 +545,44 @@ mod tests {
                     let Some((distance,_))=simple else {continue};
                     let root_y=probe.y-distance;
                     let start=Vec3::new(px,root_y+0.5,pz);
-                    let expected=complex.cast_ray(Vec3::Y*10.0,Quat::IDENTITY,start,Vec3::NEG_Y,1.3,true)
-                        .map(|(distance,normal)|(start.y-distance,normal));
+                    let ray = Ray::new(start - Vec3::Y * 10.0, Vec3::NEG_Y);
+                    let expected = surface.triangles().filter_map(|face| {
+                        let normal = (face.b - face.a).cross(face.c - face.a);
+                        if ray.dir.dot(normal) > 0.0 { return None; }
+                        face.cast_local_ray_and_get_normal(&ray, 1.3, true)
+                    }).min_by(|left, right| left.time_of_impact.total_cmp(&right.time_of_impact))
+                        .map(|hit| (start.y - hit.time_of_impact, hit.normal));
                     let observed=query.trace(start.as_dvec3(),(start-Vec3::Y*1.3).as_dvec3(),"ECC_Visibility",true).unwrap()
                         .map(|(point,normal)|(point.y as f32,normal.as_vec3()));
                     let expected=offset(expected,root_y);let observed=offset(observed,root_y);
                     assert!((expected.0-observed.0).abs()<0.01 && expected.1.angle_between(observed.1)<1.0_f32.to_radians(),
                         "Source complex foot offset differs: mesh={name}, x={px}, z={pz}, root={root_y}, source={expected:?}, target={observed:?}");
                 }
+            }
+            if name == "SM_Als_Barrel" {
+                use bevy::math::DVec3;
+                let inside = DVec3::new(0.025, 10.8, -0.035);
+                let end = inside.with_y(9.5);
+                let trace = |query: &crate::extensions::control_rig_query::RigQueryContext| {
+                    assert!(query.trace(inside, end, "ECC_Visibility", true).unwrap().is_none());
+                    assert!(query.trace(inside.with_y(12.8), end, "ECC_Visibility", true).unwrap().is_some());
+                };
+                trace(&query);
+                app.world_mut().get_mut::<Transform>(root).unwrap().scale = Vec3::splat(1.5);
+                app.update();
+                app.update();
+                app.world_mut().get_mut::<crate::control_rig_apply::AlsControlRigInput>(character).unwrap().foot_transforms_valid = true;
+                let publish = |app: &mut App| {
+                    app.world_mut().run_system_once(crate::control_rig_apply::publish_control_rig_inputs).unwrap();
+                    app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().rig_query_context().unwrap()
+                };
+                let scaled = publish(&mut app);
+                assert_eq!(scaled.world.colliders[&root].2.scale(), Vec3::splat(1.5));
+                trace(&scaled);
+                app.world_mut().entity_mut(root).remove::<crate::extensions::control_rig_query::RigRayCullBackfaces>();
+                assert!(publish(&mut app).trace(inside, end, "ECC_Visibility", true).unwrap().is_some());
+                app.world_mut().entity_mut(root).insert(crate::extensions::control_rig_query::RigRayCullBackfaces);
+                trace(&publish(&mut app));
             }
         }
     }

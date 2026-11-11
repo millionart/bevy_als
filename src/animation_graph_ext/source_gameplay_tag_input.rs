@@ -228,7 +228,7 @@ mod tests {
                 inputs.set_slot_input_context("slot", Some(default()));
                 inputs.set_linked_graph_input("layer", Some(LinkedGraphInput { graph: default(), blend_in: 0.2, blend_out: 0.2 }));
                 inputs.set_rig_query_context(Some(crate::extensions::control_rig_query::RigQueryContext {
-                    world: Arc::new(crate::extensions::control_rig_query::RigQueryWorld { colliders: default() }),
+                    world: Arc::new(crate::extensions::control_rig_query::RigQueryWorld::default()),
                     to_world: default(), channel: "Visibility".into(), filter: default(),
                 }));
                 Arc::downgrade(&inputs.0)

@@ -1,0 +1,26 @@
+{
+  "cases": [
+    {
+      "case": "inside_unit",
+      "source_distance_cm": null,
+      "distance_with_culling_removed_cm": 76.1951807533424
+    },
+    {
+      "case": "inside_scaled",
+      "source_distance_cm": null,
+      "distance_with_culling_removed_cm": 74.29288516911474
+    },
+    {
+      "case": "front_unit",
+      "source_distance_cm": 187.78367893120992,
+      "distance_with_culling_removed_cm": 187.78367893120992
+    },
+    {
+      "case": "front_nonuniform",
+      "source_distance_cm": 141.6716894589357,
+      "distance_with_culling_removed_cm": 141.6716894589357
+    }
+  ],
+  "mesh_count": 12,
+  "matching_triangles": 10133
+}

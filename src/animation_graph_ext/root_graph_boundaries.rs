@@ -948,9 +948,7 @@ mod tests {
             let query_root = Entity::from_raw_u32(812907).unwrap();
             source_inputs.set_rig_query_context(
                 Some(crate::extensions::control_rig_query::RigQueryContext {
-                    world: std::sync::Arc::new(crate::extensions::control_rig_query::RigQueryWorld {
-                        colliders: default(),
-                    }),
+                    world: std::sync::Arc::new(crate::extensions::control_rig_query::RigQueryWorld::default()),
                     to_world: default(),
                     channel: "ECC_Visibility".into(),
                     filter: default(),

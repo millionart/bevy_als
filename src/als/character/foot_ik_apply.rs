@@ -1381,6 +1381,7 @@ mod tests {
         fn capture(In((entity, to_world)): In<(Entity, RigTransform)>, mut inputs: Query<&mut SourceAnimationInputs>, colliders: Query<(Entity, &Position, &Rotation, &Collider, &CollisionLayers)>) {
             inputs.get_mut(entity).unwrap().set_rig_query_context(Some(RigQueryContext { world: std::sync::Arc::new(RigQueryWorld {
                 colliders: colliders.iter().map(|(entity, position, rotation, collider, layers)| (entity, (*position, *rotation, collider.clone(), *layers))).collect(),
+                ..default()
             }), to_world, channel: "ECC_Visibility".into(), filter: default() }));
         }
         let mut app = App::new();
