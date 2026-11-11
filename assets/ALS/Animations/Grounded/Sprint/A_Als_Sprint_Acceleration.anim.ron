@@ -12,16 +12,16 @@
                     id: "679271f3-2379-51bf-90c9-89183be90795",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/sprint/a_als_sprint_acceleration.a_als_sprint_acceleration:e33bdccc-45153d9a-6a688781-18d470d2"),
-                        start_time: 0.066667,
-                        end_time: 0.066667,
+                        start_time: 0.06666667014360428,
+                        end_time: 0.06666667014360428,
                     ),
                 ),
                 (
                     id: "13d9eaf1-9d5e-5494-a056-f1b0d3200a3d",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/sprint/a_als_sprint_acceleration.a_als_sprint_acceleration:30045d74-4ade33ef-f2b4bf9b-930c12a0"),
-                        start_time: 0.366667,
-                        end_time: 0.366667,
+                        start_time: 0.36666667461395264,
+                        end_time: 0.36666667461395264,
                     ),
                 ),
             ],
@@ -33,16 +33,16 @@
                     id: "e9b4d72b-0a66-50dd-bba6-45ee444cdfea",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/sprint/a_als_sprint_acceleration.a_als_sprint_acceleration:bec20984-434890c5-a1238cae-d4c99178"),
-                        start_time: 0.066667,
-                        end_time: 0.066667,
+                        start_time: 0.06666667014360428,
+                        end_time: 0.06666667014360428,
                     ),
                 ),
                 (
                     id: "3e673ce4-3d56-56a7-999c-13236b84f584",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/sprint/a_als_sprint_acceleration.a_als_sprint_acceleration:383bdbab-4984ab27-9ed6b994-53cf7f4f"),
-                        start_time: 0.366667,
-                        end_time: 0.366667,
+                        start_time: 0.36666667461395264,
+                        end_time: 0.36666667461395264,
                     ),
                 ),
             ],

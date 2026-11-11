@@ -12,24 +12,24 @@
                     id: "05750f5f-0a0e-5b44-80cf-ae27d4d2f517",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_right.a_als_mantle_low_right:cdd613eb-4d00e3e5-42bf1080-e4744898"),
-                        start_time: 0.333333,
-                        end_time: 0.333333,
+                        start_time: 0.3333333432674408,
+                        end_time: 0.3333333432674408,
                     ),
                 ),
                 (
                     id: "65077d25-cb27-57ed-b314-a357bc7295fb",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_right.a_als_mantle_low_right:0422dcbb-4f1f119e-4e2928b9-aad4d320"),
-                        start_time: 0.733333,
-                        end_time: 0.733333,
+                        start_time: 0.7333333492279053,
+                        end_time: 0.7333333492279053,
                     ),
                 ),
                 (
                     id: "1726306a-c537-5d7e-b88c-5ef4f29b9044",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_right.a_als_mantle_low_right:b1845268-42a9a510-a352b98a-bab2c8ab"),
-                        start_time: 1.266667,
-                        end_time: 1.266667,
+                        start_time: 1.2666667699813843,
+                        end_time: 1.2666667699813843,
                     ),
                 ),
             ],
@@ -41,8 +41,8 @@
                     id: "04491775-0f53-58f6-b6a2-528bcfd21ba7",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low.am_als_mantle_low:8f74899a-416521df-10948fb0-bf46fd92"),
-                        start_time: 0.0,
-                        end_time: 0.966667,
+                        start_time: -9.999999747378752e-05,
+                        end_time: 0.9665666222572327,
                     ),
                 ),
             ],
@@ -55,7 +55,7 @@
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low.am_als_mantle_low:55d501ac-4c6d0bc6-edc0e1a0-d3c4bd36"),
                         start_time: 1.0,
-                        end_time: 1.5,
+                        end_time: 1.499899983406067,
                     ),
                 ),
             ],
@@ -67,8 +67,8 @@
                     id: "c3519bb4-20d7-570b-91e2-8d009728e1d7",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low_botharms.am_als_mantle_low_botharms:c25bd15c-40458e9e-c32fb4a8-542d6d5e"),
-                        start_time: 0.0,
-                        end_time: 0.966667,
+                        start_time: -9.999999747378752e-05,
+                        end_time: 0.9665666222572327,
                     ),
                 ),
             ],
@@ -81,7 +81,7 @@
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low_botharms.am_als_mantle_low_botharms:3e6960ff-4c6d7141-8bfb4ca7-15cb042d"),
                         start_time: 1.0,
-                        end_time: 1.5,
+                        end_time: 1.499899983406067,
                     ),
                 ),
             ],
@@ -93,8 +93,8 @@
                     id: "afcc2b09-3941-5440-86e1-3855c2a1278b",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low_box.am_als_mantle_low_box:cf784a31-4ba1dd9f-4acfd0ac-14b7b7f2"),
-                        start_time: 0.0,
-                        end_time: 0.966667,
+                        start_time: -9.999999747378752e-05,
+                        end_time: 0.9665666222572327,
                     ),
                 ),
             ],
@@ -107,7 +107,7 @@
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low_box.am_als_mantle_low_box:a366ea9c-40f5ee77-d133e697-9f9c891c"),
                         start_time: 1.0,
-                        end_time: 1.5,
+                        end_time: 1.499899983406067,
                     ),
                 ),
             ],
@@ -119,8 +119,8 @@
                     id: "ba64990c-f706-5af7-a9e8-5eae8626a6c1",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low_right.am_als_mantle_low_right:203a6d14-49a0be1e-cc31ea93-03e68973"),
-                        start_time: 0.0,
-                        end_time: 0.966667,
+                        start_time: -9.999999747378752e-05,
+                        end_time: 0.9665666222572327,
                     ),
                 ),
             ],
@@ -133,7 +133,7 @@
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low_right.am_als_mantle_low_right:7662ac23-4bcaa9db-f971d19c-d9dd1279"),
                         start_time: 1.0,
-                        end_time: 1.5,
+                        end_time: 1.499899983406067,
                     ),
                 ),
             ],

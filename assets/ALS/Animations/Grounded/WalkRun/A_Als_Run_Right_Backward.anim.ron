@@ -12,8 +12,8 @@
                     id: "e84b97f6-f977-5db7-8ddf-f5372d757c87",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_right_backward.a_als_run_right_backward:85a7b306-46285aa9-d8da6f8e-9c46f3a2"),
-                        start_time: 0.166667,
-                        end_time: 0.166667,
+                        start_time: 0.1666666716337204,
+                        end_time: 0.1666666716337204,
                     ),
                 ),
                 (
@@ -33,16 +33,16 @@
                     id: "2c49dc4b-3a70-50c3-a97d-b3884ae9fb7d",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_right_backward.a_als_run_right_backward:ed9b9e6e-47596f07-9c827b95-3590afc3"),
-                        start_time: 0.066667,
-                        end_time: 0.066667,
+                        start_time: 0.06666667014360428,
+                        end_time: 0.06666667014360428,
                     ),
                 ),
                 (
                     id: "8e2322b9-ba90-5079-9b48-7daa1ef7a524",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_right_backward.a_als_run_right_backward:b70841da-4beed113-b81ab4be-f5dfc447"),
-                        start_time: 0.4,
-                        end_time: 0.4,
+                        start_time: 0.40000003576278687,
+                        end_time: 0.40000003576278687,
                     ),
                 ),
             ],

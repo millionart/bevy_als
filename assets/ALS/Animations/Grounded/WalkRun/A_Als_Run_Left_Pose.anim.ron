@@ -12,16 +12,16 @@
                     id: "a67436ca-d5a9-5a13-b865-a41ec9bd9b38",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_pose.a_als_run_left_pose:26f3ecfa-40f962a3-327041b2-90ae1816"),
-                        start_time: 0.066667,
-                        end_time: 0.066667,
+                        start_time: 0.06666699796915054,
+                        end_time: 0.06666699796915054,
                     ),
                 ),
                 (
                     id: "a668d6c5-2efd-5a2c-bfa3-3e6b9055ae29",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_pose.a_als_run_left_pose:53b487e8-4e462944-f79e7089-2574564c"),
-                        start_time: 0.466667,
-                        end_time: 0.466667,
+                        start_time: 0.4666669964790344,
+                        end_time: 0.4666669964790344,
                     ),
                 ),
             ],

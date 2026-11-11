@@ -1,0 +1,334 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "e4c89fc67affa7fd239a9bbf07e17497b4645ba1986c0b4bf2483213cc0d2995"
+  },
+  {
+    "path": "assets/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.anim.ron",
+    "sha256": "528f879ac513431441e7b523fac9f9e9e501e8999bcab7d72705240ef29ec1e6"
+  },
+  {
+    "path": "assets/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron",
+    "sha256": "ee13f5d44f71fc7e7ca9c5f0d2bb14e421023a983473794cb1278cbbd5c5bc83"
+  },
+  {
+    "path": "assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.anim.ron",
+    "sha256": "afb9ee86c2dd1fd5ef8d1d7de5aada43f9e933fb33025b3fe604d84dba29c7f6"
+  },
+  {
+    "path": "assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.anim.ron",
+    "sha256": "0903f4e04fdc0bb6e1b332ac015c24121b3e0bb706471eb23edda1867ed4c991"
+  },
+  {
+    "path": "assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.anim.ron",
+    "sha256": "53e607fe07aad42ff067a8512c1acb9406c8e9c2f8e59b9cece02246098da4dc"
+  },
+  {
+    "path": "assets/ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron",
+    "sha256": "e6199c73f4685fdac26c974c9be407ad5cecba02cc1a2b0c1e2c3fadd462075f"
+  },
+  {
+    "path": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron",
+    "sha256": "44bba38a86ac58744351d1064a7e20c589f60999d69429e25d704b96d41abfa3"
+  },
+  {
+    "path": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron",
+    "sha256": "fcb11fb61d03f08fca057826bd0dc23fe7f81a652065ef91a0143a29422f5be1"
+  },
+  {
+    "path": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron",
+    "sha256": "f1d1a9a85919aedcf3729841a9bc73601b1425a65d74ca391aa1b4008b56d117"
+  },
+  {
+    "path": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron",
+    "sha256": "868f4ce927b5cfb3f5ff6b188ebbb554f913f8c9778dda5e76cedce105e4de41"
+  },
+  {
+    "path": "assets/ALS/Animations/Air/Land/A_Als_Land_Heavy.anim.ron",
+    "sha256": "e5d49beb18a277823d5f0c64abb33349ed9201a7ffe3537ca5095a47e735ea04"
+  },
+  {
+    "path": "assets/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.anim.ron",
+    "sha256": "9a4c0d0dd36d46fe748c907611df9f983356435c73b790efebfb65c3e8368c3a"
+  },
+  {
+    "path": "assets/ALS/Animations/Air/Land/A_Als_Land_Light.anim.ron",
+    "sha256": "f1d84b608c0ea534ae3adb44873b8dbd7e563f7b90a76ea0a7340ccbb51cd883"
+  },
+  {
+    "path": "assets/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.anim.ron",
+    "sha256": "fd2e459b6b9769de70e5843868ac96f4b395f133b44bd5cf62c823c618648088"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.anim.ron",
+    "sha256": "a63e0e7a99b523b86437977b8f849b24734a0d1a7e55a2818edf390d3e4052e2"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.anim.ron",
+    "sha256": "2e39e290943a9ca536fdcbc798abb9d5e0942a94a74afdc5c65aaf6e78837240"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.anim.ron",
+    "sha256": "fd21818b05ea660bcadc6dcfb4bef38f180f08ffe6154cf112bdf33502bb553e"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.anim.ron",
+    "sha256": "98323fc1f2c74e5a56dd6105b1aa96275e5fa7068f8a1063cf649a2e2e4ed560"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.anim.ron",
+    "sha256": "0704afb5f2bb33b7e5d7222761e7b0d772f3a9eaa81a92b897e266eefd95dbac"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.anim.ron",
+    "sha256": "c33c75b45644254c635d53bc29568637e147dadb313522df1ed5678abbbf005c"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.anim.ron",
+    "sha256": "910516e4a1d2eef93583ad0ba24a76861b6c1aadfa1775249fc83434c37899ef"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Sprint/A_Als_Sprint.anim.ron",
+    "sha256": "940ce914011b1c35017620210e315bb78962add756db879733045c6ba1a64d19"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.anim.ron",
+    "sha256": "01c74e2fac3e7ab52d9a1d1690eac81420779521b05e938d1a13cfff8f055fd9"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward.anim.ron",
+    "sha256": "923b13423f746aff4d68159ea5898605f1eedd1108e88d9663deccaaa0f2a3e5"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.anim.ron",
+    "sha256": "8f02f5b20ea00c70e3f254c8e5e907054b34e2cb70bf5eefd30cf6c36f4f60e9"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.anim.ron",
+    "sha256": "efd9955e867991e21984577ac33fa2b7023feea77382ecd08b5c29911c622f85"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward.anim.ron",
+    "sha256": "c16fc8cad03240e188a26b2be81f7c8a0a5abb37584c07bfcd2123a6534f8b46"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward.anim.ron",
+    "sha256": "421b8a522d9e80fbaea5807fc0bed16ef7cb7808b44b0c75bac7ef578fce8547"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose.anim.ron",
+    "sha256": "f629d5f9500f4914797a702f954ab18e6988a58ee602124453008264c676f5b3"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward.anim.ron",
+    "sha256": "5f43da4ebf40e6125987bbe748042b749d27d8df332817cc67c5f06533ebd5d8"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.anim.ron",
+    "sha256": "b6c88f460af542a23fb570a3ea07ed2e7bc1c6770edb54439b6ae7bb44ddc661"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.anim.ron",
+    "sha256": "bbbbdad549b8beb6948990556ab0cc45eadaa733c31ef836524a58b59a411d67"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron",
+    "sha256": "1718d991af7ec5b47d9957c51d7d2c798b3172bf4cecd4fe6b8cc330cbdb6584"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron",
+    "sha256": "9ab3108857d45e29e8db6bd14eb70a9ebc9630101b54bf04684477d6649e379d"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.anim.ron",
+    "sha256": "0e2b19b048168038a4b70c0c747d5677fec3c41eac25a6da1333b38127990d2e"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.anim.ron",
+    "sha256": "baaff14667ee47bb276563b4aecf5914be145cabeebe1feb27599ddc4fa2c4aa"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.anim.ron",
+    "sha256": "c493f9484d6e004c213a81272a3e9575c3e673b87b0bdcb91b80603bab3ac27b"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.anim.ron",
+    "sha256": "b68994ffb554e91772c344cd977916c5a129b38bfa03961ab83c16afe84e24cc"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.anim.ron",
+    "sha256": "d249c9088270e968ac6dd1faaefafe1cfa33f694e4d3c6e13c3daca80da882ee"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.anim.ron",
+    "sha256": "19684ffe5db94992243353930f22f7cfda87d8fa12f2cf6dfa479411cb74ec2c"
+  },
+  {
+    "path": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.anim.ron",
+    "sha256": "6a96330a58464ceb8ba9be95edff2210ca188c47338413bd6c5806226ec52932"
+  },
+  {
+    "path": "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.anim.ron",
+    "sha256": "1a4d45516ec8ce9d303dd218f9bac9446dacc117c8a8acf000273bc8ce08b34f"
+  },
+  {
+    "path": "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.anim.ron",
+    "sha256": "cfb032d86c1745f191c150e03cd22adb4fd5d0dd6d2fcd51fd070771e798d10c"
+  },
+  {
+    "path": "assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.anim.ron",
+    "sha256": "207995131647945b1195525f1139178be651c310409cee6f0fb382508d0b9517"
+  },
+  {
+    "path": "assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.anim.ron",
+    "sha256": "a87b97b58b46d54a0624b9efbe82012a06e5ceef3159d417938eb54313408cd7"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_CrouchToStand.anim.ron",
+    "sha256": "f2803447b6228f7f6c077dbef7d0da7c46bd2d2eaf7da27a046505b58200005d"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.anim.ron",
+    "sha256": "685fba7066dfa43c487ee6ac36899e041650c4198261b33feeabc262de3783c5"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.anim.ron",
+    "sha256": "5fd6b7ca1867c802e9205140d66790530c347a5648b1d1b2beb6b28fb185b2ec"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.anim.ron",
+    "sha256": "25a400453d7694ec0217764093e9009ea78f33fe7560402ac6b8350c0a7a3276"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.anim.ron",
+    "sha256": "b360302e4d68dbc0770133e1fcd04d3a1d0eee4d90b2b5365b94c5d1c90adcfb"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_StandToCrouch.anim.ron",
+    "sha256": "51b16ec926bf02ab4dc76f1f305e7e17b6bdd0cf6c3a27a46204e929f8ed7afc"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.anim.ron",
+    "sha256": "4e7d46f30750bf6d8edef626f0f05fd32094f907c7ad466f94f12ce7eaebb7e8"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.anim.ron",
+    "sha256": "da1e3109f36a75665f07381d412cbbb0145ada6ed5e8df9621aec5a96b483bff"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.anim.ron",
+    "sha256": "033a0c207b0cc4ad2be8aae4b302e4b7d88ec0d3ff5d7f1f62ae0834e12a20db"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.anim.ron",
+    "sha256": "d202eb14b816104172559d1cc6e3a1106c29d264bee368d33d8b9d17be067cf3"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Stop_Left.anim.ron",
+    "sha256": "9c80eb154882598af1ddcd678c7d59bab180955fca521330e76345832665a5c2"
+  },
+  {
+    "path": "assets/ALS/Animations/Transitions/A_Als_Stop_Right.anim.ron",
+    "sha256": "bdf0d13756c2da5bf0c8800b1075893c43c6b7c850add9fa0606ed73cdf49c1a"
+  },
+  {
+    "path": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.anim.ron",
+    "sha256": "ef6efadf952665d2e9b548b6f45cce8d5e563be2c88fad698a653bcbe9b7c302"
+  },
+  {
+    "path": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.anim.ron",
+    "sha256": "8309385cd44b703d836fa0d830e2565117bb955158e09f59ad23295a580233c4"
+  },
+  {
+    "path": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.anim.ron",
+    "sha256": "39686361cbe0cdd8274e39ea9a131c6c57197f5d44ee7a600656e70c1963ba42"
+  },
+  {
+    "path": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.anim.ron",
+    "sha256": "77c02967fa4dd9228488389aaa38f1e4b613e98b17ff14d6495c008a15cc3484"
+  },
+  {
+    "path": "assets/ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.anim.ron",
+    "sha256": "c632a58304cf69cd2e9f2fb02b5616ad122161037769afe5b934252a65244943"
+  },
+  {
+    "path": "assets/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.anim.ron",
+    "sha256": "db3613a22752e9cc78052786afd4bbf55d83d660b951b6afe03e0b07a48d1d42"
+  },
+  {
+    "path": "assets/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.anim.ron",
+    "sha256": "0b148a82eca2a3cc16df25f3bb0c040e5e3c6c5addeb3084e2a7d444122d22d6"
+  },
+  {
+    "path": "assets/ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.anim.ron",
+    "sha256": "84255f5b834c2d9e4e5223323d4bb1091753a6d3cf06e6dfdb5e436771df0245"
+  },
+  {
+    "path": "docs/audit/bf144/d180/README.md",
+    "sha256": "bd5c633d1d26f9b0409e2a70c5aae32dfb72663c4a5e08f817f25071ffde0793"
+  },
+  {
+    "path": "docs/audit/bf144/d180/compare_event_tracks.py",
+    "sha256": "42c66a8f559cd44943c9ef85d7690d554c663ed13345c48f1d23696873630fe3"
+  },
+  {
+    "path": "docs/audit/bf144/d180/corpus-diff.json",
+    "sha256": "b9e41f6016a24f82749b15764fff43f2a8323d6843b8f7d7cb46a8c710453982"
+  },
+  {
+    "path": "docs/audit/bf144/d180/corpus-progress.json",
+    "sha256": "4d1e6ea6d45e1f51a9cf7fb90ef7ba3c9221d7b8e59beca2cd0671c0b27ffeef"
+  },
+  {
+    "path": "docs/audit/bf144/d180/corpus.self-test.txt",
+    "sha256": "e4ce7f2e3c3d920e1c3ecd25e7e468246928952bb7d58d489da250163d67a182"
+  },
+  {
+    "path": "docs/audit/bf144/d180/event-bounds.replay.json",
+    "sha256": "da87ac48959a20fd839ae75486fd99dafdf9acd7e0f0b2630aec8a992b0eac0f"
+  },
+  {
+    "path": "docs/audit/bf144/d180/full_diff.patch",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/audit/bf144/d180/legacy-compiler.failure.txt",
+    "sha256": "cac07e51967ef3915ef44ecfbd001339f2df64c5afa5dbbd4ca7f9c5a0b85d12"
+  },
+  {
+    "path": "docs/audit/bf144/d180/replay_event_bounds.py",
+    "sha256": "b006d8a7502b1c5823818367f69aea0c5fb68e8d2bd50131715b1e8f048260e2"
+  },
+  {
+    "path": "docs/audit/bf144/d180/roll.native.json.gz",
+    "sha256": "e1d237bee07515b9420322eb304faa544e9c268fcc2beabd177f4040320604f2"
+  },
+  {
+    "path": "docs/audit/bf144/d180/roll.native.json.reader.report.json",
+    "sha256": "e779178660ca32261b37e869a898f9d4cdcdb69554d70f60f4e2b07b1c71f002"
+  },
+  {
+    "path": "docs/audit/bf144/d180/roll.native.sha256",
+    "sha256": "96f0b6440e4399d3918d53651875d3ec503f41cb84eaaf66c7504bccf34afcc3"
+  },
+  {
+    "path": "docs/audit/bf144/d180/track-compiler.check.json",
+    "sha256": "c63ce99ed50919c4e204dfeb71221d87fa44d5a3d78b36e83a37409cd3f57d02"
+  },
+  {
+    "path": "docs/audit/bf144/d180/track-diff.json",
+    "sha256": "ebd8c5c300b0228edeb982982cfa55ae79082dffbb672555528aa3e3ecf41884"
+  },
+  {
+    "path": "docs/audit/bf144/d180/tracks-full.diff",
+    "sha256": "07813106d786336101ba679a45a0e9205435d2d4e92104fab0e734bf601f8387"
+  },
+  {
+    "path": "tools/import/compile_als_event_tracks.py",
+    "sha256": "06f37b3cb0981559228af6d1524db07b3f7df06a490c04b4b16a679f26348ec4"
+  },
+  {
+    "path": "tools/tests/notify_event_tracks.rs",
+    "sha256": "2b0ffdd1d0afbd3613181270af0bab5189fa69018b936e38bba0d8f5f4c2efcd"
+  }
+]

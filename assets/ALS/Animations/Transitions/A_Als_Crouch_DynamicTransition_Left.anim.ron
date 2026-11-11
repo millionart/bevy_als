@@ -12,8 +12,8 @@
                     id: "65c79a4e-3158-56a1-a778-b9da4549c87a",
                     value: (
                         event: StringId("als_notify:/als/als/animations/transitions/a_als_crouch_dynamictransition_left.a_als_crouch_dynamictransition_left:e8eda29f-4ad2f76e-d93b5dba-32c3df15"),
-                        start_time: 0.566667,
-                        end_time: 0.566667,
+                        start_time: 0.5666666626930237,
+                        end_time: 0.5666666626930237,
                     ),
                 ),
             ],

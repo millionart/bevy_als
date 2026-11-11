@@ -20,8 +20,8 @@
                     id: "3429c585-8e95-5d93-aa47-5c37b9ce8e5f",
                     value: (
                         event: StringId("als_notify:/als/als/animations/rotateinplace/a_als_rotate_90_left.a_als_rotate_90_left:8eea98f2-4c6abcd4-4861fe98-f187800f"),
-                        start_time: 0.966667,
-                        end_time: 0.966667,
+                        start_time: 0.9666666984558105,
+                        end_time: 0.9666666984558105,
                     ),
                 ),
             ],

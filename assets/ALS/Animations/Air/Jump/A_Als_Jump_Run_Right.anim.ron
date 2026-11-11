@@ -12,8 +12,8 @@
                     id: "3519f86f-3dd3-5527-8d3c-fb37e3509c65",
                     value: (
                         event: StringId("als_notify:/als/als/animations/air/jump/a_als_jump_run_right.a_als_jump_run_right:dd0ef0f6-44fe5bf5-dbf03da8-8565b727"),
-                        start_time: 0.0,
-                        end_time: 0.0,
+                        start_time: 9.999999747378752e-05,
+                        end_time: 9.999999747378752e-05,
                     ),
                 ),
             ],

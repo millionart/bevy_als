@@ -12,16 +12,16 @@
                     id: "b3b71107-6ee9-57fa-9dd4-f630790ece81",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_right_backward.a_als_crouch_walk_right_backward:3d53a3da-41106758-4b7d3896-b6b5e0d9"),
-                        start_time: 0.366667,
-                        end_time: 0.366667,
+                        start_time: 0.36666664481163025,
+                        end_time: 0.36666664481163025,
                     ),
                 ),
                 (
                     id: "e7bd8782-6e11-5e10-aebc-6b7e05207a1e",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_right_backward.a_als_crouch_walk_right_backward:eca0c136-4de2e472-266fb7a5-78bc8229"),
-                        start_time: 0.933333,
-                        end_time: 0.933333,
+                        start_time: 0.9333332777023315,
+                        end_time: 0.9333332777023315,
                     ),
                 ),
             ],
@@ -33,16 +33,16 @@
                     id: "01a04bf1-f6dc-5977-9318-2f0e4e636057",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_right_backward.a_als_crouch_walk_right_backward:0a561358-47bd5eb3-526d33aa-1e4da5ed"),
-                        start_time: 0.533333,
-                        end_time: 0.533333,
+                        start_time: 0.5333333015441895,
+                        end_time: 0.5333333015441895,
                     ),
                 ),
                 (
                     id: "12187a99-3b36-5b09-8a1a-e40b86142c4d",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_right_backward.a_als_crouch_walk_right_backward:723a3c76-4bac60c1-a1d7a486-9234bd26"),
-                        start_time: 1.1,
-                        end_time: 1.1,
+                        start_time: 1.0999999046325684,
+                        end_time: 1.0999999046325684,
                     ),
                 ),
             ],

@@ -20,8 +20,8 @@
                     id: "87ee517e-c836-5724-872c-c97546aa1cc5",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/getup/a_als_getup_back.a_als_getup_back:4b94e7b1-4da0e8a5-c233cc8f-56c1d111"),
-                        start_time: 1.066667,
-                        end_time: 1.066667,
+                        start_time: 1.0666667222976685,
+                        end_time: 1.0666667222976685,
                     ),
                 ),
             ],
@@ -33,8 +33,8 @@
                     id: "fc1f2354-a08b-5b1f-8c06-6484c74489a8",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/getup/am_als_getup_back.am_als_getup_back:bd40db9b-4d0d5b96-857949ae-6a9aff61"),
-                        start_time: 0.0,
-                        end_time: 1.166667,
+                        start_time: -9.999999747378752e-05,
+                        end_time: 1.1665666103363037,
                     ),
                 ),
             ],

@@ -12,8 +12,8 @@
                     id: "fd0a2bf7-ec4e-5909-becd-d0d503408c38",
                     value: (
                         event: StringId("als_notify:/als/als/animations/transitions/a_als_stand_dynamictransition_right.a_als_stand_dynamictransition_right:772287f1-4ca15d2b-87de1a99-2af4d4b4"),
-                        start_time: 0.566667,
-                        end_time: 0.566667,
+                        start_time: 0.5666666626930237,
+                        end_time: 0.5666666626930237,
                     ),
                 ),
             ],

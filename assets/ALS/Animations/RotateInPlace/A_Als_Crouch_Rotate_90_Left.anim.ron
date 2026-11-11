@@ -12,16 +12,16 @@
                     id: "d757f762-0b24-5629-a1fe-63a8ece504eb",
                     value: (
                         event: StringId("als_notify:/als/als/animations/rotateinplace/a_als_crouch_rotate_90_left.a_als_crouch_rotate_90_left:a6230091-4013b46f-a8121887-d2cb32b4"),
-                        start_time: 0.433333,
-                        end_time: 0.433333,
+                        start_time: 0.4333333671092987,
+                        end_time: 0.4333333671092987,
                     ),
                 ),
                 (
                     id: "60e93256-c42a-507a-b579-2ce44eb3dad3",
                     value: (
                         event: StringId("als_notify:/als/als/animations/rotateinplace/a_als_crouch_rotate_90_left.a_als_crouch_rotate_90_left:dec60719-49bc746e-b692748f-e5018c46"),
-                        start_time: 0.733333,
-                        end_time: 0.733333,
+                        start_time: 0.7333333492279053,
+                        end_time: 0.7333333492279053,
                     ),
                 ),
             ],

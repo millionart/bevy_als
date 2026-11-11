@@ -1,0 +1,13 @@
+{
+  "native_start": 9.999999747378752e-05,
+  "native_end": 1.500100016593933,
+  "roll_event": "als_notify:/als/als/animations/actions/roll/a_als_roll.a_als_roll:decc527d-454b1467-02c76397-aa1bfb95",
+  "translation_scale": 1.2999999523162842,
+  "pre_start": 9.99999901978299e-05,
+  "clip_end_is_in_state": true,
+  "compiled_clips": 65,
+  "compiled_events": 177,
+  "starts_before_clip": 8,
+  "ends_after_clip": 1,
+  "end_above_native_offset_rejected": true
+}

@@ -1,5 +1,6 @@
 import argparse
 import json
+import struct
 import uuid
 from collections import defaultdict
 from pathlib import Path
@@ -10,6 +11,10 @@ class ValidationError(Exception):
 
 
 EPSILON = 0.0001
+
+
+def f32(value):
+    return struct.unpack("<f", struct.pack("<f", value))[0]
 
 
 def quoted(value):
@@ -40,7 +45,7 @@ def segment_for_event(source, event):
     for segment in source.get("runtime_segments", []):
         segment_start = float(segment["animation_start_time"])
         segment_end = float(segment["animation_end_time"])
-        if start + EPSILON >= segment_start and end <= segment_end + EPSILON:
+        if start >= f32(segment_start - EPSILON) and end <= f32(segment_end + EPSILON):
             matches.append(segment)
     if len(matches) != 1:
         raise ValidationError("event_segment_mapping:" + event["event_id"])
@@ -71,7 +76,7 @@ def tracks(manifest):
                 raise ValidationError("unresolved_event_graph_clip:" + event_id)
             start = map_time(event["start_time"], segment)
             end = map_time(event["end_time"], segment)
-            if start < -EPSILON or end < start - EPSILON or end > durations[clip] + EPSILON:
+            if start < f32(-EPSILON) or end < f32(start - EPSILON) or end > f32(durations[clip] + EPSILON):
                 raise ValidationError("compiled_event_time_out_of_range:" + event_id)
             source_track = str(event.get("track_index", -1))
             track_name = "als_notify:" + source["source_asset"].lower() + ":" + source_track
@@ -79,8 +84,8 @@ def tracks(manifest):
                 {
                     "id": str(uuid.uuid5(uuid.NAMESPACE_URL, event_id)),
                     "event_id": event_id,
-                    "start_time": max(0.0, start),
-                    "end_time": min(durations[clip], max(start, end)),
+                    "start_time": start,
+                    "end_time": max(start, end),
                 }
             )
     return result

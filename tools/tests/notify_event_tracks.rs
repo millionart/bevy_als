@@ -140,15 +140,31 @@ impl SystemExtractor for ClipExtractor {
 #[test]
 fn roll_state_track_samples_through_actual_graph_clip_serialization() {
     let clip = load(ROLL);
-    let sampled = sample_tracks(clip.event_tracks.values(), 0.75);
-    let event = sampled
-        .iter()
-        .find(|event| {
-            string_id(&event.event)
-                .is_some_and(|value| value.contains("decc527d-454b1467-02c76397-aa1bfb95"))
-        })
-        .expect("root motion state must be active at half roll time");
-    assert!((event.percentage - 0.5).abs() < 1e-5);
+    let is_roll_scale = |event: &AnimationEvent| {
+        string_id(event).is_some_and(|value| value.contains("decc527d-454b1467-02c76397-aa1bfb95"))
+    };
+    let value = clip
+        .event_tracks
+        .values()
+        .flat_map(|track| &track.events)
+        .map(|item| &item.value)
+        .find(|value| is_roll_scale(&value.event))
+        .unwrap();
+    let start = 0.0001_f32;
+    let end = 1.5001_f32;
+    assert_eq!((value.start_time, value.end_time), (start, end));
+    let sample = |time| {
+        sample_tracks(clip.event_tracks.values(), time)
+            .into_iter()
+            .find(|event| is_roll_scale(&event.event))
+    };
+    assert!(sample(f32::from_bits(start.to_bits() - 1)).is_none());
+    assert_eq!(sample(start).unwrap().percentage, 0.0);
+    for time in [0.75, 1.5] {
+        let event =
+            sample(time).expect("root motion state must remain active through the clip end");
+        assert!((event.percentage - (time - start) / (end - start)).abs() < 1e-6);
+    }
 }
 
 #[test]

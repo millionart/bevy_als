@@ -12,16 +12,16 @@
                     id: "005d07e3-3399-5f60-b1f2-7b4bc7331857",
                     value: (
                         event: StringId("als_notify:/als/als/animations/transitions/a_als_stop_right.a_als_stop_right:ca2c853e-47ae1d0e-9faf0588-c21bdafe"),
-                        start_time: 0.833333,
-                        end_time: 0.833333,
+                        start_time: 0.8333332538604736,
+                        end_time: 0.8333332538604736,
                     ),
                 ),
                 (
                     id: "c1f98f3a-f336-533e-ad1f-7a0d20d53710",
                     value: (
                         event: StringId("als_notify:/als/als/animations/transitions/a_als_stop_right.a_als_stop_right:93122bd1-46a7212f-67256c93-2ca53ef6"),
-                        start_time: 1.366667,
-                        end_time: 1.366667,
+                        start_time: 1.366666555404663,
+                        end_time: 1.366666555404663,
                     ),
                 ),
             ],

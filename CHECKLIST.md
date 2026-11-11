@@ -6989,7 +6989,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.107标准Profile补充：source StandardBlend对上一状态Override、下一状态Accumulate，目标`profile_blend.rs:191–194`调用同一blend_animation_contexts。当前50个节点的小Alpha控制共107活动帧失败，ProbeCurve共同−1/90输入最大差0.0008981824；只恢复源后项相关性门槛，全部3824个活动帧曲线通过。累计仍归本项，不与D168的槽资格混淆；曲线值为受控输入，不宣称默认图自然出现该精确边界。
 
-- [ ] BF144-D180 / P3 — Roll排队状态使用的GraphClip轨道遗漏有效触发偏移。
+- [x] BF144-D180 / P3 — Roll排队状态使用的GraphClip轨道遗漏有效触发偏移。
+  - 2026-11-12 05:29 +0800 实际结束，较06:04预估提前35分钟，未拆分。fresh源与安装轨道的有效区间一致，65个GraphClip重编仅变更时间字段，15根递归转换的374个文件字节一致。原始读数、正反例、轨道及蓝图全量diff见 `docs/audit/bf144/d180/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 05:10 +08:00，预估结束2026-11-12 06:04 +08:00。重采实际Roll通知有效区间，修复GraphClip轨道编译并完整比较所有通知产物及安装动画蓝图递归依赖。
+  - 05:16 活动摘要：fresh Roll有效端点与当前manifest逐值相同，旧编译在源float结束偏移拒绝映射。65个GraphClip/98轨/177条通知已生成并安装，仅有效起止时间变化，安装轨道检查通过；AnimBP递归全量转换中。
   - Source：fresh `AnimTypes.cpp:81–98`按GetTime+TriggerTimeOffset及有效起点+Duration+EndOffset计算；A_Als_Roll的RootMotionScale原生有效区间为0.0000999999975→1.5001000166，TranslationScale=1.3。`AnimSequenceBase.cpp:478–505`按本帧区间重叠采集，越过结束点的这一帧仍会排入状态。
   - Target：`animation_events.rs:730–735,950–965`对排队状态采样实际GraphClip，`A_Als_Roll.anim.ron:27–29`却保留0→1.5；manifest已有正确有效区间，但此路径没有用它判断普通状态的当前资格。当前`compile_als_event_tracks.py:66–83`会输出0.0001→1.5，表明起点产物已过期、终点仍被裁到clip长度；修正manifest精度不能消除这条独立差异。
   - 反例：共同满权重播放区间在源起点前一个f32时，实际派发器提前Begin并写1.3；从0.1推进到1.5时提前End并写1。六帧轨迹中四帧回调/倍率不符，仅在内存恢复实际事件轨道的两个有效端点后全部通过。566个以正确有效区间构造的局部资格/生命周期对照通过，说明问题进入实际采样轨道。

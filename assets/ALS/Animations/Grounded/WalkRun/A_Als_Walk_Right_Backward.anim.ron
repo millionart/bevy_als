@@ -12,16 +12,16 @@
                     id: "c6e00016-18be-5cfb-b439-41a980a6da30",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_right_backward.a_als_walk_right_backward:87f08730-419c0ccf-ad85958f-bed6ace8"),
-                        start_time: 0.433333,
-                        end_time: 0.433333,
+                        start_time: 0.43333330750465393,
+                        end_time: 0.43333330750465393,
                     ),
                 ),
                 (
                     id: "7a68067a-cbb3-5c09-8fb6-c123757ce9ef",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_right_backward.a_als_walk_right_backward:2126c2b3-41ab0eb9-b970068a-7e9397ac"),
-                        start_time: 1.0,
-                        end_time: 1.0,
+                        start_time: 0.9999999403953552,
+                        end_time: 0.9999999403953552,
                     ),
                 ),
             ],
@@ -33,16 +33,16 @@
                     id: "ec74c305-c5a5-5c43-9c5d-161ec3503edc",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_right_backward.a_als_walk_right_backward:002205ba-4f45b4ee-dfb8a4b9-1c03a28d"),
-                        start_time: 0.533333,
-                        end_time: 0.533333,
+                        start_time: 0.5333333015441895,
+                        end_time: 0.5333333015441895,
                     ),
                 ),
                 (
                     id: "497de981-4e26-54a5-8391-5627749959d7",
                     value: (
                         event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_right_backward.a_als_walk_right_backward:d7237846-4e81e52f-80e6e5bb-81a148ee"),
-                        start_time: 1.1,
-                        end_time: 1.1,
+                        start_time: 1.0999999046325684,
+                        end_time: 1.0999999046325684,
                     ),
                 ),
             ],

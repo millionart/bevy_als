@@ -12,24 +12,24 @@
                     id: "98eba363-1a3c-574c-aeb7-4d85c56bdeae",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_left.a_als_mantle_low_left:dc0eae5b-49b5018d-8850dea7-60d66bd1"),
-                        start_time: 0.333333,
-                        end_time: 0.333333,
+                        start_time: 0.3333333432674408,
+                        end_time: 0.3333333432674408,
                     ),
                 ),
                 (
                     id: "53c563df-746b-50a8-a0be-272a29363a2b",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_left.a_als_mantle_low_left:9a61545a-4c275b4e-a0e4f79d-c1724ad3"),
-                        start_time: 0.733333,
-                        end_time: 0.733333,
+                        start_time: 0.7333333492279053,
+                        end_time: 0.7333333492279053,
                     ),
                 ),
                 (
                     id: "70e3e885-1e04-5b75-8b39-c26422a5afba",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_low_left.a_als_mantle_low_left:26165621-4f279cc6-eb14a6a2-3e9e1ef4"),
-                        start_time: 1.266667,
-                        end_time: 1.266667,
+                        start_time: 1.2666667699813843,
+                        end_time: 1.2666667699813843,
                     ),
                 ),
             ],
@@ -41,8 +41,8 @@
                     id: "033d5372-ebe6-5809-89db-5d6a3924d7aa",
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low_left.am_als_mantle_low_left:fcdcdc06-4e7aea29-7b01eaaf-a9a88555"),
-                        start_time: 0.0,
-                        end_time: 0.966667,
+                        start_time: -9.999999747378752e-05,
+                        end_time: 0.9665666222572327,
                     ),
                 ),
             ],
@@ -55,7 +55,7 @@
                     value: (
                         event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_low_left.am_als_mantle_low_left:a8e7c917-4eddec94-b804f98f-8b752d0d"),
                         start_time: 1.0,
-                        end_time: 1.5,
+                        end_time: 1.499899983406067,
                     ),
                 ),
             ],
