@@ -4903,6 +4903,14 @@
   - 18:09 D60 静态闭环：在原 moving_base 输入系统独立读取物理前碰撞体的世界位置、旋转和缩放，物理后校验用该帧输入复算 RMS。旧帧末变换反例保持；生产推进、位置容差和最终落地交接均按现有合同。开始同 target_game 预构建，成功后重跑 moving_base。
   - 18:10编译发现原长 JSON 宏已接近递归限制，新增证据改成沿用帧记录的字段追加。预构建报告见 `docs/audit/bf144/ragdoll-avian-switch/build-6.report.json`，修正后重建并复跑。
   - 18:14 moving_base 复跑已推进至 AfterMantle，Custom 各帧使用物理前碰撞体的独立复算一致，目标交接和初段骑乘均完成。随后54.095ms真实帧首次掉落，角色相对台面额外移动0.190434m，等于支撑速度乘以 world 与 clamp physics 步长之差。保留完整报告并沿 Walking 支撑时钟查根因；普通回归尚未勾选。
+  - 18:16受控复验启动：保持真实 Playground 与移动台面，固定场景 world 步长为失去支撑帧的54.094833ms，保留原物理上限。用现有公共 runner 检查长帧症状的可重复性，按阶段报告定位普通支撑路径。
+  - 18:18固定54.095ms的全程夹具停在攀爬触发阶段。改用一个独立长帧，直接在已稳定的台面边缘复现 Walking 支撑；依据新证据登记 D317。
+
+- [ ] BF144-D317 / P2 — Walking 将支撑速度的全帧位移当作自身扫掠，在移动台面边缘误判离地。
+  - 开始2026-11-11 18:20 +08:00，预估结束19:05 +08:00。依据：真实报告已锁定长帧与近边缘，fresh 源阶段和目标单步事务已定位；按现有单步夹具、共享 Walking 事务与同入口复验规模估时。
+  - Source：非模拟基座在 CMC 步前按组件变换携带。ALS `PhysWalking` 的 `MoveAlongFloor` 用角色自身速度，台面运动留在基座阶段。Target：零自身位移时 Walking 仍只走一个 CMC 子步，单步扫掠把支撑速度乘完整 world 步长，查询到物理前台面之外。源和失败证据见 `docs/audit/bf144/d317/` 与 `docs/audit/bf144/ragdoll-avian-regression/moving_base-2/`。
+  - 与 BF134.01K15a2（积分后的自身位移）、a3（墙前向预测）及D253（零支撑位移舍入）分别核对。本项 Gate：场景记录中同一长帧、单帧边缘 focused 回归、真实 moving_base 普通功能。先执行单帧反例，随后沿现有相对位移事务修复。
+  - 18:22首次 focused Cargo test 在旧地面预测和布娃娃缩放夹具的类型检查退出。已复开 D10b、D74，补齐夹具输入签名再复跑未修 D317。
 
 - [ ] BF144-RAGDOLL-AVIAN-CLEANUP — 清理仅服务 Chaos 布娃娃碰撞对齐的实现和计划。
   - 预计开始：2026-11-11 19:51 +08:00。预估结束：2026-11-11 20:46 +08:00。依赖切换与功能验证。核对代码引用、CHECKLIST、TODO 及依赖计划，保留其他 ALS 功能和已接受差异说明。若实际闭包超过60分钟，先按代码与任务清理拆分。
@@ -5798,7 +5806,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 子项拆分：D10a复用源几何面算法并修地面资格；D10b接入空中GroundPrediction；D10c接入StepUp首滑面资格。依次静态实现并分别提交，父项在三者完成后标记；运行Gate仍统一延后。
   - [x] BF144-D10a — 保留接触Normal并以源最反向几何ImpactNormal判定地面sweep。开始2026-11-08 13:06 +08:00；预估结束13:46 +08:00；实际结束13:16 +08:00，提前30分钟；静态实现完成，拆分为D10a/b/c，测试/消融/Gate暂缓。
     - 闭环：fresh ALS/UE地面、结果转换与Chaos面选择源，以及原生盒体前向/向下控制已保存在`docs/audit/bf144/d10a/`；新增30°/60°凸体和初始重叠focused fixture，复用已有多形体/穿透测试。尚未运行目标测试，GroundPrediction和StepUp分别由后续子项覆盖。
-  - [x] BF144-D10b — GroundPrediction按相同几何ImpactNormal判可行走。开始2026-11-08 13:17 +08:00；预估结束13:47 +08:00；实际结束13:20 +08:00，提前27分钟；静态实现完成，测试/消融/Gate暂缓。
+  - [ ] BF144-D10b — GroundPrediction按相同几何ImpactNormal判可行走。开始2026-11-08 13:17 +08:00；预估结束13:47 +08:00；实际结束13:20 +08:00，提前27分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 2026-11-11 18:22 +08:00 因 D317 focused 预构建复开，预估结束18:40。旧静态 Gate 未编译夹具，`SpatialQuery` 同时从 Avian 与项目包装引入。使用生产地面预测所需的 `RagdollSpatialQuery`。证据 `docs/audit/bf144/d317/before.diagnostics.json`。
     - 闭环：fresh ALS预测逻辑、动画设置和曲线保存在`docs/audit/bf144/d10b/`，几何面与初始重叠复用D10a源证据；动画图输入和`AlsAirState`均接入同一资格，已写30°/60°边缘和加载角色动画输入对照。目标测试与真实图混合尚未执行，StepUp仍留给D10c。
   - [x] BF144-D10c — StepUp首次滑动按同一ImpactNormal判可行走。开始2026-11-08 13:20 +08:00；预估结束14:00 +08:00；实际结束13:23 +08:00，提前37分钟；静态实现完成，测试/消融/Gate暂缓。
     - 闭环：fresh UE `StepUp`/`SlideAlongSurface`、高/低顶板原生源控制和reader身份保存在`docs/audit/bf144/d10c/`并引用D10a；首次滑动按ImpactNormal判资格、按接触Normal投影，已写源场景运动事务与正负法线对照。D10三项静态修复均完成，目标测试与真实Playground Gate尚未执行。
@@ -6366,7 +6375,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色的player/mesh从unit scale改为1/0.75/1.5/0.01，4组3PASS/1FAIL；源与target半径均1.4mm，最后一组只有实际几何轴长不等。`bf144_pa_live_scale_matches_source_body_geometry_and_mass`保留native质量控制与当前Collider取样，没有改尺寸阈值。
   - 19:46 source/static摘要：live和初始化按各自源下限构造capsule，live发生尺寸截断时按更新形状复算多shape质量；已写四档全部capsule几何与pelvis/spine等原生质量、质心对照。有效原生body、源公式推导几何及0.001失败reader证据均已持久化；测试、消融、物理轨迹和Playground待统一Gate。证据`docs/audit/bf144/d73/`。实际结束：2026-11-08 19:46 +08:00；偏差：−50分钟；结果：静态实现完成，未拆分。
 
-- [x] BF144-D74 / P3 — mesh缩放到零后Ragdoll仍保持刚体模拟。
+- [ ] BF144-D74 / P3 — mesh缩放到零后Ragdoll仍保持刚体模拟。
+  - 2026-11-11 18:22 +08:00 因 D317 focused 预构建复开，预估结束18:40。旧静态 Gate 未编译夹具，两个布娃娃图输入读数仍传借用字符串。匹配播放器 `PinId` 签名。证据 `docs/audit/bf144/d317/before.diagnostics.json`。
   - 本轮开始：2026-11-08 19:47 +08:00；预计结束：2026-11-08 20:37 +08:00。核对source零scale触发、relative/world变换及刚体模拟所有权，再在真实角色链路补停用与非零对照；统一执行留待升级后。
   - 19:50 source/static摘要：fresh源码确认使用mesh相对scale，先要求uniform并以逐轴1e-4判断变化及近零；停用逐body设Kinematic且物理混合权重归零。目标同一player既控制body模式也发布ragdoll动态/回读输入，停用时一并关闭这些输入；零→非零重建及速度重置已有D116，保留为独立待修边界。
   - Source：fresh `SkeletalMeshComponentPhysics.cpp:1946–1949,3533–3544`在OnUpdateTransform调用UpdateRigidBodyScaling；relative scale跨到零时立即SetAllBodiesSimulatePhysics(false)，独立于world tick。p.UpdateRigidBodyScaling默认开启，当前项目/源配置没有覆盖。
