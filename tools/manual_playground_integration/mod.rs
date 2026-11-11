@@ -48,7 +48,7 @@ use bevy::animation::AnimationTargetId;
 use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy::reflect::{PartialReflect, ReflectMut};
+use bevy::reflect::PartialReflect;
 use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance};
 use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin};
@@ -56,7 +56,6 @@ use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, A
 use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::ragdoll::definition::{BodyLabel, ColliderLabel, JointLabel};
-use bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll;
 use bevy_animation_graph::core::{
     pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine,
 };
@@ -4010,9 +4009,7 @@ fn replace_ragdoll_player_once(world: &mut World) {
     if world.get::<RagdollPhysicsProfileApplied>(player_entity)
         .is_none_or(|applied| applied.spawned_root != Some(old_root)) { return; }
     let Some(mut player) = world.entity_mut(player_entity).take::<AnimationGraphPlayer>() else { return; };
-    let ReflectMut::Struct(fields) = player.reflect_mut() else { panic!("player must reflect as a struct") };
-    *fields.field_mut("spawned_ragdoll").unwrap()
-        .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = None;
+    crate::ragdoll_link::clear_spawned_ragdoll(&mut player);
     world.entity_mut(player_entity).insert((player, ManualRagdollPlayerReplacement { old_root }));
     info!("[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS");
 }

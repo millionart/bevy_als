@@ -23,6 +23,7 @@ use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::math::DQuat;
 use bevy::prelude::*;
+use bevy::reflect::{PartialReflect, ReflectMut};
 use bevy::transform::helper::TransformHelper;
 use bevy_animation_graph::core::animated_scene::{
     AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance,
@@ -30,7 +31,7 @@ use bevy_animation_graph::core::animated_scene::{
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::physics_systems_avian::{
-    update_ragdoll_rigidbodies, update_relative_kinematic_body_velocities,
+    spawn_missing_ragdolls_avian, update_ragdoll_rigidbodies, update_relative_kinematic_body_velocities,
 };
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::{BonePose, Pose};
@@ -57,6 +58,13 @@ pub struct AlsRagdollLink {
 #[derive(Component, Debug, Clone, Copy)]
 struct AlsRagdollColliderLayers(CollisionLayers);
 
+type RagdollColliderLayersQuery<'w, 's> = Query<'w, 's, (
+    Option<&'static AlsRagdollColliderLayers>,
+    &'static CollisionLayers,
+    Option<&'static RagdollCollisionMember>,
+    Has<SourceCollisionIgnorePawn>,
+)>;
+
 #[derive(Component, Debug, Default, Clone, Copy)]
 struct AlsRagdollPhysicsActive;
 
@@ -69,6 +77,13 @@ struct AlsRagdollScaleState {
 }
 
 impl AlsRagdollScaleState {
+    fn recovering_from_zero(self, scale: Vec3) -> bool {
+        if !self.ragdolling || !self.stopped { return false; }
+        let mut next = self;
+        next.update(scale, true);
+        !next.stopped
+    }
+
     fn update(&mut self, scale: Vec3, ragdolling: bool) {
         if scale.max_element() - scale.min_element() <= 1e-4
             && (scale - self.previous).abs().max_element() > 1e-4 {
@@ -190,6 +205,12 @@ impl Plugin for AlsRagdollLinkPlugin {
                 restore_ragdoll_player_parent.after(ragdoll_character_physics_system),
                 ragdoll_link_system.after(ragdoll_character_physics_system),
             ),
+        )
+        .add_systems(
+            PostUpdate,
+            reset_ragdoll_on_scale_recovery
+                .before(spawn_missing_ragdolls_avian)
+                .in_set(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
             PostUpdate,
@@ -429,6 +450,37 @@ fn capture_ragdoll_player_world_transform(
     }
 }
 
+pub(crate) fn clear_spawned_ragdoll(player: &mut AnimationGraphPlayer) {
+    let ReflectMut::Struct(fields) = player.reflect_mut() else { panic!("Animation graph player must reflect as a struct") };
+    let spawned = fields.field_mut("spawned_ragdoll")
+        .and_then(|field| field.try_downcast_mut::<Option<SpawnedRagdoll>>())
+        .expect("Animation graph player must expose its spawned ragdoll");
+    *spawned = None;
+}
+
+fn reset_ragdoll_on_scale_recovery(
+    transform_helper: TransformHelper,
+    characters: Query<(Entity, &AlsNotifyLocomotionAction, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    mut players: Query<(&mut AnimationGraphPlayer, &Transform, &AlsRagdollScaleState, &RagdollPhysicsProfileApplied)>,
+    children: Query<&Children>,
+    mut globals: Query<&mut GlobalTransform>,
+) {
+    for (character, action, assembly) in &characters {
+        if *action != AlsNotifyLocomotionAction::Ragdolling { continue; }
+        let Some(entity) = animated_player_for_character(character, assembly, &avatars) else { continue; };
+        let Ok((mut player, transform, state, profile)) = players.get_mut(entity) else { continue; };
+        if !state.recovering_from_zero(transform.scale)
+            || profile.spawned_root != Some(state.root)
+            || !player.get_spawned_ragdoll().is_some_and(|spawned| spawned.root == state.root) {
+            continue;
+        }
+        if refresh_player_subtree_globals(&transform_helper, entity, &children, &mut globals).is_some() {
+            clear_spawned_ragdoll(&mut player);
+        }
+    }
+}
+
 fn set_simulating_ragdoll_body_modes(
     mut commands: Commands,
     characters: Query<(Entity, &AlsNotifyLocomotionAction, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
@@ -459,8 +511,10 @@ fn sync_ragdoll_body_modes(
     scene_assets: Option<Res<Assets<AnimatedScene>>>,
     maps: Option<Res<Assets<RagdollBoneMap>>>,
     bones: Query<&GlobalTransform>,
-    characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>), With<crate::als::character::AlsCharacter>>,
+    characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>,
+        Option<&LinearVelocity>), With<AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    layers: RagdollColliderLayersQuery,
     mut players: Query<(
         &mut AnimationGraphPlayer,
         Option<&mut RagdollPhysicsProfileApplied>,
@@ -477,9 +531,9 @@ fn sync_ragdoll_body_modes(
         &mut AngularVelocity,
         &mut RelativeKinematicBody,
         Has<AlsRagdollPhysicsActive>,
-    )>,
+    ), Without<AlsCharacter>>,
 ) {
-    for (character, action, assembly) in &characters {
+    for (character, action, assembly, actor_velocity) in &characters {
         let Some(player_entity) = animated_player_for_character(character, assembly, &avatars)
         else {
             continue;
@@ -492,6 +546,8 @@ fn sync_ragdoll_body_modes(
         };
         let action_ragdolling = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
         let scale = transform.map_or(Vec3::ONE, |transform| transform.scale);
+        let recovering = action_ragdolling && scale_state.as_ref().is_some_and(|state|
+            state.root != root && state.recovering_from_zero(scale));
         let stopped = if let Some(mut state) = scale_state {
             if state.root != root {
                 *state = AlsRagdollScaleState { root, previous: scale, stopped: false, ragdolling: action_ragdolling };
@@ -509,6 +565,7 @@ fn sync_ragdoll_body_modes(
         player.set_input_data("ragdoll_dynamic", DataValue::from(ragdolling));
         player.set_input_data("ragdoll_readback", DataValue::from(ragdolling));
         let Some(spawned) = player.get_spawned_ragdoll() else { continue; };
+        if recovering { sync_ragdoll_collider_layers(&mut commands, spawned, &layers, true); }
         let mut handoff = false;
         let mapping = assembly.and_then(|assembly| scene_handles.get(assembly.avatar).ok())
             .and_then(|handle| scene_assets.as_ref()?.get(&handle.handle))
@@ -544,6 +601,14 @@ fn sync_ragdoll_body_modes(
                     Some(BodyMode::Kinematic) => RigidBody::Kinematic,
                     Some(BodyMode::Dynamic) | None => RigidBody::Dynamic,
                 };
+                if recovering {
+                    linear_velocity.0 = if target_mode.is_dynamic() {
+                        actor_velocity.map_or(Vec3::ZERO, |velocity| velocity.0)
+                    } else { Vec3::ZERO };
+                    angular_velocity.0 = Vec3::ZERO;
+                    relative_body.kinematic_linear_velocity = Vec3::ZERO;
+                    relative_body.kinematic_angular_velocity = Vec3::ZERO;
+                }
                 if *mode != target_mode {
                     commands.entity(entity).insert(target_mode);
                 }
@@ -1313,7 +1378,7 @@ fn ragdoll_link_system(
     mut q: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollLink), With<AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRagdollScaleState>)>,
-    layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers, Option<&RagdollCollisionMember>, Has<SourceCollisionIgnorePawn>)>,
+    layers: RagdollColliderLayersQuery,
 ) {
     for (character, action, assembly, mut link) in &mut q {
         let is_ragdoll = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
@@ -1332,33 +1397,34 @@ fn ragdoll_link_system(
         player.set_input_data("ragdoll_readback", DataValue::from(simulated));
 
         if let Some(spawned) = player.get_spawned_ragdoll() {
-            for collider in spawned.colliders.values() {
-                let Ok((stored, current, member, ignores_pawn)) = layers.get(*collider) else {
-                    continue;
-                };
-                if MESH_IGNORES_PAWN && !ignores_pawn {
-                    commands.entity(*collider).insert(SourceCollisionIgnorePawn);
-                }
-                if is_ragdoll {
-                    if let Some(desired) = member.map(|member| member.source_layers).or(stored.map(|stored| stored.0))
-                        && *current != desired
-                    {
-                        commands.entity(*collider).insert(desired);
-                    }
-                } else {
-                    if stored.is_none() {
-                        commands
-                            .entity(*collider)
-                            .insert(AlsRagdollColliderLayers(*current));
-                    }
-                    if *current != CollisionLayers::NONE {
-                        commands.entity(*collider).insert(CollisionLayers::NONE);
-                    }
-                }
-            }
+            sync_ragdoll_collider_layers(&mut commands, spawned, &layers, is_ragdoll);
         }
 
         link.prev_ragdoll = is_ragdoll;
+    }
+}
+
+fn sync_ragdoll_collider_layers(
+    commands: &mut Commands,
+    spawned: &SpawnedRagdoll,
+    layers: &RagdollColliderLayersQuery<'_, '_>,
+    is_ragdoll: bool,
+) {
+    for collider in spawned.colliders.values() {
+        let Ok((stored, current, member, ignores_pawn)) = layers.get(*collider) else { continue; };
+        if MESH_IGNORES_PAWN && !ignores_pawn {
+            commands.entity(*collider).insert(SourceCollisionIgnorePawn);
+        }
+        if is_ragdoll {
+            if let Some(desired) = member.map(|member| member.source_layers).or(stored.map(|stored| stored.0))
+                && *current != desired
+            {
+                commands.entity(*collider).insert(desired);
+            }
+        } else {
+            if stored.is_none() { commands.entity(*collider).insert(AlsRagdollColliderLayers(*current)); }
+            if *current != CollisionLayers::NONE { commands.entity(*collider).insert(CollisionLayers::NONE); }
+        }
     }
 }
 
@@ -1495,6 +1561,62 @@ pub(crate) mod tests {
             let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
             assert_eq!(graph.get_input_data("ragdoll_dynamic".into()).unwrap().as_bool().unwrap(), active);
             assert_eq!(graph.get_input_data("ragdoll_readback".into()).unwrap().as_bool().unwrap(), active);
+        }
+    }
+
+    #[test]
+    fn recovering_from_near_zero_scale_recreates_the_ragdoll_once() {
+        for (near_zero, recovered_scale, rebuild, owner_velocity) in [
+            (0.0, 1.0, true, Vec3::ZERO),
+            (0.00005, 0.75, true, Vec3::new(0.15, 0.2, -0.1)),
+            (0.0001, 1.5, true, Vec3::ZERO),
+            (0.0002, 1.0, false, Vec3::ZERO),
+        ] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+            let old_pelvis = bodies.iter().find(|(name, _)| name == PELVIS_LABEL).unwrap().1;
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            for _ in 0..10 { app.update(); }
+            let old_root = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().root;
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(near_zero);
+            app.update();
+            assert_eq!(app.world().get::<AlsRagdollScaleState>(player).unwrap().stopped, rebuild);
+            let old_linear = Vec3::new(0.3, 0.2, -0.1);
+            let old_angular = Vec3::new(0.2, -0.4, 0.3);
+            app.world_mut().entity_mut(old_pelvis).insert((LinearVelocity(old_linear), AngularVelocity(old_angular)));
+            app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = owner_velocity;
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(recovered_scale);
+            app.update();
+
+            let world = app.world();
+            let spawned = world.get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+            let root = spawned.root;
+            assert_eq!(root != old_root, rebuild, "Scale recovery threshold: {near_zero}");
+            if rebuild {
+                assert!(world.get_entity(old_root).is_err());
+                assert!(world.get_entity(old_pelvis).is_err());
+                assert_eq!((spawned.bodies.len(), spawned.colliders.len(), spawned.joints.len()), (21, 22, 20));
+                assert_eq!(world.get::<RagdollPhysicsProfileApplied>(player).unwrap().spawned_root, Some(root));
+                let mut dynamic = 0;
+                for body in spawned.bodies.values() {
+                    let mode = world.get::<RigidBody>(*body).unwrap();
+                    let expected = if mode.is_dynamic() { dynamic += 1; owner_velocity } else { Vec3::ZERO };
+                    assert_eq!(world.get::<LinearVelocity>(*body).unwrap().0, expected);
+                    assert_eq!(world.get::<AngularVelocity>(*body).unwrap().0, Vec3::ZERO);
+                }
+                assert_eq!(dynamic, 20);
+                for collider in spawned.colliders.values() {
+                    let member = world.get::<RagdollCollisionMember>(*collider).unwrap();
+                    assert_eq!(member.group, root);
+                    assert_eq!(world.get::<CollisionLayers>(*collider), Some(&member.source_layers));
+                }
+            } else {
+                assert_eq!(world.get::<LinearVelocity>(old_pelvis).unwrap().0, old_linear);
+                assert_eq!(world.get::<AngularVelocity>(old_pelvis).unwrap().0, old_angular);
+            }
+            app.update();
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().root, root);
         }
     }
 

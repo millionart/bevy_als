@@ -6471,7 +6471,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色mesh scale=(1.4,0.8,0.6)，实际readback前root scale=(1,1,1)，之后为(0.7142857,1.25,1.6666666)，抵消mesh缩放。unit/0.75/1.5/非均匀×开启/关闭readback共8组7PASS/1FAIL；同一非均匀角色关闭readback即保持1，独立于D113/D114的退出变换。证据`bf144_ragdoll_phase39_nonuniform_readback_preserves_source_root_scale`、`39/readback_initial/`与`39/final/`；退出快照矩阵中8个非均匀样本也保留该root值。
   - 漏检：既有`scaled_readback_preserves_physics_world_transforms_across_animated_gaps`只枚举uniform 2/0.5/1，覆盖分支之外的非均匀scale未进入合同。仅登记，不改变回读插件或归一化实现。
 
-- [ ] BF144-D116 / P3 — mesh从近零缩放恢复时未重建物理状态，保留旧刚体速度。
+- [x] BF144-D116 / P3 — mesh从近零缩放恢复时未重建物理状态，保留旧刚体速度。 静态实现完成，统一验证待执行。
+  - 20:24 source/static 闭环：用既有 scale state 识别均匀近零恢复，刷新当前网格骨骼后通过依赖的反射字段清除旧 rig 引用。原 spawner 生成新体、profile 旧 root 归档逻辑负责销毁，handoff 重设动态体 owner V 与零 W，恢复同一碰撞过滤。已写暂停四个临界输入、新/旧身份、一次执行、21/22/20数量、非零 owner V 及旧速度控制。源与目标身份 `docs/audit/bf144/d116/`。编译、测试、消融和真实入口待统一 Gate。开始20:15，预估21:10，实际结束2026-11-11 20:24 +08:00，偏差−46分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 20:15 +08:00，预估结束21:10 +08:00。依据：fresh UE 销毁/重建与初始速度链、当前 scope 的近零 state 已定位。复用图依赖生成和 profile 旧 root 清理，保留 player/动画状态，验证一次重建、尺寸/关节、速度及临界控制。
   - Source：fresh `SkeletalMeshComponentPhysics.cpp:3533–3550`以uniform relative scale的IsNearlyZero（每轴<=1e−4）识别恢复并RecreatePhysicsState；`ActorComponent.cpp:2594–2604`销毁/重建，`TermArticulated:1195–1242`删除body和constraint，`InitDynamicProperties_AssumesLocked:4690–4708`取actor速度，`ParticleHandle.h:99–103`初始化角速度0。ALS此前SetSimulatePhysics(True)的component级旗标保留，恢复为20个Dynamic+1个Kinematic。
   - Target：`ragdoll_physics_profile.rs:1199–1268`把零scale回退到ONE，只调整已有rig；恢复没有对应重建/速度初始化，`sync_ragdoll_body_modes`仅恢复原有body mode。
   - 反例：world pause，mesh经零点恢复1/0.75/1.5，零期间把pelvis速度设为(0.3,0.2,−0.1)m/s、角速度(0.2,−0.4,0.3)rad/s；actor速度0，source恢复后两者应0，目标完整保留。24组18PASS/6FAIL，先补上D74的Kinematic停用/清零后再写入仍失败；source setter允许Kinematic刚体写入，该对照不依赖“零点没停模拟”。0/5e−5/1e−4的恢复失败，2e−4与未过零控制通过。证据`bf144_ragdoll_phase40_zero_recovery_recreates_velocity_state`、`bf144_ragdoll_phase40_near_zero_threshold_controls`及`40/final/`。
