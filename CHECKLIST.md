@@ -4897,7 +4897,8 @@
   - 修复第1轮：开始2026-11-05 02:32 +08:00；预估结束02:57 +08:00。依据：.581已有真实双墙/单墙证据，目标共享函数和唯一生产调用链已定位；本轮只实现源微移及相应回归用例，按用户要求全部修复完成后统一运行测试、消融与真实入口验证。
   - 02:33实现摘要：重新提取源 `TwoWallAdjust`、`ComputeSlideVector`、`HandleSlopeBoosting`、Falling调用次序与阈值，记录 `docs/audit/bf144/d316/source-facts.json`。共享滑移按正向与近法线门槛加入0.1mm微移，并再次限制向上斜坡；已添加0.5°/1.25°、单墙、零推进及斜坡用例，尚未执行。实现结束02:33、偏差−24分钟；最终测试、消融、真实双墙入口与正式 Gate 待整体实现完成，不视为已验证。
 
-- [ ] BF144-D315 / P2 — Falling 虚拟夹缝缺少向上脱困速度。
+- [x] BF144-D315 / P2 — Falling 虚拟夹缝缺少向上脱困速度。
+  - 预构建修复结束2026-11-11 17:52 +08:00，偏差−6分钟。补 `Option<Vec3>` 后实际 Playground `play` profile 构建成功，静态实现重新勾选。夹缝行为的测试和消融仍待统一 Gate。共享报告 `docs/audit/bf144/ragdoll-avian-switch/build-3.report.json`。
   - 2026-11-11 17:43 +08:00 因提前预构建的E0282复开。`falling_slide` 的夹缝守卫读取尚未推断的旧法线类型，旧静态收口延后了编译。补 `Option<Vec3>` 类型，保持原源算法。开始17:43，预估17:58。证据 `docs/audit/bf144/ragdoll-avian-switch/build-1.diagnostics.json`。
   - Source：第三次移动无阻挡、首碰ImpactNormal达到可行走阈值、Perch开启且本子步进展极小时，UE给XY随机偏移并设Z=max(JumpZ×.25,1)，仍保持Falling。目标只有扫掠投影和普通落地。
   - 反例：40°窄台首碰不能窄perch，紧邻竖墙的第二碰为零时间，沿交线只移动约1mm。原生两次均发布竖直1.05m/s，目标为0；放宽墙缝及去墙控制均未触发。D19/D308覆盖强制落地。证据 `docs/audit/bf144/580/`。

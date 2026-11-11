@@ -3450,7 +3450,7 @@ pub(crate) fn falling_movement_sweep(
     let accepts = |candidate| character_blocks_collider(entity, candidate, candidates);
     let mut remaining = movement;
     let mut remaining_time = step;
-    let mut previous_normal = None;
+    let mut previous_normal: Option<Vec3> = None;
     let mut first_impact_normal: Option<Vec3> = None;
     let mut first_geometry_normal: Option<Vec3> = None;
     let mut ditch = false;
