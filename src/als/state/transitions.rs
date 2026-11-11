@@ -107,8 +107,8 @@ impl TransitionCooldown {
 }
 
 pub fn unwind_degrees(angle: f32) -> f32 {
-    let angle = angle.rem_euclid(360.0);
-    if angle > 180.0 { angle - 360.0 } else { angle }
+    let angle = if angle.abs() > 360.0 { angle % 360.0 } else { angle };
+    crate::als::head::unwind_degrees(angle)
 }
 
 pub fn remap_counterclockwise_degrees(angle: f32) -> f32 {
@@ -121,7 +121,7 @@ pub fn remap_counterclockwise_degrees(angle: f32) -> f32 {
 
 pub fn select_quick_stop(
     rotation_mode: RotationMode,
-    actor_yaw_degrees: f32,
+    actor_yaw_degrees: f64,
     target_yaw_degrees: f32,
     config: &TransitionConfig,
 ) -> QuickStopSelection {
@@ -136,7 +136,7 @@ pub fn select_quick_stop(
         };
     }
     let remaining_yaw_degrees =
-        remap_counterclockwise_degrees(unwind_degrees(target_yaw_degrees - actor_yaw_degrees));
+        remap_counterclockwise_degrees(unwind_degrees((f64::from(target_yaw_degrees) - actor_yaw_degrees) as f32));
     let rate_alpha = remaining_yaw_degrees.abs() / 180.0;
     QuickStopSelection {
         right: remaining_yaw_degrees > 0.0,

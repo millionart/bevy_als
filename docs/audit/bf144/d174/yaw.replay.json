@@ -1,0 +1,163 @@
+{
+  "cases": [
+    {
+      "name": "175_input",
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": 0.0,
+      "target_radians": null,
+      "mode": "velocity",
+      "source_actor_yaw": -175.00000745263142,
+      "remaining_angle": 175.0,
+      "right": true,
+      "play_rate": 2.965277671813965,
+      "original_angle": -184.99998474121094
+    },
+    {
+      "name": "175_target",
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": null,
+      "target_radians": 0.0,
+      "mode": "velocity",
+      "source_actor_yaw": -175.00000745263142,
+      "remaining_angle": 175.0,
+      "right": true,
+      "play_rate": 2.965277671813965,
+      "original_angle": -184.99998474121094
+    },
+    {
+      "name": "175_below",
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": 0.0001,
+      "target_radians": null,
+      "mode": "velocity",
+      "source_actor_yaw": -175.00000745263142,
+      "remaining_angle": 174.99990844726562,
+      "right": true,
+      "play_rate": 2.9652771949768066,
+      "original_angle": 174.99990844726562
+    },
+    {
+      "name": "175_above",
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": -0.0001,
+      "target_radians": null,
+      "mode": "velocity",
+      "source_actor_yaw": -175.00000745263142,
+      "remaining_angle": -184.99989318847656,
+      "right": false,
+      "play_rate": 3.0347213745117188,
+      "original_angle": -184.9998779296875
+    },
+    {
+      "name": "zero_input",
+      "actor": [
+        0.0,
+        0.04361937940120697,
+        0.0,
+        0.9990479946136475
+      ],
+      "input_degrees": 5.0,
+      "target_radians": null,
+      "mode": "velocity",
+      "source_actor_yaw": -4.999997954613412,
+      "remaining_angle": -2.04538650905306e-06,
+      "right": false,
+      "play_rate": 1.75,
+      "original_angle": 4.76837158203125e-07
+    },
+    {
+      "name": "zero_target",
+      "actor": [
+        0.0,
+        -0.04361937567591667,
+        0.0,
+        0.9990479946136475
+      ],
+      "input_degrees": null,
+      "target_radians": -0.0872664600610733,
+      "mode": "velocity",
+      "source_actor_yaw": 4.9999975265101,
+      "remaining_angle": 2.4734899852774106e-06,
+      "right": true,
+      "play_rate": 1.75,
+      "original_angle": 0.0
+    },
+    {
+      "name": "ordinary",
+      "actor": [
+        0.0,
+        0.04361937940120697,
+        0.0,
+        0.9990479946136475
+      ],
+      "input_degrees": -45.0,
+      "target_radians": null,
+      "mode": "velocity",
+      "source_actor_yaw": -4.999997954613412,
+      "remaining_angle": 49.999996185302734,
+      "right": true,
+      "play_rate": 2.097222328186035,
+      "original_angle": 50.0
+    },
+    {
+      "name": "aiming",
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": 0.0,
+      "target_radians": null,
+      "mode": "aiming",
+      "source_actor_yaw": -175.00000745263142,
+      "remaining_angle": 0.0,
+      "right": false,
+      "play_rate": 1.75,
+      "original_angle": 0.0
+    },
+    {
+      "name": "exact_zero",
+      "actor": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "input_degrees": 0.0,
+      "target_radians": null,
+      "mode": "velocity",
+      "source_actor_yaw": 0,
+      "remaining_angle": -0.0,
+      "right": false,
+      "play_rate": 1.75,
+      "original_angle": 0.0
+    }
+  ],
+  "old_side_mismatches": [
+    "175_input",
+    "175_target",
+    "zero_input",
+    "zero_target"
+  ]
+}

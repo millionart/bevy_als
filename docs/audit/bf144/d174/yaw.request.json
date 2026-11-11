@@ -1,0 +1,166 @@
+{
+  "samples": [
+    {
+      "name": "175_input",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        -0.9990482330322266,
+        0.04361932352185249
+      ],
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": 0.0,
+      "target_radians": null,
+      "mode": "velocity"
+    },
+    {
+      "name": "175_target",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        -0.9990482330322266,
+        0.04361932352185249
+      ],
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": null,
+      "target_radians": 0.0,
+      "mode": "velocity"
+    },
+    {
+      "name": "175_below",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        -0.9990482330322266,
+        0.04361932352185249
+      ],
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": 0.0001,
+      "target_radians": null,
+      "mode": "velocity"
+    },
+    {
+      "name": "175_above",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        -0.9990482330322266,
+        0.04361932352185249
+      ],
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": -0.0001,
+      "target_radians": null,
+      "mode": "velocity"
+    },
+    {
+      "name": "zero_input",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        -0.04361937940120697,
+        0.9990479946136475
+      ],
+      "actor": [
+        0.0,
+        0.04361937940120697,
+        0.0,
+        0.9990479946136475
+      ],
+      "input_degrees": 5.0,
+      "target_radians": null,
+      "mode": "velocity"
+    },
+    {
+      "name": "zero_target",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        0.04361937567591667,
+        0.9990479946136475
+      ],
+      "actor": [
+        0.0,
+        -0.04361937567591667,
+        0.0,
+        0.9990479946136475
+      ],
+      "input_degrees": null,
+      "target_radians": -0.0872664600610733,
+      "mode": "velocity"
+    },
+    {
+      "name": "ordinary",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        -0.04361937940120697,
+        0.9990479946136475
+      ],
+      "actor": [
+        0.0,
+        0.04361937940120697,
+        0.0,
+        0.9990479946136475
+      ],
+      "input_degrees": -45.0,
+      "target_radians": null,
+      "mode": "velocity"
+    },
+    {
+      "name": "aiming",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        -0.9990482330322266,
+        0.04361932352185249
+      ],
+      "actor": [
+        0.0,
+        0.9990482330322266,
+        0.0,
+        0.04361932352185249
+      ],
+      "input_degrees": 0.0,
+      "target_radians": null,
+      "mode": "aiming"
+    },
+    {
+      "name": "exact_zero",
+      "rotation_xyzw": [
+        0.0,
+        -0.0,
+        -0.0,
+        1.0
+      ],
+      "actor": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "input_degrees": 0.0,
+      "target_radians": null,
+      "mode": "velocity"
+    }
+  ]
+}

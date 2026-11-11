@@ -340,10 +340,8 @@ fn dispatch_transition_notifications(
                                 && let Ok(stance) = stances.get(avatar.character)
                                 && let Ok(body) = transforms.compute_global_transform(avatar.character)
                             {
-                                let input_yaw = motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees.to_radians()));
-                                let target_yaw = rotation.filter(|rotation| rotation.initialized).map_or_else(
-                                    || crate::als::orientation::world_forward_to_yaw(*body.forward()),
-                                    |rotation| rotation.target_yaw);
+                                let input_yaw = motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees));
+                                let target_yaw = rotation.filter(|rotation| rotation.initialized).map(|rotation| rotation.target_yaw);
                                 let (index, play_rate) = crate::stop_link::quick_stop_selection(
                                     *rotation_mode, input_yaw, &body.compute_transform(), target_yaw);
                                 game_thread_transition = Some(

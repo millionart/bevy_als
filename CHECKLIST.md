@@ -6932,7 +6932,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际角色跳跃、经历Air并落地后，无通知注入的真实回调得到上述错误参数。另在站蹲各6帧的受控单事件消费中，首个采样帧source应为0.07秒/权重0.5，actual为0.275秒/0.15625；旧动画应为0.5，actual为0.84375。蹲姿还采样了Standing Right。仅把事件改接原生参数和当前stance选择，12帧恢复全部通过，根Transition Slot实际消费的20个样本也核对通过。
   - 漏检/边界：旧通知测试核对事件计数与现有构造器，未逐个读取当前蓝图调用实参。85组比较72PASS/13FAIL包含上述12个受控失败和1个实际跳跃落地失败；60帧队列保留/覆盖/停止阻挡控制通过。证据`87/locomotion.native.json`、`87/native_check.json`、`87/analysis.json`及`bf144_animation_phase87_natural_landing`。最初多事件“最后调用覆盖”猜测被参数错误混淆，不另计缺陷；只登记，未修生产。
 
-- [ ] BF144-D174 / P3 — Quick Stop的yaw重新计算在0°/175°边界改变左右动画选择。
+- [x] BF144-D174 / P3 — Quick Stop的yaw重新计算在0°/175°边界改变左右动画选择。
+  - 2026-11-12 04:45 +0800 实际结束，较05:23预估提前38分钟，未拆分。fresh同一world quaternion的double Rotator、两yaw来源与九组对照见 `docs/audit/bf144/d174/`。旧计算四组翻侧，输入度数、double差分及四个实际根槽序列均加入fixture。Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 04:38 +08:00，预估结束2026-11-12 05:23 +08:00。以相同可用world quaternion重采源double Rotator，验证输入/目标yaw和0°/175°分支及根Transition消费。
   - Source：fresh `AlsAnimationInstance.cpp:1590–1609`先以float输入/目标yaw减去double `RotationWorldSpace.Yaw`，将差降为float后Unwind，再以`>175°`逆时针重映射和`<=0°`选择左侧。RotationWorldSpace来自ActorTransform的double Rotator；45个共同旋转的UE原生输出已核验，直接选择规则405组通过。
   - Target：`stop_link.rs:399–414`从float Quaternion的forward重新取yaw，并把输入/目标经弧度往返再转回float角度；`transitions.rs:135–145`在这些舍入后的值上做相减/分支。源和目标阈值本身相同，差异发生在阈值前的表示和运算路径。
   - 反例：源body yaw=−175°、所选yaw=0°时，源剩余角为175°，应选Right、速率约2.9652777；目标舍入后跨过175°，改选Left、速率约3.0347221。相同body与所选yaw=−175°时，源应选Left，目标却选Right。实际站蹲×输入/目标两条来源的12组均在根Slot消费错误Sequence；仅恢复源index/rate的28组全部通过，正负邻域及非VelocityDirection控制通过。

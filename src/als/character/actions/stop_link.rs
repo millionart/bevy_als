@@ -16,6 +16,7 @@ use crate::extensions::profile_blend::{AlphaBlendMode, MONTAGE_SECTION_END_OFFSE
 use crate::extensions::source_slot::{MONTAGE_EVALUATION_WEIGHT_THRESHOLD, montage_evaluation_denominator};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
+use bevy::math::DQuat;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
@@ -414,19 +415,25 @@ const ROOT_TRANSITION_SLOT_CURVE_NAMES: [&str; 12] = [
     "PoseInAir",
 ];
 
+fn quick_stop_actor_yaw_degrees(rotation: Quat) -> f64 {
+    let DQuat { x, y, z, w } = rotation.as_dquat();
+    -crate::extensions::control_rig_math::rig_euler(DQuat::from_xyzw(-z, y, x, w)).y
+}
+
 pub fn quick_stop_selection(
     rotation_mode: RotationMode,
-    input_yaw: Option<f32>,
+    input_yaw_degrees: Option<f32>,
     body: &Transform,
-    target_yaw: f32,
+    target_yaw_radians: Option<f32>,
 ) -> (f32, f32) {
-    let forward = body.rotation * Vec3::NEG_Z;
-    let body_yaw = world_forward_to_yaw(forward).to_degrees();
-    let input_yaw = input_yaw.unwrap_or(target_yaw).to_degrees();
+    let body_yaw = quick_stop_actor_yaw_degrees(body.rotation);
+    let selected_yaw = input_yaw_degrees.map(|yaw| -yaw)
+        .or_else(|| target_yaw_radians.map(|yaw| (-f64::from(yaw)).to_degrees() as f32))
+        .unwrap_or(body_yaw as f32);
     let selection = select_quick_stop(
         rotation_mode,
-        -body_yaw,
-        -input_yaw,
+        body_yaw,
+        selected_yaw,
         &TransitionConfig::default(),
     );
     (if selection.right { 1.0 } else { 0.0 }, selection.play_rate)
@@ -822,7 +829,7 @@ pub fn stop_link_system(
             let target_yaw = m.last_input_yaw.unwrap_or(actor_yaw);
             let quick_stop = select_quick_stop(
                 *rotation_mode,
-                actor_yaw.to_degrees(),
+                f64::from(actor_yaw.to_degrees()),
                 target_yaw.to_degrees(),
                 &config,
             );
@@ -896,13 +903,8 @@ fn quick_stop_notify_system(
             continue;
         };
         let Ok(body) = transforms.compute_global_transform(notice.character) else { continue; };
-        let input_yaw = motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees.to_radians()));
-        let target_yaw = rotation
-            .filter(|rotation| rotation.initialized)
-            .map_or_else(
-                || world_forward_to_yaw(*body.forward()),
-                |rotation| rotation.target_yaw,
-            );
+        let input_yaw = motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees));
+        let target_yaw = rotation.filter(|rotation| rotation.initialized).map(|rotation| rotation.target_yaw);
         let (index, play_rate) =
             quick_stop_selection(*rotation_mode, input_yaw, &body.compute_transform(), target_yaw);
         let playback = if *stance == Stance::Crouching {
@@ -1523,13 +1525,63 @@ mod tests {
     fn quick_stop_uses_the_source_settings_range() {
         let body = Transform::IDENTITY;
         let (index, play_rate) =
-            quick_stop_selection(RotationMode::VelocityDirection, None, &body, 0.0);
+            quick_stop_selection(RotationMode::VelocityDirection, None, &body, Some(0.0));
         assert_eq!(index, 0.0);
         assert_eq!(play_rate, QUICK_STOP_MIN_PLAY_RATE);
         let playback = AlsTransitionPlayback::quick_stop(index, play_rate);
         assert_eq!(playback.blend_in, QUICK_STOP_BLEND_IN);
         assert_eq!(playback.blend_out, QUICK_STOP_BLEND_OUT);
         assert_eq!(playback.start_time, QUICK_STOP_START_TIME);
+    }
+
+    #[test]
+    fn quick_stop_uses_the_native_yaw_boundary_in_both_stances() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            actor: [f32; 4],
+            input_degrees: Option<f32>,
+            target_radians: Option<f32>,
+            mode: String,
+            source_actor_yaw: f64,
+            right: bool,
+            play_rate: f32,
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d174/yaw.replay.json"
+        )).unwrap();
+        for case in fixture.cases {
+            let rotation = Quat::from_array(case.actor);
+            let body = Transform::from_rotation(rotation);
+            assert!((quick_stop_actor_yaw_degrees(rotation) - case.source_actor_yaw).abs() < 1e-12);
+            let mode = if case.mode == "velocity" { RotationMode::VelocityDirection } else { RotationMode::Aiming };
+            let (index, rate) = quick_stop_selection(mode, case.input_degrees, &body, case.target_radians);
+            assert_eq!(index > 0.5, case.right, "{}", case.name);
+            assert!((rate - case.play_rate).abs() < 1e-6, "{}: {rate}", case.name);
+            for crouching in [false, true] {
+                let playback = if crouching {
+                    AlsTransitionPlayback::crouching_quick_stop(index, rate)
+                } else {
+                    AlsTransitionPlayback::quick_stop(index, rate)
+                };
+                let expected = match (crouching, case.right) {
+                    (false, false) => "A_Als_Stand_Transition_Left",
+                    (false, true) => "A_Als_Stand_Transition_Right",
+                    (true, false) => "A_Als_Crouch_Transition_Left",
+                    (true, true) => "A_Als_Crouch_Transition_Right",
+                };
+                assert!(root_transition_slot_active(&playback));
+                assert_eq!(source_transition_sequence(&playback), Some(expected));
+            }
+        }
+        let equal = select_quick_stop(RotationMode::VelocityDirection, -175.0, -175.0, &TransitionConfig::default());
+        assert!(!equal.right && equal.remaining_yaw_degrees == 0.0);
     }
 
     #[test]
