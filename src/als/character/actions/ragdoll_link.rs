@@ -26,6 +26,9 @@ use bevy_animation_graph::core::animated_scene::{
 };
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
+use bevy_animation_graph::core::physics_systems_avian::{
+    update_ragdoll_rigidbodies, update_relative_kinematic_body_velocities,
+};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::{BonePose, Pose};
 use bevy_animation_graph::core::ragdoll::spawning::{RagdollColliderSpawned, RagdollSpawned, SpawnedRagdoll};
@@ -185,6 +188,13 @@ impl Plugin for AlsRagdollLinkPlugin {
                 restore_ragdoll_player_parent.after(ragdoll_character_physics_system),
                 ragdoll_link_system.after(ragdoll_character_physics_system),
             ),
+        )
+        .add_systems(
+            PostUpdate,
+            set_simulating_ragdoll_body_modes
+                .after(update_ragdoll_rigidbodies)
+                .before(update_relative_kinematic_body_velocities)
+                .in_set(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
             PostUpdate,
@@ -417,6 +427,30 @@ fn capture_ragdoll_player_world_transform(
                 local_transform: *local_transform,
             },
         ));
+    }
+}
+
+fn set_simulating_ragdoll_body_modes(
+    mut commands: Commands,
+    characters: Query<(Entity, &AlsNotifyLocomotionAction, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    players: Query<(&AnimationGraphPlayer, Option<&Transform>, Option<&AlsRagdollScaleState>)>,
+    bodies: Query<(&RigidBody, &RagdollActiveMode)>,
+) {
+    for (character, action, assembly) in &characters {
+        if *action != AlsNotifyLocomotionAction::Ragdolling { continue; }
+        let Some(player) = animated_player_for_character(character, assembly, &avatars) else { continue; };
+        let Ok((player, transform, scale_state)) = players.get(player) else { continue; };
+        let Some(spawned) = player.get_spawned_ragdoll() else { continue; };
+        if let Some(mut state) = scale_state.copied().filter(|state| state.root == spawned.root) {
+            state.update(transform.map_or(Vec3::ONE, |transform| transform.scale), true);
+            if state.stopped { continue; }
+        }
+        for body in spawned.bodies.values().copied() {
+            if let Ok((&RigidBody::Kinematic, &RagdollActiveMode(BodyMode::Dynamic))) = bodies.get(body) {
+                commands.entity(body).insert(RigidBody::Dynamic);
+            }
+        }
     }
 }
 
@@ -1398,6 +1432,45 @@ pub(crate) mod tests {
         assert!(state.stopped);
         state.update(Vec3::ONE, true);
         assert!(!state.stopped);
+    }
+
+    #[test]
+    fn ragdoll_entry_preserves_body_velocity_before_physics() {
+        use bevy::math::Isometry3d;
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_animation_graph::core::physics_systems_avian::{
+            update_ragdolls_avian, update_relative_kinematic_position_based_body_velocities,
+        };
+        use bevy_animation_graph::core::ragdoll::relative_kinematic_body::RelativeKinematicBodyPositionBased;
+
+        for delta in [1.0_f32 / 60.0, 1.0 / 30.0] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+            let pelvis = bodies.iter().find(|(name, _)| name == PELVIS_LABEL).unwrap().1;
+            let root = bodies.iter().find(|(name, _)| name == "root").unwrap().1;
+            assert!(app.world().get::<crate::extensions::post_physics_animation::PostPhysicsAnimation>(player).is_some());
+            assert_eq!(app.world().get::<RigidBody>(pelvis), Some(&RigidBody::Kinematic));
+            app.world_mut().entity_mut(pelvis).insert((LinearVelocity(Vec3::X), AngularVelocity(Vec3::ZERO)));
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.add_systems(PostUpdate, (move |mut bodies: Query<(&Position, &Rotation, &mut RelativeKinematicBodyPositionBased)>| {
+                let (position, rotation, mut target) = bodies.get_mut(pelvis).unwrap();
+                target.relative_to = None;
+                target.relative_target = Isometry3d::new(
+                    position.0 + Vec3::X * (delta * 0.5),
+                    Quat::from_rotation_y(0.15) * rotation.0,
+                );
+            }).after(update_ragdolls_avian).before(update_relative_kinematic_position_based_body_velocities));
+            app.add_systems(PostUpdate, (move |bodies: Query<(&RigidBody, &LinearVelocity, &AngularVelocity)>| {
+                let (mode, linear, angular) = bodies.get(pelvis).unwrap();
+                assert_eq!(*mode, RigidBody::Dynamic);
+                assert_eq!(linear.0, Vec3::X);
+                assert_eq!(angular.0, Vec3::ZERO);
+                assert_eq!(*bodies.get(root).unwrap().0, RigidBody::Kinematic);
+            }).after(update_relative_kinematic_body_velocities).before(RagdollPhysicsHandoffSet));
+            app.update();
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+        }
     }
 
     #[test]

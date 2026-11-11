@@ -6395,7 +6395,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧接触测试从已经重叠的几何开始、只检查帧末child pose，或使用body与shape同entity；没有串联child更新→预测bounds→下一帧检测。消融去掉历史AABB缓存和手工平移，仅保留fixture中的提前pose同步仍得到相同恢复，生产实现未改。该缺陷与D93已生成接触后的柔性恢复独立。
   - 22:36 source/static摘要：fresh PA、源积分/bounds顺序及Avian写回/AABB时序已固化；既有child pose同步移到solver写回后、AABB预测之前。已写加载head双帧长、单/六子步、到达与未到达障碍及AABB对照；测试、消融、加速/旋转和Playground待统一Gate。证据`docs/audit/bf144/d98/`。实际结束：2026-11-08 22:36 +08:00；偏差：−42分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D105 / P2 — 启动帧先按旧Kinematic图配置重算速度，覆盖应保留的刚体初速。
+- [x] BF144-D105 / P2 — 启动帧先按旧Kinematic图配置重算速度，覆盖应保留的刚体初速。 静态实现完成，统一验证待执行。
+  - 19:28 source/static 闭环：fresh UE 切到 Dynamic 保留 V/W，旧图消费的角色速度写入只处理仍为 Kinematic 的 body。使用 PA 现有活动模式，在依赖模式更新后、速度写入前切换已接受的布娃娃动态体，既有交接继续负责姿态、状态和限速。已写加载角色60/30Hz及 root 保持 Kinematic 的反例，源证据 `docs/audit/bf144/d105/`；旧 `target/bf144/37/final/` 本地缺失。编译、执行、消融和真实入口留待升级后的统一 Gate。开始19:20，预估20:05，实际结束2026-11-11 19:28 +08:00，偏差−37分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 19:20 +08:00，预估结束20:05 +08:00。依据：入口已定位到真实角色动作、PA 活动 mode 和动画图旧配置；fresh 核对 UE 动态切换及目标速度消费调度，按既有 handoff 实现与60/30Hz反例规模估时。本轮静态实现后再继续清单，测试随 Bevy 升级后的统一 Gate。
   - Source：fresh `AlsCharacter_Actions.cpp:792–807`在Start中立即SetSimulatePhysics/ResetAllBodies，再读取pelvis速度；`ChaosEngineInterface.cpp:494–542`转Dynamic保留V/W，`SingleParticlePhysicsProxy.h:1246–1269`亦只在离开Dynamic时清速度。`PhysAnim.cpp:653–655,697–701`普通骨骼更新仅向仍为kinematic的body写新动画目标。
   - Target：角色在`character_runtime.rs:104–128`标为PostPhysicsAnimation，`post_physics_animation.rs:54–59`到physics后才求新图；依赖的`physics_systems_avian.rs:134–169,34–58`却在PrePhysics使用旧ragdoll_config设Kinematic并重算V/W，`ragdoll_link.rs:207–214`之后的handoff才强制Dynamic。已写入的Ragdolling动作不能阻止这一次旧配置消费。
   - 反例：完整角色通过Ragdoll输入进入，pelvis既有V=(1,0,0)m/s、W=0；在实际kinematic目标producer处给下一目标0.5m/s位移和0.15rad旋转。60Hz进入handoff时V被改为0.5、Wy=9rad/s，30Hz为0.5、4.5，源均应保留1、0。60/30Hz×匹配/改变下一目标×原顺序/提前Dynamic共8组6PASS/2FAIL，仅提前模式切换即恢复。证据`bf144_ragdoll_phase37_entry_preserves_previous_body_velocity`、`37/final/`；这是受控动画目标的真实入口consumer，不宣称自然布娃娃轨迹已对齐。
