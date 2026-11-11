@@ -5,7 +5,7 @@ use crate::als::foot_ik::{
     AlsFootTargetSelection, FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M, FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
     build_foot_bone_map, capture_foot_lock_movement_base, constrain_foot_lock_rotation,
     foot_lock_location_constraint_rotation, is_relevant_animation_weight, refresh_foot_lock,
-    reset_foot_lock_to_target, source_foot_final_rotation,
+    source_foot_final_rotation,
 };
 use crate::als::state::{LocomotionState, Stance};
 use crate::als::transitions::TransitionConfig;
@@ -686,9 +686,6 @@ fn refresh_foot_lock_inputs(
                 0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),
                 _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),
             };
-            if became_valid {
-                reset_foot_lock_to_target(foot_state, target.translation(), target_rotation, armature.rotation());
-            }
             refresh_foot_lock(
                 foot_state,
                 target.translation(),
@@ -1012,6 +1009,53 @@ mod tests {
                 "Foot lock uses the wrong actor clock: actual={actual_final:?}, source={source_final:?}, native_delta={native_delta}, custom={custom_dilation}");
             assert!((actual.left.lock_amount - expected_amount).abs() < 1e-6);
         }
+    }
+
+    #[test]
+    fn revalidated_feet_keep_the_fading_lock_in_the_actual_rig() {
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        for _ in 0..5 { app.update(); }
+        let target = app.world().get::<AlsFootBones>(actor).unwrap().target(0, true).unwrap();
+        app.add_systems(PostUpdate, (move |mut following: Local<bool>,
+            mut states: Query<(&mut AlsFootLockState, &mut AlsFootLockInput, &mut LocomotionState)>,
+            mut transforms: Query<&mut Transform>| {
+            let (mut state, mut input, mut locomotion) = states.get_mut(actor).unwrap();
+            if *following {
+                transforms.get_mut(target).unwrap().translation.x += 0.08;
+            } else {
+                state.valid = false;
+                state.left.lock_amount = 0.8;
+                state.left.lock_location = state.left.target_location + Vec3::X * 0.2;
+                *following = true;
+            }
+            input.left_ik_amount = 1.0;
+            input.left_lock_amount = 0.5;
+            input.moving_smooth = false;
+            *locomotion = LocomotionState::Grounded;
+        }).after(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs));
+        app.update();
+        let state = app.world().get::<AlsFootLockState>(actor).unwrap();
+        assert!(state.valid && state.became_valid);
+        assert_eq!(state.left.lock_amount, 0.5);
+        let anchor = state.left.target_location;
+        assert!(state.left.lock_location.abs_diff_eq(anchor, 1e-5));
+        app.update();
+
+        let state = app.world().get::<AlsFootLockState>(actor).unwrap();
+        assert!(state.valid && !state.became_valid);
+        assert_eq!(state.left.lock_amount, 0.5);
+        assert!(state.left.target_location.distance(anchor) > 0.04);
+        let expected = state.left.target_location.lerp(anchor, 0.5);
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let (_, node, rig) = current_control_rig(player, app.world().resource::<Assets<AnimationGraph>>()).unwrap();
+        let node = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap();
+        let binding = node.input_bindings.iter().find(|binding| binding.property == "control_rig_input.foot_left_location").unwrap();
+        let mut input = node.definition.as_ref().unwrap().externals[&binding.external].clone();
+        input.path.extend_from_slice(&binding.path);
+        let actual = rig.to_world.transform_point(rig_vector(&rig.value(&input).unwrap()).unwrap()).as_vec3();
+        assert!(actual.abs_diff_eq(expected, 1e-4), "Rig lost the retained lock: actual={actual:?}, expected={expected:?}");
     }
 
     #[test]
@@ -1423,8 +1467,9 @@ mod tests {
 
         let target_location = Vec3::new(8.0, 0.4, -2.0);
         let target_rotation = Quat::from_rotation_y(60.0_f32.to_radians());
-        reset_foot_lock_to_target(&mut foot_state, target_location, target_rotation.as_dquat(), current_character_transform.rotation);
-        let recovery_fresh = foot_state.lock_amount == 0.0
+        refresh_foot_lock(&mut foot_state, target_location, target_rotation.as_dquat(), current_character_transform.rotation,
+            1.0, 0.5, true, false, true, true, 0.01, None);
+        let recovery_rebased = foot_state.lock_amount == 0.5
             && foot_state.lock_location == target_location
             && foot_state.final_location == target_location
             && foot_state.lock_rotation.dot(target_rotation.as_dquat()).abs() > 0.999_99
@@ -1515,12 +1560,12 @@ mod tests {
         let passed = (FOOT_LOCK_TELEPORT_WINDOW_SECONDS - 0.2).abs() < 1e-6
             && teleport_location_error < 1e-5
             && teleport_rotation_alignment > 0.999_99
-            && recovery_fresh
+            && recovery_rebased
             && reload_reset
             && teleport_message;
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
-            "[BF102.43][VERDICT] teleport_location_error={teleport_location_error:.6} teleport_rotation_alignment={teleport_rotation_alignment:.6} recovery_fresh={recovery_fresh} reload_reset={reload_reset} teleport_message={teleport_message} -> {verdict}"
+            "[BF102.43][VERDICT] teleport_location_error={teleport_location_error:.6} teleport_rotation_alignment={teleport_rotation_alignment:.6} recovery_rebased={recovery_rebased} reload_reset={reload_reset} teleport_message={teleport_message} -> {verdict}"
         );
         assert!(passed);
     }

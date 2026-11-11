@@ -6702,7 +6702,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：固定源已核验的世界速度(−6,−40,−6)、mesh scale=2和原生平面查询结果，仅切换GroundPredictionBlock。解除屏蔽时source=0.8923675、Overlay actual=0；重新屏蔽时source=0、actual=0.8923675。仅在求值前发布同一个当前父字段，两次切换均恢复；连续不变的两帧本已通过，共8组6PASS/2FAIL，Fall当前值全程正确。
   - 漏检：旧字段与图绑定检查只核对帧末父状态，恒定输入又掩盖跨图的旧值；把全部同名读者与帧末值直接比较也不能定位执行顺序。证据`70/layering_schedule.native.json`、`70/overlay_initial/`及`bf144_animation_phase70_cached_overlay_order`。本项只确认当前Default Overlay预测链，其他缓存副作用消费者留核心图审计；未修改转换器或运行时。
 
-- [ ] BF144-D154 / P3 — Feet恢复有效时清空锁定权重，丢失源保留的淡出。
+- [x] BF144-D154 / P3 — Feet恢复有效时清空锁定权重，丢失源保留的淡出。
+  - 2026-11-12 01:07 +0800 实际结束早于01:42预估，未拆分。fresh Feet有效性与重基准逻辑、原生RigInput和FootLock设置见 `docs/audit/bf144/d154/`。删除恢复入口的重复清零，已有refresh逻辑按当前目标重基准并保留淡出。12组静态重放中清零消融在0.8→0.5的两帧失败，下一帧RigInput偏4cm。旧71运行证据未随当前Git保留，实际CR_Als反例、Rust消融恢复和Playground待统一验证。
+  - 本轮开始2026-11-12 01:03 +08:00，预估结束2026-11-12 01:42 +08:00。用已有的有效性重基准路径处理恢复，核对历史权重、下一帧位置及真实Rig输入。
   - Source：fresh `AlsAnimationInstance.cpp:1251–1275,1364–1392`只改变有效性并将已有锁定位置重新基于当前目标；`1398–1523`保留原LockAmount，当前曲线更低时继续淡出。`GetControlRigInput:252`消费最终组件空间位置。
   - Target：`foot_ik_apply.rs:640–642`在became_valid时无条件调用`reset_foot_lock_to_target`，该函数同时将LockAmount归零；后续部分权重不允许重新淡入，因而整个剩余锁定丢失。
   - 反例：完整角色恢复前LockAmount=0.8、当前曲线0.5，实际权重变0而source应为0.5；下一帧足目标沿X移动8cm，实际Rig的RigInput位置比源多移动4cm。只在恢复帧补回源权重，下一帧消费恢复。原权重0与当前曲线1的控制通过，12组10PASS/2FAIL。
