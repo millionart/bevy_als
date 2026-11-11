@@ -159,7 +159,11 @@ impl RigQueryContext {
             };
             if nearer_hit(fraction, nearest, hit.is_some()) {
                 nearest = fraction;
-                hit = Some((point, normal));
+                hit = Some(if fraction == 0.0 {
+                    (start, (-delta).normalize_or_zero())
+                } else {
+                    (point, normal)
+                });
             }
         }
         Ok(hit)
@@ -193,7 +197,11 @@ mod tests {
         assert_eq!(hit, (DVec3::new(start.x, 0.0, start.z), DVec3::Y));
         let inside = DVec3::new(-10.0, -0.25, -20.0);
         assert_eq!(query.trace(inside, inside + DVec3::Y, "Visibility", true).unwrap(),
-            Some((inside, DVec3::ZERO)));
+            Some((inside, DVec3::NEG_Y)));
+        let direction = DVec3::new(3.0, -4.0, 0.0);
+        let (point, normal) = query.trace(inside, inside + direction, "Visibility", true).unwrap().unwrap();
+        assert_eq!(point, inside);
+        assert!(normal.abs_diff_eq(DVec3::new(-0.6, 0.8, 0.0), 1e-12));
     }
 
     #[test]
@@ -271,6 +279,40 @@ mod tests {
         context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut values).unwrap();
         let F32(offset) = values[8] else { panic!("Missing foot offset"); };
         assert!((offset + 0.766336).abs() < 1e-6, "Endpoint foot offset was {offset}");
+    }
+
+    #[test]
+    fn initial_box_overlap_reaches_the_rig_foot_offset() {
+        let mut entities = World::new();
+        let floor = entities.spawn_empty().id();
+        let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
+        let geometry = RigGeometry {
+            near_zero: 1e-6, normalize_squared: 1e-12, minimum_length: 1e-10, solve_near_zero: 1e-6,
+            basis: [DVec3::X, DVec3::Z, DVec3::Y],
+        };
+        let curves = HashMap::default();
+        for (half_height, expected) in [(0.75, 0.5), (0.5, 0.5), (0.4, 0.4)] {
+            let query = RigQueryContext {
+                world: Arc::new(RigQueryWorld { colliders: [(floor, (Position::default(), Rotation::default(),
+                    Collider::cuboid(2.0, 2.0 * half_height, 2.0), CollisionLayers::ALL))].into_iter().collect() }),
+                to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+            };
+            let mut trace = |start, end, channel: &str, complex| query.trace(start, end, channel, complex);
+            let mut context = RigUnitContext {
+                hierarchy: &mut hierarchy, curves: &curves, game_world: true, construction: false,
+                delta_seconds: 1.0 / 60.0, geometry: &geometry, to_world: RigTransform::default(),
+                line_trace: Some(&mut trace),
+            };
+            use RigValue::*;
+            let mut values = vec![
+                Vector(DVec3::ZERO), Name("Visibility".to_owned()), F32(0.5), F32(0.8), F32(45.0),
+                F32(0.134656), Bool(true), Bool(false), F32(0.0), Vector(DVec3::ZERO),
+            ];
+            context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut values).unwrap();
+            let F32(offset) = values[8] else { panic!("Missing foot offset"); };
+            assert!((offset - expected).abs() < 1e-6, "Foot offset {offset} at half height {half_height}");
+            assert_eq!(values[9], Vector(DVec3::Y));
+        }
     }
 
     #[test]

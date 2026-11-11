@@ -6752,7 +6752,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.74补充：实际Stairs复杂网格的未缩放终点同样失败，Parry BVH自身已用严格best_cost排除命中，不能只改外层query比较。默认FootTrace输入进入该mesh时source偏移−0.766336m、target为0。源缩放包装另有严格NewTime<Length，相关缩放端点本身应拒绝；12组端界不能用统一放宽距离处理。证据`74/endpoint.typed.native.json`、`bf144_animation_phase74_mesh_endpoint_and_initial_hit`。
 
-- [ ] BF144-D160 / P2 — Rig初始重叠射线未转换零法线，被误判为不可行走。
+- [x] BF144-D160 / P2 — Rig初始重叠射线未转换零法线，被误判为不可行走。
+  - 2026-11-12 01:37 +0800 实际结束早于02:06预估，未拆分。fresh SQVisitor标志、原生盒体读数与FootOffsetTrace坡度消费见 `docs/audit/bf144/d160/`。零距离有效命中发布起点和归一化反向射线。四组静态重放通过，恢复raw normal使三组零距离失去偏移。旧72运行证据未随当前Git保留，实际Rig单元反例、Rust消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 01:35 +08:00，预估结束2026-11-12 02:06 +08:00。复取盒内/表面零距离和正距离源命中，核对实际FootOffsetTrace坡度消费。
   - Source：fresh `SQVisitor.h:34–38`对零距离ray撤掉位置/法线标志；`CollisionConversions.cpp:403–432`使用起点和反向射线的安全归一化法线，FootOffsetTrace继续按bBlockingHit消费。原生box内部射线Time=0、raw normal=0，经过源转换应为向上法线。
   - Target：`control_rig_query.rs:53`直接转发Parry的零法线；`control_rig_units.rs:113–118`得到slope_cos=0并清空偏移，漏掉源命中转换。
   - 反例：完整角色的脚侧查询盒覆盖trace起点0.5m，query确实返回起点与零法线，实际偏移消费者为0而source应为+0.5m。仅恢复偏移变量即通过；把同一盒顶面降到起点表面的源等价控制也通过。查询单元与完整角色均复现，未用放宽坡度阈值掩盖结果。

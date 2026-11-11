@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "case": "inside",
+      "distance_cm": 0,
+      "impact_point_cm": [
+        0,
+        0,
+        50
+      ],
+      "impact_normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "foot_offset_m": 0.5,
+      "raw_normal_offset_m": 0.0
+    },
+    {
+      "case": "surface",
+      "distance_cm": 0,
+      "impact_point_cm": [
+        0,
+        0,
+        50
+      ],
+      "impact_normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "foot_offset_m": 0.5,
+      "raw_normal_offset_m": 0.0
+    },
+    {
+      "case": "outside",
+      "distance_cm": 10,
+      "impact_point_cm": [
+        0,
+        0,
+        40
+      ],
+      "impact_normal": [
+        0,
+        0,
+        1
+      ],
+      "foot_offset_m": 0.4,
+      "raw_normal_offset_m": 0.4
+    },
+    {
+      "case": "inside_oblique",
+      "distance_cm": 0,
+      "impact_point_cm": [
+        0,
+        0,
+        50
+      ],
+      "impact_normal": [
+        -0.6,
+        0.0,
+        0.8
+      ],
+      "foot_offset_m": 0.533664,
+      "raw_normal_offset_m": 0.0
+    }
+  ]
+}
