@@ -1749,6 +1749,34 @@ mod tests {
     }
 
     #[test]
+    fn turn_stack_accumulates_native_unequal_rotation_weights() {
+        use bevy_animation_graph::core::pose::{BoneId, BonePose, Pose};
+
+        let bone = BoneId::default();
+        for case in crate::extensions::profile_blend::native_weighted_rotation_cases() {
+            let mut stack = AlsTurnMontageStack::default();
+            let mut poses = HashMap::new();
+            let crouching = case.stance == "crouching";
+            for (rotation, weight) in [case.base, case.target].into_iter().zip(case.weights) {
+                stack.begin(0.0, false, TURN_DUR_90, 1.2, crouching);
+                let entry = stack.entries.last_mut().unwrap();
+                entry.blend_out_elapsed = Some(0.0);
+                entry.blend_out_start_weight = weight;
+                let mut pose = Pose::default();
+                pose.add_bone(BonePose { rotation: Some(Quat::from_array(rotation)), ..default() }, bone);
+                poses.insert(entry.id, pose);
+            }
+            let (pose, weight, _) = compose_turn_montage_poses(&stack, &poses, crouching).unwrap();
+            assert_eq!(weight, 1.0);
+            let actual = pose.get_bone(bone).unwrap().rotation.unwrap();
+            assert!((actual - Quat::from_array(case.raw_rotation)).length() < 3e-7, "{} {}", case.stance, case.bone);
+            let output = pose.normalize_quat();
+            let actual = output.get_bone(bone).unwrap().rotation.unwrap();
+            assert!((actual - Quat::from_array(case.rotation)).length() < 3e-7, "{} {}", case.stance, case.bone);
+        }
+    }
+
+    #[test]
     fn source_slot_stack_normalizes_overlapping_non_additive_montages() {
         use bevy_animation_graph::core::pose::{BoneId, BonePose, Pose};
 

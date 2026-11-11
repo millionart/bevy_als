@@ -238,16 +238,17 @@ impl ProfiledBlendNode {
             if let Some(source_index) = source.paths.get(bone) {
                 let source = &mut source.bones[*source_index];
                 let target = &target.bones[*target_index];
-                if accumulate_rotations
-                    && let (Some(a), Some(b)) = (source.rotation, target.rotation)
-                {
+                if let (Some(a), Some(b)) = (source.rotation, target.rotation) {
                     let mut target_without_rotation = target.clone();
                     target_without_rotation.rotation = None;
                     source.rotation = None;
                     source.linear_blend_mut(&target_without_rotation, weight);
                     let a = a * (1.0 - weight);
                     let b = b * weight;
-                    source.rotation = Some(if a.dot(b) < 0.0 { a - b } else { a + b });
+                    let rotation = if a.dot(b) < 0.0 { a - b } else { a + b };
+                    source.rotation = Some(if accumulate_rotations { rotation } else {
+                        crate::extensions::mesh_space_additive::normalize_pose_rotation(rotation)
+                    });
                 } else {
                     source.linear_blend_mut(target, weight);
                 }
@@ -332,6 +333,30 @@ impl NodeLike for ProfiledBlendNode {
         }
         Ok(())
     }
+}
+
+#[cfg(test)]
+#[derive(serde::Deserialize)]
+pub(crate) struct NativeWeightedRotationCase {
+    pub stance: String,
+    pub bone: String,
+    pub base: [f32; 4],
+    pub target: [f32; 4],
+    pub weights: [f32; 2],
+    pub raw_rotation: [f32; 4],
+    pub rotation: [f32; 4],
+}
+
+#[cfg(test)]
+pub(crate) fn native_weighted_rotation_cases() -> Vec<NativeWeightedRotationCase> {
+    #[derive(serde::Deserialize)]
+    struct Fixture {
+        cases: Vec<NativeWeightedRotationCase>,
+    }
+    let fixture: Fixture = serde_json::from_str(include_str!(
+        "../../docs/audit/bf144/d177/weighted-rotations.replay.json"
+    )).unwrap();
+    fixture.cases
 }
 
 #[cfg(test)]
@@ -549,6 +574,28 @@ mod tests {
         }.blend_pose(&mut source, &target, 0.1, Some(&skeleton), false);
         let value = source.get_bone(foot).unwrap().translation.unwrap().x;
         assert!((value - 0.7352941).abs() < 1e-6);
+    }
+
+    #[test]
+    fn profiled_rotation_matches_native_accumulation_before_and_after_normalization() {
+        use bevy_animation_graph::core::pose::{BoneId, BonePose};
+
+        let bone = BoneId::default();
+        let pose = |rotation| {
+            let mut pose = Pose::default();
+            pose.add_bone(BonePose { rotation: Some(Quat::from_array(rotation)), ..default() }, bone);
+            pose
+        };
+        for case in native_weighted_rotation_cases() {
+            for (accumulate, expected) in [(true, case.raw_rotation), (false, case.rotation)] {
+                let mut base = pose(case.base);
+                let target = pose(case.target);
+                ProfiledBlendNode::default().blend_pose(&mut base, &target, case.weights[1], None, accumulate);
+                let actual = base.get_bone(bone).unwrap().rotation.unwrap();
+                assert!((actual - Quat::from_array(expected)).length() < 3e-7,
+                    "{} {} accumulate={accumulate}: {actual:?}", case.stance, case.bone);
+            }
+        }
     }
 
     #[test]

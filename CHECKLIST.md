@@ -6956,7 +6956,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：六个2秒资源在原生60/30/120Hz轨迹中各晚一帧；实际角色使用1/60秒世界步长、owner倍率1，第100帧source已停止而target仍有Slot样本和全权重。只恢复源停止时点，惯性请求及姿态轨迹恢复；826组停止前姿态历史一致，停止后最大局部位置差约0.987mm、旋转约0.0251°。两个Crouch180资源在当前60Hz矩阵中本已通过，作为控制保留。
   - 漏检/边界：旧自然结束测试只确认最终清理/epoch增加，未与原生停止帧和实际惯性姿态对齐。证据`90/native_analysis.json`、`90/analysis.json`及`bf144_animation_phase90_natural_stop_consumers`；只确认停止时机，未以此宣称完整惯性求解器或通知事件等价。仅登记，未加阈值补丁。
 
-- [ ] BF144-D177 / P2 — Turn预混及标准Profile转场使用球面插值，偏离源加权四元数累加。
+- [x] BF144-D177 / P2 — Turn预混及标准Profile转场使用球面插值，偏离源加权四元数累加。
+  - 2026-11-12 04:59 +0800 实际结束，较05:48预估提前49分钟，未拆分。fresh两站姿不同clip位置的632骨旋转见 `docs/audit/bf144/d177/`，旧slerp 102失配。Turn沿D123b现有累加，独立Profile补源归一化，FSM原始累加及实际原生fixture核对。Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 04:53 +08:00，预估结束2026-11-12 05:48 +08:00。D123b已改Turn累加，D123c已保留FSM中间值。本轮重采不同时间的站蹲Turn输入，补齐独立Profile输出的源加权旋转及最终归一化。
   - Source：fresh `AnimInstanceProxy.cpp:2056–2085`把所有非加性Montage和相关的基础姿态按顺序交给`BlendPosesTogetherIndirect`；`AnimationRuntime.cpp:458–484`先逐项加权累加、按最短符号对齐，最后仅归一化一次。64个公开UE原生混合样本已与独立公式核对。
   - Target：`turn_layer.rs:461–487`逐层调用LinearInterpolator；依赖的`pose.rs:156–159`实际使用Quat::slerp。总权重恰好为1、没有基础姿态参与时，两个不等权重的Turn也已不等价，不能只修D123的中间归一化。
   - 反例：实际Standing/Crouching八资源在0.25/0.4秒采样，左右90/180及相同姿态控制共20组；权重0.3/0.7时14组失败，最大局部旋转差约0.34113°，位置、scale和曲线均在合同内。仅在夹具将预混改为nlerp后20组全部通过；0.5/0.5、全单层和相同姿态控制通过。原producer与实际发布Pose逐值核验，使用共同采样时间/权重隔离D175/D176。
