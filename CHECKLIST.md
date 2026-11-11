@@ -7164,7 +7164,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 边界：差值约1.19209e−7秒，为时间轴精度问题，不扩大为可见姿态故障；末端定位控制不宣称默认游戏输入自然命中该精确位置。证据`target/bf144/111/analysis.json`、`consumer_summary.json`、`timelines.json`。原始glTF/bin、生产播放器及转换器未修改；归一化往返的非末端残差和其他同步路径另审。
   - BF144.126 Crouch补充：六个Walk原生长度均为1.1333333253860474，当前GraphClip均为1.1333332061767578，同样短一个float步长。先恢复精确marker数据后，7路径672帧仍有最大约0.238µs的位置/previous残差；再只恢复六个clip长度，全部位置/previous与原生FAnimSync逐值相同。确认长度差进入当前标记同步时钟；没有据此推导Crouch提前转场，未改资产或导入器。
 
-- [ ] BF144-D200 / P2 — 外部姿态缓存污染状态相关性候选，自动转场跟随错误时钟。
+- [x] BF144-D200 / P2 — 外部姿态缓存污染状态相关性候选，自动转场跟随错误时钟。
+  - 2026-11-12 07:51 +0800 实际结束，较08:39预估提前48分钟，未拆分。fresh五状态编译候选18个与目标GUID逐值对应；缓存相关性限制在状态祖先范围，五条自动规则的旧提前控制恢复。原始读数与实际scoped cache夹具见 `docs/audit/bf144/d200/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 07:46 +08:00，预估结束2026-11-12 08:39 +08:00。重采Land与Standing实际编译候选，沿跨状态缓存入口消除外部相关性候选，核对本地候选、缓存姿态及自动规则消费。
   - Source：fresh编译后的Land Movement PlayerNodeIndices只有Light/Heavy Additive两项、LayerNodeIndices为空；`AnimNode_StateMachine.cpp:688–738`仅在该列表及列出的layer中按缓存权重选取。Grounded缓存提供基础姿态，其内部播放器不属于本状态候选。
   - Target：`SourceLinkedInputPoseNode`、缓存save/use保留完整AnimationContextState；`source_pose_nodes.rs:687–690,967–989`让基础缓存的relevant_asset进入加性及外层blend选择。Grounded输入路径已连到Locomotion缓存；外部候选可能压过本地Land播放器，而SourceRelevantAsset没有保存状态归属以便后续过滤。
   - 反例：使用当前S4实际缓存和组合节点、原接线及源参数，控制瞄准/速度、基础缓存时钟和本地时钟共96组；72组有外部缓存时均选中错误时钟，24组无外部候选控制通过。原T2自动规则288组消费出现24组提前、12组延后和24组错误淡入结果；例如外部remaining=0.2、本地remaining≈1.0667时目标已触发，source仍应等待。

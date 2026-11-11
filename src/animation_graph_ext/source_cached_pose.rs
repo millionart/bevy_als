@@ -11,6 +11,7 @@ use bevy_animation_graph::core::{
     edge_data::DataSpec,
     errors::GraphError,
     pose::Pose,
+    state_machine::low_level::LowLevelStateId,
 };
 
 use crate::extensions::animation_context::{
@@ -265,7 +266,20 @@ fn scoped_cached_context_state(
 ) -> Option<AnimationContextState> {
     let requested_key = requested_cache_key(cache_node, cache_key);
     let (context_id, _, cache_id) = scoped_cache_context(ctx, requested_key)?;
-    use_cached_context_state(ctx, context_id, cache_id, StateKey::Default)
+    let mut context = use_cached_context_state(ctx, context_id, cache_id, StateKey::Default)?;
+    if context.relevant_asset.is_some() && context_id != ctx.graph_context.context_id {
+        let arena = ctx.graph_context.context_arena.get_ref();
+        let parent = |id: &GraphContextId| arena.get_parent_context(*id).map(|parent| parent.ctx_id);
+        let state_root = std::iter::successors(Some(ctx.graph_context.context_id), parent)
+            .find(|id| arena.get_parent_context(*id).is_some_and(|parent|
+                matches!(parent.state_id.as_ref(), Some(LowLevelStateId::HlState(_)))));
+        if let Some(state_root) = state_root
+            && !std::iter::successors(Some(context_id), parent).any(|id| id == state_root)
+        {
+            context.relevant_asset = None;
+        }
+    }
+    Some(context)
 }
 
 fn scoped_cache_context<'a>(ctx: &NodeContext<'a>, key: &str) -> Option<(GraphContextId, &'a AnimationGraph, NodeId)> {
@@ -570,6 +584,9 @@ mod tests {
                 let frame = input_state.graph_context.frame_index();
                 let input_state = input_state.state_mut_or_else(AnimationContextState::default).unwrap();
                 input_state.curves.insert("Scope".into(), expected);
+                input_state.relevant_asset = Some(crate::extensions::SourceRelevantAsset {
+                    duration: expected, weight: 1.0, ..default()
+                });
                 input_state.inertialization_request = Some(SourceInertializationRequest {
                     frame, duration: 0.2, ..default()
                 });
@@ -583,6 +600,7 @@ mod tests {
                 assert_eq!(pose.timestamp, expected, "Cache pose crossed linked instances");
                 assert_eq!(use_ctx.state::<AnimationContextState>().unwrap().curves[&crate::extensions::SourceCurveName::from("Scope")], expected,
                     "Cache curves crossed linked instances");
+                assert_eq!(use_ctx.state::<AnimationContextState>().unwrap().relevant_asset.as_ref().unwrap().duration, expected);
                 let request = use_ctx.state::<AnimationContextState>().unwrap()
                     .inertialization_request.as_ref().unwrap().clone();
                 assert_eq!(request.cached_pose_origins.len(), 1);
@@ -598,7 +616,11 @@ mod tests {
                 assert_eq!(crate::extensions::source_instance::source_notify_instance_id(&sibling).unwrap(), notify_instance);
                 assert_eq!(resolve_scoped_cached_pose(&mut sibling, "cache", "shared").unwrap().timestamp, expected);
                 state.1.nodes[&use_id].update(sibling.clone()).unwrap();
-                assert!(sibling.state::<AnimationContextState>().unwrap().inertialization_request.is_none());
+                let state_context = sibling.state::<AnimationContextState>().unwrap();
+                assert!(state_context.inertialization_request.is_none());
+                assert!(state_context.relevant_asset.is_none());
+                assert_eq!(state_context.curves[&crate::extensions::SourceCurveName::from("Scope")], expected);
+                assert!(use_ctx.state::<AnimationContextState>().unwrap().relevant_asset.is_some());
                 forward_cached_pose_requests(&mut use_ctx, &request, true);
                 state.1.nodes[&use_id].update(sibling.clone()).unwrap();
                 assert!(sibling.state::<AnimationContextState>().unwrap().inertialization_request.is_some());
