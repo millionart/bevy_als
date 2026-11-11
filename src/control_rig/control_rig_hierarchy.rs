@@ -4,7 +4,7 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::extensions::control_rig_math::RigValue;
+use crate::extensions::control_rig_math::{RigValue, rig_quat_product};
 
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RigTransform {
@@ -239,7 +239,7 @@ impl RigTransform {
             return Self::from_matrix(parent.matrix() * self.matrix(), scale);
         }
         Self {
-            rotation: rig_normalize(parent.rotation * self.rotation),
+            rotation: rig_normalize(rig_quat_product(parent.rotation, self.rotation)),
             translation: source_rotate_vector(parent.rotation, parent.scale * self.translation) + parent.translation,
             scale,
         }
@@ -265,7 +265,7 @@ impl RigTransform {
         }
         let inverse_rotation = parent.rotation.conjugate();
         Self {
-            rotation: rig_normalize(inverse_rotation * self.rotation),
+            rotation: rig_normalize(rig_quat_product(inverse_rotation, self.rotation)),
             translation: source_rotate_vector(inverse_rotation, self.translation - parent.translation) * reciprocal,
             scale,
         }

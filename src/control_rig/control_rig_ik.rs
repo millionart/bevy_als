@@ -5,6 +5,7 @@ use bevy::{
 use serde::{Deserialize, Serialize};
 
 use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize, source_rotate_vector};
+use crate::extensions::control_rig_math::rig_quat_product;
 
 #[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RigGeometry {
@@ -184,8 +185,9 @@ impl RigGeometry {
                 let base = safe_normal(effector - root, self.normalize_squared);
                 fully_extended = (source_vector_dot(base, target) - 1.0).abs() < 1e-4_f32 as f64;
             }
-            bones[index].rotation =
-                rig_normalize(self.between(axis, target, 1.0) * bones[index].rotation);
+            bones[index].rotation = rig_normalize(rig_quat_product(
+                self.between(axis, target, 1.0), bones[index].rotation,
+            ));
             if secondary_weight <= 1e-8 {
                 continue;
             }
@@ -214,7 +216,7 @@ impl RigGeometry {
                 rotation =
                     DQuat::from_axis_angle(axis, (angle * secondary_weight.clamp(0.0, 1.0)) as f64);
             }
-            bones[index].rotation = rig_normalize(rotation * bones[index].rotation);
+            bones[index].rotation = rig_normalize(rig_quat_product(rotation, bones[index].rotation));
         }
     }
 }

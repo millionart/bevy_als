@@ -32,8 +32,16 @@ pub fn rig_quaternion(euler: DVec3) -> DQuat {
     DQuat::from_xyzw(-source_x, -source_z, -source_y, source_w)
 }
 
+fn rotation_basis(rotation: DQuat) -> DQuat {
+    DQuat::from_xyzw(-rotation.x, -rotation.z, -rotation.y, rotation.w)
+}
+
+pub(crate) fn rig_quat_product(left: DQuat, right: DQuat) -> DQuat {
+    rotation_basis(rotation_basis(left) * rotation_basis(right))
+}
+
 pub fn rig_euler(rotation: DQuat) -> DVec3 {
-    let (x, y, z, w) = (-rotation.x, -rotation.z, -rotation.y, rotation.w);
+    let DQuat { x, y, z, w } = rotation_basis(rotation);
     let singularity = z * x - w * y;
     let radians_to_degrees = 180.0 / std::f64::consts::PI;
     if singularity.abs() > 0.4999995 {

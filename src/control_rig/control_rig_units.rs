@@ -8,7 +8,8 @@ use crate::extensions::{
     },
     control_rig_ik::{RigGeometry, source_vector_dot},
     control_rig_math::{
-        RigValue, rig_clamp01, rig_damper_alpha, rig_euler, rig_quaternion, rig_spring_damper,
+        RigValue, rig_clamp01, rig_damper_alpha, rig_euler, rig_quat_product, rig_quaternion,
+        rig_spring_damper,
     },
 };
 
@@ -254,7 +255,7 @@ impl RigUnitContext<'_> {
                         .hierarchy
                         .transform(foot, RigSpace::Global, true)?
                         .rotation;
-                    *initial_rotation = calf.conjugate() * foot;
+                    *initial_rotation = rig_quat_product(calf.conjugate(), foot);
                 }
                 *offset_normal += (*normal - *offset_normal)
                     * rig_damper_alpha(self.delta_seconds as f32, *half_life) as f64;
@@ -269,16 +270,20 @@ impl RigUnitContext<'_> {
                     .hierarchy
                     .transform(foot, RigSpace::Global, false)?
                     .rotation;
-                let current = rig_euler(calf.conjugate() * foot * initial_rotation.conjugate());
-                let target = rig_euler(
-                    calf.conjugate() * (offset_rotation * *target) * initial_rotation.conjugate(),
-                );
+                let inverse_calf = calf.conjugate();
+                let inverse_initial = initial_rotation.conjugate();
+                let current_local = rig_quat_product(inverse_calf, foot);
+                let current = rig_euler(rig_quat_product(current_local, inverse_initial));
+                let target_world = rig_quat_product(offset_rotation, *target);
+                let target_local = rig_quat_product(inverse_calf, target_world);
+                let target = rig_euler(rig_quat_product(target_local, inverse_initial));
                 let euler = DVec3::new(
                     constrained_angle(current.x, target.x, twist_x)?,
                     constrained_angle(current.y, target.y, swing_y)?,
                     constrained_angle(current.z, target.z, swing_z)?,
                 );
-                *rotation = rig_normalize(calf * (rig_quaternion(euler) * *initial_rotation));
+                let final_local = rig_quat_product(rig_quaternion(euler), *initial_rotation);
+                *rotation = rig_normalize(rig_quat_product(calf, final_local));
             }
             (
                 "FAlsRigUnit_CalculatePoleVector::Execute",
@@ -975,6 +980,84 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.instruction, 0);
         assert_eq!(error.reason, "rig line trace is unavailable");
+    }
+
+    #[test]
+    fn control_rig_source_products_preserve_foot_angle_limits() {
+        use RigValue::*;
+
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+            foot: Foot,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            start: [f64; 4],
+            factors: Vec<[f64; 4]>,
+            expected: [f64; 4],
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Foot {
+            calf: [f64; 4],
+            foot: [f64; 4],
+            initial: [f64; 4],
+            target: [f64; 4],
+            native_roll: f64,
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d163b/products.replay.json"
+        )).unwrap();
+        let transform = |rotation| RigTransform { rotation, ..Default::default() };
+        for case in fixture.cases {
+            let start = DQuat::from_array(case.start);
+            let expected = DQuat::from_array(case.expected);
+            let actual = case.factors.iter().copied().map(DQuat::from_array).fold(start, rig_quat_product);
+            assert_eq!(actual, expected, "{}", case.name);
+            if case.name.starts_with("forward_pose_") {
+                let local = transform(DQuat::from_array(case.factors[0]));
+                assert_eq!(local.global(transform(start)).rotation, rig_normalize(expected));
+            } else if case.name.starts_with("initial_relative_") {
+                let foot = transform(DQuat::from_array(case.factors[0]));
+                assert_eq!(foot.relative(transform(start.conjugate())).rotation, rig_normalize(expected));
+            } else if case.name == "controlled_roll" {
+                assert_eq!(rig_euler(actual).x, fixture.foot.native_roll);
+            }
+        }
+
+        let mut hierarchy = hierarchy();
+        for (index, rotation) in [(1, fixture.foot.calf), (2, fixture.foot.foot)] {
+            hierarchy.set_transform(index, RigSpace::Global, false,
+                transform(DQuat::from_array(rotation)), true).unwrap();
+        }
+        let curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 0.0,
+            geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
+        };
+        let zero_limit = List(vec![F32(0.0), F32(0.0)]);
+        let target = DQuat::from_array(fixture.foot.target);
+        let mut args = [
+            item("Bone1"), item("Bone2"), Quaternion(target), Vector(DVec3::Y),
+            zero_limit.clone(), zero_limit.clone(), zero_limit, F32(0.1), Bool(true),
+            List(vec![]), List(vec![]), Vector(DVec3::Y), Quaternion(DQuat::IDENTITY),
+            Quaternion(DQuat::from_array(fixture.foot.initial)),
+        ];
+        context.call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args).unwrap();
+        let Quaternion(actual) = args[12] else {
+            panic!("foot rotation is missing");
+        };
+        assert!(rig_quat_near(actual, target, 1e-7), "Wrong constrained foot rotation: {actual:?}");
     }
 
     #[test]

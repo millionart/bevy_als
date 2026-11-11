@@ -6789,8 +6789,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - [x] BF144-D163a / P3 — 按原生double Rotator顺序保留Euler半转端点。
     - 2026-11-12 02:21 +0800 实际结束早于02:58预估，未拆分。fresh double Rotator、精确有符号零与半转区间见 `docs/audit/bf144/d163a/`。按源基计算后返回目标Euler，21组原生静态重放通过，旧代数在四个精确半转选错端点。Rust fixture已加入，实际组合由D163b接续。
     - 本轮开始2026-11-12 02:17 +08:00，预估结束2026-11-12 02:58 +08:00。核对精确有符号零、半转两侧及常规/奇异输入的原生Rotator。
-  - [ ] BF144-D163b / P3 — 恢复Rig足旋转及组件层级的源double四元数组合。
+  - [x] BF144-D163b / P3 — 恢复Rig足旋转及组件层级的源double四元数组合。
+    - 2026-11-12 02:30 +0800 实际结束，较03:16预估提前46分钟，未拆分。fresh NEON/SSE W→X→Y→Z、实际足旋转与Rig FK/IK闭包见 `docs/audit/bf144/d163b/`。19组原生double乘积精确，去基转换16组失败，受控 −180° 翻至 +180° 并误裁目标。已接入真实足旋转回调 fixture，Cargo/Playground 待统一验证。
     - 依赖D163a。核对初始相对、当前/目标小腿空间及最终还原的源基乘法，保留实际足旋转回调和普通FK对照。
+    - 本轮开始2026-11-12 02:21 +08:00，预估结束2026-11-12 03:16 +08:00。核对源W→X→Y→Z累加、实际Rig和普通FK/IK的直接double消费者。
   - [ ] BF144-D163c / P3 — 恢复普通层化中组件组合与局部还原的源float乘法。
     - 依赖D163b。核对源NEON算序与Layered Pose的骨骼消费者。
   - BF144.479主/次轴consumer：5192 source/current×次轴1/0全原生10384 quat精确，mask15只回退source基quat product且保source位置/其它算子，使3067 quaternion double不同、F32全同。最小两输入物理去乘法基后public2仍精确、native旋转101拒（1条失配），源码bytes/5192输入恢复同target六库重编全报告byte同。只扩已证乘法消费者，不混合Euler分支或上游pose数据，证据docs/audit/bf144/479/comparison.json、negative-check.json；生产未修。

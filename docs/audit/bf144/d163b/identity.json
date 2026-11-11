@@ -1,0 +1,38 @@
+[
+  {
+    "path": "docs/audit/bf144/d163b/products.native.json",
+    "sha256": "9d9105bcb3e5668d5b363409d0a4e0790f3f4d6f7b742622987cf2de2e8f3367"
+  },
+  {
+    "path": "docs/audit/bf144/d163b/products.native.json.reader.report.json",
+    "sha256": "96f2d985d5886a57822ffa666b4e595e6e2ecb0e29aa147d53fc0c723930b381"
+  },
+  {
+    "path": "docs/audit/bf144/d163b/products.replay.json",
+    "sha256": "a0a1e55a37a86d3c0eeaf7b2ec4b4d88be8a219d2fd9ad0b795db582804c990f"
+  },
+  {
+    "path": "docs/audit/bf144/d163b/products.request.json",
+    "sha256": "0f434f1f46786e3c4c08c30846bc1cf182ef57cd0d622f00c1e495e40269e5c0"
+  },
+  {
+    "path": "docs/audit/bf144/d163b/replay_products.py",
+    "sha256": "17c91b93dea38fe2d8c1e6787336e15a50906ef2fd9d167c6f9c3c4ef4c6d717"
+  },
+  {
+    "path": "src/control_rig/control_rig_hierarchy.rs",
+    "sha256": "5c1d7fc7682593533b2116c72e872434ecaee37a414b3dc7dc48c25555884281"
+  },
+  {
+    "path": "src/control_rig/control_rig_ik.rs",
+    "sha256": "4bbea01244c59fbe472dcb97bdab947dcb1c8781b12e82e36bce310a59480010"
+  },
+  {
+    "path": "src/control_rig/control_rig_math.rs",
+    "sha256": "8c48f505d72916a8f0433511b46f80e52f728941577274144c6d649c8ea36213"
+  },
+  {
+    "path": "src/control_rig/control_rig_units.rs",
+    "sha256": "c4b668e320aedb50a38ed35b809d34a03543805a3c51d6bde3ce62accb50de19"
+  }
+]
