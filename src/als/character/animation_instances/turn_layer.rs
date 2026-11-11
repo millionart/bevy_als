@@ -1,7 +1,7 @@
 use crate::als::rotate_in_place::RotateInPlaceState;
 use crate::als::state::Stance;
 use crate::als::turn_in_place::{TurnInPlaceConfig, TurnVariant, wrap_angle_degrees};
-use crate::extensions::source_slot::MONTAGE_EVALUATION_WEIGHT_THRESHOLD;
+use crate::extensions::source_slot::{MONTAGE_EVALUATION_WEIGHT_THRESHOLD, montage_evaluation_denominator};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
@@ -468,7 +468,7 @@ fn compose_turn_montage_poses(
     stack: &AlsTurnMontageStack,
     poses: &HashMap<u64, bevy_animation_graph::core::pose::Pose>,
     crouching: bool,
-) -> Option<(bevy_animation_graph::core::pose::Pose, f32)> {
+) -> Option<(bevy_animation_graph::core::pose::Pose, f32, f32)> {
     let entries = stack
         .entries
         .iter()
@@ -480,10 +480,12 @@ fn compose_turn_montage_poses(
         })
         .collect::<Vec<_>>();
     let total_weight = entries.iter().map(|(_, weight)| *weight).sum::<f32>();
+    let slot_weight = total_weight.min(1.0);
+    let denominator = slot_weight * montage_evaluation_denominator(total_weight);
     let output = entries.into_iter()
-        .map(|(pose, weight)| pose.scalar_mult(weight / total_weight))
+        .map(|(pose, weight)| pose.scalar_mult(weight / denominator))
         .reduce(|accumulated, pose| accumulated.linear_add(&pose))?;
-    Some((output, total_weight.min(1.0)))
+    Some((output, slot_weight, denominator))
 }
 
 fn write_turn_inertialization_inputs(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive) {
@@ -589,15 +591,9 @@ fn bridge_turn_slot_samples(
             let contract = turn_slot_contract(crouching);
             source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(contract.generated_pose_key,
                 None,);
-            let Some((pose, weight)) = compose_turn_montage_poses(&stack, &poses, crouching) else {
+            let Some((pose, weight, denominator)) = compose_turn_montage_poses(&stack, &poses, crouching) else {
                 continue;
             };
-            let total = stack
-                .entries
-                .iter()
-                .filter(|entry| entry.crouching == crouching && contexts.contains_key(&entry.id))
-                .map(|entry| entry.weight())
-                .sum::<f32>();
             let context = crate::extensions::source_pose_nodes::blend_animation_contexts(
                 stack
                     .entries
@@ -607,7 +603,7 @@ fn bridge_turn_slot_samples(
                         contexts
                             .get(&entry.id)
                             .cloned()
-                            .map(|context| (context, entry.weight() / total))
+                            .map(|context| (context, entry.weight() / denominator))
                     }),
             );
             player.set_global_input_data(contract.pose_key, DataValue::Pose(pose.clone()));
@@ -884,19 +880,23 @@ mod tests {
         assert_eq!((turn_weight, transition_weight), (Some(1.0), Some(1.0)));
         assert_eq!((turn_pose_time, transition_pose_time), (Some(0.42), Some(0.42)));
 
+        let publish = |app: &mut App, crouching, weights: &[f32], positions: [f32; 2]| {
+            let stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap().into_inner();
+            stack.entries.clear();
+            for (&weight, position) in weights.iter().zip(positions) {
+                stack.begin(0.0, false, TURN_DUR_90, 1.0, crouching);
+                let entry = stack.entries.last_mut().unwrap();
+                entry.elapsed = position;
+                entry.blend_out_elapsed = Some(0.0);
+                entry.blend_out_start_weight = weight;
+            }
+            app.world_mut().run_system_once(bridge_turn_slot_samples).unwrap();
+        };
+        let yaw_speed = crate::extensions::SourceCurveName::from("RotationYawSpeed");
         for crouching in [false, true] {
             let contract = turn_slot_contract(crouching);
             for case in crate::extensions::source_slot::montage_eligibility_cases().into_iter().rev() {
-                let stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap().into_inner();
-                stack.entries.clear();
-                for (index, &weight) in case.weights.iter().enumerate() {
-                    stack.begin(0.0, false, TURN_DUR_90, 1.0, crouching);
-                    let entry = stack.entries.last_mut().unwrap();
-                    entry.elapsed = if index == 0 { 0.15 } else { 0.42 };
-                    entry.blend_out_elapsed = Some(0.0);
-                    entry.blend_out_start_weight = weight;
-                }
-                app.world_mut().run_system_once(bridge_turn_slot_samples).unwrap();
+                publish(&mut app, crouching, &case.weights, [0.15, 0.42]);
                 let runtime = app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap();
                 assert!(runtime.active && runtime.pose_ready);
                 assert_eq!(runtime.weight, case.total, "crouching={crouching} {:?}", case.weights);
@@ -912,6 +912,24 @@ mod tests {
                     let expected_position = if case.weights.len() == 1 { 0.15 } else { 0.42 };
                     assert_eq!(context.asset_samples[0].clock.position, expected_position);
                 }
+            }
+            let layer_curve = crate::standing_source::sample_source_montage(
+                source_turn_sequence(crouching, false, 0.0), 0.25,
+                app.world().resource::<crate::standing_source::SourceMontageAssets>(),
+                app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>(),
+                app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>(),
+            ).unwrap().1.curves[&yaw_speed];
+            let slot = if crouching { "crouching-turn" } else { "standing-turn" };
+            for case in crate::extensions::source_slot::montage_normalization_cases(slot) {
+                publish(&mut app, crouching, &case.weights, [0.25; 2]);
+                let runtime = app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap();
+                assert_eq!(runtime.weight, case.slot_weight);
+                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap()
+                    .slot_input_context(contract.generated_pose_key).unwrap();
+                let actual = context.curves[&yaw_speed] * runtime.weight;
+                let expected = case.effective.iter().map(|weight| layer_curve * weight).sum::<f32>();
+                assert!((actual - expected).abs() <= 2.0 * f32::EPSILON * expected.abs().max(1.0),
+                    "{slot} {:?}: {actual} != {expected}", case.weights);
             }
         }
     }
@@ -1574,12 +1592,26 @@ mod tests {
             bone,
         );
         let poses = HashMap::from([(stack.entries[0].id, first), (stack.entries[1].id, second)]);
-        let (result, weight) = compose_turn_montage_poses(&stack, &poses, false).unwrap();
+        let (result, weight, _) = compose_turn_montage_poses(&stack, &poses, false).unwrap();
         assert!((weight - 1.0).abs() < 1e-6);
         assert_eq!(
             result.get_bone(bone).and_then(|pose| pose.translation),
             Some(Vec3::X * 5.0)
         );
+        for case in crate::extensions::source_slot::montage_normalization_cases("standing-turn") {
+            let [first, second] = case.effective.as_slice() else { continue; };
+            for (entry, weight) in stack.entries.iter_mut().zip(case.weights) {
+                entry.blend_out_elapsed = Some(0.0);
+                entry.blend_out_start_weight = weight;
+            }
+            let (pose, weight, _) = compose_turn_montage_poses(&stack, &poses, false).unwrap();
+            assert_eq!(weight, case.slot_weight);
+            let bone = pose.get_bone(bone).unwrap();
+            let first = first / weight;
+            let second = second / weight;
+            assert_eq!(bone.translation, Some(Vec3::X * (10.0 * second)));
+            assert_eq!(bone.scale, Some(Vec3::splat(first + second)));
+        }
     }
 
     #[test]
@@ -1616,7 +1648,7 @@ mod tests {
                     poses.insert(entry.id, pose.clone());
                     samples.push((pose, weight));
                 }
-                let (overlay, weight) = compose_turn_montage_poses(&stack, &poses, crouching).unwrap();
+                let (overlay, weight, _) = compose_turn_montage_poses(&stack, &poses, crouching).unwrap();
                 assert_eq!(weight, samples.iter().map(|(_, weight)| weight).sum::<f32>());
                 samples.push((base.clone(), 1.0 - weight));
                 let expected = crate::extensions::source_pose_nodes::blend_source_poses(&samples);

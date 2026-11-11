@@ -16,6 +16,10 @@ use crate::extensions::{
 
 pub(crate) const MONTAGE_EVALUATION_WEIGHT_THRESHOLD: f32 = 1e-5;
 
+pub(crate) fn montage_evaluation_denominator(total_weight: f32) -> f32 {
+    if total_weight > 1.0 + MONTAGE_EVALUATION_WEIGHT_THRESHOLD { total_weight } else { 1.0 }
+}
+
 #[cfg(test)]
 #[derive(serde::Deserialize)]
 pub(crate) struct MontageEligibilityCase {
@@ -34,6 +38,28 @@ pub(crate) fn montage_eligibility_cases() -> Vec<MontageEligibilityCase> {
         "../../docs/audit/bf144/d168/eligibility.replay.json"
     )).unwrap();
     fixture.cases
+}
+
+#[cfg(test)]
+#[derive(serde::Deserialize)]
+pub(crate) struct MontageNormalizationCase {
+    pub weights: Vec<f32>,
+    pub effective: Vec<f32>,
+    pub slot_weight: f32,
+    pub source_curve: f32,
+    pub base_curve: f32,
+}
+
+#[cfg(test)]
+pub(crate) fn montage_normalization_cases(slot: &str) -> Vec<MontageNormalizationCase> {
+    #[derive(serde::Deserialize)]
+    struct Fixture {
+        cases: std::collections::HashMap<String, Vec<MontageNormalizationCase>>,
+    }
+    let mut fixture: Fixture = serde_json::from_str(include_str!(
+        "../../docs/audit/bf144/d169/normalization.replay.json"
+    )).unwrap();
+    fixture.cases.remove(slot).unwrap()
 }
 
 #[derive(Reflect, Clone, Debug)]

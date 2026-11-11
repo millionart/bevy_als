@@ -6149,11 +6149,30 @@ TSharedPtr<FJsonObject> CaptureSlotProbe(UObject* Asset, const FString& RequestP
             Playback.SetPosition(Start);
         }
         Proxy.GetMontageEvaluationData().Reset();
+        const TArray<TSharedPtr<FJsonValue>>* EvaluationWeights = nullptr;
+        if ((*Step)->HasField(TEXT("evaluation_weights"))
+            && (!(*Step)->TryGetArrayField(TEXT("evaluation_weights"), EvaluationWeights)
+                || EvaluationWeights->IsEmpty() || EvaluationWeights->Num() > 32
+                || Frame < PlayFrame || !Playback.IsValid())) { return nullptr; }
         if (Frame >= PlayFrame && Playback.IsValid())
         {
             Playback.UpdateWeight(Delta);
             Playback.Advance(Delta, nullptr, false);
-            if (Playback.IsValid() && Playback.GetWeight() > ZERO_ANIMWEIGHT_THRESH)
+            if (EvaluationWeights != nullptr)
+            {
+                for (const TSharedPtr<FJsonValue>& Value : *EvaluationWeights)
+                {
+                    double Weight;
+                    if (!Value->TryGetNumber(Weight) || !FMath::IsFinite(Weight) || Weight < 0.0 || Weight > 1.0) { return nullptr; }
+                    if (static_cast<float>(Weight) <= ZERO_ANIMWEIGHT_THRESH) { continue; }
+                    FAlphaBlend Blend;
+                    Blend.SetBlendOption(EAlphaBlendOption::Linear);
+                    Blend.SetValueRange(0.0f, 1.0f);
+                    Blend.SetAlpha(static_cast<float>(Weight));
+                    Proxy.GetMontageEvaluationData().Emplace(Montage, Playback.GetPosition(), Playback.DeltaTimeRecord, Playback.IsPlaying(), Playback.IsActive(), Blend, nullptr, 0.0f);
+                }
+            }
+            else if (Playback.IsValid() && Playback.GetWeight() > ZERO_ANIMWEIGHT_THRESH)
             {
                 Proxy.GetMontageEvaluationData().Emplace(Montage, Playback.GetPosition(), Playback.DeltaTimeRecord, Playback.IsPlaying(), Playback.IsActive(), Playback.GetBlend(), Playback.GetActiveBlendProfile(), Playback.GetBlendStartAlpha());
             }
@@ -6172,6 +6191,7 @@ TSharedPtr<FJsonObject> CaptureSlotProbe(UObject* Asset, const FString& RequestP
         Row->SetNumberField(TEXT("total_weight"), Node.Weights().TotalNodeWeight);
         Row->SetNumberField(TEXT("montage_weight"), Playback.GetWeight());
         Row->SetNumberField(TEXT("montage_position"), Frame >= PlayFrame ? Playback.GetPosition() : 0.f);
+        if (EvaluationWeights != nullptr) { Row->SetArrayField(TEXT("evaluation_weights"), *EvaluationWeights); }
         Results.Add(MakeShared<FJsonValueObject>(Row.ToSharedRef()));
         UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Slot probe frame %d/%d captured."), Frame + 1, Steps->Num());
     }

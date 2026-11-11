@@ -13,7 +13,7 @@ use crate::als::start_stop::predict_stop_distance;
 use crate::als::state::{LocomotionState, RotationMode, Stance};
 use crate::als::transitions::{TransitionConfig, select_quick_stop};
 use crate::extensions::profile_blend::{AlphaBlendMode, MONTAGE_SECTION_END_OFFSET, MontageBlend};
-use crate::extensions::source_slot::MONTAGE_EVALUATION_WEIGHT_THRESHOLD;
+use crate::extensions::source_slot::{MONTAGE_EVALUATION_WEIGHT_THRESHOLD, montage_evaluation_denominator};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
@@ -657,7 +657,7 @@ fn sample_transition_stack(
         }))
         .collect::<Option<Vec<_>>>()?;
     let total = samples.iter().map(|(_, _, weight)| weight).sum::<f32>();
-    let denominator = total.max(1.0);
+    let denominator = montage_evaluation_denominator(total);
     let pose = crate::extensions::mesh_space_additive::compose_mesh_space_additives(
         samples.iter().map(|(pose, _, weight)| (pose, weight / denominator)),
     )?;
@@ -1393,27 +1393,32 @@ mod tests {
     }
 
     #[test]
-    fn transition_slot_submits_only_native_relevant_montages() {
+    fn transition_slot_preserves_native_montage_weights_and_curves() {
         let mut app = crate::standing_source::tests::loaded_montage_app();
         app.add_systems(Update, bridge_root_transition_slot_samples);
         let character = app.world_mut().spawn((Stance::Standing, AlsTransitionMontageStack::default())).id();
         let player = app.world_mut().spawn(AnimationGraphPlayer::new(Handle::default())).id();
         app.world_mut().spawn(AlsRootTransitionSlotSampler { character, target_player: player, reported_unready: false });
+        let publish = |app: &mut App, stance, weights: &[f32]| {
+            let mut stack = app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap();
+            stack.entries = weights.iter().copied().enumerate().map(|(index, weight)| {
+                let mut entry = if stance == Stance::Crouching {
+                    AlsTransitionPlayback::crouching_dynamic(index as f32)
+                } else {
+                    AlsTransitionPlayback::standing_dynamic(index as f32)
+                };
+                entry.weight = weight;
+                entry.clip_time = 0.25;
+                entry.instance_id = index as u64;
+                entry
+            }).collect();
+            app.update();
+        };
+        let allow_transitions = crate::extensions::SourceCurveName::from("AllowTransitions");
         for stance in [Stance::Standing, Stance::Crouching] {
             app.world_mut().entity_mut(character).insert(stance);
             for case in crate::extensions::source_slot::montage_eligibility_cases().into_iter().rev() {
-                let mut stack = app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap();
-                stack.entries = case.weights.iter().copied().enumerate().map(|(index, weight)| {
-                    let mut entry = if stance == Stance::Crouching {
-                        AlsTransitionPlayback::crouching_dynamic(index as f32)
-                    } else {
-                        AlsTransitionPlayback::standing_dynamic(index as f32)
-                    };
-                    entry.weight = weight;
-                    entry.instance_id = index as u64;
-                    entry
-                }).collect();
-                app.update();
+                publish(&mut app, stance, &case.weights);
                 let runtime = app.world().get::<AlsRootTransitionSlotRuntime>(character).unwrap();
                 assert!(runtime.active);
                 assert_eq!(runtime.weight, case.total, "{stance:?} {:?}", case.weights);
@@ -1425,8 +1430,17 @@ mod tests {
                     assert!(runtime.pose_ready);
                     let context = context.unwrap();
                     assert_eq!(context.asset_samples.len(), case.eligible);
-                    assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("AllowTransitions")), Some(&-case.total));
+                    assert_eq!(context.curves.get(&allow_transitions), Some(&-case.total));
                 }
+            }
+            for case in crate::extensions::source_slot::montage_normalization_cases("transition") {
+                publish(&mut app, stance, &case.weights);
+                let runtime = app.world().get::<AlsRootTransitionSlotRuntime>(character).unwrap();
+                assert_eq!(runtime.weight, case.slot_weight);
+                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+                    .slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap();
+                let curve = case.base_curve + context.curves[&allow_transitions];
+                assert!((curve - case.source_curve).abs() <= f32::EPSILON, "{stance:?} {:?}: {curve}", case.weights);
             }
         }
     }
