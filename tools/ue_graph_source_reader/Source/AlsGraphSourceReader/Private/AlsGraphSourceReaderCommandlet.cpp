@@ -6746,6 +6746,22 @@ TSharedPtr<FJsonObject> CaptureNotifyDispatchProbe(UObject* Asset)
     Probe->SetNumberField(TEXT("dispatch_policy"),
         IConsoleManager::Get().FindConsoleVariable(TEXT("a.Notifies.DispatchPolicy"))->GetInt());
     Probe->SetBoolField(TEXT("pose_ticked_this_frame"), Mesh->PoseTickedThisFrame());
+    Mesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickMontagesWhenNotRendered;
+    TArray<TSharedPtr<FJsonValue>> TickOptions;
+    for (const bool bRecent : {false, true})
+    {
+        Mesh->bRecentlyRendered = bRecent;
+        for (const float Delta : {0.0f, 0.5e-6f, 1e-6f, 1.0f / 60.0f})
+        {
+            TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+            Row->SetBoolField(TEXT("recent"), bRecent);
+            Row->SetNumberField(TEXT("delta_seconds"), Delta);
+            Row->SetBoolField(TEXT("only_tick_montages"), Mesh->ShouldOnlyTickMontages(Delta));
+            TickOptions.Add(MakeShared<FJsonValueObject>(Row));
+        }
+    }
+    Probe->SetArrayField(TEXT("visibility_tick_options"), TickOptions);
+    Probe->SetBoolField(TEXT("tick_even_when_paused"), Mesh->PrimaryComponentTick.bTickEvenWhenPaused);
     return Probe;
 }
 

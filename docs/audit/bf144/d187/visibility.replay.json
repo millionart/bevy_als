@@ -1,0 +1,150 @@
+{
+  "cases": [
+    {
+      "recent": false,
+      "delta_seconds": 0,
+      "only_tick_montages": false,
+      "active_montage": false,
+      "legacy_updates_graph": false,
+      "updates_graph": false,
+      "refresh_bones": false
+    },
+    {
+      "recent": false,
+      "delta_seconds": 0,
+      "only_tick_montages": false,
+      "active_montage": true,
+      "legacy_updates_graph": false,
+      "updates_graph": true,
+      "refresh_bones": false
+    },
+    {
+      "recent": false,
+      "delta_seconds": 4.999999987376214e-07,
+      "only_tick_montages": true,
+      "active_montage": false,
+      "legacy_updates_graph": false,
+      "updates_graph": false,
+      "refresh_bones": false
+    },
+    {
+      "recent": false,
+      "delta_seconds": 4.999999987376214e-07,
+      "only_tick_montages": true,
+      "active_montage": true,
+      "legacy_updates_graph": false,
+      "updates_graph": false,
+      "refresh_bones": false
+    },
+    {
+      "recent": false,
+      "delta_seconds": 9.999999974752427e-07,
+      "only_tick_montages": true,
+      "active_montage": false,
+      "legacy_updates_graph": false,
+      "updates_graph": false,
+      "refresh_bones": false
+    },
+    {
+      "recent": false,
+      "delta_seconds": 9.999999974752427e-07,
+      "only_tick_montages": true,
+      "active_montage": true,
+      "legacy_updates_graph": false,
+      "updates_graph": false,
+      "refresh_bones": false
+    },
+    {
+      "recent": false,
+      "delta_seconds": 0.01666666753590107,
+      "only_tick_montages": true,
+      "active_montage": false,
+      "legacy_updates_graph": false,
+      "updates_graph": false,
+      "refresh_bones": false
+    },
+    {
+      "recent": false,
+      "delta_seconds": 0.01666666753590107,
+      "only_tick_montages": true,
+      "active_montage": true,
+      "legacy_updates_graph": false,
+      "updates_graph": false,
+      "refresh_bones": false
+    },
+    {
+      "recent": true,
+      "delta_seconds": 0,
+      "only_tick_montages": false,
+      "active_montage": false,
+      "legacy_updates_graph": true,
+      "updates_graph": true,
+      "refresh_bones": true
+    },
+    {
+      "recent": true,
+      "delta_seconds": 0,
+      "only_tick_montages": false,
+      "active_montage": true,
+      "legacy_updates_graph": true,
+      "updates_graph": true,
+      "refresh_bones": true
+    },
+    {
+      "recent": true,
+      "delta_seconds": 4.999999987376214e-07,
+      "only_tick_montages": false,
+      "active_montage": false,
+      "legacy_updates_graph": true,
+      "updates_graph": true,
+      "refresh_bones": true
+    },
+    {
+      "recent": true,
+      "delta_seconds": 4.999999987376214e-07,
+      "only_tick_montages": false,
+      "active_montage": true,
+      "legacy_updates_graph": true,
+      "updates_graph": true,
+      "refresh_bones": true
+    },
+    {
+      "recent": true,
+      "delta_seconds": 9.999999974752427e-07,
+      "only_tick_montages": false,
+      "active_montage": false,
+      "legacy_updates_graph": true,
+      "updates_graph": true,
+      "refresh_bones": true
+    },
+    {
+      "recent": true,
+      "delta_seconds": 9.999999974752427e-07,
+      "only_tick_montages": false,
+      "active_montage": true,
+      "legacy_updates_graph": true,
+      "updates_graph": true,
+      "refresh_bones": true
+    },
+    {
+      "recent": true,
+      "delta_seconds": 0.01666666753590107,
+      "only_tick_montages": false,
+      "active_montage": false,
+      "legacy_updates_graph": true,
+      "updates_graph": true,
+      "refresh_bones": true
+    },
+    {
+      "recent": true,
+      "delta_seconds": 0.01666666753590107,
+      "only_tick_montages": false,
+      "active_montage": true,
+      "legacy_updates_graph": true,
+      "updates_graph": true,
+      "refresh_bones": true
+    }
+  ],
+  "hidden_owner_zero_updates_graph": true,
+  "hidden_paused_updates_graph": false
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "583eef1765d5fc11e2d281fe02f385464f673264ebd2cdd6e6b5561025ef2173"
+  },
+  {
+    "path": "docs/audit/bf144/d187/README.md",
+    "sha256": "cfcd22ea187aa032f77c5f3889d7213f04044ded9c779a7677beafda8069cde7"
+  },
+  {
+    "path": "docs/audit/bf144/d187/reader-build.report.json",
+    "sha256": "8403a45762f36ddabaedffe2ecdc7012204c2c9f4de0e910605e70f837274069"
+  },
+  {
+    "path": "docs/audit/bf144/d187/replay_component_tick.py",
+    "sha256": "4bf74549c06066f13a2f7de10119941a620f7a5321b938e596a60fbf8081dbf5"
+  },
+  {
+    "path": "docs/audit/bf144/d187/roll.native.json.gz",
+    "sha256": "17e8c6f573914cb9cb53d830a4de372188576ff5f0943946b0173e7e953f69b2"
+  },
+  {
+    "path": "docs/audit/bf144/d187/roll.native.json.reader.report.json",
+    "sha256": "9e8f851e8763debd60a90db1a9a4c5dc633047e0739da9a1d91f7dc28cb33ebe"
+  },
+  {
+    "path": "docs/audit/bf144/d187/roll.native.sha256",
+    "sha256": "6946577f4468f0fb5be147f58944af6925b9e922b98062e0800fd0b26b33217a"
+  },
+  {
+    "path": "docs/audit/bf144/d187/visibility.replay.json",
+    "sha256": "b22e69eb63be5a3efd0615359f727bf70e96d5b1938c088ca1ad796e1c085716"
+  },
+  {
+    "path": "src/als/character/animation_instances/animation_visibility.rs",
+    "sha256": "a802bcff3c519b028f4a31b237f62181283c1f32b4fda2891e4c05d99e7715cb"
+  },
+  {
+    "path": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "17bccb26d73c239cc0c9d93e629d1b365987b1428bff27618ab04b3831907088"
+  }
+]

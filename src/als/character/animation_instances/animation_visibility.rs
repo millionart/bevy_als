@@ -37,6 +37,7 @@ impl Plugin for AlsAnimationVisibilityPlugin {
 
 fn refresh_mesh_animation_visibility(
     time: Res<Time>,
+    virtual_time: Res<Time<bevy::time::Virtual>>,
     spawner: Option<Res<bevy::world_serialization::WorldInstanceSpawner>>,
     meshes: Query<(&ViewVisibility, &InheritedVisibility), With<Mesh3d>>,
     mut avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance, &bevy::world_serialization::WorldInstance,
@@ -44,6 +45,7 @@ fn refresh_mesh_animation_visibility(
     actor_montages: Query<(Option<&AlsTransitionMontageStack>, Option<&AlsRollState>,
         Option<&AlsGetUpState>, Option<&AlsMantleMontages>, Option<&Children>)>,
     roll_tails: Query<(), With<AlsRollTail>>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&mut AnimationPoseUpdateGate>)>,
     mut commands: Commands,
 ) {
@@ -59,7 +61,7 @@ fn refresh_mesh_animation_visibility(
         let option = option.copied().unwrap_or(crate::ab_als_provider::ANIMATION_COMPONENT.visibility_tick_option);
         let Ok((mut player, gate)) = players.get_mut(instance.player_entity()) else { continue; };
         let initialize = player.get_animation_source().is_graph() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);
-        let update_graph = initialize || recent || option != AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered;
+        let mut update_graph = initialize || recent || option != AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered;
         let refresh_bones = initialize || recent || option == AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones;
         if !update_graph {
             let montage_present = turns.is_some_and(AlsTurnMontageStack::has_montage_at_pose_tick)
@@ -71,7 +73,11 @@ fn refresh_mesh_animation_visibility(
                         || children.is_some_and(|children| children.iter().any(|child| roll_tails.contains(child)))
                 });
             if montage_present {
-                crate::extensions::source_instance::reset_source_call_relevancy(&mut player);
+                let delta = time.delta_secs() * custom_dilations.get(owner.character).map_or(1.0, |value| value.0);
+                update_graph = delta == 0.0 && !virtual_time.is_paused();
+                if !update_graph {
+                    crate::extensions::source_instance::reset_source_call_relevancy(&mut player);
+                }
             }
         }
         if let Some(mut gate) = gate {
@@ -171,6 +177,62 @@ mod tests {
         for _ in 0..13 { app.update(); }
         assert!(!app.world().get::<AnimationPoseUpdateGate>(player).unwrap().update_graph);
         assert!(app.world().get::<AnimationPoseUpdateGate>(player).unwrap().pending_update);
+    }
+
+    #[test]
+    fn hidden_roll_updates_the_graph_at_zero_component_delta() {
+        use bevy::time::{TimeUpdateStrategy, Virtual};
+        use crate::{als::input::AlsInputCommand, als_camera::AlsCameraCustomTimeDilation};
+        use std::time::Duration;
+
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(avatar).remove::<AlsAnimationTickOption>().insert(Visibility::Hidden);
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        for _ in 0..16 {
+            app.update();
+        }
+        let frame = |app: &App| {
+            app.world().get::<AnimationGraphPlayer>(player).unwrap()
+                .get_context_arena().unwrap().frame_index()
+        };
+        let idle_frame = frame(&app);
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+        app.update();
+        assert!(!app.world().get::<AnimationPoseUpdateGate>(player).unwrap().update_graph);
+        assert_eq!(frame(&app), idle_frame);
+
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+        assert!(app.world().get::<AlsRollState>(character).unwrap().active);
+        assert_eq!(frame(&app), idle_frame);
+
+        for (delta, dilation, updates_graph) in [
+            (0.0, 1.0, true),
+            (0.5e-6, 1.0, false),
+            (1e-6, 1.0, false),
+            (1.0 / 60.0, 1.0, false),
+            (1.0 / 60.0, 0.0, true),
+        ] {
+            let before = frame(&app);
+            let position = app.world().get::<AlsRollState>(character).unwrap().clip_time();
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(delta)));
+            app.world_mut().entity_mut(character).insert(AlsCameraCustomTimeDilation(dilation));
+            app.update();
+            let gate = app.world().get::<AnimationPoseUpdateGate>(player).unwrap();
+            assert_eq!(gate.update_graph, updates_graph, "delta={delta} dilation={dilation}");
+            assert!(!gate.refresh_bones);
+            assert_eq!(frame(&app), before + u64::from(updates_graph));
+            if updates_graph {
+                assert_eq!(app.world().get::<AlsRollState>(character).unwrap().clip_time(), position);
+            }
+        }
+        let before_pause = frame(&app);
+        app.world_mut().resource_mut::<Time<Virtual>>().pause();
+        app.update();
+        assert_eq!(frame(&app), before_pause);
     }
 
     #[test]

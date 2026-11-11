@@ -7047,7 +7047,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧资格测试只覆盖实例权重和整体可见性；没有把槽是否被求值与Montage继续播放分开。1378组比较1367PASS/11FAIL，普通Roll70帧通过；退出槽使用内存中的受控图接线，尚未证明默认操作会自然触发。位移验证仅隔离倍率消费者，不宣称完整源Montage根运动提取等价；全图权重与未注册槽为原生API负对照。记录Gate见BF144.96、`target/bf144/96/summary.json`；只登记，未修复。
   - BF144.97补充：隐藏UpdateAnimation不清槽历史，CMC自主派发实际调用ApplyMontageNotifies；64组原生来源/跳帧控制证实旧槽为false时三次自主派发均无RootScale，旧槽为true时保留。默认角色先隐藏超过1秒再Roll，未改图接线，目标仍设1.3并派发GroundedEntry，而源冻结的零相关性应拒绝；恢复可见早于或晚于点通知的两条轨迹一并覆盖。560帧比较126FAIL、280个资格恢复全过，首次增加实际隐藏入口证据；已有正常可见70帧控制继续通过。旧隐藏Roll测试误把1.3当期望，漏了ApplyMontageNotifies中的槽过滤；维持D186编号和P3，不另计问题。
 
-- [ ] BF144-D187 / P3 — 隐藏的活动Montage在零步长时没有更新动画图。
+- [x] BF144-D187 / P3 — 隐藏的活动Montage在零步长时没有更新动画图。
+  - 2026-11-12 06:23 +0800 实际结束，较06:45预估提前22分钟，未拆分。fresh组件谓词的16组资格中旧目标漏1组隐藏活动零步长；已恢复图帧更新与owner步长，保留正步长、隐藏空闲及暂停控制。原始读数和实际入口夹具见 `docs/audit/bf144/d187/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 06:18 +08:00，预估结束2026-11-12 06:45 +08:00。重采组件OnlyTickMontages的零步长门槛，沿实际隐藏Roll验证图帧、播放位置和正步长/空闲控制。
   - Source：`SkeletalMeshComponent.cpp:1677–1684`只在DeltaTime>0时启用OnlyTickMontages快捷路径，零步长明确强制完整更新；`1883–1918,1938–1965`以活动Montage允许隐藏角色的组件TickPose。`AnimInstance.cpp:709–765`在零步长进入PreUpdate与图更新；CMC的`12027–12032`则对Delta<1e−6提前返回，由组件入口处理此帧。
   - Target：`animation_visibility.rs:47–48`只看初始化、最近可见性和配置，未包含零步长；活动Roll隐藏时gate仍false，`post_physics_animation.rs`不求值，图帧计数保持不动。`animation_events.rs:287–294`虽允许delta==0派发序列通知，却未恢复相应图更新。
   - 反例：真实角色入口隐藏超过1秒、启动Roll后输入0秒更新，目标gate=false且arena计数不推进，源规则要求更新；只在夹具补回零步长gate即通过。可见/隐藏、原样/恢复、0/0.5µs/1µs/1⁄60s共16组15PASS/1FAIL，8个恢复控制全过。只证明活动Montage接到零步长更新的边界，不把没有TickPose资格的隐藏空闲帧计为失败，也未模拟完整UE世界暂停。
