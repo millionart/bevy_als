@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from ue_control_rig_contract import ControlRigContractError, compile_contract
-from ue_control_rig_target import compile_target, f32, main as target_main
+from ue_control_rig_target import compile_target, main as target_main
 
 
 def read(result, ref):
@@ -28,13 +28,25 @@ def validate(contract, result):
             location = native[key + "_transform"]["translation"]
             assert target[key]["translation"] == [location["x"] * 0.01, location["z"] * 0.01, location["y"] * 0.01]
     assert program["entries"] == {"Forwards Solve": 0, "Construction": 150}
-    trace = program["instructions"][31]["Call"]
-    assert read(result, trace["arguments"][2]) == {"F32": f32(0.5)}
-    assert read(result, trace["arguments"][3]) == {"F32": f32(0.8)}
-    assert trace["outputs"] == [8, 9]
+    for pc in (31, 40):
+        trace = program["instructions"][pc]["Call"]
+        for index, centimeters in ((2, 50.0), (3, 80.0), (5, 13.5), (8, 0.0)):
+            assert read(result, trace["arguments"][index]) == {"Centimeters": centimeters}
+        assert trace["outputs"] == [8, 9]
+    foot_minimum = program["instructions"][48]["Math"]
+    for reference in [*foot_minimum["inputs"], foot_minimum["output"]]:
+        assert read(result, reference) == {"Centimeters": 0.0}
+    spring = program["instructions"][54]["Call"]
+    for index in (0, 3, 5, 8, 9, 10):
+        assert read(result, spring["arguments"][index]) == {"Centimeters": 0.0}
+    for pc in (83, 113):
+        location = program["instructions"][pc]["Call"]
+        for index, centimeters in ((3, 0.0), (4, 0.0), (5, 0.0), (6, 50.0), (15, 0.0)):
+            assert read(result, location["arguments"][index]) == {"Centimeters": centimeters}
+        assert read(result, location["arguments"][14]) == {"List": [{"Centimeters": 0.0}, {"Centimeters": 0.0}, {"Bool": False}]}
     scale = program["instructions"][87]["Math"]
     assert scale["operation"] == "VectorScale"
-    assert read(result, scale["inputs"][1]) == {"F32": f32(0.4)}
+    assert read(result, scale["inputs"][1]) == {"Centimeters": 40.0}
     for pc in (98, 128):
         rotation = program["instructions"][pc]["Call"]
         assert read(result, rotation["arguments"][4]) == {"List": [{"F32": 20.0}, {"F32": -40.0}]}
@@ -54,7 +66,7 @@ def validate(contract, result):
     native_ref = changed["program"]["instructions"][31]["operands"][2]
     changed["program"]["memories"]["Literal"][native_ref["register"]]["default_text"] = "60.000000"
     modified = compile_target(changed)
-    assert read(modified, modified["program"]["instructions"][31]["Call"]["arguments"][2]) == {"F32": f32(0.6)}
+    assert read(modified, modified["program"]["instructions"][31]["Call"]["arguments"][2]) == {"Centimeters": 60.0}
     changed = copy.deepcopy(contract)
     rig_input = next(row for row in changed["program"]["memories"]["External"] if row["cpp_type"] == "FAlsControlRigInput")
     next(field for field in rig_input["fields"] if field["name"] == "SpineYawAngle")["exported_text"] = "23.0"
@@ -151,7 +163,7 @@ def validate_assembly(root, source, result):
     register = compile_contract(source)["program"]["instructions"][31]["operands"][2]["register"]
     next(row for row in changed["rig_vm"]["literal"]["properties"] if row["index"] == register)["exported_text"] = "60.0"
     modified = assemble(semantic, changed)["definition"]
-    assert read(modified, modified["program"]["instructions"][31]["Call"]["arguments"][2]) == {"F32": f32(0.6)}
+    assert read(modified, modified["program"]["instructions"][31]["Call"]["arguments"][2]) == {"Centimeters": 60.0}
     for key in ("definition", "input_bindings"):
         incomplete = {key_: value for key_, value in assembled.items() if key_ != key}
         try:

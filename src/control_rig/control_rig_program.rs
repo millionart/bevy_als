@@ -46,6 +46,7 @@ fn write_field(target: &mut RigValue, path: &[usize], value: RigValue) -> Result
                 target[index] = match value {
                     RigValue::F64(value) => value,
                     RigValue::F32(value) => value as f64,
+                    RigValue::Centimeters(value) => f64::from(value) * 0.01,
                     _ => return Err("rig vector component type is invalid".to_owned()),
                 };
                 return Ok(());
@@ -56,6 +57,8 @@ fn write_field(target: &mut RigValue, path: &[usize], value: RigValue) -> Result
     match (&mut *target, value) {
         (RigValue::F32(target), RigValue::F64(value)) => *target = value as f32,
         (RigValue::F64(target), RigValue::F32(value)) => *target = value as f64,
+        (RigValue::Centimeters(target), RigValue::F64(value)) => *target = (value * 100.0) as f32,
+        (RigValue::F64(target), RigValue::Centimeters(value)) => *target = f64::from(value) * 0.01,
         (target, value) if std::mem::discriminant(target) == std::mem::discriminant(&value) => {
             *target = value
         }
@@ -429,6 +432,15 @@ mod tests {
         };
         vector.write(&mut nested, 1, F32(0.25)).unwrap();
         assert_eq!(vector.read(&nested).unwrap(), F64(0.25));
+        let offset = -31.204_151_f32;
+        vector.write(&mut nested, 1, Centimeters(offset)).unwrap();
+        assert_eq!(vector.read(&nested).unwrap(), F64(f64::from(offset) * 0.01));
+        let mut scalars = [Centimeters(0.0), F64(0.0)];
+        slot(0).write(&mut scalars, 0, vector.read(&nested).unwrap()).unwrap();
+        let value = slot(0).read(&scalars).unwrap();
+        assert_eq!(value, Centimeters(offset));
+        slot(1).write(&mut scalars, 0, value).unwrap();
+        assert_eq!(slot(1).read(&scalars).unwrap(), F64(f64::from(offset) * 0.01));
         let quaternion = RigValueRef {
             register: 6,
             path: vec![1, 0],
@@ -551,6 +563,7 @@ mod tests {
     fn control_rig_complete_source_program_runs_construction_and_frames() {
         use crate::extensions::{
             control_rig_hierarchy::{RigHierarchy, RigSpace, RigTransform},
+            control_rig_ik::source_vector_dot,
             control_rig_units::RigUnitContext,
         };
         use bevy::platform::collections::HashMap;
@@ -623,14 +636,13 @@ mod tests {
             external("FootHeight", &values),
             F64(initial("foot_l").translation.y)
         );
-        let upper = initial("thigh_l")
-            .translation
-            .distance(initial("calf_l").translation) as f32;
-        let lower = initial("calf_l")
-            .translation
-            .distance(initial("foot_l").translation);
-        let length = (upper as f64 + lower) as f32;
-        assert_eq!(external("LegLength", &values), F64(length as f64));
+        let segment_cm = |a, b| {
+            let delta = initial(a).translation * 100.0 - initial(b).translation * 100.0;
+            source_vector_dot(delta, delta).sqrt()
+        };
+        let upper_cm = segment_cm("thigh_l", "calf_l") as f32;
+        let length_cm = (f64::from(upper_cm) + segment_cm("calf_l", "foot_l")) as f32;
+        assert_eq!(external("LegLength", &values), F64(f64::from(length_cm) * 0.01));
         let constructed = values.clone();
         let mut pose: Vec<_> = definition
             .bones
@@ -703,9 +715,10 @@ mod tests {
                 .length()
                     < 1e-12
             );
-            let F32(offset) = external("PelvisOffset", &values) else {
+            let Centimeters(offset) = external("PelvisOffset", &values) else {
                 panic!("invalid pelvis offset type")
             };
+            let offset = f64::from(offset) * 0.01;
             if frame == 0 {
                 assert!((offset + 0.05).abs() < 1e-7);
             } else {
@@ -718,7 +731,7 @@ mod tests {
                     .translation
                     .y
                     - initial("pelvis").translation.y
-                    - offset as f64)
+                    - offset)
                     .abs()
                     < 1e-7
             );
@@ -727,7 +740,7 @@ mod tests {
                 assert!(transform.translation.is_finite() && transform.rotation.is_finite());
             }
         }
-        assert_eq!(external("PelvisOffset", &constructed), F32(0.0));
+        assert_eq!(external("PelvisOffset", &constructed), Centimeters(0.0));
         assert_eq!(
             external("FootRootBone", &program.initial_values),
             List(vec![Name("None".to_owned()), Name(String::new())])
@@ -786,7 +799,7 @@ mod tests {
                 Name("VB foot_root".to_owned())
             ])
         );
-        assert_eq!(external("PelvisOffset", &independent_values), F32(0.0));
+        assert_eq!(external("PelvisOffset", &independent_values), Centimeters(0.0));
         assert_eq!(
             external("FootLeftOffsetLocationZ", &independent_values),
             F64(0.0)

@@ -152,6 +152,8 @@ class Value:
         if self.kind in {"float", "double"}:
             if self.factor is None:
                 raise ControlRigContractError("target numeric units are unresolved: " + self.label)
+            if self.kind == "float" and math.isclose(self.factor, LENGTH, rel_tol=1e-12):
+                return {"Centimeters": self.data}
             value = self.data * self.factor
             return {"F32" if self.kind == "float" else "F64": f32(value) if self.kind == "float" else value}
         if self.kind == "bool":

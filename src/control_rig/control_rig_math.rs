@@ -160,6 +160,7 @@ pub enum RigValue {
     Name(String),
     List(Vec<RigValue>),
     F32(f32),
+    Centimeters(f32),
     F64(f64),
     Vector(DVec3),
     EulerDegrees(DVec3),
@@ -189,8 +190,11 @@ impl RigMathOp {
         use RigValue::*;
         Ok(match (self, inputs) {
             (Self::F32Add, [F32(a), F32(b)]) => F32(a + b),
+            (Self::F32Add, [Centimeters(a), Centimeters(b)]) => Centimeters(a + b),
             (Self::F32Mul, [F32(a), F32(b)]) => F32(a * b),
+            (Self::F32Mul, [Centimeters(a), F32(b)] | [F32(a), Centimeters(b)]) => Centimeters(a * b),
             (Self::F32Min, [F32(a), F32(b)]) => F32(if a < b { *a } else { *b }),
+            (Self::F32Min, [Centimeters(a), Centimeters(b)]) => Centimeters(if a < b { *a } else { *b }),
             (Self::F32Clamp01, [F32(value)]) => F32(rig_clamp01(*value)),
             (Self::F64Add, [F64(a), F64(b)]) => F64(a + b),
             (Self::F64Sub, [F64(a), F64(b)]) => F64(a - b),
@@ -204,6 +208,9 @@ impl RigMathOp {
             (Self::F64GreaterEqual, [F64(a), F64(b)]) => Bool(a >= b),
             (Self::VectorAdd, [Vector(a), Vector(b)]) => Vector(*a + *b),
             (Self::VectorScale, [Vector(value), F32(factor)]) => Vector(*value * *factor as f64),
+            (Self::VectorScale, [Vector(value), Centimeters(factor)]) => {
+                Vector(*value * (f64::from(*factor) * 0.01))
+            }
             (Self::QuaternionFromEulerYzx, [EulerDegrees(value)]) => {
                 Quaternion(rig_quaternion(*value))
             }
@@ -355,6 +362,10 @@ mod tests {
             (F32Mul, vec![F32(-0.25), F32(3.0)], F32(-0.75)),
             (F32Min, vec![F32(-0.25), F32(-0.5)], F32(-0.5)),
             (F32Min, vec![F32(f32::NAN), F32(2.0)], F32(2.0)),
+            (F32Add, vec![Centimeters(16_777_216.0), Centimeters(1.0)], Centimeters(16_777_216.0)),
+            (F32Mul, vec![Centimeters(-5.0), F32(0.5)], Centimeters(-2.5)),
+            (F32Min, vec![Centimeters(-3.0), Centimeters(-5.0)], Centimeters(-5.0)),
+            (VectorScale, vec![Vector(DVec3::Y), Centimeters(40.0)], Vector(DVec3::Y * 0.4)),
             (F32Clamp01, vec![F32(-0.25)], F32(0.0)),
             (F32Clamp01, vec![F32(0.25)], F32(0.25)),
             (F32Clamp01, vec![F32(1.25)], F32(1.0)),

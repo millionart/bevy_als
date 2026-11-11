@@ -47,12 +47,26 @@ fn constrained_angle(current: f64, target: f64, interval: &[RigValue]) -> Result
     ) as f64)
 }
 
+fn length_slot(value: &mut RigValue) -> Result<(&mut f32, f64), String> {
+    match value {
+        RigValue::F32(value) => Ok((value, 1.0)),
+        RigValue::Centimeters(value) => Ok((value, 100.0)),
+        _ => Err("rig length type is invalid".to_owned()),
+    }
+}
+
+fn length_in_meters(value: &mut RigValue) -> Result<f64, String> {
+    let (length, units_per_meter) = length_slot(value)?;
+    Ok(f64::from(*length) * (1.0 / units_per_meter))
+}
+
 impl RigUnitContext<'_> {
     fn chain_length(
         &mut self,
         ancestor: usize,
         descendant: usize,
         initial: bool,
+        units_per_meter: f64,
     ) -> Result<Option<f32>, String> {
         if ancestor == descendant {
             return Ok(Some(0.0));
@@ -60,7 +74,7 @@ impl RigUnitContext<'_> {
         let Some(parent) = self.hierarchy.parent(descendant) else {
             return Ok(None);
         };
-        let Some(length) = self.chain_length(ancestor, parent, initial)? else {
+        let Some(length) = self.chain_length(ancestor, parent, initial, units_per_meter)? else {
             return Ok(None);
         };
         let a = self
@@ -71,7 +85,9 @@ impl RigUnitContext<'_> {
             .hierarchy
             .transform(descendant, RigSpace::Global, initial)?
             .translation;
-        Ok(Some((length as f64 + a.distance(b)) as f32))
+        let delta = b * units_per_meter - a * units_per_meter;
+        let segment_length = source_vector_dot(delta, delta).sqrt();
+        Ok(Some((f64::from(length) + segment_length) as f32))
     }
 
     pub fn call(&mut self, function: &str, arguments: &mut [RigValue]) -> Result<(), String> {
@@ -82,25 +98,28 @@ impl RigUnitContext<'_> {
                 [
                     Vector(foot),
                     Name(channel),
-                    F32(upward),
-                    F32(downward),
+                    upward,
+                    downward,
                     F32(walkable_angle),
-                    F32(height),
+                    F32(height) | Centimeters(height),
                     Bool(enabled),
                     Bool(_debug),
-                    F32(offset),
+                    offset,
                     Vector(normal),
                 ],
             ) => {
                 let up = self.geometry.basis[2];
+                let upward = length_in_meters(upward)?;
+                let downward = length_in_meters(downward)?;
+                let (offset, units_per_meter) = length_slot(offset)?;
                 let hit = if *enabled {
                     let horizontal = *foot - up * foot.dot(up);
                     let start = self
                         .to_world
-                        .transform_point(horizontal + up * *upward as f64);
+                        .transform_point(horizontal + up * upward);
                     let end = self
                         .to_world
-                        .transform_point(horizontal - up * *downward as f64);
+                        .transform_point(horizontal - up * downward);
                     let trace = self
                         .line_trace
                         .as_deref_mut()
@@ -128,7 +147,7 @@ impl RigUnitContext<'_> {
                 } else {
                     0.0
                 };
-                *offset = (point.dot(up) + correction as f64) as f32;
+                *offset = (point.dot(up) * units_per_meter + f64::from(correction)) as f32;
                 *normal = hit_normal;
             }
             (
@@ -137,10 +156,10 @@ impl RigUnitContext<'_> {
                     pelvis,
                     thigh,
                     Vector(target),
-                    F32(foot_offset),
-                    F32(pelvis_offset),
-                    F32(length),
-                    F32(pelvis_distance),
+                    F32(foot_offset) | Centimeters(foot_offset),
+                    F32(pelvis_offset) | Centimeters(pelvis_offset),
+                    F32(length) | Centimeters(length),
+                    F32(pelvis_distance) | Centimeters(pelvis_distance),
                     F32(stretch),
                     F32(frequency),
                     F32(damping),
@@ -149,7 +168,7 @@ impl RigUnitContext<'_> {
                     _cached_pelvis,
                     _cached_thigh,
                     List(state),
-                    F32(offset),
+                    offset,
                     Vector(location),
                 ],
             ) => {
@@ -159,19 +178,21 @@ impl RigUnitContext<'_> {
                 let Some(thigh) = self.hierarchy.item_index(thigh)? else {
                     return Ok(());
                 };
-                let [F32(velocity), F32(previous), Bool(valid)] = state.as_mut_slice() else {
+                let [F32(velocity) | Centimeters(velocity), F32(previous) | Centimeters(previous), Bool(valid)] = state.as_mut_slice() else {
                     return Err("rig offset spring state layout is invalid".to_owned());
                 };
+                let (offset, units_per_meter) = length_slot(offset)?;
                 let up = self.geometry.basis[2];
-                let pelvis = self
+                let pelvis = (self
                     .hierarchy
                     .transform(pelvis, RigSpace::Global, false)?
                     .translation
-                    .dot(up) as f32;
+                    .dot(up) * units_per_meter) as f32;
                 let thigh = self
                     .hierarchy
                     .transform(thigh, RigSpace::Global, false)?
-                    .translation;
+                    .translation * units_per_meter;
+                let target = *target * units_per_meter;
                 let maximum = pelvis - *pelvis_distance - target.dot(up) as f32;
                 let target_offset = foot_offset.min(maximum).max(*pelvis_offset);
                 if !*initialized {
@@ -205,9 +226,9 @@ impl RigUnitContext<'_> {
                         }
                     }
                 }
-                let leg = *target + up * *offset as f64 - thigh;
+                let leg = target + up * f64::from(*offset) - thigh;
                 let maximum = (*length * *stretch) as f64;
-                let leg = if maximum < self.geometry.near_zero {
+                let leg = if maximum < self.geometry.near_zero * units_per_meter {
                     DVec3::ZERO
                 } else {
                     let squared = source_vector_dot(leg, leg);
@@ -217,7 +238,7 @@ impl RigUnitContext<'_> {
                         leg
                     }
                 };
-                *location = thigh + leg;
+                *location = (thigh + leg) * (1.0 / units_per_meter);
             }
             (
                 "FAlsRigUnit_ApplyFootOffsetRotation::Execute",
@@ -343,8 +364,8 @@ impl RigUnitContext<'_> {
                     F32(stretch_start),
                     F32(stretch_max),
                     F32(weight),
-                    F32(length_a),
-                    F32(length_b),
+                    length_a,
+                    length_b,
                     Bool(propagate),
                     _debug,
                     _cached_a,
@@ -383,7 +404,7 @@ impl RigUnitContext<'_> {
                     RigTransform::from_value(effector)?,
                 ];
                 let minimum_length = f64::from(self.geometry.minimum_length);
-                let mut lengths = [f64::from(*length_a), f64::from(*length_b)];
+                let mut lengths = [length_in_meters(length_a)?, length_in_meters(length_b)?];
                 for (index, (parent, child)) in [(a, Some(b)), (b, end)].into_iter().enumerate() {
                     if lengths[index] < minimum_length
                         && let Some(child) = child
@@ -463,23 +484,23 @@ impl RigUnitContext<'_> {
             (
                 "FRigUnit_SpringInterpV2::Execute",
                 [
-                    F32(target),
+                    F32(target) | Centimeters(target),
                     F32(strength),
                     F32(damping),
-                    F32(force),
+                    F32(force) | Centimeters(force),
                     Bool(use_current),
-                    F32(current),
+                    F32(current) | Centimeters(current),
                     F32(target_velocity_amount),
                     Bool(initialize_from_target),
-                    F32(result),
-                    F32(velocity),
-                    F32(simulated),
+                    F32(result) | Centimeters(result),
+                    F32(velocity) | Centimeters(velocity),
+                    F32(simulated) | Centimeters(simulated),
                     List(state),
                 ],
             ) => {
                 let [
-                    F32(previous_target),
-                    F32(state_velocity),
+                    F32(previous_target) | Centimeters(previous_target),
+                    F32(state_velocity) | Centimeters(state_velocity),
                     Bool(previous_valid),
                 ] = state.as_mut_slice()
                 else {
@@ -562,7 +583,7 @@ impl RigUnitContext<'_> {
                     ancestor,
                     descendant,
                     Bool(initial),
-                    F32(output),
+                    output,
                     _cached_ancestor,
                     _cached_descendant,
                 ],
@@ -570,11 +591,12 @@ impl RigUnitContext<'_> {
                 if let Some(ancestor) = self.hierarchy.item_index(ancestor)?
                     && let Some(descendant) = self.hierarchy.item_index(descendant)?
                 {
+                    let (output, units_per_meter) = length_slot(output)?;
                     *output =
-                        if let Some(length) = self.chain_length(ancestor, descendant, *initial)? {
+                        if let Some(length) = self.chain_length(ancestor, descendant, *initial, units_per_meter)? {
                             length
                         } else {
-                            self.chain_length(descendant, ancestor, *initial)?
+                            self.chain_length(descendant, ancestor, *initial, units_per_meter)?
                                 .unwrap_or(0.0)
                         };
                 }
@@ -668,6 +690,110 @@ mod tests {
             DVec3::X, DVec3::Y, 0.0, [42.572_25_f32, 40.196_82_f32], false, 0.75, 1.25);
         assert_eq!(bones[1].translation,
             DVec3::new(-16.246_864_416_758_697, 53.175_769_941_310_58, 1.105_702_083_001_855_1));
+    }
+
+    #[test]
+    fn control_rig_keeps_the_native_centimeter_foot_offset_history() {
+        use RigValue::*;
+
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            trace: Vec<Trace>,
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Trace {
+            point: [f64; 3],
+            normal: [f64; 3],
+            offset: f32,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            query: usize,
+            foot: usize,
+            delta_seconds: f64,
+            pelvis: [f64; 3],
+            thigh: [f64; 3],
+            target: [f64; 3],
+            inputs: [f32; 8],
+            state: (f32, f32, bool),
+            offset: f32,
+            location: [f64; 3],
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d165b/foot-history.replay.json"
+        )).unwrap();
+        let curves = HashMap::default();
+        let geometry = geometry();
+        for trace in fixture.trace {
+            let mut hierarchy = hierarchy();
+            let point = DVec3::from_array(trace.point);
+            let normal = DVec3::from_array(trace.normal);
+            let mut hit = |start: DVec3, end: DVec3, _: &str, _: bool| {
+                assert_eq!(start.y, 0.5);
+                assert_eq!(end.y, -0.8);
+                Ok(Some((point, normal)))
+            };
+            let mut context = RigUnitContext {
+                hierarchy: &mut hierarchy,
+                curves: &curves,
+                game_world: true,
+                construction: false,
+                delta_seconds: 0.0,
+                geometry: &geometry,
+                to_world: RigTransform::default(),
+                line_trace: Some(&mut hit),
+            };
+            let mut args = [Vector(DVec3::ZERO), Name("ECC_Visibility".to_owned()),
+                Centimeters(50.0), Centimeters(80.0), F32(45.0), Centimeters(13.5), Bool(true),
+                Bool(false), Centimeters(0.0), Vector(DVec3::ZERO)];
+            context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut args).unwrap();
+            assert_eq!(args[8], Centimeters(trace.offset));
+            assert_eq!(args[9], Vector(normal));
+        }
+
+        let mut feet: [[RigValue; 17]; 2] = std::array::from_fn(|_| [
+            item("Bone0"), item("Bone1"), Vector(DVec3::ZERO),
+            Centimeters(0.0), Centimeters(0.0), Centimeters(0.0), Centimeters(0.0),
+            F32(0.0), F32(0.0), F32(0.0), F32(0.0), Bool(false), List(vec![]), List(vec![]),
+            List(vec![Centimeters(0.0), Centimeters(0.0), Bool(false)]), Centimeters(0.0), Vector(DVec3::ZERO),
+        ]);
+        for case in fixture.cases {
+            let mut hierarchy = hierarchy();
+            for (bone, position) in [(0, case.pelvis), (1, case.thigh)] {
+                hierarchy.set_transform(bone, RigSpace::Global, false,
+                    RigTransform { translation: DVec3::from_array(position), ..Default::default() }, true).unwrap();
+            }
+            let mut context = RigUnitContext {
+                hierarchy: &mut hierarchy,
+                curves: &curves,
+                game_world: true,
+                construction: false,
+                delta_seconds: case.delta_seconds,
+                geometry: &geometry,
+                to_world: RigTransform::default(),
+                line_trace: None,
+            };
+            let args = &mut feet[case.foot];
+            args[2] = Vector(DVec3::from_array(case.target));
+            for (index, value) in case.inputs.into_iter().enumerate() {
+                args[index + 3] = if index < 4 { Centimeters(value) } else { F32(value) };
+            }
+            context.call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", args).unwrap();
+            let (velocity, previous, valid) = case.state;
+            assert_eq!(args[11], Bool(true));
+            assert_eq!(args[14], List(vec![Centimeters(velocity), Centimeters(previous), Bool(valid)]),
+                "Frame {} foot {}", case.query, case.foot);
+            assert_eq!(args[15], Centimeters(case.offset), "Frame {} foot {}", case.query, case.foot);
+            let Vector(location) = args[16] else {
+                panic!("foot location is missing");
+            };
+            assert!(location.distance(DVec3::from_array(case.location)) < 1e-12,
+                "Frame {} foot {}: {location:?}", case.query, case.foot);
+        }
     }
 
     #[test]
