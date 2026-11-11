@@ -596,7 +596,7 @@ fn bridge_turn_slot_samples(
             let Some((pose, weight, denominator)) = compose_turn_montage_poses(&stack, &poses, crouching) else {
                 continue;
             };
-            let context = crate::extensions::source_pose_nodes::blend_animation_contexts(
+            let mut context = crate::extensions::source_pose_nodes::blend_animation_contexts(
                 stack
                     .entries
                     .iter()
@@ -608,6 +608,9 @@ fn bridge_turn_slot_samples(
                             .map(|context| (context, entry.weight() / denominator))
                     }),
             );
+            context.slot_has_multiple_montages = stack.entries.iter()
+                .filter(|entry| entry.crouching == crouching && contexts.contains_key(&entry.id))
+                .nth(1).is_some();
             player.set_global_input_data(contract.pose_key, DataValue::Pose(pose.clone()));
             player.set_global_input_data(contract.weight_key, weight);
             player.set_global_input_data(contract.layer_weight_key, 1.0_f32);
@@ -929,6 +932,7 @@ mod tests {
                 assert_eq!(runtime.weight, case.slot_weight);
                 let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap()
                     .slot_input_context(contract.generated_pose_key).unwrap();
+                assert_eq!(context.slot_has_multiple_montages, case.weights.len() > 1);
                 let actual = context.curves[&yaw_speed] * runtime.weight;
                 let expected = case.effective.iter().map(|weight| layer_curve * weight).sum::<f32>();
                 assert!((actual - expected).abs() <= 2.0 * f32::EPSILON * expected.abs().max(1.0),

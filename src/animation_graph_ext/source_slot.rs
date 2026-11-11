@@ -177,6 +177,7 @@ impl SourceSlotNode {
 impl NodeLike for SourceSlotNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let (slot_weight, layer_weight, mesh_space_additive, source_weight) = self.update_weights(&ctx)?;
+        let effective_weight = slot_weight * layer_weight;
         let overlay = if slot_weight > 0.0 && layer_weight > 0.0 {
             ctx.graph_context
                 .global_input_data
@@ -187,21 +188,23 @@ impl NodeLike for SourceSlotNode {
         } else {
             None
         };
-        if source_weight == 0.0
+        if !mesh_space_additive && 1.0 - effective_weight <= MONTAGE_EVALUATION_WEIGHT_THRESHOLD
             && let Some(pose) = overlay.as_ref()
         {
-            let context = slot_context(
-                pose_input_context_state(&ctx, "Source"),
-                active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key),
-                1.0,
-                false,
-            );
+            if source_weight > 0.0 {
+                let _ = crate::extensions::interruptible_fsm::with_machine_weight(source_weight,
+                    || ctx.data_back("Source"))?.into_pose()?;
+            }
+            let slot = active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key);
+            let multiple = slot.as_ref().is_some_and(|context| context.slot_has_multiple_montages);
+            let context = slot_context(None, slot, effective_weight, false);
             let mut context = self.with_inertialization_request(&ctx, context)?.unwrap_or_default();
             for sample in context.asset_samples.iter_mut().filter(|sample| sample.montage && sample.slot_key.is_empty()) {
                 sample.slot_key.clone_from(&self.pose_key);
             }
             ctx.set_time(pose.timestamp);
-            ctx.set_data_fwd("Pose", pose.normalize_quat());
+            let pose = pose.scalar_mult(effective_weight);
+            ctx.set_data_fwd("Pose", if multiple { pose.normalize_quat() } else { pose });
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
             return Ok(());
         }
@@ -213,7 +216,7 @@ impl NodeLike for SourceSlotNode {
             overlay
                 .as_ref()
                 .and_then(|_| active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key)),
-            slot_weight * layer_weight,
+            effective_weight,
             mesh_space_additive,
         );
         let context = self.with_inertialization_request(&ctx, context)?;
@@ -412,6 +415,7 @@ mod tests {
             BonePose {
                 translation: Some(Vec3::X * 2.0),
                 rotation: Some(Quat::from_rotation_y(1.8) * 0.8),
+                scale: Some(Vec3::new(1.2, 0.75, 1.5)),
                 ..default()
             },
             bone,
@@ -448,8 +452,8 @@ mod tests {
         for (handle, always_update, weight) in [
             (handle.clone(), false, 0.6),
             (handle.clone(), false, 1.0),
-            (handle, false, 0.6),
-            (always_handle, true, 1.0),
+            (handle.clone(), false, 0.6),
+            (always_handle.clone(), true, 1.0),
         ] {
             let (pose, context, source_updated) = world
                 .run_system_cached_with(
@@ -469,8 +473,12 @@ mod tests {
                 (pose.get_bone(bone).unwrap().translation.unwrap().x - 2.0 * weight).abs() < 1e-6
             );
             let rotation = pose.get_bone(bone).unwrap().rotation.unwrap();
-            let expected = (Quat::from_rotation_x(0.5) * (1.0 - weight)
-                + Quat::from_rotation_y(1.8) * (0.8 * weight)).normalize();
+            let expected = if weight == 1.0 {
+                Quat::from_rotation_y(1.8) * 0.8
+            } else {
+                (Quat::from_rotation_x(0.5) * (1.0 - weight)
+                    + Quat::from_rotation_y(1.8) * (0.8 * weight)).normalize()
+            };
             assert!((rotation - expected).length().min((rotation + expected).length()) < 1e-6);
             assert!((context.curves[&crate::extensions::SourceCurveName::from("FootLeftIk")] - 0.8 * weight).abs() < 1e-6);
             assert_eq!(
@@ -478,6 +486,25 @@ mod tests {
                 always_update || weight < 1.0,
                 "slot_weight={weight}, always_update={always_update}"
             );
+        }
+        let near_full = 0.999995;
+        for (handle, always_update, multiple) in [
+            (handle.clone(), false, false), (handle, false, true), (always_handle, true, false),
+        ] {
+            let mut inputs = world.get_mut::<crate::extensions::SourceAnimationInputs>(entity).unwrap();
+            let mut slot = inputs.slot_input_context("slot_pose").unwrap();
+            slot.slot_has_multiple_montages = multiple;
+            inputs.set_slot_input_context("slot_pose", Some(slot));
+            let (pose, context, source_updated) = world.run_system_cached_with(
+                query, (handle, entity, base.clone(), overlay.clone(), near_full, true, 0.0),
+            ).unwrap();
+            assert_eq!(source_updated, always_update);
+            let bone = pose.get_bone(bone).unwrap();
+            let raw = (Quat::from_rotation_y(1.8) * 0.8) * near_full;
+            assert_eq!(bone.rotation, Some(if multiple { raw.normalize() } else { raw }));
+            assert_eq!(bone.translation, Some(Vec3::X * (2.0 * near_full)));
+            assert_eq!(bone.scale, Some(Vec3::new(1.2, 0.75, 1.5) * near_full));
+            assert_eq!(context.curves[&crate::extensions::SourceCurveName::from("FootLeftIk")], 0.8 * near_full);
         }
 
     }

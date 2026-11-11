@@ -1,0 +1,210 @@
+{
+  "source_samples": [
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.25
+      ],
+      "weights": [
+        1.0
+      ],
+      "base_is_relevant": false,
+      "curve": -36.08460998535156
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.25
+      ],
+      "weights": [
+        0.9999799728393555
+      ],
+      "base_is_relevant": true,
+      "curve": -36.08388900756836
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.25
+      ],
+      "weights": [
+        0.9999899864196777
+      ],
+      "base_is_relevant": true,
+      "curve": -36.08424758911133
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.25
+      ],
+      "weights": [
+        0.9999949932098389
+      ],
+      "base_is_relevant": false,
+      "curve": -36.08443069458008
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.4
+      ],
+      "weights": [
+        1.0
+      ],
+      "base_is_relevant": false,
+      "curve": -111.28508758544922
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.4
+      ],
+      "weights": [
+        0.9999799728393555
+      ],
+      "base_is_relevant": true,
+      "curve": -111.2828598022461
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.4
+      ],
+      "weights": [
+        0.9999899864196777
+      ],
+      "base_is_relevant": true,
+      "curve": -111.28397369384766
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.4
+      ],
+      "weights": [
+        0.9999949932098389
+      ],
+      "base_is_relevant": false,
+      "curve": -111.28453063964844
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "positions": [
+        0.25,
+        0.4
+      ],
+      "weights": [
+        0.6000000238418579,
+        0.39999499917030334
+      ],
+      "base_is_relevant": false,
+      "curve": -66.16424560546875
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.25
+      ],
+      "weights": [
+        1.0
+      ],
+      "base_is_relevant": false,
+      "curve": -25.20805549621582
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.25
+      ],
+      "weights": [
+        0.9999799728393555
+      ],
+      "base_is_relevant": true,
+      "curve": -25.207550048828125
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.25
+      ],
+      "weights": [
+        0.9999899864196777
+      ],
+      "base_is_relevant": true,
+      "curve": -25.20780372619629
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.25
+      ],
+      "weights": [
+        0.9999949932098389
+      ],
+      "base_is_relevant": false,
+      "curve": -25.207929611206055
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.4
+      ],
+      "weights": [
+        1.0
+      ],
+      "base_is_relevant": false,
+      "curve": -78.91114044189453
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.4
+      ],
+      "weights": [
+        0.9999799728393555
+      ],
+      "base_is_relevant": true,
+      "curve": -78.90956115722656
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.4
+      ],
+      "weights": [
+        0.9999899864196777
+      ],
+      "base_is_relevant": true,
+      "curve": -78.91034698486328
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.4
+      ],
+      "weights": [
+        0.9999949932098389
+      ],
+      "base_is_relevant": false,
+      "curve": -78.9107437133789
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "positions": [
+        0.25,
+        0.4
+      ],
+      "weights": [
+        0.6000000238418579,
+        0.39999499917030334
+      ],
+      "base_is_relevant": false,
+      "curve": -46.68889617919922
+    }
+  ],
+  "single_bones": 632,
+  "multiple_bones": 158,
+  "old_weight_mismatches": 4,
+  "maximum_old_curve_delta": 0.00055694580078125
+}

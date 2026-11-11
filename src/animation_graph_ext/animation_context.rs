@@ -95,6 +95,7 @@ pub struct AnimationContextState {
     pub asset_samples: Vec<SourceAssetSample>,
     pub inertialization_request: Option<SourceInertializationRequest>,
     pub skipped_cached_pose_request: Option<SourceInertializationRequest>,
+    pub(crate) slot_has_multiple_montages: bool,
     pub(crate) cached_pose_request_route: Option<SourceCachedPoseRequestRoute>,
 }
 
