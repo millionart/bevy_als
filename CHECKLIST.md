@@ -6473,7 +6473,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧physics timing测试验证了整帧cap与末速度，sleep测试只要求不同子步数保持同一整帧计数，没有比较source单步位移；不能由“都采用约33.33ms上限”推导调度等价。关节在不同dt下求解的整体自然轨迹尚未实测，本项不据此扩大数字结论；仅登记。
   - 20:56 source/static摘要：fresh PhysicsSettings及PA身份、同步单步调用链和独立目标配置生成已记录；世界物理调度使用源生效的一个子步，游戏帧时钟保持独立。已写加载rig的步数、物理时间、速度和位移对照，并有限复开D84补六步扩展反例；测试、消融和真实Playground待统一Gate。证据`docs/audit/bf144/d86/`。实际结束：2026-11-08 20:56 +08:00；偏差：−49分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D87 / P3 — Ragdoll线性阻尼公式及施加顺序与源不同。
+- [x] BF144-D87 / P3 — Ragdoll线性阻尼公式及施加顺序与源不同。
+  - 调度修复结束2026-11-11 18:00 +08:00，偏差−15分钟。布娃娃线性阻尼和角色整帧积分在同阶段有显式次序，两个原有计算路径保持。真实 startup 通过，阻尼数值仍待统一 Gate。证据 `docs/audit/bf144/ragdoll-avian-runtime/startup-2/`。
   - 2026-11-11 17:55 +08:00 因真实 startup 复开，预估结束18:15。角色整帧积分增量与布娃娃线性阻尼都写公开积分数据。旧静态 Gate 未初始化联合调度，先明确同阶段次序。证据 `docs/audit/bf144/ragdoll-avian-runtime/startup/diagnostics.json`。
   - 本轮开始：2026-11-08 20:57 +08:00；预计结束：2026-11-08 21:47 +08:00。重读源外力、冲量和阻尼顺序及Avian积分调度，基于真实rig保留非ragdoll控制与零阻尼对照；统一测试和消融留待升级后。估时依据：BF144.26单步线性源码与完整角色夹具实耗8分钟，本项需修改共享积分阶段并核对额外力、冲量及普通刚体，按独立闭包预留。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:915–931`先加Acceleration×dt和LinearImpulseVelocity，再乘max(0,1−LinearDamping×dt)。21个native PA body的LinearDamping=0.01；`PerParticleEtherDrag.cpp:9–10`的全局覆盖本次读取为−1，未改写该公式。

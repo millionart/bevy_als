@@ -944,7 +944,7 @@ fn seed_source_sleep_from_forces(
     }
 }
 
-fn apply_source_linear_damping(
+pub(crate) fn apply_source_linear_damping(
     time: Res<Time<Substeps>>,
     mut bodies: Query<(&RigidBody, &LinearDamping, &mut VelocityIntegrationData),
         (With<RagdollActiveMode>, Without<CustomVelocityIntegration>)>,
