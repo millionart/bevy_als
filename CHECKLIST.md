@@ -6449,7 +6449,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_recovery_rotation:922–938`以f32骨骼基向量重新计算roll和pole条件；`restore_ragdoll_player_parent:984–1046`据此写actor yaw及GetUp选择。近零roll的舍入与接近竖直时的分支可能不同于源，旧测试只有±0.7roll及精确pole。
   - 反例：同一世界姿态换回源坐标后，native原生输出分别为Roll=+0.000416479°、pole Pitch=−90°/Roll=0、Roll=+1.2259694e−7°；完整退出流程的facing在三组均相反，actor yaw相差约π，实际AlsGetUpState也选择相反方向。99组96PASS/3FAIL，原生99个Rotator逐项验证参考。证据`bf144_ragdoll_phase38_recovery_rotation_uses_source_rotator`、`38/recovery_final/`、`38/queries.native.json`。保持源的零点判据，未添加容差或平滑。
 
-- [ ] BF144-D113 / P2 — 布娃娃退出时mesh默认偏移错误地乘以actor缩放。
+- [x] BF144-D113 / P2 — 布娃娃退出时mesh默认偏移错误地乘以actor缩放。 静态实现完成，统一验证待执行。
+  - 20:04 source/static 闭环：以实际 actor/挂接父级 affine 求 mesh 的 actor-space offset，按源只旋转再加世界平移，用恢复后的父级逆变换得到可持续传播的 local translation。同一世界变换进入 pelvis 快照。已写站/蹲、均匀/非均匀和旋转父级夹具，源 CDO 与变换身份 `docs/audit/bf144/d113/`。编译、测试、消融和真实入口待统一 Gate。开始19:59，预估20:44，实际结束2026-11-11 20:04 +08:00，偏差−40分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 19:59 +08:00，预估结束20:44 +08:00。依据：当前 native mesh offset、站/蹲胶囊半高与 fresh KeepWorld 源路径已核对。目标保持现有 actor yaw 和 pelvis 快照，按完整父空间变换只修挂回时的世界位置。
   - Source：fresh `AlsCharacter_Actions.cpp:1110–1113`使用ActorTransform.TransformPositionNoScale(BaseTranslationOffset)定位mesh，再KeepWorld挂回capsule；`Character.cpp:192–195,504–527`维护默认/蹲姿offset。native角色mesh默认Z=−92cm、yaw=−90°、scale=1。
   - Target：`ragdoll_link.rs:992–996,1037–1041`重组actor、父级和进入时保存的local transform，位置offset随actor scale相乘；单位scale下相同掩盖了差异。
   - 反例：完整角色scale=0.75时，站姿恢复mesh比source高0.23m、蹲姿高0.145m；直接actor和带旋转/均匀缩放父级均复现。scale=1四组对照通过，非均匀scale.y=0.8也产生0.184/0.116m偏差。证据`bf144_ragdoll_phase39_mesh_snapshot_transforms`、`target/bf144/39/final/`；旧parent recovery测试保持actor最终世界scale=1，只检查pelvis保持，没有核对源mesh偏移。

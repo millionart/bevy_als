@@ -1104,13 +1104,19 @@ pub(crate) fn restore_ragdoll_player_parent(
             rotation,
             ..actor_world.compute_transform()
         };
-        let parent_in_actor = parent_world.reparented_to(&actor_world);
-        let restored_world =
-            GlobalTransform::from(restored_actor_world * parent_in_actor * detached.local_transform);
-        let restored_actor = if let Some(parent) = actor_parent {
+        let restored_actor_global = GlobalTransform::from(restored_actor_world);
+        let (restored_actor, restored_actor_global) = if let Some(parent) = actor_parent {
             let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
-            GlobalTransform::from(restored_actor_world).reparented_to(&world)
-        } else { restored_actor_world };
+            let local = restored_actor_global.reparented_to(&world);
+            (local, world.mul_transform(local))
+        } else { (restored_actor_world, restored_actor_global) };
+        let parent_in_actor = actor_world.affine().inverse() * parent_world.affine();
+        let restored_parent_world = GlobalTransform::from(Mat4::from(restored_actor_global.affine() * parent_in_actor));
+        let mut restored_mesh = detached.local_transform;
+        let actor_offset = parent_in_actor.transform_point3(restored_mesh.translation);
+        let mesh_world_location = restored_actor_world.translation + rotation * actor_offset;
+        restored_mesh.translation = restored_parent_world.affine().inverse().transform_point3(mesh_world_location);
+        let restored_world = restored_parent_world.mul_transform(restored_mesh);
         commands
             .entity(avatar.character)
             .insert((restored_actor, Rotation(rotation)));
@@ -1150,7 +1156,7 @@ pub(crate) fn restore_ragdoll_player_parent(
             .entity(player_entity)
             .insert((
                 ChildOf(detached.parent),
-                detached.local_transform,
+                restored_mesh,
                 restored_world,
             ))
             .remove::<AlsRagdollDetachedPlayer>();
@@ -1906,6 +1912,40 @@ pub(crate) mod tests {
         assert!(restored_pelvis.translation().distance(pelvis_world.translation()) < 1e-4);
         assert!(restored_pelvis.rotation().dot(pelvis_world.rotation()).abs() > 1.0 - 1e-5,
             "Source recovery snapshot must preserve the last simulated pelvis world rotation");
+    }
+
+    #[test]
+    fn ragdoll_exit_keeps_the_mesh_offset_independent_of_actor_scale() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        for (scale, parented, stance, offset) in [
+            (Vec3::splat(0.75), false, Stance::Standing, -0.92),
+            (Vec3::new(1.4, 0.8, 0.6), false, Stance::Crouching, -0.58),
+            (Vec3::splat(0.5), true, Stance::Standing, -0.92),
+        ] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            if parented {
+                let parent = app.world_mut().spawn(Transform::from_xyz(3.0, 2.0, 1.0)
+                    .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.6, 0.1, -0.2))
+                    .with_scale(Vec3::splat(1.5))).id();
+                app.world_mut().entity_mut(actor).insert(ChildOf(parent));
+            }
+            app.world_mut().get_mut::<Transform>(actor).unwrap().scale = scale;
+            app.world_mut().entity_mut(actor).insert((stance, AlsNotifyLocomotionAction::Ragdolling));
+            app.world_mut().run_system_once(crate::character_assembly::sync_avatar_stance_offset).unwrap();
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            app.world_mut().run_system_once(capture_ragdoll_player_world_transform).unwrap();
+            assert!(app.world().get::<AlsRagdollDetachedPlayer>(player).is_some());
+            app.world_mut().entity_mut(actor).insert((AlsNotifyLocomotionAction::None, LocomotionState::Grounded));
+            app.world_mut().run_system_once(restore_ragdoll_player_parent).unwrap();
+            let (actor_world, mesh_world) = app.world_mut().run_system_once(move |helper: TransformHelper| {
+                (helper.compute_global_transform(actor).unwrap(), helper.compute_global_transform(player).unwrap())
+            }).unwrap();
+            let expected = actor_world.translation() + actor_world.rotation() * (Vec3::Y * offset);
+            assert!(mesh_world.translation().distance(expected) < 1e-5,
+                "Restored mesh offset: scale={scale:?} parented={parented} stance={stance:?} expected={expected:?} actual={:?}",
+                mesh_world.translation());
+        }
     }
 
     use super::*;

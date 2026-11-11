@@ -1,0 +1,71 @@
+{
+  "native_character": "docs/audit/bf144/d109/character.native.json.gz",
+  "native_values": {
+    "CharacterMesh0": {
+      "RelativeLocation": "(X=0.000000,Y=0.000000,Z=-92.000000)"
+    },
+    "CharMoveComp": {
+      "CrouchedHalfHeight": "56.000000"
+    },
+    "CollisionCylinder": {
+      "CapsuleHalfHeight": "90.000000",
+      "RelativeLocation": "(X=0.000000,Y=0.000000,Z=0.000000)"
+    }
+  },
+  "sources": [
+    {
+      "path": "Plugins/ALS-Refactored/Source/ALS/Private/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+      "anchors": [
+        {
+          "line": 1108,
+          "source": "const auto& ActorTransform{GetActorTransform()};"
+        },
+        {
+          "line": 1110,
+          "source": "GetMesh()->SetWorldLocationAndRotationNoPhysics(ActorTransform.TransformPositionNoScale(GetBaseTranslationOffset()),"
+        },
+        {
+          "line": 1111,
+          "source": "ActorTransform.TransformRotation(GetBaseRotationOffset()).Rotator());"
+        },
+        {
+          "line": 1113,
+          "source": "GetMesh()->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Character.cpp",
+      "sha256": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+      "anchors": [
+        {
+          "line": 192,
+          "source": "void ACharacter::CacheInitialMeshOffset(FVector MeshRelativeLocation, FRotator MeshRelativeRotation)"
+        },
+        {
+          "line": 194,
+          "source": "BaseTranslationOffset = MeshRelativeLocation;"
+        },
+        {
+          "line": 504,
+          "source": "BaseTranslationOffset.Z = MeshRelativeLocation.Z;"
+        },
+        {
+          "line": 522,
+          "source": "MeshRelativeLocation.Z = DefaultChar->Mesh->GetRelativeLocation().Z + HeightAdjust;"
+        },
+        {
+          "line": 523,
+          "source": "BaseTranslationOffset.Z = MeshRelativeLocation.Z;"
+        }
+      ]
+    }
+  ],
+  "contract": "The mesh base position is rotated by the actor's world rotation and added to actor translation. KeepWorld attachment expresses that location in the restored parent frame.",
+  "target_offsets_m": {
+    "standing": -0.92,
+    "crouching": -0.58
+  },
+  "historical_target_report_available": false
+}
