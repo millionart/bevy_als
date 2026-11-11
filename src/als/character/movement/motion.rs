@@ -412,7 +412,7 @@ fn rotation_response_system(
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     gait_amounts: Query<&crate::als::gait::AlsGaitAmount>,
     first_person: Query<(), With<crate::als::input_request::AlsFirstPersonView>>,
-    actions: Query<&crate::als::state::AlsNotifyLocomotionAction>,
+    actions: Query<(&crate::als::state::AlsNotifyLocomotionAction, Option<&crate::get_up::AlsGetUpState>)>,
     mantle_frames: Query<(), With<crate::mantle_drive::AlsMantlePhysicsFrame>>,
     stances: Query<&Stance>,
     parents: Query<&ChildOf>,
@@ -460,7 +460,10 @@ fn rotation_response_system(
         let current_yaw = world_forward_to_yaw(actor_world.rotation() * Vec3::NEG_Z);
         let action_active = mantle_frames.contains(entity)
             || roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)
-            || actions.get(entity).is_ok_and(|action| *action != crate::als::state::AlsNotifyLocomotionAction::None);
+            || actions.get(entity).is_ok_and(|(action, get_up)| {
+                *action != crate::als::state::AlsNotifyLocomotionAction::None
+                    || get_up.is_some_and(|state| state.getting_up_before_notifies)
+            });
         let invalid_mode = !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air);
         if action_active || invalid_mode {
             let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();

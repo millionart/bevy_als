@@ -83,6 +83,7 @@ pub struct AlsGetUpState {
     pub weight: f32,
     pub pose_ready: bool,
     pub(crate) interrupted: bool,
+    pub(crate) getting_up_before_notifies: bool,
     stop: Option<MontageBlend>,
     section_ended: bool,
 }
@@ -98,6 +99,7 @@ impl AlsGetUpState {
             weight: 1.0,
             pose_ready: false,
             interrupted: false,
+            getting_up_before_notifies: false,
             stop: None,
             section_ended: false,
         }
@@ -252,6 +254,7 @@ fn update_get_up_pose(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (character, action, mut state, roll, assembly) in &mut characters {
+        state.getting_up_before_notifies = action == Some(&AlsNotifyLocomotionAction::GettingUp);
         let player_entity = state.target_player;
         if !assembly.and_then(|assembly| avatars.get(assembly.avatar).ok())
             .is_some_and(|(avatar, instance)| avatar.character == character && instance.player_entity() == player_entity)
@@ -630,6 +633,52 @@ mod tests {
             );
         }
         assert!(signatures[0].angle_between(signatures[1]) > 0.5);
+    }
+
+    #[test]
+    fn get_up_end_frame_keeps_body_yaw_and_publishes_the_cleared_action() {
+        use bevy::time::TimeUpdateStrategy;
+        use crate::als::{
+            control_scheme::AlsControlScheme, input::AlsInputCommand, motion::AlsViewYaw,
+            view::AlsPlayerViewYaw,
+        };
+        use bevy_tnua::prelude::TnuaController;
+        use std::time::Duration;
+
+        for (facing_up, delta) in [(false, 1.0_f32 / 60.0), (true, 1.0 / 30.0)] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(delta)));
+            play_loaded_get_up(&mut app, character, facing_up);
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let body_yaw = |app: &App| {
+                let rotation = app.world().get::<Transform>(character).unwrap().rotation;
+                crate::als::orientation::world_forward_to_yaw(rotation * Vec3::NEG_Z)
+            };
+            let view = body_yaw(&app) + 170.0_f32.to_radians();
+            app.world_mut().entity_mut(character).insert((
+                AlsViewYaw(view), AlsPlayerViewYaw(view),
+                AlsInputCommand { aim_held: true, move_dir: Vec2::Y, ..default() },
+            ));
+            let mut ended = false;
+            for _ in 0..90 {
+                let before = body_yaw(&app);
+                app.update();
+                if app.world().get::<AlsNotifyLocomotionAction>(character) == Some(&AlsNotifyLocomotionAction::GettingUp) {
+                    continue;
+                }
+                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::None));
+                assert!((body_yaw(&app) - before).abs() < 1e-5);
+                assert_eq!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion, Vec3::ZERO);
+                assert_eq!(app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+                    .gameplay_tag_input("locomotion_action"), Some(AlsNotifyLocomotionAction::None.tag()));
+                app.update();
+                assert!((body_yaw(&app) - before).abs() > 1e-3);
+                assert_ne!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion, Vec3::ZERO);
+                ended = true;
+                break;
+            }
+            assert!(ended, "Get-up action did not end within the fixture window");
+        }
     }
 
     #[test]

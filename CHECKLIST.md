@@ -7063,7 +7063,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：30Hz Roll混入第2帧，当前速度1.582839m/s、源应采上一份0.471937m/s；目标MovingSmooth=True，源False，原生蹲姿Move条件直接绑定该字段，目标提前求值蹲行序列。60Hz第5帧两侧蹲行序列都有效时，目标速率1.499798、按源速度快照应1.285530；槽权重0.925926，Locomotion仍参与输出。只恢复speed输入后，30Hz主反例最终姿态最大骨骼旋转差约0.03rad；物理速度与Roll槽权重保持一致。64组16FAIL、32个恢复控制全过，普通行走控制通过。
   - 漏检/边界：旧输入测试只核对字段和公式，旧RootScale测试只核对倍率消费者，未核对NativeUpdate相对CMC和Character缓存更新的时点。只证明当前Roll的速度/MovingSmooth/蹲姿消费；速率对照不是对未求值的Idle帧宣称实际执行了Move回调，也不宣称整帧UE姿态等价。105帧通知阶段对照及27个自然淡出后的当前快照控制通过。证据`98/native.json`、`98/static.json`、`98/final/`；仅登记，未修复。
 
-- [ ] BF144-D189 / P3 — GetUp结束通知先于身体旋转消费，瞄准转身提前一帧。
+- [x] BF144-D189 / P3 — GetUp结束通知先于身体旋转消费，瞄准转身提前一帧。
+  - 2026-11-12 06:35 +0800 实际结束，较07:12预估提前37分钟，未拆分。fresh两GetUp序列均无根运动；结束帧旋转读取通知前动作，图读取清空后的动作，移动仍按原有阶段消费。原生读数、8个旧时点反例及实际入口夹具见 `docs/audit/bf144/d189/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 06:31 +08:00，预估结束2026-11-12 07:12 +08:00。重采前后GetUp非根运动标志及组件时序，恢复结束帧旋转读取通知前的动作，核对图清空与下一帧恢复。
   - Source：fresh Front/Back Sequence的bEnableRootMotion均False；`AnimSequence.h:407`→`AnimCompositeBase.cpp:256–267`→`AnimMontage.cpp:931–941`确认GetUp不成为RootMotionMontageInstance。Movement在Owner前、Mesh依赖Character，因此`AlsCharacter.cpp:278–290,1514–1519`先消费blocked输入并以仍有效的GettingUp跳过旋转，随后Mesh中的native branching End才清空动作与输入锁。
   - Target：`get_up.rs:332–363`在PostUpdate派发后移除blocked；`motion.rs:417–446,2569–2601`将rotation_response排在后续物理/速度之后，已经看到None。Update中的平移输入消费仍在此前，故不是整体移动解锁都早一帧。
   - 反例：真实Ragdoll→GetUp前后朝向、60/30Hz、移动有无、瞄准有无共16种场景；保持视线偏离身体170°并瞄准，8种原始轨迹仅结束帧提前转身，30Hz为0.360145rad（约20.6°）。32条原始/恢复轨迹1456帧中8FAIL；16条阶段恢复728帧全过。输入basis、bHasInput与当前速度快照全部通过：结束帧为零，按键移动在下一帧恢复，图的locomotion_action当帧正确清空。去掉恢复夹具中的blocked写回结果不变，只保留旋转阶段的动作tag恢复。
