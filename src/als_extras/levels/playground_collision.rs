@@ -1,6 +1,8 @@
 use crate::als::character::AlsCollisionLayer;
 use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
+use crate::extensions::control_rig_mesh_ray::CookedMeshRay;
+use crate::extensions::control_rig_query::RigCookedMeshRay;
 
 use crate::extensions::{
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
@@ -18,6 +20,13 @@ static SOURCE_MESH_RAY_CULLING: LazyLock<HashMap<String, bool>> = LazyLock::new(
     serde_json::from_str(include_str!(
         "../../../assets/ALSExtras/Environment/Meshes/playground_mesh_ray_culling.runtime.json"
     )).expect("Source mesh ray culling must parse")
+});
+
+static SOURCE_MESH_RAY_DATA: LazyLock<HashMap<String, Arc<CookedMeshRay>>> = LazyLock::new(|| {
+    serde_json::from_str::<HashMap<String, CookedMeshRay>>(include_str!(
+        "../../../assets/ALSExtras/Environment/Meshes/playground_mesh_ray_data.runtime.json"
+    )).expect("Cooked source mesh rays must parse").into_iter()
+        .map(|(name, mesh)| (name, Arc::new(mesh))).collect()
 });
 
 impl Plugin for PlaygroundCollisionPlugin {
@@ -177,8 +186,11 @@ fn playground_mesh_physics_bridge(
         if let Some(complex) = template.complex {
             commands.entity(root).insert(crate::extensions::ComplexCollider(complex));
         }
-        if SOURCE_MESH_RAY_CULLING.get(&source.mesh_base).copied().unwrap_or(false) {
-            commands.entity(root).insert(crate::extensions::control_rig_query::RigRayCullBackfaces);
+        if let Some(data) = SOURCE_MESH_RAY_DATA.get(&source.mesh_base) {
+            commands.entity(root).insert(RigCookedMeshRay {
+                geometry: data.clone(),
+                cull_back_faces: SOURCE_MESH_RAY_CULLING[&source.mesh_base],
+            });
         }
         commands.entity(root).insert((
             RigidBody::Static,
@@ -530,7 +542,7 @@ mod tests {
             let player=app.world().get::<bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>(avatar).unwrap().player_entity();
             let query=app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().rig_query_context()
                 .expect("Actual source rig query context is missing");
-            assert!(query.world.cull_back_faces.contains(&root));
+            assert!(query.world.mesh_ray_data[&root].cull_back_faces);
             let TypedShape::TriMesh(surface) = complex.shape().as_typed_shape() else { panic!("Expected source mesh"); };
             let offset=|hit:Option<(f32,Vec3)>,root_y:f32| {
                 hit.filter(|(_,normal)|normal.y>=45.0_f32.to_radians().cos())
@@ -579,9 +591,9 @@ mod tests {
                 let scaled = publish(&mut app);
                 assert_eq!(scaled.world.colliders[&root].2.scale(), Vec3::splat(1.5));
                 trace(&scaled);
-                app.world_mut().entity_mut(root).remove::<crate::extensions::control_rig_query::RigRayCullBackfaces>();
+                app.world_mut().get_mut::<RigCookedMeshRay>(root).unwrap().cull_back_faces = false;
                 assert!(publish(&mut app).trace(inside, end, "ECC_Visibility", true).unwrap().is_some());
-                app.world_mut().entity_mut(root).insert(crate::extensions::control_rig_query::RigRayCullBackfaces);
+                app.world_mut().get_mut::<RigCookedMeshRay>(root).unwrap().cull_back_faces = true;
                 trace(&publish(&mut app));
             }
         }

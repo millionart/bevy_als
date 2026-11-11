@@ -3,7 +3,7 @@ use std::sync::Arc;
 use avian3d::prelude::*;
 use avian3d::parry::{partitioning::TraversalAction, shape::{Shape, TypedShape}};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
-use bevy::{math::DVec3, platform::collections::{HashMap, HashSet}, prelude::*};
+use bevy::{math::DVec3, platform::collections::HashMap, prelude::*};
 use parry3d_f64::{
     bounding_volume::Aabb,
     query::{Ray, RayCast, RayIntersection, details::local_ray_intersection_with_support_map_with_params, gjk::VoronoiSimplex},
@@ -11,14 +11,18 @@ use parry3d_f64::{
 };
 
 use crate::extensions::control_rig_hierarchy::{RigTransform, source_rotate_vector};
+use crate::extensions::control_rig_mesh_ray::{CookedMeshRay, mesh_safe_normal, mesh_vector_length};
 
-#[derive(Component)]
-pub(crate) struct RigRayCullBackfaces;
+#[derive(Clone, Component)]
+pub struct RigCookedMeshRay {
+    pub(crate) geometry: Arc<CookedMeshRay>,
+    pub(crate) cull_back_faces: bool,
+}
 
 #[derive(Default)]
 pub struct RigQueryWorld {
     pub colliders: HashMap<Entity, (Position, Rotation, Collider, CollisionLayers)>,
-    pub cull_back_faces: HashSet<Entity>,
+    pub mesh_ray_data: HashMap<Entity, RigCookedMeshRay>,
 }
 
 #[derive(Clone)]
@@ -41,7 +45,6 @@ fn trace_trimesh(
     mesh: &avian3d::parry::shape::TriMesh,
     ray: &Ray,
     limit: f64,
-    culling: Option<(&avian3d::parry::shape::TriMesh, DVec3)>,
 ) -> Option<RayIntersection> {
     let mut nearest = limit;
     let mut hit = None;
@@ -52,14 +55,6 @@ fn trace_trimesh(
             return TraversalAction::Prune;
         }
         if let Some(index) = node.leaf_data() {
-            if let Some((unscaled, direction)) = culling {
-                let face = unscaled.triangle(index);
-                let a = face.a.as_dvec3();
-                let normal = (face.b.as_dvec3() - a).cross(face.c.as_dvec3() - a);
-                if direction.dot(normal) > 0.0 {
-                    return TraversalAction::Continue;
-                }
-            }
             let triangle = mesh.triangle(index);
             let triangle = Triangle::new(triangle.a.as_dvec3(), triangle.b.as_dvec3(), triangle.c.as_dvec3());
             if let Some(impact) = triangle.cast_local_ray_and_get_normal(ray, nearest, true)
@@ -97,25 +92,11 @@ fn trace_precise_shape(
     scale: Vec3,
     ray: &Ray,
     limit: f64,
-    cull_back_faces: bool,
 ) -> Result<Option<RayIntersection>, ()> {
     let hit = match shape.as_typed_shape() {
         TypedShape::Cuboid(shape) => Cuboid::new(shape.half_extents.as_dvec3())
             .cast_local_ray_and_get_normal(ray, limit, true),
-        TypedShape::TriMesh(shape) => {
-            let culling = if cull_back_faces {
-                let TypedShape::TriMesh(unscaled) = unscaled.as_typed_shape() else { return Err(()); };
-                let direction = if source_mesh_has_scale(scale) {
-                    ray.dir * scale.recip().as_dvec3()
-                } else {
-                    ray.dir
-                };
-                Some((unscaled, direction))
-            } else {
-                None
-            };
-            trace_trimesh(shape, ray, limit, culling)
-        }
+        TypedShape::TriMesh(shape) => trace_trimesh(shape, ray, limit),
         TypedShape::Ball(shape) => Ball::new(f64::from(shape.radius))
             .cast_local_ray_and_get_normal(ray, limit, true),
         TypedShape::Capsule(shape) => Capsule::new(shape.segment.a.as_dvec3(), shape.segment.b.as_dvec3(), f64::from(shape.radius))
@@ -134,7 +115,7 @@ fn trace_precise_shape(
                     source_rotate_vector(rotation.conjugate(), ray.origin - pose.translation.as_dvec3()),
                     source_rotate_vector(rotation.conjugate(), ray.dir),
                 );
-                if let Some(mut impact) = trace_precise_shape(&**child, &**unscaled_child, scale, &local, nearest, cull_back_faces)?
+                if let Some(mut impact) = trace_precise_shape(&**child, &**unscaled_child, scale, &local, nearest)?
                     && nearer_hit(impact.time_of_impact, nearest, result.is_some()) {
                     nearest = impact.time_of_impact;
                     impact.normal = source_rotate_vector(rotation, impact.normal);
@@ -171,6 +152,9 @@ impl RigQueryContext {
         let delta_f32 = delta.as_vec3();
         let fallback = Dir3::new(delta_f32).ok().map(|direction| (direction, delta_f32.length()));
         let origin = start.as_vec3();
+        let start_cm = start * 100.0;
+        let delta_cm = end * 100.0 - start_cm;
+        let length_cm = f64::from(mesh_vector_length(delta_cm) as f32);
         let mut nearest = 1.0;
         let mut hit = None;
         for (entity, (position, rotation, collider, layers)) in &self.world.colliders {
@@ -178,20 +162,33 @@ impl RigQueryContext {
                 continue;
             }
             let rotation_f64 = rotation.0.as_dquat();
-            let local = Ray::new(
-                source_rotate_vector(rotation_f64.conjugate(), start - position.0.as_dvec3()),
-                source_rotate_vector(rotation_f64.conjugate(), delta),
-            );
-            let candidate = match trace_precise_shape(
-                &**collider.shape_scaled(), &**collider.shape(), collider.scale(), &local, nearest,
-                self.world.cull_back_faces.contains(entity),
-            ) {
-                Ok(impact) => impact.map(|impact| (impact.time_of_impact, start + delta * impact.time_of_impact,
-                    source_rotate_vector(rotation_f64, impact.normal))),
-                Err(()) => fallback.and_then(|(direction, distance)|
-                    collider.cast_ray(position.0, *rotation, origin, direction.as_vec3(), distance, true)
-                        .map(|(length, normal)| (f64::from(length) / f64::from(distance),
-                            (origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()))),
+            let candidate = if let Some(mesh) = self.world.mesh_ray_data.get(entity) {
+                if !length_cm.is_finite() || length_cm <= f64::from(1e-4_f32) { continue; }
+                let position_cm = position.0.as_dvec3() * 100.0;
+                let start = source_rotate_vector(rotation_f64.conjugate(), start_cm - position_cm);
+                let direction = source_rotate_vector(rotation_f64.conjugate(), delta_cm * length_cm.recip());
+                let scale = collider.scale();
+                let scale = source_mesh_has_scale(scale).then_some(scale);
+                mesh.geometry.trace(start, direction, length_cm * nearest, scale, mesh.cull_back_faces).map(|impact| {
+                    let point = (position_cm + source_rotate_vector(rotation_f64, impact.point_cm)) * 0.01;
+                    let normal = mesh_safe_normal(source_rotate_vector(rotation_f64, impact.normal));
+                    (impact.time_cm / length_cm, point, normal)
+                })
+            } else {
+                let local = Ray::new(
+                    source_rotate_vector(rotation_f64.conjugate(), start - position.0.as_dvec3()),
+                    source_rotate_vector(rotation_f64.conjugate(), delta),
+                );
+                match trace_precise_shape(
+                    &**collider.shape_scaled(), &**collider.shape(), collider.scale(), &local, nearest,
+                ) {
+                    Ok(impact) => impact.map(|impact| (impact.time_of_impact, start + delta * impact.time_of_impact,
+                        source_rotate_vector(rotation_f64, impact.normal))),
+                    Err(()) => fallback.and_then(|(direction, distance)|
+                        collider.cast_ray(position.0, *rotation, origin, direction.as_vec3(), distance, true)
+                            .map(|(length, normal)| (f64::from(length) / f64::from(distance),
+                                (origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()))),
+                }
             };
             let Some((fraction, point, normal)) = candidate else {
                 continue;

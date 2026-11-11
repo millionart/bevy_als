@@ -1,0 +1,1484 @@
+{
+  "cases": [
+    {
+      "fixture": "edge-visits",
+      "case": "fountain_vertex_unit",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 24,
+      "scaled": false,
+      "start_cm": [
+        -5.485409246830386e-07,
+        238.33900451660156,
+        -1.430977079053264e-07
+      ],
+      "end_cm": [
+        -5.485409246830386e-07,
+        108.33900451660156,
+        -1.430977079053264e-07
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 279,
+        "position_cm": [
+          -5.485409246830386e-07,
+          188.33900451660156,
+          -1.430977079053264e-07
+        ],
+        "normal": [
+          0.2846140513429553,
+          0.9513656040228531,
+          0.11789117549834426
+        ]
+      }
+    },
+    {
+      "fixture": "edge-visits",
+      "case": "fountain_interior_unit",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 6,
+      "scaled": false,
+      "start_cm": [
+        0.9238787298389555,
+        238.66281702019953,
+        0.38268390279429404
+      ],
+      "end_cm": [
+        0.9238787298389555,
+        108.66281702019953,
+        0.38268390279429404
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 1084,
+        "position_cm": [
+          0.9238787298389555,
+          188.66281702019953,
+          0.38268390279429404
+        ],
+        "normal": [
+          -0.28461402119714463,
+          0.9513656093893372,
+          -0.11789120496986345
+        ]
+      }
+    },
+    {
+      "fixture": "edge-visits",
+      "case": "fountain_vertex_uniform",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 24,
+      "scaled": true,
+      "start_cm": [
+        -8.228113870245579e-07,
+        332.50850677490234,
+        -2.1464656185798958e-07
+      ],
+      "end_cm": [
+        -8.228113870245579e-07,
+        202.50850677490234,
+        -2.1464656185798958e-07
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 281,
+        "position_cm": [
+          -8.228113870245579e-07,
+          282.5085144042969,
+          -2.1464656185798958e-07
+        ],
+        "normal": [
+          0.3054285784191321,
+          0.9513656000752903,
+          0.04021042748157413
+        ]
+      }
+    },
+    {
+      "fixture": "edge-visits",
+      "case": "fountain_interior_uniform",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 6,
+      "scaled": true,
+      "start_cm": [
+        1.385818094758433,
+        332.9942255302993,
+        0.574025854191441
+      ],
+      "end_cm": [
+        1.385818094758433,
+        202.99422553029927,
+        0.574025854191441
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 1084,
+        "position_cm": [
+          1.3858182430267334,
+          282.99420166015625,
+          0.5740258693695068
+        ],
+        "normal": [
+          -0.28461404200686724,
+          0.9513656017600771,
+          -0.11789121629790622
+        ]
+      }
+    },
+    {
+      "fixture": "edge-visits",
+      "case": "fountain_vertex_nonuniform",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 13,
+      "scaled": true,
+      "start_cm": [
+        -4.1140569351227896e-07,
+        332.50850677490234,
+        -1.7887213488165798e-07
+      ],
+      "end_cm": [
+        -4.1140569351227896e-07,
+        202.50850677490234,
+        -1.7887213488165798e-07
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        1.5,
+        1.25
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 281,
+        "position_cm": [
+          -4.1140569351227896e-07,
+          282.5085144042969,
+          -1.7887215619794006e-07
+        ],
+        "normal": [
+          0.5398060839472495,
+          0.8407087575295439,
+          0.04264008380228206
+        ]
+      }
+    },
+    {
+      "fixture": "edge-visits",
+      "case": "fountain_interior_nonuniform",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 6,
+      "scaled": true,
+      "start_cm": [
+        0.6929090473792165,
+        332.9942255302993,
+        0.47835487849286756
+      ],
+      "end_cm": [
+        0.6929090473792165,
+        202.99422553029927,
+        0.47835487849286756
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        1.5,
+        1.25
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 1084,
+        "position_cm": [
+          0.6929091215133667,
+          282.99420166015625,
+          0.47835487127304077
+        ],
+        "normal": [
+          -0.5093102084234171,
+          0.8512232875809207,
+          -0.126578142961669
+        ]
+      }
+    },
+    {
+      "fixture": "edge-visits",
+      "case": "arch_shared_edge",
+      "mesh": "SM_Als_Arch_02",
+      "visits": 6,
+      "scaled": false,
+      "start_cm": [
+        273.6516571044922,
+        191.96327209472656,
+        0.17456340789794922
+      ],
+      "end_cm": [
+        273.6516571044922,
+        61.96327209472656,
+        0.17456340789794922
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 438,
+        "position_cm": [
+          273.6516571044922,
+          141.96327209472656,
+          0.17456340789794922
+        ],
+        "normal": [
+          0.523228768271774,
+          0.7472483786656547,
+          -0.40969685943921086
+        ]
+      }
+    },
+    {
+      "fixture": "edge-visits",
+      "case": "arch_edge_interior",
+      "mesh": "SM_Als_Arch_02",
+      "visits": 4,
+      "scaled": false,
+      "start_cm": [
+        273.0326303358545,
+        191.966121264375,
+        -0.6108064792953234
+      ],
+      "end_cm": [
+        273.0326303358545,
+        61.966121264375005,
+        -0.6108064792953234
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 438,
+        "position_cm": [
+          273.0326303358545,
+          141.966121264375,
+          -0.6108064792953234
+        ],
+        "normal": [
+          0.523228768271774,
+          0.7472483786656547,
+          -0.40969685943921086
+        ]
+      }
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_1_before",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 0,
+      "scaled": false,
+      "start_cm": [
+        500,
+        920,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        792.01,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_1.00005_before",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 0,
+      "scaled": false,
+      "start_cm": [
+        500,
+        920,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        792.01,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.00005,
+        1.00005,
+        1.00005
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_2_before",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 0,
+      "scaled": true,
+      "start_cm": [
+        1000,
+        1712,
+        -3300
+      ],
+      "end_cm": [
+        1000,
+        1584.01,
+        -3300
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2,
+        2
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_1_at",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": false,
+      "start_cm": [
+        500,
+        920,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        792,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          500,
+          792,
+          -1650
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_1.00005_at",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": false,
+      "start_cm": [
+        500,
+        920,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        792,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.00005,
+        1.00005,
+        1.00005
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          500,
+          792,
+          -1650
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_2_at",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": true,
+      "start_cm": [
+        1000,
+        1712,
+        -3300
+      ],
+      "end_cm": [
+        1000,
+        1584,
+        -3300
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2,
+        2
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_1_after",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 1,
+      "scaled": false,
+      "start_cm": [
+        500,
+        920,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        791.99,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          500,
+          792,
+          -1650
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_1.00005_after",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 1,
+      "scaled": false,
+      "start_cm": [
+        500,
+        920,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        791.99,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.00005,
+        1.00005,
+        1.00005
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          500,
+          792,
+          -1650
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "computed-limit",
+      "case": "stairs_2_after",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": true,
+      "start_cm": [
+        1000,
+        1712,
+        -3300
+      ],
+      "end_cm": [
+        1000,
+        1583.99,
+        -3300
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2,
+        2
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          1000,
+          1584,
+          -3300
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_1_before",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 0,
+      "scaled": false,
+      "start_cm": [
+        500,
+        892,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        792.01,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_1.25_before",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 0,
+      "scaled": true,
+      "start_cm": [
+        625,
+        1090,
+        -2062.5
+      ],
+      "end_cm": [
+        625,
+        990.01,
+        -2062.5
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.25,
+        1.25,
+        1.25
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_2_before",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 0,
+      "scaled": true,
+      "start_cm": [
+        1000,
+        1684,
+        -3300
+      ],
+      "end_cm": [
+        1000,
+        1584.01,
+        -3300
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2,
+        2
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_1_at",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": false,
+      "start_cm": [
+        500,
+        892,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        792,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_1.25_at",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": true,
+      "start_cm": [
+        625,
+        1090,
+        -2062.5
+      ],
+      "end_cm": [
+        625,
+        990,
+        -2062.5
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.25,
+        1.25,
+        1.25
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          625,
+          990,
+          -2062.5
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_2_at",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": true,
+      "start_cm": [
+        1000,
+        1684,
+        -3300
+      ],
+      "end_cm": [
+        1000,
+        1584,
+        -3300
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2,
+        2
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_1_after",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": false,
+      "start_cm": [
+        500,
+        892,
+        -1650
+      ],
+      "end_cm": [
+        500,
+        791.99,
+        -1650
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          500,
+          792,
+          -1650
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_1.25_after",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": true,
+      "start_cm": [
+        625,
+        1090,
+        -2062.5
+      ],
+      "end_cm": [
+        625,
+        989.99,
+        -2062.5
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.25,
+        1.25,
+        1.25
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          625,
+          990,
+          -2062.5
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "endpoint",
+      "case": "stairs_2_after",
+      "mesh": "SM_Als_Stairs_01",
+      "visits": 2,
+      "scaled": true,
+      "start_cm": [
+        1000,
+        1684,
+        -3300
+      ],
+      "end_cm": [
+        1000,
+        1583.99,
+        -3300
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2,
+        2
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 94,
+        "position_cm": [
+          1000,
+          1584,
+          -3300
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "fixture": "barrel-ray",
+      "case": "inside_unit",
+      "mesh": "SM_Als_Barrel",
+      "visits": 2,
+      "scaled": false,
+      "start_cm": [
+        2.5,
+        50,
+        -3.5
+      ],
+      "end_cm": [
+        2.5,
+        -80,
+        -3.5
+      ],
+      "translation_cm": [
+        0,
+        -30,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "barrel-ray",
+      "case": "inside_scaled",
+      "mesh": "SM_Als_Barrel",
+      "visits": 2,
+      "scaled": true,
+      "start_cm": [
+        2.5,
+        50,
+        -3.5
+      ],
+      "end_cm": [
+        2.5,
+        -80,
+        -3.5
+      ],
+      "translation_cm": [
+        0,
+        -30,
+        0
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "rig_center_m": null,
+      "hit": null
+    },
+    {
+      "fixture": "barrel-ray",
+      "case": "front_unit",
+      "mesh": "SM_Als_Barrel",
+      "visits": 2,
+      "scaled": false,
+      "start_cm": [
+        2.5,
+        250,
+        -3.5
+      ],
+      "end_cm": [
+        2.5,
+        -80,
+        -3.5
+      ],
+      "translation_cm": [
+        0,
+        -30,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 484,
+        "position_cm": [
+          2.5,
+          62.21632106879008,
+          -3.5
+        ],
+        "normal": [
+          0.002609888700498894,
+          0.9999960203063365,
+          0.0010713787660419306
+        ]
+      }
+    },
+    {
+      "fixture": "barrel-ray",
+      "case": "front_nonuniform",
+      "mesh": "SM_Als_Barrel",
+      "visits": 2,
+      "scaled": true,
+      "start_cm": [
+        2.5,
+        250,
+        -3.5
+      ],
+      "end_cm": [
+        2.5,
+        -80,
+        -3.5
+      ],
+      "translation_cm": [
+        0,
+        -30,
+        0
+      ],
+      "scale": [
+        1.25,
+        1.5,
+        0.75
+      ],
+      "rig_center_m": null,
+      "hit": {
+        "face": 484,
+        "position_cm": [
+          2.5,
+          108.32832336425781,
+          -3.500000238418579
+        ],
+        "normal": [
+          0.0031318566681874955,
+          0.9999928000199652,
+          0.0021427510447475056
+        ]
+      }
+    },
+    {
+      "fixture": "rig-edges",
+      "case": "rig_fountain_vertex_unit",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 24,
+      "scaled": false,
+      "start_cm": [
+        -5.485409246830386e-07,
+        238.33900451660156,
+        -1.430977079053264e-07
+      ],
+      "end_cm": [
+        -5.485409246830386e-07,
+        108.33900332450868,
+        -1.430977079053264e-07
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": 1.8833900451660157,
+      "hit": {
+        "face": 281,
+        "position_cm": [
+          -5.485409246830386e-07,
+          188.33900451660156,
+          -1.430977079053264e-07
+        ],
+        "normal": [
+          0.3054285690372237,
+          0.9513656031968039,
+          0.04021042489026525
+        ]
+      }
+    },
+    {
+      "fixture": "rig-edges",
+      "case": "rig_fountain_interior_unit",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 6,
+      "scaled": false,
+      "start_cm": [
+        0.9238787298389555,
+        238.66281702019953,
+        0.38268390279429404
+      ],
+      "end_cm": [
+        0.9238787298389555,
+        108.66281582810662,
+        0.38268390279429404
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": 1.8866281702019951,
+      "hit": {
+        "face": 1084,
+        "position_cm": [
+          0.9238787298389555,
+          188.66281702019953,
+          0.38268390279429404
+        ],
+        "normal": [
+          -0.28461402119714463,
+          0.9513656093893372,
+          -0.11789120496986345
+        ]
+      }
+    },
+    {
+      "fixture": "rig-edges",
+      "case": "rig_fountain_vertex_uniform",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 24,
+      "scaled": true,
+      "start_cm": [
+        -8.228113870245579e-07,
+        332.50850677490234,
+        -2.1464656185798958e-07
+      ],
+      "end_cm": [
+        -8.228113870245579e-07,
+        202.50850558280945,
+        -2.1464656185798958e-07
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "rig_center_m": 2.8250850677490233,
+      "hit": {
+        "face": 281,
+        "position_cm": [
+          -8.228113870245579e-07,
+          282.5085144042969,
+          -2.1464656185798958e-07
+        ],
+        "normal": [
+          0.3054285784191321,
+          0.9513656000752903,
+          0.04021042748157413
+        ]
+      }
+    },
+    {
+      "fixture": "rig-edges",
+      "case": "rig_fountain_interior_uniform",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 6,
+      "scaled": true,
+      "start_cm": [
+        1.385818094758433,
+        332.9942255302993,
+        0.574025854191441
+      ],
+      "end_cm": [
+        1.385818094758433,
+        202.9942243382064,
+        0.574025854191441
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "rig_center_m": 2.829942255302993,
+      "hit": {
+        "face": 1084,
+        "position_cm": [
+          1.3858182430267334,
+          282.99420166015625,
+          0.5740258693695068
+        ],
+        "normal": [
+          -0.28461404200686724,
+          0.9513656017600771,
+          -0.11789121629790622
+        ]
+      }
+    },
+    {
+      "fixture": "rig-edges",
+      "case": "rig_fountain_vertex_nonuniform",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 13,
+      "scaled": true,
+      "start_cm": [
+        -4.1140569351227896e-07,
+        332.50850677490234,
+        -1.7887213488165798e-07
+      ],
+      "end_cm": [
+        -4.1140569351227896e-07,
+        202.50850558280945,
+        -1.7887213488165798e-07
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        1.5,
+        1.25
+      ],
+      "rig_center_m": 2.8250850677490233,
+      "hit": {
+        "face": 281,
+        "position_cm": [
+          -4.1140569351227896e-07,
+          282.5085144042969,
+          -1.7887215619794006e-07
+        ],
+        "normal": [
+          0.5398060839472495,
+          0.8407087575295439,
+          0.04264008380228206
+        ]
+      }
+    },
+    {
+      "fixture": "rig-edges",
+      "case": "rig_fountain_interior_nonuniform",
+      "mesh": "SM_Als_Fountain_01",
+      "visits": 6,
+      "scaled": true,
+      "start_cm": [
+        0.6929090473792165,
+        332.9942255302993,
+        0.4783548784928675
+      ],
+      "end_cm": [
+        0.6929090473792165,
+        202.9942243382064,
+        0.4783548784928675
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        1.5,
+        1.25
+      ],
+      "rig_center_m": 2.829942255302993,
+      "hit": {
+        "face": 1084,
+        "position_cm": [
+          0.6929091215133667,
+          282.99420166015625,
+          0.47835487127304077
+        ],
+        "normal": [
+          -0.5093102084234171,
+          0.8512232875809207,
+          -0.126578142961669
+        ]
+      }
+    },
+    {
+      "fixture": "rig-edges",
+      "case": "rig_arch_shared_edge",
+      "mesh": "SM_Als_Arch_02",
+      "visits": 6,
+      "scaled": false,
+      "start_cm": [
+        273.6516571044922,
+        191.96327209472656,
+        0.17456340789794922
+      ],
+      "end_cm": [
+        273.6516571044922,
+        61.963270902633674,
+        0.17456340789794922
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": 1.4196327209472657,
+      "hit": {
+        "face": 438,
+        "position_cm": [
+          273.6516571044922,
+          141.96327209472656,
+          0.17456340789794922
+        ],
+        "normal": [
+          0.523228768271774,
+          0.7472483786656547,
+          -0.40969685943921086
+        ]
+      }
+    },
+    {
+      "fixture": "rig-edges",
+      "case": "rig_arch_edge_interior",
+      "mesh": "SM_Als_Arch_02",
+      "visits": 4,
+      "scaled": false,
+      "start_cm": [
+        273.0326303358545,
+        191.966121264375,
+        -0.6108064792953234
+      ],
+      "end_cm": [
+        273.0326303358545,
+        61.9661200722821,
+        -0.6108064792953234
+      ],
+      "translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rig_center_m": 1.41966121264375,
+      "hit": {
+        "face": 438,
+        "position_cm": [
+          273.0326303358545,
+          141.966121264375,
+          -0.6108064792953234
+        ],
+        "normal": [
+          0.523228768271774,
+          0.7472483786656547,
+          -0.40969685943921086
+        ]
+      }
+    }
+  ],
+  "ablation_differences": {
+    "strict_nearest": [
+      "edge-visits/fountain_vertex_unit",
+      "edge-visits/fountain_vertex_uniform",
+      "edge-visits/fountain_vertex_nonuniform",
+      "edge-visits/arch_shared_edge",
+      "rig-edges/rig_fountain_vertex_unit",
+      "rig-edges/rig_fountain_vertex_uniform",
+      "rig-edges/rig_fountain_vertex_nonuniform"
+    ],
+    "strict_barycentric": [
+      "edge-visits/fountain_vertex_nonuniform",
+      "rig-edges/rig_fountain_vertex_nonuniform"
+    ],
+    "unrounded_length": [
+      "edge-visits/fountain_vertex_unit",
+      "edge-visits/fountain_vertex_nonuniform",
+      "rig-edges/rig_fountain_vertex_unit",
+      "rig-edges/rig_fountain_vertex_nonuniform"
+    ],
+    "round_to_meters": [
+      "edge-visits/fountain_vertex_unit",
+      "edge-visits/fountain_interior_unit",
+      "edge-visits/fountain_vertex_uniform",
+      "edge-visits/fountain_interior_uniform",
+      "edge-visits/fountain_vertex_nonuniform",
+      "edge-visits/fountain_interior_nonuniform",
+      "edge-visits/arch_shared_edge",
+      "edge-visits/arch_edge_interior",
+      "computed-limit/stairs_1_at",
+      "computed-limit/stairs_1.00005_at",
+      "computed-limit/stairs_1_after",
+      "computed-limit/stairs_1.00005_after",
+      "computed-limit/stairs_2_after",
+      "endpoint/stairs_1.25_at",
+      "endpoint/stairs_1_after",
+      "endpoint/stairs_1.25_after",
+      "endpoint/stairs_2_after",
+      "barrel-ray/front_unit",
+      "barrel-ray/front_nonuniform",
+      "rig-edges/rig_fountain_vertex_unit",
+      "rig-edges/rig_fountain_interior_unit",
+      "rig-edges/rig_fountain_vertex_uniform",
+      "rig-edges/rig_fountain_interior_uniform",
+      "rig-edges/rig_fountain_vertex_nonuniform",
+      "rig-edges/rig_fountain_interior_nonuniform",
+      "rig-edges/rig_arch_shared_edge",
+      "rig-edges/rig_arch_edge_interior"
+    ],
+    "double_sided": [
+      "barrel-ray/inside_unit",
+      "barrel-ray/inside_scaled"
+    ]
+  }
+}

@@ -26,6 +26,8 @@ pub mod control_rig_ik;
 pub mod control_rig_units;
 #[path = "control_rig/control_rig_query.rs"]
 pub mod control_rig_query;
+#[path = "control_rig/control_rig_mesh_ray.rs"]
+pub mod control_rig_mesh_ray;
 #[path = "animation_graph_ext/direct_transition_event.rs"]
 pub mod direct_transition_event;
 #[path = "animation_graph_ext/distance_match.rs"]
