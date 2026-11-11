@@ -6,7 +6,7 @@ use crate::als::{
 use crate::extensions::{
     AlsAnimCurves,
     animation_context::{AnimationContextState, SourceRelevantAsset},
-    profile_blend::{AlphaBlendMode, MontageBlend},
+    profile_blend::{AlphaBlendMode, MontageBlend, advance_forward_montage_position},
 };
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -109,24 +109,16 @@ impl AlsGetUpState {
             self.weight = blend.advance(delta);
         }
         self.elapsed += delta;
-        let mut time_remaining = delta;
-        for _ in 0..9 {
-            if time_remaining <= 1e-8 || self.clip_time >= settings.sequence_length { break; }
-            let mut movement = time_remaining * settings.play_rate;
-            if self.clip_time < settings.notify_end_clip_seconds
-                && settings.notify_end_clip_seconds <= self.clip_time + movement {
-                movement = settings.notify_end_clip_seconds - self.clip_time;
+        let stop = &mut self.stop;
+        let weight = &mut self.weight;
+        advance_forward_montage_position(&mut self.clip_time, delta, settings.play_rate, settings.sequence_length,
+            &[settings.notify_end_clip_seconds], |position| {
+            let to_end = (settings.sequence_length - position) / settings.play_rate;
+            if stop.is_none() && to_end <= settings.blend_out_seconds.max(1e-4) {
+                *stop = Some(MontageBlend::new(*weight, 0.0, to_end, AlphaBlendMode::Cubic));
+                if to_end <= 0.0 { *weight = 0.0; }
             }
-            movement = movement.min(settings.sequence_length - self.clip_time);
-            if movement <= 0.0 { break; }
-            self.clip_time += movement;
-            time_remaining = (time_remaining - movement / settings.play_rate).max(0.0);
-            let to_end = (settings.sequence_length - self.clip_time) / settings.play_rate;
-            if self.stop.is_none() && to_end <= settings.blend_out_seconds.max(1e-4) {
-                self.stop = Some(MontageBlend::new(self.weight, 0.0, to_end, AlphaBlendMode::Cubic));
-                if to_end <= 0.0 { self.weight = 0.0; }
-            }
-        }
+        });
     }
 }
 

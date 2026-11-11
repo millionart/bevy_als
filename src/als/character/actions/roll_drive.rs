@@ -2,9 +2,12 @@ use crate::als::air::AlsAirState;
 use crate::als::input::AlsInputCommand;
 use crate::als::motion::{AlsInputOverride, AlsViewYaw};
 use crate::als::roll::{
-    AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_PLAY_RATE, ROLL_ROTATION_HALF_LIFE_SECS,
+    AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_ROTATION_HALF_LIFE_SECS, advance_roll_clip,
     damper_exact_angle, select_roll_direction,
 };
+#[cfg(test)]
+use crate::als::roll::ROLL_PLAY_RATE;
+use crate::extensions::profile_blend::{AlphaBlendMode, MontageBlend};
 use crate::als::state::{LocomotionState, Stance};
 use crate::extensions::AlsAnimCurves;
 use avian3d::prelude::{LinearVelocity, Rotation};
@@ -44,11 +47,20 @@ pub(crate) struct AlsRollSlotSampler {
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRollTail {
-    pub(crate) time: f32,
+    pub(crate) clip_time: f32,
     blend: AlsRollBlendOut,
 }
 
 impl AlsRollTail {
+    fn from_roll(roll: &AlsRollState, blend: AlsRollBlendOut) -> Self {
+        Self { clip_time: roll.clip_time(), blend }
+    }
+
+    fn advance(&mut self, delta: f32) {
+        self.blend.advance(delta);
+        advance_roll_clip(&mut self.clip_time, delta, |_| {});
+    }
+
     pub(crate) fn weight(&self) -> f32 { self.blend.weight() }
 }
 
@@ -396,7 +408,7 @@ pub(crate) mod tests {
             let actor = world.spawn((crate::als::character::AlsCharacter, roll, LocomotionState::Grounded,
                 Stance::Standing, AlsViewYaw::default(), Transform::IDENTITY, LinearVelocity::ZERO,
                 AlsInputCommand::default(), crate::als_camera::AlsCameraCustomTimeDilation(scale))).id();
-            let tail = world.spawn((AlsRollTail { time: 0.3, blend: AlsRollBlendOut::new(&roll, 0.2) },
+            let tail = world.spawn((AlsRollTail::from_roll(&roll, AlsRollBlendOut::new(&roll, 0.2)),
                 AlsRollSlotSampler { character: actor, target_player: Entity::PLACEHOLDER, reported_unready: false })).id();
             world.run_system_once(advance_rolls).unwrap();
             let expected = 0.3 + 0.05 * scale;
@@ -1071,7 +1083,11 @@ pub(crate) mod tests {
         let (mut app, character, avatar) = loaded_roll_character();
         play_loaded_roll(&mut app, character);
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.01)));
-        app.world_mut().get_mut::<AlsRollState>(character).unwrap().time = 0.02;
+        {
+            let mut roll = app.world_mut().get_mut::<AlsRollState>(character).unwrap();
+            roll.time = 0.02;
+            roll.montage = None;
+        }
         app.update();
         let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
         let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
@@ -1089,7 +1105,11 @@ pub(crate) mod tests {
         let (mut app, character, _) = loaded_roll_character();
         let old = play_loaded_roll(&mut app, character);
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
-        app.world_mut().get_mut::<AlsRollState>(character).unwrap().time = 0.65;
+        {
+            let mut roll = app.world_mut().get_mut::<AlsRollState>(character).unwrap();
+            roll.time = 0.65;
+            roll.montage = None;
+        }
         app.update();
         app.world_mut().resource_mut::<Messages<crate::animation_events::AlsAnimationEvent>>().clear();
         app.world_mut().entity_mut(character).insert(AlsNotifyLocomotionAction::None);
@@ -1775,7 +1795,7 @@ pub(crate) mod tests {
             let consumed_scale = app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0;
             app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.01));
             app.world_mut().run_schedule(PostUpdate);
-            let clip_time = app.world().get::<AlsRollState>(character).unwrap().time * ROLL_PLAY_RATE;
+            let clip_time = app.world().get::<AlsRollState>(character).unwrap().clip_time();
             let expected_scale = if (0.2..0.5).contains(&clip_time) { 2.0 } else if (0.1..0.2).contains(&clip_time) { 0.5 } else { 1.0 };
             assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, expected_scale,
                 "Active notify reclaimed scale at actual roll time {clip_time}");
@@ -1950,12 +1970,13 @@ pub(crate) mod tests {
                     .iter(app.world()).find(|(_, sampler)| sampler.character == character).unwrap().0;
                 assert_ne!(old, current, "Restart reused the old montage instance");
                 let tail = app.world().get::<AlsRollTail>(old).unwrap();
-                assert!((tail.time - old_roll.time - delta).abs() < 1e-6);
+                let expected_tail = ((old_roll.time + delta) * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
+                assert!((tail.clip_time - expected_tail).abs() < 1e-6);
                 if delta < 0.1 { assert!(tail.weight() > 0.0, "Restart cleared the old pose prematurely"); }
                 app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
                 app.world_mut().run_system_once(prepare_roll_slot_samples).unwrap();
                 assert!((app.world().get::<AnimationGraphPlayer>(old).unwrap().get_global_input_data(ROLL_SLOT_TIME_KEY).unwrap().as_f32().unwrap()
-                    - ((old_roll.time + delta) * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS)).abs() < 1e-6);
+                    - expected_tail).abs() < 1e-6);
                 let mut tail_visible = false;
                 for frame in 0..10 {
                     app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
@@ -2027,7 +2048,7 @@ pub(crate) mod tests {
         for old in [old_first, !old_first] {
             let entity = world.spawn((AlsRollSlotSampler { character, target_player: mesh, reported_unready: false },
                 RootMotionOutput { translation_delta: Vec3::NEG_Z * if old { 10.0 } else { 0.2 }, ..default() })).id();
-            if old { world.entity_mut(entity).insert(AlsRollTail { time: 1.0, blend: AlsRollBlendOut::new(&roll, 0.1) }); }
+            if old { world.entity_mut(entity).insert(AlsRollTail { clip_time: ROLL_PLAY_RATE, blend: AlsRollBlendOut::new(&roll, 0.1) }); }
         }
         world.run_system_once(roll_drive_system).unwrap();
         assert!(world.get::<LinearVelocity>(character).unwrap().distance(Vec3::Z * 4.0) < 1e-5,
@@ -2312,31 +2333,35 @@ struct RollSlotCurveHandle(Handle<AlsAnimCurves>, Handle<bevy_animation_graph::c
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRollBlendOut {
-    elapsed: f32,
-    start_weight: f32,
-    duration: f32,
+    blend: MontageBlend,
+    previous_weight: f32,
 }
 
 impl AlsRollBlendOut {
     pub(crate) fn new(roll: &AlsRollState, duration: f32) -> Self {
+        let weight = roll.weight();
         Self {
-            elapsed: 0.0,
-            start_weight: roll.weight(),
-            duration,
+            blend: MontageBlend::new(weight, 0.0, duration, AlphaBlendMode::HermiteCubic),
+            previous_weight: weight,
         }
     }
 
-    fn weight(self) -> f32 {
-        let alpha = if self.duration > 0.0 { self.elapsed / self.duration } else { 1.0 };
-        self.start_weight
-            * (1.0 - crate::extensions::transition_alpha(alpha, crate::extensions::AlphaBlendMode::Cubic, &[]))
+    pub(crate) fn weight(&self) -> f32 {
+        self.blend.weight()
+    }
+
+    pub(crate) fn previous_weight(&self) -> f32 {
+        self.previous_weight
+    }
+
+    fn advance(&mut self, delta: f32) {
+        self.previous_weight = self.weight();
+        self.blend.advance(delta);
     }
 
     pub(crate) fn stop(&mut self, duration: f32) {
-        if duration < self.duration {
-            self.start_weight = self.weight();
-            self.elapsed = 0.0;
-            self.duration = duration;
+        if duration < self.blend.duration {
+            self.blend = MontageBlend::new(self.weight(), 0.0, duration, AlphaBlendMode::HermiteCubic);
         }
     }
 }
@@ -2428,12 +2453,11 @@ fn start_roll_input(
         let started = roll.update(&effective, select_roll_direction(input_yaw, &direction_basis), locomotion, stance, 0.0).started;
         if !started { continue; }
         if previous.active {
-            let mut blend = stopped_blend.unwrap_or_else(|| AlsRollBlendOut::new(&previous,
-                (crate::als::roll::ROLL_DURATION_SECS - previous.time).max(0.0)));
+            let mut blend = stopped_blend.unwrap_or_else(|| AlsRollBlendOut::new(&previous, previous.remaining_play_time()));
             blend.stop(crate::als::roll::ROLL_WEIGHT_IN_SECS);
             for (entity, sampler, player) in &samplers {
                 if sampler.character != character { continue; }
-                commands.entity(entity).insert(AlsRollTail { time: previous.time, blend });
+                commands.entity(entity).insert(AlsRollTail::from_roll(&previous, blend));
                 let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = player.get_animation_source() else { continue };
                 commands.spawn((Name::new("als_roll_slot_sampler"), Children::default(), ChildOf(character),
                     AnimationGraphPlayer::new(player.skeleton().clone()).with_graph(graph.clone()), RootMotionOutput::default(), *sampler));
@@ -2523,11 +2547,11 @@ fn prepare_roll_slot_samples(
     mut samplers: Query<(&AlsRollSlotSampler, &mut AnimationGraphPlayer, Option<&AlsRollTail>)>,
 ) {
     for (sampler, mut player, tail) in &mut samplers {
-        let clip_time = tail.map(|tail| (tail.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS)).unwrap_or_else(|| rolls
+        let clip_time = tail.map(|tail| tail.clip_time).unwrap_or_else(|| rolls
             .get(sampler.character)
             .ok()
             .filter(|roll| roll.active)
-            .map(|roll| (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS))
+            .map(AlsRollState::clip_time)
             .unwrap_or(0.0));
         player.set_global_input_data(ROLL_SLOT_TIME_KEY, clip_time);
     }
@@ -2553,10 +2577,10 @@ fn bridge_roll_slot_samples(
         let mut root_motion = RootMotionOutput::default();
         for (entity, mut sampler, player, output, tail) in &mut samplers {
             if sampler.character != character || sampler.target_player != target { continue; }
-            let (elapsed, weight) = if let Some(tail) = tail { (tail.time, tail.weight()) }
+            let (clip_time, weight) = if let Some(tail) = tail { (tail.clip_time, tail.weight()) }
                 else if let Some(roll) = roll {
                     root_motion = RootMotionOutput { translation_delta: output.translation_delta, rotation_delta: output.rotation_delta };
-                    (roll.time, blend_outs.get(character).map_or_else(|_| roll.weight(), |blend| blend.weight()))
+                    (roll.clip_time(), blend_outs.get(character).map_or_else(|_| roll.weight(), |blend| blend.weight()))
                 } else { continue; };
             let Some(mut pose) = player.get_default_output_pose().cloned() else {
                 if !sampler.reported_unready {
@@ -2567,7 +2591,6 @@ fn bridge_roll_slot_samples(
             };
             if tail.is_some() { pose.root_motion = None; }
             sampler.reported_unready = false;
-            let clip_time = (elapsed * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
             let mut context = curves.get(&curve_handle.0).and_then(AlsAnimCurves::first)
                 .map(|curves| crate::get_up::sampled_curve_context(curves, clip_time)).unwrap_or_default();
             context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
@@ -2658,8 +2681,7 @@ fn advance_rolls(
         .map(|event| event.entity).collect::<Vec<_>>();
     for (entity, mut tail, sampler) in &mut tails {
         let dt = time.delta_secs() * custom_dilations.get(sampler.character).map_or(1.0, |value| value.0);
-        tail.time += dt;
-        tail.blend.elapsed += dt;
+        tail.advance(dt);
         if tail.weight() <= f32::EPSILON { commands.entity(entity).try_despawn(); }
     }
     for (
@@ -2704,8 +2726,8 @@ fn advance_rolls(
         let mut stopped_blend = None;
         if let Ok(mut blend) = blend_outs.get_mut(character) {
             stopped_blend = Some(*blend);
-            roll.time += dt;
-            blend.elapsed += dt;
+            roll.advance_playback(dt, false);
+            blend.advance(dt);
             if blend.weight() <= 0.0 {
                 roll.active = false;
                 commands.entity(character).remove::<AlsRollBlendOut>();
@@ -2734,13 +2756,13 @@ fn advance_rolls(
                 commands.entity(character).insert(stance);
             }
             if previous_roll.active {
-                let mut blend = stopped_blend.unwrap_or_else(|| AlsRollBlendOut::new(&previous_roll,
-                    (crate::als::roll::ROLL_DURATION_SECS - previous_roll.time).max(0.0)));
+                let mut blend = stopped_blend.unwrap_or_else(|| AlsRollBlendOut::new(&previous_roll, previous_roll.remaining_play_time()));
                 blend.stop(crate::als::roll::ROLL_WEIGHT_IN_SECS);
-                blend.elapsed += dt;
+                let mut tail = AlsRollTail::from_roll(&previous_roll, blend);
+                tail.advance(dt);
                 for (entity, sampler, player) in &samplers {
                     if sampler.character != character { continue; }
-                    commands.entity(entity).insert(AlsRollTail { time: previous_roll.time + dt, blend });
+                    commands.entity(entity).insert(tail);
                     let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = player.get_animation_source() else { continue; };
                     commands.spawn((Name::new("als_roll_slot_sampler"), Children::default(), ChildOf(character),
                         AnimationGraphPlayer::new(player.skeleton().clone()).with_graph(graph.clone()),
@@ -2748,10 +2770,7 @@ fn advance_rolls(
                 }
                 commands.entity(character).remove::<AlsRollBlendOut>();
             }
-            roll.time = dt;
-            if roll.time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
-                roll.natural_blend_start = Some(roll.time);
-            }
+            roll.advance_playback(dt, true);
         }
     }
 }
@@ -2829,7 +2848,7 @@ fn roll_drive_system(
             rotation.0 = world_rotation;
         }
         let weight = roll.weight();
-        let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
+        let clip_time = roll.clip_time();
         if !movement_resolved {
             let falling = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Air);
             let prior_vertical = vel.y;

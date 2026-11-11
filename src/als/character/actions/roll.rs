@@ -5,6 +5,7 @@ use crate::als::motion::AlsViewYaw;
 use crate::als::orientation::yaw_to_world_forward;
 use crate::als::start_stop::{MoveDirection, classify};
 use crate::als::state::{LocomotionState, Stance};
+use crate::extensions::profile_blend::{AlphaBlendMode, MontageBlend, advance_forward_montage_position};
 
 pub const ROLL_MONTAGE_SEQUENCE_LENGTH_SECS: f32 = 1.5;
 pub const ROLL_PLAY_RATE: f32 = 1.3;
@@ -13,11 +14,20 @@ pub const ROLL_WEIGHT_IN_SECS: f32 = 0.1;
 pub const ROLL_WEIGHT_OUT_SECS: f32 = 0.3;
 pub const ROLL_ROTATION_HALF_LIFE_SECS: f32 = 0.1;
 pub const ROLL_ON_LAND_SPEED_THRESHOLD: f32 = 7.0;
+const ROLL_BRANCHING_POINTS: &[f32] = &include!("../../settings/roll_montage_clock.rs");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RollLifecycle {
     pub started: bool,
     pub ended: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RollMontagePlayback {
+    position: f32,
+    previous_position: f32,
+    previous_weight: f32,
+    blend: MontageBlend,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -26,6 +36,7 @@ pub struct AlsRollState {
     pub time: f32,
     pub previous_time: f32,
     pub natural_blend_start: Option<f32>,
+    pub montage: Option<RollMontagePlayback>,
     pub direction_yaw: f32,
     pub last_direction: MoveDirection,
     pub stance_before_roll: Stance,
@@ -38,6 +49,7 @@ impl Default for AlsRollState {
             time: 0.0,
             previous_time: 0.0,
             natural_blend_start: None,
+            montage: None,
             direction_yaw: 0.0,
             last_direction: MoveDirection::Forward,
             stance_before_roll: Stance::Standing,
@@ -87,11 +99,84 @@ pub fn damper_exact_angle(
 
 impl AlsRollState {
     pub fn weight(&self) -> f32 {
+        self.montage.map_or_else(|| self.elapsed_weight(self.time), |montage| montage.blend.weight())
+    }
+
+    fn elapsed_weight(&self, time: f32) -> f32 {
         let alpha = if let Some(start) = self.natural_blend_start {
             let duration = ROLL_DURATION_SECS - start;
-            if duration > 0.0 { (ROLL_DURATION_SECS - self.time) / duration } else { 0.0 }
-        } else { self.time / ROLL_WEIGHT_IN_SECS }.clamp(0.0, 1.0);
+            if duration > 0.0 { (ROLL_DURATION_SECS - time) / duration } else { 0.0 }
+        } else { time / ROLL_WEIGHT_IN_SECS }.clamp(0.0, 1.0);
         alpha * alpha * (3.0 - 2.0 * alpha)
+    }
+
+    pub(crate) fn previous_weight(&self) -> f32 {
+        self.montage.map_or_else(|| self.elapsed_weight(self.previous_time), |montage| montage.previous_weight)
+    }
+
+    pub(crate) fn clip_time(&self) -> f32 {
+        self.montage.map_or_else(|| (self.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS),
+            |montage| montage.position)
+    }
+
+    pub(crate) fn previous_clip_time(&self) -> f32 {
+        self.montage.map_or_else(|| (self.previous_time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS),
+            |montage| montage.previous_position)
+    }
+
+    pub(crate) fn remaining_play_time(&self) -> f32 {
+        (ROLL_MONTAGE_SEQUENCE_LENGTH_SECS - self.clip_time()) / ROLL_PLAY_RATE
+    }
+
+    fn begin_playback(&mut self) {
+        self.active = true;
+        self.time = 0.0;
+        self.previous_time = 0.0;
+        self.natural_blend_start = None;
+        self.montage = None;
+    }
+
+    fn playback_at_elapsed(&self) -> RollMontagePlayback {
+        let (mut blend, elapsed) = if let Some(start) = self.natural_blend_start {
+            (MontageBlend::new(1.0, 0.0, ROLL_DURATION_SECS - start, AlphaBlendMode::HermiteCubic),
+                (self.time - start).max(0.0))
+        } else {
+            (MontageBlend::new(0.0, 1.0, ROLL_WEIGHT_IN_SECS, AlphaBlendMode::HermiteCubic), self.time)
+        };
+        let weight = blend.advance(elapsed);
+        let position = self.clip_time();
+        RollMontagePlayback {
+            position,
+            previous_position: position,
+            previous_weight: weight,
+            blend,
+        }
+    }
+
+    pub(crate) fn advance_playback(&mut self, delta: f32, natural_blend: bool) -> bool {
+        let mut montage = self.montage.unwrap_or_else(|| self.playback_at_elapsed());
+        self.previous_time = self.time;
+        self.time += delta;
+        montage.previous_position = montage.position;
+        montage.previous_weight = montage.blend.weight();
+        if natural_blend { montage.blend.advance(delta); }
+        let blend = &mut montage.blend;
+        let start = &mut self.natural_blend_start;
+        let elapsed = self.time;
+        advance_roll_clip(&mut montage.position, delta, |position| {
+            let remaining = (ROLL_MONTAGE_SEQUENCE_LENGTH_SECS - position) / ROLL_PLAY_RATE;
+            if natural_blend && start.is_none() && remaining <= ROLL_WEIGHT_OUT_SECS {
+                *start = Some(elapsed);
+                *blend = MontageBlend::new(blend.weight(), 0.0, remaining, AlphaBlendMode::HermiteCubic);
+            }
+        });
+        let ended = natural_blend && start.is_some() && montage.blend.weight() <= 0.0;
+        if ended {
+            self.active = false;
+            self.time = self.time.min(ROLL_DURATION_SECS);
+        }
+        self.montage = Some(montage);
+        ended
     }
 
     pub fn root_motion_active(&self) -> bool {
@@ -111,10 +196,7 @@ impl AlsRollState {
         self.direction_yaw = velocity_yaw.unwrap_or(actor_yaw);
         self.last_direction = MoveDirection::Forward;
         self.stance_before_roll = stance;
-        self.active = true;
-        self.time = 0.0;
-        self.previous_time = 0.0;
-        self.natural_blend_start = None;
+        self.begin_playback();
         RollLifecycle {
             started: true,
             ended: false,
@@ -133,34 +215,53 @@ impl AlsRollState {
         self.previous_time = self.time;
         if self.active {
             let playing = self.root_motion_active();
-            self.time += dt;
-            if self.natural_blend_start.is_none() && self.time >= ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS {
-                self.natural_blend_start = Some(self.time);
-            }
-            if self.time >= ROLL_DURATION_SECS {
-                self.active = false;
-                self.time = ROLL_DURATION_SECS;
-                lifecycle.ended = true;
-            }
+            lifecycle.ended = self.advance_playback(dt, true);
             if playing { return lifecycle; }
         }
         if *loco == LocomotionState::Grounded && cmd.roll_pressed {
             self.last_direction = direction.0;
             self.direction_yaw = direction.1;
             self.stance_before_roll = *stance;
-            self.active = true;
-            self.time = 0.0;
-            self.previous_time = 0.0;
-            self.natural_blend_start = None;
+            self.begin_playback();
             lifecycle.started = true;
         }
         lifecycle
     }
 }
 
+pub(crate) fn advance_roll_clip(position: &mut f32, delta: f32, after_step: impl FnMut(f32)) {
+    advance_forward_montage_position(position, delta, ROLL_PLAY_RATE,
+        ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_BRANCHING_POINTS, after_step);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn roll_uses_native_substeps_and_accumulated_blend_weights() {
+        let native: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d118b/roll.native.json"
+        )).unwrap();
+        let samples = native["montage_clock_probe"]["samples"].as_array().unwrap();
+        assert_eq!(samples.len(), 14);
+        for sample in samples {
+            let name = sample["name"].as_str().unwrap();
+            let mut state = AlsRollState::default();
+            assert!(state.update(&base_cmd(), (MoveDirection::Forward, 0.0),
+                &LocomotionState::Grounded, &Stance::Standing, 0.0).started);
+            for (index, frame) in sample["frames"].as_array().unwrap().iter().enumerate() {
+                if state.active {
+                    state.advance_playback(frame["delta_seconds"].as_f64().unwrap() as f32, true);
+                }
+                assert_eq!(state.weight(), frame["weight"].as_f64().unwrap() as f32, "{name}: weight at {index}");
+                if frame["playing"].as_bool().unwrap() {
+                    assert_eq!(state.clip_time(), frame["position"].as_f64().unwrap() as f32,
+                        "{name}: clip position at {index}");
+                }
+            }
+        }
+    }
 
     #[test]
     fn roll_montage_weight_uses_source_hermite_cubic_blends() {

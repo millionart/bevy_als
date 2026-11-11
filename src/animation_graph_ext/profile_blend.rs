@@ -149,8 +149,12 @@ impl MontageBlend {
         self.from + (self.to - self.from) * transition_alpha(alpha, self.mode, &[])
     }
 
+    pub(crate) fn weight(&self) -> f32 {
+        self.value_at(self.alpha)
+    }
+
     pub(crate) fn advance(&mut self, delta: f32) -> f32 {
-        let current = self.value_at(self.alpha);
+        let current = self.weight();
         if current == self.value_at(1.0) { return current; }
         if self.remaining > delta {
             self.alpha = (self.alpha + ((1.0 - self.alpha) / self.remaining) * delta).clamp(0.0, 1.0);
@@ -159,7 +163,27 @@ impl MontageBlend {
             self.alpha = 1.0;
             self.remaining = 0.0;
         }
-        self.value_at(self.alpha)
+        self.weight()
+    }
+}
+
+pub(crate) fn advance_forward_montage_position(
+    position: &mut f32, delta: f32, play_rate: f32, length: f32, branching_points: &[f32],
+    mut after_step: impl FnMut(f32),
+) {
+    let mut time_remaining = delta;
+    for _ in 0..9 {
+        if time_remaining <= 1e-8 || *position >= length { break; }
+        let mut movement = time_remaining * play_rate;
+        let end = *position + movement;
+        if let Some(marker) = branching_points.iter().copied().find(|marker| *position < *marker && *marker <= end) {
+            movement = marker - *position;
+        }
+        movement = movement.min(length - *position);
+        if movement <= 0.0 { break; }
+        *position += movement;
+        time_remaining = (time_remaining - movement / play_rate).max(0.0);
+        after_step(*position);
     }
 }
 

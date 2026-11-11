@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use crate::als_camera::AlsCameraShakeRequest;
 use crate::als::character::AlsCharacter;
 use crate::als::mantle::MantleKind;
-use crate::als::roll::{AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_PLAY_RATE};
+use crate::als::roll::AlsRollState;
+#[cfg(test)]
+use crate::als::roll::ROLL_PLAY_RATE;
 use crate::als::state::Stance;
 use crate::als::transition::AlsPhysicalStanceOverride;
 use crate::extensions::{
@@ -602,21 +604,20 @@ fn refresh_animation_event_playbacks(
         let mut entries = Vec::new();
         let current = samplers.iter().find(|(_, sampler, tail)| sampler.character == character && tail.is_none()).map(|(entity, _, _)| entity.to_bits()).unwrap_or(0);
         let mut roll_instances = samplers.iter().filter_map(|(entity, sampler, tail)| {
-            (sampler.character == character).then_some(tail.map(|tail| (entity.to_bits(), tail.time, None, tail.weight(), true))) .flatten()
+            (sampler.character == character).then_some(tail.map(|tail| (entity.to_bits(), tail.clip_time, None, tail.weight(), true))) .flatten()
         }).collect::<Vec<_>>();
         if let Some(roll) = roll.filter(|state| state.active) {
-            let previous = AlsRollState { time: roll.previous_time, ..*roll };
-            let weight = roll.weight().max(previous.weight());
-            roll_instances.push((current, roll.time, Some(roll.previous_time), weight, roll_blend_out.is_some()));
+            let weight = roll_blend_out.map_or_else(|| roll.weight().max(roll.previous_weight()),
+                |blend| blend.weight().max(blend.previous_weight()));
+            roll_instances.push((current, roll.clip_time(), Some(roll.previous_clip_time()), weight, roll_blend_out.is_some()));
         }
-        for (instance_id, elapsed, previous, weight, interrupted) in roll_instances {
-            let time = (elapsed * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
+        for (instance_id, time, previous, weight, interrupted) in roll_instances {
             for source in [SOURCE_ROLL_SEQUENCE, SOURCE_ROLL_MONTAGE] {
                 if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
                     push_playback(&mut entries, source, graph_clip, time, weight, false, interrupted);
                     if let Some(entry) = entries.last_mut() {
                         entry.instance_id = instance_id;
-                        entry.previous_time = previous.map(|time| (time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS));
+                        entry.previous_time = previous;
                     }
                 }
             }
@@ -1527,7 +1528,11 @@ pub(crate) mod tests {
                 total += app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count();
             }
             assert_eq!(total, 2, "Default roll shake intervals were lost or duplicated");
-            app.world_mut().get_mut::<AlsRollState>(character).unwrap().time = 0.0;
+            {
+                let mut roll = app.world_mut().get_mut::<AlsRollState>(character).unwrap();
+                roll.time = 0.0;
+                roll.montage = None;
+            }
             app.update();
             assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count(), 1, "A seek used the last observed time instead of the true pre-step position");
             for _ in 0..13 { app.update(); }
