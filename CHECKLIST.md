@@ -6403,7 +6403,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色通过Ragdoll输入进入，pelvis既有V=(1,0,0)m/s、W=0；在实际kinematic目标producer处给下一目标0.5m/s位移和0.15rad旋转。60Hz进入handoff时V被改为0.5、Wy=9rad/s，30Hz为0.5、4.5，源均应保留1、0。60/30Hz×匹配/改变下一目标×原顺序/提前Dynamic共8组6PASS/2FAIL，仅提前模式切换即恢复。证据`bf144_ragdoll_phase37_entry_preserves_previous_body_velocity`、`37/final/`；这是受控动画目标的真实入口consumer，不宣称自然布娃娃轨迹已对齐。
   - 漏检：旧启动测试核对最终Dynamic数量，速度测试在PrePhysics图运行后重新注入V/W，掩盖更早的覆盖。D75是随后驱动力测速顺序，不能解释本项。未改图、调度或依赖源码。
 
-- [ ] BF144-D106 / P3 — 动画刚体角速度用轴角计算，偏离源四元数差分。
+- [x] BF144-D106 / P3 — 动画刚体角速度用轴角计算，偏离源四元数差分。 静态实现完成，统一验证待执行。
+  - 19:32 source/static 闭环：按源最短弧、四元数差分、乘当前共轭与近零步长守卫，统一动画骨骼同步和 PA 相对目标 producer。复用已有速度系统注册位置，保留线速度、参考空间和通用图体的算法。已写父旋转、反号目标、零步长与通用体对照，D105 夹具接到同一实际 producer。源与目标身份 `docs/audit/bf144/d106/`；编译、测试、消融和真实入口待统一 Gate，D107 单独处理时钟。开始19:29，预估20:14，实际结束2026-11-11 19:32 +08:00，偏差−42分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 19:29 +08:00，预估结束20:14 +08:00。依据：fresh Chaos 角速度公式与两个实际动画刚体 producer 已定位，复用已有速度系统注册替换点、相对空间和测试夹具。先实现角速度公式，本项保持世界帧分母，物理时钟归下一项。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:1201–1243`对kinematic目标调用CalculateAngularVelocity；`ChaosCore/Private/Rotation.cpp:107–126`先保持最短弧，再取`2*((q1-q0)/dt*conjugate(q0)).xyz`。同轴有限角应为`2*sin(angle/2)/dt`。
   - Target：`ragdoll_link.rs:529–536`的动画body同步及依赖`physics_systems_avian.rs:88–95`使用normalized差值quat的scaled-axis/dt。该差异发生在生成W时，独立于D84的动态旋转积分及D85的soft阻尼。
   - 反例：完整角色pelvis从共同旧pose到旋转0.6rad的新动画bone pose，经过实际sync与下一帧Dynamic handoff；夹具提前Dynamic排除D105。60Hz目标Wy=36rad/s、源35.46243；30Hz为18与17.731215。零旋转通过，仅改为源quat差分后恢复；长帧中的独立时钟差异归D107。联合24组15PASS/9FAIL，证据`bf144_ragdoll_phase37_animated_velocity_reaches_dynamic_handoff`、`37/final/`。

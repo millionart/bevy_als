@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use avian3d::prelude::{PhysicsSystems, Position, Rotation};
-use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, prelude::*, transform::TransformSystems};
+use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, math::Isometry3d, prelude::*, transform::TransformSystems};
 use bevy_animation_graph::core::{
     animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance},
     animation_graph::DEFAULT_OUTPUT_RAGDOLL_CONFIG,
@@ -13,7 +13,8 @@ use bevy_animation_graph::core::{
         update_relative_kinematic_position_based_body_velocities},
     plugin::AnimationGraphSet,
     pose::Pose,
-    ragdoll::{bone_mapping::RagdollBoneMap, configuration::RagdollConfig, spawning::SpawnedRagdoll},
+    ragdoll::{bone_mapping::RagdollBoneMap, configuration::RagdollConfig,
+        relative_kinematic_body::{RelativeKinematicBody, RelativeKinematicBodyPositionBased}, spawning::SpawnedRagdoll},
     skeleton::Skeleton,
     space_conversion::SpaceConversionContext,
     systems::{RootMotionOutput, animation_player, debug_draw_animation_players, extract_root_motion, run_animation_player},
@@ -80,7 +81,7 @@ impl Plugin for PostPhysicsAnimationPlugin {
                 ScheduleCleanupPolicy::RemoveSystemsOnly).expect("kinematic velocity schedule must initialize");
             assert_eq!(count, 1, "kinematic velocity update must replace exactly one default system");
         });
-        app.add_systems(PostUpdate, update_relative_kinematic_position_based_body_velocities
+        app.add_systems(PostUpdate, update_relative_kinematic_target_velocities
             .after(update_ragdolls_avian).before(update_relative_kinematic_body_velocities)
             .in_set(AnimationGraphSet::PrePhysics).run_if(|time: Res<Time>| !time.delta().is_zero()));
         app.add_systems(PostUpdate, apply_animation_to_visible_targets.in_set(AnimationGraphSet::Final));
@@ -88,6 +89,37 @@ impl Plugin for PostPhysicsAnimationPlugin {
             (read_back_poses_avian, normalize_scaled_readback_pose, apply_readback_pose)
                 .chain().in_set(PostPhysicsAnimationSet::Readback),
         );
+    }
+}
+
+pub(crate) fn source_kinematic_angular_velocity(start: Quat, target: Quat, delta: f32) -> Vec3 {
+    if delta <= 1e-8 { return Vec3::ZERO; }
+    let target = if start.dot(target) < 0.0 { -target } else { target };
+    let derivative = (target - start) / delta;
+    let angular = (derivative * start.conjugate()) * 2.0;
+    Vec3::new(angular.x, angular.y, angular.z)
+}
+
+pub(crate) fn update_relative_kinematic_target_velocities(
+    time: Res<Time>,
+    mut bodies: Query<(&RelativeKinematicBodyPositionBased, &Position, &Rotation,
+        &mut RelativeKinematicBody, Has<crate::extensions::RagdollActiveMode>)>,
+    references: Query<(&Position, &Rotation), Without<RelativeKinematicBodyPositionBased>>,
+) {
+    let delta = time.delta_secs();
+    for (target, position, rotation, mut body, use_source) in &mut bodies {
+        let world = Isometry3d::new(position.0, rotation.0);
+        let current = target.relative_to.and_then(|entity| references.get(entity).ok())
+            .map_or(world, |(position, rotation)| Isometry3d::new(position.0, rotation.0).inverse() * world);
+        let next = target.relative_target;
+        body.kinematic_linear_velocity = ((next.translation - current.translation) / delta).into();
+        body.kinematic_angular_velocity = if use_source {
+            source_kinematic_angular_velocity(current.rotation, next.rotation, delta)
+        } else {
+            let next_rotation = if current.rotation.dot(next.rotation) < 0.0 { -next.rotation } else { next.rotation };
+            (next_rotation * current.rotation.conjugate()).normalize().to_scaled_axis() / delta
+        };
+        body.relative_to = target.relative_to;
     }
 }
 
@@ -260,6 +292,40 @@ fn extract_late_root_motion(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kinematic_ragdoll_targets_use_the_source_quaternion_difference() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::ragdoll::definition::BodyMode;
+
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+        let delta = time.delta_secs();
+        world.insert_resource(time);
+        let base_rotation = Quat::from_rotation_z(0.4);
+        let base = world.spawn((Position(Vec3::ZERO), Rotation(base_rotation))).id();
+        let start = Quat::from_rotation_x(0.3);
+        let angle = 0.6_f32;
+        let end = -(Quat::from_rotation_y(angle) * start);
+        let [source, other] = [true, false].map(|source| {
+            let mut entity = world.spawn((Position(Vec3::ZERO), Rotation(base_rotation * start),
+                RelativeKinematicBodyPositionBased {
+                    relative_to: Some(base),
+                    relative_target: Isometry3d::new(Vec3::X * 0.01, end),
+                }));
+            if source { entity.insert(crate::extensions::RagdollActiveMode(BodyMode::Dynamic)); }
+            entity.id()
+        });
+        world.run_system_once(update_relative_kinematic_target_velocities).unwrap();
+        let source = world.get::<RelativeKinematicBody>(source).unwrap();
+        let other = world.get::<RelativeKinematicBody>(other).unwrap();
+        assert_eq!(source.relative_to, Some(base));
+        assert!(source.kinematic_linear_velocity.abs_diff_eq(Vec3::X * (0.01 / delta), 1e-6));
+        assert!(source.kinematic_angular_velocity.abs_diff_eq(Vec3::Y * (2.0 * (angle * 0.5).sin() / delta), 1e-5));
+        assert!(other.kinematic_angular_velocity.abs_diff_eq(Vec3::Y * (angle / delta), 1e-5));
+        assert_eq!(source_kinematic_angular_velocity(start, end, 1e-8), Vec3::ZERO);
+    }
 
     #[test]
     fn root_and_linked_sequences_consume_the_player_clock() {

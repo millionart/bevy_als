@@ -13,6 +13,7 @@ use crate::extensions::ragdoll_angular_drive::{
 };
 use crate::extensions::{RagdollActiveMode, RagdollCollisionMember, RagdollPhysicsHandoffSet, RagdollPhysicsProfileApplied};
 use crate::extensions::SourceCollisionIgnorePawn;
+use crate::extensions::post_physics_animation::source_kinematic_angular_velocity;
 use avian3d::prelude::{
     AngularVelocity, Collider, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
     RigidBody, Rotation, ShapeCastConfig, ShapeHitData, SpatialQueryFilter,
@@ -626,11 +627,7 @@ fn sync_animated_ragdoll_bodies(
             let delta = time.delta_secs();
             if !position.is_added() && delta > 0.0 {
                 linear_velocity.0 = (Vec3::from(target.translation) - position.0) / delta;
-                let mut difference = (target.rotation * rotation.0.conjugate()).normalize();
-                if difference.w < 0.0 {
-                    difference = -difference;
-                }
-                angular_velocity.0 = difference.to_scaled_axis() / delta;
+                angular_velocity.0 = source_kinematic_angular_velocity(rotation.0, target.rotation, delta);
             } else {
                 linear_velocity.0 = Vec3::ZERO;
                 angular_velocity.0 = Vec3::ZERO;
@@ -1438,10 +1435,9 @@ pub(crate) mod tests {
     fn ragdoll_entry_preserves_body_velocity_before_physics() {
         use bevy::math::Isometry3d;
         use bevy::time::TimeUpdateStrategy;
-        use bevy_animation_graph::core::physics_systems_avian::{
-            update_ragdolls_avian, update_relative_kinematic_position_based_body_velocities,
-        };
+        use bevy_animation_graph::core::physics_systems_avian::update_ragdolls_avian;
         use bevy_animation_graph::core::ragdoll::relative_kinematic_body::RelativeKinematicBodyPositionBased;
+        use crate::extensions::post_physics_animation::update_relative_kinematic_target_velocities;
 
         for delta in [1.0_f32 / 60.0, 1.0 / 30.0] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
@@ -1460,7 +1456,7 @@ pub(crate) mod tests {
                     position.0 + Vec3::X * (delta * 0.5),
                     Quat::from_rotation_y(0.15) * rotation.0,
                 );
-            }).after(update_ragdolls_avian).before(update_relative_kinematic_position_based_body_velocities));
+            }).after(update_ragdolls_avian).before(update_relative_kinematic_target_velocities));
             app.add_systems(PostUpdate, (move |bodies: Query<(&RigidBody, &LinearVelocity, &AngularVelocity)>| {
                 let (mode, linear, angular) = bodies.get(pelvis).unwrap();
                 assert_eq!(*mode, RigidBody::Dynamic);
