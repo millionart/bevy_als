@@ -265,7 +265,7 @@ pub fn evaluate_players<F: QueryFilter>(
             animation_time.advance_by(std::time::Duration::from_secs_f32(delta.max(0.0)));
             inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &animation_time, &resources));
         }
-        if playing && player.get_error().is_none() && player.get_default_output_pose().is_some()
+        if initial.is_none() && playing && player.get_error().is_none() && player.get_default_output_pose().is_some()
             && let Some(gate) = gate.as_mut() { gate.pending_update = false; }
     });
     players.par_iter_mut().for_each(|(_, player, mut inputs, _, _)| {

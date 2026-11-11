@@ -213,7 +213,7 @@ mod tests {
             animation_graph::AnimationGraph, animation_graph_player::{AnimationGraphPlayer, AnimationSource}};
         use crate::{animation_context_projection::root_pose_source_node,
             character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, AlsCharacterBlueprint, spawn_als_character},
-            extensions::{SourceCurveName, player_animation_context_state, post_physics_animation::{InitialAnimation, PostPhysicsAnimationSet}},
+            extensions::{SourceCurveName, player_animation_context_state, post_physics_animation::{AnimationPoseUpdateGate, InitialAnimation, PostPhysicsAnimationSet}},
             als::{character::{AlsBirthAnimationPending, AlsCollisionLayer}, state::{Gait, LocomotionState}}};
 
         #[derive(Resource, Default)]
@@ -225,7 +225,7 @@ mod tests {
             mut output: ResMut<Capture>,
             actors: Query<(&Transform, &LocomotionState, &Gait, Has<AlsBirthAnimationPending>, Has<RigidBodyDisabled>), With<AlsCharacter>>,
             avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-            players: Query<(&AnimationGraphPlayer, Option<&InitialAnimation>)>,
+            players: Query<(&AnimationGraphPlayer, &AnimationPoseUpdateGate, Option<&InitialAnimation>)>,
             graphs: Res<Assets<AnimationGraph>>,
         ) {
             for (avatar, instance) in &avatars {
@@ -236,10 +236,11 @@ mod tests {
                     assert_eq!(*gait, Gait::Running);
                     assert!((transform.translation.y - 1.5).abs() < 1e-6);
                 }
-                let Ok((player, initial)) = players.get(instance.player_entity()) else { continue; };
+                let Ok((player, gate, initial)) = players.get(instance.player_entity()) else { continue; };
                 if player.get_default_output_pose().is_none() { continue; }
                 let frame = player.get_context_arena().unwrap().frame_index();
                 if initial.is_some_and(|initial| initial.ready) && output.initial.is_none() {
+                    assert!(gate.pending_update, "Zero-delta birth pose cleared pending before component registration completed");
                     assert_eq!(player.get_global_input_data("animation.pending_update").and_then(|value| value.as_bool().ok()), Some(true));
                     let AnimationSource::Graph(graph) = player.get_animation_source() else { panic!("Birth graph is absent"); };
                     let node = root_pose_source_node(graphs.get(graph).unwrap()).unwrap();
@@ -250,6 +251,8 @@ mod tests {
                         .map(|name| player.get_global_input_data(name).and_then(|value| value.as_f32().ok()).unwrap());
                     output.initial = Some((transform.translation, *mode, frame, curves, deltas));
                 } else if initial.is_none() && output.initial.is_some() && output.ordinary.is_none() {
+                    assert_eq!(player.get_global_input_data("animation.pending_update").and_then(|value| value.as_bool().ok()), Some(true));
+                    assert!(!gate.pending_update, "Ordinary update did not clear registration pending");
                     output.ordinary = Some((transform.translation, *mode, frame));
                 }
             }
@@ -294,6 +297,81 @@ mod tests {
         assert!(position.y < 1.5);
         assert_eq!(mode, LocomotionState::Air);
         assert_eq!(frame, 2);
+    }
+
+    #[test]
+    fn first_ordinary_animation_update_consumes_jump_without_selecting_jump_pose() {
+        use avian3d::prelude::{Collider, CollisionLayers, LayerMask, RigidBody};
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::{
+            animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph,
+            animation_graph_player::AnimationGraphPlayer, context::node_states::StateKey,
+        };
+        use bevy_tnua::TnuaController;
+        use crate::{
+            als::{character::AlsCollisionLayer, control_scheme::{AlsControlScheme, AlsControlSchemeActionDiscriminant},
+                input::AlsInputCommand, state::LocomotionState},
+            animation_visibility::AlsAnimationTickOption,
+            character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character},
+            extensions::{interruptible_fsm::InterruptibleFsmState, post_physics_animation::AnimationPoseUpdateGate},
+        };
+
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 1.0, 100.0),
+            Transform::from_xyz(0.0, -0.5, 0.0), CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL)));
+        let fall = "edccb450-4d4e-e5ca-ad05-ae8b1d2b22d3";
+        let jump = "3c79c741-4298-752a-f317-838c0ca38811";
+        for (x, delay_jump) in [(0.0, false), (5.0, true)] {
+            let actor = app.world_mut().run_system_once_with(|In(x): In<f32>, mut commands: Commands, assets: Res<AssetServer>,
+                mut params: ResMut<Assets<crate::als::params::AlsMovementParams>>,
+                mut configs: ResMut<Assets<crate::als::control_scheme::AlsControlSchemeConfig>>| {
+                spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                    AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(x, 0.924, 0.0)) })
+            }, x).unwrap();
+            let avatar = app.world().get::<AlsCharacterAssembly>(actor).unwrap().avatar;
+            app.world_mut().entity_mut(avatar).insert(AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+            let entity = loop {
+                app.update();
+                if let Some(scene) = app.world().get::<AnimatedSceneInstance>(avatar)
+                    && app.world().get::<AnimationGraphPlayer>(scene.player_entity()).is_some_and(|player| player.get_default_output_pose().is_some())
+                {
+                    break scene.player_entity();
+                }
+                assert!(std::time::Instant::now() < deadline, "Birth animation did not become ready");
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            };
+            let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+            assert_eq!(player.get_context_arena().unwrap().frame_index(), 1);
+            assert_eq!(player.elapsed(), 0.0);
+            if delay_jump { app.update(); }
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().jump_pressed = true;
+            app.update();
+
+            let flow = app.world().get::<TnuaController<AlsControlScheme>>(actor).unwrap().action_flow_status();
+            assert_eq!(flow.just_starting(), Some(AlsControlSchemeActionDiscriminant::Jump));
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Air);
+            assert!(app.world().get::<crate::actual_motion::AlsActualMotion>(actor).unwrap().world_velocity.y > 0.0);
+            let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+            assert_eq!(player.get_global_input_data("animation.pending_update").unwrap().as_bool().unwrap(), !delay_jump);
+            assert!(!app.world().get::<AnimationPoseUpdateGate>(entity).unwrap().pending_update);
+            let arena = player.get_context_arena().unwrap();
+            let graphs = app.world().resource::<Assets<AnimationGraph>>();
+            let state = arena.iter_context_ids().find_map(|id| {
+                let context = arena.get_context(id)?;
+                let node = graphs.get(context.get_graph_id())?.nodes.values()
+                    .find(|node| node.name == "Locomotion States\nState Machine")?;
+                if !context.node_caches.is_updated(node.id, StateKey::Default) { return None; }
+                context.node_states.get_all_upcoming_states::<InterruptibleFsmState>(node.id).ok()?
+                    .find(|state| state.last_output_pose().is_some())
+            }).expect("Locomotion state machine must publish its current state");
+            let (expected, other) = if delay_jump { (jump, fall) } else { (fall, jump) };
+            assert_eq!(state.recorded_state_weight(expected), 1.0, "Wrong startup pose (delay_jump={delay_jump})");
+            assert_eq!(state.recorded_state_weight(other), 0.0);
+            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().jump_pressed = false;
+        }
     }
 
     #[test]

@@ -6657,7 +6657,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际Rifle瞄准后，PoseAiming=0.994912；覆写播放器或移除后重插时，新实例frame=1、elapsed=0，Head alpha仍为0.005088而源应为1。两路径×普通/瞄准旧姿态×保留/全部清空/仅清PoseAiming的12组10PASS/2FAIL，两个恢复控制均通过。仅清该字段使最终head四元数从约(0.025741,0.113965,−0.004760,0.993140)变为(0.026208,0.219716,−0.001992,0.975210)，其余旧曲线保持不变。
   - 漏检：既有Discard测试只覆盖标签、slot、linked graph与rig query输入，没有覆盖独立的根曲线投影。实例ID已变化、旧标签和gate已清理，排除旧实例继续运行。证据`66/initial/`、`66/field_initial/`与`bf144_animation_phase66_replacement_curve_ownership`；仅登记，未修复。
 
-- [ ] BF144-D149 / P3 — 启动零delta求值后提前清除pending，改变首个普通更新的动画选择。
+- [x] BF144-D149 / P3 — 启动零delta求值后提前清除pending，改变首个普通更新的动画选择。
+  - 2026-11-12 00:25 +0800 实际结束早于00:58预估，未拆分。fresh根图、Locomotion原生T19/T20和UE组件注册闭环见 `docs/audit/bf144/d149/`。零delta出生求值保留pending，普通更新成功后清除。三组静态重放得到Fall、移除条件后Jump及延迟输入Jump，压缩源报告解压哈希一致。旧66原始运行报告未随当前Git保留，已加入真实出生/起跳反例，Rust、消融恢复和Playground待统一验证。
+  - 本轮开始2026-11-12 00:20 +08:00，预估结束2026-11-12 00:58 +08:00。核对注册态与首个普通更新的pending边界，以及实际InAir状态图的Jump/Fall转换。
   - Source：fresh `Actor.cpp:6262,6297`先逐个RegisterComponent，再标记全部注册完成；`SkeletalMeshComponent.cpp:1036,1215–1216`在mesh注册过程中执行初始化零delta求值。ALS `NativePostUpdateAnimation:227`因此保留pending；之后`InitializeComponent:1455`以force=False调用InitAnim，不重新初始化已有主实例。首个普通tick仍按pending执行`RefreshInAirOnGameThread:1103–1104`，抑制并清除Jump请求，随后才清pending。
   - Target：`post_physics_animation.rs:188–205`用零delta完成首个pose后立即令gate.pending_update=False；`ab_als_provider.rs:310–313`在第二次图更新发布False，`locomotion_layer.rs:90–101,190`因而接受同帧Jump请求。
   - 反例：通过公开spawn入口生成新角色，确认首个图frame=1、elapsed=0、已在地面；下一帧实际Tnua Jump启动，两侧共同竖直速度4.0365m/s，目标FSM进入Jump（权重1），源应Fall。仅在夹具保留pending到这次更新，FSM即进入Fall（权重1）；延后一帧才按Jump的控制仍进入Jump。3组2PASS/1FAIL，证据`66/startup_initial/`及`bf144_animation_phase66_startup_pending`。
