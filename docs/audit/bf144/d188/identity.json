@@ -1,0 +1,62 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "db342657120a89c77c4c05f4a0c12b41d8d01df99477e4c05c7293eb7c301ce3"
+  },
+  {
+    "path": "docs/audit/bf144/d187/roll.native.json.gz",
+    "sha256": "17e8c6f573914cb9cb53d830a4de372188576ff5f0943946b0173e7e953f69b2"
+  },
+  {
+    "path": "docs/audit/bf144/d188/README.md",
+    "sha256": "82372e6f1e7e2e3f86ccc6e3f8864e0aea40585511946825bfd010f1ac851d60"
+  },
+  {
+    "path": "docs/audit/bf144/d188/character.native.json.gz",
+    "sha256": "d9fb93485c0e044c75de0eda6bb0c631c13cb7c7de1fa4b5e14d87a3417fd2f3"
+  },
+  {
+    "path": "docs/audit/bf144/d188/character.native.json.reader.report.json",
+    "sha256": "df41a982e7c2edcb5bbeea3ced622ebc9a71c9ca8521a91d68f8468e64f833c9"
+  },
+  {
+    "path": "docs/audit/bf144/d188/character.native.sha256",
+    "sha256": "3338499cda0ba5d33cea495102a7b290ccae080291bdff38e9919b6463967823"
+  },
+  {
+    "path": "docs/audit/bf144/d188/crouching.native.json.gz",
+    "sha256": "e5d3490eaf0e9d5f6959f9641945e1281ad789b54a3ae507a6b3bf2672a4a486"
+  },
+  {
+    "path": "docs/audit/bf144/d188/crouching.native.json.reader.report.json",
+    "sha256": "f27b62e35675b3cf75040118d588c913e706626e7546836b7c7f1a0b12dbf19c"
+  },
+  {
+    "path": "docs/audit/bf144/d188/crouching.native.sha256",
+    "sha256": "5708fd43e61fdb0bad27626f4277efbff97c47c3915d09baa0271287a4ea682f"
+  },
+  {
+    "path": "docs/audit/bf144/d188/replay_animation_speed.py",
+    "sha256": "a121618d7c91771b4d6ba73e823ce78c82eae03ca53d0b65179f5967a62c4571"
+  },
+  {
+    "path": "docs/audit/bf144/d188/speed.replay.json",
+    "sha256": "3236cbaaf3bd2fdf3493b4bc0b2ae8362236fd595ccd2f107bbf76d4bb770509"
+  },
+  {
+    "path": "src/als/character/actions/roll.rs",
+    "sha256": "573c4f30c6542ee0a9962df5f0dcd7f396e5d66bd90138230b137b44e414052b"
+  },
+  {
+    "path": "src/als/character/actions/roll_drive.rs",
+    "sha256": "a85e5a54badc5042830651f7e8d437d316336577fc9cf3557ea5fb3a51dbac7f"
+  },
+  {
+    "path": "src/als/character/animation_instances/ab_als_provider.rs",
+    "sha256": "9be1b7528c7ce3dda8b47be0f771a0fcced0038a7c16532878978957ab66d10e"
+  },
+  {
+    "path": "src/als/character/animation_instances/crouching_layer.rs",
+    "sha256": "512209b0225d7e3d9918bc1641e1858138b38a8046f7de47b0e12bf17ce95b0b"
+  }
+]

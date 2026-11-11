@@ -7055,7 +7055,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：真实角色入口隐藏超过1秒、启动Roll后输入0秒更新，目标gate=false且arena计数不推进，源规则要求更新；只在夹具补回零步长gate即通过。可见/隐藏、原样/恢复、0/0.5µs/1µs/1⁄60s共16组15PASS/1FAIL，8个恢复控制全过。只证明活动Montage接到零步长更新的边界，不把没有TickPose资格的隐藏空闲帧计为失败，也未模拟完整UE世界暂停。
   - 漏检：旧可见性测试只检查recent阈值、选项与pending；旧零步长通知测试只检查事件，没有检查对应动画图更新。证据`97/native.json`、`97/static.json`与`97/final/`；仅登记，未修复。
 
-- [ ] BF144-D188 / P3 — Roll的运动动画输入使用了移动后的速度，遗漏源移动前快照。
+- [x] BF144-D188 / P3 — Roll的运动动画输入使用了移动后的速度，遗漏源移动前快照。
+  - 2026-11-12 06:31 +0800 实际结束，较07:17预估提前46分钟，未拆分。fresh CMC CDO与蹲姿条件闭环，Roll槽在物理前留存速度/输入，提前TickPose发布旧缓存，淡出与低步长回到当前值。受控数值、原始读数及30/60Hz入口夹具见 `docs/audit/bf144/d188/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 06:23 +08:00，预估结束2026-11-12 07:17 +08:00。重采Roll根运动、CMC与角色缓存阶段、蹲姿图消费；恢复有效提前TickPose帧的动画速度快照并核对淡出、组件零步长与普通运动。
   - Source：`MovementComponent.cpp:186–188`与原生CDO的bTickBeforeOwner=True使CMC先于Character；ALS `PostInitializeComponents:124`令Mesh依赖Character。活动根运动montage由`CharacterMovementComponent.cpp:2923,12027–12065`在StartNewPhysics之前TickPose；`AnimInstance.cpp:765–792`推进Montage后调用NativeUpdate，ALS `RefreshLocomotionOnGameThread:687–716`从尚未经过本帧Character::RefreshLocomotion的缓存复制速度。Mesh随后不重复NativeUpdate，工作线程刷新也不重采运动速度；普通无根montage更新则在Character刷新后读取当前值。当前源组件与Mesh均处于TG_PrePhysics，此处比较的是角色移动内部的先后顺序。
   - Target：`character_runtime.rs:83–98`将ActualMotion与provider统一安排在实际物理速度之后；`ab_als_provider.rs:421–429`发布本帧新speed，并据它计算MovingSmooth和蹲姿stride/play rate。普通行走符合源时点，但可见Roll的CMC提前TickPose路径没有独立快照。
   - 反例：30Hz Roll混入第2帧，当前速度1.582839m/s、源应采上一份0.471937m/s；目标MovingSmooth=True，源False，原生蹲姿Move条件直接绑定该字段，目标提前求值蹲行序列。60Hz第5帧两侧蹲行序列都有效时，目标速率1.499798、按源速度快照应1.285530；槽权重0.925926，Locomotion仍参与输出。只恢复speed输入后，30Hz主反例最终姿态最大骨骼旋转差约0.03rad；物理速度与Roll槽权重保持一致。64组16FAIL、32个恢复控制全过，普通行走控制通过。

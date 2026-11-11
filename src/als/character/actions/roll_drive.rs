@@ -2354,8 +2354,15 @@ pub struct AlsRollSlotRuntime {
     pub root_motion_delta: Vec3,
     pub root_motion_rotation: Quat,
     pub root_motion_scale: f32,
+    pub(crate) animation_locomotion: Option<RollAnimationLocomotion>,
     pub pose_standing: f32,
     pub pose_grounded: f32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RollAnimationLocomotion {
+    pub speed: f32,
+    pub has_input: bool,
 }
 
 #[derive(Resource)]
@@ -2592,11 +2599,14 @@ pub(crate) fn prepare_roll_slot_samples(
 }
 
 fn bridge_roll_slot_samples(
+    time: Res<Time>,
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     rolls: Query<&AlsRollState, With<crate::als::character::AlsCharacter>>,
     get_ups: Query<&crate::get_up::AlsGetUpState>,
     blend_outs: Query<&AlsRollBlendOut>,
     root_scales: Query<&AlsNotifyRootMotionScale>,
+    motion: Query<(&crate::actual_motion::AlsActualMotion, Option<&AlsNotifyLocomotionAction>,
+        Option<&crate::als_camera::AlsCameraCustomTimeDilation>)>,
     curve_handle: Res<RollSlotCurveHandle>,
     curves: Res<Assets<AlsAnimCurves>>,
     mut samplers: Query<(Entity, &mut AlsRollSlotSampler, &AnimationGraphPlayer, &RootMotionOutput, Option<&AlsRollTail>)>,
@@ -2697,10 +2707,19 @@ fn bridge_roll_slot_samples(
             }
             target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, if pose_ready { 1.0_f32 } else { 0.0 });
         }
+        let animation_locomotion = motion.get(character).ok().and_then(|(motion, action, dilation)| {
+            let delta = time.delta_secs() * dilation.map_or(1.0, |value| value.0);
+            (delta >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
+                && roll.is_some_and(AlsRollState::root_motion_active_at_frame_start)
+                && !blend_outs.contains(character)
+                && action != Some(&AlsNotifyLocomotionAction::Ragdolling))
+                .then_some(RollAnimationLocomotion { speed: motion.horizontal_speed, has_input: motion.has_input })
+        });
         commands.entity(character).insert(AlsRollSlotRuntime {
             active: roll.is_some() || samples.iter().any(|(_, _, _, current)| !current), weight, pose_ready,
             root_motion_delta: root_motion.translation_delta, root_motion_rotation: root_motion.rotation_delta,
             root_motion_scale: root_scales.get(character).map_or(1.0, |scale| scale.0),
+            animation_locomotion,
             pose_standing: curve_values[0], pose_grounded: curve_values[1],
         });
     }
@@ -2878,8 +2897,8 @@ fn roll_drive_system(
         let delta_too_small = if custom { dt <= 0.0 } else { dt <= 1e-5 };
         let grounded_subminimum = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Grounded)
             && actor_delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS;
-        if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || grounded_subminimum || blend_outs.contains(character)
-            || roll.previous_time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
+        if !roll.root_motion_active_at_frame_start() || action == Some(&AlsNotifyLocomotionAction::Ragdolling)
+            || delta_too_small || grounded_subminimum || blend_outs.contains(character) {
             continue;
         }
 

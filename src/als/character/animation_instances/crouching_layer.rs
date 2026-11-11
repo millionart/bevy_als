@@ -280,6 +280,7 @@ fn crouching_layer_writer(
             &AlsActualMotion,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
+            Option<&crate::roll_drive::AlsRollSlotRuntime>,
         ),
         With<AlsCharacter>,
     >,
@@ -287,7 +288,7 @@ fn crouching_layer_writer(
     players: Query<Option<&AlsRootAnimationContext>, With<AnimationGraphPlayer>>,
 ) {
     for (avatar, instance) in &avatars {
-        let Ok((stance, motion, input, input_override)) = characters.get(avatar.character) else {
+        let Ok((stance, motion, input, input_override, roll)) = characters.get(avatar.character) else {
             continue;
         };
         if *stance != Stance::Crouching {
@@ -301,11 +302,13 @@ fn crouching_layer_writer(
             .move_dir
             .length_squared()
             > f32::EPSILON;
+        let (speed, has_input) = roll.and_then(|roll| roll.animation_locomotion)
+            .map_or((motion.horizontal_speed, has_input), |locomotion| (locomotion.speed, locomotion.has_input));
         commands
             .entity(avatar.character)
             .insert(crouching_curve_outputs(
                 context,
-                source_moving_smooth(has_input, motion.horizontal_speed),
+                source_moving_smooth(has_input, speed),
             ));
     }
 }

@@ -223,7 +223,8 @@ fn ab_als_input_writer(
             Option<&AlsFirstPersonView>,
             Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
             Option<&AlsFootLockState>,
-            (&AlsMovementParamsHandle, Option<&AlsGroundedDynamics>, Option<&LocomotionState>),
+            (&AlsMovementParamsHandle, Option<&AlsGroundedDynamics>, Option<&LocomotionState>,
+                Option<&crate::roll_drive::AlsRollSlotRuntime>),
         ),
         With<AlsCharacter>,
     >,
@@ -246,7 +247,7 @@ fn ab_als_input_writer(
         first_person,
         custom_dilation,
         feet,
-        (params_handle, dynamics, locomotion),
+        (params_handle, dynamics, locomotion, roll),
     ) in &characters
     {
         let Some(params) = params_assets.get(&params_handle.0) else {
@@ -275,7 +276,10 @@ fn ab_als_input_writer(
                 source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
                 standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
-            let has_input = motion.has_input;
+            let (animation_speed, has_input) = roll.and_then(|roll| roll.animation_locomotion)
+                .map_or((motion.horizontal_speed, motion.has_input), |locomotion| {
+                    (locomotion.speed, locomotion.has_input)
+                });
             let delta_seconds = if initial.is_some() { 0.0 } else { time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0) };
             let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
             let previous_view = player
@@ -389,7 +393,7 @@ fn ab_als_input_writer(
             let pose_gait = context.and_then(|state| state.f32("PoseGait")).unwrap_or(0.0).clamp(0.0, 3.0);
             let pose_grounded = context.and_then(|state| state.f32("PoseGrounded")).unwrap_or(0.0);
             let (running, sprinting) = crate::standing_layer::unweighted_gait_amounts(pose_gait, pose_grounded);
-            let speed = motion.horizontal_speed / avatar_transform.to_scale_rotation_translation().0.y;
+            let speed = animation_speed / avatar_transform.to_scale_rotation_translation().0.y;
             let stride = crate::standing_source::standing_stride_amount(running, speed);
             for (key, value) in [
                 ("standing_state.walk_run_blend_amount", if *gait == Gait::Walking { 0.0 } else { 1.0 }),
@@ -422,12 +426,12 @@ fn ab_als_input_writer(
                     "grounded_state.hips_direction_lock_amount",
                     hips_direction_lock,
                 ),
-                ("locomotion_state.speed", motion.horizontal_speed),
+                ("locomotion_state.speed", animation_speed),
             ]
             .into_iter()
             .chain(source_pose_curve_inputs(context, feet))
             .chain(source_crouching_movement_inputs(
-                motion.horizontal_speed,
+                animation_speed,
                 avatar_transform.to_scale_rotation_translation().0.y,
                 params.crouch.animated_crouch_speed,
             )) {
@@ -445,7 +449,7 @@ fn ab_als_input_writer(
                 ),
             ]
             .into_iter()
-            .chain(source_locomotion_flags(has_input, motion.horizontal_speed))
+            .chain(source_locomotion_flags(has_input, animation_speed))
             {
                 player.set_global_input_data(key, value);
             }
@@ -459,6 +463,45 @@ fn ab_als_input_writer(
 mod tests {
     use super::*;
     use crate::als::{input::AlsInputCommand, motion::AlsInputOverride};
+
+    #[test]
+    fn loaded_roll_publishes_the_animation_speed_from_its_pose_tick_phase() {
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+
+        for delta in [1.0_f32 / 30.0, 1.0 / 60.0] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(delta)));
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let mut different_root_speed = false;
+            let mut saw_fade = false;
+            for frame in 0..(1.3 / delta).ceil() as usize {
+                let before = *app.world().get::<AlsActualMotion>(character).unwrap();
+                app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = frame == 0;
+                app.update();
+                let world = app.world();
+                let roll = world.get::<crate::als::roll::AlsRollState>(character).unwrap();
+                let current = world.get::<AlsActualMotion>(character).unwrap();
+                let early = roll.root_motion_active_at_frame_start();
+                let expected = if early { &before } else { current };
+                different_root_speed |= early && (before.horizontal_speed - current.horizontal_speed).abs() > 1e-3;
+                saw_fade |= !early && roll.active;
+                let graph = world.get::<AnimationGraphPlayer>(player).unwrap();
+                let scalar = |key| graph.get_global_input_data(key).unwrap().as_f32().unwrap();
+                assert_eq!(scalar("locomotion_state.speed"), expected.horizontal_speed, "delta={delta} frame={frame}");
+                let moving = graph.get_global_input_data("locomotion_state.b_moving_smooth").unwrap().as_bool().unwrap();
+                assert_eq!(moving, source_moving_smooth(expected.has_input, expected.horizontal_speed));
+
+                let params_handle = world.get::<AlsMovementParamsHandle>(character).unwrap();
+                let params = world.resource::<Assets<AlsMovementParams>>().get(&params_handle.0).unwrap();
+                let scale = world.get::<GlobalTransform>(avatar).unwrap().to_scale_rotation_translation().0.y;
+                for (key, value) in source_crouching_movement_inputs(expected.horizontal_speed, scale, params.crouch.animated_crouch_speed) {
+                    assert!((scalar(key) - value).abs() < 1e-6, "delta={delta} frame={frame} key={key}");
+                }
+            }
+            assert!(different_root_speed && saw_fade);
+        }
+    }
 
     #[test]
     fn public_half_turn_input_publishes_source_head_yaw() {

@@ -183,6 +183,10 @@ impl AlsRollState {
         self.active && self.time < ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS
     }
 
+    pub(crate) fn root_motion_active_at_frame_start(&self) -> bool {
+        self.active && self.previous_time < ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS
+    }
+
     pub fn start_from_landing(
         &mut self,
         landing_speed: f32,
