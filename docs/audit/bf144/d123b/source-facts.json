@@ -1,0 +1,126 @@
+{
+  "sources": [
+    {
+      "path": "Plugins/ALS-Refactored/Source/ALS/Private/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c",
+      "anchors": [
+        {
+          "line": 2012,
+          "source": "void UAlsAnimationInstance::PlayQueuedTurnInPlaceAnimation()"
+        },
+        {
+          "line": 2023,
+          "source": "const FMontageBlendSettings BlendInSettings{Settings->TurnInPlace.BlendDuration};"
+        },
+        {
+          "line": 2028,
+          "source": "FMontageBlendSettings BlendOutSettings{Settings->TurnInPlace.BlendDuration};"
+        },
+        {
+          "line": 2029,
+          "source": "BlendOutSettings.BlendMode = EMontageBlendMode::Inertialization;"
+        },
+        {
+          "line": 2031,
+          "source": "PlaySlotAnimationAsDynamicMontage_WithBlendSettings(TurnInPlaceSettings->Sequence, TurnInPlaceState.QueuedSlotName,"
+        },
+        {
+          "line": 2032,
+          "source": "BlendInSettings, BlendOutSettings, TurnInPlaceSettings->PlayRate, 1, 0.0f);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimInstanceProxy.cpp",
+      "sha256": "05bbce3b799bcb42df19528c8f014eadea728e922382fffda1bb074d0e4a40b1",
+      "anchors": [
+        {
+          "line": 1960,
+          "source": "NewPose.Curve.InitFrom(*RequiredBones);"
+        },
+        {
+          "line": 2011,
+          "source": "} // if IsValidSlot"
+        },
+        {
+          "line": 2056,
+          "source": "else // Otherwise we need to blend non additive poses together"
+        },
+        {
+          "line": 2064,
+          "source": "for (int32 Index = 0; Index < NonAdditivePoses.Num(); Index++)"
+        },
+        {
+          "line": 2070,
+          "source": "}"
+        },
+        {
+          "line": 2080,
+          "source": ""
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimationRuntime.cpp",
+      "sha256": "cc1c1ab4a70fd3607deae8792cb48709eb5948c58a07eac704e6dcb264d8d159",
+      "anchors": [
+        {
+          "line": 420,
+          "source": "BlendPose<ETransformBlendMode::Overwrite>(SourcePoses[0], OutPose, SourceWeights[SourceWeightsIndices[0]]);"
+        },
+        {
+          "line": 424,
+          "source": "BlendPose<ETransformBlendMode::Accumulate>(SourcePoses[PoseIndex], OutPose, SourceWeights[SourceWeightsIndices[PoseIndex]]);"
+        },
+        {
+          "line": 429,
+          "source": "{"
+        },
+        {
+          "line": 466,
+          "source": "BlendPose<ETransformBlendMode::Overwrite>(*SourcePoses[0], OutPose, SourceWeights[0]);"
+        },
+        {
+          "line": 470,
+          "source": "BlendPose<ETransformBlendMode::Accumulate>(*SourcePoses[PoseIndex], OutPose, SourceWeights[PoseIndex]);"
+        },
+        {
+          "line": 476,
+          "source": "OutPose.NormalizeRotations();"
+        }
+      ]
+    }
+  ],
+  "native_assets": [
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel.uasset",
+        "sha256": "da33d332e3ef0b05730718adbc8154b103282e271856c7235938924f22075149"
+      },
+      "report": "blend.native.json"
+    },
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.uasset",
+        "sha256": "1b37111ff58bdd26abac2cf5592f6c4fc458fcece33b616a915f9bc1c55b6122"
+      },
+      "report": "crouching.native.json",
+      "additive": "AAT_None",
+      "root_motion": "False",
+      "rate_scale": "1.000000"
+    },
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.uasset",
+        "sha256": "5dcd53d991648b102e38763c1b5bdc77453b29b4f8e27f20a9cecf33e90b3aaf"
+      },
+      "report": "standing.native.json",
+      "additive": "AAT_None",
+      "root_motion": "False",
+      "rate_scale": "1.000000"
+    }
+  ],
+  "consumer": "bridge_turn_slot_samples and SourceSlotNode",
+  "blend_comparison": "blend-comparison.json",
+  "runtime_gate": "Pending unified target build and slot regression."
+}

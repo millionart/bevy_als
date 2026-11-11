@@ -1,0 +1,10 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "f976473f421ed661b00317c98782641c78f2dd00ca0058563ef111d562fa70aa"
+  },
+  {
+    "path": "src/als/character/animation_instances/turn_layer.rs",
+    "sha256": "f8c88a0a88dc15d504fd9c5ebcfb0b4c36a3b3d46de16ddab8cfacb24f682177"
+  }
+]

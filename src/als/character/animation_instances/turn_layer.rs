@@ -6,8 +6,7 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
-use bevy_animation_graph::core::interpolation::linear::LinearInterpolator;
+use bevy_animation_graph::core::edge_data::DataValue;
 use std::collections::HashMap;
 
 use crate::character_assembly::AlsCharacterAvatar;
@@ -474,16 +473,9 @@ fn compose_turn_montage_poses(
         })
         .collect::<Vec<_>>();
     let total_weight = entries.iter().map(|(_, weight)| *weight).sum::<f32>();
-    let mut entries = entries.into_iter();
-    let (mut output, mut accumulated) = entries.next()?;
-    for (pose, weight) in entries {
-        let next = accumulated + weight;
-        LinearInterpolator {
-            bone_mask: BoneMask::all(),
-        }
-        .interpolate_pose(&mut output, &pose, weight / next.max(f32::EPSILON));
-        accumulated = next;
-    }
+    let output = entries.into_iter()
+        .map(|(pose, weight)| pose.scalar_mult(weight / total_weight))
+        .reduce(|accumulated, pose| accumulated.linear_add(&pose))?;
     Some((output, total_weight.min(1.0)))
 }
 
@@ -1055,24 +1047,23 @@ mod tests {
                 source_weights.push(if entry.blend_out_elapsed.is_some() { entry.blend_out_start_weight*(1.0-native_alpha) } else { native_alpha });
                 source_poses.push(pose);
             }
-            let mut source = source_poses[0].clone();
-            LinearInterpolator { bone_mask:BoneMask::all() }.interpolate_pose(
-                &mut source, &source_poses[1], source_weights[1]/source_weights.iter().sum::<f32>());
+            let total = source_weights.iter().sum::<f32>();
+            let source = source_poses[0].scalar_mult(source_weights[0] / total)
+                .linear_add(&source_poses[1].scalar_mult(source_weights[1] / total));
             let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
             let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
             assert!(player.get_error().is_none());
             let actual = player.get_global_input_data(turn_slot_contract(false).generated_pose_key).unwrap().as_pose().unwrap();
-            let mut minimum_dot = 1.0_f32;
+            let mut rotation_error = 0.0_f32;
             let mut location_error = 0.0_f32;
             for bone in source.paths.keys() {
                 let a = actual.get_bone(*bone).unwrap();
                 let s = source.get_bone(*bone).unwrap();
-                if let (Some(a),Some(s))=(a.rotation,s.rotation) { minimum_dot=minimum_dot.min(a.dot(s).abs()); }
+                if let (Some(a),Some(s))=(a.rotation,s.rotation) { rotation_error=rotation_error.max((a-s).length().min((a+s).length())); }
                 if let (Some(a),Some(s))=(a.translation,s.translation) { location_error=location_error.max(a.distance(s)); }
             }
-            assert!(minimum_dot>1.0-1e-5 && location_error<1e-5,
-                "Native Turn Hermite blend changes the actual slot pose: delta={frame_delta}, source_weights={source_weights:?}, rotation_error_degrees={}, location_error={location_error}",
-                (2.0*minimum_dot.clamp(-1.0,1.0).acos()).to_degrees());
+            assert!(rotation_error<1e-6 && location_error<1e-5,
+                "Native Turn Hermite blend changes the actual slot pose: delta={frame_delta}, source_weights={source_weights:?}, rotation_error={rotation_error}, location_error={location_error}");
         }
     }
 
@@ -1546,6 +1537,52 @@ mod tests {
             result.get_bone(bone).and_then(|pose| pose.translation),
             Some(Vec3::X * 5.0)
         );
+    }
+
+    #[test]
+    fn turn_stack_keeps_rotation_magnitude_until_the_base_pose_is_added() {
+        use bevy_animation_graph::core::pose::{BoneId, BonePose, Pose};
+        let bone = BoneId::default();
+        let make_pose = |rotation| {
+            let mut pose = Pose::default();
+            pose.add_bone(BonePose::from_transform(Transform::from_rotation(rotation)), bone);
+            pose
+        };
+        let base = make_pose(Quat::from_rotation_y(0.45));
+        let distance = |a: &Pose, b: &Pose| {
+            let a = a.get_bone(bone).unwrap().rotation.unwrap();
+            let b = b.get_bone(bone).unwrap().rotation.unwrap();
+            (a - b).length().min((a + b).length())
+        };
+        for crouching in [false, true] {
+            for count in [2, 3] {
+                let mut stack = AlsTurnMontageStack::default();
+                let mut poses = HashMap::new();
+                let mut samples = Vec::new();
+                for (weight, rotation) in [
+                    (0.22, Quat::from_rotation_x(1.7)),
+                    (0.18, Quat::from_rotation_y(-1.6)),
+                    (0.19, Quat::from_rotation_z(1.1)),
+                ].into_iter().take(count) {
+                    stack.begin(0.0, false, TURN_DUR_90, 1.0, crouching);
+                    let entry = stack.entries.last_mut().unwrap();
+                    entry.sampling_ready = true;
+                    entry.blend_out_start_weight = weight;
+                    entry.blend_out_elapsed = Some(0.0);
+                    let pose = make_pose(rotation);
+                    poses.insert(entry.id, pose.clone());
+                    samples.push((pose, weight));
+                }
+                let (overlay, weight) = compose_turn_montage_poses(&stack, &poses, crouching).unwrap();
+                assert_eq!(weight, samples.iter().map(|(_, weight)| weight).sum::<f32>());
+                samples.push((base.clone(), 1.0 - weight));
+                let expected = crate::extensions::source_pose_nodes::blend_source_poses(&samples);
+                let actual = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(&overlay), Some(weight));
+                let early = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(&overlay.normalize_quat()), Some(weight));
+                assert!(distance(&actual, &expected) < 1e-6);
+                assert!(distance(&early, &expected) > 1e-3);
+            }
+        }
     }
 
     #[test]
