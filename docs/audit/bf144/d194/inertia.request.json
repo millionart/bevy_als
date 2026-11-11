@@ -1,0 +1,2093 @@
+{
+  "node_property": "AnimGraphNode_Inertialization",
+  "samples": [
+    {
+      "name": "zero_paused",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 0
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "zero_10ns",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 0
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "zero_ordinary",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 0
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "time_epsilon_paused",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "time_epsilon_10ns",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "time_epsilon_ordinary",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "tiny_a_paused",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.05e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "tiny_a_10ns",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.05e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "tiny_a_ordinary",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.05e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "tiny_b_paused",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.1e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "tiny_b_10ns",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.1e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "tiny_b_ordinary",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.1e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "float_epsilon_paused",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.1920928955078125e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "float_epsilon_10ns",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.1920928955078125e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "float_epsilon_ordinary",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.1920928955078125e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "above_paused",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.2e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "above_10ns",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.2e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 1e-08,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "above_ordinary",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            100,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 1.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          },
+          "request_duration": 1.2e-07
+        },
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "InertialProbeCurve": 0.0
+          }
+        }
+      ]
+    }
+  ]
+}
