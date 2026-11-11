@@ -947,23 +947,33 @@ fn dispatch_animation_events(
             let Some(source) = source_clip(manifest, &playback.source_asset) else {
                 continue;
             };
-            let graph_handle =
-                graph_clip_handle(&mut graph_clip_handles, &asset_server, &playback.graph_clip);
-            let queue = crate::extensions::weighted_event_queue(sampled_queue(graph_clips.get(&graph_handle), playback.time), playback.weight);
             let source_runtime = runtime
                 .sources
                 .entry((playback.source_asset.clone(), playback.instance_id))
                 .or_default();
-            if playback.interrupted { continue; }
-            let clock = playback_clock(source_runtime, playback);
-            let definitions = timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD);
-            let signals = source_runtime.lifecycle.update_with_context(
-                &definitions,
-                &queue,
-                clock,
-                playback.weight,
-                EventDispatchContext::default(),
-            );
+            let signals = if playback.interrupted {
+                source_runtime.lifecycle.end_states(|id| {
+                    !source.events.iter().any(|event| {
+                        event.event_id == id && is_branching_montage_notify(source, event)
+                    })
+                })
+            } else {
+                let graph_handle =
+                    graph_clip_handle(&mut graph_clip_handles, &asset_server, &playback.graph_clip);
+                let queue = crate::extensions::weighted_event_queue(
+                    sampled_queue(graph_clips.get(&graph_handle), playback.time),
+                    playback.weight,
+                );
+                let clock = playback_clock(source_runtime, playback);
+                let definitions = timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD);
+                source_runtime.lifecycle.update_with_context(
+                    &definitions,
+                    &queue,
+                    clock,
+                    playback.weight,
+                    EventDispatchContext::default(),
+                )
+            };
             for signal in signals {
                 let event = source
                     .events
@@ -1414,6 +1424,55 @@ pub(crate) mod tests {
                 "Queued RootScale ignored native montage NotifyWeight at frame {frame}: weight={weight}");
             assert_eq!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap(), AlsNotifyLocomotionAction::Rolling,
                 "Native branching action was incorrectly filtered with queued notifications");
+        }
+    }
+
+    #[test]
+    fn interrupted_roll_ends_queued_scale_before_branching_action_termination() {
+        use crate::als::input::AlsInputCommand;
+
+        for before_stop in [1.3, 2.0] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+            app.update();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+            for _ in 0..5 {
+                app.update();
+            }
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 1.3);
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Rolling));
+            app.world_mut().get_mut::<AlsNotifyRootMotionScale>(character).unwrap().0 = before_stop;
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().ragdoll_pressed = true;
+            app.update();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().ragdoll_pressed = false;
+            let tail = app.world().get::<AlsAnimationEventPlaybacks>(character).unwrap().entries
+                .iter().find(|entry| entry.source_asset == SOURCE_ROLL_SEQUENCE).unwrap();
+            assert!(tail.interrupted && tail.weight > 0.0);
+            let instance = tail.instance_id;
+            let signals = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .filter(|event| event.character == character && event.instance_id == instance)
+                .collect::<Vec<_>>();
+            assert_eq!(signals.iter().filter(|event| event.class_name == "AlsAnimNotifyState_SetRootMotionScale")
+                .map(|event| event.phase).collect::<Vec<_>>(), [EventPhase::End]);
+            assert!(!signals.iter().any(|event| event.class_name == "AlsAnimNotifyState_SetLocomotionAction"));
+            let after_stop = if before_stop == 1.3 { 1.0 } else { before_stop };
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, after_stop);
+
+            let mut action_ends = 0;
+            for _ in 0..30 {
+                app.update();
+                for event in app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                    .filter(|event| event.character == character && event.instance_id == instance) {
+                    assert_ne!(event.class_name, "AlsAnimNotifyState_SetRootMotionScale");
+                    action_ends += usize::from(event.class_name == "AlsAnimNotifyState_SetLocomotionAction"
+                        && event.phase == EventPhase::End);
+                }
+            }
+            assert_eq!(action_ends, 1);
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, after_stop);
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Ragdolling));
         }
     }
 

@@ -1,0 +1,105 @@
+{
+  "samples": [
+    {
+      "name": "playing",
+      "steps": [
+        {
+          "delta_seconds": 0.1
+        },
+        {
+          "delta_seconds": 0.1
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "interrupted",
+      "steps": [
+        {
+          "delta_seconds": 0.1
+        },
+        {
+          "delta_seconds": 0.1
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "stop_seconds": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        }
+      ]
+    }
+  ]
+}

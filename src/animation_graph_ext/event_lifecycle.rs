@@ -93,7 +93,19 @@ impl EventLifecycle {
     }
 
     pub fn reset(&mut self) -> Vec<EventLifecycleSignal> {
-        let mut ids = self.active_states.keys().cloned().collect::<Vec<_>>();
+        self.end_states(|_| true)
+    }
+
+    pub(crate) fn end_states(
+        &mut self,
+        should_end: impl Fn(&str) -> bool,
+    ) -> Vec<EventLifecycleSignal> {
+        let mut ids = self
+            .active_states
+            .keys()
+            .filter(|id| should_end(id))
+            .cloned()
+            .collect::<Vec<_>>();
         ids.sort();
         let mut output = Vec::with_capacity(ids.len());
         for id in ids {
@@ -191,27 +203,7 @@ impl EventLifecycle {
         }
 
         let previously_active = self.active_states.keys().cloned().collect::<HashSet<_>>();
-        let mut output = Vec::new();
-        let mut ended = self
-            .active_states
-            .keys()
-            .filter(|id| !current.contains_key(*id))
-            .cloned()
-            .collect::<Vec<_>>();
-        ended.sort();
-        for id in ended {
-            let state = self
-                .active_states
-                .remove(&id)
-                .expect("active state must exist");
-            output.push(EventLifecycleSignal {
-                id,
-                phase: EventPhase::End,
-                weight: state.weight,
-                percentage: state.percentage,
-                track: state.track,
-            });
-        }
+        let mut output = self.end_states(|id| !current.contains_key(id));
 
         let mut current_ids = current.keys().cloned().collect::<Vec<_>>();
         current_ids.sort();
