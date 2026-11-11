@@ -57,7 +57,7 @@ impl Default for EventDispatchContext {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EventPhase {
     Begin,
     Active,
@@ -90,6 +90,10 @@ pub struct EventLifecycle {
 impl EventLifecycle {
     pub fn active_count(&self) -> usize {
         self.active_states.len()
+    }
+
+    pub(crate) fn active_state_ids(&self) -> impl Iterator<Item = &str> {
+        self.active_states.keys().map(String::as_str)
     }
 
     pub fn reset(&mut self) -> Vec<EventLifecycleSignal> {

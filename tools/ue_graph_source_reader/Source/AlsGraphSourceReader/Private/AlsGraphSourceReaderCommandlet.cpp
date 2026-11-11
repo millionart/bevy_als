@@ -35,6 +35,7 @@
 #include "AnimNodes/AnimNode_TwoWayBlend.h"
 #include "AnimNodes/AnimNode_LayeredBoneBlend.h"
 #include "AnimNodes/AnimNode_Slot.h"
+#include "Animation/ActiveMontageInstanceScope.h"
 #include "Animation/AnimMontageEvaluationState.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
@@ -6672,8 +6673,42 @@ TSharedPtr<FJsonObject> CaptureNotifyDispatchProbe(UObject* Asset)
     Instance->ClearQueuedAnimEvents(true);
     Instance->TriggerAnimNotifies(0.1f, UAnimInstance::ENotifyTriggerMode::ForceMontageOnly);
     Capture(TEXT("forced_montage_only"));
+    UAnimInstance* MontageInstance = NewObject<UAnimInstance>(Mesh);
+    TArray<TSharedPtr<FJsonValue>> MontageRows;
+    const int32 MontageSources[][2] = {
+        {11, INDEX_NONE},
+        {11, 22},
+        {22, INDEX_NONE},
+        {INDEX_NONE, INDEX_NONE},
+        {33, INDEX_NONE},
+    };
+    for (const auto& Sources : MontageSources)
+    {
+        MontageInstance->ClearQueuedAnimEvents(true);
+        for (const int32 Source : Sources)
+        {
+            if (Source == INDEX_NONE) { continue; }
+            FAnimNotifyEventReference MontageReference(State, Sequence);
+            MontageReference.AddContextData<UE::Anim::FAnimNotifyMontageInstanceContext>(Source);
+            MontageInstance->NotifyQueue.AddAnimNotifies({MontageReference}, 1.0f);
+        }
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetNumberField(TEXT("queued_count"), MontageInstance->NotifyQueue.AnimNotifies.Num());
+        MontageInstance->TriggerAnimNotifies(0.1f, UAnimInstance::ENotifyTriggerMode::ForceMontageOnly);
+        const auto& Active = MontageInstance->ActiveAnimNotifyEventReference;
+        Row->SetNumberField(TEXT("active_state_count"), Active.Num());
+        if (Active.Num() == 1)
+        {
+            const auto* Context = Active[0].GetContextData<UE::Anim::FAnimNotifyMontageInstanceContext>();
+            check(Context != nullptr);
+            Row->SetNumberField(TEXT("montage_instance_id"), Context->MontageInstanceID);
+            Row->SetNumberField(TEXT("notify_instance_id"), Active[0].GetNotifyInstanceID());
+        }
+        MontageRows.Add(MakeShared<FJsonValueObject>(Row));
+    }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
     Probe->SetArrayField(TEXT("rows"), Rows);
+    Probe->SetArrayField(TEXT("montage_identity_rows"), MontageRows);
     Probe->SetNumberField(TEXT("dispatch_policy"),
         IConsoleManager::Get().FindConsoleVariable(TEXT("a.Notifies.DispatchPolicy"))->GetInt());
     Probe->SetBoolField(TEXT("pose_ticked_this_frame"), Mesh->PoseTickedThisFrame());

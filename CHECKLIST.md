@@ -7006,7 +7006,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际共同派发的中断/零权重/外部改写三个轨迹共七帧回调或倍率不符；只移除中断记录后通过。真实Roll后进入Ragdoll，owner0.5/1/2共66帧中42帧不符，倍率分别多保留23/11/5个世界帧，最后才补End；对应恢复全部通过。正常自然Roll的244帧和非匹配倍率保留控制通过。
   - 漏检/边界：旧Ragdoll中断测试只核对动作停止与混出，没有核对活动排队通知。Ragdoll期间实际Roll驱动已停止，本项不把仍存在的root采样量算作位移；仅确认状态/回调延迟，跨阶段跳过派发仍由后续批次覆盖。证据`93/analysis.json`、`bf144_animation_phase93_natural_roll_interrupt`，未修生产。
 
-- [ ] BF144-D182 / P2 — 同一Roll状态通知按播放实例拆分，重入时覆盖源应保留的根运动倍率。
+- [x] BF144-D182 / P2 — 同一Roll状态通知按播放实例拆分，重入时覆盖源应保留的根运动倍率。
+  - 2026-11-12 05:42 +0800 实际结束，较06:25预估提前43分钟，未拆分。fresh UE队列以同一活动ID跨11→22交接，空队列后才发新ID；静态回放保留外部倍率2，去除任一合并条件均有反例。实际派发/重入夹具与原始读数见 `docs/audit/bf144/d182/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 05:35 +08:00，预估结束2026-11-12 06:25 +08:00。重采原生Roll状态标志及队列/回调跨实例身份，恢复实际派发与重入根运动倍率；沿当前通知归属保留branching实例合同。
   - Source：fresh原生RootScale的NotifyStateBehaviorFlags=0；`AnimNotifyQueue.cpp:70–76`合并同一通知，`AnimInstance.cpp:1893–1938`仅在NoMergeOnConcurrentPlay置位时要求实例ID相同。因此旧Roll与新Roll连续提供同一通知时保留活动身份，不重复Begin。ALS重入许可允许action已经清空而旧montage尚在播放；Begin才设置1.3，Tick不重写，End也保护其他调用改过的倍率。
   - Target：`animation_events.rs:239–241,950–955`以(source_asset, instance_id)分别保存生命周期。新Roll实例重新Begin；旧尾部还会另发End。superseded_roll只避免部分清理写入，不能阻止新Begin覆盖倍率。
   - 反例：真实Roll到action结束且旧实例仍active时再次按Roll；默认1.3的六帧中两帧多发Begin/End但位移一致。先通过现有倍率组件设置2再重入时，目标改回1.3，随后五帧实际根运动驱动少移动约0.72–2.40cm；源此时应保留2。仅在夹具按源入队规则保留同一通知身份，12个真实重入恢复帧全部通过；四个普通接替失败帧也恢复。

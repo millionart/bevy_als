@@ -881,6 +881,11 @@ fn dispatch_animation_events(
             .filter(|playback| source_clip(manifest, &playback.source_asset).is_some())
             .map(|playback| (playback.source_asset.clone(), playback.instance_id))
             .collect::<HashSet<_>>();
+        let previous_states = runtime.sources.values()
+            .flat_map(|source| source.lifecycle.active_state_ids())
+            .map(str::to_owned)
+            .collect::<HashSet<_>>();
+        let mut queued_scales = Vec::new();
         let inactive = runtime
             .sources
             .keys()
@@ -912,16 +917,10 @@ fn dispatch_animation_events(
                             *action = AlsNotifyLocomotionAction::None;
                         }
                     }
-                    if !superseded_roll && event.class_name == "AlsAnimNotifyState_SetRootMotionScale" {
-                        let scale = parameter_f32(&event.parameters, "TranslationScale", 1.0);
-                        if (root_scale.0 - scale).abs() <= 1e-8 {
-                            root_scale.0 = 1.0;
-                        }
-                    }
                     if !superseded_roll && event.class_name == "AlsAnimNotifyState_EarlyBlendOut" {
                         *early_blend_out = AlsNotifyEarlyBlendOut::default();
                     }
-                    events.write(AlsAnimationEvent {
+                    let message = AlsAnimationEvent {
                         character,
                         source: event_source,
                         instance_id,
@@ -938,7 +937,12 @@ fn dispatch_animation_events(
                         weight: signal.weight,
                         percentage: signal.percentage,
                         parameters: event.parameters.clone(),
-                    });
+                    };
+                    if message.class_name == "AlsAnimNotifyState_SetRootMotionScale" {
+                        queued_scales.push(message);
+                    } else {
+                        events.write(message);
+                    }
                 }
             }
             runtime.sources.remove(&(source_asset, instance_id));
@@ -1017,16 +1021,6 @@ fn dispatch_animation_events(
                         _ => {}
                     }
                 }
-                if class_name == "AlsAnimNotifyState_SetRootMotionScale" {
-                    let scale = parameter_f32(&parameters, "TranslationScale", 1.0);
-                    match signal.phase {
-                        EventPhase::Begin => root_scale.0 = scale,
-                        EventPhase::End if (root_scale.0 - scale).abs() <= 1e-8 => {
-                            root_scale.0 = 1.0;
-                        }
-                        _ => {}
-                    }
-                }
                 if class_name == "AlsAnimNotifyState_EarlyBlendOut" {
                     match signal.phase {
                         EventPhase::Begin | EventPhase::Active => {
@@ -1038,7 +1032,7 @@ fn dispatch_animation_events(
                         _ => {}
                     }
                 }
-                events.write(AlsAnimationEvent {
+                let message = AlsAnimationEvent {
                     character,
                     source: event_source,
                     instance_id: playback.instance_id,
@@ -1052,8 +1046,34 @@ fn dispatch_animation_events(
                     weight: signal.weight,
                     percentage: signal.percentage,
                     parameters,
-                });
+                };
+                if message.class_name == "AlsAnimNotifyState_SetRootMotionScale" {
+                    queued_scales.push(message);
+                } else {
+                    events.write(message);
+                }
             }
+        }
+        let current_states = runtime.sources.values()
+            .flat_map(|source| source.lifecycle.active_state_ids())
+            .collect::<HashSet<_>>();
+        let mut dispatched = HashSet::default();
+        for event in queued_scales {
+            match event.phase {
+                EventPhase::Begin if previous_states.contains(&event.event_id) => continue,
+                EventPhase::End if current_states.contains(event.event_id.as_str()) => continue,
+                _ => {}
+            }
+            if !dispatched.insert((event.event_id.clone(), event.phase)) {
+                continue;
+            }
+            let scale = parameter_f32(&event.parameters, "TranslationScale", 1.0);
+            match event.phase {
+                EventPhase::Begin => root_scale.0 = scale,
+                EventPhase::End if (root_scale.0 - scale).abs() <= 1e-8 => root_scale.0 = 1.0,
+                _ => {}
+            }
+            events.write(event);
         }
         match (physical_stance_override(action.clone()), physical_override) {
             (Some(next), Some(current)) if *current == next => {}
@@ -1307,6 +1327,43 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn queued_root_scale_keeps_its_identity_across_playback_instances() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<GraphClip>()
+            .init_asset::<AlsNotifyManifest>()
+            .init_resource::<AlsNotifyGraphClipHandles>()
+            .add_message::<AlsAnimationEvent>()
+            .add_message::<AlsCameraShakeRequest>();
+        let actor = app.world_mut().spawn(AlsCharacter).id();
+        configure_root_scale_notifications(&mut app, actor, &[(0.1, 0.8, 1.3)]);
+        let template = app.world().get::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].clone();
+        let frames: [(&[u64], &[(u64, EventPhase)], f32); 5] = [
+            (&[11], &[(11, EventPhase::Begin), (11, EventPhase::Active)], 1.3),
+            (&[11, 22], &[(11, EventPhase::Active)], 2.0),
+            (&[22], &[(22, EventPhase::Active)], 2.0),
+            (&[], &[(22, EventPhase::End)], 2.0),
+            (&[33], &[(33, EventPhase::Begin), (33, EventPhase::Active)], 1.3),
+        ];
+        for (index, (instances, expected, scale)) in frames.into_iter().enumerate() {
+            if index == 1 {
+                app.world_mut().get_mut::<AlsNotifyRootMotionScale>(actor).unwrap().0 = 2.0;
+            }
+            app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries = instances
+                .iter().map(|&instance_id| AlsAnimationEventPlayback {
+                    instance_id, time: 0.2, ..template.clone()
+                }).collect();
+            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            let actual = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .map(|event| (event.instance_id, event.phase)).collect::<Vec<_>>();
+            assert_eq!(actual.as_slice(), expected);
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0, scale);
+        }
+    }
+
+    #[test]
     fn point_notify_chance_matches_native_queue_and_preserves_state_notifies() {
         use bevy::ecs::system::RunSystemOnce;
         let mut manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
@@ -1500,14 +1557,18 @@ pub(crate) mod tests {
         let old = signals[0].instance_id;
         assert_eq!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap(), AlsNotifyLocomotionAction::None);
         assert!(app.world().get::<AlsRollState>(character).unwrap().active);
+        assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 1.3);
+        app.world_mut().get_mut::<AlsNotifyRootMotionScale>(character).unwrap().0 = 2.0;
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
         app.update();
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+        assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 2.0);
         signals.extend(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
             .filter(|event| event.character == character && event.source_asset == SOURCE_ROLL_MONTAGE
                 && event.class_name == "AlsAnimNotifyState_SetLocomotionAction"));
         for _ in 0..10 {
             app.update();
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 2.0);
             signals.extend(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
                 .filter(|event| event.character == character && event.source_asset == SOURCE_ROLL_MONTAGE
                     && event.class_name == "AlsAnimNotifyState_SetLocomotionAction"));
