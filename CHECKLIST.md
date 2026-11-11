@@ -6894,7 +6894,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧组合测试使用总值≤1或明显超额，没有覆盖(1,1+1e−5]。本项为共同有效权重输入的边界证据，不宣称默认动态过渡自然产生该精确总值；证据`84/extended.native.json`与`bf144_animation_phase84_actual_multi_slot`，未改生产算法。
   - BF144.91 Turn补充：预混先除总权重，随后`turn_layer.rs:487`将发布权重夹到1，同样提前消去微小超额。0.6/0.400005在站蹲、左右/90/180及相同姿态配对的20组全部失败，最大曲线差0.0005493164、scale向量差8.672015e−6；仅把旋转改为nlerp仍全部失败，源统一加权恢复全部通过。0.6/0.40002的权重、位置、scale及曲线控制通过，旋转差由D177单独覆盖。
 
-- [ ] BF144-D170 / P3 — 加性旋转在源近全权重区间仍插值，未保留full-weight分支。
+- [x] BF144-D170 / P3 — 加性旋转在源近全权重区间仍插值，未保留full-weight分支。
+  - 2026-11-12 04:08 +0800 实际结束，较04:45预估提前37分钟，未拆分。fresh全权重门槛及Head原始delta、十组原生旋转方向和平移/scale见 `docs/audit/bf144/d170/`。旧插值四个方向失配，全权重保留原始乘积，Rust两加性入口 fixture已加入。Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 04:03 +08:00，预估结束2026-11-12 04:45 +08:00。核源全权重下界、实际Head近单位delta与大角度对照，验证加性入口的旋转及原权重平移/scale。
   - BF144.452当前318完整Head补充：fresh full=1快路无delta预归一化；源F64/ARM64四域1272组/100488旋转行精确native后，仅加入delta-N使CC域24346个double/583个最终F32骨行改变，当前公开核精确阶段模型仅去delta-N另改变641行。两种精度域不强行等计，source与current单因素均有必要信号、物理删除/bytes恢复同target通过，见`docs/audit/bf144/452a/summary.json`及`.452b/analysis-primitive-restored.json`；无新编号，不把全部Q余差归本项。
   - Source：fresh `AnimationRuntime.cpp:1288–1312`在权重≥1−1e−5时走AccumulateWithAdditiveScale；Quaternion整体乘权后归一化，因此旋转方向等于完整加性旋转，平移/缩放仍按权重。实际C++/ISPC实现与50个公开原生累积样本已核对。
   - Target：`mesh_space_additive.rs:30–40`在所有权重下都与identity插值，包括0.99999/0.999995；已接近全权重仍略微缩小旋转。

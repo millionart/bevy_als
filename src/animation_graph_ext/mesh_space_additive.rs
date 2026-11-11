@@ -58,6 +58,9 @@ pub(crate) fn normalize_pose_rotation(rotation: Quat) -> Quat {
 }
 
 fn accumulate_additive_rotation(base: Quat, additive: Quat, alpha: f32) -> Quat {
+    if alpha >= 1.0 - 1e-5 {
+        return source_pose_rotation_product(additive * alpha, base);
+    }
     let identity_sign = if additive.w >= 0.0 { 1.0 } else { -1.0 };
     let weighted = normalize_pose_rotation(Quat::from_xyzw(
         additive.x * alpha,
@@ -479,6 +482,63 @@ mod tests {
             let expected = normalize_pose_rotation(source_pose_rotation_product(parent.inverse(), mesh));
             apply_mesh_space_additive(&mut base, &additive, 0.5, &skeleton);
             assert_eq!(base.get_bone(child).unwrap().rotation, Some(expected), "{}", case.name);
+        }
+    }
+
+    #[test]
+    fn additive_pose_uses_the_source_full_weight_rotation_branch() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            base: [f32; 4],
+            delta: [f32; 4],
+            weight: f32,
+            full: bool,
+            base_translation: [f32; 3],
+            delta_translation: [f32; 3],
+            base_scale: [f32; 3],
+            scale_delta: [f32; 3],
+            expected_rotation: [f32; 4],
+            expected_translation: [f32; 3],
+            expected_scale: [f32; 3],
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d170/additive.replay.json"
+        )).unwrap();
+        let (skeleton, root, _) = test_skeleton();
+        for case in fixture.cases {
+            let base_rotation = Quat::from_array(case.base);
+            let additive_rotation = Quat::from_array(case.delta);
+            let raw = accumulate_additive_rotation(base_rotation, additive_rotation, case.weight);
+            let full = source_pose_rotation_product(additive_rotation * case.weight, base_rotation);
+            assert_eq!(raw == full, case.full, "{}", case.name);
+            let mut base = Pose::default();
+            base.add_bone(BonePose::from_transform(Transform {
+                translation: Vec3::from_array(case.base_translation), rotation: base_rotation,
+                scale: Vec3::from_array(case.base_scale),
+            }), root);
+            let mut additive = Pose::default();
+            additive.add_bone(BonePose::from_transform(Transform {
+                translation: Vec3::from_array(case.delta_translation), rotation: additive_rotation,
+                scale: Vec3::from_array(case.scale_delta),
+            }), root);
+            for apply in [apply_local_space_additive as fn(&mut Pose, &Pose, f32, &Skeleton), apply_mesh_space_additive] {
+                let mut output = base.clone();
+                apply(&mut output, &additive, case.weight, &skeleton);
+                let bone = output.get_bone(root).unwrap();
+                let expected = Quat::from_array(case.expected_rotation);
+                let rotation = bone.rotation.unwrap();
+                assert!((rotation - expected).length().min((rotation + expected).length()) < 3e-7,
+                    "{}: {rotation:?}", case.name);
+                assert!(bone.translation.unwrap().distance(Vec3::from_array(case.expected_translation)) < 1e-7);
+                assert!(bone.scale.unwrap().distance(Vec3::from_array(case.expected_scale)) < 3e-7);
+            }
         }
     }
 
