@@ -7145,7 +7145,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧profile测试以source位置0、scale缺省验证单一目标权重，没有核对两份非零输入在归一化容差内的合成。当前是微小数值差异，不扩大为可见角色故障；900组3824活动帧、302096次骨骼核验及恢复见`target/bf144/107/analysis.json`。终止帧、完整FSM、中断和稀疏通道不在此项结论内；仅登记，未改生产。
   - BF144.184实际输入扩展：当前1312个转场阶段中842次的覆盖骨源权重与1−target_weight不同；所有实际覆盖骨target_weight仍与原生精确，所以此边界不能由只核对目标权重发现。136个原生factor/mode控制与真实节点全量校准共同确认，归既有近单位总和/独立源权重根因，不新编号；证据`target/bf144/184/calibration-check.json`与`weights.native.json`。
 
-- [ ] BF144-D198 / P3 — 标准转场的极短正时长被状态权重计算当成零，发布与姿态不一致的权重。
+- [x] BF144-D198 / P3 — 标准转场的极短正时长被状态权重计算当成零，发布与姿态不一致的权重。
+  - 2026-11-12 07:16 +0800 实际结束，较07:43预估提前27分钟，未拆分。fresh Land规则与四条原生时钟确认极短正时长权重，旧门槛六帧失配。姿态/权重复用进度，上一帧getter夹具和证据见 `docs/audit/bf144/d198/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 07:11 +08:00，预估结束2026-11-12 07:43 +08:00。核对Land Movement当前自动转场及原生极短时钟，复用姿态进度计算发布状态权重，并核对上一帧getter。
   - Source：fresh `AnimNode_StateMachine.cpp:127–155,1414–1447`只在CrossfadeDuration≤0时跳过elapsed除法，活动单次转场的状态权重来自该Alpha。`AnimInstanceProxy.cpp:2497–2503,3251–3270`将当前权重写入写缓冲，GetInstanceStateWeight读取上一缓冲；有效正时长、零delta的Alpha保持0，源/目标状态权重应为1/0。
   - Target：`interruptible_fsm.rs:1223–1228`在duration≤f32::EPSILON时把状态权重factor强制设为1；同文件`timed_transition_progress`却仅把duration≤0视为完成。实际姿态可保持源状态，同时`record_state_weights`及source_instance发布目标状态权重1；source getter次帧消费该错误值。
   - 反例：当前Land Movement→Grounded自动规则（名义0.3秒、trigger=−1）在共同缓存的remaining为epsilon或半epsilon时，调整后的正时长分别为约1.19209e−7秒、5.96046e−8秒。delta=0的两组各两帧中，原生FAlphaBlend仍未完成、姿态Alpha=0，但目标状态权重均为0/1；实际GetInstanceStateWeight次帧的4个读数同样颠倒。2epsilon、正delta、普通残余时长及其余11规则控制通过。

@@ -1220,12 +1220,8 @@ impl InterruptibleFsmNode {
                 .hl_transition
                 .as_ref()
                 .ok_or(GraphError::FSMCurrentStateMissing)?;
-            let duration = source.blend_duration.or(transition.timed).unwrap_or_default().max(0.0);
-            let factor = if duration <= f32::EPSILON {
-                1.0
-            } else {
-                (source.elapsed_time / duration).clamp(0.0, 1.0)
-            };
+            let duration = source.blend_duration.or(transition.timed).map(|duration| duration.max(0.0));
+            let factor = timed_transition_progress(source.elapsed_time, duration).unwrap_or(1.0);
             let graph = ctx
                 .graph_context
                 .resources
@@ -5873,6 +5869,72 @@ mod tests {
         assert_eq!(timed_transition_progress(0.0, Some(0.0)), Some(1.0));
         assert_eq!(timed_transition_progress(0.05, Some(0.1)), Some(0.5));
         assert_eq!(timed_transition_progress(0.0, None), None);
+    }
+
+    #[test]
+    fn short_positive_transitions_publish_native_state_weights() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d198/clock.replay.json"
+        )).unwrap();
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut blend = AnimationGraph::new();
+        blend.add_node(AnimationNode::new("source crossfade", ProfiledBlendNode {
+            alpha_blend_mode: AlphaBlendMode::HermiteCubic, ..default()
+        }));
+        let [source, target] = [1, 2].map(|id| StateId::from(bevy::asset::uuid::Uuid::from_u128(id)));
+        let transition_id = TransitionId::Direct(DirectTransitionId::from(bevy::asset::uuid::Uuid::from_u128(3)));
+        let transition = LowLevelStateId::HlTransition(transition_id);
+        let mut machine = LowLevelStateMachine::default();
+        machine.add_state(LowLevelState {
+            id: transition.clone(), graph: graphs.add(blend),
+            hl_transition: Some(LlTransitionData {
+                source, target, hl_transition_id: transition_id, timed: Some(0.3),
+            }),
+        });
+        let mut root = AnimationGraph::new();
+        let node = AnimationNode::new("source machine", InterruptibleFsmNode::default());
+        let node_id = node.id;
+        root.add_node(node);
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        world.run_system_once(move |resources: SystemResources| {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let machine_node = graph.nodes[&node_id].try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::new();
+            let entities = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            let keys = [source, target].map(|state| state.uuid().to_string());
+            for case in reference["cases"].as_array().unwrap() {
+                let duration = case["duration"].as_f64().unwrap() as f32;
+                for frame in case["frames"].as_array().unwrap() {
+                    let elapsed = frame["elapsed"].as_f64().unwrap() as f32;
+                    let expected = [0, 1].map(|index| frame["weights"][index].as_f64().unwrap() as f32);
+                    let mut arena = GraphContextArena::new(root.id());
+                    {
+                        let mut ctx = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs).create_node_context(node_id);
+                        let state = ctx.state_mut_or_else(|| InterruptibleFsmNode::initial_state(transition.clone(), 0.0, 0)).unwrap();
+                        state.blend_duration = Some(duration);
+                        state.transition_elapsed_time = elapsed;
+                        machine_node.record_state_weights(&machine, &mut ctx).unwrap();
+                        let recorded = ctx.state::<InterruptibleFsmState>().unwrap();
+                        assert_eq!(keys.each_ref().map(|key| recorded.recorded_state_weight(key)), expected);
+                    }
+                    arena.next_frame();
+                    let ctx = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                        &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs).create_node_context(node_id);
+                    let readback = keys.each_ref().map(|key| crate::extensions::source_instance::source_state_weight(&ctx, node_id, key).unwrap());
+                    assert_eq!(readback, expected, "{}", case["name"]);
+                }
+            }
+        }).unwrap();
     }
 
     #[test]
