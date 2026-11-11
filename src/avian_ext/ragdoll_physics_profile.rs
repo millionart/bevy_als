@@ -1410,7 +1410,7 @@ fn apply_profile_to_spawned_ragdoll(
         ..default()
     };
     for body_entity in spawned.bodies.values() {
-        if scale_factor != Vec3::ONE && let Ok(transform) = transforms.get(*body_entity) {
+        if initial_shape && scale_factor != Vec3::ONE && let Ok(transform) = transforms.get(*body_entity) {
             let mut scaled = *transform;
             scaled.translation *= scale_factor;
             commands.entity(*body_entity).insert(scaled);

@@ -77,6 +77,11 @@ struct AlsRagdollScaleState {
 }
 
 impl AlsRagdollScaleState {
+    fn uniform_scale_changed(&self, scale: Vec3) -> bool {
+        scale.max_element() - scale.min_element() <= 1e-4
+            && (scale - self.previous).abs().max_element() > 1e-4
+    }
+
     fn recovering_from_zero(self, scale: Vec3) -> bool {
         if !self.ragdolling || !self.stopped { return false; }
         let mut next = self;
@@ -85,8 +90,7 @@ impl AlsRagdollScaleState {
     }
 
     fn update(&mut self, scale: Vec3, ragdolling: bool) {
-        if scale.max_element() - scale.min_element() <= 1e-4
-            && (scale - self.previous).abs().max_element() > 1e-4 {
+        if self.uniform_scale_changed(scale) {
             let zero = scale.abs().max_element() <= 1e-4;
             let was_zero = self.previous.abs().max_element() <= 1e-4;
             if zero != was_zero { self.stopped = zero; }
@@ -507,6 +511,7 @@ fn set_simulating_ragdoll_body_modes(
 
 fn sync_ragdoll_body_modes(
     mut commands: Commands,
+    transform_helper: TransformHelper,
     scene_handles: Query<&AnimatedSceneHandle>,
     scene_assets: Option<Res<Assets<AnimatedScene>>>,
     maps: Option<Res<Assets<RagdollBoneMap>>>,
@@ -525,6 +530,7 @@ fn sync_ragdoll_body_modes(
         Entity,
         &RigidBody,
         Option<&RagdollActiveMode>,
+        Option<&Transform>,
         &mut Position,
         &mut Rotation,
         &mut LinearVelocity,
@@ -548,6 +554,12 @@ fn sync_ragdoll_body_modes(
         let scale = transform.map_or(Vec3::ONE, |transform| transform.scale);
         let recovering = action_ragdolling && scale_state.as_ref().is_some_and(|state|
             state.root != root && state.recovering_from_zero(scale));
+        let rescaling = action_ragdolling && scale_state.as_ref().is_some_and(|state|
+            state.root == root && state.ragdolling && !state.stopped && state.uniform_scale_changed(scale));
+        let repositioning = recovering || rescaling;
+        let recovered_root_world = if recovering {
+            transform_helper.compute_global_transform(root).ok()
+        } else { None };
         let stopped = if let Some(mut state) = scale_state {
             if state.root != root {
                 *state = AlsRagdollScaleState { root, previous: scale, stopped: false, ragdolling: action_ragdolling };
@@ -575,6 +587,7 @@ fn sync_ragdoll_body_modes(
                 entity,
                 mode,
                 active_mode,
+                transform,
                 mut position,
                 mut rotation,
                 mut linear_velocity,
@@ -586,14 +599,23 @@ fn sync_ragdoll_body_modes(
                 continue;
             };
             if ragdolling {
-                if !activated {
+                if !activated || repositioning {
                     if let Some(mapping) = mapping.and_then(|mapping| mapping.bodies_from_bones.get(id))
-                        && let Some(bone) = player.bone_entity(mapping.bone.bone.id())
-                        && let Ok(global) = bones.get(bone) {
-                        let target = global.to_isometry() * mapping.bone.offset;
-                        position.0 = target.translation.into();
-                        rotation.0 = target.rotation;
+                        && let Some(bone) = player.bone_entity(mapping.bone.bone.id()) {
+                        let global = if repositioning { transform_helper.compute_global_transform(bone).ok() }
+                            else { bones.get(bone).ok().copied() };
+                        if let Some(global) = global {
+                            let target = global.to_isometry() * mapping.bone.offset;
+                            position.0 = target.translation.into();
+                            rotation.0 = target.rotation;
+                            if let (Some(root_world), Some(transform)) = (recovered_root_world, transform) {
+                                let local = GlobalTransform::from(Transform::from_isometry(target)).reparented_to(&root_world);
+                                commands.entity(entity).insert(Transform { scale: transform.scale, ..local });
+                            }
+                        }
                     }
+                }
+                if !activated {
                     commands.entity(entity).insert(AlsRagdollPhysicsActive);
                     handoff = true;
                 }
@@ -1617,6 +1639,54 @@ pub(crate) mod tests {
             }
             app.update();
             assert_eq!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().root, root);
+        }
+    }
+
+    #[test]
+    fn rescaled_ragdoll_uses_the_live_bone_pose_at_a_translated_mesh_origin() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+        for _ in 0..10 { app.update(); }
+        assert!(app.world().get::<AlsRagdollDetachedPlayer>(player).is_some());
+        let pelvis_bone = {
+            let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(graph.skeleton()).unwrap();
+            skeleton.iter_bones().find_map(|bone| graph.bone_entity(bone).filter(|entity| {
+                app.world().get::<Name>(*entity).is_some_and(|name| name.as_str() == PELVIS_LABEL)
+            })).unwrap()
+        };
+        app.world_mut().resource_mut::<Time<Virtual>>().pause();
+        {
+            let mut mesh = app.world_mut().get_mut::<Transform>(player).unwrap();
+            mesh.translation = Vec3::new(3.0, 1.0, -2.0);
+            mesh.rotation = Quat::from_rotation_y(0.4) * mesh.rotation;
+        }
+        for (scale, from_zero) in [(0.75, false), (1.5, false), (0.75, true)] {
+            if from_zero {
+                app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::ZERO;
+                app.update();
+            }
+            let old_root = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().root;
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(scale);
+            let expected = app.world_mut().run_system_once(move |helper: TransformHelper| {
+                helper.compute_global_transform(pelvis_bone).unwrap()
+            }).unwrap();
+            app.update();
+
+            let world = app.world();
+            let spawned = world.get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+            assert_eq!(spawned.root != old_root, from_zero);
+            let pelvis = *spawned.bodies.values().find(|entity| {
+                world.get::<BodyLabel>(**entity).is_some_and(|label| label.0 == PELVIS_LABEL)
+            }).unwrap();
+            let actual = world.get::<Position>(pelvis).unwrap().0;
+            let rotation = world.get::<Rotation>(pelvis).unwrap().0;
+            assert!(actual.distance(expected.translation()) < 1e-5,
+                "Rescaled pelvis: scale={scale} from_zero={from_zero} actual={actual:?} expected={:?}", expected.translation());
+            assert!(rotation.dot(expected.rotation()).abs() > 1.0 - 1e-6);
         }
     }
 
