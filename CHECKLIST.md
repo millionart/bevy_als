@@ -6426,7 +6426,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`AlsRagdollInitialSpeedLimit::new:78–79`把预算设为8+1，实际PostUpdate每帧只调用一次；将立即调用和当帧Refresh合并后仍保留9次，导致第9个显示帧继续clamp。
   - 反例：完整角色经Ragdoll输入启动，首帧V=1m/s，随后每帧在实际限速consumer前给V=3；entry speed=0时第9帧目标仍为2、源应为3。60/30Hz×entry speed=0/5×11帧共44组42PASS/2FAIL，仅低入口速度的第9帧失败；前8帧、之后帧以及较高入口speed limit控制均通过。证据`bf144_ragdoll_phase37_input_frame_consumes_first_refresh_budget`、`37/final/`。旧Gate只检查总调用预算和限速数值，没有把本地输入与actor当帧Refresh组合。
 
-- [ ] BF144-D109 / P2 — Ragdoll actor跟随采样晚于源阶段，提前使用本帧physics结果。
+- [x] BF144-D109 / P2 — Ragdoll actor跟随采样晚于源阶段，提前使用本帧physics结果。 静态实现完成，统一验证待执行。
+  - 19:48 source/static 闭环：新原生 CDO 证实 Actor 起止均 TG_PrePhysics。跟随的采样和位置写回移入物理前 handoff 链，位于活动 body 同步之后、驱动和限速之前。物理后确认的新布娃娃仍走原初始化，下一物理前阶段开始跟随。空中退出落地释放仍在物理后。已写加载角色60/30Hz连续两步反例，证据 `docs/audit/bf144/d109/`。旧目标报告缺失。编译、测试、消融和真实入口待统一 Gate。开始19:38，预估20:23，实际结束2026-11-11 19:48 +08:00，偏差−35分钟。结果：静态实现完成。
   - 本轮开始2026-11-11 19:38 +08:00，预估结束20:23 +08:00。依据：fresh Actor Tick、pelvis 读取与写位置的源闭包；目标现有物理前 handoff 已接入实际 rig。核对启动和物理后确认动作的边界，按移动单一跟随阶段及60/30Hz实际角色夹具估时。
   - 19:41 fresh CDO 读取在原生读取器链接阶段退出；复开布娃娃清理的专用探针边界，随后用同一默认入口重读。
   - Source：fresh B_Als_Character的PrimaryActorTick/EndTickGroup均TG_PrePhysics；`AlsCharacter.cpp:294`在该Tick调用RefreshRagdolling，`AlsCharacter_Actions.cpp:880–901`读取上次完成的pelvis位置并立即SetActorLocation。相应mesh tick依赖actor，不能将actor跟随改成physics后采样。

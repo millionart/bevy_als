@@ -230,7 +230,6 @@ impl Plugin for AlsRagdollLinkPlugin {
                 .chain()
                 .after(crate::als::motion::AlsActualVelocitySet)
                 .before(crate::actual_motion::AlsActualMotionSet)
-                .before(ragdoll_ground_follow)
                 .run_if(
                     |characters: Query<Option<&AlsNotifyLocomotionAction>,
                         (With<AlsCharacter>, Without<AlsRagdollCharacterPhysics>)>| {
@@ -242,6 +241,9 @@ impl Plugin for AlsRagdollLinkPlugin {
             PostUpdate,
             (
                 sync_ragdoll_body_modes,
+                ragdoll_ground_follow,
+                ApplyDeferred,
+                apply_ragdoll_ground_follow,
                 ragdoll_joint_drive_adapter_system,
                 limit_initial_ragdoll_speed,
                 ApplyDeferred,
@@ -252,13 +254,8 @@ impl Plugin for AlsRagdollLinkPlugin {
         )
         .add_systems(
             PostUpdate,
-            (
-                release_ragdoll_air_exit_on_ground.after(PhysicsSystems::Last),
-                ragdoll_ground_follow.after(PhysicsSystems::Last),
-                ApplyDeferred,
-                apply_ragdoll_ground_follow,
-            )
-                .chain()
+            release_ragdoll_air_exit_on_ground
+                .after(PhysicsSystems::Last)
                 .before(AnimationGraphSet::PostPhysics),
         )
         .add_systems(
@@ -2426,6 +2423,41 @@ pub(crate) mod tests {
         assert!(bodies.iter().any(|(entity, position, _, _, _)|
             app.world().get::<Position>(*entity).unwrap().0.distance(*position) > 1e-6),
             "Source resumed ragdoll physics continues moving its active bodies");
+    }
+
+    #[test]
+    fn ragdoll_follow_samples_the_completed_physics_step() {
+        use avian3d::prelude::{ColliderDisabled, GravityScale, JointDisabled, LinearDamping, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+
+        for delta in [1.0_f32 / 60.0, 1.0 / 30.0] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let (player, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+            let pelvis = bodies.iter().find(|(name, _)| name == PELVIS_LABEL).unwrap().1;
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            for _ in 0..12 { app.update(); }
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+            let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+            let colliders: Vec<_> = spawned.colliders.values().copied().collect();
+            let joints: Vec<_> = spawned.joints.values().copied().collect();
+            for collider in colliders { app.world_mut().entity_mut(collider).insert(ColliderDisabled); }
+            for joint in joints { app.world_mut().entity_mut(joint).insert(JointDisabled); }
+            app.world_mut().entity_mut(pelvis).insert((
+                Position(Vec3::Y * 10.0), LinearVelocity(Vec3::X), AngularVelocity::ZERO,
+                GravityScale(0.0), LinearDamping(0.0), SleepingDisabled,
+            ));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+
+            for _ in 0..2 {
+                let before = app.world().get::<Position>(pelvis).unwrap().0;
+                app.update();
+                assert!(app.world().get::<Position>(pelvis).unwrap().x > before.x);
+                let follow = app.world().get::<AlsRagdollGroundFollow>(actor).unwrap();
+                assert_eq!(follow.pelvis, before);
+                assert!(!follow.grounded);
+                assert!((app.world().get::<Position>(actor).unwrap().x - before.x).abs() < 1e-5);
+            }
+        }
     }
 
     #[test]
