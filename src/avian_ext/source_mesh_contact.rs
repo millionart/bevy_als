@@ -6,6 +6,10 @@ use super::source_contact_polygon::{SOURCE_SMALL_NUMBER, source_position};
 use super::source_mesh_query::SourceMeshTriangle;
 
 const CONTACT_SETTINGS: (f64, f32, f32, f64, usize) = include!("../als/settings/mesh_contact.rs");
+const BARYCENTRIC_TOLERANCE: f64 = CONTACT_SETTINGS.0;
+const FACE_NORMAL_DOT_THRESHOLD: f32 = CONTACT_SETTINGS.1;
+const EDGE_NORMAL_DOT_REJECT_TOLERANCE: f32 = CONTACT_SETTINGS.2;
+const BACKFACE_CULL_TOLERANCE: f64 = CONTACT_SETTINGS.3;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum SourceTriangleContactKind {
@@ -65,7 +69,7 @@ impl MeshContactTriangle {
 
     fn contact_feature(&self, point_cm: DVec3) -> MeshContactFeature {
         let weights = source_barycentric(point_cm, self.vertices_cm);
-        let tolerance = CONTACT_SETTINGS.0;
+        let tolerance = BARYCENTRIC_TOLERANCE;
         if let Some(vertex) = weights.iter().position(|&weight| (weight - 1.0).abs() <= tolerance) {
             MeshContactFeature::Vertex(self.vertex_indices[vertex])
         } else if let Some(opposite) = weights.iter().position(|weight| weight.abs() <= tolerance) {
@@ -137,6 +141,13 @@ struct MeshContactCandidate {
     enabled: bool,
 }
 
+impl MeshContactCandidate {
+    fn set_normal(&mut self, normal: DVec3) {
+        self.point.normal = normal;
+        self.point.first_cm = self.point.second_cm + self.point.phi_cm * normal;
+    }
+}
+
 struct EdgeContactOwner {
     triangle: usize,
     points: [Option<usize>; 2],
@@ -186,7 +197,7 @@ impl MeshContactAccumulator {
             }
             let feature = geometry.contact_feature(point.second_cm);
             let normal_dot = point.normal.dot(geometry.normal) as f32;
-            let face_contact = normal_dot > CONTACT_SETTINGS.1;
+            let face_contact = normal_dot > FACE_NORMAL_DOT_THRESHOLD;
             let mut candidate = MeshContactCandidate {
                 point, face_index: geometry.face_index, triangle, feature, normal_dot, enabled: true,
             };
@@ -237,6 +248,53 @@ impl MeshContactAccumulator {
             self.vertices.get(*vertex).is_some_and(|owner| owner.face_contact)
         }).count()
     }
+
+    fn correct_contact_normals(&mut self) {
+        for contact in &mut self.contacts {
+            if !contact.enabled {
+                continue;
+            }
+            if f64::from(contact.normal_dot) < -BACKFACE_CULL_TOLERANCE {
+                contact.enabled = false;
+                continue;
+            }
+            if contact.normal_dot < FACE_NORMAL_DOT_THRESHOLD {
+                if let MeshContactFeature::Edge(edge) = contact.feature {
+                    correct_mesh_edge_normal(&self.topology, contact, edge);
+                }
+            }
+        }
+    }
+}
+
+fn correct_mesh_edge_normal(topology: &MeshContactTopology, contact: &mut MeshContactCandidate, edge: MeshEdge) {
+    let triangle = contact.triangle;
+    let normal = topology.triangles[triangle].normal;
+    let Some(other) = topology.other_triangle(triangle, edge) else {
+        contact.set_normal(normal);
+        return;
+    };
+
+    let other_normal = topology.triangles[other].normal;
+    let minimum_dot = f64::from(other_normal.dot(normal) as f32);
+    let contact_dot = f64::from(contact.normal_dot);
+    if contact_dot >= minimum_dot {
+        return;
+    }
+    if minimum_dot - contact_dot > f64::from(EDGE_NORMAL_DOT_REJECT_TOLERANCE) {
+        contact.enabled = false;
+        return;
+    }
+
+    let other_dot = contact.point.normal.dot(other_normal);
+    let (corrected, corrected_triangle, dot) = if contact_dot >= other_dot {
+        (normal, triangle, contact_dot)
+    } else {
+        (other_normal, other, other_dot)
+    };
+    let oriented = if dot > -f64::from(SOURCE_SMALL_NUMBER) { corrected } else { -corrected };
+    contact.set_normal(oriented);
+    contact.triangle = corrected_triangle;
 }
 
 fn generate_mesh_contacts(
@@ -418,5 +476,77 @@ mod tests {
         });
         assert_eq!(visits, [30, 40]);
         assert_eq!(manifold.face_contact_count(2), 3);
+    }
+
+    #[test]
+    fn source_mesh_pruning_rejects_backfaces_and_outside_coplanar_normals() {
+        let triangles = adjacent_triangles();
+        let mut manifold = MeshContactAccumulator::new(&triangles, 8);
+        let tilted = DVec3::new(0.6, 0.0, 0.8);
+        manifold.add_triangle_contacts(0, vec![
+            contact(2.5 * DVec3::X, DVec3::X),
+            contact(7.5 * DVec3::X, tilted),
+            contact(DVec3::new(2.0, 2.0, 0.0), DVec3::NEG_Z),
+            contact(5.0 * DVec3::Y, tilted),
+        ]);
+        manifold.correct_contact_normals();
+        assert_eq!(manifold.contacts.iter().map(|point| point.enabled).collect::<Vec<_>>(), [false, true, false, true]);
+        for index in [1, 3] {
+            let point = &manifold.contacts[index].point;
+            assert_eq!(point.normal, DVec3::Z);
+            assert_eq!(point.first_cm, point.second_cm - DVec3::Z);
+            assert_eq!(point.phi_cm, -1.0);
+        }
+    }
+
+    #[test]
+    fn source_mesh_shared_edge_can_use_neighbor_normal_without_changing_face_identity() {
+        let [first, _] = adjacent_triangles();
+        let neighbor = triangle(40, [1, 0, 3], [10.0 * DVec3::X, DVec3::ZERO, DVec3::new(0.0, -8.0, 6.0)]);
+        let mut manifold = MeshContactAccumulator::new(&[first, neighbor], 8);
+        let second = 5.0 * DVec3::X;
+        manifold.add_triangle_contacts(0, vec![contact(second, DVec3::new(0.0, 0.8, 0.6))]);
+        manifold.correct_contact_normals();
+        let corrected = &manifold.contacts[0];
+        let expected = DVec3::new(0.0, 0.6, 0.8);
+        assert!(corrected.enabled);
+        assert_eq!(corrected.triangle, 1);
+        assert_eq!(corrected.face_index, 30);
+        assert_eq!(corrected.point.kind, SourceTriangleContactKind::EdgeEdge);
+        assert!(corrected.point.normal.distance(expected) < 1e-12);
+        assert!(corrected.point.first_cm.distance(second - expected) < 1e-12);
+        assert_eq!(corrected.point.phi_cm, -1.0);
+    }
+
+    #[test]
+    fn source_mesh_edge_normal_matches_native_stair_contact() {
+        let case: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b4b3d/edge-normal-case.json"
+        )).unwrap();
+        let vector = |value: &serde_json::Value| DVec3::new(value[0].as_f64().unwrap(),
+            value[1].as_f64().unwrap(), value[2].as_f64().unwrap());
+        let triangles = case["triangles"].as_array().unwrap().iter().map(|face| {
+            let ids = std::array::from_fn(|index| face["vertex_indices"][index].as_u64().unwrap() as usize);
+            let points = std::array::from_fn(|index| vector(&face["vertices_cm"][index]));
+            triangle(face["face_index"].as_u64().unwrap() as usize, ids, points)
+        }).collect::<Vec<_>>();
+        let index = triangles.iter().position(|triangle| triangle.face_index == 271).unwrap();
+        let raw = &case["raw"];
+        let mut manifold = MeshContactAccumulator::new(&triangles, 8);
+        assert_eq!(raw["contact_type"], 2);
+        manifold.add_triangle_contacts(index, vec![SourceTriangleContact {
+            first_cm: vector(&raw["first_cm"]), second_cm: vector(&raw["second_cm"]),
+            normal: vector(&raw["normal"]), phi_cm: raw["phi_cm"].as_f64().unwrap(),
+            kind: SourceTriangleContactKind::EdgeEdge,
+        }]);
+        assert_eq!(manifold.contacts[0].feature, MeshContactFeature::Edge([76, 78]));
+        manifold.correct_contact_normals();
+        let fixed = &manifold.contacts[0];
+        let expected = &case["expected"];
+        assert!(fixed.enabled);
+        assert_eq!(fixed.face_index as u64, expected["face_index"].as_u64().unwrap());
+        assert!(fixed.point.normal.distance(vector(&expected["normal"])) < 1e-9);
+        assert!(fixed.point.first_cm.distance(vector(&expected["first_cm"])) < 1e-5);
+        assert!((fixed.point.phi_cm - expected["phi_cm"].as_f64().unwrap()).abs() < 1e-5);
     }
 }
