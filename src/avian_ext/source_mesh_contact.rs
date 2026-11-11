@@ -8,10 +8,26 @@ use super::source_mesh_query::{SourceMeshQuery, SourceMeshTriangle};
 
 const CONTACT_SETTINGS: (f64, f32, f32, f64, usize) = include!("../als/settings/mesh_contact.rs");
 const BARYCENTRIC_TOLERANCE: f64 = CONTACT_SETTINGS.0;
-const FACE_NORMAL_DOT_THRESHOLD: f32 = CONTACT_SETTINGS.1;
+const BOX_FACE_NORMAL_DOT_THRESHOLD: f32 = CONTACT_SETTINGS.1;
 const EDGE_NORMAL_DOT_REJECT_TOLERANCE: f32 = CONTACT_SETTINGS.2;
 const BACKFACE_CULL_TOLERANCE: f64 = CONTACT_SETTINGS.3;
 const VERTEX_NORMAL_TOLERANCE_SQUARED: f64 = include!("../als/settings/mesh_contact_vertex.rs");
+const QUADRATIC_FACE_NORMAL_DOT_THRESHOLD: f64 = include!("../als/settings/mesh_contact_quadratic.rs");
+
+#[derive(Clone, Copy)]
+pub(super) enum SourceMeshContactMode {
+    Box,
+    Quadratic,
+}
+
+impl SourceMeshContactMode {
+    fn face_normal_dot_threshold(self) -> f64 {
+        match self {
+            Self::Box => f64::from(BOX_FACE_NORMAL_DOT_THRESHOLD),
+            Self::Quadratic => QUADRATIC_FACE_NORMAL_DOT_THRESHOLD,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum SourceTriangleContactKind {
@@ -185,10 +201,11 @@ struct MeshContactAccumulator {
     vertices: HashMap<usize, VertexContactOwner>,
     face_edges: Vec<usize>,
     capacity: usize,
+    face_normal_dot_threshold: f64,
 }
 
 impl MeshContactAccumulator {
-    fn new(triangles: &[SourceMeshTriangle], source_capacity: usize) -> Self {
+    fn new(triangles: &[SourceMeshTriangle], source_capacity: usize, mode: SourceMeshContactMode) -> Self {
         let capacity = source_capacity.min(triangles.len().saturating_mul(4));
         Self {
             topology: MeshContactTopology::new(triangles),
@@ -197,6 +214,7 @@ impl MeshContactAccumulator {
             vertices: HashMap::new(),
             face_edges: vec![0; triangles.len()],
             capacity,
+            face_normal_dot_threshold: mode.face_normal_dot_threshold(),
         }
     }
 
@@ -209,7 +227,7 @@ impl MeshContactAccumulator {
             }
             let feature = geometry.contact_feature(point.second_cm);
             let normal_dot = point.normal.dot(geometry.normal) as f32;
-            let face_contact = normal_dot > FACE_NORMAL_DOT_THRESHOLD;
+            let face_contact = f64::from(normal_dot) > self.face_normal_dot_threshold;
             let mut candidate = MeshContactCandidate {
                 point, face_index: geometry.face_index, triangle, feature, normal_dot, enabled: true,
             };
@@ -270,7 +288,7 @@ impl MeshContactAccumulator {
                 contact.enabled = false;
                 continue;
             }
-            if contact.normal_dot < FACE_NORMAL_DOT_THRESHOLD {
+            if f64::from(contact.normal_dot) < self.face_normal_dot_threshold {
                 match contact.feature {
                     MeshContactFeature::Edge(edge) => correct_mesh_edge_normal(&self.topology, contact, edge),
                     MeshContactFeature::Vertex(vertex) => correct_mesh_vertex_normal(&self.topology, contact, vertex),
@@ -360,9 +378,16 @@ fn correct_mesh_vertex_normal(topology: &MeshContactTopology, contact: &mut Mesh
 fn generate_mesh_contacts(
     triangles: &[SourceMeshTriangle],
     source_capacity: usize,
+    mode: SourceMeshContactMode,
     mut generate: impl FnMut(&SourceMeshTriangle) -> Vec<SourceTriangleContact>,
 ) -> MeshContactAccumulator {
-    let mut contacts = MeshContactAccumulator::new(triangles, source_capacity);
+    let mut contacts = MeshContactAccumulator::new(triangles, source_capacity, mode);
+    if matches!(mode, SourceMeshContactMode::Quadratic) {
+        for (index, triangle) in triangles.iter().enumerate() {
+            contacts.add_triangle_contacts(index, generate(triangle));
+        }
+        return contacts;
+    }
     let mut visited = vec![false; triangles.len()];
     for (index, triangle) in triangles.iter().enumerate() {
         if contacts.face_contact_count(index) == 0 {
@@ -383,9 +408,10 @@ pub(super) fn source_mesh_manifold(
     query: &SourceMeshQuery,
     source_capacity: usize,
     cull_m: f64,
+    mode: SourceMeshContactMode,
     generate: impl FnMut(&SourceMeshTriangle) -> Vec<SourceTriangleContact>,
 ) -> Vec<SourceMeshManifoldPoint> {
-    generate_mesh_contacts(triangles, source_capacity, generate).finish(query, cull_m)
+    generate_mesh_contacts(triangles, source_capacity, mode, generate).finish(query, cull_m)
 }
 
 #[cfg(test)]
@@ -474,7 +500,7 @@ mod tests {
     #[test]
     fn source_mesh_edge_owner_replaces_old_slots_and_keeps_first_face_owner() {
         let triangles = adjacent_triangles();
-        let mut manifold = MeshContactAccumulator::new(&triangles, 8);
+        let mut manifold = MeshContactAccumulator::new(&triangles, 8, SourceMeshContactMode::Box);
         let aligned = DVec3::new(0.6, 0.0, 0.8);
         manifold.add_triangle_contacts(0, vec![contact(2.5 * DVec3::X, aligned), contact(7.5 * DVec3::X, aligned)]);
         manifold.add_triangle_contacts(1, vec![contact(5.0 * DVec3::X, DVec3::new(0.8, 0.0, 0.6))]);
@@ -494,7 +520,7 @@ mod tests {
     #[test]
     fn source_mesh_vertex_replacement_preserves_slot_and_stops_at_capacity() {
         let triangles = adjacent_triangles();
-        let mut manifold = MeshContactAccumulator::new(&triangles, 8);
+        let mut manifold = MeshContactAccumulator::new(&triangles, 8, SourceMeshContactMode::Box);
         let vertex = DVec3::ZERO;
         let inside = DVec3::new(2.0, 2.0, 0.0);
         let tilted = DVec3::new(0.6, 0.0, 0.8);
@@ -505,7 +531,7 @@ mod tests {
         assert_eq!(manifold.contacts[0].triangle, 1);
         assert_eq!(manifold.contacts[1].point.second_cm, inside);
 
-        let mut full = MeshContactAccumulator::new(&triangles, 1);
+        let mut full = MeshContactAccumulator::new(&triangles, 1, SourceMeshContactMode::Box);
         full.add_triangle_contacts(0, vec![contact(vertex, tilted)]);
         full.add_triangle_contacts(1, vec![contact(vertex, DVec3::Z)]);
         assert_eq!(full.contacts.len(), 1);
@@ -520,7 +546,7 @@ mod tests {
         let triangles = [first, adjacent, isolated];
         for (vertex_contact, expected) in [(false, vec![30, 50, 40]), (true, vec![30, 50])] {
             let mut visits = Vec::new();
-            let manifold = generate_mesh_contacts(&triangles, 12, |triangle| {
+            let manifold = generate_mesh_contacts(&triangles, 12, SourceMeshContactMode::Box, |triangle| {
                 visits.push(triangle.face_index);
                 if triangle.face_index != 30 {
                     return Vec::new();
@@ -541,7 +567,7 @@ mod tests {
         let [first, adjacent] = adjacent_triangles();
         let last = triangle(50, [1, 3, 4], [10.0 * DVec3::X, -10.0 * DVec3::Y, DVec3::new(10.0, -10.0, 0.0)]);
         let mut visits = Vec::new();
-        let manifold = generate_mesh_contacts(&[first, adjacent, last], 12, |triangle| {
+        let manifold = generate_mesh_contacts(&[first, adjacent, last], 12, SourceMeshContactMode::Box, |triangle| {
             visits.push(triangle.face_index);
             match triangle.face_index {
                 30 => vec![contact(10.0 * DVec3::X, DVec3::Z)],
@@ -554,9 +580,42 @@ mod tests {
     }
 
     #[test]
+    fn source_capsule_mesh_visits_covered_neighbors_in_collected_order() {
+        let [first, adjacent] = adjacent_triangles();
+        let isolated = triangle(50, [4, 5, 6], [DVec3::ZERO, 10.0 * DVec3::X, 10.0 * DVec3::Y]);
+        let mut visits = Vec::new();
+        let manifold = generate_mesh_contacts(&[first, adjacent, isolated], 12, SourceMeshContactMode::Quadratic, |triangle| {
+            visits.push(triangle.face_index);
+            if triangle.face_index == 30 {
+                vec![contact(2.5 * DVec3::X, DVec3::Z), contact(7.5 * DVec3::X, DVec3::Z),
+                    contact(DVec3::ZERO, DVec3::Z)]
+            } else {
+                Vec::new()
+            }
+        });
+        assert_eq!(manifold.face_contact_count(1), 3);
+        assert_eq!(visits, [30, 40, 50]);
+    }
+
+    #[test]
+    fn source_capsule_mesh_uses_tighter_face_threshold_for_ownership_and_fixup() {
+        let triangles = adjacent_triangles();
+        let dot = 0.999_f64;
+        let normal = DVec3::new((1.0 - dot * dot).sqrt(), 0.0, dot);
+        for (mode, count, expected) in [(SourceMeshContactMode::Box, 1, normal),
+            (SourceMeshContactMode::Quadratic, 0, DVec3::Z)] {
+            let mut manifold = MeshContactAccumulator::new(&triangles, 8, mode);
+            manifold.add_triangle_contacts(0, vec![contact(5.0 * DVec3::X, normal)]);
+            assert_eq!(manifold.face_contact_count(1), count);
+            manifold.correct_contact_normals();
+            assert_eq!(manifold.contacts[0].point.normal, expected);
+        }
+    }
+
+    #[test]
     fn source_mesh_pruning_rejects_backfaces_and_outside_coplanar_normals() {
         let triangles = adjacent_triangles();
-        let mut manifold = MeshContactAccumulator::new(&triangles, 8);
+        let mut manifold = MeshContactAccumulator::new(&triangles, 8, SourceMeshContactMode::Box);
         let tilted = DVec3::new(0.6, 0.0, 0.8);
         manifold.add_triangle_contacts(0, vec![
             contact(2.5 * DVec3::X, DVec3::X),
@@ -578,7 +637,7 @@ mod tests {
     fn source_mesh_shared_edge_can_use_neighbor_normal_without_changing_face_identity() {
         let [first, _] = adjacent_triangles();
         let neighbor = triangle(40, [1, 0, 3], [10.0 * DVec3::X, DVec3::ZERO, DVec3::new(0.0, -8.0, 6.0)]);
-        let mut manifold = MeshContactAccumulator::new(&[first, neighbor], 8);
+        let mut manifold = MeshContactAccumulator::new(&[first, neighbor], 8, SourceMeshContactMode::Box);
         let second = 5.0 * DVec3::X;
         manifold.add_triangle_contacts(0, vec![contact(second, DVec3::new(0.0, 0.8, 0.6))]);
         manifold.correct_contact_normals();
@@ -607,7 +666,7 @@ mod tests {
         }).collect::<Vec<_>>();
         let index = triangles.iter().position(|triangle| triangle.face_index == 271).unwrap();
         let raw = &case["raw"];
-        let mut manifold = MeshContactAccumulator::new(&triangles, 8);
+        let mut manifold = MeshContactAccumulator::new(&triangles, 8, SourceMeshContactMode::Quadratic);
         assert_eq!(raw["contact_type"], 2);
         manifold.add_triangle_contacts(index, vec![SourceTriangleContact {
             first_cm: vector(&raw["first_cm"]), second_cm: vector(&raw["second_cm"]),
@@ -629,7 +688,7 @@ mod tests {
     fn source_mesh_boundary_vertex_uses_original_face_normal() {
         let [first, _] = adjacent_triangles();
         let tilted = triangle(40, [1, 0, 3], [10.0 * DVec3::X, DVec3::ZERO, DVec3::new(0.0, -8.0, 6.0)]);
-        let mut manifold = MeshContactAccumulator::new(&[first, tilted], 8);
+        let mut manifold = MeshContactAccumulator::new(&[first, tilted], 8, SourceMeshContactMode::Box);
         manifold.add_triangle_contacts(1, vec![contact(DVec3::ZERO, DVec3::Z)]);
         assert_eq!(manifold.contacts[0].feature, MeshContactFeature::Vertex(0));
         manifold.correct_contact_normals();
@@ -647,7 +706,7 @@ mod tests {
             DVec3::new(-10.0, 0.0, 6.0), -10.0 * DVec3::Y];
         let triangles = [triangle(10, [0, 1, 2], [a, b, c]), triangle(20, [0, 2, 3], [a, c, d]),
             triangle(30, [0, 3, 4], [a, d, e]), triangle(40, [0, 4, 1], [a, e, b])];
-        let mut manifold = MeshContactAccumulator::new(&triangles, 16);
+        let mut manifold = MeshContactAccumulator::new(&triangles, 16, SourceMeshContactMode::Box);
         manifold.add_triangle_contacts(0, vec![contact(a, DVec3::new(-0.6, 0.4, 0.48_f64.sqrt()))]);
         manifold.correct_contact_normals();
         let fixed = &manifold.contacts[0];
@@ -667,7 +726,7 @@ mod tests {
         let query = source_mesh_query([-DVec3::ONE, DVec3::ONE], translation, rotation,
             DVec3::new(-2.0, 0.5, 3.0), 0.03);
         let first_position = DVec3::new(2.0, 2.0, 0.0);
-        let contacts = source_mesh_manifold(&triangles, &query, 4, 0.03, |_| {
+        let contacts = source_mesh_manifold(&triangles, &query, 4, 0.03, SourceMeshContactMode::Box, |_| {
             let mut first = contact(first_position, DVec3::Z);
             first.phi_cm = 3.0 - 1e-8;
             first.first_cm = first.second_cm + first.phi_cm * first.normal;
@@ -731,7 +790,8 @@ mod tests {
                 body_inverse * mesh_rotation, source_direction(array(&sample["scale"])), cull_m);
             let triangles = source_mesh_collect(&meshes[asset], &bvhs[asset], &query).unwrap();
             assert!(triangles.len().saturating_mul(4) <= CONTACT_SETTINGS.4, "Source fixture exceeds nominal buffer: {label}");
-            let contacts = source_mesh_manifold(&triangles, &query, CONTACT_SETTINGS.4, cull_m, |triangle| {
+            let mode = if capsule.is_some() { SourceMeshContactMode::Quadratic } else { SourceMeshContactMode::Box };
+            let contacts = source_mesh_manifold(&triangles, &query, CONTACT_SETTINGS.4, cull_m, mode, |triangle| {
                 if let Some(capsule) = capsule {
                     source_capsule_triangle_contacts(capsule, triangle.vertices_m, cull_m)
                 } else {

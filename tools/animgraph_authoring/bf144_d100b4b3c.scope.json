@@ -1,8 +1,8 @@
 {
   "format": "als_animation_behavior_scope_v1",
   "id": "bf144_d100b4b3c",
-  "source_facts": "docs/audit/bf144/d100b4b3c/source-facts.json",
-  "native_identity": "docs/audit/bf144/d100b4b3c/input-identities.json",
+  "source_facts": "docs/audit/bf144/d100b4b3c/shape-source-facts.json",
+  "native_identity": "docs/audit/bf144/d100b4b3c/shape-input-identities.json",
   "source_closure": [
     {
       "asset": "AB_Als",
@@ -51,7 +51,7 @@
     }
   ],
   "consumer_edges": [
-    "source ordered mesh triangles and current face ownership -> first and second visits -> ordered contact candidates"
+    "source shape-specific visitation and face dot threshold -> immediate ownership and ordered contact candidates"
   ],
   "static_commands": [
     "tools/validate_animgraph_authoring.py --check",
@@ -63,7 +63,9 @@
   ],
   "focused_tests": [
     "source_mesh_two_pass_defers_neighbors_and_skips_three_face_contacts",
-    "source_mesh_second_pass_checks_contacts_added_by_earlier_neighbors"
+    "source_mesh_second_pass_checks_contacts_added_by_earlier_neighbors",
+    "source_capsule_mesh_visits_covered_neighbors_in_collected_order",
+    "source_capsule_mesh_uses_tighter_face_threshold_for_ownership_and_fixup"
   ],
   "manual_cases": [
     "startup",
@@ -864,5 +866,5 @@
       "reader_report": "docs/audit/bf144/d104a/mesh.native.json.reader.report.json"
     }
   ],
-  "closure_state": "Source two-pass generation implemented. Candidate pruning, runtime integration, build, ablation and public runtime remain pending."
+  "closure_state": "Box two-pass and capsule single-pass visitation with separate source face thresholds implemented. Runtime integration, build, ablation, and public runtime remain pending."
 }
