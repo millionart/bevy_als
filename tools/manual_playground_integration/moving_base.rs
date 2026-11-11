@@ -183,7 +183,7 @@ pub(super) fn drive(
     spatial: SpatialQuery,
     candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
     velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
-    permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
+    permissions: Query<Option<&AlsMantleTargetPermission>>,
     owners: Query<&ColliderOf>,
 ) {
     let Some(character) = state.character else { return; };
@@ -445,7 +445,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         fn candidate(In((character, origin, target, half, radius)): In<(Entity, Vec3, Entity, f32, f32)>,
             spatial: SpatialQuery, velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
-            permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>, owners: Query<&ColliderOf>) -> bool {
+            permissions: Query<Option<&AlsMantleTargetPermission>>, owners: Query<&ColliderOf>) -> bool {
             detect_mantle(&spatial, character, MantleDetectionInput {
                 origin, actor_yaw:0.0, velocity_yaw:None, input_yaw:Some(0.0),
                 locomotion:LocomotionState::Grounded, stance:Stance::Standing, overlay:OverlayState::Default,
