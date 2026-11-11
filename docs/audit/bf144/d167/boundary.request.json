@@ -1,0 +1,30 @@
+{
+  "dynamic_montage": {
+    "slot": "Transition",
+    "blend_in_seconds": 0.2,
+    "blend_out_seconds": 0.2,
+    "blend_out_trigger_seconds": 0.0
+  },
+  "samples": [
+    {
+      "name": "rounding_boundary",
+      "play_rate": 1.5,
+      "steps": [
+        {"delta_seconds": 1.0},
+        {"delta_seconds": 0.0221220143},
+        {"delta_seconds": 0.01},
+        {"delta_seconds": 0.05}
+      ]
+    },
+    {
+      "name": "before_window",
+      "play_rate": 1.5,
+      "steps": [{"delta_seconds": 1.0}, {"delta_seconds": 0.0220}]
+    },
+    {
+      "name": "inside_window",
+      "play_rate": 1.5,
+      "steps": [{"delta_seconds": 1.0}, {"delta_seconds": 0.02215}]
+    }
+  ]
+}

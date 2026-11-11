@@ -1621,13 +1621,67 @@ mod tests {
             source_transition_sequence(&AlsTransitionPlayback::stop(1.0)),
             Some("A_Als_Stop_Right")
         );
-        assert_eq!(
-            (dynamic.start_time, dynamic.play_rate, dynamic.duration),
-            (0.0, 1.5, 1.533333)
-        );
+        assert_eq!((dynamic.start_time, dynamic.play_rate), (0.0, 1.5));
         let mut inactive = AlsTransitionPlayback::quick_stop(0.0, 1.75);
         inactive.active = false;
         assert!(!root_transition_slot_active(&inactive));
+    }
+
+    #[test]
+    fn dynamic_transition_durations_preserve_the_native_blend_out_boundary() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            sequence: String,
+            crouching: bool,
+            right: bool,
+            length: f32,
+            samples: Vec<Sample>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Sample {
+            name: String,
+            frames: Vec<Frame>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Frame {
+            delta_seconds: f32,
+            position: f32,
+            weight: f32,
+            playing: bool,
+            stopped: bool,
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d167/boundary.replay.json"
+        )).unwrap();
+        for case in fixture.cases {
+            for sample in case.samples {
+                let index = if case.right { 1.0 } else { 0.0 };
+                let mut playback = if case.crouching {
+                    AlsTransitionPlayback::crouching_dynamic(index)
+                } else {
+                    AlsTransitionPlayback::standing_dynamic(index)
+                };
+                assert_eq!(source_transition_sequence(&playback), Some(case.sequence.as_str()));
+                assert_eq!(playback.duration, case.length);
+                assert_eq!(crate::standing_source::MONTAGES[&case.sequence].duration, case.length);
+                for (index, frame) in sample.frames.into_iter().enumerate() {
+                    playback.advance(frame.delta_seconds);
+                    assert_eq!(
+                        (playback.clip_time, playback.weight, playback.playing, playback.stop_elapsed.is_some()),
+                        (frame.position, frame.weight, frame.playing, frame.stopped),
+                        "{} {} frame {index}", case.sequence, sample.name,
+                    );
+                }
+            }
+        }
     }
 
     #[test]

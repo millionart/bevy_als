@@ -1,0 +1,322 @@
+{
+  "cases": [
+    {
+      "sequence": "A_Als_Stand_DynamicTransition_Left",
+      "crouching": false,
+      "right": false,
+      "length": 1.5333333015441895,
+      "samples": [
+        {
+          "name": "rounding_boundary",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.022122014313936234,
+              "position": 1.533182978630066,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.009999999776482582,
+              "position": 1.5332833528518677,
+              "weight": 1,
+              "playing": false,
+              "stopped": true
+            },
+            {
+              "delta_seconds": 0.05000000074505806,
+              "position": 1.5332833528518677,
+              "weight": 0.84375,
+              "playing": false,
+              "stopped": true
+            }
+          ]
+        },
+        {
+          "name": "before_window",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.02199999988079071,
+              "position": 1.5329999923706055,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            }
+          ]
+        },
+        {
+          "name": "inside_window",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.02215000055730343,
+              "position": 1.5332250595092773,
+              "weight": 1,
+              "playing": true,
+              "stopped": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Stand_DynamicTransition_Right",
+      "crouching": false,
+      "right": true,
+      "length": 1.5333333015441895,
+      "samples": [
+        {
+          "name": "rounding_boundary",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.022122014313936234,
+              "position": 1.533182978630066,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.009999999776482582,
+              "position": 1.5332833528518677,
+              "weight": 1,
+              "playing": false,
+              "stopped": true
+            },
+            {
+              "delta_seconds": 0.05000000074505806,
+              "position": 1.5332833528518677,
+              "weight": 0.84375,
+              "playing": false,
+              "stopped": true
+            }
+          ]
+        },
+        {
+          "name": "before_window",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.02199999988079071,
+              "position": 1.5329999923706055,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            }
+          ]
+        },
+        {
+          "name": "inside_window",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.02215000055730343,
+              "position": 1.5332250595092773,
+              "weight": 1,
+              "playing": true,
+              "stopped": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Crouch_DynamicTransition_Left",
+      "crouching": true,
+      "right": false,
+      "length": 1.5333333015441895,
+      "samples": [
+        {
+          "name": "rounding_boundary",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.022122014313936234,
+              "position": 1.533182978630066,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.009999999776482582,
+              "position": 1.5332833528518677,
+              "weight": 1,
+              "playing": false,
+              "stopped": true
+            },
+            {
+              "delta_seconds": 0.05000000074505806,
+              "position": 1.5332833528518677,
+              "weight": 0.84375,
+              "playing": false,
+              "stopped": true
+            }
+          ]
+        },
+        {
+          "name": "before_window",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.02199999988079071,
+              "position": 1.5329999923706055,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            }
+          ]
+        },
+        {
+          "name": "inside_window",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.02215000055730343,
+              "position": 1.5332250595092773,
+              "weight": 1,
+              "playing": true,
+              "stopped": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Crouch_DynamicTransition_Right",
+      "crouching": true,
+      "right": true,
+      "length": 1.5333333015441895,
+      "samples": [
+        {
+          "name": "rounding_boundary",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.022122014313936234,
+              "position": 1.533182978630066,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.009999999776482582,
+              "position": 1.5332833528518677,
+              "weight": 1,
+              "playing": false,
+              "stopped": true
+            },
+            {
+              "delta_seconds": 0.05000000074505806,
+              "position": 1.5332833528518677,
+              "weight": 0.84375,
+              "playing": false,
+              "stopped": true
+            }
+          ]
+        },
+        {
+          "name": "before_window",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.02199999988079071,
+              "position": 1.5329999923706055,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            }
+          ]
+        },
+        {
+          "name": "inside_window",
+          "frames": [
+            {
+              "delta_seconds": 1,
+              "position": 1.5,
+              "weight": 1,
+              "playing": true,
+              "stopped": false
+            },
+            {
+              "delta_seconds": 0.02215000055730343,
+              "position": 1.5332250595092773,
+              "weight": 1,
+              "playing": true,
+              "stopped": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "truncated_duration_ablations_failed": 4,
+  "maximum_weight_error": 0.059750015020370695
+}
