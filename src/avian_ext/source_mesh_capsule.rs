@@ -6,10 +6,12 @@ use super::source_contact_segment::source_nearest_segments;
 
 const NORMAL_TOLERANCE: f64 = 1.0e-5;
 const NORMAL_TOLERANCE_SQUARED: f64 = NORMAL_TOLERANCE * NORMAL_TOLERANCE;
+const FACE_CONTACT_SIN_ANGLE_THRESHOLD: f64 = 0.34;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum SourceTriangleContactKind {
     VertexPlane,
+    EdgeEdge,
 }
 
 pub(super) struct SourceTriangleContact {
@@ -46,6 +48,102 @@ struct SourceCapsuleTriangle {
     reject_distance: f64,
     collided: [bool; 2],
     contacts: Vec<SourceTriangleContact>,
+}
+
+impl SourceCapsuleTriangle {
+    fn prefers_face_contact(&self) -> bool {
+        self.axis.dot(self.face_normal).abs() < FACE_CONTACT_SIN_ANGLE_THRESHOLD
+    }
+
+    fn add_parallel_edge_contacts(&mut self, edge_index: usize) {
+        let start = self.triangle[(edge_index + 2) % 3];
+        let edge = self.triangle[edge_index] - start;
+        let length_squared = edge.length_squared();
+        if length_squared <= NORMAL_TOLERANCE_SQUARED {
+            return;
+        }
+        let parameters = self.segment.map(|point| (point - start).dot(edge) / length_squared);
+        let radius = self.radius;
+        let reject_squared = self.reject_distance * self.reject_distance;
+        let mut add_contact = |point: DVec3, delta: DVec3| {
+            let squared = delta.length_squared();
+            if squared > NORMAL_TOLERANCE_SQUARED && squared < reject_squared {
+                let distance = squared.sqrt();
+                let normal = delta / distance;
+                let phi_cm = distance - radius;
+                self.contacts.push(SourceTriangleContact {
+                    first_cm: point + phi_cm * normal,
+                    second_cm: point,
+                    normal,
+                    phi_cm,
+                    kind: SourceTriangleContactKind::EdgeEdge,
+                });
+            }
+        };
+        if parameters.iter().any(|parameter| (0.0..=1.0).contains(parameter)) {
+            for (point, parameter) in self.segment.into_iter().zip(parameters) {
+                let projected = start + parameter * edge;
+                let clamped = start + parameter.clamp(0.0, 1.0) * edge;
+                add_contact(clamped, point - projected);
+            }
+        } else {
+            let [first, second] = parameters;
+            let use_first = if first < 0.0 && second < 0.0 { first > second } else { first < second };
+            let index = if use_first { 0 } else { 1 };
+            let clamped = start + parameters[index].clamp(0.0, 1.0) * edge;
+            add_contact(clamped, self.segment[index] - clamped);
+        }
+    }
+
+    fn add_parallel_or_cylinder_contacts(&mut self) -> bool {
+        if self.contacts.len() == 2 {
+            return true;
+        }
+        if (self.face_distances[0] - self.face_distances[1]).abs() <= self.distance_tolerance {
+            let parallel = self.edge_distances.iter().position(|&[first, second]| {
+                first >= 0.0 && second >= 0.0 && (first - second).abs() <= self.distance_tolerance
+            });
+            if let Some(edge_index) = parallel {
+                self.add_parallel_edge_contacts(edge_index);
+                return true;
+            }
+        }
+        if !self.prefers_face_contact() {
+            return false;
+        }
+
+        let mut radial = self.axis.cross(self.face_normal).cross(self.axis);
+        let squared = radial.length_squared();
+        if squared <= NORMAL_TOLERANCE {
+            return false;
+        }
+        radial *= squared.sqrt().recip();
+        if radial.dot(self.face_normal) > 0.0 {
+            radial = -radial;
+        }
+        for index in 0..2 {
+            if self.collided[index] || self.edge_distances.iter().any(|distance| {
+                distance[index] > self.radius + self.distance_tolerance
+            }) {
+                continue;
+            }
+            let first_cm = self.segment[index] + self.radius * radial;
+            let inside = (0..3).all(|edge| {
+                (first_cm - self.triangle[edge]).dot(self.edge_normals[edge]) <= self.distance_tolerance
+            });
+            if inside {
+                let phi_cm = (first_cm - self.triangle[0]).dot(self.face_normal);
+                self.contacts.push(SourceTriangleContact {
+                    first_cm,
+                    second_cm: first_cm - phi_cm * self.face_normal,
+                    normal: self.face_normal,
+                    phi_cm,
+                    kind: SourceTriangleContactKind::VertexPlane,
+                });
+            }
+        }
+        self.contacts.len() == 2
+    }
 }
 
 fn source_capsule_triangle_start(
@@ -187,6 +285,45 @@ mod tests {
         contact_type: u8,
     }
 
+    impl NativeCapsuleSample {
+        fn capsule(&self) -> SourceCapsuleGeometry {
+            let [first, second] = self.endpoints_cm.map(DVec3::from_array);
+            let delta = second - first;
+            SourceCapsuleGeometry {
+                first_m: source_direction(first) * 0.01,
+                axis: source_direction(delta.normalize()),
+                length_m: delta.length() * 0.01,
+                radius_m: self.radius_cm * 0.01,
+            }
+        }
+    }
+
+    impl NativeTriangle {
+        fn vertices_m(&self) -> [DVec3; 3] {
+            self.vertices_cm.map(|point| source_direction(DVec3::from_array(point)) * 0.01)
+        }
+    }
+
+    fn assert_native_contacts(
+        actual: &[SourceTriangleContact],
+        expected: &[NativePoint],
+        label: (&str, usize),
+        normal_tolerance: f64,
+    ) {
+        assert_eq!(actual.len(), expected.len(), "{label:?}");
+        for (actual, expected) in actual.iter().zip(expected) {
+            let contact_type = match actual.kind {
+                SourceTriangleContactKind::VertexPlane => 1,
+                SourceTriangleContactKind::EdgeEdge => 2,
+            };
+            assert_eq!(contact_type, expected.contact_type, "{label:?}");
+            assert!(actual.first_cm.distance(DVec3::from_array(expected.first_cm)) < 1e-5, "{label:?}");
+            assert!(actual.second_cm.distance(DVec3::from_array(expected.second_cm)) < 1e-5, "{label:?}");
+            assert!(actual.normal.distance(DVec3::from_array(expected.normal)) < normal_tolerance, "{label:?}");
+            assert!((actual.phi_cm - expected.phi_cm).abs() < 1e-5, "{label:?}");
+        }
+    }
+
     fn triangle() -> [DVec3; 3] {
         [DVec3::new(-2.0, 0.0, -2.0), DVec3::new(2.0, 0.0, -2.0), DVec3::new(-2.0, 0.0, 2.0)]
     }
@@ -232,17 +369,10 @@ mod tests {
         .unwrap();
         for sample in samples {
             let endpoints = sample.endpoints_cm.map(DVec3::from_array);
-            let delta = endpoints[1] - endpoints[0];
-            let capsule = SourceCapsuleGeometry {
-                first_m: source_direction(endpoints[0]) * 0.01,
-                axis: source_direction(delta.normalize()),
-                length_m: delta.length() * 0.01,
-                radius_m: sample.radius_cm * 0.01,
-            };
-            for face in sample.triangles {
-                let triangle = face.vertices_cm.map(|point| source_direction(DVec3::from_array(point)) * 0.01);
-                let state = source_capsule_triangle_start(capsule, triangle, sample.cull_cm * 0.01);
-                let label = (&sample.label, face.index);
+            let capsule = sample.capsule();
+            for face in &sample.triangles {
+                let state = source_capsule_triangle_start(capsule, face.vertices_m(), sample.cull_cm * 0.01);
+                let label = (sample.label.as_str(), face.index);
                 if face.points.is_empty() {
                     assert!(state.is_none(), "{label:?}");
                     continue;
@@ -251,16 +381,47 @@ mod tests {
                 let caps = face.points.iter().take_while(|point| {
                     let support = DVec3::from_array(point.first_cm) + sample.radius_cm * DVec3::from_array(point.normal);
                     point.contact_type == 1 && endpoints.iter().any(|endpoint| endpoint.distance(support) < 1e-6)
-                });
-                assert_eq!(state.contacts.len(), caps.clone().count(), "{label:?}");
-                for (actual, expected) in state.contacts.iter().zip(caps) {
-                    assert_eq!(actual.kind, SourceTriangleContactKind::VertexPlane, "{label:?}");
-                    assert!(actual.first_cm.distance(DVec3::from_array(expected.first_cm)) < 1e-5, "{label:?}");
-                    assert!(actual.second_cm.distance(DVec3::from_array(expected.second_cm)) < 1e-5, "{label:?}");
-                    assert!(actual.normal.distance(DVec3::from_array(expected.normal)) < 1e-9, "{label:?}");
-                    assert!((actual.phi_cm - expected.phi_cm).abs() < 1e-5, "{label:?}");
+                }).count();
+                assert_native_contacts(&state.contacts, &face.points[..caps], label, 1e-9);
+            }
+        }
+    }
+
+    #[test]
+    fn source_capsule_triangle_parallel_and_cylinder_contacts_match_native() {
+        let mut checked = 0;
+        for fixture in [
+            include_str!("../../docs/audit/bf144/d100b4b2a2/triangle-cases.json"),
+            include_str!("../../docs/audit/bf144/d100b4b2a3/parallel-cases.json"),
+        ] {
+            let samples: Vec<NativeCapsuleSample> = serde_json::from_str(fixture).unwrap();
+            for sample in samples {
+                let capsule = sample.capsule();
+                for face in &sample.triangles {
+                    let cylinder = face.points.len() == 2 && matches!(face.index, 1053 | 175 | 176);
+                    if cylinder || sample.label.starts_with("stair_parallel_") {
+                        let label = (sample.label.as_str(), face.index);
+                        let mut state = source_capsule_triangle_start(capsule, face.vertices_m(), sample.cull_cm * 0.01)
+                            .unwrap_or_else(|| panic!("Source rejected {label:?}"));
+                        assert!(state.add_parallel_or_cylinder_contacts(), "{label:?}");
+                        assert_native_contacts(&state.contacts, &face.points, label, 1e-7);
+                        checked += 1;
+                    }
                 }
             }
+        }
+        assert_eq!(checked, 6);
+    }
+
+    #[test]
+    fn source_capsule_triangle_cylinder_respects_face_angle() {
+        for (sine, completes) in [(0.33_f64, true), (0.35, false)] {
+            let axis = DVec3::new((1.0 - sine * sine).sqrt(), sine, 0.0);
+            let capsule = capsule(DVec3::new(-0.2, 0.08, -0.3), axis, 0.1);
+            let mut state = source_capsule_triangle_start(capsule, triangle(), 0.03).unwrap();
+            assert_eq!(state.contacts.len(), 1);
+            assert_eq!(state.add_parallel_or_cylinder_contacts(), completes);
+            assert_eq!(state.contacts.len(), if completes { 2 } else { 1 });
         }
     }
 }

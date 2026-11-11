@@ -1,0 +1,28 @@
+{
+  "request": "docs/audit/bf144/d100b4b2a3/parallel.request.json",
+  "request_sha256": "b0f4abb318de8350ea7f8d69d228e17d22bb8ccb725dee447db767ec94121f71",
+  "native": "docs/audit/bf144/d100b4b2a3/parallel.native.json.gz",
+  "raw_bytes": 4894686,
+  "raw_sha256": "afc45a21c504211a75e2ee9d41d1f9ad29de1b89ba26d886f9cd6ab851b1470b",
+  "gzip_bytes": 241564,
+  "gzip_sha256": "ffd9be74cad6b4a60f42e79893d38061957557696dc5efb15773185c853cb464",
+  "reader_report": "docs/audit/bf144/d100b4b2a3/parallel.native.json.reader.report.json",
+  "reader_report_sha256": "7ece3a77be4028ceb9a82bc8d9d3b07a33526402a692b4dd7ff053450fc3537c",
+  "sample": "docs/audit/bf144/d100b4b2a3/parallel-cases.json",
+  "sample_sha256": "d64700e844492a3a91f653295c64a2a31dd464b832f6005f3a97d21181aecf4c",
+  "sample_count": 3,
+  "cylinder_native_identity": "docs/audit/bf144/d100b4b2a2/native-identities.json",
+  "cylinder_native_identity_sha256": "31442dba0f63605ef49dec27e877dfbcfe6a757d32dee2541033f838d76e6e4e",
+  "assets": [
+    {
+      "asset": "/ALS/ALS/Character/PA_Als.PA_Als",
+      "bytes": 52745,
+      "sha256": "299d44f90d97cfca296cf888df9727c9f3cc9435cc86e11b3525f6f04d45ebb6"
+    },
+    {
+      "asset": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01",
+      "bytes": 20561,
+      "sha256": "58a38b5b77c257fade48a852bea4416b84b3444b269305f2f900d39cebd94517"
+    }
+  ]
+}

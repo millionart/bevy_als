@@ -1,0 +1,121 @@
+{
+  "samples": [
+    {
+      "label": "stair_parallel_both_inside",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        106.87500148171263,
+        -664.6746617141152,
+        314.9
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        -0.9537169479310981,
+        0.3007058084390642
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "triangle_indices": [
+        252
+      ]
+    },
+    {
+      "label": "stair_parallel_one_outside",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        670.8750305934975,
+        -664.6746617141152,
+        314.9
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        -0.9537169479310981,
+        0.3007058084390642
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "triangle_indices": [
+        252
+      ]
+    },
+    {
+      "label": "stair_parallel_both_before",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -3.1249985182873745,
+        -664.6746617141152,
+        314.9
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        -0.9537169479310981,
+        0.3007058084390642
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "triangle_indices": [
+        252
+      ]
+    }
+  ]
+}
