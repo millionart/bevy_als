@@ -4893,7 +4893,8 @@
   - 18:00运行 ragdoll：使用 startup 通过的同一 Playground 二进制，验证两倍体型角色从高处下落、PA 与场景接触落稳、退出布娃娃和起身。普通角色回归待两项真实布娃娃场景通过。
   - 18:00 ragdoll 功能 Gate 通过：从高处进入布娃娃，场景地面跟随稳定，缩放碰撞体和关节匹配，退出恢复时角色速度为0，48个姿态样本、0个图错误。证据 `docs/audit/bf144/ragdoll-avian-runtime/ragdoll/`。18:01开始 get_up，沿同一真实入口检查正反面起身和输入解锁。
 
-- [ ] BF144-RAGDOLL-AVIAN-REGRESSION — 回归普通行走、台阶、攀爬和脚部 IK。
+- [x] BF144-RAGDOLL-AVIAN-REGRESSION — 回归普通行走、台阶、攀爬和脚部 IK。
+  - 18:47普通角色功能 Gate 通过。standing_response 验证行走与起停，stairs 验证六条上下路线，foot_ik 验证足锁、恢复、地形与静态攀爬，moving_base-3 验证移动攀爬、落地交接与完整骑乘周期。证据 `docs/audit/bf144/ragdoll-avian-regression/`，完整压缩报告已按原字节 SHA-256 复验。开始18:02，预估18:47，实际结束2026-11-11 18:47 +08:00，偏差0分钟。结果：功能通过，保留性能预算记录。
   - 预计开始：2026-11-11 19:06 +08:00。预估结束：2026-11-11 19:51 +08:00。沿现有真实场景和自动场景的公共入口验证，保留仍服务普通角色的查询及动画路径。实际开始时按场景闭包更新。
   - 本轮开始：2026-11-11 18:02 +08:00。预估结束：18:47 +08:00。沿已通过 startup 与布娃娃场景的同一二进制和公共入口，依次跑 standing_response 的行走与加减速、stairs 的上下台阶、moving_base 的移动目标攀爬、foot_ik 的地面与足锁。先执行 standing_response 功能 Gate。
   - 18:02 standing_response 功能 Gate 通过，行走及起停、步态与速度响应覆盖 6 项。证据 `docs/audit/bf144/ragdoll-avian-regression/standing_response/`。同一入口开始 stairs，验证真实上、下台阶。
