@@ -144,6 +144,83 @@ impl SourceCapsuleTriangle {
         }
         self.contacts.len() == 2
     }
+
+    fn add_edge_contacts(&mut self) {
+        let prefer_face = self.prefers_face_contact();
+        for (index, edge) in self.edges.into_iter().enumerate() {
+            if self.edge_distances[index].iter().all(|&distance| distance <= -self.distance_tolerance)
+                || edge.dot_face < -NORMAL_TOLERANCE
+            {
+                continue;
+            }
+            let previous = (index + 2) % 3;
+            let edge_direction = self.triangle[index] - self.triangle[previous];
+            let face_contact = prefer_face
+                && edge.edge_t > 0.0 && edge.edge_t < 1.0
+                && edge.segment_t > 0.0 && edge.segment_t < 1.0;
+
+            let (normal, signed_distance) = if edge.distance_squared > NORMAL_TOLERANCE_SQUARED {
+                let distance = edge.distance_squared.sqrt();
+                (edge.delta / distance, distance * edge.sign)
+            } else {
+                let mut normal = self.axis.cross(edge_direction);
+                let squared = normal.length_squared();
+                if squared <= NORMAL_TOLERANCE_SQUARED {
+                    continue;
+                }
+                normal *= squared.sqrt().recip();
+                if normal.dot(self.face_normal) < 0.0 {
+                    normal = -normal;
+                }
+                if self.edge_normals[index].dot(normal) < -NORMAL_TOLERANCE {
+                    continue;
+                }
+                (normal, 0.0)
+            };
+
+            if !face_contact {
+                if self.edge_normals[index].dot(normal) < -NORMAL_TOLERANCE {
+                    continue;
+                }
+                let vertex = if edge.edge_t == 0.0 {
+                    Some(previous)
+                } else if edge.edge_t == 1.0 {
+                    Some(index)
+                } else {
+                    None
+                };
+                if let Some(vertex) = vertex {
+                    let inside_normal = (0..3).any(|other| {
+                        other != vertex
+                            && (self.triangle[vertex] - self.triangle[other]).dot(normal) < -NORMAL_TOLERANCE
+                    });
+                    if inside_normal {
+                        continue;
+                    }
+                }
+            }
+
+            let first_cm = edge.segment_point - self.radius * normal;
+            if face_contact {
+                let phi_cm = (first_cm - self.triangle[0]).dot(self.face_normal);
+                self.contacts.push(SourceTriangleContact {
+                    first_cm,
+                    second_cm: first_cm - phi_cm * self.face_normal,
+                    normal: self.face_normal,
+                    phi_cm,
+                    kind: SourceTriangleContactKind::VertexPlane,
+                });
+            } else {
+                self.contacts.push(SourceTriangleContact {
+                    first_cm,
+                    second_cm: edge.edge_point,
+                    normal,
+                    phi_cm: signed_distance - self.radius,
+                    kind: SourceTriangleContactKind::EdgeEdge,
+                });
+            }
+        }
+    }
 }
 
 fn source_capsule_triangle_start(
@@ -252,6 +329,20 @@ fn source_capsule_triangle_start(
         collided,
         contacts,
     })
+}
+
+pub(super) fn source_capsule_triangle_contacts(
+    capsule: SourceCapsuleGeometry,
+    triangle_m: [DVec3; 3],
+    cull_m: f64,
+) -> Vec<SourceTriangleContact> {
+    let Some(mut state) = source_capsule_triangle_start(capsule, triangle_m, cull_m) else {
+        return Vec::new();
+    };
+    if !state.add_parallel_or_cylinder_contacts() {
+        state.add_edge_contacts();
+    }
+    state.contacts
 }
 
 #[cfg(test)]
@@ -423,5 +514,50 @@ mod tests {
             assert_eq!(state.add_parallel_or_cylinder_contacts(), completes);
             assert_eq!(state.contacts.len(), if completes { 2 } else { 1 });
         }
+    }
+
+    #[test]
+    fn source_capsule_triangle_final_contacts_match_native_manifolds() {
+        let mut checked = 0;
+        for fixture in [
+            include_str!("../../docs/audit/bf144/d100b4b2a2/triangle-cases.json"),
+            include_str!("../../docs/audit/bf144/d100b4b2a3/parallel-cases.json"),
+        ] {
+            let samples: Vec<NativeCapsuleSample> = serde_json::from_str(fixture).unwrap();
+            for sample in samples {
+                let capsule = sample.capsule();
+                for face in &sample.triangles {
+                    let contacts = source_capsule_triangle_contacts(capsule, face.vertices_m(), sample.cull_cm * 0.01);
+                    assert_native_contacts(&contacts, &face.points, (sample.label.as_str(), face.index), 1e-7);
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(checked, 15);
+    }
+
+    #[test]
+    fn source_capsule_triangle_zero_distance_crossing_uses_face_normal() {
+        let capsule = capsule(DVec3::new(0.0, 0.0, -2.1), DVec3::Z, 0.2);
+        let contacts = source_capsule_triangle_contacts(capsule, triangle(), 0.03);
+        assert_eq!(contacts.len(), 2);
+        assert_eq!(contacts[0].second_cm, DVec3::new(0.0, -190.0, 0.0));
+        let crossing = &contacts[1];
+        assert_eq!(crossing.kind, SourceTriangleContactKind::VertexPlane);
+        assert_eq!(crossing.first_cm, DVec3::new(0.0, -200.0, -10.0));
+        assert_eq!(crossing.second_cm, DVec3::new(0.0, -200.0, 0.0));
+        assert_eq!(crossing.normal, DVec3::Z);
+    }
+
+    #[test]
+    fn source_capsule_triangle_vertex_normal_must_leave_both_incident_edges() {
+        let capsule = capsule(DVec3::new(-0.04, 0.08, -0.01), DVec3::Y, 0.1);
+        let triangle = [DVec3::ZERO, DVec3::X, DVec3::new(-1.0, 0.0, 1.0)];
+        let contacts = source_capsule_triangle_contacts(capsule, triangle, 0.03);
+        assert_eq!(contacts.len(), 1);
+        let edge = &contacts[0];
+        assert_eq!(edge.kind, SourceTriangleContactKind::EdgeEdge);
+        assert!(edge.second_cm.distance(DVec3::new(-1.5, 1.5, 0.0)) < 1e-12);
+        assert!(edge.normal.distance(DVec3::new(-2.5, -2.5, 8.0).normalize()) < 1e-12);
     }
 }
