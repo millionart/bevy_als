@@ -6,7 +6,7 @@ use crate::als::{
 use crate::extensions::{
     AlsAnimCurves,
     animation_context::{AnimationContextState, SourceRelevantAsset},
-    profile_blend::{AlphaBlendMode, MontageBlend, advance_forward_montage_position},
+    profile_blend::{AlphaBlendMode, MONTAGE_SECTION_END_OFFSET, MontageBlend, advance_forward_montage_position},
 };
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -80,6 +80,7 @@ pub struct AlsGetUpState {
     pub pose_ready: bool,
     pub(crate) interrupted: bool,
     stop: Option<MontageBlend>,
+    section_ended: bool,
 }
 
 impl AlsGetUpState {
@@ -93,6 +94,7 @@ impl AlsGetUpState {
             pose_ready: false,
             interrupted: false,
             stop: None,
+            section_ended: false,
         }
     }
 
@@ -105,13 +107,15 @@ impl AlsGetUpState {
     }
 
     pub(crate) fn advance(&mut self, delta: f32, settings: &GetUpClipSettings) {
+        if self.weight == 0.0 { return; }
         if let Some(blend) = &mut self.stop {
             self.weight = blend.advance(delta);
         }
         self.elapsed += delta;
+        if self.section_ended { return; }
         let stop = &mut self.stop;
         let weight = &mut self.weight;
-        advance_forward_montage_position(&mut self.clip_time, delta, settings.play_rate, settings.sequence_length,
+        self.section_ended = advance_forward_montage_position(&mut self.clip_time, delta, settings.play_rate, settings.sequence_length,
             &[settings.notify_end_clip_seconds], |position| {
             let to_end = (settings.sequence_length - position) / settings.play_rate;
             if stop.is_none() && to_end <= settings.blend_out_seconds.max(1e-4) {
@@ -119,6 +123,9 @@ impl AlsGetUpState {
                 if to_end <= 0.0 { *weight = 0.0; }
             }
         });
+        if self.section_ended {
+            self.clip_time = settings.sequence_length - MONTAGE_SECTION_END_OFFSET;
+        }
     }
 }
 
@@ -794,11 +801,16 @@ mod tests {
         let settings: AlsRagdollSettings = serde_json::from_str(include_str!(
             "../../../../assets/ALS/Data/Character/als_ragdoll_settings.json"
         )).unwrap();
-        for (facing_up, mut settings, clock, notify) in [
+        let terminal_request: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d120/clock.request.json"
+        )).unwrap();
+        for (facing_up, mut settings, clock, notify, terminal) in [
             (false, settings.front, include_str!("../../../../docs/audit/bf144/d118a/front.native.json"),
-                include_str!("../../../../docs/audit/bf144/d118a/front-notify.native.json")),
+                include_str!("../../../../docs/audit/bf144/d118a/front-notify.native.json"),
+                include_str!("../../../../docs/audit/bf144/d120/front.native.json")),
             (true, settings.back, include_str!("../../../../docs/audit/bf144/d118a/back.native.json"),
-                include_str!("../../../../docs/audit/bf144/d118a/back-notify.native.json")),
+                include_str!("../../../../docs/audit/bf144/d118a/back-notify.native.json"),
+                include_str!("../../../../docs/audit/bf144/d120/back.native.json")),
         ] {
             let notify: serde_json::Value = serde_json::from_str(notify).unwrap();
             let mut ends = notify["notify_clock_probe"]["cases"].as_array().unwrap().iter()
@@ -808,17 +820,22 @@ mod tests {
             assert!(ends.all(|time| time == marker));
             settings.notify_end_clip_seconds = marker;
 
-            let clock: serde_json::Value = serde_json::from_str(clock).unwrap();
-            for sample in clock["montage_clock_probe"]["samples"].as_array().unwrap() {
-                let name = sample["name"].as_str().unwrap();
-                let mut state = AlsGetUpState::new(facing_up);
-                for (index, frame) in sample["frames"].as_array().unwrap().iter().enumerate() {
-                    state.advance(frame["delta_seconds"].as_f64().unwrap() as f32, &settings);
-                    assert_eq!(state.weight, frame["weight"].as_f64().unwrap() as f32,
-                        "Get-up blend history: facing_up={facing_up} sample={name} frame={index}");
-                    if frame["playing"].as_bool().unwrap() {
+            for (clock, request) in [(clock, None), (terminal, Some(&terminal_request))] {
+                let clock: serde_json::Value = serde_json::from_str(clock).unwrap();
+                for (sample_index, sample) in clock["montage_clock_probe"]["samples"].as_array().unwrap().iter().enumerate() {
+                    let name = sample["name"].as_str().unwrap();
+                    let mut state = AlsGetUpState::new(facing_up);
+                    for (index, frame) in sample["frames"].as_array().unwrap().iter().enumerate() {
+                        if let Some(seconds) = request.and_then(|request| request["samples"][sample_index]["steps"][index]["stop_seconds"].as_f64()) {
+                            state.stop(seconds as f32);
+                        }
+                        state.advance(frame["delta_seconds"].as_f64().unwrap() as f32, &settings);
+                        assert_eq!(state.weight, frame["weight"].as_f64().unwrap() as f32,
+                            "Get-up blend history: facing_up={facing_up} sample={name} frame={index}");
                         assert_eq!(state.clip_time, frame["position"].as_f64().unwrap() as f32,
                             "Get-up clip clock: facing_up={facing_up} sample={name} frame={index}");
+                        assert_eq!(!state.section_ended && state.weight > 0.0, frame["playing"].as_bool().unwrap(),
+                            "Get-up playing state: facing_up={facing_up} sample={name} frame={index}");
                     }
                 }
             }

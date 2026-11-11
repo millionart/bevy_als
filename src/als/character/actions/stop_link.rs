@@ -12,7 +12,7 @@ use crate::als::params::AlsMovementParams;
 use crate::als::start_stop::predict_stop_distance;
 use crate::als::state::{LocomotionState, RotationMode, Stance};
 use crate::als::transitions::{TransitionConfig, select_quick_stop};
-use crate::extensions::profile_blend::{AlphaBlendMode, MontageBlend};
+use crate::extensions::profile_blend::{AlphaBlendMode, MONTAGE_SECTION_END_OFFSET, MontageBlend};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
@@ -285,7 +285,7 @@ impl AlsTransitionPlayback {
             }
             if reached_end {
                 self.playing = false;
-                self.clip_time = if forward { end - TRANSITION_SECTION_END_OFFSET } else { end };
+                self.clip_time = if forward { end - MONTAGE_SECTION_END_OFFSET } else { end };
             }
         }
         if self.stop_elapsed.is_some() && self.weight == 0.0 {
@@ -380,7 +380,6 @@ pub const STOP_TRANSITION_BLEND_OUT: f32 = 0.2;
 pub const STOP_TRANSITION_PLAY_RATE: f32 = 1.5;
 pub const STOP_TRANSITION_START_TIME: f32 = 0.4;
 pub const RIGHT_TRANSITION_START_TIME: f32 = 0.2;
-pub(crate) const TRANSITION_SECTION_END_OFFSET: f32 = 0.000_05;
 pub const TRANSITION_SEQUENCE_DURATION: f32 = 2.3333333;
 pub const CROUCH_DYNAMIC_TRANSITION_DURATION: f32 = 1.5333333;
 pub const DYNAMIC_TRANSITION_BLEND: f32 = 0.2;
@@ -1163,11 +1162,11 @@ mod tests {
                 let dt = lifetime.min(0.1);
                 playback.advance(dt);
                 let expected = if rate > 0.0 && dt > 0.0 && start + dt * rate >= 1.0 {
-                    1.0 - TRANSITION_SECTION_END_OFFSET
+                    1.0 - MONTAGE_SECTION_END_OFFSET
                 } else { (start + dt * rate).clamp(0.0, 1.0) };
                 assert!((playback.clip_time - expected).abs() < 1e-6, "Signed time failed: rate={rate}, start={start}, actual={}", playback.clip_time);
                 playback.advance(if lifetime == 0.0 { 0.001 } else { lifetime - dt });
-                let expected = if rate < 0.0 { 0.0 } else { 1.0 - TRANSITION_SECTION_END_OFFSET };
+                let expected = if rate < 0.0 { 0.0 } else { 1.0 - MONTAGE_SECTION_END_OFFSET };
                 assert!((playback.clip_time - expected).abs() < 1e-6);
                 assert!(playback.active && playback.stop_elapsed.is_some());
                 playback.advance(0.1);
@@ -1294,7 +1293,7 @@ mod tests {
         stack.advance(end);
         assert_eq!(stack.latest().unwrap().weight, 1.0);
         assert!(!stack.latest().unwrap().interrupted);
-        assert_eq!(stack.latest().unwrap().clip_time, stack.latest().unwrap().duration - TRANSITION_SECTION_END_OFFSET);
+        assert_eq!(stack.latest().unwrap().clip_time, stack.latest().unwrap().duration - MONTAGE_SECTION_END_OFFSET);
         stack.advance(0.05);
         assert!((stack.latest().unwrap().weight - 0.84375).abs() < 1e-6);
         stack.advance(0.15);

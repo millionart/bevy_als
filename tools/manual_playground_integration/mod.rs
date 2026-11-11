@@ -390,7 +390,7 @@ fn standing_stop_completed(
 ) -> bool {
     branch_seen && previous.is_some_and(|playback| playback.clip_time > 0.8)
         && current.is_some_and(|playback| !playback.active
-            && playback.clip_time == playback.duration - crate::stop_link::TRANSITION_SECTION_END_OFFSET)
+            && playback.clip_time == playback.duration - crate::extensions::profile_blend::MONTAGE_SECTION_END_OFFSET)
         && idle
 }
 

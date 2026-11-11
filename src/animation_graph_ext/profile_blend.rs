@@ -167,24 +167,32 @@ impl MontageBlend {
     }
 }
 
+pub(crate) const MONTAGE_SECTION_END_OFFSET: f32 = 0.000_05;
+
 pub(crate) fn advance_forward_montage_position(
     position: &mut f32, delta: f32, play_rate: f32, length: f32, branching_points: &[f32],
     mut after_step: impl FnMut(f32),
-) {
+) -> bool {
     let mut time_remaining = delta;
     for _ in 0..9 {
-        if time_remaining <= 1e-8 || *position >= length { break; }
+        if time_remaining <= 1e-8 || play_rate <= 1e-8 { break; }
         let mut movement = time_remaining * play_rate;
         let end = *position + movement;
         if let Some(marker) = branching_points.iter().copied().find(|marker| *position < *marker && *marker <= end) {
             movement = marker - *position;
         }
-        movement = movement.min(length - *position);
+        let to_end = length - *position;
+        if movement >= to_end {
+            *position += to_end;
+            after_step(*position);
+            return true;
+        }
         if movement <= 0.0 { break; }
         *position += movement;
         time_remaining = (time_remaining - movement / play_rate).max(0.0);
         after_step(*position);
     }
+    false
 }
 
 impl ProfiledBlendNode {
