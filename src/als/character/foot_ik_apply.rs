@@ -9,10 +9,7 @@ use crate::als::foot_ik::{
 };
 use crate::als::state::{LocomotionState, Stance};
 use crate::als::transitions::TransitionConfig;
-use crate::extensions::ik_space::{
-    ArmaturePoint, WorldPoint, WorldRotation, armature_point_from_world,
-    armature_rotation_from_world, world_point_from_armature,
-};
+use crate::extensions::ik_space::{WorldRotation, armature_rotation_from_world};
 use bevy::prelude::*;
 use bevy::math::DQuat;
 use bevy::animation::AnimationTargetId;
@@ -494,6 +491,15 @@ fn refresh_previous_foot_lock_transform(
     }
 }
 
+fn foot_component_transform(armature: &GlobalTransform) -> RigTransform {
+    let (scale, rotation, translation) = armature.to_scale_rotation_translation();
+    RigTransform {
+        translation: translation.as_dvec3(),
+        rotation: rotation.as_dquat(),
+        scale: scale.as_dvec3(),
+    }
+}
+
 fn source_constrain_foot_lock(
     state: &mut AlsFootLockFootState,
     armature: &GlobalTransform,
@@ -507,8 +513,9 @@ fn source_constrain_foot_lock(
     let pelvis_rotation_armature =
         armature_rotation_from_world(armature, WorldRotation(pelvis_world.rotation())).0;
     let thigh_axis_armature = pelvis_rotation_armature * thigh_axis_pelvis_space;
+    let component = foot_component_transform(armature);
     let mut lock_location_armature =
-        armature_point_from_world(armature, WorldPoint(state.lock_location)).0;
+        component.inverse().transform_point(state.lock_location.as_dvec3()).as_vec3();
     let mut lock_rotation_armature =
         (armature.rotation().as_dquat().conjugate() * state.lock_rotation).as_quat();
     if let Some(offset_rotation) = foot_lock_location_constraint_rotation(
@@ -518,8 +525,7 @@ fn source_constrain_foot_lock(
     ) {
         lock_location_armature = offset_rotation * lock_location_armature;
         lock_rotation_armature = (offset_rotation * lock_rotation_armature).normalize();
-        state.lock_location =
-            world_point_from_armature(armature, ArmaturePoint(lock_location_armature)).0;
+        state.lock_location = component.transform_point(lock_location_armature.as_dvec3()).as_vec3();
         state.lock_rotation = armature.rotation().as_dquat() * lock_rotation_armature.as_dquat();
         capture_foot_lock_movement_base(state, state.movement_base);
         state.lock_rotation_before_foot_limit_armature = lock_rotation_armature;
@@ -719,10 +725,11 @@ fn refresh_foot_lock_inputs(
             }
         }
         if let Some(input) = rig_input.as_mut() {
+            let inverse = foot_component_transform(&armature).inverse();
             input.foot_transforms_valid = lock_state.valid;
-            input.foot_left_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.left.final_location)).0;
+            input.foot_left_location_armature = inverse.transform_point(lock_state.left.final_location.as_dvec3()).as_vec3();
             input.foot_left_rotation_armature = lock_state.left.final_rotation_armature;
-            input.foot_right_location_armature = armature_point_from_world(&armature, WorldPoint(lock_state.right.final_location)).0;
+            input.foot_right_location_armature = inverse.transform_point(lock_state.right.final_location.as_dvec3()).as_vec3();
             input.foot_right_rotation_armature = lock_state.right.final_rotation_armature;
         }
         dynamic_transition.update(
@@ -1056,6 +1063,51 @@ mod tests {
         input.path.extend_from_slice(&binding.path);
         let actual = rig.to_world.transform_point(rig_vector(&rig.value(&input).unwrap()).unwrap()).as_vec3();
         assert!(actual.abs_diff_eq(expected, 1e-4), "Rig lost the retained lock: actual={actual:?}, expected={expected:?}");
+    }
+
+    #[test]
+    fn foot_positions_reach_the_rig_in_source_qst_order() {
+        #[derive(Resource)]
+        struct ComponentTransformFixture {
+            yaw: f32,
+            scale: Vec3,
+        }
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        for _ in 0..5 { app.update(); }
+        app.world_mut().get_mut::<AlsFootLockSettings>(actor).unwrap().allow_foot_lock = false;
+        app.insert_resource(ComponentTransformFixture { yaw: 0.0, scale: Vec3::ONE });
+        app.add_systems(PostUpdate, (move |fixture: Res<ComponentTransformFixture>, mut transforms: Query<&mut Transform>| {
+            transforms.get_mut(actor).unwrap().rotation = Quat::from_rotation_y(fixture.yaw);
+            transforms.get_mut(avatar).unwrap().scale = fixture.scale;
+        }).after(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs));
+        let entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let nonuniform = Vec3::new(1.4, 0.8, 0.6);
+        for (yaw, scale, differs) in [
+            (0.7, Vec3::ONE, false),
+            (0.7, Vec3::splat(1.5), false),
+            (0.0, nonuniform, false),
+            (0.7, nonuniform, true),
+        ] {
+            app.insert_resource(ComponentTransformFixture { yaw, scale });
+            app.update();
+            let state = app.world().get::<AlsFootLockState>(actor).unwrap();
+            assert!(state.valid && state.left.lock_amount == 0.0);
+            let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+            let (_, node, rig) = current_control_rig(player, app.world().resource::<Assets<AnimationGraph>>()).unwrap();
+            let node = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap();
+            let binding = node.input_bindings.iter().find(|binding| binding.property == "control_rig_input.foot_left_location").unwrap();
+            let mut input = node.definition.as_ref().unwrap().externals[&binding.external].clone();
+            input.path.extend_from_slice(&binding.path);
+            let actual = rig_vector(&rig.value(&input).unwrap()).unwrap();
+            let component = rig.to_world;
+            let offset = state.left.target_location.as_dvec3() - component.translation;
+            let expected = component.rotation.conjugate() * (offset / component.scale);
+            let affine = (component.rotation.conjugate() * offset) / component.scale;
+            assert_eq!(expected.distance(affine) > 1e-3, differs);
+            assert!(actual.distance(expected) < 1e-4, "Rig foot position has the wrong QST order: actual={actual:?}, expected={expected:?}");
+        }
     }
 
     #[test]

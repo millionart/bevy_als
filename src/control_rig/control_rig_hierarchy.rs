@@ -125,6 +125,19 @@ impl RigTransform {
         source_rotate_vector(self.rotation, self.scale * point) + self.translation
     }
 
+    pub(crate) fn inverse(self) -> Self {
+        if self.scale.abs().max_element() <= 1e-8_f32 as f64 {
+            return Self::default();
+        }
+        let scale = self.scale_reciprocal();
+        let rotation = self.rotation.conjugate();
+        Self {
+            rotation,
+            translation: -source_rotate_vector(rotation, scale * self.translation),
+            scale,
+        }
+    }
+
     pub fn inverse_transform_point(self, point: DVec3) -> DVec3 {
         self.inverse_transform_vector(point - self.translation)
     }

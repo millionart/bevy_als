@@ -6710,7 +6710,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色恢复前LockAmount=0.8、当前曲线0.5，实际权重变0而source应为0.5；下一帧足目标沿X移动8cm，实际Rig的RigInput位置比源多移动4cm。只在恢复帧补回源权重，下一帧消费恢复。原权重0与当前曲线1的控制通过，12组10PASS/2FAIL。
   - 漏检：旧`reset_foot_lock_to_target`测试直接期待恢复时权重0；已有pending测试只核对有效性与Rig开关，没有检查恢复后的历史权重和位置。证据`71/initial/`、`bf144_animation_phase71_revalid_lock_weight`；仅登记，未改实现。
 
-- [ ] BF144-D155 / P2 — Feet使用矩阵逆变换，非均匀缩放加旋转时改变源组件空间输入。
+- [x] BF144-D155 / P2 — Feet使用矩阵逆变换，非均匀缩放加旋转时改变源组件空间输入。
+  - 2026-11-12 01:12 +0800 实际结束早于01:47预估，未拆分。fresh FTransform::Inverse、FootLock当前约束点及RigInput闭环见 `docs/audit/bf144/d155/`。当前约束点与左右Rig位置按QST逆变换，约束回写按正向QST。四组静态重放通过，矩阵逆消融仅在非均匀加yaw时偏0.170685m，零尺度按源回退。旧71运行证据未随当前Git保留，实际CR_Als反例、Rust消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 01:07 +08:00，预估结束2026-11-12 01:47 +08:00。沿FTransform::Inverse及RefreshFootLock当前LockLocation/FinalLocation的共同消费核对QST顺序和Rig输入。
   - Source：fresh `RefreshFeet:1308–1313`先建立`ComponentTransform.Inverse()`，`RefreshFootLock:1430`等再调用该逆Transform的TransformPosition；UE `TransformVectorized.h:1423–1452,1675–1693`对应`inverseRotation × ((point−translation) / scale)`。源算法自身的QST顺序必须保留。
   - Target：`foot_ik_apply.rs:678–681`经`ik_space.rs:37–46`使用仿射矩阵逆变换，先逆旋转再除scale；非均匀scale与旋转不能交换。
   - 反例：完整角色mesh scale=(1.4,0.8,0.6)、actor yaw=0.7，Foot Lock关闭以隔离其他算法，实际Rig输入为(0.196194,0.134653,0.073582)，source为(0.284042,0.134653,−0.072761)，相差0.170685m。仅恢复该输入字段即通过；unit、uniform1.5与零yaw控制均通过，共8组7PASS/1FAIL。
