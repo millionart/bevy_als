@@ -1,0 +1,412 @@
+{
+  "samples": [
+    {
+      "name": "Arch_01",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Arch_02",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_02",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Barrel",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Barrel_Broken",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel_Broken",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Bench",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Bench",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Cart",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Cart",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Crate_Broken",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Crate_Broken",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Fountain_01",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Fountain_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Rock",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Rock",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Stairs_01",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Stairs_02",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_02",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    },
+    {
+      "name": "Stairs_03",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_03",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0,
+          0,
+          1000
+        ],
+        "end_cm": [
+          0,
+          0,
+          900
+        ],
+        "trace_complex": true,
+        "capture_ray_geometry": true
+      }
+    }
+  ]
+}

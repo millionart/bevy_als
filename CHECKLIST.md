@@ -6769,6 +6769,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧复杂几何测试以同一个Parry trimesh作为期望，只证明没有误选简单几何，未独立读取源单面属性或源ray核。972条实际mesh查询有165组由culling单因素恢复，另8组法线余差仍单独核验；证据`73/matrix.native.json`、`73/matrix_initial/`、`73/full.native.json`及`bf144_animation_phase73_mesh_rays_reach_foot_offset`。只登记，生产与原始资产未改。
 
 - [ ] BF144-D162 / P3 — 复杂网格射线在共享边/顶点邻域选择不同面，法线差异进入足部旋转与偏移输入。
+  - fresh闭包分为原生cooked射线数据和运行时消费两个Gate。源BVH的固定遍历、float距离收紧及未量化顶点需先取证，分别实现可独立验收。
+  - [x] BF144-D162a / P3 — 提取实际复杂网格的cooked射线数据。
+    - 2026-11-12 02:01 +0800 实际结束早于02:45预估，未拆分。复用原生cooked导出并为实际复杂查询接入，旧contact入口因查询专用形体失败已留记录，Cart两入口五字段相同。12种网格、10133面、651节点的身份、边界、次序及八组Fountain/Arch原生访问通过，生成复跑字节一致。D162b继续接入实际Rig。
+    - 本轮开始2026-11-12 01:51 +08:00，预估结束2026-11-12 02:45 +08:00。沿GetBVH/VisitTree提取12种网格的分支、解码面界及原生三角形，保留Fountain和Arch的边界回放。
+  - [ ] BF144-D162b / P3 — 让实际Rig射线消费源三角精度和候选顺序。
+    - 依赖D162a。按相同局部厘米射线、重心容差和float距离收紧选择候选，并核对FootOffsetTrace的法线和偏移。
   - Source：fresh `Triangle.h:375–423`使用double计算及1e−8重心容差；`TriangleMeshImplicitObject.cpp:181–188`接受当前float长度内的候选并覆盖结果。实际Fountain顶点依次接受外部面281、285、286，281/286含很小的负重心分量，最后286虽比285远约3.17e−10cm，仍在float长度内。native逐面记录与原查询逐值相同。
   - Target：Parry `ray_triangle.rs:85–159`使用float与严格非负重心条件，`bvh_traverse.rs:362–440`按严格更短距离保留候选；生产查询返回另一面法线。背面剔除单独恢复不能消除该边界，不能用点位置接近代替法线合同。
   - 反例：完整角色实际CR_Als，FootTrace精确源/目标同输入，Fountain顶点的单位/1.5/非均匀缩放三组全部把不同法线送入ApplyFootOffsetRotation。非均匀组source normal=(−0.166315,0.972883,−0.160743)，actual=(−0.105964,0.940714,−0.322224)，脚底偏移由source 0.203753m变为0.208486m。三组偏离顶点1cm的控制通过；仅恢复当次trace两个输出，三个实际消费者均通过。

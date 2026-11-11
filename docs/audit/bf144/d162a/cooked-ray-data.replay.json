@@ -1,0 +1,134 @@
+{
+  "cases": [
+    {
+      "case": "fountain_vertex_unit",
+      "visits": 24,
+      "accepted_faces": [
+        264,
+        265,
+        280,
+        281,
+        285,
+        286,
+        253,
+        254,
+        278,
+        279,
+        311,
+        313,
+        244,
+        274,
+        275,
+        302,
+        303,
+        165,
+        241,
+        276,
+        306
+      ],
+      "native_face": 306,
+      "strict_nearest_face": 264
+    },
+    {
+      "case": "fountain_interior_unit",
+      "visits": 6,
+      "accepted_faces": [
+        286
+      ],
+      "native_face": 286,
+      "strict_nearest_face": 286
+    },
+    {
+      "case": "fountain_vertex_uniform",
+      "visits": 24,
+      "accepted_faces": [
+        264,
+        265,
+        280,
+        281,
+        285,
+        286,
+        253,
+        254,
+        278,
+        279,
+        311,
+        313,
+        244,
+        245,
+        274,
+        275,
+        302,
+        303,
+        165,
+        241,
+        276,
+        277,
+        306,
+        308
+      ],
+      "native_face": 308,
+      "strict_nearest_face": 264
+    },
+    {
+      "case": "fountain_interior_uniform",
+      "visits": 6,
+      "accepted_faces": [
+        286
+      ],
+      "native_face": 286,
+      "strict_nearest_face": 286
+    },
+    {
+      "case": "fountain_vertex_nonuniform",
+      "visits": 13,
+      "accepted_faces": [
+        253,
+        244,
+        245,
+        274,
+        275,
+        302,
+        303,
+        165,
+        241,
+        276,
+        277,
+        306,
+        308
+      ],
+      "native_face": 308,
+      "strict_nearest_face": 275
+    },
+    {
+      "case": "fountain_interior_nonuniform",
+      "visits": 6,
+      "accepted_faces": [
+        286
+      ],
+      "native_face": 286,
+      "strict_nearest_face": 286
+    },
+    {
+      "case": "arch_shared_edge",
+      "visits": 6,
+      "accepted_faces": [
+        50,
+        231
+      ],
+      "native_face": 231,
+      "strict_nearest_face": 50
+    },
+    {
+      "case": "arch_edge_interior",
+      "visits": 4,
+      "accepted_faces": [
+        231
+      ],
+      "native_face": 231,
+      "strict_nearest_face": 231
+    }
+  ],
+  "contact_reader_matches": true,
+  "reversed_order_rejected": true
+}

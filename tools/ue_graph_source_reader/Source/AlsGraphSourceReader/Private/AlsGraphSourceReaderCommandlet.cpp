@@ -999,6 +999,104 @@ TSharedPtr<FJsonObject> CaptureMeshRayVisits(const Chaos::FTriangleMeshImplicitO
     return Result;
 }
 
+bool CaptureCookedTrimeshGeometry(const Chaos::FTriangleMeshImplicitObject& Core, FJsonObject& Output)
+{
+    TArray<TSharedPtr<FJsonValue>> Vertices;
+    for (uint32 Index = 0; Index < Core.Particles().Size(); ++Index)
+    {
+        Vertices.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(Core.Particles().GetX(Index)))));
+    }
+    TArray<TSharedPtr<FJsonValue>> Triangles;
+    for (int32 Index = 0; Index < Core.Elements().GetNumTriangles(); ++Index)
+    {
+        Chaos::FTriangle Triangle;
+        int32 Vertex0, Vertex1, Vertex2;
+        Core.GetTransformedTriangle(Index, Chaos::FRigidTransform3::Identity, Triangle, Vertex0, Vertex1, Vertex2);
+        TArray<TSharedPtr<FJsonValue>> Indices;
+        for (int32 Vertex : {Vertex0, Vertex1, Vertex2}) { Indices.Add(MakeShared<FJsonValueNumber>(Vertex)); }
+        Triangles.Add(MakeShared<FJsonValueArray>(Indices));
+    }
+    TArray<int32> BVHFaces;
+    Core.FindOverlappingTriangles(Core.BoundingBox(), BVHFaces);
+    TSet<int32> SeenFaces;
+    TArray<TSharedPtr<FJsonValue>> FaceOrder;
+    for (int32 Face : BVHFaces)
+    {
+        if (Face < 0 || Face >= Triangles.Num() || SeenFaces.Contains(Face)) { return false; }
+        SeenFaces.Add(Face);
+        FaceOrder.Add(MakeShared<FJsonValueNumber>(Face));
+    }
+    if (SeenFaces.Num() != Triangles.Num()) { return false; }
+    TArray<TSharedPtr<FJsonValue>> FaceBounds;
+    FaceBounds.SetNum(Triangles.Num());
+    TArray<int32> CapturedOrder;
+    FVector3f CurrentMin = FVector3f::ZeroVector, CurrentMax = FVector3f::ZeroVector;
+    bool ValidBounds = true;
+    auto BoundsFilter = [&CurrentMin, &CurrentMax](const Chaos::FAABBVectorized& Bounds)
+    {
+        VectorStoreFloat3(Bounds.GetMin(), &CurrentMin.X);
+        VectorStoreFloat3(Bounds.GetMax(), &CurrentMax.X);
+        return Chaos::FTrimeshBVH::EFilterResult::Keep;
+    };
+    auto FaceVisitor = [&FaceBounds, &CapturedOrder, &CurrentMin, &CurrentMax, &ValidBounds](int32 Face)
+    {
+        if (!FaceBounds.IsValidIndex(Face) || FaceBounds[Face].IsValid()
+            || !FMath::IsFinite(CurrentMin.X) || !FMath::IsFinite(CurrentMin.Y) || !FMath::IsFinite(CurrentMin.Z)
+            || !FMath::IsFinite(CurrentMax.X) || !FMath::IsFinite(CurrentMax.Y) || !FMath::IsFinite(CurrentMax.Z)
+            || CurrentMin.X > CurrentMax.X || CurrentMin.Y > CurrentMax.Y || CurrentMin.Z > CurrentMax.Z)
+        {
+            ValidBounds = false;
+            return Chaos::FTrimeshBVH::EVisitorResult::Stop;
+        }
+        TSharedRef<FJsonObject> Bounds = MakeShared<FJsonObject>();
+        Bounds->SetObjectField(TEXT("min"), CaptureVector(FVector(CurrentMin)));
+        Bounds->SetObjectField(TEXT("max"), CaptureVector(FVector(CurrentMax)));
+        FaceBounds[Face] = MakeShared<FJsonValueObject>(Bounds);
+        CapturedOrder.Add(Face);
+        return Chaos::FTrimeshBVH::EVisitorResult::Continue;
+    };
+    const Chaos::FTrimeshBVH& BVH = Core.GetBVH();
+    BVH.VisitTree(BoundsFilter, FaceVisitor);
+    if (!ValidBounds || CapturedOrder != BVHFaces || CapturedOrder.Num() != Triangles.Num()) { return false; }
+    TArray<TSharedPtr<FJsonValue>> Nodes;
+    for (const Chaos::FTrimeshBVH::FNode& Node : BVH.Nodes)
+    {
+        TArray<TSharedPtr<FJsonValue>> Children;
+        for (int32 Child = 0; Child < 2; ++Child)
+        {
+            const int32 Index = Node.Children.GetChildOrFaceIndex(Child);
+            if (Index == INDEX_NONE)
+            {
+                Children.Add(MakeShared<FJsonValueNull>());
+                continue;
+            }
+            const int32 Count = Node.Children.GetFaceCount(Child);
+            FVector3f Minimum, Maximum;
+            VectorStoreFloat3(Node.Children.GetBounds(Child).GetMin(), &Minimum.X);
+            VectorStoreFloat3(Node.Children.GetBounds(Child).GetMax(), &Maximum.X);
+            if (Index < 0 || Count < 0 || !FMath::IsFinite(Minimum.X) || !FMath::IsFinite(Minimum.Y)
+                || !FMath::IsFinite(Minimum.Z) || !FMath::IsFinite(Maximum.X) || !FMath::IsFinite(Maximum.Y)
+                || !FMath::IsFinite(Maximum.Z) || Minimum.X > Maximum.X || Minimum.Y > Maximum.Y || Minimum.Z > Maximum.Z)
+            {
+                return false;
+            }
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetNumberField(TEXT("index"), Index);
+            Value->SetNumberField(TEXT("face_count"), Count);
+            Value->SetObjectField(TEXT("min"), CaptureVector(FVector(Minimum)));
+            Value->SetObjectField(TEXT("max"), CaptureVector(FVector(Maximum)));
+            Children.Add(MakeShared<FJsonValueObject>(Value));
+        }
+        Nodes.Add(MakeShared<FJsonValueArray>(Children));
+    }
+    Output.SetArrayField(TEXT("trimesh_core_vertices_cm"), Vertices);
+    Output.SetArrayField(TEXT("trimesh_core_triangles"), Triangles);
+    Output.SetArrayField(TEXT("trimesh_core_bvh_face_order"), FaceOrder);
+    Output.SetArrayField(TEXT("trimesh_core_bvh_face_bounds_cm"), FaceBounds);
+    Output.SetArrayField(TEXT("trimesh_core_bvh_nodes"), Nodes);
+    return true;
+}
+
 TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
 {
     FString Text;
@@ -1265,6 +1363,7 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             TArray<double> TranslationValues, ScaleValues, StartValues, EndValues;
             bool bTraceComplex = false;
             bool bCaptureVisits = false;
+            bool bCaptureRayGeometry = false;
             if (!(*Input)->TryGetObjectField(TEXT("mesh_raycast"), Ray)
                 || !(*Ray)->TryGetStringField(TEXT("asset_path"), MeshPath)
                 || !ReadArray(*Ray, TEXT("translation_cm"), TranslationValues, 3)
@@ -1273,6 +1372,7 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
                 || !ReadArray(*Ray, TEXT("end_cm"), EndValues, 3)
                 || !(*Ray)->TryGetBoolField(TEXT("trace_complex"), bTraceComplex)) { return nullptr; }
             if ((*Ray)->HasField(TEXT("capture_ray_visits")) && !(*Ray)->TryGetBoolField(TEXT("capture_ray_visits"), bCaptureVisits)) { return nullptr; }
+            if ((*Ray)->HasField(TEXT("capture_ray_geometry")) && !(*Ray)->TryGetBoolField(TEXT("capture_ray_geometry"), bCaptureRayGeometry)) { return nullptr; }
             const FVector Scale(ScaleValues[0], ScaleValues[1], ScaleValues[2]);
             if (Scale.X == 0 || Scale.Y == 0 || Scale.Z == 0) { return nullptr; }
             UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *MeshPath);
@@ -1306,6 +1406,11 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
                     if (Core == nullptr) { return nullptr; }
                     ShapeValue->SetBoolField(TEXT("culls_back_face"), Core->GetCullsBackFaceRaycast());
                     ShapeValue->SetObjectField(TEXT("core_scale"), CaptureVector(FVector(CoreScale)));
+                    if (bCaptureRayGeometry)
+                    {
+                        if (!CaptureCookedTrimeshGeometry(*Core, *ShapeValue)) { return nullptr; }
+                        ShapeValue->SetObjectField(TEXT("ray_geometry_shape_to_body"), CaptureTransform(FTransform(Shape.Shape->GetLeafRelativeTransform())));
+                    }
                     if (bCaptureVisits)
                     {
                         const auto& Actor = Body.GetPhysicsActorHandle()->GetGameThreadAPI();
@@ -1675,99 +1780,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                 const Chaos::FTriangleMeshImplicitObject* Core = Chaos::UnwrapImplicit<Chaos::FTriangleMeshImplicitObject>(*Other, CoreScale, WrapperMargin);
                 if (Core == nullptr) { return nullptr; }
                 OtherGeometryValue->SetObjectField(TEXT("trimesh_core_scale"), CaptureVector(FVector(CoreScale)));
-                TArray<TSharedPtr<FJsonValue>> Vertices;
-                for (uint32 Index = 0; Index < Core->Particles().Size(); ++Index)
-                {
-                    Vertices.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(Core->Particles().GetX(Index)))));
-                }
-                TArray<TSharedPtr<FJsonValue>> Triangles;
-                for (int32 Index = 0; Index < Core->Elements().GetNumTriangles(); ++Index)
-                {
-                    Chaos::FTriangle Triangle;
-                    int32 Vertex0, Vertex1, Vertex2;
-                    Core->GetTransformedTriangle(Index, Chaos::FRigidTransform3::Identity, Triangle, Vertex0, Vertex1, Vertex2);
-                    TArray<TSharedPtr<FJsonValue>> Indices;
-                    for (int32 Vertex : {Vertex0, Vertex1, Vertex2}) { Indices.Add(MakeShared<FJsonValueNumber>(Vertex)); }
-                    Triangles.Add(MakeShared<FJsonValueArray>(Indices));
-                }
-                TArray<int32> BVHFaces;
-                Core->FindOverlappingTriangles(Core->BoundingBox(), BVHFaces);
-                TSet<int32> SeenFaces;
-                TArray<TSharedPtr<FJsonValue>> FaceOrder;
-                for (int32 Face : BVHFaces)
-                {
-                    if (Face < 0 || Face >= Triangles.Num() || SeenFaces.Contains(Face)) { return nullptr; }
-                    SeenFaces.Add(Face);
-                    FaceOrder.Add(MakeShared<FJsonValueNumber>(Face));
-                }
-                if (SeenFaces.Num() != Triangles.Num()) { return nullptr; }
-                TArray<TSharedPtr<FJsonValue>> FaceBounds;
-                FaceBounds.SetNum(Triangles.Num());
-                TArray<int32> CapturedOrder;
-                FVector3f CurrentMin = FVector3f::ZeroVector, CurrentMax = FVector3f::ZeroVector;
-                bool ValidBounds = true;
-                auto BoundsFilter = [&CurrentMin, &CurrentMax](const Chaos::FAABBVectorized& Bounds)
-                {
-                    VectorStoreFloat3(Bounds.GetMin(), &CurrentMin.X);
-                    VectorStoreFloat3(Bounds.GetMax(), &CurrentMax.X);
-                    return Chaos::FTrimeshBVH::EFilterResult::Keep;
-                };
-                auto FaceVisitor = [&FaceBounds, &CapturedOrder, &CurrentMin, &CurrentMax, &ValidBounds](int32 Face)
-                {
-                    if (!FaceBounds.IsValidIndex(Face) || FaceBounds[Face].IsValid()
-                        || !FMath::IsFinite(CurrentMin.X) || !FMath::IsFinite(CurrentMin.Y) || !FMath::IsFinite(CurrentMin.Z)
-                        || !FMath::IsFinite(CurrentMax.X) || !FMath::IsFinite(CurrentMax.Y) || !FMath::IsFinite(CurrentMax.Z)
-                        || CurrentMin.X > CurrentMax.X || CurrentMin.Y > CurrentMax.Y || CurrentMin.Z > CurrentMax.Z)
-                    {
-                        ValidBounds = false;
-                        return Chaos::FTrimeshBVH::EVisitorResult::Stop;
-                    }
-                    TSharedRef<FJsonObject> Bounds = MakeShared<FJsonObject>();
-                    Bounds->SetObjectField(TEXT("min"), CaptureVector(FVector(CurrentMin)));
-                    Bounds->SetObjectField(TEXT("max"), CaptureVector(FVector(CurrentMax)));
-                    FaceBounds[Face] = MakeShared<FJsonValueObject>(Bounds);
-                    CapturedOrder.Add(Face);
-                    return Chaos::FTrimeshBVH::EVisitorResult::Continue;
-                };
-                const Chaos::FTrimeshBVH& BVH = Core->GetBVH();
-                BVH.VisitTree(BoundsFilter, FaceVisitor);
-                if (!ValidBounds || CapturedOrder != BVHFaces || CapturedOrder.Num() != Triangles.Num()) { return nullptr; }
-                TArray<TSharedPtr<FJsonValue>> Nodes;
-                for (const Chaos::FTrimeshBVH::FNode& Node : BVH.Nodes)
-                {
-                    TArray<TSharedPtr<FJsonValue>> Children;
-                    for (int32 Child = 0; Child < 2; ++Child)
-                    {
-                        const int32 Index = Node.Children.GetChildOrFaceIndex(Child);
-                        if (Index == INDEX_NONE)
-                        {
-                            Children.Add(MakeShared<FJsonValueNull>());
-                            continue;
-                        }
-                        const int32 Count = Node.Children.GetFaceCount(Child);
-                        FVector3f Minimum, Maximum;
-                        VectorStoreFloat3(Node.Children.GetBounds(Child).GetMin(), &Minimum.X);
-                        VectorStoreFloat3(Node.Children.GetBounds(Child).GetMax(), &Maximum.X);
-                        if (Index < 0 || Count < 0 || !FMath::IsFinite(Minimum.X) || !FMath::IsFinite(Minimum.Y)
-                            || !FMath::IsFinite(Minimum.Z) || !FMath::IsFinite(Maximum.X) || !FMath::IsFinite(Maximum.Y)
-                            || !FMath::IsFinite(Maximum.Z) || Minimum.X > Maximum.X || Minimum.Y > Maximum.Y || Minimum.Z > Maximum.Z)
-                        {
-                            return nullptr;
-                        }
-                        TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
-                        Value->SetNumberField(TEXT("index"), Index);
-                        Value->SetNumberField(TEXT("face_count"), Count);
-                        Value->SetObjectField(TEXT("min"), CaptureVector(FVector(Minimum)));
-                        Value->SetObjectField(TEXT("max"), CaptureVector(FVector(Maximum)));
-                        Children.Add(MakeShared<FJsonValueObject>(Value));
-                    }
-                    Nodes.Add(MakeShared<FJsonValueArray>(Children));
-                }
-                OtherGeometryValue->SetArrayField(TEXT("trimesh_core_vertices_cm"), Vertices);
-                OtherGeometryValue->SetArrayField(TEXT("trimesh_core_triangles"), Triangles);
-                OtherGeometryValue->SetArrayField(TEXT("trimesh_core_bvh_face_order"), FaceOrder);
-                OtherGeometryValue->SetArrayField(TEXT("trimesh_core_bvh_face_bounds_cm"), FaceBounds);
-                OtherGeometryValue->SetArrayField(TEXT("trimesh_core_bvh_nodes"), Nodes);
+                if (!CaptureCookedTrimeshGeometry(*Core, *OtherGeometryValue)) { return nullptr; }
                 if (Input->HasField(TEXT("mesh_bvh_query_bounds_cm")))
                 {
                     const TSharedPtr<FJsonObject>* Query = nullptr;
@@ -1781,7 +1794,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                     TSet<int32> QuerySeen;
                     for (int32 Face : QueryFaces)
                     {
-                        if (Face < 0 || Face >= Triangles.Num() || QuerySeen.Contains(Face)) { return nullptr; }
+                        if (Face < 0 || Face >= Core->Elements().GetNumTriangles() || QuerySeen.Contains(Face)) { return nullptr; }
                         QuerySeen.Add(Face);
                         QueryOrder.Add(MakeShared<FJsonValueNumber>(Face));
                     }
