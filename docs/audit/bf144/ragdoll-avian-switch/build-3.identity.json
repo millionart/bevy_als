@@ -1,0 +1,50 @@
+[
+  {
+    "path": "Cargo.lock",
+    "sha256": "7f7c2430a8fc7ea0ae303edb273f14a3be86b46ccba7042c2aa00f47a4b1c511"
+  },
+  {
+    "path": "Cargo.toml",
+    "sha256": "1f2755c56982e06d485667ec94c5bd23fdc231148b122bab2f80e5a08852c4ed"
+  },
+  {
+    "path": "run_manual.ps1",
+    "sha256": "1269a5dd3e4612b8be0d40f4c3e49a7f3b87047ff9a93f1fe1260ba7bd7238e3"
+  },
+  {
+    "path": "src/als/character/character.rs",
+    "sha256": "cd0aa913c2ed9e7b5dd31e413854722321120f11e92dece679e2de7e280eda48"
+  },
+  {
+    "path": "src/als/character/movement/motion.rs",
+    "sha256": "0d81b357058512d7b92ddeddd28f2c5e1f0ecfbf572065f0e18d83e8d07cf430"
+  },
+  {
+    "path": "src/als/character/movement/source_physics_timing.rs",
+    "sha256": "213fb6454d1221608c8d6334c624961046f7dd61ce08d775539ccdf24c3e401e"
+  },
+  {
+    "path": "src/als/character/playable_character.rs",
+    "sha256": "c1c6048a86d496face94d87ccff20ddc7ff5af44ff9e272b086a84d7aea25f07"
+  },
+  {
+    "path": "src/als_extras/levels/playground_collision.rs",
+    "sha256": "9738d856931d9b98f90eafd37810999311cee89300f7fd49469022765418af5b"
+  },
+  {
+    "path": "src/avian_ext/ragdoll_physics_profile.rs",
+    "sha256": "ae699efba7b6cbbb540fab034da90c4c41019ca130a559450d40cdad3a4189d6"
+  },
+  {
+    "path": "src/extensions.rs",
+    "sha256": "bddc8890ebc950b04e5cfeffec7cc45dda13bd792f5e171a494d8d33df56ca4b"
+  },
+  {
+    "path": "target_game/play/examples/manual_playground",
+    "sha256": "cf1e0ff4e78122533b60fa883fd2933e3c8b31e5d1e114a06dff257158612a77"
+  },
+  {
+    "path": "tools/manual_playground_integration/moving_base.rs",
+    "sha256": "0032adbc096f2f0fc71f37df3aaeed65f2c26017bf20692fedbb21a1a99dbf96"
+  }
+]

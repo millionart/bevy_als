@@ -9,10 +9,6 @@ use avian3d::prelude::{
     SubstepCount, SubstepSchedule,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
-use crate::extensions::source_contact_friction::SourceContactFrictionSettings;
-use crate::extensions::source_contact_convex::SourceConvexLifecycleSettings;
-use crate::extensions::source_contact_margin::SourceConvexMarginSettings;
-use crate::extensions::source_contact_restore::SourceRestoreSettings;
 use bevy::prelude::*;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
@@ -43,23 +39,7 @@ pub struct SourcePhysicsTimingPlugin;
 
 impl Plugin for SourcePhysicsTimingPlugin {
     fn build(&self, app: &mut App) {
-        let (position_iterations, position_stiffness, tangent_velocity_squared, tangent_geometry_squared) =
-            include!("../../settings/contact_friction.rs");
-        let [history_exact_distance, history_near_distance, history_ratio_tolerance] =
-            include!("../../settings/contact_history.rs");
-        let [fraction, maximum, minimum] = include!("../../settings/convex_margin.rs");
-        let ([cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm], warm_start) = include!("../../settings/contact_lifecycle.rs");
-        let ([contact_scale, empty_position_scale, position_scale, empty_rotation_threshold, rotation_threshold],
-            collision_tolerance_scale, minimum_points) = include!("../../settings/contact_restore.rs");
-        app.insert_resource(SourceContactFrictionSettings {
-                position_iterations, position_stiffness, tangent_velocity_squared, tangent_geometry_squared,
-                history_exact_distance, history_near_distance, history_ratio_tolerance,
-            })
-            .insert_resource(SourceConvexMarginSettings { fraction, maximum, minimum })
-            .insert_resource(SourceConvexLifecycleSettings { cull_cm, inverse_size_cm, minimum_scale, velocity_multiplier, max_velocity_expansion_cm, warm_start })
-            .insert_resource(SourceRestoreSettings { contact_scale, empty_position_scale, position_scale,
-                empty_rotation_threshold, rotation_threshold, collision_tolerance_scale, minimum_points })
-            .insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
+        app.insert_resource(SubstepCount(SOURCE_PHYSICS_SUBSTEPS))
             .init_resource::<SourcePhysicsClockRestore>()
             .configure_sets(
                 PostUpdate,

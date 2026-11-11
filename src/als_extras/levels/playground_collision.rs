@@ -170,11 +170,6 @@ fn playground_mesh_physics_bridge(
         if let Some(complex) = template.complex {
             commands.entity(root).insert(crate::extensions::ComplexCollider(complex));
         }
-        if matches!(source.kind, PlaygroundColliderKind::Convex { .. }) {
-            commands.entity(root).insert(crate::extensions::source_contact_order::SourceCompoundOrder(source.mesh_base.clone()));
-        } else if source.kind == PlaygroundColliderKind::TriMesh {
-            commands.entity(root).insert(crate::extensions::source_contact_restore::SourceMeshContact(source.mesh_base.clone()));
-        }
         commands.entity(root).insert((
             RigidBody::Static,
             template.collider,
@@ -465,8 +460,6 @@ mod tests {
         let root=app.world_mut().spawn((PlaygroundCollisionSource::new("SM_Als_Arch_01"),Transform::IDENTITY,GlobalTransform::IDENTITY)).id();
         app.world_mut().spawn((ChildOf(root),Mesh3d(mesh),Transform::IDENTITY,GlobalTransform::IDENTITY));
         app.update();
-        assert_eq!(app.world().get::<crate::extensions::source_contact_order::SourceCompoundOrder>(root).unwrap().0,
-            "SM_Als_Arch_01");
         let actual=app.world().get::<Collider>(root).unwrap();
         let fixture:serde_json::Value=serde_json::from_str(include_str!("../../../tools/fixtures/arch_source_simple_collision.json")).unwrap();
         let source=Collider::compound(fixture["convexes"].as_array().unwrap().iter().map(|hull|{
@@ -664,8 +657,6 @@ mod tests {
         let actor = app.world_mut().spawn(bundle).id();
         for _ in 0..30 { app.update(); }
         assert!(app.world().get::<PlaygroundMeshColliderBuilt>(root).is_some());
-        assert_eq!(app.world().get::<crate::extensions::source_contact_restore::SourceMeshContact>(root).unwrap().0,
-            "SM_Als_Stairs_03");
         let capsule = app.world().get::<Collider>(actor).unwrap().clone();
         app.world_mut().run_system_once(move |spatial: SpatialQuery| {
             let filter = SpatialQueryFilter::from_excluded_entities([actor]);

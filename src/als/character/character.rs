@@ -253,7 +253,6 @@ impl Plugin for AlsCharacterPlugin {
         app.init_asset::<AlsMovementParams>()
             .init_asset::<AlsControlSchemeConfig>()
             .init_resource::<crate::als::dynamics::AlsDefaultPhysicsVolume>()
-            .init_resource::<crate::extensions::source_contact_restore::SourceBoxContactHistory>()
             .add_systems(avian3d::prelude::SubstepSchedule,
                 crate::als::dynamics::limit_falling_velocity
                     .after(avian3d::dynamics::integrator::IntegrationSystems::Velocity)
@@ -276,18 +275,8 @@ impl Plugin for AlsCharacterPlugin {
                 .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
                 .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
             .add_systems(Update, character_sensor_shape_sync_system)
-            .add_systems(PhysicsSchedule, crate::extensions::source_contact_restore::restore_source_box_contacts
-                .in_set(avian3d::collision::narrow_phase::NarrowPhaseSystems::Last)
-                .before(crate::extensions::source_contact_order::order_source_compound_groups))
-            .add_systems(PhysicsSchedule, crate::extensions::source_contact_restore::restore_source_mesh_manifolds
-                .in_set(avian3d::collision::narrow_phase::NarrowPhaseSystems::Last)
-                .after(crate::extensions::source_contact_restore::restore_source_box_contacts)
-                .before(crate::extensions::source_contact_order::order_source_compound_groups))
-            .add_systems(PhysicsSchedule, crate::extensions::source_contact_order::order_source_compound_groups
-                .in_set(avian3d::collision::narrow_phase::NarrowPhaseSystems::Last))
-            .add_systems(PhysicsSchedule, (character_contact_friction_system,
-                crate::extensions::source_contact_order::order_source_capsule_contacts)
-                .chain().after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
+            .add_systems(PhysicsSchedule, character_contact_friction_system
+                .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
             .add_systems(PhysicsSchedule, sync_child_collider_poses
                 .in_set(PhysicsStepSystems::Finalize));
     }

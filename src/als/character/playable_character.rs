@@ -1,3 +1,4 @@
+use avian3d::prelude::PhysicsPlugins;
 use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
@@ -12,7 +13,7 @@ use crate::als::input::AlsInputPlugin;
 use crate::als::input_request::AlsInputRequestPlugin;
 use crate::als::motion::AlsMotionPlugin;
 use crate::als::transition::AlsStateTransitionPlugin;
-use crate::extensions::AlsExtPlugin;
+use crate::extensions::{AlsExtPlugin, RagdollCollisionHooks};
 
 use crate::character_runtime::AlsCharacterRuntimePlugin;
 
@@ -25,7 +26,7 @@ pub struct AlsPlayableCharacterPlugin;
 
 impl Plugin for AlsPlayableCharacterPlugin {
     fn build(&self, app: &mut App) {
-        crate::extensions::source_contact_narrow::add_source_physics(app);
+        app.add_plugins(PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>());
         app.add_plugins((
             TnuaAvian3dPlugin::new(Update),
             TnuaControllerPlugin::<AlsControlScheme>::new(Update),
