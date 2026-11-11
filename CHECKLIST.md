@@ -4879,6 +4879,8 @@
 
 - [ ] BF144-RAGDOLL-AVIAN-SWITCH — 恢复 Avian 原生布娃娃碰撞及接触求解。
   - 预计开始：2026-11-11 17:36 +08:00。预估结束：2026-11-11 18:21 +08:00。采用默认窄相位与接触求解，保留 `RagdollCollisionHooks` 的过滤、PA 形体、关节及普通移动查询。Gate：静态注册闭包和同 `target_game` 的真实入口预构建。
+  - 本轮开始：2026-11-11 17:36 +08:00。预估结束：2026-11-11 18:21 +08:00。17:40静态接线已恢复默认Avian窄相位、停用Chaos接触重排/法线/摩擦/位置覆盖，并为启用CCD的形体保留原生SweptCcd。保持PA、关节、碰撞过滤、普通角色摩擦规则与查询。开始同启动器target_game的锁定依赖预构建，实际入口验证待构建通过。
+  - 17:41预构建失败。已停用的旧接触模块仍参与编译，保留的布娃娃唤醒Tick导入和D38c3b、D315、D14夹具/类型也阻塞入口。保留旧文件至功能验证后清理，先移除其编译注册并修正保留路径。报告见 `docs/audit/bf144/ragdoll-avian-switch/build-1.report.json` 和 `build-1.diagnostics.json`。
 
 - [ ] BF144-RAGDOLL-AVIAN-RUNTIME — 验证布娃娃倒下、碰撞和起身。
   - 预计开始：2026-11-11 18:21 +08:00。预估结束：2026-11-11 19:06 +08:00。先走 startup，再走真实 Playground 的 ragdoll/get_up 功能 Gate。实际开始时按构建状态更新。
@@ -4895,7 +4897,8 @@
   - 修复第1轮：开始2026-11-05 02:32 +08:00；预估结束02:57 +08:00。依据：.581已有真实双墙/单墙证据，目标共享函数和唯一生产调用链已定位；本轮只实现源微移及相应回归用例，按用户要求全部修复完成后统一运行测试、消融与真实入口验证。
   - 02:33实现摘要：重新提取源 `TwoWallAdjust`、`ComputeSlideVector`、`HandleSlopeBoosting`、Falling调用次序与阈值，记录 `docs/audit/bf144/d316/source-facts.json`。共享滑移按正向与近法线门槛加入0.1mm微移，并再次限制向上斜坡；已添加0.5°/1.25°、单墙、零推进及斜坡用例，尚未执行。实现结束02:33、偏差−24分钟；最终测试、消融、真实双墙入口与正式 Gate 待整体实现完成，不视为已验证。
 
-- [x] BF144-D315 / P2 — Falling 虚拟夹缝缺少向上脱困速度。
+- [ ] BF144-D315 / P2 — Falling 虚拟夹缝缺少向上脱困速度。
+  - 2026-11-11 17:43 +08:00 因提前预构建的E0282复开。`falling_slide` 的夹缝守卫读取尚未推断的旧法线类型，旧静态收口延后了编译。补 `Option<Vec3>` 类型，保持原源算法。开始17:43，预估17:58。证据 `docs/audit/bf144/ragdoll-avian-switch/build-1.diagnostics.json`。
   - Source：第三次移动无阻挡、首碰ImpactNormal达到可行走阈值、Perch开启且本子步进展极小时，UE给XY随机偏移并设Z=max(JumpZ×.25,1)，仍保持Falling。目标只有扫掠投影和普通落地。
   - 反例：40°窄台首碰不能窄perch，紧邻竖墙的第二碰为零时间，沿交线只移动约1mm。原生两次均发布竖直1.05m/s，目标为0；放宽墙缝及去墙控制均未触发。D19/D308覆盖强制落地。证据 `docs/audit/bf144/580/`。
   - 修复第1轮：开始2026-11-05 02:34 +08:00；预估结束03:19 +08:00。依据：.580已有真实碰撞/对照证据；本项还需核随机流、首碰法线、第三扫与整子步位置，接入普通Falling事务及必要状态，测试统一后置。
@@ -5815,7 +5818,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧坡面与低顶分别验证，未组合陡但可行走的坡面和有正余隙的平行顶面；水平末位移相等的20°对照不能覆盖触发前向坡面阻挡后的路径。仅登记，不添加坡道补偿或改物理参数。
   - 543 平地转坡实证：已Walking角色在40°坡首次命中后，UE先将余时转为新坡切向并实际扫到见证墙，切换坡的跨步许可时原生轨迹相同。目标相同首命中在禁止组丢失后续水平运动，q40比源少186 mm；允许组通过抬升/下扫逼近源终点。60°对照两端停在首次命中附近。证据见 `docs/audit/bf144/543/`。
 
-- [x] BF144-D14 / P2 — 角色胶囊未携带源默认的禁止跨步权限；静态实现完成，统一验证待执行。
+- [ ] BF144-D14 / P2 — 角色胶囊未携带源默认的禁止跨步权限。
+  - 2026-11-11 17:43 +08:00 因提前预构建的E0308复开。旧接线未更新真实移动基座攀爬探针的权限查询签名，补消费端类型，保留源权限语义。开始17:43，预估17:58。证据 `docs/audit/bf144/ragdoll-avian-switch/build-1.diagnostics.json`。
   - 活动：开始2026-11-08 13:50 +08:00；预估结束14:20 +08:00；实际结束13:55 +08:00，提前25分钟；未拆分，测试/消融/Gate暂缓。
   - 闭环：fresh角色CDO、Playground七个角色胶囊、UE跨步与ALS Mantle权限源保存在`docs/audit/bf144/d14/`。角色默认No、显式覆盖及普通prop默认不变；Walking和Mantle均能读取角色/所属body权限，已写对应focused fixture，目标测试与真实Gate尚未执行。
   - Source：fresh UE `Character.cpp:81`及B_Als_Character的CollisionCylinder均为CanCharacterStepUpOn=ECB_No；`PrimitiveComponent.cpp:5287–5298`返回false，经CMC `CanStepUp:7525–7542`拒绝跨步。Playground实际7个角色实例也保留相同属性。
@@ -6048,7 +6052,7 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
       - 子项拆分：D38c3a处理已发生滑移的一、二次阻挡；D38c3b核对初始穿透的恢复结果及撞击通知。
       - [x] BF144-D38c3a — 仅对实际执行的滑移后续命中施力。开始2026-11-08 16:15 +08:00；预估结束17:10 +08:00；实际结束16:18 +08:00，提前52分钟；静态实现完成，测试/消融/Gate暂缓。
         - 闭环：fresh UE滑移两次命中通知保存在`docs/audit/bf144/d38c3a/`；实际滑移按源顺序提交，成功跨步丢弃试算命中，已写双墙、回退及试算见证对照。源端动态双墙未重跑，初始穿透留给D38c3b。
-      - [x] BF144-D38c3b — 初始穿透未恢复时按源通知撞击。开始2026-11-08 16:19 +08:00；预估结束17:14 +08:00；实际结束16:23 +08:00，提前51分钟；静态实现完成，测试/消融/Gate暂缓。
+      - [ ] BF144-D38c3b — 初始穿透未恢复时按源通知撞击。首轮开始2026-11-08 16:19 +08:00，预估结束17:14 +08:00，实际结束16:23 +08:00，提前51分钟。2026-11-11 17:43 +08:00 因提前预构建复开，预估17:58。旧静态收口未发现四处 `FallingImpactBodies` 插入闭包参数错误；恢复夹具签名，生产源逻辑保持。证据 `docs/audit/bf144/ragdoll-avian-switch/build-1.diagnostics.json`。
         - 闭环：fresh UE先脱穿再决定撞击通知的顺序保存在`docs/audit/bf144/d38c3b/`，引用D21原生几何证据；已写可恢复与受困只通知一次对照。源端夹墙未重跑，Walking既有穿透位移与受困后滑移边界未改，目标测试和Gate待执行。
   - Source：fresh UE `HandleImpact:7783–7811`进入`ApplyImpactPhysicsForces:7814–7930`；native InitialPushForce500、PushForce750000、PushScaledToMass=False、UsingZOffset=False。本机CVar `p.ApplyCharacterCollisionForceAsImpulse=False`，静止阈值1cm/s内用500×30 kg·cm/s²，移动body用750000 kg·cm/s²，均AddForceAtLocation，不能按旧版本把500当一次冲量。
   - Target：`src/als/character/movement/motion.rs`空中/地面sweep和slide只调整角色位移/速度，未把命中的simulated body与源力参数提交给物理；实际air blocking命中后目标body保持原速度。
