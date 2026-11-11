@@ -1417,8 +1417,8 @@ pub(crate) mod tests {
             app.update();
             assert_eq!(dynamic_count(&app), if active { 20 } else { 0 }, "scale={scale:?}");
             let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
-            assert_eq!(graph.get_input_data("ragdoll_dynamic").unwrap().as_bool().unwrap(), active);
-            assert_eq!(graph.get_input_data("ragdoll_readback").unwrap().as_bool().unwrap(), active);
+            assert_eq!(graph.get_input_data("ragdoll_dynamic".into()).unwrap().as_bool().unwrap(), active);
+            assert_eq!(graph.get_input_data("ragdoll_readback".into()).unwrap().as_bool().unwrap(), active);
         }
     }
 

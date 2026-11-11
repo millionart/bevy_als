@@ -6377,7 +6377,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色的player/mesh从unit scale改为1/0.75/1.5/0.01，4组3PASS/1FAIL；源与target半径均1.4mm，最后一组只有实际几何轴长不等。`bf144_pa_live_scale_matches_source_body_geometry_and_mass`保留native质量控制与当前Collider取样，没有改尺寸阈值。
   - 19:46 source/static摘要：live和初始化按各自源下限构造capsule，live发生尺寸截断时按更新形状复算多shape质量；已写四档全部capsule几何与pelvis/spine等原生质量、质心对照。有效原生body、源公式推导几何及0.001失败reader证据均已持久化；测试、消融、物理轨迹和Playground待统一Gate。证据`docs/audit/bf144/d73/`。实际结束：2026-11-08 19:46 +08:00；偏差：−50分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D74 / P3 — mesh缩放到零后Ragdoll仍保持刚体模拟。
+- [x] BF144-D74 / P3 — mesh缩放到零后Ragdoll仍保持刚体模拟。
+  - 夹具修复结束2026-11-11 18:29 +08:00，偏差−11分钟。缩放夹具按播放器签名传入两个 owned `PinId`，同 target_game 库测试已编译且运行了 D317 单帧反例。缩放行为仍待统一 Gate。共享报告 `docs/audit/bf144/d317/before-2.report.json`。
   - 2026-11-11 18:22 +08:00 因 D317 focused 预构建复开，预估结束18:40。旧静态 Gate 未编译夹具，两个布娃娃图输入读数仍传借用字符串。匹配播放器 `PinId` 签名。证据 `docs/audit/bf144/d317/before.diagnostics.json`。
   - 本轮开始：2026-11-08 19:47 +08:00；预计结束：2026-11-08 20:37 +08:00。核对source零scale触发、relative/world变换及刚体模拟所有权，再在真实角色链路补停用与非零对照；统一执行留待升级后。
   - 19:50 source/static摘要：fresh源码确认使用mesh相对scale，先要求uniform并以逐轴1e-4判断变化及近零；停用逐body设Kinematic且物理混合权重归零。目标同一player既控制body模式也发布ragdoll动态/回读输入，停用时一并关闭这些输入；零→非零重建及速度重置已有D116，保留为独立待修边界。
