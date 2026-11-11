@@ -1952,14 +1952,26 @@ pub(crate) mod tests {
 
     #[test]
     fn stopped_roll_tail_accepts_a_new_loaded_montage() {
+        use crate::{
+            animation_events::AlsAnimationEvent,
+            extensions::{EventPhase, SourceAnimationInputs},
+        };
+
         for explicit_stop in [false, true] {
             for delta in [1.0 / 60.0_f32, 0.1] {
                 let (mut app, character, _) = loaded_roll_character();
                 let old = play_loaded_roll(&mut app, character);
                 let old_roll = AlsRollState { active: true, time: if explicit_stop { 0.4 } else { 0.95 }, ..default() };
-                app.world_mut().entity_mut(character).insert((old_roll, AlsNotifyLocomotionAction::Rolling,
-                    AlsInputCommand { roll_pressed: true, ..default() }));
-                if explicit_stop { app.world_mut().entity_mut(character).insert(AlsRollBlendOut::new(&old_roll, 0.2)); }
+                app.world_mut().entity_mut(character).insert((old_roll, AlsNotifyLocomotionAction::Rolling));
+                if explicit_stop {
+                    app.world_mut().entity_mut(character).insert(AlsRollBlendOut::new(&old_roll, 0.2));
+                } else {
+                    app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::ZERO);
+                    app.world_mut().run_schedule(PostUpdate);
+                    assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::None));
+                }
+                app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+                app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
                 app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
                 app.world_mut().run_system_once(advance_rolls).unwrap();
                 app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
@@ -1977,7 +1989,11 @@ pub(crate) mod tests {
                 app.world_mut().run_system_once(prepare_roll_slot_samples).unwrap();
                 assert!((app.world().get::<AnimationGraphPlayer>(old).unwrap().get_global_input_data(ROLL_SLOT_TIME_KEY).unwrap().as_f32().unwrap()
                     - expected_tail).abs() < 1e-6);
+                let target = app.world().get::<AlsRollSlotSampler>(current).unwrap().target_player;
                 let mut tail_visible = false;
+                let mut action = AlsNotifyLocomotionAction::Rolling;
+                let mut new_began = false;
+                let mut old_end_count = 0;
                 for frame in 0..10 {
                     app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
                     app.world_mut().run_schedule(PostUpdate);
@@ -1990,8 +2006,7 @@ pub(crate) mod tests {
                     if let Some(tail) = app.world().get::<AlsRollTail>(old) {
                         tail_visible |= tail.weight() > 0.0;
                         if tail.weight() > 0.0 {
-                            let target = app.world().get::<AlsRollSlotSampler>(current).unwrap().target_player;
-                            let inputs = app.world().get::<crate::extensions::SourceAnimationInputs>(target).unwrap();
+                            let inputs = app.world().get::<SourceAnimationInputs>(target).unwrap();
                             let context = inputs.slot_input_context("roll.pose").unwrap();
                             assert!(context.asset_samples.iter().any(|sample| sample.identity == format!("roll:{}", old.to_bits())), "Old pose was omitted from the blend");
                             assert!(context.asset_samples.iter().any(|sample| sample.identity == format!("roll:{}", current.to_bits())));
@@ -2020,10 +2035,24 @@ pub(crate) mod tests {
                             }
                         }
                     }
-                    if frame >= 1 {
-                        assert_eq!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap(), AlsNotifyLocomotionAction::Rolling,
-                            "Old notify cleanup cleared the new roll");
+                    for event in app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                        .filter(|event| event.character == character && event.class_name == "AlsAnimNotifyState_SetLocomotionAction") {
+                        if event.instance_id == old.to_bits() && event.phase == EventPhase::End {
+                            old_end_count += 1;
+                            action = AlsNotifyLocomotionAction::None;
+                        }
+                        if event.instance_id == current.to_bits() && event.phase == EventPhase::Begin {
+                            new_began = true;
+                            action = AlsNotifyLocomotionAction::Rolling;
+                        }
                     }
+                    assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&action));
+                    assert_eq!(app.world().get::<SourceAnimationInputs>(target).unwrap().gameplay_tag_input("locomotion_action"), Some(action.tag()));
+                }
+                assert!(new_began);
+                assert_eq!(old_end_count, usize::from(explicit_stop));
+                if explicit_stop && delta < ROLL_WEIGHT_IN_SECS {
+                    assert_eq!(action, AlsNotifyLocomotionAction::None);
                 }
                 if delta < 0.1 { assert!(tail_visible, "Old tail never contributed an evaluated pose"); }
                 assert!(app.world().get_entity(old).is_err(), "Finished tail was not released");

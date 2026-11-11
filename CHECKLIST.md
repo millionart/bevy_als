@@ -7022,7 +7022,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：九个当前montage先统一原生精确端点以隔离D121。2250组局部比较有345FAIL；424个实际派发帧有28FAIL，其中10帧动作组件和实际图的locomotion_action不符。只在夹具把本帧标记语义映射回现有生命周期输入后，1125个局部及212个实际恢复全部通过；权重0、LOD过滤、chance0、普通零步长、中断直到终止及外部动作保护控制通过。
   - 漏检/边界：旧动作端点测试使用边界前后较大间隔，未覆盖exact marker；普通状态单测只验证区间规则，不能验证Montage拆步事件。六个真实Roll正常/中断控制共310帧全部通过，本项不宣称普通帧率自然触发。参考由fresh UE执行顺序和原生资产有效时间构成，未把读取工具的GetAnimNotifies采样称为UE角色回调执行。证据`94/static.json`、`94/analysis.json`与`bf144_animation_phase94_actual_lifecycle`；仅登记。
 
-- [ ] BF144-D184 / P3 — Roll旧branching实例终止时额外保护同名新动作。
+- [x] BF144-D184 / P3 — Roll旧branching实例终止时额外保护同名新动作。
+  - 2026-11-12 05:55 +0800 实际结束，较06:25预估提前30分钟，未拆分。fresh Roll原生Stop后保留5帧至Terminate；同名清除和外部Ragdolling保留与源分支一致，恢复旧保护会使4帧失配。真实重入夹具和原始证据见 `docs/audit/bf144/d184/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 05:51 +08:00，预估结束2026-11-12 06:25 +08:00。重采旧Roll停止与新实例时钟，核对Terminate和ALS动作清理条件；更新实际重入测试的旧尾部回调和自然结束对照。
   - Source：fresh `AnimMontage.cpp:1760–1778`在Terminate结束每个仍活跃的branching状态；ALS `SetLocomotionAction.cpp:37–48`只比较当前动作tag，没有新实例保护。旧实例中断后状态仍活跃；新实例已Begin后，旧实例稍后Terminate会清除仍为Rolling的动作，新实例的Tick不会再写Rolling。Stop从ActiveMontagesMap移除旧实例，ALS的Rolling且Montage_IsPlaying为false分支允许再次启动。
   - Target：`animation_events.rs:895–907`仅对Roll资产检测superseded_roll，并跳过旧实例End的动作清除；其他动作采用源的tag保护。这一分支令同样的旧中断→新Begin→旧终止轨迹保留Rolling，源应为空。
   - 反例：九资产×有无外部Ragdolling覆盖×原始/恢复的144个实际帧中，只有原始Roll且无外部覆盖的旧终止帧失败；动作组件和当前图输入都错误保留Rolling。夹具让同一旧状态经过正常End路径后72个恢复帧全部通过，外部不同动作保留控制也通过。

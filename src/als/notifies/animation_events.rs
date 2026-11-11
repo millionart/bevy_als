@@ -895,8 +895,6 @@ fn dispatch_animation_events(
             let Some(source) = source_clip(manifest, &source_asset) else {
                 continue;
             };
-            let superseded_roll = [SOURCE_ROLL_SEQUENCE, SOURCE_ROLL_MONTAGE].contains(&source_asset.as_str())
-                && playbacks.entries.iter().any(|entry| entry.source_asset == source_asset && entry.instance_id != instance_id && !entry.interrupted);
             let source_runtime = runtime
                 .sources
                 .get_mut(&(source_asset.clone(), instance_id))
@@ -907,14 +905,14 @@ fn dispatch_animation_events(
                     .iter()
                     .find(|event| event.event_id == signal.id);
                 if let Some(event) = event {
-                    if !superseded_roll && event.class_name == "AlsAnimNotifyState_SetLocomotionAction" {
+                    if event.class_name == "AlsAnimNotifyState_SetLocomotionAction" {
                         let next_action =
                             notify_action(parameter_tag(&event.parameters, "LocomotionAction"));
                         if *action == next_action {
                             *action = AlsNotifyLocomotionAction::None;
                         }
                     }
-                    if !superseded_roll && event.class_name == "AlsAnimNotifyState_EarlyBlendOut" {
+                    if event.class_name == "AlsAnimNotifyState_EarlyBlendOut" {
                         *early_blend_out = AlsNotifyEarlyBlendOut::default();
                     }
                     let message = AlsAnimationEvent {
