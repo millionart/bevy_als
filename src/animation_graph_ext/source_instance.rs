@@ -20,6 +20,7 @@ pub struct SourceInstanceProperties {
     pub instance_id: u64,
     pub values: HashMap<String, DataValue>,
     pub write_frames: HashMap<String, u64>,
+    pub(crate) slot_notify_frames: HashMap<(String, String), u64>,
     call_frames: HashMap<(GraphContextId, NodeId), u64>,
     machine_weights: HashMap<NodeId, SourceMachineWeights>,
 }
@@ -31,6 +32,7 @@ impl Default for SourceInstanceProperties {
             instance_id: NEXT_INSTANCE_ID.fetch_add(1, Ordering::Relaxed) + 1,
             values: default(),
             write_frames: default(),
+            slot_notify_frames: default(),
             call_frames: default(),
             machine_weights: default(),
         }

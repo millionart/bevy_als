@@ -224,6 +224,7 @@ pub struct AlsAnimationEvent {
 pub enum AlsAnimationEventSet {
     Refresh,
     Dispatch,
+    SlotDispatch,
     GraphFootsteps,
 }
 
@@ -282,7 +283,6 @@ pub(crate) fn notify_root_instance(arena: &bevy_animation_graph::core::context::
 struct GraphFootstepDispatch {
     frame: Option<(u64, u64)>,
     previous: HashMap<String, (f32, f32)>,
-    slots: std::collections::HashSet<String>,
     chance: HashMap<u64, NotifyChance>,
 }
 
@@ -370,23 +370,30 @@ fn dispatch_graph_footsteps(
         if state.frame.is_some_and(|previous| previous.0 != source_instance) { *state = default(); }
         if state.frame == Some(frame) && !frozen { continue; }
         state.frame = Some(frame);
-        let current_slots = context.asset_samples.iter().filter(|sample| sample.montage && !sample.slot_key.is_empty())
-            .map(|sample| sample.slot_key.clone()).collect::<std::collections::HashSet<_>>();
-        let mut samples = if frozen {
-            source_inputs.get(entity).ok().into_iter().flat_map(|inputs| inputs.slot_input_contexts())
-                .flat_map(|context| context.asset_samples.iter()).filter(|sample| sample.montage).cloned().collect()
-        } else { context.asset_samples.clone() };
-        for slot in state.slots.difference(&current_slots) {
-            if let Some(context) = source_inputs.get(entity).ok().and_then(|inputs| inputs.slot_input_context(slot)) {
+        let mut slot_keys = crate::extensions::source_slot::relevant_notify_slots(arena)
+            .map(|(_, key)| key)
+            .collect::<Vec<_>>();
+        slot_keys.sort_unstable();
+        slot_keys.dedup();
+        let mut samples = if frozen { Vec::new() } else { context.asset_samples.clone() };
+        for key in &slot_keys {
+            if samples.iter().any(|sample| sample.montage && sample.slot_key == *key) {
+                continue;
+            }
+            if let Some(mut context) = source_inputs.get(entity).ok().and_then(|inputs| inputs.slot_input_context(key)) {
+                context.asset_samples.retain(|sample| sample.montage);
+                for sample in &mut context.asset_samples {
+                    sample.slot_key = (*key).to_owned();
+                }
                 crate::extensions::animation_context::merge_asset_samples(&mut samples, &context.asset_samples, 1.0);
             }
         }
-        state.slots = current_slots;
         let mut active = std::collections::HashSet::new();
         for sample in &samples {
             active.insert(sample.identity.clone());
             let previous = state.previous.insert(sample.identity.clone(), (sample.clock.position, sample.clock.weight));
-            if sample.montage && (sample.interrupted || !slot_notifies) { continue; }
+            if sample.montage && (sample.interrupted || !slot_notifies
+                || !slot_keys.contains(&sample.slot_key.as_str())) { continue; }
             let Some(path) = server.get_path(sample.clip.id()) else { continue; };
             let path = path.to_string();
             let Some(source) = manifest.clips.iter().find(|source| source.source_kind == "AnimSequence"
@@ -481,12 +488,18 @@ impl Plugin for AlsAnimationEventPlugin {
             )
             .add_systems(
                 PostUpdate,
-                dispatch_animation_events.in_set(AlsAnimationEventSet::Dispatch),
+                dispatch_animation_events::<false>.in_set(AlsAnimationEventSet::Dispatch),
+            )
+            .configure_sets(PostUpdate, AlsAnimationEventSet::SlotDispatch
+                .after(AnimationGraphSet::Final).before(AlsAnimationEventSet::GraphFootsteps))
+            .add_systems(
+                PostUpdate,
+                dispatch_animation_events::<true>.in_set(AlsAnimationEventSet::SlotDispatch),
             )
             .add_systems(
                 PostUpdate,
                 apply_grounded_entry_point_notifications
-                    .after(AnimationGraphSet::Final),
+                    .after(AlsAnimationEventSet::SlotDispatch),
             )
             .configure_sets(PostUpdate, AlsAnimationEventSet::GraphFootsteps
                 .after(AnimationGraphSet::Final).before(crate::als_camera::AlsCameraSet))
@@ -766,6 +779,20 @@ fn source_clip<'a>(
         .find(|clip| clip.source_asset == source_asset)
 }
 
+fn queued_montage_slot<'a>(
+    manifest: &'a AlsNotifyManifest,
+    playbacks: &AlsAnimationEventPlaybacks,
+    playback: &AlsAnimationEventPlayback,
+) -> Option<&'a str> {
+    playbacks.entries.iter()
+        .filter(|entry| entry.instance_id == playback.instance_id && entry.graph_clip == playback.graph_clip)
+        .filter_map(|entry| source_clip(manifest, &entry.source_asset))
+        .filter(|source| source.source_kind == "AnimMontage")
+        .flat_map(|source| &source.runtime_segments)
+        .filter(|segment| segment.graph_clip == playback.graph_clip)
+        .find_map(|segment| segment.slot.as_deref())
+}
+
 pub(crate) fn parameter_f32(parameters: &Value, key: &str, default: f32) -> f32 {
     parameters
         .get(key)
@@ -812,7 +839,7 @@ pub(crate) fn physical_stance_override(
     }
 }
 
-fn dispatch_animation_events(
+fn dispatch_animation_events<const QUEUED: bool>(
     mut commands: Commands,
     manifest_handle: Option<Res<AlsNotifyManifestHandle>>,
     manifests: Res<Assets<AlsNotifyManifest>>,
@@ -866,16 +893,36 @@ fn dispatch_animation_events(
         if let Some((_, _, instance)) = event_source {
             runtime.set_instance(instance);
         }
-        let gate = event_source.and_then(|(_, player, _)| players.get(player).ok()).and_then(|(_, gate)| gate);
+        let graph_owned = assembly.is_some() || event_source.is_some();
+        if QUEUED && !graph_owned {
+            continue;
+        }
+        let include_sequence = QUEUED || !graph_owned;
+        let dispatch_source = |source: &AlsNotifyManifestClip| {
+            if source.source_kind == "AnimMontage" { !QUEUED } else { include_sequence }
+        };
+        let player = event_source.and_then(|(_, player, _)| players.get(player).ok());
+        let gate = player.and_then(|(_, gate)| gate);
+        let arena = player.and_then(|(player, _)| player.get_context_arena());
         let graph_updates = gate.is_none_or(|gate| gate.update_graph);
         let slot_notifies = applies_montage_slot_notifies(gate, roll, blending_out, time.delta_secs());
-        let preserve_slot_states = !graph_updates && !slot_notifies && runtime.dispatched_autonomous_montage;
-        runtime.dispatched_autonomous_montage = !graph_updates && slot_notifies;
+        let preserve_slot_states = include_sequence && !graph_updates && !slot_notifies && runtime.dispatched_autonomous_montage;
+        if include_sequence {
+            runtime.dispatched_autonomous_montage = !graph_updates && slot_notifies;
+        }
+        let has_relevant_slot = |playback: &AlsAnimationEventPlayback| {
+            !graph_owned
+                || arena.zip(queued_montage_slot(manifest, playbacks, playback))
+                    .is_some_and(|(arena, slot)| {
+                        crate::extensions::source_slot::relevant_notify_slots(arena)
+                            .any(|(name, _)| name.eq_ignore_ascii_case(slot))
+                    })
+        };
         let active_playbacks = playbacks.entries.iter()
-            .filter(|playback| slot_notifies || source_clip(manifest, &playback.source_asset)
-                .is_some_and(|source| source.source_kind == "AnimMontage"));
+            .filter(|playback| source_clip(manifest, &playback.source_asset).is_some_and(|source| {
+                dispatch_source(source) && (source.source_kind == "AnimMontage" || slot_notifies)
+            }));
         let active_sources = active_playbacks.clone()
-            .filter(|playback| source_clip(manifest, &playback.source_asset).is_some())
             .map(|playback| (playback.source_asset.clone(), playback.instance_id))
             .collect::<HashSet<_>>();
         let previous_states = runtime.sources.values()
@@ -887,6 +934,7 @@ fn dispatch_animation_events(
             .sources
             .keys()
             .filter(|source| !active_sources.contains(*source))
+            .filter(|(source, _)| source_clip(manifest, source).is_some_and(dispatch_source))
             .filter(|(source, _)| !preserve_slot_states || source_clip(manifest, source)
                 .is_none_or(|source| source.source_kind == "AnimMontage"))
             .cloned()
@@ -946,6 +994,7 @@ fn dispatch_animation_events(
             let Some(source) = source_clip(manifest, &playback.source_asset) else {
                 continue;
             };
+            let slot_relevant = source.source_kind == "AnimMontage" || has_relevant_slot(playback);
             let source_runtime = runtime
                 .sources
                 .entry((playback.source_asset.clone(), playback.instance_id))
@@ -957,14 +1006,18 @@ fn dispatch_animation_events(
                     })
                 })
             } else {
-                let graph_handle =
-                    graph_clip_handle(&mut graph_clip_handles, &asset_server, &playback.graph_clip);
-                let queue = crate::extensions::weighted_event_queue(
-                    sampled_queue(graph_clips.get(&graph_handle), playback.time),
-                    playback.weight,
-                );
                 let clock = playback_clock(source_runtime, playback);
-                let definitions = timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD);
+                let mut definitions = timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD);
+                let queue = if slot_relevant {
+                    let handle = graph_clip_handle(&mut graph_clip_handles, &asset_server, &playback.graph_clip);
+                    crate::extensions::weighted_event_queue(
+                        sampled_queue(graph_clips.get(&handle), playback.time),
+                        playback.weight,
+                    )
+                } else {
+                    definitions.retain(|definition| definition.kind != TimedEventKind::State);
+                    EventQueue::default()
+                };
                 source_runtime.lifecycle.update_with_context(
                     &definitions,
                     &queue,
@@ -1000,6 +1053,7 @@ fn dispatch_animation_events(
                     continue;
                 }
                 if event.is_some_and(|event| !runtime.montage_chance.accepts(event)) { continue; }
+                if !slot_relevant && signal.phase != EventPhase::End { continue; }
                 if class_name == "AlsAnimNotify_CameraShake" && signal.phase == EventPhase::Point {
                     shakes.write(AlsCameraShakeRequest::sprint(
                         character,
@@ -1158,7 +1212,7 @@ pub(crate) mod tests {
         drop(manifest);
         drop(assets);
         app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = 0.2;
-        app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+        app.world_mut().run_system_once(dispatch_animation_events::<false>).unwrap();
         assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0, 1.0);
     }
 
@@ -1212,7 +1266,7 @@ pub(crate) mod tests {
             drop(manifest);
             drop(assets);
             app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = time;
-            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            app.world_mut().run_system_once(dispatch_animation_events::<false>).unwrap();
             assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0, expected, "Missing state cleanup at {time}");
             let signals = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().collect::<Vec<_>>();
             assert_eq!(signals.iter().filter(|signal| signal.phase == phase).count(), usize::from(time != 0.4));
@@ -1293,7 +1347,7 @@ pub(crate) mod tests {
                         if previous < start && time >= start { expected = scale; }
                     }
                     app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = time;
-                    app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+                    app.world_mut().run_system_once(dispatch_animation_events::<false>).unwrap();
                     assert!((app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0 - expected).abs() < 1e-8,
                         "Wrong source lifecycle: outer={outer}, inner={inner}, external={external:?}, time={time}, expected={expected}");
                     previous = time;
@@ -1312,10 +1366,10 @@ pub(crate) mod tests {
             let actor = app.world_mut().spawn(AlsCharacter).id();
             configure_root_scale_notifications(&mut app, actor, &[(0.1, 0.8, 0.5), (0.2, 0.5, 2.0)]);
             app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = 0.3;
-            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            app.world_mut().run_system_once(dispatch_animation_events::<false>).unwrap();
             app.world_mut().get_mut::<AlsNotifyRootMotionScale>(actor).unwrap().0 = external;
             app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries.clear();
-            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            app.world_mut().run_system_once(dispatch_animation_events::<false>).unwrap();
             let expected = if external == 0.5 || external == 2.0 { 1.0 } else { external };
             assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0, expected);
         }
@@ -1350,7 +1404,7 @@ pub(crate) mod tests {
                 .iter().map(|&instance_id| AlsAnimationEventPlayback {
                     instance_id, time: 0.2, ..template.clone()
                 }).collect();
-            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            app.world_mut().run_system_once(dispatch_animation_events::<false>).unwrap();
             let actual = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
                 .map(|event| (event.instance_id, event.phase)).collect::<Vec<_>>();
             assert_eq!(actual.as_slice(), expected);
@@ -1406,13 +1460,13 @@ pub(crate) mod tests {
         });
         let world = app.world_mut();
         world.run_system_once(ensure_animation_event_components).unwrap();
-        world.run_system_once(dispatch_animation_events).unwrap();
+        world.run_system_once(dispatch_animation_events::<false>).unwrap();
         world.resource_mut::<Messages<AlsAnimationEvent>>().clear();
         for index in 0..chances.len() {
             for actor in actors {
                 world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = (index + 1) as f32 * 0.1 + 0.01;
             }
-            world.run_system_once(dispatch_animation_events).unwrap();
+            world.run_system_once(dispatch_animation_events::<false>).unwrap();
             let events = world.resource_mut::<Messages<AlsAnimationEvent>>().drain().collect::<Vec<_>>();
             assert_eq!(events.iter().filter(|event| event.phase == EventPhase::Point).count(), usize::from(accepted[index]) * 2);
             assert_eq!(world.resource_mut::<Messages<AlsCameraShakeRequest>>().drain().count(), usize::from(accepted[index]) * 2);
@@ -1442,13 +1496,17 @@ pub(crate) mod tests {
     #[test]
     fn hidden_roll_slot_states_follow_the_native_minimum_pose_tick_delta() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-        app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
+        app.world_mut().entity_mut(avatar).insert((
+            crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones,
+            Visibility::Hidden,
+        ));
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
         for _ in 0..16 { app.update(); }
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
         app.update();
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
         assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 1.3);
+        app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>();
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.5e-6)));
         for (frame, expected) in [(0, 1.3), (1, 1.0)] {
             app.update();
@@ -1476,6 +1534,56 @@ pub(crate) mod tests {
                 "Queued RootScale ignored native montage NotifyWeight at frame {frame}: weight={weight}");
             assert_eq!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap(), AlsNotifyLocomotionAction::Rolling,
                 "Native branching action was incorrectly filtered with queued notifications");
+        }
+    }
+
+    #[test]
+    fn evaluated_slot_relevance_keeps_only_one_previous_graph_frame() {
+        use bevy_animation_graph::core::{
+            animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph,
+            animation_graph_player::AnimationGraphPlayer, animation_node::AnimationNode,
+        };
+        use crate::{als::input::AlsInputCommand, extensions::SourceSlotNode};
+
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let graph = app.world().resource::<AssetServer>()
+            .load::<AnimationGraph>("ALS/Character/AB_Als/AnimGraph.animgraph.ron");
+        {
+            let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
+            let graph = graphs.get_mut(&graph).unwrap();
+            let (id, mut slot, name) = graph.nodes.values().find_map(|node| {
+                let slot = node.try_inner_downcast_ref::<SourceSlotNode>()?;
+                (slot.slot_name == "PostLocomotion").then(|| (node.id, slot.clone(), node.name.clone()))
+            }).unwrap();
+            slot.weight_key = "fixture.slot_weight".into();
+            slot.layer_weight_key = "fixture.slot_layer_weight".into();
+            let mut node = AnimationNode::new(name, slot);
+            node.id = id;
+            graph.nodes.insert(id, node);
+        }
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        let threshold = 1e-5_f32;
+        let frames: [(f32, &[EventPhase], f32); 6] = [
+            (0.0, &[], 1.0),
+            (threshold, &[], 1.0),
+            (f32::from_bits(threshold.to_bits() + 1), &[EventPhase::Begin, EventPhase::Active], 1.3),
+            (0.0, &[EventPhase::Active], 1.3),
+            (0.0, &[EventPhase::End], 1.0),
+            (0.5, &[EventPhase::Begin, EventPhase::Active], 1.3),
+        ];
+        for (local_weight, expected, scale) in frames {
+            let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            player.set_global_input_data("fixture.slot_weight", local_weight);
+            player.set_global_input_data("fixture.slot_layer_weight", 0.0_f32);
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            app.update();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+            let phases = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .filter(|event| event.character == character && event.class_name == "AlsAnimNotifyState_SetRootMotionScale")
+                .map(|event| event.phase).collect::<Vec<_>>();
+            assert_eq!(phases.as_slice(), expected);
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, scale);
         }
     }
 
@@ -1576,7 +1684,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn hidden_roll_clears_slot_notifications_after_its_autonomous_root_tick_ends() {
+    fn hidden_roll_without_slot_relevance_rejects_queued_notifications() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
         app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
@@ -1588,26 +1696,21 @@ pub(crate) mod tests {
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
         let mut shakes = 0;
         let mut footsteps = 0;
-        let mut component_only_frames = 0;
+        let mut entry_points = 0;
         for frame in 0..11 {
             app.update();
             if frame == 0 { app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false; }
             shakes += app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|event| event.target == character).count();
-            footsteps += app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects").count();
-            let roll = app.world().get::<AlsRollState>(character).unwrap();
-            let delta = app.world().resource::<Time>().delta_secs();
-            if roll.time - delta >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
-                component_only_frames += 1;
-                let expected = if component_only_frames == 1 { 1.3 } else { 1.0 };
-                assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, expected,
-                    "Hidden queued state ignored native skipped-source protection at component frame {component_only_frames}");
+            for event in app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .filter(|event| event.character == character && event.source_asset == SOURCE_ROLL_SEQUENCE) {
+                footsteps += usize::from(event.class_name == "AlsAnimNotify_FootstepEffects");
+                entry_points += usize::from(event.class_name == "AlsAnimNotify_SetGroundedEntryMode");
             }
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 1.0);
         }
         let instance = app.world().get::<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>(player).unwrap();
         assert_eq!(instance.get_context_arena().unwrap().frame_index(), before);
-        assert_eq!(shakes, 2, "Montage camera notifications were frozen with the graph");
-        assert_eq!((footsteps, app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0), (2, 1.0),
-            "Hidden component-only montage ticks applied slot notifications after root motion stopped");
+        assert_eq!((shakes, footsteps, entry_points), (0, 0, 0));
         assert!(app.world().get::<AlsRollState>(character).unwrap().time > 1.0);
         app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.01)));
@@ -1634,7 +1737,7 @@ pub(crate) mod tests {
             assert!((app.world().get::<AlsRollState>(character).unwrap().time - first_dt).abs() < 1e-6);
             let count = app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count();
             assert_eq!(count, usize::from(first_dt * ROLL_PLAY_RATE >= 0.1), "First interval dropped the .1 camera shake: dt={first_dt}");
-            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            app.world_mut().run_system_once(dispatch_animation_events::<true>).unwrap();
             assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().count(), 0, "Repeated same-frame dispatch duplicated a point");
             let mut total = count;
             app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
@@ -2474,7 +2577,7 @@ pub(crate) mod tests {
             world
                 .run_system_once(ensure_animation_event_components)
                 .unwrap();
-            world.run_system_once(dispatch_animation_events).unwrap();
+            world.run_system_once(dispatch_animation_events::<false>).unwrap();
             assert_eq!(
                 world.get::<AlsNotifyLocomotionAction>(actor),
                 Some(&AlsNotifyLocomotionAction::Mantling)
@@ -2485,7 +2588,7 @@ pub(crate) mod tests {
                 .unwrap()
                 .entries[0]
                 .time = 0.4;
-            world.run_system_once(dispatch_animation_events).unwrap();
+            world.run_system_once(dispatch_animation_events::<false>).unwrap();
             assert_eq!(
                 world.get::<AlsNotifyLocomotionAction>(actor),
                 Some(&external_action)
@@ -2501,7 +2604,7 @@ pub(crate) mod tests {
                 next.time = 0.2;
                 playbacks.entries.push(next);
             }
-            world.run_system_once(dispatch_animation_events).unwrap();
+            world.run_system_once(dispatch_animation_events::<false>).unwrap();
             assert_eq!(
                 world.get::<AlsNotifyLocomotionAction>(actor),
                 Some(&AlsNotifyLocomotionAction::Mantling)
@@ -2530,7 +2633,7 @@ pub(crate) mod tests {
                 .unwrap()
                 .entries
                 .remove(0);
-            world.run_system_once(dispatch_animation_events).unwrap();
+            world.run_system_once(dispatch_animation_events::<false>).unwrap();
             let emitted: Vec<_> = world
                 .resource_mut::<Messages<AlsAnimationEvent>>()
                 .drain()
@@ -2552,7 +2655,7 @@ pub(crate) mod tests {
                 .unwrap()
                 .entries[0]
                 .time = 1.05;
-            world.run_system_once(dispatch_animation_events).unwrap();
+            world.run_system_once(dispatch_animation_events::<false>).unwrap();
             assert_eq!(
                 world.get::<AlsNotifyLocomotionAction>(actor),
                 Some(&AlsNotifyLocomotionAction::None)
@@ -2639,7 +2742,7 @@ pub(crate) mod tests {
             world
                 .run_system_once(refresh_animation_event_playbacks)
                 .unwrap();
-            world.run_system_once(dispatch_animation_events).unwrap();
+            world.run_system_once(dispatch_animation_events::<false>).unwrap();
             let entries = &world
                 .get::<AlsAnimationEventPlaybacks>(actor)
                 .unwrap()
@@ -2700,7 +2803,7 @@ pub(crate) mod tests {
                         && entry.time == state.clip_time
                         && entry.graph_clip == settings.clip)
             );
-            world.run_system_once(dispatch_animation_events).unwrap();
+            world.run_system_once(dispatch_animation_events::<false>).unwrap();
             let action_phases = world.resource_mut::<Messages<AlsAnimationEvent>>().drain()
                 .filter(|event| event.source_asset == settings.source_montage
                     && event.class_name == "AlsAnimNotifyState_SetLocomotionAction")

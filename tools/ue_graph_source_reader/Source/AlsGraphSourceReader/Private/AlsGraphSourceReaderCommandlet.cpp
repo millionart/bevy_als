@@ -6086,6 +6086,8 @@ TSharedPtr<FJsonObject> CaptureSlotProbe(UObject* Asset, const FString& RequestP
         using FAnimInstanceProxy::FAnimInstanceProxy;
         using FAnimInstanceProxy::Initialize;
         using FAnimInstanceProxy::GetMontageEvaluationData;
+        using FAnimInstanceProxy::ClearSlotNodeWeights;
+        using FAnimInstanceProxy::ReinitializeSlotNodes;
     };
     struct FProbeSlot : FAnimNode_Slot
     {
@@ -6210,6 +6212,38 @@ TSharedPtr<FJsonObject> CaptureSlotProbe(UObject* Asset, const FString& RequestP
     Result->SetStringField(TEXT("node_property"), Properties[PropertyIndex]->GetName());
     Result->SetStringField(TEXT("slot_name"), Template->SlotName.ToString());
     Result->SetArrayField(TEXT("frames"), Results);
+    if (Request->HasField(TEXT("notify_relevance_steps")))
+    {
+        const TArray<TSharedPtr<FJsonValue>>* NotifySteps = nullptr;
+        if (!Request->TryGetArrayField(TEXT("notify_relevance_steps"), NotifySteps)
+            || NotifySteps->IsEmpty() || NotifySteps->Num() > 512) { return nullptr; }
+        Proxy.ReinitializeSlotNodes();
+        Proxy.RegisterSlotNodeWithAnimInstance(Template->SlotName);
+        TArray<TSharedPtr<FJsonValue>> Relevance;
+        for (const auto& Value : *NotifySteps)
+        {
+            const TSharedPtr<FJsonObject>* Step = nullptr;
+            bool bUpdateGraph;
+            if (!Value->TryGetObject(Step) || !(*Step)->TryGetBoolField(TEXT("update_graph"), bUpdateGraph)) { return nullptr; }
+            if (bUpdateGraph)
+            {
+                Proxy.ClearSlotNodeWeights();
+                if ((*Step)->HasField(TEXT("slot_weight")))
+                {
+                    double LocalWeight, GlobalWeight;
+                    if (!ReadNumber(*Step, TEXT("slot_weight"), LocalWeight)
+                        || !ReadNumber(*Step, TEXT("global_weight"), GlobalWeight)) { return nullptr; }
+                    Proxy.UpdateSlotNodeWeight(Template->SlotName, static_cast<float>(LocalWeight), static_cast<float>(GlobalWeight));
+                }
+                Proxy.FlipBufferWriteIndex();
+            }
+            TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+            Row->SetBoolField(TEXT("relevant"), Proxy.IsSlotNodeRelevantForNotifies(Template->SlotName));
+            Row->SetBoolField(TEXT("unregistered_relevant"), Proxy.IsSlotNodeRelevantForNotifies(NAME_None));
+            Relevance.Add(MakeShared<FJsonValueObject>(Row));
+        }
+        Result->SetArrayField(TEXT("notify_relevance"), Relevance);
+    }
     return Result;
 }
 

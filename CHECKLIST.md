@@ -7038,7 +7038,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：六资产的96个共同状态/override控制中24组失败，输入恢复的48组全过。真实low/high攀爬尾段通过现有组件阻止移动后再按前进，controller basis已为0，目标仍停止；0.1秒后实例及当前根Slot发布权重分别为0.8017496/0.8437502，源应保持1。8个实际路径控制中仅这两组失败，4个输入恢复全部通过，未阻止输入时正常停止。
   - 漏检/边界：旧`mantle_early_blend_out_uses_source_conditions_and_custom_movement_mode`直接传入bool，只验证条件组合，没有覆盖命令到已消费输入的链路；.17只测未阻止的移动命令。366个实际条件/阶段/实例控制及90条1260帧原生停止对照通过，排除曲线、时长和重复停止算法。证据`95/native.json`、`95/analysis.json`与`bf144_animation_phase95_blocked_input`；输入阻止是受控的现有API状态，未宣称默认攀爬尾段会自行开启。未修生产，也未把原生Stop权重采样称为UE角色通知回调执行。
 
-- [ ] BF144-D186 / P3 — 运动排队通知未按槽本帧和上帧相关性筛选。
+- [x] BF144-D186 / P3 — 运动排队通知未按槽本帧和上帧相关性筛选。
+  - 2026-11-12 06:18 +0800 实际结束，较06:57预估提前39分钟，未拆分。fresh PostLocomotion原生12步与目标图帧合同一致，旧资格错6步；四项消融均失配。已接实际排队派发、根运动倍率及脚步消费者，源和夹具见 `docs/audit/bf144/d186/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 06:00 +08:00，预估结束2026-11-12 06:57 +08:00。核对原生PostLocomotion及双缓冲相关性，沿目标实际图求值和通知派发消费验证本帧、上一帧、隐藏冻结与实例门槛。
   - Source：`AnimInstanceProxy.cpp:1020–1075`只以本帧局部Montage权重>1e−5或上帧相关性允许槽通知；未注册槽拒绝，全图权重不参与。`AnimNotifyQueue.cpp:64,138–149`先用实例权重>=通知阈值筛选，再合并相关槽的队列。`AnimMontage.cpp:2818–2870`把Roll序列的RootMotionScale与GroundedEntryMode通知送入槽队列；Montage上的native branching动作另行处理。fresh AB_Als与AM_Als_Roll确认槽名PostLocomotion。
   - Target：`animation_events.rs:287–294,873–879`在动画图更新时允许全部运动序列通知，没有槽求值状态及一帧历史；`959–1072`继续派发、写入倍率与落地模式。GraphFootsteps的槽集合只服务音效/相机等另一派发路径，不能补上此处资格。
   - 反例：同一真实角色入口中，前后均无相关槽且实例权重达到阈值，目标仍发RootMotionScale Begin并把倍率设成1.3、写入FromRoll；已注册且求值的槽在局部权重恰好1e−5时同样误触发。连续两帧不求值槽时，目标不结束已有缩放状态，重新进入也少一次Begin。40组资格比较4FAIL、24组历史比较3FAIL；另40组固定已提取root delta的真实驱动倍率消费4FAIL，恢复资格后52组全过。

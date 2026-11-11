@@ -1696,7 +1696,7 @@ pub(crate) mod tests {
 
 
     #[test]
-    fn hidden_roll_reentry_uses_the_native_skipped_source_scale() {
+    fn hidden_roll_reentry_uses_the_scale_without_slot_relevance() {
         use std::sync::{Arc, Mutex};
         let (mut app, character, avatar) = loaded_roll_character();
         app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
@@ -1723,7 +1723,7 @@ pub(crate) mod tests {
             let (sampler, root) = samplers.iter().find(|(sampler, _)| sampler.character == character).unwrap();
             let actor = transforms.compute_global_transform(character).unwrap();
             let mesh = transforms.compute_global_transform(sampler.target_player).unwrap();
-            let expected = root_motion_world_transform(actor, mesh, root.translation_delta * 1.3, root.rotation_delta).0;
+            let expected = root_motion_world_transform(actor, mesh, root.translation_delta, root.rotation_delta).0;
             *capture.lock().unwrap() = Some((actors.get(character).unwrap().0 * time.delta_secs(), expected));
         }).after(AlsRollDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
         app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
@@ -1731,7 +1731,7 @@ pub(crate) mod tests {
         let (actual, expected) = sampled.lock().unwrap().unwrap();
         assert!(expected.length() > 1e-5);
         assert!(actual.distance(expected) < 1e-5,
-            "Hidden reentry lost native preserved scale: expected={expected:?}, actual={actual:?}");
+            "Hidden reentry applied a queued scale without slot relevance: expected={expected:?}, actual={actual:?}");
     }
 
     #[test]
@@ -1771,7 +1771,8 @@ pub(crate) mod tests {
         app.update();
         let (actual, expected) = sampled.lock().unwrap().unwrap();
         assert!(expected.length() > 1e-5, "Actual first Roll did not extract root motion");
-        assert!((app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0 - 1.3).abs() < 1e-6);
+        let expected_scale = if hidden { 1.0 } else { 1.3 };
+        assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, expected_scale);
         assert!(actual.distance(expected) < 1e-5,
             "First root step consumed the post-notify scale: hidden={hidden}, expected={expected:?}, actual={actual:?}");
         }
@@ -2626,11 +2627,13 @@ fn bridge_roll_slot_samples(
             sampler.reported_unready = false;
             let mut context = curves.get(&curve_handle.0).and_then(AlsAnimCurves::first)
                 .map(|curves| crate::get_up::sampled_curve_context(curves, clip_time)).unwrap_or_default();
+            let previous_position = roll.filter(|_| tail.is_none()).map_or(clip_time, AlsRollState::previous_clip_time);
             context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
                 identity: format!("roll:{}", entity.to_bits()), clip: curve_handle.1.clone(), montage: true,
                 interrupted: tail.is_some() || blend_outs.contains(character),
                 clock: crate::extensions::SourceRelevantAsset { duration: ROLL_MONTAGE_SEQUENCE_LENGTH_SECS,
-                    position: clip_time, weight, ..default() }, ..default()
+                    position: clip_time, previous_position, has_previous_position: true,
+                    playback_delta_seconds: clip_time - previous_position, weight, ..default() }, ..default()
             });
             samples.push((pose, context, weight, tail.is_none()));
         }

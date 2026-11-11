@@ -1,0 +1,2 @@
+error: 'ClearSlotNodeWeights' is a protected member of 'FAnimInstanceProxy'
+error: 'ReinitializeSlotNodes' is a protected member of 'FAnimInstanceProxy'

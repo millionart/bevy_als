@@ -1,13 +1,18 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
+    animation_graph::NodeId,
     animation_node::{NodeLike, ReflectNodeLike},
-    context::{new_context::NodeContext, spec_context::SpecContext},
+    context::{
+        graph_context_arena::GraphContextArena, new_context::NodeContext, node_states::StateKey,
+        spec_context::SpecContext,
+    },
     edge_data::DataSpec,
     errors::GraphError,
 };
 
 use crate::extensions::slot_node::{blend_slot_pose, slot_blend_weight};
 use crate::extensions::source_gameplay_tag_input::active_slot_input_context;
+use crate::extensions::source_instance::{SourceInstanceProperties, source_instance_properties};
 use crate::extensions::source_pose_nodes::blend_animation_contexts;
 use crate::extensions::{
     animation_context::{AnimationContextState, SourceInertializationRequest, merge_inertialization_request, pose_input_context_state},
@@ -18,6 +23,17 @@ pub(crate) const MONTAGE_EVALUATION_WEIGHT_THRESHOLD: f32 = 1e-5;
 
 pub(crate) fn montage_evaluation_denominator(total_weight: f32) -> f32 {
     if total_weight > 1.0 + MONTAGE_EVALUATION_WEIGHT_THRESHOLD { total_weight } else { 1.0 }
+}
+
+pub(crate) fn relevant_notify_slots(arena: &GraphContextArena) -> impl Iterator<Item = (&str, &str)> {
+    let frame = arena.frame_index();
+    arena.get_toplevel().node_states
+        .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+        .into_iter()
+        .flat_map(|state| &state.slot_notify_frames)
+        .filter_map(move |((slot, key), last)| {
+            (frame.wrapping_sub(*last) <= 1).then_some((slot.as_str(), key.as_str()))
+        })
 }
 
 #[cfg(test)]
@@ -177,6 +193,11 @@ impl SourceSlotNode {
 impl NodeLike for SourceSlotNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let (slot_weight, layer_weight, mesh_space_additive, source_weight) = self.update_weights(&ctx)?;
+        if slot_weight > 0.0 && ctx.graph_context.state_key == StateKey::Default {
+            let frame = ctx.graph_context.frame_index();
+            source_instance_properties(&ctx)?.slot_notify_frames
+                .insert((self.slot_name.clone(), self.pose_key.clone()), frame);
+        }
         let effective_weight = slot_weight * layer_weight;
         let overlay = if slot_weight > 0.0 && layer_weight > 0.0 {
             ctx.graph_context

@@ -926,8 +926,7 @@ mod tests {
                     && event.phase == crate::extensions::EventPhase::Point);
                 observed.0.push((source.gameplay_tag_input("locomotion_action").unwrap().as_str().to_owned(),
                     source.gameplay_tag_input("grounded_entry_mode").unwrap().as_str().to_owned(), queued_point));
-            }).after(AbAlsProviderSet).after(crate::animation_events::AlsAnimationEventSet::Dispatch)
-                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
+            }).after(crate::animation_events::AlsAnimationEventSet::SlotDispatch));
         for _ in 0..30 { app.update(); }
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
         app.update();
