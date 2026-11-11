@@ -6498,6 +6498,15 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.387自然Stop双侧消费者：原生Stop_Left65–108与Stop_Right165–208、同start0.4/rate1.5/blend0.2/length/Delta共88步，public advance加保原配置clamp后352实际cache字段精确；源增量位置/previous/DeltaTimeRecord和HermiteCubic AlphaLerp/remaining/IsComplete的968状态全native精确。原位置72差、weight16差、previous70差；仅增量余12末端、仅末端余60前序，二者合并位置全88精确；权重按完整源alpha历史恢复。去alpha历史首帧拒绝，去两位置因素各有独立反例，源码字节/同target重编输出恢复。本项数值时钟消费者扩展，不称完整Slot姿态或自然Root已对齐；DeltaTimeRecord在停止后保留值与target相邻采样差不同阶段，未另立原因。证据`target/bf144/387/clock-check.json`、`restore-check.json`。
 
+  - D118拆分：三个实际 consumer 各有独立启动、片段时间和淡出状态，合并估时超过60分钟。按 GetUp、Roll、动态过渡顺序逐项实现并收口，共用源 AlphaBlend 累积规则。
+  - [x] BF144-D118a — GetUp 逐步推进、通知分步及累积混出权重。
+    - 20:43 source/static 闭环：GetUp 每步先累积混合，再按 clip 增量和通知点分步；在首次进入窗口的子步开始淡出。双朝向5组共600帧使用精确原生 marker 的独立 source 重放全一致，去分步每朝向10帧、改比例 alpha 每朝向37帧失败，跨帧余时消融0差，已从实现省去该状态。现有导出 marker 舍入导致的20帧权重差归 D121，末端持有归 D120。原生请求/报告、复算和 Rust 对照见 `docs/audit/bf144/d118a/`；目标编译、测试、消融和真实入口待统一 Gate。开始20:33，预估21:23，实际结束2026-11-11 20:43 +08:00，偏差−40分钟。结果：静态实现完成。
+    - 开始2026-11-11 20:33 +08:00，预估结束21:23 +08:00。依据：源已有单片段与通知窗口反例，fresh 双朝向 montage 取证，按既有播放状态和临界采样夹具估时。
+  - [ ] BF144-D118b — Roll 的实际 clip 时间及自然、打断混合。
+    - 预计开始2026-11-11 21:23 +08:00，预估结束22:18 +08:00。依据：.507已分离通知分步、槽权重与 RootMotion 所有权，需覆盖状态、尾部和实际采样入口；依赖D118a的累积混合规则。
+  - [ ] BF144-D118c — 动态过渡的逐步片段时间及混合状态。
+    - 预计开始2026-11-11 22:18 +08:00，预估结束23:13 +08:00。依据：.82/.214/.333/.387已有实际位置与原生混合历史，核对实际 Stop/Step 播放和反向/停播控制；依赖D118a，末端持有边界按D120/D257已有归属保留。
+
 - [ ] BF144-D119 / P2 — GetUp停止与共槽混合读取上一帧Roll状态和权重。
   - Source：fresh `AlsCharacter_Actions.cpp:90–100`成功Montage_Play后立即置Rolling；`AnimInstance.cpp:2767–2772`同步停止同组旧montage，随后同一次UpdateMontage更新所有权重再求槽姿态。Roll原生BlendIn为0.1秒，已有GetUp混出保留原Cubic曲线并缩短时长。
   - Target：`get_up.rs:255–258,301–322,352–354`在PrePhysics前检查roll.active并读取roll.pose/weight，却没有排在`advance_rolls`之后；`roll_drive.rs:1912–1916,2094–2111`到PrePhysics后的bridge才写当前roll槽数据。旧GetUp与新Roll因而使用不同帧的数据。

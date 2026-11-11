@@ -1,0 +1,929 @@
+{
+  "samples": [
+    {
+      "name": "fifty_ms",
+      "steps": [
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        }
+      ]
+    },
+    {
+      "name": "fifty_ms_minus",
+      "steps": [
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        },
+        {
+          "delta_seconds": 0.0499
+        }
+      ]
+    },
+    {
+      "name": "fifty_ms_plus",
+      "steps": [
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        },
+        {
+          "delta_seconds": 0.0501
+        }
+      ]
+    },
+    {
+      "name": "half_speed",
+      "steps": [
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        },
+        {
+          "delta_seconds": 0.00835
+        }
+      ]
+    },
+    {
+      "name": "varying_delta",
+      "steps": [
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        },
+        {
+          "delta_seconds": 0.011
+        },
+        {
+          "delta_seconds": 0.023
+        },
+        {
+          "delta_seconds": 0.018
+        },
+        {
+          "delta_seconds": 0.039
+        },
+        {
+          "delta_seconds": 0.041
+        }
+      ]
+    }
+  ]
+}

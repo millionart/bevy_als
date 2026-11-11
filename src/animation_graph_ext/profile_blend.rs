@@ -122,6 +122,47 @@ pub fn transition_alpha(
     value.clamp(0.0, 1.0)
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct MontageBlend {
+    pub(crate) duration: f32,
+    remaining: f32,
+    alpha: f32,
+    from: f32,
+    to: f32,
+    mode: AlphaBlendMode,
+}
+
+impl MontageBlend {
+    pub(crate) fn new(from: f32, to: f32, duration: f32, mode: AlphaBlendMode) -> Self {
+        let duration = duration.max(0.0);
+        Self {
+            duration,
+            remaining: duration,
+            alpha: if duration > 0.0 { 0.0 } else { 1.0 },
+            from,
+            to,
+            mode,
+        }
+    }
+
+    fn value_at(&self, alpha: f32) -> f32 {
+        self.from + (self.to - self.from) * transition_alpha(alpha, self.mode, &[])
+    }
+
+    pub(crate) fn advance(&mut self, delta: f32) -> f32 {
+        let current = self.value_at(self.alpha);
+        if current == self.value_at(1.0) { return current; }
+        if self.remaining > delta {
+            self.alpha = (self.alpha + ((1.0 - self.alpha) / self.remaining) * delta).clamp(0.0, 1.0);
+            self.remaining -= delta;
+        } else {
+            self.alpha = 1.0;
+            self.remaining = 0.0;
+        }
+        self.value_at(self.alpha)
+    }
+}
+
 impl ProfiledBlendNode {
     fn bone_weight(&self, factor: f32, alpha: f32, scale: f32) -> f32 {
         if self.profile_mode == BlendProfileMode::WeightFactor {

@@ -6,7 +6,7 @@ use crate::als::{
 use crate::extensions::{
     AlsAnimCurves,
     animation_context::{AnimationContextState, SourceRelevantAsset},
-    profile_blend::{AlphaBlendMode, transition_alpha},
+    profile_blend::{AlphaBlendMode, MontageBlend},
 };
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -79,7 +79,7 @@ pub struct AlsGetUpState {
     pub weight: f32,
     pub pose_ready: bool,
     pub(crate) interrupted: bool,
-    stop: Option<(f32, f32, f32)>,
+    stop: Option<MontageBlend>,
 }
 
 impl AlsGetUpState {
@@ -98,30 +98,34 @@ impl AlsGetUpState {
 
     pub(crate) fn stop(&mut self, duration: f32) {
         self.interrupted = true;
-        let configured_duration = self.stop.map(|(_, duration, _)| duration);
+        let configured_duration = self.stop.map(|blend| blend.duration);
         if configured_duration.is_none_or(|previous| duration < previous) {
-            self.stop = Some((duration.max(0.0), duration.max(0.0), self.weight));
+            self.stop = Some(MontageBlend::new(self.weight, 0.0, duration, AlphaBlendMode::Cubic));
         }
     }
 
     pub(crate) fn advance(&mut self, delta: f32, settings: &GetUpClipSettings) {
-        let previous_clip_time = self.clip_time;
-        if let Some((remaining, blend_duration, start_weight)) = self.stop.as_mut() {
-            *remaining = (*remaining - delta).max(0.0);
-            let alpha = if *blend_duration > 0.0 { 1.0 - *remaining / *blend_duration } else { 1.0 };
-            self.weight = *start_weight * (1.0 - transition_alpha(alpha, AlphaBlendMode::Cubic, &[]));
+        if let Some(blend) = &mut self.stop {
+            self.weight = blend.advance(delta);
         }
         self.elapsed += delta;
-        self.clip_time = (self.elapsed * settings.play_rate).min(settings.sequence_length);
-        let stop_position = if previous_clip_time < settings.notify_end_clip_seconds
-            && settings.notify_end_clip_seconds <= self.clip_time
-            && (settings.sequence_length - settings.notify_end_clip_seconds) / settings.play_rate
-                <= settings.blend_out_seconds.max(1e-4)
-        { settings.notify_end_clip_seconds } else { self.clip_time };
-        let remaining = ((settings.sequence_length - stop_position) / settings.play_rate).max(0.0);
-        if self.stop.is_none() && remaining <= settings.blend_out_seconds.max(1e-4) {
-            self.stop = Some((remaining, remaining, self.weight));
-            if remaining <= 0.0 { self.weight = 0.0; }
+        let mut time_remaining = delta;
+        for _ in 0..9 {
+            if time_remaining <= 1e-8 || self.clip_time >= settings.sequence_length { break; }
+            let mut movement = time_remaining * settings.play_rate;
+            if self.clip_time < settings.notify_end_clip_seconds
+                && settings.notify_end_clip_seconds <= self.clip_time + movement {
+                movement = settings.notify_end_clip_seconds - self.clip_time;
+            }
+            movement = movement.min(settings.sequence_length - self.clip_time);
+            if movement <= 0.0 { break; }
+            self.clip_time += movement;
+            time_remaining = (time_remaining - movement / settings.play_rate).max(0.0);
+            let to_end = (settings.sequence_length - self.clip_time) / settings.play_rate;
+            if self.stop.is_none() && to_end <= settings.blend_out_seconds.max(1e-4) {
+                self.stop = Some(MontageBlend::new(self.weight, 0.0, to_end, AlphaBlendMode::Cubic));
+                if to_end <= 0.0 { self.weight = 0.0; }
+            }
         }
     }
 }
@@ -697,6 +701,7 @@ mod tests {
         {
             let mut state=app.world_mut().get_mut::<AlsGetUpState>(character).unwrap();
             state.elapsed=0.3;
+            state.clip_time=0.3 * get_up_settings(state.facing_up).play_rate;
             state.weight=1.0;
             state.stop=None;
             state.stop(RAGDOLL_SETTINGS.stop_montage_blend_seconds);
@@ -749,13 +754,49 @@ mod tests {
             assert!(state.stop.is_none());
             state.advance(crossing, &settings);
             assert_eq!(state.weight, 1.0, "Natural Stop consumed weight in its trigger frame");
-            assert!((state.stop.unwrap().1 - budget).abs() < 1e-6,
+            assert!((state.stop.unwrap().duration - budget).abs() < 1e-6,
                 "Natural GetUp ignored the first source substep that starts the blend");
             state.advance(budget * 0.5, &settings);
             assert!((state.weight - 0.5).abs() < 1e-5);
             assert!(!state.interrupted);
             state.advance(budget * 0.5, &settings);
             assert_eq!(state.weight, 0.0);
+        }
+    }
+
+    #[test]
+    fn get_up_uses_native_incremental_montage_time_and_blend_history() {
+        let settings: AlsRagdollSettings = serde_json::from_str(include_str!(
+            "../../../../assets/ALS/Data/Character/als_ragdoll_settings.json"
+        )).unwrap();
+        for (facing_up, mut settings, clock, notify) in [
+            (false, settings.front, include_str!("../../../../docs/audit/bf144/d118a/front.native.json"),
+                include_str!("../../../../docs/audit/bf144/d118a/front-notify.native.json")),
+            (true, settings.back, include_str!("../../../../docs/audit/bf144/d118a/back.native.json"),
+                include_str!("../../../../docs/audit/bf144/d118a/back-notify.native.json")),
+        ] {
+            let notify: serde_json::Value = serde_json::from_str(notify).unwrap();
+            let mut ends = notify["notify_clock_probe"]["cases"].as_array().unwrap().iter()
+                .flat_map(|case| case["events"].as_array().unwrap())
+                .map(|event| event["end_trigger_time"].as_f64().unwrap() as f32);
+            let marker = ends.next().unwrap();
+            assert!(ends.all(|time| time == marker));
+            settings.notify_end_clip_seconds = marker;
+
+            let clock: serde_json::Value = serde_json::from_str(clock).unwrap();
+            for sample in clock["montage_clock_probe"]["samples"].as_array().unwrap() {
+                let name = sample["name"].as_str().unwrap();
+                let mut state = AlsGetUpState::new(facing_up);
+                for (index, frame) in sample["frames"].as_array().unwrap().iter().enumerate() {
+                    state.advance(frame["delta_seconds"].as_f64().unwrap() as f32, &settings);
+                    assert_eq!(state.weight, frame["weight"].as_f64().unwrap() as f32,
+                        "Get-up blend history: facing_up={facing_up} sample={name} frame={index}");
+                    if frame["playing"].as_bool().unwrap() {
+                        assert_eq!(state.clip_time, frame["position"].as_f64().unwrap() as f32,
+                            "Get-up clip clock: facing_up={facing_up} sample={name} frame={index}");
+                    }
+                }
+            }
         }
     }
 }
