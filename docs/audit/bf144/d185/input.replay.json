@@ -1,0 +1,294 @@
+{
+  "legacy_mismatches": 12,
+  "without_normalization_mismatches": 6,
+  "montages": {
+    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low": {
+      "native_weights": {
+        "held": 0.8017492294311523,
+        "blocked": 1
+      },
+      "cases": [
+        {
+          "case": "command",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_command",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "override",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_override",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "neutral_override",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "aim",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "below_normalization_threshold",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": true
+        }
+      ]
+    },
+    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_High.AM_Als_Mantle_High": {
+      "native_weights": {
+        "held": 0.84375,
+        "blocked": 1
+      },
+      "cases": [
+        {
+          "case": "command",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_command",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "override",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_override",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "neutral_override",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "aim",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "below_normalization_threshold",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": true
+        }
+      ]
+    },
+    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_BothArms.AM_Als_Mantle_Low_BothArms": {
+      "native_weights": null,
+      "cases": [
+        {
+          "case": "command",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_command",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "override",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_override",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "neutral_override",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "aim",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "below_normalization_threshold",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": true
+        }
+      ]
+    },
+    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Box.AM_Als_Mantle_Low_Box": {
+      "native_weights": null,
+      "cases": [
+        {
+          "case": "command",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_command",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "override",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_override",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "neutral_override",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "aim",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "below_normalization_threshold",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": true
+        }
+      ]
+    },
+    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Left.AM_Als_Mantle_Low_Left": {
+      "native_weights": null,
+      "cases": [
+        {
+          "case": "command",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_command",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "override",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_override",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "neutral_override",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "aim",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "below_normalization_threshold",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": true
+        }
+      ]
+    },
+    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Right.AM_Als_Mantle_Low_Right": {
+      "native_weights": null,
+      "cases": [
+        {
+          "case": "command",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_command",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "override",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "blocked_override",
+          "old_stopped": true,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "neutral_override",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": false
+        },
+        {
+          "case": "aim",
+          "old_stopped": true,
+          "stopped": true,
+          "stopped_without_normalization": true
+        },
+        {
+          "case": "below_normalization_threshold",
+          "old_stopped": false,
+          "stopped": false,
+          "stopped_without_normalization": true
+        }
+      ]
+    }
+  }
+}

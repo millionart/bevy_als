@@ -7030,7 +7030,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：九资产×有无外部Ragdolling覆盖×原始/恢复的144个实际帧中，只有原始Roll且无外部覆盖的旧终止帧失败；动作组件和当前图输入都错误保留Rolling。夹具让同一旧状态经过正常End路径后72个恢复帧全部通过，外部不同动作保留控制也通过。
   - 漏检/边界：旧`stopped_roll_tail_accepts_a_new_loaded_montage`把“旧结束不清新Roll”直接写成期望；BF144.14四个重入控制只覆盖正常动作结束前后的接收与第一重入帧，未覆盖旧中断状态的稍后Terminate。此处是源允许的停止后重入合同与实际派发器控制，未宣称默认输入自然触发，也不与排队RootScale合并身份的D182混算。证据`94/static.json`、`bf144_animation_phase94_instance_termination`；未改生产保护分支。
 
-- [ ] BF144-D185 / P3 — Mantle提前混出直接使用未消费的移动命令。
+- [x] BF144-D185 / P3 — Mantle提前混出直接使用未消费的移动命令。
+  - 2026-11-12 05:59 +0800 实际结束，较06:34预估提前35分钟，未拆分。已沿CMC basis复用输入归一化，六资产旧路径12例误触发，绕过归一化另有6例；fresh高低原生停止权重及实际根槽测试见 `docs/audit/bf144/d185/`。Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 05:55 +08:00，预估结束2026-11-12 06:34 +08:00。核对ALS已消费输入和目标CMC basis的同帧来源；重采高低Mantle停止权重，验证阻止移动、正常移动与独立瞄准条件。
   - Source：fresh `AlsAnimNotifyState_EarlyBlendOut.cpp:44–66`只在Tick读取Character的bHasInput并停止当前实例；`AlsCharacter.cpp:1109–1122`由CMC当前加速度归一化后生成该值。`AlsCharacterMovementComponent.cpp:202–210`在InputBlocked时先把输入清零，因此仍按着移动键也不应触发提前混出。
   - Target：`mantle_drive.rs:377–385`从AlsInputCommand或AlsInputOverride直接取move_dir并比较长度，没有使用已消费的输入。四个条件的OR、默认开关/Tag、仅Active阶段和实例定位本身正确，但该输入来源会产生额外或缺失的停止。
   - 反例：六资产的96个共同状态/override控制中24组失败，输入恢复的48组全过。真实low/high攀爬尾段通过现有组件阻止移动后再按前进，controller basis已为0，目标仍停止；0.1秒后实例及当前根Slot发布权重分别为0.8017496/0.8437502，源应保持1。8个实际路径控制中仅这两组失败，4个输入恢复全部通过，未阻止输入时正常停止。

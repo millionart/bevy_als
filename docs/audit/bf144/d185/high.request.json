@@ -1,0 +1,29 @@
+{
+  "samples": [
+    {
+      "name": "held",
+      "start_time": 1.9,
+      "steps": [
+        {
+          "delta_seconds": 0.3
+        },
+        {
+          "delta_seconds": 0.1,
+          "stop_seconds": 0.4
+        }
+      ]
+    },
+    {
+      "name": "blocked",
+      "start_time": 1.9,
+      "steps": [
+        {
+          "delta_seconds": 0.3
+        },
+        {
+          "delta_seconds": 0.1
+        }
+      ]
+    }
+  ]
+}

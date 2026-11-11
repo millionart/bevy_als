@@ -1,6 +1,7 @@
 use crate::als::character::AlsCharacter;
 #[cfg(test)]
 use crate::als::character::AlsCollisionLayerOwnership;
+use crate::als::control_scheme::AlsControlScheme;
 use crate::als::mantle::{AlsMantleState, AlsMantleTargetBase, MantleKind};
 use crate::als::state::LocomotionState;
 use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
@@ -23,6 +24,7 @@ use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
     edge_data::DataValue,
 };
+use bevy_tnua::prelude::TnuaController;
 use serde::Deserialize;
 use std::sync::LazyLock;
 
@@ -357,8 +359,7 @@ fn handle_mantle_early_blend_out(
             &LocomotionState,
             &crate::als::state::RotationMode,
             &crate::als::state::Stance,
-            &crate::als::input::AlsInputCommand,
-            Option<&crate::als::motion::AlsInputOverride>,
+            Option<&TnuaController<AlsControlScheme>>,
         ),
         With<AlsCharacter>,
     >,
@@ -369,15 +370,18 @@ fn handle_mantle_early_blend_out(
         {
             continue;
         }
-        let Ok((mut montages, locomotion, rotation, stance, command, override_command)) =
+        let Ok((mut montages, locomotion, rotation, stance, controller)) =
             characters.get_mut(event.character)
         else {
             continue;
         };
-        let command = override_command.map_or(command, |value| &value.0);
+        let has_input = controller.is_some_and(|controller| {
+            crate::actual_motion::consumed_input_direction(controller.basis.desired_motion)
+                != Vec3::ZERO
+        });
         if crate::animation_events::early_blend_out_matches(
             &event.parameters,
-            command.move_dir.length_squared() > 1e-8,
+            has_input,
             *locomotion,
             *rotation,
             *stance,
@@ -1808,53 +1812,71 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn loaded_mantle_tail_publishes_same_frame_aim_interruption() {
+    fn loaded_mantle_tail_uses_current_consumed_input_and_aim() {
         use bevy::time::TimeUpdateStrategy;
         use crate::als::input::AlsInputCommand;
+        use crate::als::motion::AlsMovementInputBlocked;
         use crate::als::state::RotationMode;
         use crate::animation_events::{AlsNotifyManifest, ALS_NOTIFY_MANIFEST_PATH};
         for (kind, clip_time, expected_weight) in [(MantleKind::Low, 1.1, 0.8017493),
             (MantleKind::High, 2.2, 0.84375)] {
-            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
-            let manifest = app.world().resource::<AssetServer>().load::<AlsNotifyManifest>(ALS_NOTIFY_MANIFEST_PATH);
-            let mut ready = false;
-            for _ in 0..600 {
-                ready = {
-                    let assets = app.world().resource::<MantleAssets>();
-                    let clips = app.world().resource::<Assets<GraphClip>>();
-                    let skeletons = app.world().resource::<Assets<Skeleton>>();
-                    app.world().resource::<Assets<AlsNotifyManifest>>().contains(&manifest)
-                        && clips.get(assets.clip(kind)).is_some_and(|clip| skeletons.contains(&clip.skeleton))
-                };
-                if ready { break; }
+            for (aiming, move_dir, blocked) in [
+                (true, Vec2::ZERO, false),
+                (false, Vec2::Y, false),
+                (false, Vec2::Y, true),
+            ] {
+                let should_interrupt = aiming || (!blocked && move_dir != Vec2::ZERO);
+                let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                let manifest = app.world().resource::<AssetServer>().load::<AlsNotifyManifest>(ALS_NOTIFY_MANIFEST_PATH);
+                let mut ready = false;
+                for _ in 0..600 {
+                    ready = {
+                        let assets = app.world().resource::<MantleAssets>();
+                        let clips = app.world().resource::<Assets<GraphClip>>();
+                        let skeletons = app.world().resource::<Assets<Skeleton>>();
+                        app.world().resource::<Assets<AlsNotifyManifest>>().contains(&manifest)
+                            && clips.get(assets.clip(kind)).is_some_and(|clip| skeletons.contains(&clip.skeleton))
+                    };
+                    if ready { break; }
+                    app.update();
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                assert!(ready, "Mantle assets did not load within 600 frames");
+                let mantle = AlsMantleState { kind, ..default() };
+                let mut montages = AlsMantleMontages::default();
+                montages.begin(&mantle);
+                montages.entries[0].elapsed = 1.0;
+                montages.entries[0].clip_time = clip_time;
+                montages.entries[0].previous_clip_time = clip_time;
+                montages.entries[0].weight = 1.0;
+                app.world_mut().entity_mut(actor).remove::<crate::get_up::AlsGetUpState>().insert((mantle, montages,
+                    RotationMode::ViewDirection, crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                    AlsInputCommand { aim_held: aiming, move_dir, ..default() }));
+                if blocked {
+                    app.world_mut().entity_mut(actor).insert(AlsMovementInputBlocked);
+                }
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
                 app.update();
-                std::thread::sleep(std::time::Duration::from_millis(10));
+                let entry = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
+                let consumed = app.world().get::<TnuaController<AlsControlScheme>>(actor)
+                    .unwrap().basis.desired_motion;
+                assert_eq!(consumed == Vec3::ZERO, aiming || blocked);
+                assert_eq!(*app.world().get::<RotationMode>(actor).unwrap() == RotationMode::Aiming, aiming);
+                assert_eq!(entry.interrupted, should_interrupt, "kind={kind:?} aiming={aiming} blocked={blocked}");
+                let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+                    .slot_input_context(POST_LOCOMOTION_POSE).unwrap();
+                assert!(context.asset_samples.iter().any(|sample| sample.identity == "mantle:1" && sample.interrupted == should_interrupt));
+                if blocked {
+                    app.world_mut().entity_mut(actor).insert(AlsMovementInputBlocked);
+                }
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+                app.update();
+                let weight = app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0].weight;
+                let expected_weight = if should_interrupt { expected_weight } else { 1.0 };
+                assert!((weight - expected_weight).abs() < 1e-5,
+                    "kind={kind:?} blocked={blocked} weight={weight} expected={expected_weight}");
             }
-            assert!(ready, "Mantle assets did not load within 600 frames");
-            let mantle = AlsMantleState { kind, ..default() };
-            let mut montages = AlsMantleMontages::default();
-            montages.begin(&mantle);
-            montages.entries[0].elapsed = 1.0;
-            montages.entries[0].clip_time = clip_time;
-            montages.entries[0].previous_clip_time = clip_time;
-            montages.entries[0].weight = 1.0;
-            app.world_mut().entity_mut(actor).remove::<crate::get_up::AlsGetUpState>().insert((mantle, montages,
-                RotationMode::ViewDirection, crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
-                AlsInputCommand { aim_held: true, ..default() }));
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
-            app.update();
-            let entry = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
-            assert_eq!(*app.world().get::<RotationMode>(actor).unwrap(), RotationMode::Aiming);
-            assert!(entry.interrupted, "kind={kind:?}");
-            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-            let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
-                .slot_input_context(POST_LOCOMOTION_POSE).unwrap();
-            assert!(context.asset_samples.iter().any(|sample| sample.identity == "mantle:1" && sample.interrupted));
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
-            app.update();
-            let weight = app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0].weight;
-            assert!((weight - expected_weight).abs() < 1e-5,
-                "kind={kind:?} weight={weight} expected={expected_weight}");
         }
     }
 

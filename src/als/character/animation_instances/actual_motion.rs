@@ -8,6 +8,14 @@ use bevy::prelude::*;
 
 const INPUT_DIRECTION_MIN_LENGTH_SQUARED: f32 = 1e-08;
 
+pub(crate) fn consumed_input_direction(input: Vec3) -> Vec3 {
+    if input.length_squared() < INPUT_DIRECTION_MIN_LENGTH_SQUARED {
+        Vec3::ZERO
+    } else {
+        input.normalize_or_zero()
+    }
+}
+
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsActualMotion {
     pub world_velocity: Vec3,
@@ -110,12 +118,9 @@ fn snapshot_actual_motion_system(
             next.world_acceleration = (next.world_velocity - previous_velocity) / time.delta_secs();
         }
         let initial_yaw = world_forward_to_yaw(*transform.forward()).to_degrees();
-        let input = controller.map_or(Vec3::ZERO, |controller| controller.basis.desired_motion);
-        let input = if input.length_squared() < INPUT_DIRECTION_MIN_LENGTH_SQUARED {
-            Vec3::ZERO
-        } else {
-            input.normalize_or_zero()
-        };
+        let input = controller.map_or(Vec3::ZERO, |controller| {
+            consumed_input_direction(controller.basis.desired_motion)
+        });
         next.has_input = input != Vec3::ZERO;
         next.input_yaw_degrees = if next.has_input {
             world_forward_to_yaw(input).to_degrees()
