@@ -1008,7 +1008,7 @@ impl CachedPositionProjection {
     }
 }
 
-fn project_source_joints(
+pub(crate) fn project_source_joints(
     mut joints: Query<
         (Entity, &SourcePhysicsJoint, &mut SourcePhysicsJointSolverData),
         Without<JointDisabled>,

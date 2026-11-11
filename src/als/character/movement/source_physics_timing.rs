@@ -72,7 +72,9 @@ impl Plugin for SourcePhysicsTimingPlugin {
                     .after(avian3d::dynamics::integrator::pre_process_velocity_increments)
                     .after(crate::extensions::ragdoll_physics_profile::apply_source_linear_damping),
             )
-            .add_systems(PhysicsSchedule, preserve_unobstructed_grounded_displacement.in_set(SolverSystems::PostSubstep))
+            .add_systems(PhysicsSchedule, preserve_unobstructed_grounded_displacement
+                .in_set(SolverSystems::PostSubstep)
+                .after(crate::extensions::source_physics_joint::project_source_joints))
             .add_systems(PhysicsSchedule, update_source_contact_limits.in_set(SolverSystems::PreSubstep))
             .add_systems(
                 SubstepSchedule,
