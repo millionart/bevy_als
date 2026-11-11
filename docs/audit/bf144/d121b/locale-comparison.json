@@ -1,0 +1,11 @@
+{
+  "source_asset": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel.AB_Als_Barrel",
+  "culture": "en",
+  "native_evaluator_titles": [
+    "A_Als_Barrel_Poses\nSequence Evaluator (by frame)",
+    "A_Als_Barrel_Poses\nSequence Evaluator (by frame)",
+    "A_Als_Barrel_Poses\nSequence Evaluator (by frame)"
+  ],
+  "host_locale_evaluator_title": "A_Als_Barrel_Poses\n序列评估器（按帧）",
+  "root_default_locale_report": "ab-als-host-culture.report.json"
+}

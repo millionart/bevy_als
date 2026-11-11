@@ -100,7 +100,7 @@ def montage_record(source, sequence, timing, sequence_curves, assets_root):
         raise ValueError('mantle alpha blend mode is unsupported')
     if any(field(blend, 'CustomCurve', 'None') != 'None' for blend in [blend_in, blend_out]):
         raise ValueError('mantle custom blend curve is unsupported')
-    clip = 'animations/' + sequence['asset_path'].split('/Animations/', 1)[1].split('.')[0] + '.anim.ron'
+    clip = sequence['asset_path'].split('.', 1)[0].removeprefix('/ALS/') + '.anim.ron'
     if not (assets_root / clip).is_file():
         raise ValueError('mantle target clip is missing: ' + clip)
     values = {'source_montage': source['asset_path'], 'source_sequence': sequence['asset_path'], 'clip': clip,

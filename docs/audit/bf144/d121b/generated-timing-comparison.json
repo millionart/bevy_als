@@ -1,0 +1,37 @@
+{
+  "roots": 15,
+  "source_assets": [
+    "/ALS/ALS/Character/AB_Als.AB_Als",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Ragdolling.AB_Als_Ragdolling",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel.AB_Als_Barrel",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars.AB_Als_Binoculars",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow.AB_Als_Bow",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Box.AB_Als_Box",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine.AB_Als_Feminine",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied.AB_Als_HandsTied",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured.AB_Als_Injured",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine.AB_Als_Masculine",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded.AB_Als_PistolOneHanded",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded.AB_Als_PistolTwoHanded",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle.AB_Als_Rifle",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch.AB_Als_Torch",
+    "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching",
+    "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+    "/ALS/ALS/OverlayObjects/Bow/AB_Als_Bow.AB_Als_Bow",
+    "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera"
+  ],
+  "installed_files": 374,
+  "generated_files": 374,
+  "changed_files": 29,
+  "changed_timing_fields": {
+    "duration": 24,
+    "phase_duration": 48,
+    "time": 103
+  },
+  "unexplained_files": []
+}

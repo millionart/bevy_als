@@ -296,6 +296,7 @@ $arguments = @(
     "-Asset=$Asset",
     "-Output=$outputPath",
     "-unattended",
+    "-culture=en",
     "-CrashForUAT",
     "-nop4",
     "-nosplash",

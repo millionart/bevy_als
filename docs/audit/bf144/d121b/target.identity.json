@@ -1,0 +1,158 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "86b20458eda355e07e780ba75c2a0043953ce8f8bc457f8ce300afd91552c23f"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S1_Left_Foot.animgraph.ron",
+    "sha256": "2a0b8f494e1593f18fbbe10399b39b8e8e06c5b2332fe8cfc7001e5dae5b0e0b"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S2_Right_Foot.animgraph.ron",
+    "sha256": "b851f9e610d2ba6412430966daaae7cf513570b0687aca379721c8c8d836c059"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S3_Loop.animgraph.ron",
+    "sha256": "42815a6c13aabcc13d2bc1689ed98ef743ef8839d2be98c8fc467b30a478f605"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S4_Flail.animgraph.ron",
+    "sha256": "8994a3dd7f86a2b830acb997035acffa58646f22c48c96ed0cbfec2138da4758"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron",
+    "sha256": "40a7f5ca2fda1c4f04f17b9f8b7c340130dbfbc259b3a652d10ab50828f7a5b7"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S5_Land.animgraph.ron",
+    "sha256": "3b64de43702b68a75f58a35f62caf355bc49910bb4841e90f9cf6c29a81d9aa4"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel/Overlay.animgraph.ron",
+    "sha256": "f8f14e122de3beb10c7cae851e69c638f674960072cbe6ec78ea37713648822f"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars/Overlay.animgraph.ron",
+    "sha256": "99a6be173658385686dd210bd6205c65c75415f92add2101b1757c8b8abc4d60"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
+    "sha256": "c128be54bb4f4904d8f3620f9b7b8554c223741e53b79a61cc91ed42e35d4058"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
+    "sha256": "421a02fdaf63d8762df97265bdee26ffdbe9306fb6d7b329d75c6928bd0ec66b"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
+    "sha256": "f6cc7cd7c9d73548c2efe3f8e08e82963cb3564722dcace3ea18363de27d703c"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/Overlay.animgraph.ron",
+    "sha256": "92bd67b7d415927a14982b1acc1d624559d7dec8a834f6937355a3c7c6b43a58"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron",
+    "sha256": "37aabc3ba11ff4dcf8057210d7fd4571c96aa2e98296bdd4b597369961404258"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/Overlay.animgraph.ron",
+    "sha256": "895368f6d50529d4c81ede6d2eecc3d57e928771a3590d43abb26c56d84bcb51"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied/Overlay.animgraph.ron",
+    "sha256": "43e7e311ce0b06fa07413b53076e378ec4c33912842a0b6e69899c7a997033c4"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured/Overlay.animgraph.ron",
+    "sha256": "5ff7cc55c1218d840a0ba4aa7818c3ff3dabe5bb810f2e46caae8b5413d6c8a1"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine/Overlay.animgraph.ron",
+    "sha256": "06400ee562cc794be18c89475386e2dd47eb5f7ee43cf359b3c00542b424ae31"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
+    "sha256": "007cf15455b11a1676e45a379a38944ef46ee54b2a705bc8cf6520007d2f30f1"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
+    "sha256": "9e4e645a4c7afa8333a190a8308f382c8508dac3dd927b75cc3b7303b68bce9a"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
+    "sha256": "2af7208e63bf47564fe9e3fd7456232a388d2930cea9b941e9d199ea76443941"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
+    "sha256": "6ffb87129ac0273f883432a17d9f1fbc29de2aeb9bc18cc15fa2540e0351629b"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
+    "sha256": "9ef4b01383db7d0ef9bb46f6fcb54fca107021416dd08b692915466b169c4e68"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
+    "sha256": "9be4a09180e988aed96285ff6668dde1aec655f30d2fb4a84ddda3c5fe9ca4ac"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S13_Ready.animgraph.ron",
+    "sha256": "d791a9fc5e103c20fbbe56e03d67d32745717bb451f468fef67fd336701e1b36"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S2_Relaxed.animgraph.ron",
+    "sha256": "02a65cfa35ffe21a3934188a20701b3f4ade62f3b8f48deb6518d585efecc0d3"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S9_Aiming.animgraph.ron",
+    "sha256": "42f792427817ae7d14b4e69f3c64e83fd063b7a3ff0aa320e621fe048ed16291"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch/Overlay.animgraph.ron",
+    "sha256": "f6949bef50538232f9b2ac730f2659264215aa4f7c55a5ff8676a9caaba63ca2"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+    "sha256": "9f442a4864653ef1d46b8fed66d8dc1c9f8e056841ef875b768df49d7d9a0aaf"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+    "sha256": "732a925f34eb8665612c2d2b03231a5ede21d7cb0052b2c93373d583981622a5"
+  },
+  {
+    "path": "assets/ALS/Data/AnimationInstance/Grounded/als_standing_montages.ron",
+    "sha256": "2ab4af87117fa0b25a9cea25bf0fc0bb37329200bac0841a038eea38d58cad49"
+  },
+  {
+    "path": "assets/ALS/Data/Character/Mantle/als_mantle_settings.ron",
+    "sha256": "cad7bf8e24de67e1124dc1830d42ccca2b7bfee5f7b3fc906abad415dcf7a874"
+  },
+  {
+    "path": "tools/animgraph_authoring/regenerate_installed_corpus.py",
+    "sha256": "a5a9b7c695d60d209726771764587c0bc0f7bfa65461689eed60a86c6ed7a61b"
+  },
+  {
+    "path": "tools/animgraph_authoring/ue_animation_asset_resolver.py",
+    "sha256": "8240936573647ba88d72e3dfc328bd2444da0d9d9ce048f7aa666839b2baa8e3"
+  },
+  {
+    "path": "tools/animgraph_authoring/ue_animgraph_converter.py",
+    "sha256": "e29c994f061ebe1b8befd49726af1461bf3cf3a85e4712224ebf2fb7fb8bf209"
+  },
+  {
+    "path": "tools/animgraph_authoring/ue_animgraph_pose_renderer.py",
+    "sha256": "035f641e9ca3cb8a9941b8fb4283b587e908c6851f37b0432c3ca337102878eb"
+  },
+  {
+    "path": "tools/import/gen_mantle_settings.py",
+    "sha256": "121f696a5e0e0c8fe3b17a4fc8b72e9e724045dfa1dd7812e8aedaf2cc6e9d48"
+  },
+  {
+    "path": "tools/run_ue_source_reader.ps1",
+    "sha256": "ddfe3d15b57a3e6c45ae01208ab897883fb80af22106c16dda0f16c949eba1b8"
+  },
+  {
+    "path": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+    "sha256": "14585c2df851b925ed073d6e423899712222c4ae2d7c6fece0ba1c9d15ba3522"
+  }
+]

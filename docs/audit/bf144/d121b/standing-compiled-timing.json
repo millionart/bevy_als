@@ -1,0 +1,406 @@
+{
+  "standing_graph": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+  "materialized_files_byte_equal_before_and_after_binding_check": 108,
+  "standing_sync_asset_count": 20,
+  "blendspace_samples": [
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Forward.BS_Als_WalkRun_Right_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.A_Als_Walk_Right_Forward",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.09166666865348816
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Forward.BS_Als_WalkRun_Right_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.A_Als_Walk_Right_Pose",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.09166699647903442
+        },
+        {
+          "name": "Right",
+          "time": 0.6499999761581421
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Forward.BS_Als_WalkRun_Right_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.A_Als_Run_Right_Forward",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.05000000447034836
+        },
+        {
+          "name": "Right",
+          "time": 0.4333333671092987
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Forward.BS_Als_WalkRun_Right_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.A_Als_Run_Right_Pose",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.05000000074505806
+        },
+        {
+          "name": "Right",
+          "time": 0.43333300948143005
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Backward.BS_Als_WalkRun_Right_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.A_Als_Walk_Right_Backward",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Right",
+          "time": 0.491666704416275
+        },
+        {
+          "name": "Left",
+          "time": 1.0750000476837158
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Backward.BS_Als_WalkRun_Right_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.A_Als_Walk_Left_Pose",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.08333300054073334
+        },
+        {
+          "name": "Right",
+          "time": 0.6583330035209656
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Backward.BS_Als_WalkRun_Right_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward.A_Als_Run_Right_Backward",
+      "duration": 0.6666666865348816,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Right",
+          "time": 0.31666669249534607
+        },
+        {
+          "name": "Left",
+          "time": 0.6500000357627869
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Backward.BS_Als_WalkRun_Right_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose.A_Als_Run_Left_Pose",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.03333299979567528
+        },
+        {
+          "name": "Right",
+          "time": 0.44999998807907104
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Forward.BS_Als_WalkRun_Left_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.A_Als_Walk_Left_Forward",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.0833333358168602
+        },
+        {
+          "name": "Right",
+          "time": 0.6583333611488342
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Forward.BS_Als_WalkRun_Left_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.A_Als_Walk_Left_Pose",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.08333300054073334
+        },
+        {
+          "name": "Right",
+          "time": 0.6583330035209656
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Forward.BS_Als_WalkRun_Left_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward.A_Als_Run_Left_Forward",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.03333333507180214
+        },
+        {
+          "name": "Right",
+          "time": 0.45000001788139343
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Forward.BS_Als_WalkRun_Left_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose.A_Als_Run_Left_Pose",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.03333299979567528
+        },
+        {
+          "name": "Right",
+          "time": 0.44999998807907104
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Backward.BS_Als_WalkRun_Left_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.A_Als_Walk_Left_Backward",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Right",
+          "time": 0.5083333849906921
+        },
+        {
+          "name": "Left",
+          "time": 1.058333396911621
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Backward.BS_Als_WalkRun_Left_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.A_Als_Walk_Right_Pose",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.09166699647903442
+        },
+        {
+          "name": "Right",
+          "time": 0.6499999761581421
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Backward.BS_Als_WalkRun_Left_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward.A_Als_Run_Left_Backward",
+      "duration": 0.6666666865348816,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Right",
+          "time": 0.31666669249534607
+        },
+        {
+          "name": "Left",
+          "time": 0.6500000357627869
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Backward.BS_Als_WalkRun_Left_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.A_Als_Run_Right_Pose",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.05000000074505806
+        },
+        {
+          "name": "Right",
+          "time": 0.43333300948143005
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward.BS_Als_WalkRun_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.0833333358168602
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward.BS_Als_WalkRun_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.A_Als_Walk_Forward_Pose",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.08333300054073334
+        },
+        {
+          "name": "Right",
+          "time": 0.6499999761581421
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward.BS_Als_WalkRun_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.03333333507180214
+        },
+        {
+          "name": "Right",
+          "time": 0.4333333671092987
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward.BS_Als_WalkRun_Forward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.03333299979567528
+        },
+        {
+          "name": "Right",
+          "time": 0.43333300948143005
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Backward.BS_Als_WalkRun_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.A_Als_Walk_Backward",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Right",
+          "time": 0.5166667103767395
+        },
+        {
+          "name": "Left",
+          "time": 1.0833333730697632
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Backward.BS_Als_WalkRun_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.A_Als_Walk_Forward_Pose",
+      "duration": 1.1333333253860474,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.08333300054073334
+        },
+        {
+          "name": "Right",
+          "time": 0.6499999761581421
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Backward.BS_Als_WalkRun_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward.A_Als_Run_Backward",
+      "duration": 0.6666666865348816,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.05000000447034836
+        },
+        {
+          "name": "Right",
+          "time": 0.38333335518836975
+        }
+      ]
+    },
+    {
+      "blendspace": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Backward.BS_Als_WalkRun_Backward",
+      "sample": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
+      "duration": 0.800000011920929,
+      "rate_scale": 1.0,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.03333299979567528
+        },
+        {
+          "name": "Right",
+          "time": 0.43333300948143005
+        }
+      ]
+    }
+  ],
+  "phase_basis": {
+    "phase_basis_source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_BlendSpacePlayer_10",
+    "phase_duration": 1.1333333253860474,
+    "phase_markers": [
+      {
+        "name": "Right",
+        "time": 0.5166667103767395
+      },
+      {
+        "name": "Left",
+        "time": 1.0833333730697632
+      }
+    ]
+  },
+  "source_ir_sha256": "d565b9ef115e2aa22f3b0dd58d99868b238a50166adaed7e9b4336535c6544fb"
+}

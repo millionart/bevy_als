@@ -307,27 +307,27 @@ def sequence_timing_contract(source):
         or source.get("asset_class") != "/Script/Engine.AnimSequence"
     ):
         raise AssetResolutionError("source animation sequence is invalid")
+    timing = source.get("sequence_timing")
+    if not isinstance(timing, dict):
+        raise AssetResolutionError("native sequence timing is missing")
+    duration = timing.get("duration")
+    rate_scale = timing.get("rate_scale")
+    markers = timing.get("markers")
+    if (type(duration) not in (int, float) or not math.isfinite(duration) or duration <= 0.0
+        or type(rate_scale) not in (int, float) or not math.isfinite(rate_scale)
+        or not isinstance(markers, list) or any(
+            not isinstance(marker, dict) or not isinstance(marker.get("name"), str) or not marker["name"]
+            or type(marker.get("time")) not in (int, float) or not math.isfinite(marker["time"])
+            for marker in markers
+        )
+    ):
+        raise AssetResolutionError("native sequence timing is invalid")
     try:
-        duration = parse_number(asset_property(source, "SequenceLength"))
         properties = {row["name"]: row["exported_text"] for row in source["asset_properties"]}
-        rate_scale = parse_number(str(properties.get("RateScale", 1.0)))
         frames_per_second = sequence_sampling_frame_rate(properties)
         root_lock = sequence_root_lock(properties.get("bForceRootLock", "False"), properties.get("RootMotionRootLock", "RefPose"))
-        raw_markers = asset_property(source, "AuthoredSyncMarkers")
-        markers = []
-        for raw_marker in parse_list(raw_markers) if raw_markers else []:
-            fields = parse_struct(raw_marker)
-            reject_unknown_fields(fields, {"MarkerName", "Time", "TrackIndex", "Guid"})
-            markers.append(
-                {
-                    "name": parse_quoted(struct_field(fields, "MarkerName")),
-                    "time": parse_number(struct_field(fields, "Time")),
-                }
-            )
     except ExportedTextError as error:
         raise AssetResolutionError("source animation sequence properties are unreadable") from error
-    if duration <= 0.0 or any(not marker["name"] for marker in markers):
-        raise AssetResolutionError("source animation sequence duration or markers are invalid")
     return {"duration": duration, "rate_scale": rate_scale, "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock,
             "step_interpolation": sequence_step_interpolation(properties.get("Interpolation", "Linear"))}
 
@@ -345,7 +345,7 @@ def source_sequence_timing(content_root, mount, source_path, source_reader=None)
     path = source_uasset_path(content_root, mount, source_path)
     try:
         asset = UAsset(str(path))
-        reader = PropReader(asset)
+        reader = PropReader(asset, precise_float_properties=True)
     except Exception:
         return sequence_timing_contract(native_source_asset(source_path, source_reader))
     name = source_asset_name(source_path)
@@ -1231,7 +1231,8 @@ def run_self_test():
                 {"name":"SequenceLength", "exported_text":"1.0"},
                 {"name":"SamplingFrameRate", "exported_text":"(Numerator=30,Denominator=1)"},
                 {"name":"PlatformTargetFrameRate", "exported_text":"(Default=(Numerator=30,Denominator=1))"},
-                {"name":"AuthoredSyncMarkers", "exported_text":""}]}
+                {"name":"AuthoredSyncMarkers", "exported_text":""}],
+            "sequence_timing":{"duration":1.0,"rate_scale":1.0,"markers":[]}}
         with patch(__name__ + ".CurveUAsset", side_effect=CurveParseError("legacy property format")), \
              patch(__name__ + ".native_source_asset", return_value=legacy_source) as native:
             assert source_sequence_curves(content, "/ALS", legacy_source["asset_path"], "fixture_reader") == []
@@ -1727,6 +1728,14 @@ def run_self_test():
         "format": "ue_asset_source_v1",
         "asset_path": "/ALS/ALS/Animations/A_Test.A_Test",
         "asset_class": "/Script/Engine.AnimSequence",
+        "sequence_timing": {
+            "duration": 0.800000011920929,
+            "rate_scale": 1.0,
+            "markers": [
+                {"name": "Left", "time": 0.03333333507180214},
+                {"name": "Right", "time": 0.4333333373069763},
+            ],
+        },
         "asset_properties": [
             {"name": "SequenceLength", "exported_text": "0.800000"},
             {"name": "SamplingFrameRate", "exported_text": "(Numerator=60,Denominator=1)"},
@@ -1740,14 +1749,14 @@ def run_self_test():
         ],
     }
     assert sequence_timing_contract(sequence_source) == {
-        "duration": 0.8,
+        "duration": 0.800000011920929,
         "rate_scale": 1.0,
         "frames_per_second": 30000.0 / 1001.0,
         "step_interpolation": False,
         "root_lock": "Zero",
         "markers": [
-            {"name": "Left", "time": 0.033333},
-            {"name": "Right", "time": 0.433333},
+            {"name": "Left", "time": 0.03333333507180214},
+            {"name": "Right", "time": 0.4333333373069763},
         ],
     }
     with tempfile.TemporaryDirectory() as directory:
@@ -1757,7 +1766,7 @@ def run_self_test():
         path.write_bytes(b"fixture")
         for rate in (-2.0, 0.0, 0.5, 2.0):
             native = deepcopy(sequence_source)
-            native["asset_properties"].append({"name": "RateScale", "exported_text": str(rate)})
+            native["sequence_timing"]["rate_scale"] = rate
             assert sequence_timing_contract(native)["rate_scale"] == rate
             properties = {"SequenceLength": 0.8, "RateScale": rate,
                 "TargetFrameRate": {"__tagged__": {"Numerator": 30, "Denominator": 1}}}

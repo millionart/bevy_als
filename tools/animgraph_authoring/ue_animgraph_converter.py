@@ -3313,6 +3313,8 @@ def run_self_test():
     long_sync_assets = copy.deepcopy(sync_assets)
     long_sync_graphs[0]["nodes"][0]["semantic"]["start_position"] = 1.75
     long_sync_assets[0]["source_timing"]["duration"] = 2.5
+    exact_marker_time = 0.46666669845581055
+    long_sync_assets[0]["source_timing"]["markers"][1]["time"] = exact_marker_time
     long_plans, _, long_issues = build_sync_group_plans(
         "/ALS/AnimationInstances/AB_Als_Test.AB_Als_Test",
         long_sync_graphs,
@@ -3320,6 +3322,8 @@ def run_self_test():
     )
     assert not long_issues, long_issues
     assert long_plans[0]["candidates"][0]["source_start_position"] == 1.75
+    assert long_plans[0]["phase_markers"][1]["time"] == exact_marker_time
+    assert sync_plans[0]["phase_markers"][1]["time"] != exact_marker_time
     assert long_plans[0]["candidates"][0]["source_start_position"] != sync_plans[0]["candidates"][0]["source_start_position"]
     renamed_sync_graphs = copy.deepcopy(long_sync_graphs)
     renamed_sync_assets = copy.deepcopy(long_sync_assets)
@@ -3334,6 +3338,7 @@ def run_self_test():
     )
     assert not renamed_issues, renamed_issues
     assert renamed_plans[0]["target_phase_key"] == long_plans[0]["target_phase_key"]
+    assert renamed_plans[0]["phase_markers"] == long_plans[0]["phase_markers"]
     assert [row["source_start_position"] for row in renamed_plans[0]["candidates"]] == [
         row["source_start_position"] for row in long_plans[0]["candidates"]
     ]
@@ -3359,6 +3364,7 @@ def run_self_test():
     )
     assert not blendspace_issues, blendspace_issues
     assert blendspace_plans[0]["candidates"][0]["source_start_position"] == 0.75
+    assert blendspace_plans[0]["phase_markers"][1]["time"] == exact_marker_time
     mismatched_sync_graphs = copy.deepcopy(sync_graphs)
     mismatched_sync_graphs[0]["nodes"][1]["semantic"]["loop_animation"] = False
     _, _, mismatch_issues = build_sync_group_plans(
@@ -4001,7 +4007,7 @@ def run_self_test():
         install_generated_files(root, installed, replace=True)
         assert not stale.exists()
     with tempfile.TemporaryDirectory() as directory:
-        root = Path(directory)
+        root = Path(directory).resolve()
         owned_empty = root / namespace / "obsolete" / "empty"
         owned_empty.mkdir(parents=True)
         owned_kept = root / namespace / "keep"

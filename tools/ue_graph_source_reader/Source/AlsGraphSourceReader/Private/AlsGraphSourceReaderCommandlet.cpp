@@ -3036,6 +3036,19 @@ TSharedPtr<FJsonObject> CaptureCompactPose(const FCompactPose& Pose, const FBlen
     return PoseObject;
 }
 
+TArray<TSharedPtr<FJsonValue>> CaptureSequenceSyncMarkers(const UAnimSequence& Sequence)
+{
+    TArray<TSharedPtr<FJsonValue>> Markers;
+    for (const FAnimSyncMarker& Marker : Sequence.AuthoredSyncMarkers)
+    {
+        TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+        Value->SetStringField(TEXT("name"), Marker.MarkerName.ToString());
+        Value->SetNumberField(TEXT("time"), Marker.Time);
+        Markers.Add(MakeShared<FJsonValueObject>(Value));
+    }
+    return Markers;
+}
+
 TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString& RequestPath)
 {
     FMemMark Mark(FMemStack::Get());
@@ -3120,15 +3133,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         }
         if (const UAnimSequence* Animation = Cast<UAnimSequence>(Sequence); Animation != nullptr && !Animation->AuthoredSyncMarkers.IsEmpty())
         {
-            TArray<TSharedPtr<FJsonValue>> MarkerValues;
-            for (const FAnimSyncMarker& Marker : Animation->AuthoredSyncMarkers)
-            {
-                TSharedRef<FJsonObject> MarkerValue = MakeShared<FJsonObject>();
-                MarkerValue->SetStringField(TEXT("name"), Marker.MarkerName.ToString());
-                MarkerValue->SetNumberField(TEXT("time"), Marker.Time);
-                MarkerValues.Add(MakeShared<FJsonValueObject>(MarkerValue));
-            }
-            Info->SetArrayField(TEXT("markers"), MarkerValues);
+            Info->SetArrayField(TEXT("markers"), CaptureSequenceSyncMarkers(*Animation));
         }
         if (bCapturePose)
         {
@@ -7250,6 +7255,14 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     Root->SetStringField(TEXT("asset_path"), Asset->GetPathName());
     Root->SetStringField(TEXT("asset_class"), Asset->GetClass()->GetPathName());
     Root->SetArrayField(TEXT("asset_properties"), CaptureProperties(Asset->GetClass(), Asset, Asset));
+    if (const UAnimSequence* Sequence = Cast<UAnimSequence>(Asset))
+    {
+        TSharedRef<FJsonObject> Timing = MakeShared<FJsonObject>();
+        Timing->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
+        Timing->SetNumberField(TEXT("rate_scale"), Sequence->RateScale);
+        Timing->SetArrayField(TEXT("markers"), CaptureSequenceSyncMarkers(*Sequence));
+        Root->SetObjectField(TEXT("sequence_timing"), Timing);
+    }
     if (UClass* Class = Cast<UClass>(Asset))
     {
         UObject* DefaultObject = Class->GetDefaultObject();

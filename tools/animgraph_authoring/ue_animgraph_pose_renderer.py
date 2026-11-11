@@ -111,6 +111,8 @@ def source_title(node):
     value = node.get("title")
     if not isinstance(value, str) or not value:
         raise PoseRenderError("source node title is invalid")
+    if node.get("class_path") == "/Script/AnimGraph.AnimGraphNode_CallFunction":
+        return value.replace("\r\n", "\n").replace("\n", "\r\n")
     return value
 
 
@@ -411,13 +413,17 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
     if renderer == "local_ref_pose":
         return "als_ext::SourceLocalRefPoseNode", "(reference_skeleton: " + quoted(asset_for_node(asset_by_node, semantic["source_node"], "skeleton")) + ")"
     if renderer in {"sequence_player", "sequence_evaluator"}:
-        root_lock = asset_by_node[semantic["source_node"]].get("source_timing", {}).get("root_lock")
+        source_node = semantic["source_node"]
+        clip = asset_for_node(asset_by_node, source_node, "sequence")
+        sequence = asset_by_node[source_node]
+        timing = sequence.get("source_timing", {})
+        root_lock = timing.get("root_lock")
         if root_lock not in {None, "RefPose", "AnimFirstFrame", "Zero"}:
             raise PoseRenderError("source root lock mode is unsupported")
         root_lock = "None" if root_lock is None else f"Some({root_lock})"
     if renderer == "sequence_player":
         pins = input_names(value)
-        rate_scale = asset_by_node[semantic["source_node"]].get("source_timing", {}).get("rate_scale")
+        rate_scale = timing.get("rate_scale")
         if not isinstance(rate_scale, (int, float)) or isinstance(rate_scale, bool) or not math.isfinite(rate_scale):
             raise PoseRenderError("source sequence asset rate scale is unavailable")
         play_rate_key = value.get("play_rate_key")
@@ -435,8 +441,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         ):
             raise PoseRenderError("source sequence property binding is unavailable")
         fields = [
-            field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
-            field("curves", pose_curves_ron(asset_by_node[semantic["source_node"]].get("source_curves", []))),
+            field("clip", quoted(clip)),
+            field("curves", pose_curves_ron(sequence.get("source_curves", []))),
             field("additive_reference", "None"),
             field("additive_reference_position", "0.0"),
             field("play_rate", repr(value["play_rate"] * scalar_renderer.source_property_runtime_scale(play_rate_key))),
@@ -462,7 +468,6 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             fields.append(field("override_position_when_joining_sync_group_as_leader", "true"))
         if value["sync_group"] != "None":
             synchronization = sync_clock_fields(value)
-            timing = asset_by_node[semantic["source_node"]]["source_timing"]
             synchronization.extend([field("phase_duration", repr(value["sync_phase_duration"])), field("phase_markers", sync_marker_ron(value["sync_phase_markers"])), field("markers", sync_marker_ron(timing["markers"]))])
             fields.append(field("synchronization", "Some((" + ", ".join(synchronization) + "))"))
         return "als_ext::SourceSequencePlayerNode", "(" + ", ".join(fields) + ")"
@@ -473,8 +478,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         if not isinstance(explicit_value_pin, str) or not explicit_value_pin or not isinstance(explicit_value_key, str):
             raise PoseRenderError("source sequence evaluator pin is unavailable")
         fields = [
-            field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
-            field("curves", pose_curves_ron(asset_by_node[semantic["source_node"]].get("source_curves", []))),
+            field("clip", quoted(clip)),
+            field("curves", pose_curves_ron(sequence.get("source_curves", []))),
             field("additive_reference", "None"),
             field("additive_reference_position", "0.0"),
             field("use_explicit_frame", bool_ron(value["use_explicit_frame"])),
@@ -482,8 +487,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("explicit_value_key", quoted(explicit_value_key)),
             field("explicit_value_pin", quoted(explicit_value_pin)),
             field("expose_explicit_value_pin", bool_ron(explicit_value_pin in pins)),
-            field("frames_per_second", repr(asset_by_node[semantic["source_node"]]["source_timing"]["frames_per_second"])),
-            field("step_interpolation", bool_ron(asset_by_node[semantic["source_node"]]["source_timing"]["step_interpolation"])),
+            field("frames_per_second", repr(timing["frames_per_second"])),
+            field("step_interpolation", bool_ron(timing["step_interpolation"])),
             field("should_loop", bool_ron(value["loop"])),
             field("teleport_to_explicit_time", bool_ron(value["teleport_to_explicit_time"])),
             field("reinitialization_behavior", quoted(value["reinitialization_behavior"])),
@@ -1783,6 +1788,18 @@ def fixture_graph():
 
 
 def run_self_test():
+    callback = {"class_path": "/Script/AnimGraph.AnimGraphNode_CallFunction", "title": "RefreshHead\nOn Update"}
+    assert source_title(callback) == "RefreshHead\r\nOn Update"
+    callback["title"] = source_title(callback)
+    assert source_title(callback) == callback["title"]
+    assert source_title({"class_path": "/Script/AnimGraph.AnimGraphNode_SequencePlayer", "title": "Clip\nSequence Player"}) == "Clip\nSequence Player"
+    for renderer in ("sequence_player", "sequence_evaluator"):
+        try:
+            rendered_inner({}, {}, {"renderer": renderer, "source_node": "/Fixture/Sequence", "semantic": {}}, {}, {})
+        except PoseRenderError as error:
+            assert str(error) == "source animation asset binding is unavailable"
+        else:
+            raise AssertionError("Missing sequence asset was accepted")
     inertial = {"renderer": "inertialization", "semantic": {
         "reset_on_becoming_relevant": True,
         "forward_requests_through_skipped_cached_poses": True,
