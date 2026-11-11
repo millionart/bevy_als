@@ -2636,7 +2636,11 @@ fn bridge_roll_slot_samples(
             {
                 let total = get_up.weight + weight;
                 let alpha = weight / total;
-                let mixed = crate::extensions::slot_node::blend_slot_pose(get_up_pose, Some(roll_pose), Some(alpha));
+                let mut mixed = get_up_pose.scalar_mult(1.0 - alpha).linear_add(&roll_pose.scalar_mult(alpha));
+                mixed.root_motion = crate::extensions::normalized_blendspace::blend_normalized_root_motion(&[
+                    (roll_pose.root_motion.clone(), alpha),
+                    (get_up_pose.root_motion.clone(), 1.0 - alpha),
+                ]);
                 target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, DataValue::Pose(mixed));
                 target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, total.min(1.0));
                 if let (Some(get_up_context), Some(roll_context)) =

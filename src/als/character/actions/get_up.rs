@@ -810,6 +810,61 @@ mod tests {
     }
 
     #[test]
+    fn get_up_roll_and_base_normalize_after_the_complete_slot_blend() {
+        use bevy_animation_graph::core::{
+            animation_graph::AnimationGraph, context::node_states::StateKey, pose::Pose,
+        };
+        let distance = |a: &Pose, b: &Pose| {
+            a.paths.keys().filter_map(|bone| {
+                let a = a.get_bone(*bone)?.rotation?;
+                let b = b.get_bone(*bone)?.rotation?;
+                Some((a - b).length().min((a + b).length()))
+            }).fold(0.0_f32, f32::max)
+        };
+        for facing_up in [false, true] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(50)));
+            play_loaded_get_up(&mut app, character, facing_up);
+            for _ in 4..23 { app.update(); }
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::None));
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+            app.update();
+
+            let state = app.world().get::<AlsGetUpState>(character).unwrap();
+            let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+            assert!(player.get_error().is_none());
+            let roll = player.get_global_input_data("roll.pose").unwrap().as_pose().unwrap();
+            let roll_weight = player.get_global_input_data("roll.weight").unwrap().as_f32().unwrap();
+            let total = state.weight + roll_weight;
+            assert!(state.weight > 0.0 && roll_weight > 0.0 && total < 1.0);
+            let assets = app.world().resource::<GetUpAssets>();
+            let clip = app.world().resource::<Assets<GraphClip>>().get(&assets.clips[usize::from(facing_up)]).unwrap();
+            let get_up = crate::extensions::source_sequence_player::sample_pose(clip, state.clip_time);
+            let base = crate::mantle_drive::tests::current_post_locomotion_base(&app, target);
+            let expected = crate::extensions::source_pose_nodes::blend_source_poses(&[
+                (get_up.clone(), state.weight), (roll.clone(), roll_weight), (base.clone(), 1.0 - total),
+            ]);
+            let normalized_pair = crate::extensions::slot_node::blend_slot_pose(get_up, Some(roll), Some(roll_weight / total));
+            let early_normalization = crate::extensions::slot_node::blend_slot_pose(base, Some(&normalized_pair), Some(total));
+            assert!(distance(&early_normalization, &expected) > 1e-3);
+
+            let arena = player.get_context_arena().unwrap();
+            let graphs = app.world().resource::<Assets<AnimationGraph>>();
+            let actual = arena.iter_context_ids().find_map(|id| {
+                let context = arena.get_context(id)?;
+                let graph = graphs.get(context.get_graph_id())?;
+                let slot = graph.nodes.values().find(|node| node.name == "Slot 'PostLocomotion'\nGroup 'Locomotion'")?;
+                context.node_caches.get_output_data(slot.id, StateKey::Default, "Pose".into())?.into_pose().ok()
+            }).unwrap();
+            assert_eq!(actual.paths.len(), expected.paths.len());
+            assert!(expected.paths.keys().all(|bone| actual.paths.contains_key(bone)));
+            assert!(distance(&actual, &expected) < 1e-6);
+        }
+    }
+
+    #[test]
     fn late_interruption_restarts_a_shorter_configured_blend_once() {
         let mut state = AlsGetUpState::new(true);
         state.advance(1.18, get_up_settings(state.facing_up));

@@ -6586,6 +6586,15 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.184 Movement中断栈扩展：fresh `AnimNode_StateMachine.cpp:997–1024,1044–1115`逐转场累加未归一化的中间pose，最后才统一Normalize；当前ProfiledBlendNode逐层调用BonePose::linear_blend_mut，slerp之外也保留了中间单位四元数边界。按实际context/state/context_slot追踪118次多层输出，同输入/同double/源权重条件下，改为每层归一化仍有3511骨骼旋转不等，不能靠只替换D177的slerp关闭。原生算子确认30Hz crouch-directions第95帧spine_01：首层原始quat平方范数0.990306104944816，末层runtime x应−0.01033440325409174；先归一化首层则−0.01046083401888609，其他输入/权重/精度保持。新增raw_transform只读字段与原始阶段全double精确，native两种末层控制均精确匹配源模型；输入合法性阈值未放宽。此处扩展同一过早归一化根因，不另编号；较大误差60Hz第106帧pelvis仍是模型全量边界，不冒充已直接运行完整UE角色。证据`target/bf144/184/chain-check.json`、`witness-check.json`与`profile-fields-check.json`。
   - BF144.196原始数据补充：原native叶→double父→4684 StateResult→3386 FSM的数据链不再lift目标pose；首例268输出按原值只改变逐级normalize时点，4980个f64/1167个f32骨骼不等，curve全保持。30Hz crouch-directions第61帧VB foot_r的runtime w由0.14093975722789764变为0.14093977212905884；新12首级/12合法raw中间级的公开native raw/final transform f64精确。完整Root反馈仍未覆盖，组合source-target误差不全归本项；证据`target/bf144/196/ablation-check.json`、`native-check.json`。
 
+  - D123拆分。GetUp/Roll共槽、Turn共槽、Movement中断栈有独立入口和验收，按此顺序执行。合并估时超过60分钟。
+  - [x] BF144-D123a — GetUp/Roll与基础姿态合并时延迟旋转归一化。
+    - 23:21 source/static 闭环。GetUp/Roll沿现有槽桥发布加权未归一化姿态，保留原根运动混合。完整槽把基础姿态加入后归一化一次。原生累加覆盖474骨骼，三姿态237个旋转提前归一化全部失败，原生方向复算最大差1.37e−16。第二次F32归一化使158个输入改变。已写真实角色两朝向的槽回归和消融对照，证据在 `docs/audit/bf144/d123a/`。开始23:13，预估次日00:03，实际结束2026-11-11 23:21 +08:00，偏差−42分钟。结果为静态实现完成，目标编译和运行验证按统一阶段执行。
+    - 本轮开始2026-11-11 23:13 +08:00，预估结束2026-11-12 00:03 +08:00。依据为.42的双朝向三姿态反例及D119当前槽阶段。使用原生共用三姿态累加核和实际PostLocomotion输入对照。
+  - [ ] BF144-D123b — Turn共槽的多实例旋转与基础姿态合并。
+    - 预计开始2026-11-12 00:03 +08:00，预估结束00:48 +08:00。依据为.91的40组共同槽权重及D177相关算子边界，覆盖真实站蹲Turn槽。
+  - [ ] BF144-D123c — Movement标准中断栈在末层归一化。
+    - 预计开始2026-11-12 00:48 +08:00，预估结束01:43 +08:00。依据为.184/.196的多层中间pose、权重与最终骨骼边界。标准转场和其他种类的中断分别按实际调用闭包核对。
+
 - [ ] BF144-D124 / P3 — GetUp虚拟骨骼插值偏离当前源Sequencer模型的逐次生成。
   - Source：fresh两sequence的DataModelInterface实际为AnimationSequencerDataModel；本机未烘焙GetAnimationPose走该活动模型，`AnimSequencerDataModel.cpp:775–799,1466–1494`在采样当前骨骼后，以Target组件变换相对Source组件变换生成11根虚拟骨骼。保留的旧AnimDataModel不能替代当前接口作为oracle。
   - Target：两GetUp glTF把虚拟骨骼保存为30Hz、46个关键帧的独立轨道；`source_sequence_player.rs:90–110`对它们与普通骨骼一样插值，未按当帧Source/Target重新求相对变换。关键帧前后构造相对变换与帧间插值不交换。

@@ -161,6 +161,8 @@ impl NodeLike for SourceSlotNode {
                 pose.timestamp = timestamp;
             }
             pose
+        } else if layer_weight == 1.0 {
+            blend_slot_pose(base, overlay.as_ref(), Some(slot_weight))
         } else {
             let slot_pose = blend_slot_pose(base.clone(), overlay.as_ref(), Some(slot_weight));
             blend_slot_pose(
