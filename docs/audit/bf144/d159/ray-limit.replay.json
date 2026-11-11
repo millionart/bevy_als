@@ -1,0 +1,199 @@
+{
+  "cases": [
+    {
+      "name": "box_before",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 162.49,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_1_before",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 127.98999786376953,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_1.00005_before",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 127.98999786376953,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_2_before",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 127.98999786376953,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "box_at",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 162.5,
+      "ray_length_cm": 162.5,
+      "hit": true,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_1_at",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 128.0,
+      "ray_length_cm": 128.0,
+      "hit": true,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_1.00005_at",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 128.0,
+      "ray_length_cm": 128.0,
+      "hit": true,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_2_at",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": 128.0,
+      "ray_length_cm": 128.0,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "box_after",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 162.5,
+      "ray_length_cm": 162.51,
+      "hit": true,
+      "strict_outer_limit": true
+    },
+    {
+      "name": "stairs_1_after",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 127.99999450726506,
+      "ray_length_cm": 128.00999450683594,
+      "hit": true,
+      "strict_outer_limit": true
+    },
+    {
+      "name": "stairs_1.00005_after",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 127.99999450726506,
+      "ray_length_cm": 128.00999450683594,
+      "hit": true,
+      "strict_outer_limit": true
+    },
+    {
+      "name": "stairs_2_after",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": 128.0,
+      "ray_length_cm": 128.00999450683594,
+      "hit": true,
+      "strict_outer_limit": true
+    }
+  ],
+  "rounding_controls": [
+    {
+      "name": "box_before",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 99.99,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_1_before",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 99.98999786376953,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_1.25_before",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 99.98999786376953,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_2_before",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 99.98999786376953,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "box_at",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 100,
+      "ray_length_cm": 100,
+      "hit": true,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_1_at",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 100.0,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "stairs_1.25_at",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": 99.99999850988391,
+      "ray_length_cm": 100.0,
+      "hit": true,
+      "strict_outer_limit": true
+    },
+    {
+      "name": "stairs_2_at",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": null,
+      "ray_length_cm": 100.0,
+      "hit": false,
+      "strict_outer_limit": false
+    },
+    {
+      "name": "box_after",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 100,
+      "ray_length_cm": 100.01,
+      "hit": true,
+      "strict_outer_limit": true
+    },
+    {
+      "name": "stairs_1_after",
+      "scaled_wrapper": false,
+      "kernel_distance_cm": 100.00000213601689,
+      "ray_length_cm": 100.01000213623047,
+      "hit": true,
+      "strict_outer_limit": true
+    },
+    {
+      "name": "stairs_1.25_after",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": 99.99999850988391,
+      "ray_length_cm": 100.01000213623047,
+      "hit": true,
+      "strict_outer_limit": true
+    },
+    {
+      "name": "stairs_2_after",
+      "scaled_wrapper": true,
+      "kernel_distance_cm": 100.00000000000001,
+      "ray_length_cm": 100.01000213623047,
+      "hit": true,
+      "strict_outer_limit": true
+    }
+  ],
+  "endpoint_rig_offset_m": -0.766336
+}

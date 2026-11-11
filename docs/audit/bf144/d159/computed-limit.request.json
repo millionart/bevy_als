@@ -1,0 +1,406 @@
+{
+  "samples": [
+    {
+      "name": "box_before",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "box_raycast": {
+        "box_translation_cm": [
+          0,
+          0,
+          -110
+        ],
+        "box_half_extents_cm": [
+          50,
+          50,
+          10
+        ],
+        "start_cm": [
+          0,
+          0,
+          62.5
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 162.49
+      }
+    },
+    {
+      "name": "stairs_1_before",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "start_cm": [
+          500.0,
+          -1650.0,
+          920.0
+        ],
+        "end_cm": [
+          500.0,
+          -1650.0,
+          792.01
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "stairs_1.00005_before",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.00005,
+          1.00005,
+          1.00005
+        ],
+        "start_cm": [
+          500.0,
+          -1650.0,
+          920.0
+        ],
+        "end_cm": [
+          500.0,
+          -1650.0,
+          792.01
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "stairs_2_before",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.0,
+          2.0,
+          2.0
+        ],
+        "start_cm": [
+          1000.0,
+          -3300.0,
+          1712.0
+        ],
+        "end_cm": [
+          1000.0,
+          -3300.0,
+          1584.01
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "box_at",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "box_raycast": {
+        "box_translation_cm": [
+          0,
+          0,
+          -110
+        ],
+        "box_half_extents_cm": [
+          50,
+          50,
+          10
+        ],
+        "start_cm": [
+          0,
+          0,
+          62.5
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 162.5
+      }
+    },
+    {
+      "name": "stairs_1_at",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "start_cm": [
+          500.0,
+          -1650.0,
+          920.0
+        ],
+        "end_cm": [
+          500.0,
+          -1650.0,
+          792.0
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "stairs_1.00005_at",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.00005,
+          1.00005,
+          1.00005
+        ],
+        "start_cm": [
+          500.0,
+          -1650.0,
+          920.0
+        ],
+        "end_cm": [
+          500.0,
+          -1650.0,
+          792.0
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "stairs_2_at",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.0,
+          2.0,
+          2.0
+        ],
+        "start_cm": [
+          1000.0,
+          -3300.0,
+          1712.0
+        ],
+        "end_cm": [
+          1000.0,
+          -3300.0,
+          1584.0
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "box_after",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "box_raycast": {
+        "box_translation_cm": [
+          0,
+          0,
+          -110
+        ],
+        "box_half_extents_cm": [
+          50,
+          50,
+          10
+        ],
+        "start_cm": [
+          0,
+          0,
+          62.5
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 162.51
+      }
+    },
+    {
+      "name": "stairs_1_after",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "start_cm": [
+          500.0,
+          -1650.0,
+          920.0
+        ],
+        "end_cm": [
+          500.0,
+          -1650.0,
+          791.99
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "stairs_1.00005_after",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.00005,
+          1.00005,
+          1.00005
+        ],
+        "start_cm": [
+          500.0,
+          -1650.0,
+          920.0
+        ],
+        "end_cm": [
+          500.0,
+          -1650.0,
+          791.99
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    },
+    {
+      "name": "stairs_2_after",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_raycast": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.0,
+          2.0,
+          2.0
+        ],
+        "start_cm": [
+          1000.0,
+          -3300.0,
+          1712.0
+        ],
+        "end_cm": [
+          1000.0,
+          -3300.0,
+          1583.99
+        ],
+        "trace_complex": true,
+        "capture_ray_visits": true
+      }
+    }
+  ]
+}

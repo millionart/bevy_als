@@ -24,6 +24,10 @@ pub struct RigQueryContext {
     pub filter: SpatialQueryFilter,
 }
 
+fn nearer_hit(fraction: f64, nearest: f64, already_hit: bool) -> bool {
+    fraction < nearest || (!already_hit && fraction == nearest)
+}
+
 fn trace_trimesh(mesh: &avian3d::parry::shape::TriMesh, ray: &Ray, limit: f64) -> Option<RayIntersection> {
     let mut nearest = limit;
     let mut hit = None;
@@ -37,7 +41,7 @@ fn trace_trimesh(mesh: &avian3d::parry::shape::TriMesh, ray: &Ray, limit: f64) -
             let triangle = mesh.triangle(index);
             let triangle = Triangle::new(triangle.a.as_dvec3(), triangle.b.as_dvec3(), triangle.c.as_dvec3());
             if let Some(impact) = triangle.cast_local_ray_and_get_normal(ray, nearest, true)
-                && impact.time_of_impact < nearest {
+                && nearer_hit(impact.time_of_impact, nearest, hit.is_some()) {
                 nearest = impact.time_of_impact;
                 hit = Some(impact);
             }
@@ -65,7 +69,13 @@ impl SupportMap for PreciseConvex<'_> {
     }
 }
 
-fn trace_precise_shape(shape: &dyn Shape, ray: &Ray, limit: f64) -> Result<Option<RayIntersection>, ()> {
+fn trace_precise_shape(
+    shape: &dyn Shape,
+    unscaled: &dyn Shape,
+    scale: Vec3,
+    ray: &Ray,
+    limit: f64,
+) -> Result<Option<RayIntersection>, ()> {
     let hit = match shape.as_typed_shape() {
         TypedShape::Cuboid(shape) => Cuboid::new(shape.half_extents.as_dvec3())
             .cast_local_ray_and_get_normal(ray, limit, true),
@@ -79,16 +89,17 @@ fn trace_precise_shape(shape: &dyn Shape, ray: &Ray, limit: f64) -> Result<Optio
         TypedShape::ConvexPolyhedron(shape) => local_ray_intersection_with_support_map_with_params(
             &PreciseConvex(shape.points()), &mut VoronoiSimplex::new(), ray, limit, true),
         TypedShape::Compound(shape) => {
+            let TypedShape::Compound(unscaled) = unscaled.as_typed_shape() else { return Err(()); };
             let mut nearest = limit;
             let mut result = None;
-            for (pose, child) in shape.shapes() {
+            for ((pose, child), (_, unscaled_child)) in shape.shapes().iter().zip(unscaled.shapes()) {
                 let rotation = pose.rotation.as_dquat();
                 let local = Ray::new(
                     source_rotate_vector(rotation.conjugate(), ray.origin - pose.translation.as_dvec3()),
                     source_rotate_vector(rotation.conjugate(), ray.dir),
                 );
-                if let Some(mut impact) = trace_precise_shape(&**child, &local, nearest)?
-                    && impact.time_of_impact < nearest {
+                if let Some(mut impact) = trace_precise_shape(&**child, &**unscaled_child, scale, &local, nearest)?
+                    && nearer_hit(impact.time_of_impact, nearest, result.is_some()) {
                     nearest = impact.time_of_impact;
                     impact.normal = source_rotate_vector(rotation, impact.normal);
                     result = Some(impact);
@@ -98,7 +109,12 @@ fn trace_precise_shape(shape: &dyn Shape, ray: &Ray, limit: f64) -> Result<Optio
         }
         _ => return Err(()),
     };
-    Ok(hit)
+    let inclusive = match unscaled.as_typed_shape() {
+        TypedShape::TriMesh(_) => (scale.as_dvec3() - DVec3::ONE).abs().max_element() < f64::from(1e-4_f32),
+        TypedShape::ConvexPolyhedron(_) => scale == Vec3::ONE,
+        _ => true,
+    };
+    Ok(hit.filter(|impact| impact.time_of_impact < limit || (inclusive && impact.time_of_impact == limit)))
 }
 
 impl RigQueryContext {
@@ -130,7 +146,7 @@ impl RigQueryContext {
                 source_rotate_vector(rotation_f64.conjugate(), start - position.0.as_dvec3()),
                 source_rotate_vector(rotation_f64.conjugate(), delta),
             );
-            let candidate = match trace_precise_shape(&**collider.shape_scaled(), &local, nearest) {
+            let candidate = match trace_precise_shape(&**collider.shape_scaled(), &**collider.shape(), collider.scale(), &local, nearest) {
                 Ok(impact) => impact.map(|impact| (impact.time_of_impact, start + delta * impact.time_of_impact,
                     source_rotate_vector(rotation_f64, impact.normal))),
                 Err(()) => fallback.and_then(|(direction, distance)|
@@ -141,7 +157,7 @@ impl RigQueryContext {
             let Some((fraction, point, normal)) = candidate else {
                 continue;
             };
-            if fraction < nearest {
+            if nearer_hit(fraction, nearest, hit.is_some()) {
                 nearest = fraction;
                 hit = Some((point, normal));
             }
@@ -178,6 +194,83 @@ mod tests {
         let inside = DVec3::new(-10.0, -0.25, -20.0);
         assert_eq!(query.trace(inside, inside + DVec3::Y, "Visibility", true).unwrap(),
             Some((inside, DVec3::ZERO)));
+    }
+
+    #[test]
+    fn first_endpoint_hit_respects_the_source_shape_wrapper() {
+        let mesh = Collider::trimesh(vec![
+            Vec3::new(-2.0, 0.0, -2.0),
+            Vec3::new(-2.0, 0.0, 2.0),
+            Vec3::new(2.0, 0.0, -2.0),
+        ], vec![[0, 1, 2]]);
+        let compound = Collider::compound(vec![(Vec3::ZERO, Quat::IDENTITY, Collider::cuboid(2.0, 1.0, 2.0))]);
+        let mut entities = World::new();
+        let entity = entities.spawn_empty().id();
+        for (mut collider, scale, center, endpoint) in [
+            (Collider::cuboid(2.0, 1.0, 2.0), 2.0, Vec3::NEG_Y, true),
+            (mesh.clone(), 1.0, Vec3::ZERO, true),
+            (mesh.clone(), 1.00005, Vec3::ZERO, true),
+            (mesh, 2.0, Vec3::ZERO, false),
+            (compound, 2.0, Vec3::NEG_Y, true),
+        ] {
+            collider.set_scale(Vec3::splat(scale), 10);
+            let query = RigQueryContext {
+                world: Arc::new(RigQueryWorld { colliders: [(entity, (Position(center),
+                    Rotation::default(), collider, CollisionLayers::ALL))].into_iter().collect() }),
+                to_world: RigTransform::default(), channel: "Visibility".to_owned(), filter: default(),
+            };
+            let start = DVec3::new(-0.5, 1.0, -0.5);
+            for (end_y, expected) in [(0.0001, false), (0.0, endpoint), (-0.0001, true)] {
+                let result = query.trace(start, start.with_y(end_y), "Visibility", true).unwrap();
+                assert_eq!(result.is_some(), expected, "Wrong ray boundary for scale {scale} and end {end_y}");
+                if let Some((point, normal)) = result {
+                    assert!(point.y.abs() < 1e-12);
+                    assert_eq!(normal, DVec3::Y);
+                }
+            }
+        }
+        assert!(nearer_hit(1.0, 1.0, false));
+        assert!(!nearer_hit(1.0, 1.0, true));
+        assert!(nearer_hit(0.5, 1.0, true));
+    }
+
+    #[test]
+    fn exact_box_endpoint_reaches_foot_offset_trace() {
+        let mut entities = World::new();
+        let floor = entities.spawn_empty().id();
+        let to_world = RigTransform {
+            translation: DVec3::Y * (f64::from(0.8_f32) * 1.25 - 1.0),
+            scale: DVec3::splat(1.25),
+            ..default()
+        };
+        let query = RigQueryContext {
+            world: Arc::new(RigQueryWorld { colliders: [(floor,
+                (Position(Vec3::NEG_Y * 1.25), Rotation::default(), Collider::cuboid(2.0, 0.5, 2.0),
+                    CollisionLayers::ALL))].into_iter().collect() }),
+            to_world, channel: "Visibility".to_owned(), filter: default(),
+        };
+        let mut trace = |start, end: DVec3, channel: &str, complex| {
+            assert_eq!(end.y, -1.0);
+            query.trace(start, end, channel, complex)
+        };
+        let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
+        let geometry = RigGeometry {
+            near_zero: 1e-6, normalize_squared: 1e-12, minimum_length: 1e-10, solve_near_zero: 1e-6,
+            basis: [DVec3::X, DVec3::Z, DVec3::Y],
+        };
+        let curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy, curves: &curves, game_world: true, construction: false,
+            delta_seconds: 1.0 / 60.0, geometry: &geometry, to_world, line_trace: Some(&mut trace),
+        };
+        use RigValue::*;
+        let mut values = vec![
+            Vector(DVec3::ZERO), Name("Visibility".to_owned()), F32(0.5), F32(0.8), F32(45.0),
+            F32(0.134656), Bool(true), Bool(false), F32(0.0), Vector(DVec3::ZERO),
+        ];
+        context.call("FAlsRigUnit_FootOffsetTrace::Execute", &mut values).unwrap();
+        let F32(offset) = values[8] else { panic!("Missing foot offset"); };
+        assert!((offset + 0.766336).abs() < 1e-6, "Endpoint foot offset was {offset}");
     }
 
     #[test]

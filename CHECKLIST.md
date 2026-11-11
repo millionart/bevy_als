@@ -6742,7 +6742,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色实际Idle，左脚LockAmount=1、右脚0，pending帧组件移动20cm且未超过瞬移阈值；source距离平方0.04m²超过0.0064m²，target发布0、当帧不排队。只恢复该距离字段，真实回调写入StandingLeft序列；零位移与非pending控制通过，共6组5PASS/1FAIL。
   - 漏检：旧pending测试只检查Rig关闭，未核对GameThread继续采集的目标及直接动态过渡消费者。证据`71/pending_checked/`、`bf144_animation_phase71_pending_target_distance`；回调执行及当帧队列write-frame均已断言，未把旧队列值计作触发。仅登记，未改生产。
 
-- [ ] BF144-D159 / P3 — Rig射线查询丢弃恰好位于距离上限的有效命中。
+- [x] BF144-D159 / P3 — Rig射线查询丢弃恰好位于距离上限的有效命中。
+  - 2026-11-12 01:34 +0800 实际结束早于02:18预估，未拆分。fresh箱体、实际Stairs的内核计算时间与源缩放包装见 `docs/audit/bf144/d159/`。F64遍历和最近命中接收首个有效端点，凸包与网格按原始类型和应用尺度维持源包装边界。12组原生控制及100cm舍入控制的比较通过，旧严格外层漏三组。旧72/74运行证据未随当前Git保留，实际FootOffsetTrace反例、Rust消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 01:23 +08:00，预估结束2026-11-12 02:18 +08:00。复取箱体和实际Stairs的端点，核对源缩放包装及目标F64遍历已覆盖的边界。
   - Source：fresh `Raycasts.cpp:75–79`只在LatestStartTime>RayLength时拒绝，SQVisitor直接接收该有效ray命中；原生box ray在长度100cm、命中距离100cm时返回true，前后0.01cm控制分别命中/不命中。
   - Target：`control_rig_query.rs:50–53`在Collider.cast_ray已经返回命中后，再要求length<distance；等于当前最大长度且尚无命中时也被丢弃。
   - 反例：实际查询使用Rig scale=1.25、默认向上0.5/向下0.8m，底面恰在世界−1m；Parry返回distance=1.625m，查询wrapper返回None。完整角色中实际ApplyFootOffsetLocation读到0而source为−0.766336m；夹具仅将原生合同偏移量写入现有变量Copy，实际消费者恢复。稍近底面控制通过。
