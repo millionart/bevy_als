@@ -103,8 +103,7 @@ struct AlsRagdollInitialSpeedLimit {
 impl AlsRagdollInitialSpeedLimit {
     fn new(entry_speed: f32) -> Self {
         Self {
-            remaining_updates: crate::get_up::RAGDOLL_SETTINGS.initial_speed_limit_refresh_frames
-                + 1,
+            remaining_updates: crate::get_up::RAGDOLL_SETTINGS.initial_speed_limit_refresh_frames,
             speed: entry_speed.max(crate::get_up::RAGDOLL_SETTINGS.minimum_initial_speed_limit_mps),
         }
     }
@@ -2343,11 +2342,11 @@ pub(crate) mod tests {
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
         for _ in 0..12 { app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap(); }
         app.world_mut().resource_mut::<Time<Virtual>>().unpause();
-        for _ in 0..8 {
+        for _ in 0..7 {
             app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * 10.0;
             app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
             assert_eq!(app.world().get::<LinearVelocity>(body).unwrap().0, Vec3::X * 2.0,
-                "Source paused owner must preserve all eight resumed body speed limit refreshes");
+                "Source pause must preserve the seven refreshes remaining after entry");
         }
         app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * 10.0;
         app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
@@ -2454,9 +2453,9 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn initial_speed_limit_covers_entry_and_eight_refreshes() {
+    fn initial_speed_limit_covers_eight_update_frames() {
         let mut limit = AlsRagdollInitialSpeedLimit::new(0.5);
-        for _ in 0..9 {
+        for _ in 0..8 {
             let speed = limit.next_limit().unwrap();
             assert_eq!(
                 Vec3::new(6.0, 0.0, 8.0).clamp_length_max(speed).length(),
@@ -2468,6 +2467,38 @@ pub(crate) mod tests {
             AlsRagdollInitialSpeedLimit::new(7.0).next_limit(),
             Some(7.0)
         );
+    }
+
+    #[test]
+    fn local_ragdoll_input_consumes_the_first_speed_limit_frame() {
+        use crate::als::input::AlsInputCommand;
+        use bevy::time::TimeUpdateStrategy;
+
+        #[derive(Resource, Default)]
+        struct Speeds(Vec<f32>);
+
+        for delta in [1.0_f32 / 60.0, 1.0 / 30.0] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let (_, bodies) = loaded_ragdoll_bodies(&mut app, avatar);
+            let pelvis = bodies.iter().find(|(name, _)| name == PELVIS_LABEL).unwrap().1;
+            app.init_resource::<Speeds>();
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.add_systems(PostUpdate, (
+                (move |mut velocities: Query<&mut LinearVelocity>| {
+                    velocities.get_mut(pelvis).unwrap().0 = Vec3::X * 3.0;
+                }).after(ragdoll_joint_drive_adapter_system).before(limit_initial_ragdoll_speed),
+                (move |velocities: Query<&LinearVelocity>, mut speeds: ResMut<Speeds>| {
+                    speeds.0.push(velocities.get(pelvis).unwrap().0.x);
+                }).after(limit_initial_ragdoll_speed).before(RagdollAngularDriveSet),
+            ).in_set(RagdollPhysicsHandoffSet));
+
+            for frame in 0..9 {
+                app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().ragdoll_pressed = frame == 0;
+                app.update();
+                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+            }
+            assert_eq!(app.world().resource::<Speeds>().0, [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0]);
+        }
     }
     use crate::als::state::{Gait, OverlayState, RotationMode};
     use crate::als::transition::{AlsStateRequest, AlsStateTransitionPlugin};

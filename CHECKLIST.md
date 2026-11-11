@@ -6417,7 +6417,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_link.rs:526–537`和依赖的kinematic速度producer均直接使用全帧`Time.delta_secs()`。物理积分本身的clamp不会回头修正已生成的速度。
   - 反例：共同pelvis位移1cm、帧长0.1s、零旋转时，源Vx=0.3m/s，实际sync及隔离D105后的handoff均为0.1；只改速度分母为物理delta后恢复。60/30Hz对照通过；0.6rad的长帧组同时需要D106公式与本项分母，两项单独替换各自仍保留另一失败。沿用同一24组证据，不另计样本。源/目标重力约定没有改变，也未把全局帧率改成固定30Hz。
 
-- [ ] BF144-D108 / P3 — 本地输入启动Ragdoll后，初期限速多保持一帧。
+- [x] BF144-D108 / P3 — 本地输入启动Ragdoll后，初期限速多保持一帧。 静态实现完成，统一验证待执行。
+  - 19:38 source/static 闭环：启动帧的唯一限速调用消费8帧预算的第一份，删除多余的额外计数。暂停用例保留启动后剩余7帧，高入口速度控制保留。已写真实本地输入60/30Hz第1至9帧的限速读数夹具。源与目标身份 `docs/audit/bf144/d108/`；编译、测试、消融和真实入口待统一 Gate。开始19:35，预估20:05，实际结束2026-11-11 19:38 +08:00，偏差−27分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 19:35 +08:00，预估结束20:05 +08:00。依据：fresh 核对本地输入、CMC 和 Actor 的 Tick 先后，以及源立即限速与当帧刷新。目标已有唯一每帧限速 consumer，只改启动预算及相关计数/输入夹具。
   - Source：fresh `PlayerController.cpp:2326,5494`在controller tick处理输入，`Controller.cpp:494–515`与`MovementComponent.cpp:184–188`保证controller→movement→actor顺序。Ragdoll输入立即Start，`AlsCharacter_Actions.cpp:820–823`先设8次刷新预算并立即限速；同帧`AlsCharacter.cpp:294`调用Refresh，cpp:955–959消耗第一次。故启动帧与其后7帧受限，第9个显示帧不再限速。
   - Target：`AlsRagdollInitialSpeedLimit::new:78–79`把预算设为8+1，实际PostUpdate每帧只调用一次；将立即调用和当帧Refresh合并后仍保留9次，导致第9个显示帧继续clamp。
   - 反例：完整角色经Ragdoll输入启动，首帧V=1m/s，随后每帧在实际限速consumer前给V=3；entry speed=0时第9帧目标仍为2、源应为3。60/30Hz×entry speed=0/5×11帧共44组42PASS/2FAIL，仅低入口速度的第9帧失败；前8帧、之后帧以及较高入口speed limit控制均通过。证据`bf144_ragdoll_phase37_input_frame_consumes_first_refresh_budget`、`37/final/`。旧Gate只检查总调用预算和限速数值，没有把本地输入与actor当帧Refresh组合。
