@@ -86,9 +86,14 @@ impl RigGeometry {
     ) -> (DVec3, DVec3) {
         let delta = effector - root;
         let mut distance = source_vector_dot(delta, delta).sqrt();
-        let direction = if distance < self.solve_near_zero {
+        let delta_cm = effector * 100.0 - root * 100.0;
+        let source_distance = source_vector_dot(delta_cm, delta_cm).sqrt() * 0.01;
+        let direction = if source_distance < self.solve_near_zero {
             distance = self.solve_near_zero;
             self.basis[0]
+        } else if distance < self.solve_near_zero {
+            distance = source_distance;
+            safe_normal(delta_cm, self.normalize_squared / 0.0001)
         } else {
             safe_normal(delta, self.normalize_squared)
         };

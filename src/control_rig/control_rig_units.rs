@@ -1509,6 +1509,59 @@ mod tests {
     }
 
     #[test]
+    fn control_rig_ik_uses_the_native_coincident_goal_boundary() {
+        use RigValue::*;
+
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            root: [f64; 3],
+            effector: [f64; 3],
+            pole: [f64; 3],
+            joint: [f64; 3],
+            end: [f64; 3],
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d164/goal.replay.json"
+        )).unwrap();
+        let curves = HashMap::default();
+        let geometry = geometry();
+        for case in fixture.cases {
+            let mut hierarchy = hierarchy();
+            let transform = |translation| RigTransform { translation, ..Default::default() };
+            hierarchy.set_transform(0, RigSpace::Global, false,
+                transform(DVec3::from_array(case.root)), true).unwrap();
+            let mut context = RigUnitContext {
+                hierarchy: &mut hierarchy,
+                curves: &curves,
+                game_world: true,
+                construction: false,
+                delta_seconds: 0.0,
+                geometry: &geometry,
+                to_world: RigTransform::default(),
+                line_trace: None,
+            };
+            let mut args = [
+                item("Bone0"), item("Bone1"), item("Bone2"), transform(DVec3::from_array(case.effector)).value(),
+                Vector(DVec3::ZERO), Vector(DVec3::ZERO), F32(0.0), Vector(DVec3::from_array(case.pole)),
+                Name("Location".to_owned()), item(""), Bool(false), F32(0.75), F32(1.25), F32(1.0),
+                F32(0.5), F32(0.75), Bool(true), List(vec![]), List(vec![]), List(vec![]), List(vec![]), List(vec![]),
+            ];
+            context.call("FRigUnit_TwoBoneIKSimplePerItem::Execute", &mut args).unwrap();
+            for (bone, expected) in [(1, case.joint), (2, case.end)] {
+                let position = context.hierarchy.transform(bone, RigSpace::Global, false).unwrap().translation;
+                assert!(position.distance(DVec3::from_array(expected)) < 1e-12, "{}: {position:?}", case.name);
+            }
+        }
+    }
+
+    #[test]
     fn control_rig_ik_geometry_preserves_native_degenerate_axes_stretch_and_roll() {
         let geometry = geometry();
         let mut threshold_case = geometry.clone();

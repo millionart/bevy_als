@@ -6816,7 +6816,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.426/.427a层化新consumer（原D263撤回并入）：fresh `UnrealMathNeon.h:2318–2337`与source `AnimationRuntime.cpp:1949–1977`在父组件乘法/local还原中使用W→X→Y→Z逐项累加，既有basis `[-x,-z,-y,w]`完整代入后runtime x为`((aw*bx+ax*bw)-az*by)+ay*bz`；`mesh_space_layered_blend.rs:80–86,149–153`调用glam0.32.1 `f32/neon/quat.rs:794–833`的WX/YZ两对相加。同一旧.283 source_multiply逐值恢复旧174与当前4680原生double产品，当前F32源顺序模型与旧公式投影精确，证明仅新增consumer，不能因F32/F64 backend或原标题聚焦Euler而重复编号。当前20层79骨Q全部等actual缓存；首pelvis/upperarm_l y当前0.06716374307870865，保持当前F32、权重和N次数只改累加顺序得0.06716373562812805，与原生同输入投影相同。2638产品改变/1258源分量恢复，固定actual输入的公开五层重放在原/Idle-data域各首帧改变HeadBase67/66骨、恢复同叶source链29/27最终分量，不称全Root恢复或已施加生产修复。
   - 本consumer独立性/恢复：same-runtime F64 glam控制仍760 raw产品/52投影不同，仅为算法独立性控制，不宣称生产Layering为F64。最小current原生合同稳定失败，旧同glam/1e−6期待漏检；只移除F32顺序因子使四控制包回original、266最终骨变化全消，源码bytes恢复同target重编12输出/4680记录byte同。直接runtime推导普通数值全同，删basis包装会改变2394重复记录/控制分量的符号零位，故保最小source-space计算；未声称零符号位已造成当前动作故障。`target/bf144/426/products-check.json`、`controls-check.json`与`target/bf144/427a/equivalence.json`，sealed历史不重写，差异累计回260（115P2/145P3）。
 
-- [ ] BF144-D164 / P3 — TwoBoneIK在距离退化边界跨过源判断分支，改变膝／肘的求解方向。
+- [x] BF144-D164 / P3 — TwoBoneIK在距离退化边界跨过源判断分支，改变膝／肘的求解方向。
+  - 2026-11-12 02:49 +0800 实际结束，较03:25预估提前36分钟，未拆分。fresh 源厘米长度、等号和安全归一化见 `docs/audit/bf144/d164/`。10组原生位置重放通过，旧比较4组错误，先减再换算3组错误，保留旧归一化会让平移控制丢方向。已加入真实Rig调用 fixture，Cargo/Playground 待统一验证。
+  - 本轮开始2026-11-12 02:41 +08:00，预估结束2026-11-12 03:25 +08:00。以.478的实际根位置构造两种跨阈值方向并重采原生，沿TwoBoneIK真实回调核对膝／肘写回。
   - Source：fresh `TwoBoneIK.cpp:84–94`在double厘米距离小于1e−4时才回退到X轴，否则按目标方向归一化；后续弯曲平面和余弦定理直接消费该方向。288组边界输入由原生`SolveBasicTwoBoneIK`逐值确认，包含相等／不等骨长、原点偏移及共线pole。
   - Target：`control_rig_ik.rs:88–110`在米制反射坐标中计算距离，阈值换算为1.0000000000000002e−6。代表输入的源距离恰为0.0001cm、目标为0.000001m，source保留实际方向而target回退X；其他原点/方向组合也会因差值和求和顺序跨过该不连续边界。不能用一般坐标基公式正确来证明边界分支一致。
   - 反例：完整角色现有左右腿IK，采用真实参考骨长、1.25缩放和受控近根effector，最终膝位置分别偏离0.6442049m/0.6442081m。只写回本次原生求解的joint/end位置，两个实际消费者恢复；距离上下0.1%控制通过。全部16组完整角色输入（含另一项的伸直边界）已再次原生核验，独立公式逐值一致。
