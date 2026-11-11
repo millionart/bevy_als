@@ -6456,7 +6456,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_link.rs:992–996,1037–1041`重组actor、父级和进入时保存的local transform，位置offset随actor scale相乘；单位scale下相同掩盖了差异。
   - 反例：完整角色scale=0.75时，站姿恢复mesh比source高0.23m、蹲姿高0.145m；直接actor和带旋转/均匀缩放父级均复现。scale=1四组对照通过，非均匀scale.y=0.8也产生0.184/0.116m偏差。证据`bf144_ragdoll_phase39_mesh_snapshot_transforms`、`target/bf144/39/final/`；旧parent recovery测试保持actor最终世界scale=1，只检查pelvis保持，没有核对源mesh偏移。
 
-- [ ] BF144-D114 / P2 — 布娃娃期间改变actor缩放会在退出时错误改变mesh世界缩放。
+- [x] BF144-D114 / P2 — 布娃娃期间改变actor缩放会在退出时错误改变mesh世界缩放。 静态实现完成，统一验证待执行。
+  - 20:06 source/static 闭环：读取当前脱离 mesh 的真实世界 scale，按挂接后父变换在 mesh 旋转轴上的伸缩求 local scale，再共同生成世界变换和 pelvis 快照。夹具新增脱离期间 actor 变倍、非均匀 mesh 当帧改 scale、旋转父级与站/蹲位置控制。源/目标身份 `docs/audit/bf144/d114/`；编译、测试、消融和真实入口待统一 Gate。开始20:05，预估20:45，实际结束2026-11-11 20:06 +08:00，偏差−39分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 20:05 +08:00，预估结束20:45 +08:00。依据：D113 已计算实际挂接父级；fresh UE 只写世界位置/旋转并按 KeepWorld 恢复 scale。复用现有位置夹具，独立检查脱离期间 actor 和 mesh 的 live 缩放。
   - Source：fresh Start在`AlsCharacter_Actions.cpp:784`按KeepWorld脱离；Stop调用的`SceneComponent.cpp:2065–2099`只写位置和旋转，不改scale，随后KeepWorld挂接继续保留脱离mesh的世界scale。
   - Target：`restore_ragdoll_player_parent:992–996,1037–1041`使用当前actor scale与旧local scale重建mesh，缺少源的世界scale保留语义。
   - 反例：进入时actor/mesh scale均1，活动Ragdoll期间只把actor scale改为1.25，退出mesh scale变为1.25，source应保持1；站/蹲、直接/父级四组均复现。原始0.75及非均匀scale也复现，共12个改变scale样本失败，12个不改变scale的控制通过。证据同D113；该判据独立于位置offset及pelvis跟随，旧退出测试未覆盖脱离期间改变actor scale。

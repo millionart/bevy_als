@@ -1,0 +1,71 @@
+{
+  "sources": [
+    {
+      "path": "Plugins/ALS-Refactored/Source/ALS/Private/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+      "anchors": [
+        {
+          "line": 784,
+          "source": "// Detach the mesh so that character transformation changes will not affect it in any way."
+        },
+        {
+          "line": 1110,
+          "source": "GetMesh()->SetWorldLocationAndRotationNoPhysics(ActorTransform.TransformPositionNoScale(GetBaseTranslationOffset()),"
+        },
+        {
+          "line": 1111,
+          "source": "ActorTransform.TransformRotation(GetBaseRotationOffset()).Rotator());"
+        },
+        {
+          "line": 1113,
+          "source": "GetMesh()->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/SceneComponent.cpp",
+      "sha256": "2bbfa8d54a24e701290c40d24e0e997786b23fbb8672f52868a12fbcc40318c6",
+      "anchors": [
+        {
+          "line": 2065,
+          "source": "void USceneComponent::SetWorldLocationAndRotationNoPhysics(const FVector& NewLocation, const FRotator& NewRotation)"
+        },
+        {
+          "line": 2076,
+          "source": "else"
+        },
+        {
+          "line": 2089,
+          "source": "SetRelativeRotation_Direct(RelativeRotationCache.QuatToRotator(NewRelQuat));"
+        },
+        {
+          "line": 2094,
+          "source": "SetRelativeLocation_Direct(NewLocation);"
+        },
+        {
+          "line": 2096,
+          "source": "}"
+        },
+        {
+          "line": 2099,
+          "source": "}"
+        },
+        {
+          "line": 2596,
+          "source": "case EAttachmentRule::KeepWorld:"
+        },
+        {
+          "line": 2599,
+          "source": "SetRelativeScale3D_Direct(GetComponentTransform().GetScale3D());"
+        },
+        {
+          "line": 2603,
+          "source": "SetRelativeScale3D_Direct(RelativeTM.GetScale3D());"
+        }
+      ]
+    }
+  ],
+  "contract": "Position and rotation are set while the mesh is detached. KeepWorld attachment carries its current world scale into the restored parent frame.",
+  "target_mapping": "Read the live detached global scale, then divide by the restored parent's stretch along each mesh-local rotated basis axis.",
+  "historical_target_report_available": false
+}

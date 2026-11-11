@@ -1116,6 +1116,10 @@ pub(crate) fn restore_ragdoll_player_parent(
         let actor_offset = parent_in_actor.transform_point3(restored_mesh.translation);
         let mesh_world_location = restored_actor_world.translation + rotation * actor_offset;
         restored_mesh.translation = restored_parent_world.affine().inverse().transform_point3(mesh_world_location);
+        let Ok(detached_world) = transform_helper.compute_global_transform(player_entity) else { continue; };
+        let parent_scale_in_mesh_axes = restored_parent_world
+            .mul_transform(Transform::from_rotation(restored_mesh.rotation)).scale();
+        restored_mesh.scale = detached_world.scale() / parent_scale_in_mesh_axes;
         let restored_world = restored_parent_world.mul_transform(restored_mesh);
         commands
             .entity(avatar.character)
@@ -1915,7 +1919,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn ragdoll_exit_keeps_the_mesh_offset_independent_of_actor_scale() {
+    fn ragdoll_exit_restores_the_mesh_offset_and_live_world_scale() {
         use bevy::ecs::system::RunSystemOnce;
 
         for (scale, parented, stance, offset) in [
@@ -1936,6 +1940,12 @@ pub(crate) mod tests {
             let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
             app.world_mut().run_system_once(capture_ragdoll_player_world_transform).unwrap();
             assert!(app.world().get::<AlsRagdollDetachedPlayer>(player).is_some());
+            app.world_mut().get_mut::<Transform>(actor).unwrap().scale *= 1.25;
+            let detached_scale = {
+                let mut mesh = app.world_mut().get_mut::<Transform>(player).unwrap();
+                if stance == Stance::Crouching { mesh.scale *= Vec3::new(1.1, 0.9, 1.2); }
+                mesh.scale
+            };
             app.world_mut().entity_mut(actor).insert((AlsNotifyLocomotionAction::None, LocomotionState::Grounded));
             app.world_mut().run_system_once(restore_ragdoll_player_parent).unwrap();
             let (actor_world, mesh_world) = app.world_mut().run_system_once(move |helper: TransformHelper| {
@@ -1945,6 +1955,9 @@ pub(crate) mod tests {
             assert!(mesh_world.translation().distance(expected) < 1e-5,
                 "Restored mesh offset: scale={scale:?} parented={parented} stance={stance:?} expected={expected:?} actual={:?}",
                 mesh_world.translation());
+            assert!(mesh_world.scale().abs_diff_eq(detached_scale, 1e-5),
+                "Restored mesh scale: parented={parented} stance={stance:?} expected={detached_scale:?} actual={:?}",
+                mesh_world.scale());
         }
     }
 
