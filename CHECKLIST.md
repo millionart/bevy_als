@@ -7127,7 +7127,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.146真实全骨架输入补充：99帧共有3453个旋转通道超过既定2e−5rad合同，最大约0.00127rad（0.073°）。仅恢复源未归一化差分、轴/角及twist求值后，全部旋转落回合同，最大余差约6.74e−7rad；scale仍失败，独立证明不是统一放宽误差。与D190合用后38,710个骨骼样本及曲线全部通过。原始输入来自真实Grounded惯性节点，组件空间固定identity；本项不声明默认世界可见故障或整个角色管线等价。证据`target/bf144/146/replay-analysis.json`、`target/bf144/146/rotation-analysis.json`、`target/bf144/146/both-pruned-analysis.json`。
 
-- [ ] BF144-D196 / P3 — 惯性曲线在只有一份历史时没有复用该历史。
+- [x] BF144-D196 / P3 — 惯性曲线在只有一份历史时没有复用该历史。
+  - 2026-11-12 07:05 +0800 实际结束，较07:37预估提前32分钟，未拆分。fresh八条PoseGrounded轨迹以float逐运算恢复单历史，旧四个输出失配；真实双历史缺键及时间门槛控制通过。原始读数和实际节点夹具见 `docs/audit/bf144/d196/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 07:01 +08:00，预估结束2026-11-12 07:37 +08:00。重采PoseGrounded单历史、缺键/双历史、零及临界步长，沿真实惯性节点恢复较早曲线值选择。
   - Source：`AnimNode_Inertialization.cpp:660–671`在PrevPoseSnapshot为空时把CurrPoseSnapshot同时作为Prev1/Prev2；`954–975`对曲线也使用这两份历史计算差值/导数。
   - Target：`inertialization_passthrough.rs:339–345`只给骨骼Pose做fallback；`542–551`的曲线导数仍从初始为空的previous_curves读取0。首份evaluated_curves存在，却未被用作缺少的更早曲线历史。
   - 反例：首帧PoseGrounded=1，下一帧请求0.2秒惯性化到0.5、delta=1/60。原生为0.53887993，目标为0.99745607；后续最大差约0.482。149条2561帧的原生/生产对照中12条轨迹124帧不符，全部位于单历史分支；只在该边界把evaluated_curves复制到缺少的previous_curves，124帧全部恢复。无历史、两份历史以及源关闭导数的100µs历史时间控制通过。

@@ -592,13 +592,18 @@ impl NodeLike for InertializationPassthroughNode {
                         attachment_epoch, attached_to_actor);
                     state.curve_differences.clear();
                     if has_history {
+                        let older_curves = if state.previous_previous.is_some() {
+                            &state.previous_curves
+                        } else {
+                            &state.evaluated_curves
+                        };
                         state.curve_differences = source_context.curves.keys().chain(state.evaluated_curves.keys())
                             .filter(|name| !self.filtered_curves.iter().any(|filtered| name.eq_ignore_ascii_case(filtered)))
                             .map(|name| {
                                 let target = source_context.curves.get(name).copied().unwrap_or(0.0);
                                 let difference = state.evaluated_curves.get(name).copied().unwrap_or(0.0) - target;
-                                let derivative = if state.previous_delta > 1e-4 {
-                                    (difference - target - state.previous_curves.get(name).copied().unwrap_or(0.0)) / state.previous_delta
+                                let derivative = if state.previous_delta > SOURCE_KINDA_SMALL_NUMBER {
+                                    (difference - target - older_curves.get(name).copied().unwrap_or(0.0)) / state.previous_delta
                                 } else { 0.0 };
                                 (name.clone(), (difference, derivative))
                             }).collect();
@@ -1220,7 +1225,9 @@ mod tests {
             let mut gizmos = bevy_animation_graph::core::context::deferred_gizmos::DeferredGizmos::default();
             let entities = HashMap::new();
             let bone = BoneId::default();
-            let curve = crate::extensions::SourceCurveName::from("InertialProbeCurve");
+            let curve = crate::extensions::SourceCurveName::from(
+                reference["curve_name"].as_str().unwrap_or("InertialProbeCurve"),
+            );
             for case in reference["cases"].as_array().unwrap() {
                 let mut arena = GraphContextArena::new(handle.id());
                 for frame in case["frames"].as_array().unwrap() {
@@ -1278,6 +1285,13 @@ mod tests {
         let reference = include_str!("../../docs/audit/bf144/d194/short-requests.replay.json");
         assert_native_inertialization_replay(reference, true);
         assert_native_inertialization_replay(reference, false);
+    }
+
+    #[test]
+    fn first_inertial_curve_history_supplies_both_snapshots() {
+        assert_native_inertialization_replay(
+            include_str!("../../docs/audit/bf144/d196/curve-history.replay.json"), true,
+        );
     }
 
     #[test]

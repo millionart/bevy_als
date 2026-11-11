@@ -1,0 +1,601 @@
+{
+  "node_property": "AnimGraphNode_Inertialization",
+  "samples": [
+    {
+      "name": "single_regular",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 1
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          },
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "name": "single_zero",
+      "steps": [
+        {
+          "delta_seconds": 0.0,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 1
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          },
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "name": "single_at_threshold",
+      "steps": [
+        {
+          "delta_seconds": 0.0001,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 1
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          },
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "name": "single_above_threshold",
+      "steps": [
+        {
+          "delta_seconds": 0.0001001,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 1
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          },
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "name": "older_zero",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 1
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          },
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "name": "older_equal",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 1
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 1
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          },
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "name": "older_missing",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {}
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 1
+          }
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          },
+          "request_duration": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "name": "no_history",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "translation_cm": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "curves": {
+            "PoseGrounded": 0.5
+          },
+          "request_duration": 0.2
+        }
+      ]
+    }
+  ]
+}
