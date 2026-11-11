@@ -238,11 +238,12 @@ impl AlsTurnMontageStack {
             if !entry.sampling_ready {
                 continue;
             }
-            entry.elapsed += delta_seconds * entry.play_rate.max(0.01);
+            let play_rate = entry.play_rate.max(0.01);
+            entry.elapsed += delta_seconds * play_rate;
             entry.blend_in_elapsed += delta_seconds;
             if let Some(blend_out_elapsed) = &mut entry.blend_out_elapsed {
                 *blend_out_elapsed += delta_seconds;
-            } else if entry.elapsed >= entry.duration {
+            } else if delta_seconds > 1e-8 && (entry.duration - entry.elapsed) / play_rate <= 1e-4 {
                 natural_end = true;
                 entry.blend_out_elapsed = Some(TURN_MONTAGE_BLEND_DURATION);
                 entry.blend_out_start_weight = 0.0;
@@ -1619,6 +1620,18 @@ mod tests {
         assert!((stack.entries[0].weight() - 0.5).abs() < 1e-6);
     }
 
+    fn fixture_turn_request(angle: u16, right: bool, crouching: bool) -> SourceTurnRequest {
+        let variant = match (angle, right) {
+            (90, false) => TurnVariant::Left90,
+            (90, true) => TurnVariant::Right90,
+            (180, false) => TurnVariant::Left180,
+            (180, true) => TurnVariant::Right180,
+            _ => panic!("invalid turn angle"),
+        };
+        let yaw = f32::from(angle) * if right { 1.0 } else { -1.0 };
+        SourceTurnRequest { variant, yaw, crouching }
+    }
+
     #[test]
     fn ready_turn_instances_survive_native_zero_delta_and_resume_in_all_variants() {
         #[derive(serde::Deserialize)]
@@ -1647,15 +1660,7 @@ mod tests {
             "../../../../docs/audit/bf144/d175/zero-delta.replay.json"
         )).unwrap();
         for case in fixture.cases {
-            let variant = match (case.angle, case.right) {
-                (90, false) => TurnVariant::Left90,
-                (90, true) => TurnVariant::Right90,
-                (180, false) => TurnVariant::Left180,
-                (180, true) => TurnVariant::Right180,
-                _ => panic!("invalid turn angle"),
-            };
-            let yaw = f32::from(case.angle) * if case.right { 1.0 } else { -1.0 };
-            let request = SourceTurnRequest { variant, yaw, crouching: case.crouching };
+            let request = fixture_turn_request(case.angle, case.right, case.crouching);
             assert_eq!(request.source_sequence(), case.sequence);
             let mut stack = AlsTurnMontageStack::default();
             request.play(&mut stack);
@@ -1670,6 +1675,52 @@ mod tests {
                 assert_eq!(entry.id, id);
                 assert!(entry.playing());
                 assert_eq!((entry.elapsed, entry.weight()), (frame.position, frame.weight), "{}", case.sequence);
+            }
+        }
+    }
+
+    #[test]
+    fn turn_natural_stop_requests_inertia_at_the_native_playback_window() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            sequence: String,
+            crouching: bool,
+            angle: u16,
+            right: bool,
+            samples: Vec<Sample>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Sample {
+            name: String,
+            start: f32,
+            deltas: Vec<f32>,
+            stop_frame: usize,
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d176/stop-window.replay.json"
+        )).unwrap();
+        for case in fixture.cases {
+            let request = fixture_turn_request(case.angle, case.right, case.crouching);
+            assert_eq!(request.source_sequence(), case.sequence);
+            for sample in case.samples {
+                let mut stack = AlsTurnMontageStack::default();
+                request.play(&mut stack);
+                stack.entries[0].sampling_ready = true;
+                stack.entries[0].elapsed = sample.start;
+                let mut drive = AlsTurnDrive::default();
+                for (frame, delta) in sample.deltas.into_iter().enumerate() {
+                    let requested = request_turn_inertialization(stack.advance(delta), &mut drive);
+                    assert_eq!(requested, frame == sample.stop_frame, "{} {} frame {frame}", case.sequence, sample.name);
+                    assert_eq!(stack.entries.is_empty(), frame >= sample.stop_frame);
+                }
+                assert_eq!(drive.inertialization_request_epoch, 1.0);
             }
         }
     }
