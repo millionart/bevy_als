@@ -275,8 +275,16 @@ fn crouching_dynamic_command(index: usize, started: bool, released: bool, base_y
 
 fn standing_dynamic_foot_restored(unlocked: bool, foot: Option<&crate::als::foot_ik::AlsFootLockFootState>, scale: f32) -> bool {
     unlocked && foot.is_some_and(|foot| foot.lock_amount >= 1.0 - 1e-5
-        && foot.target_location.distance_squared(foot.lock_location)
-            <= (crate::als::transitions::DYNAMIC_TRANSITION_FOOT_LOCK_DISTANCE_METERS * scale).powi(2))
+        && dynamic_distance_squared_cm(foot.target_location, foot.lock_location) <= dynamic_threshold_squared_cm(scale))
+}
+
+fn dynamic_distance_squared_cm(target: Vec3, locked: Vec3) -> f64 {
+    let delta = target.as_dvec3() * 100.0 - locked.as_dvec3() * 100.0;
+    delta.x.powi(2) + delta.z.powi(2) + delta.y.powi(2)
+}
+
+fn dynamic_threshold_squared_cm(scale: f32) -> f64 {
+    f64::from((8.0 * scale).powi(2))
 }
 
 fn standing_dynamic_observed<'a>(stack: Option<&'a AlsTransitionMontageStack>, previous: Option<&AlsTransitionPlayback>, kind: AlsTransitionKind, index: f32) -> Option<&'a AlsTransitionPlayback> {
@@ -6838,6 +6846,12 @@ fn graph_global_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
     }
 }
 
+fn graph_dynamic_distance_squared_cm(player: &AnimationGraphPlayer, side: &str) -> Option<f64> {
+    let target = player.get_global_input_data(&format!("feet_state.{side}.target_location"))?.as_vec3().ok()?;
+    let locked = player.get_global_input_data(&format!("feet_state.{side}.lock_location"))?.as_vec3().ok()?;
+    Some(dynamic_distance_squared_cm(target, locked))
+}
+
 const MANTLE_SLOT_NODE: &str = "Slot 'PostLocomotion'\nGroup 'Locomotion'";
 
 fn observe_standing_window(
@@ -8703,9 +8717,9 @@ fn observe_manual_integration(
                 && let Ok(source) = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
                 && source.write_frames.get("dynamic_transitions.queued_sequence") == Some(&arena.frame_index())
             {
-                let distance = ["left", "right"].map(|side| graph_global_f32(player, &format!("feet_state.{side}.lock_distance_squared")).unwrap_or(0.0));
+                let distance = ["left", "right"].map(|side| graph_dynamic_distance_squared_cm(player, side).unwrap_or(0.0));
                 let allowed = ["left", "right"].map(|side| graph_global_f32(player, &format!("feet_state.{side}.lock_amount")).unwrap_or(0.0) > 1e-5);
-                let threshold = (crate::als::transitions::DYNAMIC_TRANSITION_FOOT_LOCK_DISTANCE_METERS * scale).powi(2);
+                let threshold = dynamic_threshold_squared_cm(scale);
                 let allowed = [allowed[0] && distance[0] > threshold, allowed[1] && distance[1] > threshold];
                 let expected = if !allowed[0] || (allowed[1] && distance[1] > distance[0]) { 1.0 } else { 0.0 };
                 let queued = source.values.get("dynamic_transitions.queued_sequence").and_then(|value| value.as_f32().ok())
@@ -8901,7 +8915,7 @@ fn observe_manual_integration(
             "turn_yaw_travel": (state.scenario == IntegrationScenario::StandingTurn).then_some(state.turn_probe.yaw_travel),
             "leg_joints": foot_ik_data.get(character).ok().map(|(_, _, apply, _)| [(apply.left.hip_world.to_array(), apply.left.knee_world.to_array(), apply.left.ankle_world.to_array()), (apply.right.hip_world.to_array(), apply.right.knee_world.to_array(), apply.right.ankle_world.to_array())]),
             "foot_locks": foot_lock.map(|feet| (feet.left.lock_amount,feet.left.lock_location.to_array(),feet.right.lock_amount,feet.right.lock_location.to_array())),
-            "dynamic_inputs": (["left", "right"].map(|side| (graph_global_f32(player, &format!("feet_state.{side}.lock_amount")), graph_global_f32(player, &format!("feet_state.{side}.lock_distance_squared"))))),
+            "dynamic_inputs": (["left", "right"].map(|side| (graph_global_f32(player, &format!("feet_state.{side}.lock_amount")), graph_dynamic_distance_squared_cm(player, side).map(|distance| distance * 0.0001)))),
             "dynamic_probe": (state.phase == IntegrationPhase::StandingDynamic).then_some((state.stop_branch_seen, state.dynamic_selection_valid, state.dynamic_unlocked)),
             "dynamic_instance": (state.phase == IntegrationPhase::StandingDynamic).then(|| state.stop_playback.map(|playback|
                 (playback.instance_id, playback.clip_time, transition_stack.is_some_and(|stack| stack.entries.iter().any(|entry| entry.instance_id == playback.instance_id))))),

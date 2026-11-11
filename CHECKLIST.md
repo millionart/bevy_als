@@ -6859,7 +6859,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.279骨盆V2 writer补充：88个source公开Result/Velocity/Simulated与双权重float writer、target完整参数及双侧连续轨迹精确；内部opaque state按构造/赋值恢复，未冒称直接native读取。共同输入−25cm/−0.25m、前态0且valid、前后权重1的原生Rig给出writer−1.6625938415527344cm；当前米制writer−0.016625940799713135m与native投影−0.016625938937067986m不等，并直接进入两脚下限Target。只用预测厘米writer投影固定其他actual参数，两脚Target恢复；去因素丢恢复，去前/后权重各被真实输入/输出合同拒绝，字节恢复/同target重编后全结果恢复。限定实际2Hz/临界阻尼、原88时钟/输入；trace来源与全Rig反馈继续开。证据`target/bf144/279/factors-check.json`、`current-contract.json`、`controls-check.json`与`summary.json`，仅登记未修生产。
 
   - BF144.291完整Rig余项：原450个current F32差中，已闭六腿骨430行外的20行均为pelvis平移。源pelvis最终local88全TQS独立native double精确；目标只换为已证source writer的物理米值，保留当前Getter/Setter/数学，88 pelvis F32全恢复，确认该20行沿既有单位状态舍入路径，不新增编号。完整source模型6952 local TQS/88曲线包精确，不代表当前target450差已修或原AnimBP反馈等价；见`target/bf144/291/inventory.json`、`factors-check.json`与`summary.json`。
-- [ ] BF144-D166 / P3 — 动态过渡的锁定距离精度与单位舍入改变资格或左右脚选择。
+- [x] BF144-D166 / P3 — 动态过渡的锁定距离精度与单位舍入改变资格或左右脚选择。
+  - 2026-11-12 03:41 +0800 实际结束，较04:12预估提前31分钟，未拆分。重采实际AIS设置和14个原生距离，7组源重放通过，旧米制float在两站姿的排序和30°阈值共3组失败。已统一图回调、独立状态与Playground判据，Cargo/真实Playground待统一验证。证据 `docs/audit/bf144/d166/`。
+  - 本轮开始2026-11-12 03:34 +08:00，预估结束2026-11-12 04:12 +08:00。核实实际8cm设置、两站姿选脚及阈值两侧，沿已证Standing Idle回调和独立状态消费者保留同一判断。
   - Source：fresh `AlsAnimationInstance.cpp:1716–1756`以double厘米世界坐标计算两脚锁定距离平方，和float厘米阈值平方比较；同时合格时取距离较大脚，严格相等才取左。实际配置为8cm，Standing/Crouching的Idle均调用此函数。
   - Target：`ab_als_provider.rs:375–378`把米制`Vec3::distance_squared`作为F32发布，`source_native_refresh.rs:361–378`比较float米制阈值并选择左右。距离平方的低位被舍入后，不等距离可变成相等；单位换算与float平方也使8cm附近的资格不同。
   - 反例：共同有效输入左距平方100.00000298023227cm²、右距平方100.00000299023226cm²，源选择右，目标两值均变为0.010000001m²而选择左。另一个30°方向输入源距平方63.99999962647951cm²未超过64，目标却触发。两种站姿实际Idle图和队列消费者均复现，84组控制/恢复中6处原始失败；只恢复距离资格和排序的标量输入后42组恢复全部通过，四资源、blend 0.2、rate 1.5、start 0字段一致。

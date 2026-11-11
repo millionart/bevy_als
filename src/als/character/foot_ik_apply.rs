@@ -2048,8 +2048,10 @@ mod tests {
             assert!(!app.world().get::<AlsControlRigInput>(actor).unwrap().foot_transforms_valid);
             let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
             assert!(player.get_global_input_data("animation.pending_update").unwrap().as_bool().unwrap());
-            let distance = player.get_global_input_data("feet_state.left.lock_distance_squared").unwrap().as_f32().unwrap();
-            assert!((distance - shift * shift).abs() < 1e-4, "Pending foot distance at shift {shift}: {distance}");
+            let target_location = player.get_global_input_data("feet_state.left.target_location").unwrap().as_vec3().unwrap();
+            let lock_location = player.get_global_input_data("feet_state.left.lock_location").unwrap().as_vec3().unwrap();
+            let distance = crate::als::transitions::foot_lock_distance_squared_cm(target_location, lock_location) * 0.0001;
+            assert!((distance - f64::from(shift).powi(2)).abs() < 1e-4, "Pending foot distance at shift {shift}: {distance}");
             let arena = player.get_context_arena().unwrap();
             let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
             assert_eq!(state.write_frames.get(updated), Some(&arena.frame_index()));

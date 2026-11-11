@@ -354,7 +354,7 @@ impl AlsSourceRefreshNode {
                 use crate::als::{
                     state::Stance,
                     transitions::{
-                        TransitionConfig, TransitionSequence, select_dynamic_transition,
+                        TransitionConfig, TransitionSequence, foot_lock_distance_squared_cm, select_dynamic_transition,
                     },
                 };
                 let delay = scalar("dynamic_transitions_state.frame_delay", 0.0)?;
@@ -362,16 +362,17 @@ impl AlsSourceRefreshNode {
                     set_source_property(ctx, "dynamic_transitions_state.frame_delay", delay - 1.0)?;
                 } else if boolean("transitions_state.b_transitions_allowed", false)? {
                     let config = TransitionConfig::default();
-                    let threshold = (config.dynamic_foot_lock_distance
-                        * scalar("locomotion_state.scale_world_space", 1.0)?)
-                    .powi(2);
-                    let left = scalar("feet_state.left.lock_distance_squared", 0.0)?;
-                    let right = scalar("feet_state.right.lock_distance_squared", 0.0)?;
+                    let vector = |key| source_input_data(ctx, key).map_or(Ok(Vec3::ZERO), |value| value.as_vec3());
+                    let left = foot_lock_distance_squared_cm(
+                        vector("feet_state.left.target_location")?, vector("feet_state.left.lock_location")?,
+                    );
+                    let right = foot_lock_distance_squared_cm(
+                        vector("feet_state.right.target_location")?, vector("feet_state.right.lock_location")?,
+                    );
                     let selection = select_dynamic_transition(
-                        left,
-                        right,
-                        scalar("feet_state.left.lock_amount", 0.0)? > 1e-5 && left > threshold,
-                        scalar("feet_state.right.lock_amount", 0.0)? > 1e-5 && right > threshold,
+                        [left, right],
+                        [scalar("feet_state.left.lock_amount", 0.0)?, scalar("feet_state.right.lock_amount", 0.0)?],
+                        scalar("locomotion_state.scale_world_space", 1.0)?,
                         if boolean("stance.crouching", false)? {
                             Stance::Crouching
                         } else {
@@ -802,12 +803,12 @@ mod tests {
                         DataValue::F32(1.0),
                     ),
                     (
-                        "feet_state.left.lock_distance_squared".to_owned(),
-                        DataValue::F32(0.01),
+                        "feet_state.left.target_location".to_owned(),
+                        DataValue::Vec3(Vec3::X * 0.1),
                     ),
                     (
-                        "feet_state.right.lock_distance_squared".to_owned(),
-                        DataValue::F32(if frame == 5 { 0.04 } else { 0.01 }),
+                        "feet_state.right.target_location".to_owned(),
+                        DataValue::Vec3(Vec3::new(0.1, 0.0, if frame == 5 { 1e-6 } else { 0.0 })),
                     ),
                 ]);
                 graph

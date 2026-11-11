@@ -374,10 +374,12 @@ fn ab_als_input_writer(
                     foot.map_or(0.0, |foot| foot.lock_amount),
                 );
                 player.set_global_input_data(
-                    format!("feet_state.{side}.lock_distance_squared"),
-                    foot.map_or(0.0, |foot| {
-                        foot.target_location.distance_squared(foot.lock_location)
-                    }),
+                    format!("feet_state.{side}.target_location"),
+                    foot.map_or(Vec3::ZERO, |foot| foot.target_location),
+                );
+                player.set_global_input_data(
+                    format!("feet_state.{side}.lock_location"),
+                    foot.map_or(Vec3::ZERO, |foot| foot.lock_location),
                 );
             }
             let has_relative_location = movement_base.and_then(|base| base.entity).is_some_and(|entity| {

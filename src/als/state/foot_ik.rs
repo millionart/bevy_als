@@ -7,7 +7,9 @@ use bevy::animation::AnimationTargetId;
 
 use crate::als::character::AlsCharacter;
 use crate::als::state::{LocomotionState, Stance};
-use crate::als::transitions::{TransitionConfig, TransitionSelection, select_dynamic_transition};
+use crate::als::transitions::{
+    TransitionConfig, TransitionSelection, foot_lock_distance_squared_cm, select_dynamic_transition,
+};
 use crate::extensions::control_rig_hierarchy::rig_normalize;
 
 pub const FOOT_BONE_NAMES: [&str; 10] = [
@@ -811,17 +813,13 @@ impl AlsDynamicTransitionState {
             self.selection = None;
             return None;
         }
-        let threshold_squared =
-            (config.dynamic_foot_lock_distance * scale_world_space.max(f32::EPSILON)).powi(2);
-        let left_allowed = is_relevant_animation_weight(foot_lock.left.lock_amount)
-            && self.left_distance_squared > threshold_squared;
-        let right_allowed = is_relevant_animation_weight(foot_lock.right.lock_amount)
-            && self.right_distance_squared > threshold_squared;
+        let distances = [&foot_lock.left, &foot_lock.right].map(|foot| {
+            foot_lock_distance_squared_cm(foot.target_location, foot.lock_location)
+        });
         let selection = select_dynamic_transition(
-            self.left_distance_squared,
-            self.right_distance_squared,
-            left_allowed,
-            right_allowed,
+            distances,
+            [foot_lock.left.lock_amount, foot_lock.right.lock_amount],
+            scale_world_space,
             stance,
             config,
         );

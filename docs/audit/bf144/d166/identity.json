@@ -1,0 +1,50 @@
+[
+  {
+    "path": "docs/audit/bf144/d166/distance.native.json.gz",
+    "sha256": "0514beb59595af5ae9c74cd88665ba8591820dee4ca1769c5c0c8455bcbcbdee"
+  },
+  {
+    "path": "docs/audit/bf144/d166/distance.native.json.reader.report.json",
+    "sha256": "d62396c7d3d4bac254134cb6afe48eef65df67c0a4d9ab1b33b3b1d6c918bdd9"
+  },
+  {
+    "path": "docs/audit/bf144/d166/distance.native.sha256",
+    "sha256": "a1b0a7e1b03dbc331cd653cd721fd1f811cc5366e44d0572a2cfcc34650912db"
+  },
+  {
+    "path": "docs/audit/bf144/d166/distance.replay.json",
+    "sha256": "ecbae7fe367a47ec02bfd66972b9a7f2dfdca46271d968311b7c9260dacbcca0"
+  },
+  {
+    "path": "docs/audit/bf144/d166/distance.request.json",
+    "sha256": "a3f435d3ffaf2a65def13424f04988609e848506231e3b96a9ff97d12b212551"
+  },
+  {
+    "path": "docs/audit/bf144/d166/replay_distances.py",
+    "sha256": "aa94657806a79e29902c5ebe957708b6496252f948ba20a39986d035df2dfdf4"
+  },
+  {
+    "path": "src/als/character/animation_instances/ab_als_provider.rs",
+    "sha256": "0ff7e31cc66643f876eb9ba90018947908e122c119b5225a2387b6f8c14ec2a7"
+  },
+  {
+    "path": "src/als/character/animation_instances/source_native_refresh.rs",
+    "sha256": "e64bd6422353a2f101e6c2670999b862f1d1934ad12a9f20a3e91683439a0dbe"
+  },
+  {
+    "path": "src/als/character/foot_ik_apply.rs",
+    "sha256": "932d473c431015ebd084979244686481716e3a5e85d0fd1fbd2b4555023d4a70"
+  },
+  {
+    "path": "src/als/state/foot_ik.rs",
+    "sha256": "bab84b77c1e1e233e509ae1ef20b754b76ce655ed0a0aa6c9f48fe7942e6f1a0"
+  },
+  {
+    "path": "src/als/state/transitions.rs",
+    "sha256": "68c34af04674f2365fa8148894e44a56e8fc4decc4904795cfcb6d265e911988"
+  },
+  {
+    "path": "tools/manual_playground_integration/mod.rs",
+    "sha256": "903dbb85b026db1558e9b447606dc524c58bec12a530190a3650e22861500c8f"
+  }
+]
