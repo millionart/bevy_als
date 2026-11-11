@@ -208,7 +208,13 @@ pub(crate) fn refresh_current_foot_bones(
 }
 
 fn rig_scalar(value: &RigValue) -> Option<f32> {
-    let value = match value { RigValue::F32(value) => *value, RigValue::F64(value) => *value as f32, _ => return None };
+    let value = match value {
+        RigValue::F32(value) => *value,
+        RigValue::F64(value) => *value as f32,
+        RigValue::Centimeters(value) => (f64::from(*value) * 0.01) as f32,
+        RigValue::Centimeters64(value) => (*value * 0.01) as f32,
+        _ => return None,
+    };
     value.is_finite().then_some(value)
 }
 

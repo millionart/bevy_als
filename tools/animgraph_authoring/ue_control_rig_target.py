@@ -148,12 +148,12 @@ class Value:
         return {"FVector": ["X", "Z", "Y"], "FQuat": ["X", "Z", "Y", "W"],
             "FRotator": ["Roll", "Yaw", "Pitch"]}.get(self.kind, list(self.children))
 
-    def render(self):
+    def render(self, vector_component=False):
         if self.kind in {"float", "double"}:
             if self.factor is None:
                 raise ControlRigContractError("target numeric units are unresolved: " + self.label)
-            if self.kind == "float" and math.isclose(self.factor, LENGTH, rel_tol=1e-12):
-                return {"Centimeters": self.data}
+            if not vector_component and math.isclose(self.factor, LENGTH, rel_tol=1e-12):
+                return {"Centimeters" if self.kind == "float" else "Centimeters64": self.data}
             value = self.data * self.factor
             return {"F32" if self.kind == "float" else "F64": f32(value) if self.kind == "float" else value}
         if self.kind == "bool":
@@ -162,7 +162,7 @@ class Value:
             return {"I32": self.data}
         if self.kind == "FName" or self.kind in ENUMS:
             return {"Name": self.data}
-        values = [self.children[name].render() for name in self.field_order()]
+        values = [self.children[name].render(self.kind == "FVector") for name in self.field_order()]
         variant = {"FVector": "Vector", "FQuat": "Quaternion", "FRotator": "EulerDegrees"}.get(self.kind, "List")
         return {variant: values if variant == "List" else [next(iter(value.values())) for value in values]}
 

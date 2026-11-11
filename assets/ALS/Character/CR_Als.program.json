@@ -79,10 +79,10 @@
         "Bool": false
       },
       {
-        "F64": -0.3
+        "Centimeters64": -30.0
       },
       {
-        "F64": 0.4
+        "Centimeters64": 40.0
       },
       {
         "F32": 2.0
@@ -153,10 +153,10 @@
         "Name": "PoseMoving"
       },
       {
-        "F64": 0.2
+        "Centimeters64": 20.0
       },
       {
-        "F64": 0.5
+        "Centimeters64": 50.0
       },
       {
         "List": [
@@ -427,10 +427,10 @@
         "Name": "PoseMoving"
       },
       {
-        "F64": 0.2
+        "Centimeters64": 20.0
       },
       {
-        "F64": 0.5
+        "Centimeters64": 50.0
       },
       {
         "List": [
@@ -1293,7 +1293,7 @@
         ]
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "Vector": [
@@ -1352,7 +1352,7 @@
         ]
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "Centimeters": 0.0
@@ -1364,16 +1364,16 @@
         "Centimeters": 0.0
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "F64": 1.0
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "Centimeters": 0.0
@@ -1409,13 +1409,13 @@
         ]
       },
       {
-        "F64": 0.01
+        "Centimeters64": 1.0
       },
       {
         "F64": 1.0
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "List": [
@@ -1475,13 +1475,13 @@
         ]
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "List": [
@@ -1604,7 +1604,7 @@
         "F64": 0.0
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "Centimeters": 50.0
@@ -2167,7 +2167,7 @@
         "F64": 0.0
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "Centimeters": 50.0
@@ -3325,20 +3325,10 @@
         ]
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
-        "F64": 0.0
-      },
-      {
-        "List": [
-          {
-            "Name": "None"
-          },
-          {
-            "Name": ""
-          }
-        ]
+        "Centimeters64": 0.0
       },
       {
         "List": [
@@ -3351,7 +3341,17 @@
         ]
       },
       {
-        "F64": 0.0
+        "List": [
+          {
+            "Name": "None"
+          },
+          {
+            "Name": ""
+          }
+        ]
+      },
+      {
+        "Centimeters64": 0.0
       },
       {
         "Vector": [
@@ -3361,7 +3361,7 @@
         ]
       },
       {
-        "F64": 0.0
+        "Centimeters64": 0.0
       },
       {
         "Vector": [

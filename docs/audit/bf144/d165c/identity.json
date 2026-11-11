@@ -1,0 +1,70 @@
+[
+  {
+    "path": "assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+    "sha256": "1312976937ce62f5d896d6777cde2d4a9d20be652da9764e7d85c8ed35178289"
+  },
+  {
+    "path": "assets/ALS/Character/CR_Als.program.json",
+    "sha256": "0975a1d306bce47f5c3db95aaefd2e9498bb31285fd6bde2d89510439a2ce260"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/converter.self-test.json",
+    "sha256": "5db62dd707ede8e3f1b6f3b0afb142e8d3cdfaa8f88b9bf3dfde2712a6520086"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/corpus-diff.json",
+    "sha256": "105d4aa2a7c2bbcd85fa97ab66ec9cbf545d0122644b0280e1599b54172c66f3"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/corpus-progress.json",
+    "sha256": "0a3cd8eb7f623269e27fe68e6bdd2a0b1aaeb7dce6cb69d23c8d3e24bc30f566"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/full_diff.patch",
+    "sha256": "536c01c31a02c08cda34a860a07f179369d6111966726137b554c0a9d09f71b7"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/pelvis-history.native.json.gz",
+    "sha256": "89d4ddf92d2287458d21695e8f70cf6f11e9969f4b16228f256d72efd47ec1a5"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/pelvis-history.native.json.reader.report.json",
+    "sha256": "dc2b3f0223c49c4f31225a966305dfc623072ae5f52588e1b3f2cf362172d3b0"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/pelvis-history.native.sha256",
+    "sha256": "a291779c9bb406fe81825f73d05deaf31ac0d70d1475b49bb37a86f10e522dd9"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/pelvis-history.replay.json",
+    "sha256": "107cfd5eb7b84e2b4f8ffbde655cfcc3d0a6054087f580132b4277e43c9cfa05"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/pelvis-history.request.json",
+    "sha256": "8bde19b20a5e2e095dfbdf9dbd484d3a4f6ed65b2b3d97b28c55a6829cbc0a96"
+  },
+  {
+    "path": "docs/audit/bf144/d165c/replay_pelvis_history.py",
+    "sha256": "545b128f64f24359a100b2d7c07cac2a69801aede71a1271737ab11a816a7886"
+  },
+  {
+    "path": "src/als/character/foot_ik_apply.rs",
+    "sha256": "fa0989f162c8f4bd9ed7b1afaea1ab6c4bbd1751fc49fb4300d5209a87d8b3a5"
+  },
+  {
+    "path": "src/control_rig/control_rig_math.rs",
+    "sha256": "3c62e5993da8c3a55b347e1c469bb91e86c2aa5b4c79c358a8b8514efb1ad69e"
+  },
+  {
+    "path": "src/control_rig/control_rig_program.rs",
+    "sha256": "2959afc3680915276679cd376f36120030b962261ec6b5b61c59f7d77a8f1f06"
+  },
+  {
+    "path": "tools/animgraph_authoring/test_ue_control_rig_target.py",
+    "sha256": "f0dc4d6cf86bb14adb4a3fbff4831eafc489c4d0a8140fdb7ab91a24a9696b98"
+  },
+  {
+    "path": "tools/animgraph_authoring/ue_control_rig_target.py",
+    "sha256": "d7e5ae40dbe2670a28646f1bce9215f57f645c14c41bbb5c899da7d1e8b69ea3"
+  }
+]

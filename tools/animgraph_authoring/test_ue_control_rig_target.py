@@ -39,6 +39,12 @@ def validate(contract, result):
     spring = program["instructions"][54]["Call"]
     for index in (0, 3, 5, 8, 9, 10):
         assert read(result, spring["arguments"][index]) == {"Centimeters": 0.0}
+    for pc, default_length in ((52, 0.0), (57, 1.0)):
+        weight = program["instructions"][pc]["Math"]
+        assert read(result, weight["inputs"][0]) == {"Centimeters64": default_length}
+        assert read(result, weight["inputs"][1]) == {"F64": 1.0}
+        assert read(result, weight["output"]) == {"Centimeters64": 0.0}
+    assert read(result, program["instructions"][50]["Math"]["inputs"][1]) == {"Centimeters64": -30.0}
     for pc in (83, 113):
         location = program["instructions"][pc]["Call"]
         for index, centimeters in ((3, 0.0), (4, 0.0), (5, 0.0), (6, 50.0), (15, 0.0)):

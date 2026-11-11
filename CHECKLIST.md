@@ -6833,7 +6833,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
     - 2026-11-12 03:15 +0800 实际结束，较03:55预估提前40分钟。22次原生调用重采、636次位置回放、582次旧米制状态失配与完整资产diff见 `docs/audit/bf144/d165b/`。15安装根和递归依赖共374产物，只有AB_Als的Rig定义变化，已同步独立程序。Cargo/Playground后置，D165c验证骨盆writer。
     - 本轮开始2026-11-12 02:55 +08:00，预估结束2026-11-12 03:55 +08:00。fresh核CR_Als数据流及旧F32资产入口，标记Rig长度寄存器后全量转换并核对产物。D165c独立重采骨盆writer及两脚消费。
     - 03:09 活动摘要：CR_Als的165条指令通过类型与绑定检查，重采22次足位置调用并与封存原始读数逐值核对。636次位置输入的厘米上限与投影通过，旧米制状态消融582次失配。主AnimBP转换已完成，等待全安装语料的完整diff，Cargo及Playground后置。
-  - [ ] BF144-D165c / P3 — 保留骨盆SpringInterpV2、权重writer及传入两脚下限的源厘米float运算。
+  - [x] BF144-D165c / P3 — 保留骨盆SpringInterpV2、权重writer及传入两脚下限的源厘米float运算。
+    - 2026-11-12 03:33 +0800 实际结束，较04:12预估提前39分钟。原生36帧、66次两脚消费与0.75权重舍入反例见 `docs/audit/bf144/d165c/`。22个double长度标量保留源厘米至米制写回；重转15根和递归依赖，374产物仅主蓝图Rig定义变化。完整Rig fixture已加入，Cargo/Playground待统一验证。
+    - 本轮开始2026-11-12 03:15 +08:00，预估结束2026-11-12 04:12 +08:00。沿已证的原生SpringInterpV2、两次权重和两脚下限重采；同输入隔离米制double中转在float舍入平局的影响，必要时随量纲全量重转。
+    - 03:24 活动摘要：重采三条连续历史共36帧，66次两脚下限逐值对照。0.75权重在三帧证实米制double中转跨一个float步长，省略任一权重同样失败。已保留源double长度直至向量写回，转换器及绑定自测通过，全量转换进行中。
   - BF144.477当前实际1272腿调用骨长消费者：在476已资格before/current/initial和完整ABI上，2660源骨长native计算及1324满权重源solver的A/B旋转、B/C位置精确；2零权重提前返回、6 partial只核长度，均明示。固定同一current初始端点/当前A缩放与其余public参数，native同米自动长度与公开Rust重算/显式单位调用1272完整姿态精确；仅切换厘米float长度投米使512标量/452次完整姿态（452含F32骨字段）改变，native double厘米投米后才cast的控制0变化。故该消费者属D165，未将source初始缓存D242或solver数学混入同因，也未宣称452是source完整恢复。物理删厘米float阶段丢全部452信号、原公共1272仍过而因素Gate101拒；源码bytes同target六库复编完整输出byte恢复。证据docs/audit/bf144/477/comparison.json、difference-table.json及原始压缩native/恢复；生产未修。
 
   - Source：fresh `RigUnit_TwoBoneIKSimple.cpp:161–189`以double厘米参考骨段乘当前/初始缩放，再把长度写入float；位置核随后按double消费该float厘米长度。四个实际调用的显式长度均为0，都会进入自动计算。

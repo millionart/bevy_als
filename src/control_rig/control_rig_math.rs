@@ -162,6 +162,7 @@ pub enum RigValue {
     F32(f32),
     Centimeters(f32),
     F64(f64),
+    Centimeters64(f64),
     Vector(DVec3),
     EulerDegrees(DVec3),
     Quaternion(DQuat),
@@ -197,15 +198,22 @@ impl RigMathOp {
             (Self::F32Min, [Centimeters(a), Centimeters(b)]) => Centimeters(if a < b { *a } else { *b }),
             (Self::F32Clamp01, [F32(value)]) => F32(rig_clamp01(*value)),
             (Self::F64Add, [F64(a), F64(b)]) => F64(a + b),
+            (Self::F64Add, [Centimeters64(a), Centimeters64(b)]) => Centimeters64(a + b),
             (Self::F64Sub, [F64(a), F64(b)]) => F64(a - b),
+            (Self::F64Sub, [Centimeters64(a), Centimeters64(b)]) => Centimeters64(a - b),
             (Self::F64Mul, [F64(a), F64(b)]) => F64(a * b),
+            (Self::F64Mul, [Centimeters64(a), F64(b)] | [F64(a), Centimeters64(b)]) => Centimeters64(a * b),
             (Self::F64Abs, [F64(value)]) => F64(value.abs()),
+            (Self::F64Abs, [Centimeters64(value)]) => Centimeters64(value.abs()),
             (Self::F64Clamp, [F64(value), F64(minimum), F64(maximum)]) => {
-                let upper = if value < maximum { *value } else { *maximum };
-                F64(if *minimum < upper { upper } else { *minimum })
+                F64(rig_clamp_f64(*value, *minimum, *maximum))
+            }
+            (Self::F64Clamp, [Centimeters64(value), Centimeters64(minimum), Centimeters64(maximum)]) => {
+                Centimeters64(rig_clamp_f64(*value, *minimum, *maximum))
             }
             (Self::F64Lerp, [F64(a), F64(b), F64(t)]) => F64(a + t * (b - a)),
-            (Self::F64GreaterEqual, [F64(a), F64(b)]) => Bool(a >= b),
+            (Self::F64Lerp, [Centimeters64(a), Centimeters64(b), F64(t)]) => Centimeters64(a + t * (b - a)),
+            (Self::F64GreaterEqual, [F64(a), F64(b)] | [Centimeters64(a), Centimeters64(b)]) => Bool(a >= b),
             (Self::VectorAdd, [Vector(a), Vector(b)]) => Vector(*a + *b),
             (Self::VectorScale, [Vector(value), F32(factor)]) => Vector(*value * *factor as f64),
             (Self::VectorScale, [Vector(value), Centimeters(factor)]) => {
@@ -221,6 +229,11 @@ impl RigMathOp {
             }
         })
     }
+}
+
+fn rig_clamp_f64(value: f64, minimum: f64, maximum: f64) -> f64 {
+    let upper = if value < maximum { value } else { maximum };
+    if minimum < upper { upper } else { minimum }
 }
 
 #[cfg(test)]
@@ -374,6 +387,13 @@ mod tests {
             (F64Sub, vec![F64(2.0), F64(3.0)], F64(-1.0)),
             (F64Mul, vec![F64(-0.5), F64(3.0)], F64(-1.5)),
             (F64Abs, vec![F64(-1.5)], F64(1.5)),
+            (F64Add, vec![Centimeters64(95.0), Centimeters64(-0.25)], Centimeters64(94.75)),
+            (F64Sub, vec![Centimeters64(10.0), Centimeters64(15.0)], Centimeters64(-5.0)),
+            (F64Mul, vec![Centimeters64(-12.000143051147461), F64(0.75)], Centimeters64(-9.000107288360596)),
+            (F64Abs, vec![Centimeters64(-1.5)], Centimeters64(1.5)),
+            (F64Clamp, vec![Centimeters64(-45.0), Centimeters64(-30.0), Centimeters64(40.0)], Centimeters64(-30.0)),
+            (F64Lerp, vec![Centimeters64(20.0), Centimeters64(50.0), F64(0.5)], Centimeters64(35.0)),
+            (F64GreaterEqual, vec![Centimeters64(2.0), Centimeters64(2.0)], Bool(true)),
             (F64Clamp, vec![F64(0.2), F64(0.3), F64(0.6)], F64(0.3)),
             (F64Clamp, vec![F64(0.9), F64(0.3), F64(0.6)], F64(0.6)),
             (F64Clamp, vec![F64(0.4), F64(0.6), F64(0.3)], F64(0.6)),
