@@ -6734,7 +6734,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色在source明确判为无效的identity pelvis条件下起跳，FeetState原值−0.8、最新曲线+0.8时，实际Jump选择Right Foot而源应Left Foot；反号同样选错。仅发布保留字段即恢复两种选择，有效Feet四个控制通过，共8组6PASS/2FAIL，均在第一帧实际Jump FSM记录权重。
   - 漏检：旧曲线provider测试只验证钳制值，未加入Feet有效性和实际Entry选择；原pending首帧不执行Jump脚选择的尝试属于前置不满足，未计缺陷。证据`71/guard_checked/`、`bf144_animation_phase71_invalid_feet_jump_consumer`；仅登记，未改图或provider。
 
-- [ ] BF144-D158 / P3 — pending帧跳过足目标采集，动态过渡消费旧锁定距离。
+- [x] BF144-D158 / P3 — pending帧跳过足目标采集，动态过渡消费旧锁定距离。
+  - 2026-11-12 01:22 +0800 实际结束早于01:54预估，未拆分。fresh pending GameThread采样、原生Idle OnUpdate和8cm门槛见 `docs/audit/bf144/d158/`。pending且本帧更新图时采集左右足目标，保留旧锁点并维持Rig无效。六组静态重放中旧提前返回漏掉20cm pending的StandingLeft。旧71运行证据未随当前Git保留，真实Idle队列帧反例、Rust消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 01:19 +08:00，预估结束2026-11-12 01:54 +08:00。沿pending恢复时的脚目标快照、保留锁点与Standing Idle真实动态过渡回调闭环。
   - Source：fresh `RefreshFeetOnGameThread:1251–1294`在pending时只使Feet无效，随后仍读取当前两个足目标；`RefreshFeet`跳过锁定计算，已有世界锁定点保留。`RefreshDynamicTransitions:1694–1736`不要求Feet有效，继续以当前TargetWorld与旧LockWorld的距离判定；原生Standing Idle的On Update调用该方法。
   - Target：`foot_ik_apply.rs:559–567`在pending时直接continue，足目标保持旧帧；`ab_als_provider.rs:375–378`据此生成锁定距离，`source_native_refresh.rs:361–389`实际消费并排队过渡。
   - 反例：完整角色实际Idle，左脚LockAmount=1、右脚0，pending帧组件移动20cm且未超过瞬移阈值；source距离平方0.04m²超过0.0064m²，target发布0、当帧不排队。只恢复该距离字段，真实回调写入StandingLeft序列；零位移与非pending控制通过，共6组5PASS/1FAIL。

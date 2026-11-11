@@ -611,18 +611,19 @@ fn refresh_foot_lock_inputs(
         mut lifecycle, mut lock_state,
         mut dynamic_transition, mut rig_input, custom_dilation) in &mut characters {
         let dt = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);
-        if instances.get(assembly.avatar).ok().and_then(|instance| update_gates.get(instance.player_entity()).ok())
-            .is_some_and(|gate| gate.pending_update) {
+        let instance = instances.get(assembly.avatar).ok();
+        let gate = instance.and_then(|instance| update_gates.get(instance.player_entity()).ok());
+        let pending = gate.is_some_and(|gate| gate.pending_update);
+        if pending {
             lock_state.valid = false;
             lock_state.became_valid = false;
             if let Some(input) = rig_input.as_mut() { input.foot_transforms_valid = false; }
-            continue;
+            if gate.is_some_and(|gate| !gate.update_graph) { continue; }
         }
         let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
-        let player = instances.get(assembly.avatar).ok()
-            .and_then(|instance| players.get(instance.player_entity()).ok());
+        let player = instance.and_then(|instance| players.get(instance.player_entity()).ok());
         let current_character_transform = armature.compute_transform();
-        if !lock_state.valid
+        if !pending && !lock_state.valid
             && let Ok(pelvis_parent) = parents.get(bones.left_thigh)
             && let Ok(pelvis_world) = transforms.compute_global_transform(pelvis_parent.parent())
         {
@@ -636,12 +637,30 @@ fn refresh_foot_lock_inputs(
             }
         }
         let use_ik_bones = selection.map_or(true, |selection| selection.use_ik_bones);
-        if !foot_bones_are_valid(bones, use_ik_bones, assembly.avatar, &bone_globals) {
+        if !pending && !foot_bones_are_valid(bones, use_ik_bones, assembly.avatar, &bone_globals) {
             if let Some(input) = rig_input.as_mut() { input.foot_transforms_valid = false; }
             *lock_state = AlsFootLockState::default();
             *dynamic_transition = default();
             lifecycle.previous_character_transform = Some(current_character_transform);
             lifecycle.teleported_at = 0.0;
+            continue;
+        }
+        let targets = [0, 1].map(|side| {
+            let entity = bones.target(side, use_ik_bones).unwrap_or(assembly.avatar);
+            let target = transforms.compute_global_transform(entity).ok()?;
+            let rotation = positive_scale_foot_rotation(
+                entity, assembly.avatar, &armature, &parents, &local_transforms, player,
+            ).unwrap_or_else(|| target.rotation().as_dquat());
+            Some((target.translation(), rotation))
+        });
+        if pending {
+            let state = &mut *lock_state;
+            for (foot, target) in [&mut state.left, &mut state.right].into_iter().zip(targets) {
+                if let Some((location, rotation)) = target {
+                    foot.target_location = location;
+                    foot.target_rotation = rotation;
+                }
+            }
             continue;
         }
         let left_ik_amount = lock_input.left_ik_amount.clamp(0.0, 1.0);
@@ -680,22 +699,16 @@ fn refresh_foot_lock_inputs(
                 }
             }
         }
-        for side in 0..2usize {
-            let target_entity = bones.target(side, use_ik_bones).unwrap_or(assembly.avatar);
-            let Ok(target) = transforms.compute_global_transform(target_entity) else {
-                continue;
-            };
-            let target_rotation = positive_scale_foot_rotation(
-                target_entity, assembly.avatar, &armature, &parents, &local_transforms, player,
-            ).unwrap_or_else(|| target.rotation().as_dquat());
+        for (side, target) in targets.into_iter().enumerate() {
+            let Some((location, rotation)) = target else { continue; };
             let (foot_state, ik_amount, lock_amount) = match side {
                 0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),
                 _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),
             };
             refresh_foot_lock(
                 foot_state,
-                target.translation(),
-                target_rotation,
+                location,
+                rotation,
                 armature.rotation(),
                 ik_amount,
                 lock_amount,
@@ -1979,6 +1992,63 @@ mod tests {
         assert_eq!(outputs[0].1, outputs[1].1,
             "Source pending Feet validity must gate the actual first-resume foot solve calls identically to the source-required false input: outputs={outputs:?}");
         assert!(!outputs[0].0, "Source pending NativeUpdate invalidates Feet before the first resumed ControlRig evaluation");
+    }
+
+    #[test]
+    fn pending_feet_publish_current_target_distance_to_standing_idle() {
+        use crate::animation_context_projection::AlsRootAnimationContext;
+        use crate::extensions::post_physics_animation::AnimationPoseUpdateGate;
+        use crate::extensions::source_instance::SourceInstanceProperties;
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        let entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let updated = "dynamic_transitions_state.b_updated_this_frame";
+        let queued = "dynamic_transitions.queued_sequence";
+        let delay = "dynamic_transitions_state.frame_delay";
+        let mut idle = false;
+        for _ in 0..90 {
+            app.update();
+            let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+            let arena = player.get_context_arena().unwrap();
+            let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+            idle = state.write_frames.get(updated) == Some(&arena.frame_index())
+                && state.values.get(delay).and_then(|value| value.as_f32().ok()).unwrap_or(0.0) == 0.0;
+            if idle { break; }
+        }
+        assert!(idle, "Standing Idle did not reach an available dynamic transition callback");
+        let target = app.world().get::<AlsFootBones>(actor).unwrap().target(0, true).unwrap();
+        for shift in [0.0_f32, 0.2] {
+            let anchor = app.world_mut().run_system_once(move |transforms: TransformHelper| {
+                transforms.compute_global_transform(target).unwrap().translation()
+            }).unwrap();
+            {
+                let mut feet = app.world_mut().get_mut::<AlsFootLockState>(actor).unwrap();
+                feet.left.lock_amount = 1.0;
+                feet.left.lock_location = anchor;
+                feet.right.lock_amount = 0.0;
+            }
+            app.world_mut().get_mut::<AnimationPoseUpdateGate>(entity).unwrap().pending_update = true;
+            app.world_mut().get_mut::<AlsRootAnimationContext>(entity).unwrap().curves.insert("AllowTransitions".into(), 1.0);
+            app.world_mut().get_mut::<avian3d::prelude::Position>(actor).unwrap().x += shift;
+            app.world_mut().get_mut::<Transform>(actor).unwrap().translation.x += shift;
+            app.update();
+
+            let feet = app.world().get::<AlsFootLockState>(actor).unwrap();
+            assert!(!feet.valid && feet.left.lock_amount == 1.0 && feet.left.lock_location == anchor);
+            assert!(!app.world().get::<AlsControlRigInput>(actor).unwrap().foot_transforms_valid);
+            let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+            assert!(player.get_global_input_data("animation.pending_update").unwrap().as_bool().unwrap());
+            let distance = player.get_global_input_data("feet_state.left.lock_distance_squared").unwrap().as_f32().unwrap();
+            assert!((distance - shift * shift).abs() < 1e-4, "Pending foot distance at shift {shift}: {distance}");
+            let arena = player.get_context_arena().unwrap();
+            let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+            assert_eq!(state.write_frames.get(updated), Some(&arena.frame_index()));
+            assert_eq!(state.write_frames.get(queued) == Some(&arena.frame_index()), shift > 0.0);
+            if shift > 0.0 { assert_eq!(state.values[queued].as_f32().unwrap(), 0.0); }
+        }
     }
 
     #[test]
