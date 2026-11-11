@@ -6053,7 +6053,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
       - 子项拆分：D38c3a处理已发生滑移的一、二次阻挡；D38c3b核对初始穿透的恢复结果及撞击通知。
       - [x] BF144-D38c3a — 仅对实际执行的滑移后续命中施力。开始2026-11-08 16:15 +08:00；预估结束17:10 +08:00；实际结束16:18 +08:00，提前52分钟；静态实现完成，测试/消融/Gate暂缓。
         - 闭环：fresh UE滑移两次命中通知保存在`docs/audit/bf144/d38c3a/`；实际滑移按源顺序提交，成功跨步丢弃试算命中，已写双墙、回退及试算见证对照。源端动态双墙未重跑，初始穿透留给D38c3b。
-      - [ ] BF144-D38c3b — 初始穿透未恢复时按源通知撞击。首轮开始2026-11-08 16:19 +08:00，预估结束17:14 +08:00，实际结束16:23 +08:00，提前51分钟。2026-11-11 17:43 +08:00 因提前预构建复开，预估17:58。旧静态收口未发现四处 `FallingImpactBodies` 插入闭包参数错误；恢复夹具签名，生产源逻辑保持。证据 `docs/audit/bf144/ragdoll-avian-switch/build-1.diagnostics.json`。
+      - [x] BF144-D38c3b — 初始穿透未恢复时按源通知撞击。首轮开始2026-11-08 16:19 +08:00，预估结束17:14 +08:00，实际结束16:23 +08:00，提前51分钟。2026-11-11 17:43 +08:00 因提前预构建复开，预估17:58。旧静态收口未发现四处 `FallingImpactBodies` 插入闭包参数错误；恢复夹具签名，生产源逻辑保持。证据 `docs/audit/bf144/ragdoll-avian-switch/build-1.diagnostics.json`。
+        - 预构建修复结束2026-11-11 17:52 +08:00，偏差−6分钟。恢复四处夹具的 `RunSystemOnce` 闭包参数后，实际 Playground `play` profile 通过 Rust 解析与构建。夹具的类型检查、运行和消融仍待统一 Gate。共享报告 `docs/audit/bf144/ragdoll-avian-switch/build-3.report.json`。
         - 闭环：fresh UE先脱穿再决定撞击通知的顺序保存在`docs/audit/bf144/d38c3b/`，引用D21原生几何证据；已写可恢复与受困只通知一次对照。源端夹墙未重跑，Walking既有穿透位移与受困后滑移边界未改，目标测试和Gate待执行。
   - Source：fresh UE `HandleImpact:7783–7811`进入`ApplyImpactPhysicsForces:7814–7930`；native InitialPushForce500、PushForce750000、PushScaledToMass=False、UsingZOffset=False。本机CVar `p.ApplyCharacterCollisionForceAsImpulse=False`，静止阈值1cm/s内用500×30 kg·cm/s²，移动body用750000 kg·cm/s²，均AddForceAtLocation，不能按旧版本把500当一次冲量。
   - Target：`src/als/character/movement/motion.rs`空中/地面sweep和slide只调整角色位移/速度，未把命中的simulated body与源力参数提交给物理；实际air blocking命中后目标body保持原速度。

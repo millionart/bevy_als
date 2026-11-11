@@ -6506,7 +6506,7 @@ mod tests {
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();
-            let outcome = app.world_mut().run_system_once(move |spatia impact_bodies: FallingImpactBodies,l: SpatialQuery,
+            let outcome = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
                 candidates: Query<CharacterCollisionCandidates>,
                 permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
                 grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
@@ -6542,7 +6542,7 @@ mod tests {
         let actor = app.world_mut().spawn_empty().id();
         app.update();
         app.update();
-        app.world_mut().run_system_o impact_bodies: FallingImpactBodies,nce(move |spatial: SpatialQuery,
+        app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<CharacterCollisionCandidates>,
             permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
             grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
@@ -6602,7 +6602,7 @@ mod tests {
         let actor = app.world_mut().spawn_empty().id();
         app.update();
         app.update();
-        let (witnessed, outcome) = app.world_mu impact_bodies: FallingImpactBodies,t().run_system_once(move |spatial: SpatialQuery,
+        let (witnessed, outcome) = app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<CharacterCollisionCandidates>,
             permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
             let capsule = als_character_capsule(0.9, 0.3);
@@ -6641,7 +6641,7 @@ mod tests {
         let actor = app.world_mut().spawn_empty().id();
         app.update();
         app.update();
-     impact_bodies: FallingImpactBodies,    app.world_mut().run_system_once(move |spatial: SpatialQuery,
+        app.world_mut().run_system_once(move |spatial: SpatialQuery, impact_bodies: FallingImpactBodies,
             candidates: Query<CharacterCollisionCandidates>,
             permissions: Query<&AlsMantleTargetPermission>, mut impacts: ResMut<Messages<SourceCharacterImpact>>| {
             grounded_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3), Vec3::Y * 0.9215,
