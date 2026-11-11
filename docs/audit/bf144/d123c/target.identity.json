@@ -1,0 +1,14 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "642b812379e4edecd868ea3802f3c9e846405746777f7de329a6ed780611ce3f"
+  },
+  {
+    "path": "src/animation_graph_ext/interruptible_fsm.rs",
+    "sha256": "41858b54f35520d2adad7b20d063eda2059654b2e27ed41bd4c42bfd256b9bc0"
+  },
+  {
+    "path": "src/animation_graph_ext/profile_blend.rs",
+    "sha256": "4fbfe0e56465032b70835aee2f6a2023c88a3a8e909ed4061873c73e8a9cafc6"
+  }
+]

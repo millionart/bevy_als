@@ -211,15 +211,46 @@ impl ProfiledBlendNode {
         (begin + current * (1.0 - begin)).clamp(WEIGHT_THRESHOLD, 1.0)
     }
 
-    fn blend_pose(&self, source: &mut Pose, target: &Pose, factor: f32, skeleton: Option<&Skeleton>) -> f32 {
+    fn blend_pose(
+        &self,
+        source: &mut Pose,
+        target: &Pose,
+        factor: f32,
+        skeleton: Option<&Skeleton>,
+        accumulate_rotations: bool,
+    ) -> f32 {
         let alpha = transition_alpha(factor, self.alpha_blend_mode, &self.custom_curve);
-        let scales: HashMap<_, _> = self.bone_scales.iter().map(|scale| (scale.bone.as_str(), scale.scale)).collect();
+        let scales: HashMap<_, _> = self
+            .bone_scales
+            .iter()
+            .map(|scale| (scale.bone.as_str(), scale.scale))
+            .collect();
         for (bone, target_index) in &target.paths {
-            let scale = skeleton.filter(|_| !scales.is_empty()).and_then(|skeleton| skeleton.id_to_path(*bone))
-                .and_then(|path| path.parts.last().and_then(|name| scales.get(name.as_str()).copied()));
+            let scale = skeleton
+                .filter(|_| !scales.is_empty())
+                .and_then(|skeleton| skeleton.id_to_path(*bone))
+                .and_then(|path| {
+                    path.parts
+                        .last()
+                        .and_then(|name| scales.get(name.as_str()).copied())
+                });
             let weight = scale.map_or(alpha, |scale| self.bone_weight(factor, alpha, scale));
             if let Some(source_index) = source.paths.get(bone) {
-                source.bones[*source_index].linear_blend_mut(&target.bones[*target_index], weight);
+                let source = &mut source.bones[*source_index];
+                let target = &target.bones[*target_index];
+                if accumulate_rotations
+                    && let (Some(a), Some(b)) = (source.rotation, target.rotation)
+                {
+                    let mut target_without_rotation = target.clone();
+                    target_without_rotation.rotation = None;
+                    source.rotation = None;
+                    source.linear_blend_mut(&target_without_rotation, weight);
+                    let a = a * (1.0 - weight);
+                    let b = b * weight;
+                    source.rotation = Some(if a.dot(b) < 0.0 { a - b } else { a + b });
+                } else {
+                    source.linear_blend_mut(target, weight);
+                }
             } else {
                 source.add_bone(target.bones[*target_index].clone(), *bone);
             }
@@ -262,7 +293,8 @@ impl NodeLike for ProfiledBlendNode {
             .resources
             .skeleton_assets
             .get(&source.skeleton);
-        let alpha = self.blend_pose(&mut source, &target, factor, skeleton);
+        let alpha = self.blend_pose(&mut source, &target, factor, skeleton,
+            crate::extensions::interruptible_fsm::in_interruptible_transition_graph(&ctx));
         let mut context = crate::extensions::source_pose_nodes::blend_animation_contexts([
             (source_context, 1.0 - alpha),
             (target_context, alpha),
@@ -514,7 +546,7 @@ mod tests {
                 scale: 5.0,
             }],
             ..default()
-        }.blend_pose(&mut source, &target, 0.1, Some(&skeleton));
+        }.blend_pose(&mut source, &target, 0.1, Some(&skeleton), false);
         let value = source.get_bone(foot).unwrap().translation.unwrap().x;
         assert!((value - 0.7352941).abs() < 1e-6);
     }

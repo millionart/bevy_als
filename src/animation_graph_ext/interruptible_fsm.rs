@@ -1368,6 +1368,8 @@ impl InterruptibleFsmNode {
         state.source_pose = source_pose;
         *ctx.state_mut_or_else(|| state.clone())? = state.clone();
         let (state_data, graph) = Self::active_graph(machine, &state.state, ctx)?;
+        let normalize_rotations = state_data.hl_transition.is_some()
+            && graph.nodes.values().any(|node| node.try_inner_downcast_ref::<ProfiledBlendNode>().is_some());
         let io = InterruptibleFsmIo {
             node_context: ctx.clone(),
             machine,
@@ -1401,13 +1403,18 @@ impl InterruptibleFsmNode {
         let mut pose_output = None;
         let mut context_state = AnimationContextState::default();
         for (id, _) in graph.io_spec.iter_output_data() {
-            let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
+            let mut value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
             if id == LowLevelStateMachine::DRIVER_EVENT_QUEUE {
                 internal_events.extend(value.into_event_queue()?);
             } else {
                 let outer_output = self.outer_output(&state.state, id);
                 if outer_output == self.outer_pose_output {
-                    if let DataValue::Pose(pose) = &value {
+                    if let DataValue::Pose(pose) = &mut value {
+                        if normalize_rotations {
+                            for bone in &mut pose.bones {
+                                bone.rotation = bone.rotation.map(Quat::normalize);
+                            }
+                        }
                         latest_pose = Some(pose.clone());
                         pose_output = Some(id.clone());
                     }
@@ -1681,6 +1688,35 @@ enum FsmRole {
     Source,
     Target,
     Root,
+}
+
+pub(crate) fn in_interruptible_transition_graph(ctx: &NodeContext) -> bool {
+    let arena = ctx.graph_context.context_arena.get_ref();
+    let Some(parent) = arena.get_parent_context(ctx.graph_context.context_id) else {
+        return false;
+    };
+    let transition = if matches!(&parent.state_id, Some(LowLevelStateId::HlTransition(_))) {
+        Some(parent)
+    } else {
+        arena.get_parent_context(parent.ctx_id).filter(|owner| {
+            owner.node_id == parent.node_id
+                && matches!(&owner.state_id, Some(LowLevelStateId::HlTransition(_)))
+        })
+    };
+    transition
+        .and_then(|owner| {
+            let graph_id = arena.get_context(owner.ctx_id)?.get_graph_id();
+            ctx.graph_context
+                .resources
+                .animation_graph_assets
+                .get(graph_id)?
+                .nodes
+                .get(&owner.node_id)
+        })
+        .is_some_and(|node| {
+            node.try_inner_downcast_ref::<InterruptibleFsmNode>()
+                .is_some()
+        })
 }
 
 fn state_graph_context<'a>(
@@ -6080,6 +6116,193 @@ mod tests {
         assert_eq!(weights.len(), 2);
         assert!((weights[0].value - 0.75).abs() < f32::EPSILON);
         assert!((weights[1].value - 0.25).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn interrupted_standard_transitions_normalize_only_the_machine_output() {
+        use bevy_animation_graph::core::pose::BoneId;
+
+        fn query(
+            In((root, node_id, machine, transitions)): In<(
+                Handle<AnimationGraph>,
+                NodeId,
+                LowLevelStateMachine,
+                [LowLevelStateId; 2],
+            )>,
+            resources: SystemResources,
+        ) {
+            let root_graph = resources.animation_graph_assets.get(&root).unwrap();
+            let machine_node = root_graph.nodes[&node_id]
+                .try_inner_downcast_ref::<InterruptibleFsmNode>()
+                .unwrap();
+            let bone = BoneId::default();
+            let rotations = [
+                Quat::from_rotation_x(0.18),
+                Quat::from_rotation_y(0.24),
+                Quat::from_rotation_z(0.8),
+            ];
+            let inputs: HashMap<_, _> = rotations
+                .into_iter()
+                .enumerate()
+                .map(|(index, rotation)| {
+                    let mut pose = Pose::default();
+                    pose.add_bone(
+                        BonePose {
+                            rotation: Some(rotation),
+                            ..default()
+                        },
+                        bone,
+                    );
+                    (format!("pose_{index}").into(), DataValue::Pose(pose))
+                })
+                .collect();
+            let expected_raw = rotations[0] * (1.0 - 0.37) + rotations[1] * 0.37;
+            let expected = (expected_raw * (1.0 - 0.61) + rotations[2] * 0.61).normalize();
+            let early = (expected_raw.normalize() * (1.0 - 0.61) + rotations[2] * 0.61).normalize();
+            assert!((early - expected).length() > 1e-4);
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            for (first_slot, second_slot) in [(0, 0), (1, 2)] {
+                let mut arena = GraphContextArena::new(root.id());
+                let mut gizmos = DeferredGizmos::default();
+                let context = GraphContext::new(
+                    arena.get_toplevel_id(),
+                    root_graph,
+                    &mut arena,
+                    &resources,
+                    &env,
+                    Entity::PLACEHOLDER,
+                    &entities,
+                    &inputs,
+                );
+                let mut context = context.create_node_context(node_id);
+                context.set_time(0.0);
+                let mut state = InterruptibleFsmNode::initial_state(transitions[1].clone(), 0.0, 0);
+                state.transition_elapsed_time = 0.61;
+                state.blend_alpha = 0.61;
+                state.blend_duration = Some(1.0);
+                state.context_slot = second_slot;
+                state.interrupted_sources.push(InterruptibleFsmSource {
+                    state: transitions[0].clone(),
+                    state_entered_time: 0.0,
+                    elapsed_time: 0.37,
+                    blend_alpha: 0.37,
+                    blend_remaining: 0.63,
+                    context_slot: first_slot,
+                    blend_duration: Some(1.0),
+                });
+                context.state_mut_or_else(|| state).unwrap();
+                machine_node
+                    .evaluate_active_state(&machine, TimeUpdate::Delta(0.0), &mut context)
+                    .unwrap();
+                let state = context.state::<InterruptibleFsmState>().unwrap();
+                let raw = state
+                    .cached_source_pose()
+                    .unwrap()
+                    .get_bone(bone)
+                    .unwrap()
+                    .rotation
+                    .unwrap();
+                let actual = state
+                    .last_output_pose()
+                    .unwrap()
+                    .get_bone(bone)
+                    .unwrap()
+                    .rotation
+                    .unwrap();
+                assert!((raw - expected_raw).length() < 1e-6);
+                assert!((actual - expected).length() < 1e-6);
+            }
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut machine = LowLevelStateMachine::new();
+        let states =
+            [1, 2, 3].map(|index| StateId::from(bevy::asset::uuid::Uuid::from_u128(index)));
+        for (index, state) in states.iter().enumerate() {
+            let mut graph = AnimationGraph::new();
+            let node = AnimationNode::new(
+                "pose",
+                GlobalPoseInputNode {
+                    key: format!("pose_{index}"),
+                    output: "pose".to_owned(),
+                },
+            );
+            graph.add_node(node.clone());
+            graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "pose", "pose");
+            machine.add_state(LowLevelState {
+                id: LowLevelStateId::HlState(*state),
+                graph: graphs.add(graph),
+                hl_transition: None,
+            });
+        }
+        let mut transition = AnimationGraph::new();
+        let blend = AnimationNode::new("blend", ProfiledBlendNode::default());
+        transition.add_node(blend.clone());
+        for (pin, input, spec) in [
+            (
+                "factor",
+                GraphInputPin::FsmBuiltin(FsmBuiltinPin::PercentThroughDuration),
+                DataSpec::F32,
+            ),
+            (
+                "pose_a",
+                GraphInputPin::FromFsmSource("pose".to_owned()),
+                DataSpec::Pose,
+            ),
+            (
+                "pose_b",
+                GraphInputPin::FromFsmTarget("pose".to_owned()),
+                DataSpec::Pose,
+            ),
+        ] {
+            transition.add_input_data(input.clone(), spec);
+            transition.add_input_data_edge(input, blend.id, pin);
+        }
+        for (pin, input) in [
+            ("time_a", GraphInputPin::FromFsmSource("time".to_owned())),
+            ("time_b", GraphInputPin::FromFsmTarget("time".to_owned())),
+        ] {
+            transition.add_input_time(input.clone());
+            transition.add_input_time_edge(input, blend.id, pin);
+        }
+        transition.add_output_time();
+        transition.add_output_pose_edge(blend.id);
+        transition.add_output_data("pose".to_owned(), DataSpec::Pose);
+        transition.add_output_data_edge(blend.id, "pose", "pose");
+        let transition = graphs.add(transition);
+        let transitions = [0, 1].map(|index| {
+            let id = TransitionId::Direct(DirectTransitionId::from(
+                bevy::asset::uuid::Uuid::from_u128(10 + index as u128),
+            ));
+            let state = LowLevelStateId::HlTransition(id);
+            machine.add_state(LowLevelState {
+                id: state.clone(),
+                graph: transition.clone(),
+                hl_transition: Some(LlTransitionData {
+                    source: states[index],
+                    target: states[index + 1],
+                    hl_transition_id: id,
+                    timed: Some(1.0),
+                }),
+            });
+            state
+        });
+        let node = AnimationNode::new("machine", InterruptibleFsmNode::default());
+        let mut root = AnimationGraph::new();
+        root.add_node(node.clone());
+        root.add_output_data("pose".to_owned(), DataSpec::Pose);
+        root.add_output_data_edge(node.id, "pose", "pose");
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        world
+            .run_system_cached_with(query, (root, node.id, machine, transitions))
+            .unwrap();
     }
 
     #[test]
