@@ -1,0 +1,51 @@
+[
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/MeshContactGenerator.cpp",
+    "sha256": "c08ffee30a98a53887451e0138934dabcc328ab677a4c0fff06ac219626dc9d9",
+    "start_line": 219,
+    "end_line": 251,
+    "text": "\tvoid FMeshContactGenerator::ProcessGeneratedContacts(const FRigidTransform3& ConvexTransform, const FRigidTransform3& MeshToConvexTransform)\n\t{\n\t\tif (Contacts.Num() == 0)\n\t\t{\n\t\t\treturn;\n\t\t}\n\n\t\tif (!!Settings.bFixNormals)\n\t\t{\n\t\t\t// Contacts that get pruned or corrected will show as green\n\t\t\tDebugDrawContacts(ConvexTransform, FColor::Green, 0.5);\n\t\t}\n\n\t\tPruneAndCorrectContacts();\n\n\t\t// Final contacts will be red\n\t\tDebugDrawContacts(ConvexTransform, FColor::Red, 1.0);\n\n\t\t// Visited triangles are white, ignored triangles are gray\n\t\tDebugDrawTriangles(ConvexTransform, FColor::White, FColor::Silver);\n\n\t\tif (!!Settings.bSortByPhi)\n\t\t{\n\t\t\tSortContactByPhi();\n\t\t}\n\n\t\tif (!!Settings.bSortForSolverConvergence)\n\t\t{\n\t\t\tSortContactsForSolverConvergence();\n\t\t}\n\n\t\tFinalizeContacts(MeshToConvexTransform);\n\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/MeshContactGenerator.cpp",
+    "sha256": "c08ffee30a98a53887451e0138934dabcc328ab677a4c0fff06ac219626dc9d9",
+    "start_line": 716,
+    "end_line": 768,
+    "text": "\tvoid FMeshContactGenerator::RemoveDisabledContacts()\n\t{\n\t\t// @todo(chaos): don't do this if we have not disabled any contacts\n\n\t\t// Re-pack the contact point array without re-ordering\n\t\tconst int32 NumContactPoints = Contacts.Num();\n\t\tint32 DestContactIndex = 0;\t\t// Index to where the next enabled item goes\n\t\tint32 SrcContactIndex = 0;\t\t// Index to the next enabled item\n\t\twhile (SrcContactIndex < NumContactPoints)\n\t\t{\n\t\t\tif (!ContactDatas[SrcContactIndex].IsEnabled())\n\t\t\t{\n\t\t\t\t// Find the next enabled point index to use as the copy source\n\t\t\t\twhile (++SrcContactIndex < NumContactPoints)\n\t\t\t\t{\n\t\t\t\t\tif (ContactDatas[SrcContactIndex].IsEnabled())\n\t\t\t\t\t{\n\t\t\t\t\t\tbreak;\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tif (SrcContactIndex == NumContactPoints)\n\t\t\t\t{\n\t\t\t\t\tbreak;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// If we have removed elements, copy source to dest\n\t\t\tif (DestContactIndex != SrcContactIndex)\n\t\t\t{\n\t\t\t\tContacts[DestContactIndex] = Contacts[SrcContactIndex];\n\t\t\t\tContactDatas[DestContactIndex] = ContactDatas[SrcContactIndex];\n\t\t\t}\n\n\t\t\t++DestContactIndex;\n\t\t\t++SrcContactIndex;\n\t\t}\n\n\t\t// Clip the array to the enabled set\n\t\tContacts.SetNum(DestContactIndex, EAllowShrinking::No);\n\t\tContactDatas.SetNum(DestContactIndex, EAllowShrinking::No);\n\t}\n\n\tvoid FMeshContactGenerator::FinalizeContacts(const FRigidTransform3& MeshToConvexTransform)\n\t{\n\t\tfor (int32 ContactIndex = 0; ContactIndex < Contacts.Num(); ++ContactIndex)\n\t\t{\n\t\t\tFContactPoint& ContactPoint = Contacts[ContactIndex];\n\n\t\t\tContactPoint.ShapeContactPoints[1] = MeshToConvexTransform.InverseTransformPositionNoScale(ContactPoint.ShapeContactPoints[1]);\n\t\t\tContactPoint.ShapeContactNormal = MeshToConvexTransform.InverseTransformVectorNoScale(ContactPoint.ShapeContactNormal);\n\t\t}\n\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Collision/PBDCollisionConstraint.h",
+    "sha256": "b155b60ff1c0082abc84b70676e942a2702cbf94d79d009055c58357524e7181",
+    "start_line": 632,
+    "end_line": 663,
+    "text": "\t\tinline void SetOneShotManifoldContacts(const TArrayView<const FContactPoint>& ContactPoints)\n\t\t{\n\t\t\tResetActiveManifoldContacts();\n\n\t\t\tFReal MinPhi = TNumericLimits<FReal>::Max();\n\t\t\t\n\t\t\tint32 NumContacts = ContactPoints.Num();\n\n\t\t\t// If we have too many manifold points, clip the array. This is considered and error but\n\t\t\t// is important for avoiding OOM or massive slowdowns when something goes wrong\n\t\t\tconst int32 MaxManifoldPoints = Chaos_Collision_MaxManifoldPoints;\n\t\t\tif ((MaxManifoldPoints >= 0) && (NumContacts > MaxManifoldPoints))\n\t\t\t{\n\t\t\t\tNumContacts = MaxManifoldPoints;\n\t\t\t\tLogOneShotManifoldError(MaxManifoldPoints, ContactPoints);\n\t\t\t}\n\t\t\t\n\t\t\tManifoldPoints.Reserve(NumContacts);\n\n\t\t\tfor (int32 ContactIndex = 0; ContactIndex < NumContacts; ++ContactIndex)\n\t\t\t{\n\t\t\t\tconst FContactPoint& ContactPoint = ContactPoints[ContactIndex];\n\t\t\t\tif (ContactPoint.Phi < CullDistance)\n\t\t\t\t{\n\t\t\t\t\tint32 ManifoldPointIndex = AddManifoldPoint(ContactPoint);\n\t\t\t\t\tif (ContactPoint.Phi < MinPhi)\n\t\t\t\t\t{\n\t\t\t\t\t\tClosestManifoldPointIndex = ManifoldPointIndex;\n\t\t\t\t\t\tMinPhi = ContactPoint.Phi;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Collision/PBDCollisionConstraint.h",
+    "sha256": "b155b60ff1c0082abc84b70676e942a2702cbf94d79d009055c58357524e7181",
+    "start_line": 930,
+    "end_line": 935,
+    "text": "\t\tinline int32 AddManifoldPoint(const FContactPointf& ContactPoint)\n\t\t{\n\t\t\tint32 ManifoldPointIndex = ManifoldPoints.AddUninitialized();\t// Note: no initialization (see InitManifoldPoint)\n\t\t\tInitManifoldPoint(ManifoldPointIndex, ContactPoint);\n\t\t\treturn ManifoldPointIndex;\n\t\t}"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/Collision/PBDCollisionConstraint.cpp",
+    "sha256": "aca64b551f10a289b4a3a1b81a09b8292dcbc3299b7658f8e6b406f2716fd873",
+    "start_line": 70,
+    "end_line": 72,
+    "text": "\t// Maximum number of manifold points per contact (-1 for unlimited)\n\tint32 Chaos_Collision_MaxManifoldPoints = -1;\n\tFAutoConsoleVariableRef CVarChaos_Collision_MaxManifoldPoints(TEXT(\"p.Chaos.Collision.MaxManifoldPoints\"), Chaos_Collision_MaxManifoldPoints, TEXT(\"\"));"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Collision/ContactPoint.h",
+    "sha256": "2bd4c9b917c1862214ad9b92da0fa79b96c11d5ecdd32364419a0729a1438399",
+    "start_line": 68,
+    "end_line": 89,
+    "text": "\t\ttemplate<typename U>\n\t\tTContactPoint(const TContactPoint<U>& Other)\n\t\t\t: ShapeContactPoints{ TVec3<FRealType>(Other.ShapeContactPoints[0]), TVec3<FRealType>(Other.ShapeContactPoints[1]) }\n\t\t\t, ShapeContactNormal{ TVec3<FRealType>(Other.ShapeContactNormal) }\n\t\t\t, Phi(FRealType(Other.Phi))\n\t\t\t, FaceIndex(Other.FaceIndex)\n\t\t\t, ContactType(Other.ContactType)\n\t\t{\n\t\t}\n\n\t\t// Whether the contact point has been set up with contact data\n\t\tbool IsSet() const \n\t\t{ \n\t\t\treturn (Phi != InvalidPhi<FRealType>());\n\t\t}\n\t};\n\n\t// Explicit types of TContactPoint for float and double. We should use the float version whenever the contacts are in shape-relative\n\t// space, which is most of the time (some collision functions may choose to generate world-space contacts which are later converted\n\t// to local space, and they should therefore use the double version until the local-space conversion).\n\tusing FContactPoint = TContactPoint<FReal>;\n\tusing FContactPointf = TContactPoint<FRealSingle>;"
+  },
+  {
+    "source_file": "Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/Capsule.h",
+    "sha256": "557f2c1b92815db32666e2bcd2290a5e8ce8fed589ded487cb6395d885419dbc",
+    "start_line": 126,
+    "end_line": 131,
+    "text": "\t\tvirtual const FAABB3 BoundingBox() const override\n\t\t{\n\t\t\tFAABB3 Box = FAABB3(MSegment.BoundingBox());\n\t\t\tBox.Thicken(GetRadiusf());\n\t\t\treturn Box;\n\t\t}"
+  }
+]

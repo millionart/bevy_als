@@ -17,6 +17,13 @@ pub(super) struct SourceMeshQuery {
     scale: DVec3,
 }
 
+impl SourceMeshQuery {
+    pub(super) fn inverse_contact_no_scale(&self, point_cm: DVec3, normal: DVec3) -> (DVec3, DVec3) {
+        let inverse = self.rotation.inverse();
+        (inverse * (point_cm - self.translation_cm), inverse * normal)
+    }
+}
+
 pub(super) struct SourceMeshTriangle {
     pub face_index: usize,
     pub vertex_indices: [usize; 3],

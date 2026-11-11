@@ -7,7 +7,7 @@ use super::source_contact_epa::SourceEpaSettings;
 use super::source_contact_face::{SourceBoxConvexFaces, SourceConvexTopology, source_box_convex_faces, source_convex_scale};
 use super::source_contact_gjk::{SourceGjkResult, source_box_convex_gjk, source_gjk_exceeds_cull};
 use super::source_contact_polygon::{source_box_face, source_clip_convex_face, source_direction, source_position};
-use super::source_contact_restore::{SourceRestorePose, source_float_position};
+use super::source_contact_restore::SourceRestorePose;
 use super::source_gjk_simplex::SourceGjkSimplex;
 
 #[derive(Clone, Copy)]
@@ -159,9 +159,16 @@ pub(super) fn source_box_convex_manifold(
 }
 
 pub(super) fn source_convex_contact(first: DVec3, second: DVec3, normal: DVec3, phi: f64) -> SourceConvexContactPoint {
-    SourceConvexContactPoint { first_m: source_float_position(first), second_m: source_float_position(second),
-        normal_second: source_direction(source_direction(normal).as_vec3().as_dvec3()),
-        phi_m: f64::from((phi * 100.0) as f32) * 0.01 }
+    source_convex_contact_cm(source_position(first), source_position(second), source_direction(normal), phi * 100.0)
+}
+
+pub(super) fn source_convex_contact_cm(first: DVec3, second: DVec3, normal: DVec3, phi: f64) -> SourceConvexContactPoint {
+    SourceConvexContactPoint {
+        first_m: source_direction(first.as_vec3().as_dvec3()) * 0.01,
+        second_m: source_direction(second.as_vec3().as_dvec3()) * 0.01,
+        normal_second: source_direction(normal.as_vec3().as_dvec3()),
+        phi_m: f64::from(phi as f32) * 0.01,
+    }
 }
 
 fn source_box_closest_edge(vertices: &[DVec3], position: DVec3) -> DVec3 {
@@ -547,7 +554,7 @@ mod tests {
             DQuat::IDENTITY, &gjk, margin, -0.04, false).is_none());
         let no_margin = source_box_convex_edge_contact(minimum, maximum, hull, &faces, translation,
             DQuat::IDENTITY, &gjk, 0.0, 0.03, false).unwrap();
-        assert_eq!(no_margin.first_m, source_float_position(gjk.closest_first_m));
+        assert_eq!(no_margin.first_m, crate::extensions::source_contact_restore::source_float_position(gjk.closest_first_m));
         gjk.penetration_m = -0.001;
         assert!(source_box_convex_edge_contact(minimum, maximum, hull, &faces, translation,
             DQuat::IDENTITY, &gjk, 0.0, 0.03, true).is_none());

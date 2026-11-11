@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use bevy::math::DVec3;
 
+use super::source_contact_convex::{SourceConvexContactPoint, source_convex_contact_cm};
 use super::source_contact_polygon::{SOURCE_SMALL_NUMBER, source_position};
-use super::source_mesh_query::SourceMeshTriangle;
+use super::source_mesh_query::{SourceMeshQuery, SourceMeshTriangle};
 
 const CONTACT_SETTINGS: (f64, f32, f32, f64, usize) = include!("../als/settings/mesh_contact.rs");
 const BARYCENTRIC_TOLERANCE: f64 = CONTACT_SETTINGS.0;
@@ -24,6 +25,12 @@ pub(super) struct SourceTriangleContact {
     pub second_cm: DVec3,
     pub normal: DVec3,
     pub phi_cm: f64,
+    pub kind: SourceTriangleContactKind,
+}
+
+pub(super) struct SourceMeshManifoldPoint {
+    pub face_index: usize,
+    pub point: SourceConvexContactPoint,
     pub kind: SourceTriangleContactKind,
 }
 
@@ -272,6 +279,20 @@ impl MeshContactAccumulator {
             }
         }
     }
+
+    fn finish(mut self, query: &SourceMeshQuery, cull_m: f64) -> Vec<SourceMeshManifoldPoint> {
+        self.correct_contact_normals();
+        let cull_cm = cull_m * 100.0;
+        self.contacts.into_iter().filter(|contact| contact.enabled && contact.point.phi_cm < cull_cm).map(|contact| {
+            let point = contact.point;
+            let (second, normal) = query.inverse_contact_no_scale(point.second_cm, point.normal);
+            SourceMeshManifoldPoint {
+                face_index: contact.face_index,
+                kind: point.kind,
+                point: source_convex_contact_cm(point.first_cm, second, normal, point.phi_cm),
+            }
+        }).collect()
+    }
 }
 
 fn correct_mesh_edge_normal(topology: &MeshContactTopology, contact: &mut MeshContactCandidate, edge: MeshEdge) {
@@ -357,11 +378,26 @@ fn generate_mesh_contacts(
     contacts
 }
 
+pub(super) fn source_mesh_manifold(
+    triangles: &[SourceMeshTriangle],
+    query: &SourceMeshQuery,
+    source_capacity: usize,
+    cull_m: f64,
+    generate: impl FnMut(&SourceMeshTriangle) -> Vec<SourceTriangleContact>,
+) -> Vec<SourceMeshManifoldPoint> {
+    generate_mesh_contacts(triangles, source_capacity, generate).finish(query, cull_m)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::math::DQuat;
     use crate::extensions::source_contact_polygon::source_direction;
-    use crate::extensions::source_mesh_query::SourceMeshTopology;
+    use crate::extensions::source_contact_capsule::SourceCapsuleGeometry;
+    use crate::extensions::source_mesh_box::source_box_triangle_contacts;
+    use crate::extensions::source_mesh_bvh::SourceMeshBvh;
+    use crate::extensions::source_mesh_capsule::source_capsule_triangle_contacts;
+    use crate::extensions::source_mesh_query::{SourceMeshTopology, source_mesh_collect, source_mesh_query};
 
     fn triangle(face_index: usize, vertex_indices: [usize; 3], vertices_cm: [DVec3; 3]) -> SourceMeshTriangle {
         SourceMeshTriangle { face_index, vertex_indices, vertices_m: vertices_cm.map(|point| source_direction(point) * 0.01) }
@@ -621,5 +657,103 @@ mod tests {
         assert!(fixed.point.normal.distance(expected) < 1e-12);
         assert!(fixed.point.first_cm.distance(-expected) < 1e-12);
         assert_eq!(fixed.point.phi_cm, -1.0);
+    }
+
+    #[test]
+    fn source_mesh_output_preserves_order_culls_before_rounding_and_keeps_scaled_points() {
+        let triangles = [triangle(7, [0, 1, 2], [DVec3::ZERO, 100.0 * DVec3::X, 100.0 * DVec3::Y])];
+        let translation = DVec3::new(0.3, -0.4, 0.8);
+        let rotation = DQuat::from_rotation_x(0.63);
+        let query = source_mesh_query([-DVec3::ONE, DVec3::ONE], translation, rotation,
+            DVec3::new(-2.0, 0.5, 3.0), 0.03);
+        let first_position = DVec3::new(2.0, 2.0, 0.0);
+        let contacts = source_mesh_manifold(&triangles, &query, 4, 0.03, |_| {
+            let mut first = contact(first_position, DVec3::Z);
+            first.phi_cm = 3.0 - 1e-8;
+            first.first_cm = first.second_cm + first.phi_cm * first.normal;
+            let mut at_cull = contact(DVec3::new(5.0, 5.0, 0.0), DVec3::Z);
+            at_cull.phi_cm = 3.0;
+            at_cull.first_cm = at_cull.second_cm + at_cull.phi_cm * at_cull.normal;
+            vec![first, contact(DVec3::new(3.0, 3.0, 0.0), DVec3::NEG_Z),
+                contact(DVec3::new(4.0, 4.0, 0.0), DVec3::Z), at_cull]
+        });
+        assert_eq!(contacts.iter().map(|contact| contact.point.phi_m).collect::<Vec<_>>(), [0.03, -0.01]);
+        assert_eq!(contacts[0].face_index, 7);
+        assert_eq!(contacts[0].kind, SourceTriangleContactKind::EdgeEdge);
+        let second = rotation.inverse() * (source_direction(first_position) * 0.01 - translation);
+        assert!(contacts[0].point.second_m.distance(second) < 1e-7);
+        assert!(contacts[0].point.normal_second.distance(rotation.inverse() * DVec3::Y) < 1e-7);
+    }
+
+    #[test]
+    fn source_mesh_manifold_matches_native_contact_order_and_geometry_with_bvh() {
+        let Ok(bvh_path) = std::env::var("ALS_MESH_BVH_TARGET_DATA") else { return; };
+        let bvhs: HashMap<String, SourceMeshBvh> = serde_json::from_str(&std::fs::read_to_string(bvh_path).unwrap()).unwrap();
+        let meshes: HashMap<String, SourceMeshTopology> = serde_json::from_str(include_str!(
+            "../../assets/ALSExtras/Environment/Meshes/static_trimesh_topology.runtime.json"
+        )).unwrap();
+        let cases: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d100b4b3f/mesh-contact-cases.json"
+        )).unwrap();
+        assert_eq!(cases.len(), 9);
+        let array = |value: &serde_json::Value| DVec3::new(value[0].as_f64().unwrap(),
+            value[1].as_f64().unwrap(), value[2].as_f64().unwrap());
+        let vector = |value: &serde_json::Value| DVec3::new(value["x"].as_f64().unwrap(),
+            value["y"].as_f64().unwrap(), value["z"].as_f64().unwrap());
+        let point_m = |value: &serde_json::Value| source_direction(vector(value)) * 0.01;
+        let rotation = |value: &serde_json::Value| DQuat::from_xyzw(-value[0].as_f64().unwrap(),
+            -value[2].as_f64().unwrap(), -value[1].as_f64().unwrap(), value[3].as_f64().unwrap());
+
+        for sample in cases {
+            let input = &sample["input"];
+            let label = input["label"].as_str().unwrap();
+            let asset = input["mesh_asset_path"].as_str().unwrap().rsplit('/').next().unwrap();
+            let body_translation = source_direction(array(&input["body_translation_cm"])) * 0.01;
+            let mesh_translation = source_direction(array(&input["mesh_translation_cm"])) * 0.01;
+            let body_inverse = rotation(&input["body_rotation_xyzw"]).inverse();
+            let mesh_rotation = rotation(&input["mesh_rotation_xyzw"]);
+            let cull_m = input["cull_distance_cm"].as_f64().unwrap() * 0.01;
+            let geometry = &sample["geometry"];
+            let (bounds, capsule) = if geometry["kind"] == "capsule" {
+                let first_m = point_m(&geometry["endpoint_0_cm"]);
+                let second_m = point_m(&geometry["endpoint_1_cm"]);
+                let segment = second_m - first_m;
+                let radius_m = geometry["radius_cm"].as_f64().unwrap() * 0.01;
+                let radius = DVec3::splat(radius_m);
+                ([first_m.min(second_m) - radius, first_m.max(second_m) + radius], Some(SourceCapsuleGeometry {
+                    first_m, axis: segment.normalize(), length_m: segment.length(), radius_m,
+                }))
+            } else {
+                assert_eq!(geometry["kind"], "box");
+                ([point_m(&geometry["minimum_cm"]), point_m(&geometry["maximum_cm"])], None)
+            };
+            let query = source_mesh_query(bounds, body_inverse * (mesh_translation - body_translation),
+                body_inverse * mesh_rotation, source_direction(array(&sample["scale"])), cull_m);
+            let triangles = source_mesh_collect(&meshes[asset], &bvhs[asset], &query).unwrap();
+            assert!(triangles.len().saturating_mul(4) <= CONTACT_SETTINGS.4, "Source fixture exceeds nominal buffer: {label}");
+            let contacts = source_mesh_manifold(&triangles, &query, CONTACT_SETTINGS.4, cull_m, |triangle| {
+                if let Some(capsule) = capsule {
+                    source_capsule_triangle_contacts(capsule, triangle.vertices_m, cull_m)
+                } else {
+                    source_box_triangle_contacts(bounds, triangle.vertices_m, cull_m)
+                }
+            });
+            let expected = sample["points"].as_array().unwrap();
+            assert_eq!(contacts.len(), expected.len(), "{label}");
+            for (actual, expected) in contacts.iter().zip(expected) {
+                let kind = match actual.kind {
+                    SourceTriangleContactKind::VertexPlane => 1,
+                    SourceTriangleContactKind::EdgeEdge => 2,
+                    SourceTriangleContactKind::PlaneVertex => 3,
+                };
+                assert_eq!(Some(actual.face_index as u64), expected["face_index"].as_u64(), "{label}");
+                assert_eq!(Some(kind), expected["contact_type"].as_i64(), "{label}");
+                assert!(actual.point.first_m.distance(point_m(&expected["shape_point_0_cm"])) < 1e-6, "{label}");
+                assert!(actual.point.second_m.distance(point_m(&expected["shape_point_1_cm"])) < 1e-6, "{label}");
+                let normal = mesh_rotation.inverse() * source_direction(vector(&expected["world_normal"]));
+                assert!(actual.point.normal_second.distance(normal) < 1e-6, "{label}");
+                assert!((actual.point.phi_m - expected["phi_cm"].as_f64().unwrap() * 0.01).abs() < 1e-6, "{label}");
+            }
+        }
     }
 }
