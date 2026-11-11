@@ -1,0 +1,8 @@
+[
+  {
+    "level": "error",
+    "message": "type `SourceRagdollFrameRotation` is private",
+    "file": "src/als/character/movement/source_physics_timing.rs",
+    "line": 83
+  }
+]
