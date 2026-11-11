@@ -1,0 +1,52 @@
+{
+  "task": "BF144-D112",
+  "outcome": "Retired under the native Avian ragdoll collision scope",
+  "previously_open": true,
+  "previous_revision": "f60c3d73",
+  "source": {
+    "path": "Plugins/ALS-Refactored/Source/ALS/Private/AlsCharacter_Actions.cpp",
+    "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+    "anchors": [
+      {
+        "line": 963,
+        "source": "FVector AAlsCharacter::RagdollTraceGround(bool& bGrounded) const"
+      },
+      {
+        "line": 970,
+        "source": "const auto CapsuleRadius{GetCapsuleComponent()->GetScaledCapsuleRadius()};"
+      },
+      {
+        "line": 971,
+        "source": "const auto CapsuleHalfHeight{GetCapsuleComponent()->GetScaledCapsuleHalfHeight()};"
+      },
+      {
+        "line": 973,
+        "source": "const FVector TraceStart{RagdollLocation.X, RagdollLocation.Y, RagdollLocation.Z + 2.0f * CapsuleRadius};"
+      },
+      {
+        "line": 974,
+        "source": "const FVector TraceEnd{RagdollLocation.X, RagdollLocation.Y, RagdollLocation.Z - CapsuleHalfHeight + CapsuleRadius};"
+      },
+      {
+        "line": 983,
+        "source": "bGrounded = GetWorld()->SweepSingleByChannel(Hit, TraceStart, TraceEnd, FQuat::Identity,"
+      },
+      {
+        "line": 984,
+        "source": "CollisionChannel, FCollisionShape::MakeSphere(CapsuleRadius),"
+      },
+      {
+        "line": 995,
+        "source": "bGrounded"
+      }
+    ]
+  },
+  "current_consumer": "src/als/character/actions/ragdoll_link.rs",
+  "current_geometry": "The ragdoll sphere goes through the native Avian spatial query. The application still owns the scaled radius, range, response filter, and hit height offset.",
+  "documented_prior_difference_m": 0.00016,
+  "ordinary_movement_query_preserved": "src/avian_ext/source_capsule_sweep.rs",
+  "functional_reports": [
+    "docs/audit/bf144/ragdoll-avian-runtime/ragdoll/runner.json",
+    "docs/audit/bf144/ragdoll-avian-runtime/get_up/runner.json"
+  ]
+}
