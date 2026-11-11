@@ -33,11 +33,12 @@ pub fn rig_quaternion(euler: DVec3) -> DQuat {
 }
 
 pub fn rig_euler(rotation: DQuat) -> DVec3 {
-    let DQuat { x, y, z, w } = rotation;
-    let singularity = x * y + w * z;
+    let (x, y, z, w) = (-rotation.x, -rotation.z, -rotation.y, rotation.w);
+    let singularity = z * x - w * y;
+    let radians_to_degrees = 180.0 / std::f64::consts::PI;
     if singularity.abs() > 0.4999995 {
         let sign = if singularity < 0.0 { -1.0 } else { 1.0 };
-        let mut yaw = (-sign * 2.0 * x.atan2(w)).to_degrees() % 360.0;
+        let mut yaw = (sign * 2.0 * x.atan2(w) * radians_to_degrees) % 360.0;
         if yaw < 0.0 {
             yaw += 360.0;
         }
@@ -46,14 +47,14 @@ pub fn rig_euler(rotation: DQuat) -> DVec3 {
         }
         DVec3::new(0.0, -yaw, sign * 90.0)
     } else {
+        let yaw_y = 2.0 * (w * z + x * y);
+        let yaw_x = 1.0 - 2.0 * (y * y + z * z);
+        let roll_y = -2.0 * (w * x + y * z);
+        let roll_x = 1.0 - 2.0 * (x * x + y * y);
         DVec3::new(
-            (2.0 * (w * x - y * z))
-                .atan2(1.0 - 2.0 * (x * x + z * z))
-                .to_degrees(),
-            -(2.0 * (x * z - w * y))
-                .atan2(1.0 - 2.0 * (z * z + y * y))
-                .to_degrees(),
-            (2.0 * singularity).asin().to_degrees(),
+            roll_y.atan2(roll_x) * radians_to_degrees,
+            -(yaw_y.atan2(yaw_x) * radians_to_degrees),
+            (2.0 * singularity).asin() * radians_to_degrees,
         )
     }
 }
@@ -231,6 +232,31 @@ mod tests {
         ] {
             assert_eq!(rig_quaternion(input), expected);
             assert_eq!(QuaternionFromEulerYzx.evaluate(&[EulerDegrees(input)]).unwrap(), Quaternion(expected));
+        }
+    }
+
+    #[test]
+    fn control_rig_euler_keeps_the_native_signed_half_turns() {
+        #[derive(Deserialize)]
+        struct NativeCases {
+            cases: Vec<NativeCase>,
+        }
+
+        #[derive(Deserialize)]
+        struct NativeCase {
+            case: String,
+            runtime_quaternion: [f64; 4],
+            native_euler: [f64; 3],
+        }
+
+        let cases: NativeCases = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d163a/rotator.replay.json"
+        )).unwrap();
+        for case in cases.cases {
+            let rotation = DQuat::from_array(case.runtime_quaternion);
+            let expected = DVec3::from_array(case.native_euler);
+            let actual = rig_euler(rotation);
+            assert!(actual.distance(expected) < 1e-12, "Wrong native Rotator for {}: {actual:?}", case.case);
         }
     }
 
