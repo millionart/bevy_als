@@ -324,7 +324,7 @@ fn sync_child_collider_poses(
     }
 }
 
-fn character_contact_friction_system(
+pub(crate) fn character_contact_friction_system(
     characters: Query<(), With<AlsCharacter>>,
     mut contacts: ResMut<ContactGraph>,
 ) {

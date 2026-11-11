@@ -3065,6 +3065,7 @@ impl Plugin for AlsMotionPlugin {
                 .after(locomotion_state_sync_system).before(snapshot_actual_velocity_system).in_set(AlsActualVelocitySet))
             .add_systems(PhysicsSchedule, apply_character_repulsion
                 .after(PhysicsStepSystems::NarrowPhase)
+                .after(crate::als::character::character_contact_friction_system)
                 .before(avian3d::prelude::SolverSystems::PrepareSolverBodies)
                 .before(crate::extensions::ragdoll_physics_profile::capture_source_sleep_wakes))
             .add_systems(PostUpdate, (
