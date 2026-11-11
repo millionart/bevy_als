@@ -594,6 +594,11 @@ impl NodeLike for InertializationPassthroughNode {
                 }
                 let output = if state.active {
                     state.elapsed += delta;
+                    state.deficit = if state.elapsed >= state.duration {
+                        0.0
+                    } else {
+                        (state.deficit - delta).max(0.0)
+                    };
                     let output = apply_source_inertialization(&source_pose, state);
                     for (name, (difference, derivative)) in &state.curve_differences {
                         *source_context.curves.entry(name.clone()).or_default() +=
@@ -601,12 +606,10 @@ impl NodeLike for InertializationPassthroughNode {
                     }
                     if state.elapsed >= state.max_duration {
                         state.active = false;
-                        state.deficit = 0.0;
-                    } else {
-                        state.deficit = (state.deficit - delta).max(0.0);
                     }
                     output
                 } else {
+                    state.deficit = 0.0;
                     source_pose
                 };
                 record_source_inertial_history(state, &output, if teleported { 0.0 } else { delta }, component, attachment_epoch);
@@ -1128,6 +1131,76 @@ mod tests {
                 .data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
                 .is_some()
         );
+    }
+
+    #[test]
+    fn immediate_inertial_stop_clears_deficit_before_reentry() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::AnimationGraph, animation_node::AnimationNode,
+            context::{
+                graph_context::QueryOutputTime, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, node_states::StateKey, system_resources::SystemResources,
+            },
+            edge_data::DataValue, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::extensions::animation_context::{SourceInertializationPart, SourceInertializationRequest};
+
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d193/deficit.replay.json"
+        )).unwrap();
+        let source = AnimationNode::new("source", crate::extensions::GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
+        let node = AnimationNode::new("inertial", InertializationPassthroughNode { internalize_time: true, ..default() });
+        let (source_id, node_id) = (source.id, node.id);
+        let mut graph = AnimationGraph::new();
+        graph.add_node(source);
+        graph.add_node(node);
+        graph.add_node_parameter_edge(source_id, "Pose", node_id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(node_id, "pose", "Pose");
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+
+        world.run_system_once(move |resources: SystemResources| {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let env = TestIoEnv::default();
+            let mut gizmos = bevy_animation_graph::core::context::deferred_gizmos::DeferredGizmos::default();
+            let entities = HashMap::new();
+            let bone = BoneId::default();
+            for case in reference["cases"].as_array().unwrap() {
+                let mut arena = GraphContextArena::new(handle.id());
+                for frame in case["frames"].as_array().unwrap() {
+                    let scalar = |key: &str| frame[key].as_f64().unwrap() as f32;
+                    let parts = frame["request_durations"].as_array().unwrap().iter()
+                        .map(|duration| SourceInertializationPart { duration: duration.as_f64().unwrap() as f32, ..default() })
+                        .collect::<Vec<_>>();
+                    let request = parts.iter().map(|part| part.duration).reduce(f32::min).map(|duration| {
+                        SourceInertializationRequest {
+                            frame: arena.frame_index().wrapping_add(1), duration, parts, ..default()
+                        }
+                    });
+                    arena.get_toplevel_mut().node_states
+                        .get_mut_or_insert_with(source_id, StateKey::Default, AnimationContextState::default)
+                        .unwrap().inertialization_request = request;
+                    let mut input = Pose::default();
+                    input.add_bone(BonePose::from_transform(Transform::from_translation(Vec3::X * scalar("input_m"))), bone);
+                    let inputs = HashMap::from([("input".into(), DataValue::Pose(input))]);
+                    let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(scalar("delta_seconds"))),
+                        GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs))
+                        .unwrap()["Pose"].clone().into_pose().unwrap();
+                    let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(node_id, StateKey::Default).unwrap();
+                    assert_eq!(state.duration, scalar("expected_duration_seconds"), "{}", case["name"]);
+                    assert_eq!(state.deficit, scalar("expected_deficit_seconds"), "{}", case["name"]);
+                    let actual = output.get_bone(bone).unwrap().translation.unwrap().x;
+                    assert!((actual - scalar("native_m")).abs() < 8e-8, "{}: {actual}", case["name"]);
+                }
+            }
+        }).unwrap();
     }
 
     #[test]
