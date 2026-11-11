@@ -582,6 +582,60 @@ mod tests {
     }
 
     #[test]
+    fn idle_character_keeps_edge_support_during_a_clamped_physics_frame() {
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::als::control_scheme::AlsControlScheme;
+        use crate::als::dynamics::AlsMovementBase;
+        use crate::als::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use crate::als::params::AlsMovementParams;
+        use crate::als::transition::AlsStateTransitionPlugin;
+        use avian3d::prelude::{LinearVelocity, PhysicsPlugins, SleepingDisabled};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
+            TnuaControllerPlugin::<AlsControlScheme>::new(Update), AlsStateTransitionPlugin,
+            AlsCharacterPlugin, AlsMotionPlugin, SourcePhysicsTimingPlugin))
+            .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.update();
+
+        let params = AlsMovementParams::default();
+        let config = initial_als_control_scheme_config(&params);
+        let config = app.world_mut().resource_mut::<Assets<_>>().add(config);
+        let params = app.world_mut().resource_mut::<Assets<_>>().add(params);
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform.translation = Vec3::new(-0.99, 1.9215, 0.85);
+        let actor = app.world_mut().spawn(bundle).id();
+        let platform = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY, SleepingDisabled)).id();
+        let collider = app.world_mut().spawn((ChildOf(platform), Collider::cuboid(2.0, 2.0, 2.0), Transform::IDENTITY)).id();
+        for _ in 0..60 { app.update(); }
+        assert_eq!(app.world().get::<AlsMovementBase>(actor).unwrap().entity, Some(collider));
+        let position = app.world().get::<Position>(actor).unwrap().0;
+        let platform_start = app.world().get::<Position>(platform).unwrap().0;
+        let speed = -9.172_441;
+        app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().x = speed;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(0.054_094_833)));
+        app.update();
+
+        let world = app.world();
+        let shift = world.get::<Position>(platform).unwrap().0 - platform_start;
+        let position_after = world.get::<Position>(actor).unwrap().0;
+        let mode = *world.get::<LocomotionState>(actor).unwrap();
+        let physics_delta = world.resource::<Time<Physics>>().delta_secs();
+        println!("world_delta={} physics_delta={physics_delta} platform_shift={shift:?} actor_shift={:?} mode={mode:?}",
+            world.resource::<Time<Virtual>>().delta_secs(), position_after - position);
+        assert!((shift.x - speed * SOURCE_MAX_PHYSICS_DELTA.as_secs_f32()).abs() < 1e-5);
+        assert_eq!(mode, LocomotionState::Grounded);
+        assert_eq!(world.get::<AlsMovementBase>(actor).unwrap().entity, Some(collider));
+        assert!(position_after.abs_diff_eq(position + shift, 1e-5));
+    }
+
+    #[test]
     fn accepted_moving_base_jump_integrates_the_entire_takeoff_frame() {
         use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin, AlsEffectiveGravity};
         use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};

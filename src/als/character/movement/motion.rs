@@ -5104,8 +5104,10 @@ pub(crate) fn cmc_movement_transaction_system(
                 continue;
             }
         }
-        if runtime.simulation_substeps > 1 && runtime.grounded_movement_delta.is_some()
-            && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics.as_deref_mut()) {
+        if runtime.grounded_movement_delta.is_some()
+            && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics.as_deref_mut())
+            && (runtime.simulation_substeps > 1
+                || (base.entity.is_some() && base.support_velocity.with_y(0.0) != Vec3::ZERO)) {
             let stationary_delta = runtime.grounded_movement_delta.filter(|delta|
                 delta.with_y(0.0).abs().max_element() <= crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE);
             let initial = position.0;

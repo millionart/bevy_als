@@ -1,0 +1,18 @@
+{
+  "after_mantle_frames": 226,
+  "after_mantle_seconds": 3.846444208000001,
+  "maximum_world_delta_seconds": 0.020052292000000804,
+  "maximum_planar_base_drift_m": 0.0,
+  "covered_checks": [
+    "runtime_assembly",
+    "animation_graph",
+    "moving_base_ride",
+    "moving_base_jump",
+    "moving_base_new_support",
+    "moving_base_mantle",
+    "mantle_start",
+    "mantle_complete",
+    "moving_base_after_mantle",
+    "moving_base_progress"
+  ]
+}
