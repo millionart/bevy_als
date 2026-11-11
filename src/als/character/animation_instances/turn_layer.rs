@@ -248,10 +248,7 @@ impl AlsTurnMontageStack {
                 entry.blend_out_start_weight = 0.0;
             }
         }
-        self.entries.retain(|entry| {
-            (!entry.sampling_ready && entry.blend_out_elapsed.is_none())
-                || entry.weight() > f32::EPSILON
-        });
+        self.entries.retain(|entry| entry.blend_out_elapsed.is_none() || entry.weight() > f32::EPSILON);
         natural_end
     }
 
@@ -1192,6 +1189,13 @@ mod tests {
             crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
                 SourceTurnRequest { variant:TurnVariant::Right90,yaw:90.0,crouching:false });
         }).unwrap();
+        let started = app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0].id;
+        app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+        for _ in 0..2 { app.update(); }
+        let held = &app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0];
+        assert!(held.sampling_ready);
+        assert_eq!((held.id, held.elapsed, held.weight()), (started, 0.0, 0.0));
+        app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(1.0));
         for _ in 0..18 {app.update();}
         let before=app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0].clone();
         let calls=app.world().get::<crate::transition_notify::TransitionNotifyTelemetry>(character).unwrap().stop_animations_count;
@@ -1613,6 +1617,61 @@ mod tests {
         assert!(!stack.advance(0.1));
         assert!((stack.entries[0].elapsed - 0.12).abs() < 1e-6);
         assert!((stack.entries[0].weight() - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ready_turn_instances_survive_native_zero_delta_and_resume_in_all_variants() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            sequence: String,
+            crouching: bool,
+            angle: u16,
+            right: bool,
+            length: f32,
+            frames: Vec<Frame>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Frame {
+            delta_seconds: f32,
+            position: f32,
+            weight: f32,
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d175/zero-delta.replay.json"
+        )).unwrap();
+        for case in fixture.cases {
+            let variant = match (case.angle, case.right) {
+                (90, false) => TurnVariant::Left90,
+                (90, true) => TurnVariant::Right90,
+                (180, false) => TurnVariant::Left180,
+                (180, true) => TurnVariant::Right180,
+                _ => panic!("invalid turn angle"),
+            };
+            let yaw = f32::from(case.angle) * if case.right { 1.0 } else { -1.0 };
+            let request = SourceTurnRequest { variant, yaw, crouching: case.crouching };
+            assert_eq!(request.source_sequence(), case.sequence);
+            let mut stack = AlsTurnMontageStack::default();
+            request.play(&mut stack);
+            let entry = &mut stack.entries[0];
+            assert_eq!(entry.duration, case.length);
+            entry.sampling_ready = true;
+            let id = entry.id;
+            for frame in case.frames {
+                assert!(!stack.advance(frame.delta_seconds));
+                assert_eq!(stack.entries.len(), 1, "{}", case.sequence);
+                let entry = &stack.entries[0];
+                assert_eq!(entry.id, id);
+                assert!(entry.playing());
+                assert_eq!((entry.elapsed, entry.weight()), (frame.position, frame.weight), "{}", case.sequence);
+            }
+        }
     }
 
     #[test]

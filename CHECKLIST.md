@@ -6940,7 +6940,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：源body yaw=−175°、所选yaw=0°时，源剩余角为175°，应选Right、速率约2.9652777；目标舍入后跨过175°，改选Left、速率约3.0347221。相同body与所选yaw=−175°时，源应选Left，目标却选Right。实际站蹲×输入/目标两条来源的12组均在根Slot消费错误Sequence；仅恢复源index/rate的28组全部通过，正负邻域及非VelocityDirection控制通过。
   - 漏检/边界：旧选择测试直接输入角度，只覆盖整角度普通分支，没有经过真实Quaternion→heading、弧度往返及double→float差分链。当前有效输入矩阵70次分叉均为左右选择变化；证据`88/yaw.native.json`、`88/analysis.json`及`bf144_animation_phase88_quick_stop_consumers`。只确认受控数值边界和实际消费，未证明默认动作自然触发；未改阈值、加补偿或修生产。
 
-- [ ] BF144-D175 / P2 — Turn混入首帧为零delta时，仍在播放的实例被零权重清理。
+- [x] BF144-D175 / P2 — Turn混入首帧为零delta时，仍在播放的实例被零权重清理。
+  - 2026-11-12 04:49 +0800 实际结束，较05:25预估提前36分钟，未拆分。八源Montage40帧及零delta复现见 `docs/audit/bf144/d175/`。播放实例保留至停止，实际Turn时间倍率0→1 fixture已加入。Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 04:46 +08:00，预估结束2026-11-12 05:25 +08:00。重采八个原生Turn零delta首帧，验证采样已就绪时的播放身份及恢复时钟。
   - Source：fresh `AnimMontage.cpp:2785–2790`只在已停止且混合完成后销毁实例；动态Montage刚开始可以有效且权重为0。原生八资源的零delta首帧均保持valid/playing，后续时间恢复后正常混入；`AnimInstance.cpp:1043`的零delta分支选择同步更新，并非跳过该生命周期。
   - Target：`turn_layer.rs:229–248`推进后仅保留尚未准备采样的实例或权重大于epsilon的实例；sampling_ready=true且首次delta=0时，播放中的实例被删除，且没有自然结束/惯性请求。
   - 反例：实际图回调创建Turn并确认采样已就绪，将owner倍率设为0一帧后恢复；八个资源均消失，后续没有对应Slot样本和RotationYawSpeed。仅保留被误删的同一实例，64帧恢复全部通过；48组姿态/曲线对照全部拒绝原样，最大骨骼局部位置差约10.4cm、旋转约11.86°、转向曲线差约94.16°/秒。

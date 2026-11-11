@@ -1,0 +1,397 @@
+{
+  "cases": [
+    {
+      "sequence": "A_Als_Turn_90_Left",
+      "crouching": false,
+      "angle": 90,
+      "right": false,
+      "length": 2,
+      "frames": [
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.06000000238418579,
+          "weight": 0.15625,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.12000000476837158,
+          "weight": 0.5,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.10000000149011612,
+          "position": 0.24000000953674316,
+          "weight": 1,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Turn_90_Right",
+      "crouching": false,
+      "angle": 90,
+      "right": true,
+      "length": 2,
+      "frames": [
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.06000000238418579,
+          "weight": 0.15625,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.12000000476837158,
+          "weight": 0.5,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.10000000149011612,
+          "position": 0.24000000953674316,
+          "weight": 1,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Turn_180_Left",
+      "crouching": false,
+      "angle": 180,
+      "right": false,
+      "length": 2,
+      "frames": [
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.06000000238418579,
+          "weight": 0.15625,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.12000000476837158,
+          "weight": 0.5,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.10000000149011612,
+          "position": 0.24000000953674316,
+          "weight": 1,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Turn_180_Right",
+      "crouching": false,
+      "angle": 180,
+      "right": true,
+      "length": 2,
+      "frames": [
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.06000000238418579,
+          "weight": 0.15625,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.12000000476837158,
+          "weight": 0.5,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.10000000149011612,
+          "position": 0.24000000953674316,
+          "weight": 1,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Crouch_Turn_90_Left",
+      "crouching": true,
+      "angle": 90,
+      "right": false,
+      "length": 2,
+      "frames": [
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.06000000238418579,
+          "weight": 0.15625,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.12000000476837158,
+          "weight": 0.5,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.10000000149011612,
+          "position": 0.24000000953674316,
+          "weight": 1,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Crouch_Turn_90_Right",
+      "crouching": true,
+      "angle": 90,
+      "right": true,
+      "length": 2,
+      "frames": [
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.06000000238418579,
+          "weight": 0.15625,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.12000000476837158,
+          "weight": 0.5,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.10000000149011612,
+          "position": 0.24000000953674316,
+          "weight": 1,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Crouch_Turn_180_Left",
+      "crouching": true,
+      "angle": 180,
+      "right": false,
+      "length": 2.3333332538604736,
+      "frames": [
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.06000000238418579,
+          "weight": 0.15625,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.12000000476837158,
+          "weight": 0.5,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.10000000149011612,
+          "position": 0.24000000953674316,
+          "weight": 1,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        }
+      ]
+    },
+    {
+      "sequence": "A_Als_Crouch_Turn_180_Right",
+      "crouching": true,
+      "angle": 180,
+      "right": true,
+      "length": 2.3333332538604736,
+      "frames": [
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0,
+          "position": 0,
+          "weight": 0,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.06000000238418579,
+          "weight": 0.15625,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.05000000074505806,
+          "position": 0.12000000476837158,
+          "weight": 0.5,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        },
+        {
+          "delta_seconds": 0.10000000149011612,
+          "position": 0.24000000953674316,
+          "weight": 1,
+          "valid": true,
+          "playing": true,
+          "stopped": false
+        }
+      ]
+    }
+  ],
+  "old_ready_instance_removals": 8
+}
