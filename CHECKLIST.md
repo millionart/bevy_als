@@ -6825,6 +6825,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧测试覆盖普通弯曲、远目标和零权重，未比较精确距离门槛两侧。此为受控IK输入反例，尚无默认动作自然触发证据；上游FootOffsetLocation的距离限制与历史仍影响可达性，不能据此泛化为常见站姿故障。证据`78/positions.native.json`、`78/full.native.json`、`bf144_animation_phase78_position_kernel_boundaries`与`bf144_animation_phase78_full_boundary_consumers`；仅登记，未改生产阈值或求解器。
 
 - [ ] BF144-D165 / P3 — Rig长度与位置状态改用米制float运算，偏离源厘米舍入结果。
+  - 按可独立验收的骨长、足偏移和骨盆writer三个子项执行。
+  - [x] BF144-D165a / P3 — 从初始骨段按源厘米float计算自动IK骨长。
+    - 2026-11-12 02:55 +0800 实际结束，较03:35预估提前40分钟。fresh 源初始骨段与缩放、六个原生骨长、九个位置对照及反例见 `docs/audit/bf144/d165a/`。旧米制舍入在三组伸直边界造成74–98µm膝误差，源厘米float投影通过。已加入自动骨长真实Rig回调 fixture，Cargo/Playground 待统一验证。
+    - 本轮开始2026-11-12 02:50 +08:00，预估结束2026-11-12 03:35 +08:00。复用.477当前实际记录，重采双腿及非均匀缩放的自动骨长与伸直边界，验证实际回调。
+  - [ ] BF144-D165b / P3 — 保留足Trace标量、Location限长和弹簧状态的源厘米float运算。
+  - [ ] BF144-D165c / P3 — 保留骨盆SpringInterpV2、权重writer及传入两脚下限的源厘米float运算。
   - BF144.477当前实际1272腿调用骨长消费者：在476已资格before/current/initial和完整ABI上，2660源骨长native计算及1324满权重源solver的A/B旋转、B/C位置精确；2零权重提前返回、6 partial只核长度，均明示。固定同一current初始端点/当前A缩放与其余public参数，native同米自动长度与公开Rust重算/显式单位调用1272完整姿态精确；仅切换厘米float长度投米使512标量/452次完整姿态（452含F32骨字段）改变，native double厘米投米后才cast的控制0变化。故该消费者属D165，未将source初始缓存D242或solver数学混入同因，也未宣称452是source完整恢复。物理删厘米float阶段丢全部452信号、原公共1272仍过而因素Gate101拒；源码bytes同target六库复编完整输出byte恢复。证据docs/audit/bf144/477/comparison.json、difference-table.json及原始压缩native/恢复；生产未修。
 
   - Source：fresh `RigUnit_TwoBoneIKSimple.cpp:161–189`以double厘米参考骨段乘当前/初始缩放，再把长度写入float；位置核随后按double消费该float厘米长度。四个实际调用的显式长度均为0，都会进入自动计算。

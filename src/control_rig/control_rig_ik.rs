@@ -158,18 +158,19 @@ impl RigGeometry {
         primary: DVec3,
         secondary: DVec3,
         secondary_weight: f32,
-        lengths: [f32; 2],
+        lengths: [impl Into<f64>; 2],
         stretch: bool,
         stretch_start: f32,
         stretch_max: f32,
     ) {
         let root = bones[0].translation;
+        let [upper, lower] = lengths.map(Into::into);
         let (joint, effector) = self.positions(
             root,
             bones[2].translation,
             pole,
-            lengths[0] as f64,
-            lengths[1] as f64,
+            upper,
+            lower,
             stretch,
             stretch_start as f64,
             stretch_max as f64,

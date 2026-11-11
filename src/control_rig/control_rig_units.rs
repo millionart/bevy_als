@@ -382,28 +382,27 @@ impl RigUnitContext<'_> {
                     },
                     RigTransform::from_value(effector)?,
                 ];
-                let mut lengths = [*length_a, *length_b];
+                let minimum_length = f64::from(self.geometry.minimum_length);
+                let mut lengths = [f64::from(*length_a), f64::from(*length_b)];
                 for (index, (parent, child)) in [(a, Some(b)), (b, end)].into_iter().enumerate() {
-                    if lengths[index] < self.geometry.minimum_length
+                    if lengths[index] < minimum_length
                         && let Some(child) = child
                     {
                         let initial = self.hierarchy.transform(parent, RigSpace::Global, true)?;
-                        let scale = if initial.scale.length_squared() > 1e-8_f32 as f64 {
+                        let scale = if source_vector_dot(initial.scale, initial.scale) > 1e-8_f32 as f64 {
                             bones[index].scale / initial.scale
                         } else {
                             bevy::math::DVec3::ONE
                         };
-                        let delta = initial.translation
-                            - self
-                                .hierarchy
-                                .transform(child, RigSpace::Global, true)?
-                                .translation;
-                        lengths[index] = (delta * scale).length() as f32;
+                        let child = self.hierarchy.transform(child, RigSpace::Global, true)?;
+                        let delta_cm = (initial.translation * 100.0 - child.translation * 100.0) * scale;
+                        let length_cm = source_vector_dot(delta_cm, delta_cm).sqrt() as f32;
+                        lengths[index] = f64::from(length_cm) * 0.01;
                     }
                 }
                 if lengths
                     .iter()
-                    .any(|&length| length < self.geometry.minimum_length)
+                    .any(|&length| length < minimum_length)
                 {
                     return Ok(());
                 }
@@ -666,7 +665,7 @@ mod tests {
         bones[2].translation = DVec3::new(-17.076_301_574_707_03, 13.465_195_894_241_333, -5.072_212_219_238_281);
         geometry.solve(&mut bones,
             DVec3::new(-35.484_576_782_270_3, 52.930_200_444_555, 33.857_362_981_432_14),
-            DVec3::X, DVec3::Y, 0.0, [42.572_25, 40.196_82], false, 0.75, 1.25);
+            DVec3::X, DVec3::Y, 0.0, [42.572_25_f32, 40.196_82_f32], false, 0.75, 1.25);
         assert_eq!(bones[1].translation,
             DVec3::new(-16.246_864_416_758_697, 53.175_769_941_310_58, 1.105_702_083_001_855_1));
     }
@@ -1186,7 +1185,7 @@ mod tests {
         bones[1].rotation = initial;
         geometry().solve(&mut bones,
             DVec3::new(-0.265_311_954_503_788_14, 0.251_595_211_436_327_24, 0.390_121_188_974_275_5),
-            DVec3::X, DVec3::NEG_Z, 1.0, [0.425_722_5, 0.401_968_18], false, 0.75, 1.25);
+            DVec3::X, DVec3::NEG_Z, 1.0, [0.425_722_5_f32, 0.401_968_18_f32], false, 0.75, 1.25);
         assert_eq!(bones[0].rotation.w as f32, -0.210_394_19);
     }
 
@@ -1508,10 +1507,43 @@ mod tests {
         }
     }
 
-    #[test]
-    fn control_rig_ik_uses_the_native_coincident_goal_boundary() {
+    fn solve_ik_unit_positions(
+        hierarchy: &mut RigHierarchy,
+        root: RigTransform,
+        effector: DVec3,
+        pole: DVec3,
+        lengths: [f32; 2],
+    ) -> [DVec3; 2] {
         use RigValue::*;
 
+        hierarchy.set_transform(0, RigSpace::Global, false, root, true).unwrap();
+        let curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 0.0,
+            geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
+        };
+        let effector = RigTransform { translation: effector, ..Default::default() };
+        let mut args = [
+            item("Bone0"), item("Bone1"), item("Bone2"), effector.value(),
+            Vector(DVec3::ZERO), Vector(DVec3::ZERO), F32(0.0), Vector(pole),
+            Name("Location".to_owned()), item(""), Bool(false), F32(0.75), F32(1.25), F32(1.0),
+            F32(lengths[0]), F32(lengths[1]), Bool(true),
+            List(vec![]), List(vec![]), List(vec![]), List(vec![]), List(vec![]),
+        ];
+        context.call("FRigUnit_TwoBoneIKSimplePerItem::Execute", &mut args).unwrap();
+        [1, 2].map(|bone| {
+            context.hierarchy.transform(bone, RigSpace::Global, false).unwrap().translation
+        })
+    }
+
+    #[test]
+    fn control_rig_ik_uses_the_native_coincident_goal_boundary() {
         #[derive(serde::Deserialize)]
         struct Fixture {
             cases: Vec<Case>,
@@ -1530,33 +1562,68 @@ mod tests {
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../docs/audit/bf144/d164/goal.replay.json"
         )).unwrap();
-        let curves = HashMap::default();
-        let geometry = geometry();
         for case in fixture.cases {
             let mut hierarchy = hierarchy();
-            let transform = |translation| RigTransform { translation, ..Default::default() };
-            hierarchy.set_transform(0, RigSpace::Global, false,
-                transform(DVec3::from_array(case.root)), true).unwrap();
-            let mut context = RigUnitContext {
-                hierarchy: &mut hierarchy,
-                curves: &curves,
-                game_world: true,
-                construction: false,
-                delta_seconds: 0.0,
-                geometry: &geometry,
-                to_world: RigTransform::default(),
-                line_trace: None,
+            let root = RigTransform {
+                translation: DVec3::from_array(case.root),
+                ..Default::default()
             };
-            let mut args = [
-                item("Bone0"), item("Bone1"), item("Bone2"), transform(DVec3::from_array(case.effector)).value(),
-                Vector(DVec3::ZERO), Vector(DVec3::ZERO), F32(0.0), Vector(DVec3::from_array(case.pole)),
-                Name("Location".to_owned()), item(""), Bool(false), F32(0.75), F32(1.25), F32(1.0),
-                F32(0.5), F32(0.75), Bool(true), List(vec![]), List(vec![]), List(vec![]), List(vec![]), List(vec![]),
-            ];
-            context.call("FRigUnit_TwoBoneIKSimplePerItem::Execute", &mut args).unwrap();
-            for (bone, expected) in [(1, case.joint), (2, case.end)] {
-                let position = context.hierarchy.transform(bone, RigSpace::Global, false).unwrap().translation;
+            let actual = solve_ik_unit_positions(&mut hierarchy, root,
+                DVec3::from_array(case.effector), DVec3::from_array(case.pole), [0.5, 0.75]);
+            for (position, expected) in actual.into_iter().zip([case.joint, case.end]) {
                 assert!(position.distance(DVec3::from_array(expected)) < 1e-12, "{}: {position:?}", case.name);
+            }
+        }
+    }
+
+    #[test]
+    fn control_rig_ik_rounds_automatic_lengths_in_source_centimeters() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            root: [f64; 3],
+            scale: [f64; 3],
+            effector: [f64; 3],
+            pole: [f64; 3],
+            initials: [[f64; 3]; 3],
+            initial_scales: [[f64; 3]; 3],
+            joint: [f64; 3],
+            end: [f64; 3],
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d165a/lengths.replay.json"
+        )).unwrap();
+        for case in fixture.cases {
+            let globals: [RigTransform; 3] = std::array::from_fn(|index| RigTransform {
+                translation: DVec3::from_array(case.initials[index]),
+                scale: DVec3::from_array(case.initial_scales[index]),
+                ..Default::default()
+            });
+            let bones = globals.iter().copied().enumerate().map(|(index, initial_global)| {
+                let parent = index.checked_sub(1);
+                RigBone {
+                    name: format!("Bone{index}"),
+                    parent,
+                    initial_local: parent.map_or(initial_global, |parent| initial_global.relative(globals[parent])),
+                    initial_global,
+                }
+            }).collect();
+            let mut hierarchy = RigHierarchy::new(bones, 1e-6).unwrap();
+            let root = RigTransform {
+                translation: DVec3::from_array(case.root),
+                scale: DVec3::from_array(case.scale),
+                ..Default::default()
+            };
+            let actual = solve_ik_unit_positions(&mut hierarchy, root,
+                DVec3::from_array(case.effector), DVec3::from_array(case.pole), [0.0, 0.0]);
+            for (position, expected) in actual.into_iter().zip([case.joint, case.end]) {
+                assert!(position.distance(DVec3::from_array(expected)) < 1e-8, "{}: {position:?}", case.name);
             }
         }
     }
