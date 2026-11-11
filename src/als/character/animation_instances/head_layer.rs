@@ -12,6 +12,7 @@ use crate::als::motion::AlsRotationResponseState;
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::state::RotationMode;
 use crate::als::view::AlsViewPitch;
+use crate::extensions::post_physics_animation::{AnimationPoseUpdateGate, InitialAnimation};
 use crate::extensions::{source_instance::source_player_property, unscaled_delta_seconds};
 use bevy::prelude::*;
 use bevy::time::{Real, Virtual};
@@ -173,7 +174,7 @@ fn head_layer_writer(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&InitialAnimation>, Option<&AnimationPoseUpdateGate>)>,
 ) {
     for (parent, instance) in &avatars {
         let Ok((
@@ -187,7 +188,7 @@ fn head_layer_writer(
             continue;
         };
         let Ok(transform) = transforms.compute_global_transform(parent.parent()) else { continue; };
-        let Ok((mut player, context, initial)) = players.get_mut(instance.player_entity()) else {
+        let Ok((mut player, context, initial, gate)) = players.get_mut(instance.player_entity()) else {
             continue;
         };
         let mut previous_dilation =
@@ -201,7 +202,9 @@ fn head_layer_writer(
             virtual_time.effective_speed(),
             custom_dilation,
         );
-        player.set_global_input_data("animation.previous_global_time_dilation", previous_dilation);
+        if gate.is_none_or(|gate| gate.update_graph) {
+            player.set_global_input_data("animation.previous_global_time_dilation", previous_dilation);
+        }
         let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("locomotion_action")).is_some_and(|tag| tag.is_valid());
         let input = head_frame_inputs(
             &player,

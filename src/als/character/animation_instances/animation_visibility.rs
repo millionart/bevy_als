@@ -237,4 +237,47 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn hidden_idle_retains_dilation_until_head_updates_again() {
+        use bevy::time::Virtual;
+        use crate::als::input_request::AlsFirstPersonView;
+        use crate::als::view::AlsViewPitch;
+
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(character).insert((AlsFirstPersonView, AlsViewPitch(0.0)));
+        app.world_mut().entity_mut(avatar).insert((Visibility::Hidden, AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones));
+        for _ in 0..3 { app.update(); }
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let frame = graph.get_context_arena().unwrap().frame_index();
+        let head = crate::head_layer::head_state_from_player(graph);
+        assert!(!head.initialization_required && head.pitch_angle.abs() < 1e-4);
+        let now = app.world().resource::<Time>().elapsed_secs_f64();
+        app.world_mut().entity_mut(avatar).insert((
+            AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered,
+            AlsMeshRenderTime((now - 2.0) as f32),
+        ));
+        app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(0.25);
+        for _ in 0..4 { app.update(); }
+
+        let scalar = |player: &AnimationGraphPlayer, key| player.get_global_input_data(key).unwrap().as_f32().unwrap();
+        let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        assert_eq!(graph.get_context_arena().unwrap().frame_index(), frame);
+        assert_eq!(scalar(graph, "animation.previous_global_time_dilation"), 1.0);
+        app.world_mut().entity_mut(character).insert(AlsViewPitch(std::f32::consts::FRAC_PI_4));
+        let now = app.world().resource::<Time>().elapsed_secs_f64();
+        app.world_mut().entity_mut(avatar).insert((Visibility::Visible, AlsMeshRenderTime(now as f32)));
+        app.update();
+
+        let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let pitch = crate::head_layer::head_state_from_player(graph).pitch_angle;
+        assert_eq!(graph.get_context_arena().unwrap().frame_index(), frame + 1);
+        assert!((scalar(graph, "animation.delta_seconds_without_time_dilation") - 1.0 / 240.0).abs() < 1e-6);
+        assert_eq!(scalar(graph, "animation.previous_global_time_dilation"), 0.25);
+        assert!((pitch - 11.285_648).abs() < 1e-3, "First-person head resumed at {pitch}");
+        app.update();
+        let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        assert!((scalar(graph, "animation.delta_seconds_without_time_dilation") - 1.0 / 60.0).abs() < 1e-6);
+    }
 }

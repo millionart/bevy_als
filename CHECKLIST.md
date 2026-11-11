@@ -6642,7 +6642,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色隐藏超过1秒后，播放实际transition montage并确认隐藏期间clip推进到0.2秒、pose_ready、根图计数未推进；恢复可见时目标pitch第三人称4.921°、第一人称30.767°，源应为45°。60/30Hz共16组12PASS/4FAIL，只补回InitializeHead标志的控制全部PASS；持续可见及无montage的纯空闲隐藏控制也通过。实际Head回调写入当前帧，并进入生成的BS_Als_Look输入链，最终head姿态已采样。
   - 漏检：旧可见性测试核对gate/pending及帧计数，没有区分ShouldTickPose外层资格和实际CallFunction计数。首版把纯空闲隐藏也判为重置的oracle已撤销；结论只使用带实际montage资格的`65/checked_initial/`，未修改生产实现。
 
-- [ ] BF144-D147 / P3 — 图停止更新时仍推进动画实例的历史全局时间倍率。
+- [x] BF144-D147 / P3 — 图停止更新时仍推进动画实例的历史全局时间倍率。
+  - 2026-11-12 00:16 +0800 实际结束早于00:37预估，未拆分。fresh UE全量与montage-only NativeUpdate边界、AIS_Als_Default半衰期与原生公式见 `docs/audit/bf144/d147/`。已按现有update_graph gate保存上一全局倍率。六组静态重放通过，移除写入条件只使第一人称隐藏降速组从11.285648°漂移至30.767437°。实际角色两帧反例已落盘，旧65原始运行报告未随当前Git保留，Rust、消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 00:14 +08:00，预估结束2026-11-12 00:37 +08:00。复用D146的公开角色和可见性入口，核对历史倍率、恢复帧时间输入与实际Head插值。
   - Source：fresh `UAlsAnimationInstance::NativeUpdateAnimation:111–116`用上一次NativeUpdate保存的global dilation计算DeltaTimeWithoutTimeDilation；隐藏且无montage时，UE的ShouldTickPose不调用NativeUpdate，历史值保持。`RefreshHead:637–648`在第一人称平滑中消费此dt。
   - Target：`head_layer.rs:194–204`每次PostUpdate都调用unscaled_delta_seconds并写回历史倍率，即使AnimationPoseUpdateGate已经停止图更新。
   - 反例：无montage隐藏期间把全局倍率从1变为0.25，恢复帧scaled dt=0.004166667秒。源保留旧倍率1，未缩放dt仍为0.004166667；目标却使用隐藏期间写入的0.25，得到0.016666668。实际Head pitch为30.767°、源应为11.286°；只恢复历史倍率即通过。6组5PASS/1FAIL，持续可见与第三人称控制通过；和D146的montage重激活条件分离，见`65/checked_initial/`。

@@ -1,0 +1,10 @@
+[
+  {
+    "path": "src/als/character/animation_instances/animation_visibility.rs",
+    "sha256": "6895987eb0d4c9a16a56cafb0aa06aba8b61e73944050ede49d47606e9368388"
+  },
+  {
+    "path": "src/als/character/animation_instances/head_layer.rs",
+    "sha256": "20ce4fc23428eb2da5f9f35a1a4a680926b5a2a3e9947a5c1f52d08bb75f33a6"
+  }
+]
