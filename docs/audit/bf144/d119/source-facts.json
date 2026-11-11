@@ -1,0 +1,285 @@
+{
+  "sources": [
+    {
+      "path": "Plugins/ALS-Refactored/Source/ALS/Private/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+      "anchors": [
+        {
+          "line": 90,
+          "source": "void AAlsCharacter::StartRollingImplementation(UAnimMontage* Montage, const float PlayRate,"
+        },
+        {
+          "line": 93,
+          "source": "if (IsRollingAllowedToStart(Montage) && GetMesh()->GetAnimInstance()->Montage_Play(Montage, PlayRate) > 0.0f)"
+        },
+        {
+          "line": 99,
+          "source": "SetLocomotionAction(AlsLocomotionActionTags::Rolling);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimInstance.cpp",
+      "sha256": "1becb94bac7e76eec1d84c8bd211c919e0b262f7cecd8bf3f59cd53f2309ba50",
+      "anchors": [
+        {
+          "line": 573,
+          "source": "Montage_UpdateWeight(DeltaSeconds);"
+        },
+        {
+          "line": 578,
+          "source": "Montage_Advance(DeltaSeconds);"
+        },
+        {
+          "line": 775,
+          "source": "// Update montage eval data, to be used by AnimGraph Update and Evaluate phases."
+        },
+        {
+          "line": 2767,
+          "source": "if (bStopAllMontages)"
+        },
+        {
+          "line": 2770,
+          "source": "StopAllMontagesByGroupName(NewMontageGroupName, BlendInSettings);"
+        },
+        {
+          "line": 2804,
+          "source": ""
+        },
+        {
+          "line": 3671,
+          "source": "void UAnimInstance::StopAllMontagesByGroupName(FName InGroupName, const FMontageBlendSettings& BlendOutSettings)"
+        },
+        {
+          "line": 3682,
+          "source": "FAnimMontageInstance* MontageInstance = MontageInstances[InstanceIndex];"
+        },
+        {
+          "line": 3684,
+          "source": "{"
+        },
+        {
+          "line": 4651,
+          "source": "if (MontageInstance->Montage && MontageInstance->GetWeight() > ZERO_ANIMWEIGHT_THRESH)"
+        },
+        {
+          "line": 4659,
+          "source": "MontageInstance->Montage,"
+        },
+        {
+          "line": 4663,
+          "source": "MontageInstance->IsActive(),"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimMontage.cpp",
+      "sha256": "d0f1ef909f861ca34181a5ee9d5de506f65ffc96f781f58c44d6f60ac626ace9",
+      "anchors": [
+        {
+          "line": 978,
+          "source": "FName UAnimMontage::GetGroupName() const"
+        },
+        {
+          "line": 983,
+          "source": "return MySkeleton->GetSlotGroupName(SlotAnimTracks[0].SlotName);"
+        },
+        {
+          "line": 1634,
+          "source": "if (InBlendOutSettings.Blend.BlendTime < Blend.GetBlendTime())"
+        },
+        {
+          "line": 1636,
+          "source": "// I don't know if also using inBlendOut is better than"
+        },
+        {
+          "line": 1639,
+          "source": "Blend.SetBlendTime(InBlendOutSettings.Blend.BlendTime);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimInstanceProxy.cpp",
+      "sha256": "05bbce3b799bcb42df19528c8f014eadea728e922382fffda1bb074d0e4a40b1",
+      "anchors": [
+        {
+          "line": 2123,
+          "source": "const float MontageWeight = EvalState.BlendInfo.GetBlendedValue();"
+        },
+        {
+          "line": 2124,
+          "source": "NewSlotNodeWeight += MontageWeight;"
+        },
+        {
+          "line": 2143,
+          "source": "// calculating there can cause inconsistency if some data changes"
+        },
+        {
+          "line": 2149,
+          "source": "if (NewSlotNodeWeight > 1.f)"
+        }
+      ]
+    }
+  ],
+  "native_assets": [
+    {
+      "file": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.uasset",
+        "sha256": "2427b8ca1d3d5aa3846b672b25aef646ded754c649ea8cbca73d18a07a59a391"
+      },
+      "object": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.AM_Als_GetUp_Front",
+      "report": "front.native.json",
+      "blend_in": "()",
+      "blend_out": "(BlendTime=0.300000,BlendOption=Cubic)",
+      "skeleton": "/Script/Engine.Skeleton'/ALS/ALS/Character/SK_Als.SK_Als'",
+      "slot": "PostLocomotion"
+    },
+    {
+      "file": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.uasset",
+        "sha256": "b7e8d8218c10575706324a957710e0a07fd74fcb3ecbc3bb12e2ff5315c49cf7"
+      },
+      "object": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.AM_Als_GetUp_Back",
+      "report": "back.native.json",
+      "blend_in": "()",
+      "blend_out": "(BlendTime=0.300000,BlendOption=Cubic)",
+      "skeleton": "/Script/Engine.Skeleton'/ALS/ALS/Character/SK_Als.SK_Als'",
+      "slot": "PostLocomotion"
+    },
+    {
+      "file": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Actions/Roll/AM_Als_Roll.uasset",
+        "sha256": "b47d81dc91c5e7cacc579268e9c6f97749c6727deb331205a2359483fd75fe37"
+      },
+      "object": "/ALS/ALS/Animations/Actions/Roll/AM_Als_Roll.AM_Als_Roll",
+      "report": "roll.native.json",
+      "blend_in": "(BlendTime=0.100000,BlendOption=HermiteCubic)",
+      "blend_out": "(BlendTime=0.300000,BlendOption=HermiteCubic)",
+      "skeleton": "/Script/Engine.Skeleton'/ALS/ALS/Character/SK_Als.SK_Als'",
+      "slot": "PostLocomotion"
+    }
+  ],
+  "source_cases": [
+    {
+      "facing": "front",
+      "delta_seconds": 0.0625,
+      "frames": [
+        {
+          "get_up_position": 1.2750000953674316,
+          "roll_position": 0.08124999701976776,
+          "get_up_weight": 0.31640625,
+          "roll_weight": 0.68359375,
+          "slot_weight": 1.0
+        },
+        {
+          "get_up_position": 1.3500001430511475,
+          "roll_position": 0.16249999403953552,
+          "get_up_weight": 0,
+          "roll_weight": 1,
+          "slot_weight": 1.0
+        },
+        {
+          "get_up_position": 1.3500001430511475,
+          "roll_position": 0.24374999105930328,
+          "get_up_weight": 0,
+          "roll_weight": 1,
+          "slot_weight": 1.0
+        }
+      ],
+      "first_frame_without_current_roll_weight": 0.31640625,
+      "second_frame_without_roll_slot_takeover_weight": 0.0
+    },
+    {
+      "facing": "front",
+      "delta_seconds": 0.05000000074505806,
+      "frames": [
+        {
+          "get_up_position": 1.2599997520446777,
+          "roll_position": 0.06499999761581421,
+          "get_up_weight": 0.5,
+          "roll_weight": 0.5,
+          "slot_weight": 1.0
+        },
+        {
+          "get_up_position": 1.3199996948242188,
+          "roll_position": 0.12999999523162842,
+          "get_up_weight": 0,
+          "roll_weight": 1,
+          "slot_weight": 1.0
+        },
+        {
+          "get_up_position": 1.3199996948242188,
+          "roll_position": 0.19499999284744263,
+          "get_up_weight": 0,
+          "roll_weight": 1,
+          "slot_weight": 1.0
+        }
+      ],
+      "first_frame_without_current_roll_weight": 0.5,
+      "second_frame_without_roll_slot_takeover_weight": 0.0,
+      "first_frame_without_group_stop_get_up_weight": 0.9145117998123169
+    },
+    {
+      "facing": "back",
+      "delta_seconds": 0.0625,
+      "frames": [
+        {
+          "get_up_position": 1.2750000953674316,
+          "roll_position": 0.08124999701976776,
+          "get_up_weight": 0.31640625,
+          "roll_weight": 0.68359375,
+          "slot_weight": 1.0
+        },
+        {
+          "get_up_position": 1.3500001430511475,
+          "roll_position": 0.16249999403953552,
+          "get_up_weight": 0,
+          "roll_weight": 1,
+          "slot_weight": 1.0
+        },
+        {
+          "get_up_position": 1.3500001430511475,
+          "roll_position": 0.24374999105930328,
+          "get_up_weight": 0,
+          "roll_weight": 1,
+          "slot_weight": 1.0
+        }
+      ],
+      "first_frame_without_current_roll_weight": 0.31640625,
+      "second_frame_without_roll_slot_takeover_weight": 0.0
+    },
+    {
+      "facing": "back",
+      "delta_seconds": 0.05000000074505806,
+      "frames": [
+        {
+          "get_up_position": 1.2599997520446777,
+          "roll_position": 0.06499999761581421,
+          "get_up_weight": 0.5,
+          "roll_weight": 0.5,
+          "slot_weight": 1.0
+        },
+        {
+          "get_up_position": 1.3199996948242188,
+          "roll_position": 0.12999999523162842,
+          "get_up_weight": 0,
+          "roll_weight": 1,
+          "slot_weight": 1.0
+        },
+        {
+          "get_up_position": 1.3199996948242188,
+          "roll_position": 0.19499999284744263,
+          "get_up_weight": 0,
+          "roll_weight": 1,
+          "slot_weight": 1.0
+        }
+      ],
+      "first_frame_without_current_roll_weight": 0.5,
+      "second_frame_without_roll_slot_takeover_weight": 0.0,
+      "first_frame_without_group_stop_get_up_weight": 0.9145117998123169
+    }
+  ],
+  "consumer": "Current Roll and GetUp montage samples are consumed together by the PostLocomotion slot in the loaded AB_Als character graph.",
+  "ablation_scope": "Source comparisons use individual native montage instances and the inspected slot sum. The target schedule and same-target ablation are pending the unified test phase.",
+  "historical_report_availability": "The original .41 target reports are absent. Fresh raw source reports are kept here."
+}

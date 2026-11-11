@@ -277,7 +277,7 @@ fn update_get_up_pose(
             state.pose_ready = false;
             continue;
         };
-        let mut pose = crate::extensions::source_sequence_player::sample_pose(clip, state.clip_time);
+        let pose = crate::extensions::source_sequence_player::sample_pose(clip, state.clip_time);
         let mut context = sampled_curve_context(curves, state.clip_time);
         context.relevant_asset = Some(SourceRelevantAsset {
             duration: clip.duration,
@@ -295,30 +295,8 @@ fn update_get_up_pose(
             identity: "get_up".to_owned(), clip: assets.clips[index].clone(), clock, montage: true,
             interrupted: state.interrupted, ..default()
         });
-        let roll_weight = roll
-            .filter(|roll| roll.active)
-            .and_then(|_| player.get_global_input_data("roll.weight"))
-            .and_then(|value| value.as_f32().ok())
-            .unwrap_or(0.0);
-        let mut weight = state.weight;
-        if roll_weight > 0.0 {
-            if let Some(roll_pose) = player
-                .get_global_input_data("roll.pose")
-                .and_then(|value| value.as_pose().ok())
-            {
-                let alpha = roll_weight / (weight + roll_weight);
-                pose = crate::extensions::slot_node::blend_slot_pose(pose, Some(roll_pose), Some(alpha));
-                if let Some(roll_context) = source_inputs.get(player_entity).ok().and_then(|inputs| inputs.slot_input_context("roll.pose",)) {
-                    context = crate::extensions::source_pose_nodes::blend_animation_contexts([
-                        (context, 1.0 - alpha),
-                        (roll_context, alpha),
-                    ]);
-                }
-                weight = (weight + roll_weight).min(1.0);
-            }
-        }
         player.set_global_input_data(POST_LOCOMOTION_POSE, DataValue::Pose(pose));
-        player.set_global_input_data(POST_LOCOMOTION_WEIGHT, weight);
+        player.set_global_input_data(POST_LOCOMOTION_WEIGHT, state.weight);
         player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 1.0_f32);
         source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(POST_LOCOMOTION_POSE, Some(context));
         state.pose_ready = true;
@@ -348,7 +326,8 @@ impl Plugin for AlsGetUpPlugin {
             )
             .add_systems(
                 PostUpdate,
-                update_get_up_pose.before(AnimationGraphSet::PrePhysics),
+                update_get_up_pose.after(crate::roll_drive::prepare_roll_slot_samples)
+                    .before(AnimationGraphSet::PrePhysics),
             )
             .add_systems(
                 PostUpdate,
@@ -714,6 +693,60 @@ mod tests {
         assert!((state.weight - 0.5).abs() < 1e-5);
         state.advance(0.1, get_up_settings(state.facing_up));
         assert_eq!(state.weight, 0.0);
+    }
+
+    #[test]
+    fn get_up_to_roll_uses_both_current_samples_in_the_actual_slot() {
+        use bevy_animation_graph::core::{animation_graph::AnimationGraph, context::node_states::StateKey};
+        let read = |file: &str| -> serde_json::Value {
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/audit/bf144/d119").join(file);
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+        };
+        let roll_native = read("roll.native.json");
+        for (facing_up, file) in [(false, "front.native.json"), (true, "back.native.json")] {
+            let get_up_native = read(file);
+            for (case, (delta, prior_frames)) in [(0.0625_f32, 16), (0.05, 20)].into_iter().enumerate() {
+                let get_up_frames = &get_up_native["montage_clock_probe"]["samples"][case]["frames"];
+                let roll_frames = &roll_native["montage_clock_probe"]["samples"][case]["frames"];
+                let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+                app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+                play_loaded_get_up(&mut app, character, facing_up);
+                for _ in 4..prior_frames { app.update(); }
+                assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::None));
+                assert!(app.world().get::<AlsMovementInputBlocked>(character).is_none());
+                let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+                for frame in 0..2 {
+                    app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = frame == 0;
+                    app.update();
+                    assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Rolling));
+                    let get_up = &get_up_frames[prior_frames + frame];
+                    let roll = &roll_frames[frame];
+                    let get_up_weight = get_up["weight"].as_f64().unwrap() as f32;
+                    let roll_weight = roll["weight"].as_f64().unwrap() as f32;
+                    assert_eq!(app.world().get::<AlsGetUpState>(character).map(|state| state.weight), (get_up_weight > 0.0).then_some(get_up_weight));
+                    let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+                    assert!(player.get_error().is_none());
+                    assert_eq!(player.get_global_input_data(POST_LOCOMOTION_WEIGHT).unwrap().as_f32().unwrap(), (get_up_weight + roll_weight).min(1.0));
+                    let arena = player.get_context_arena().unwrap();
+                    let graphs = app.world().resource::<Assets<AnimationGraph>>();
+                    let context = arena.iter_context_ids().find_map(|id| {
+                        let context = arena.get_context(id)?;
+                        let graph = graphs.get(context.get_graph_id())?;
+                        let slot = graph.nodes.values().find(|node| node.name == "Slot 'PostLocomotion'\nGroup 'Locomotion'")?;
+                        crate::extensions::animation_context::node_context_state(&context.node_states, StateKey::Default, slot.id)
+                    }).unwrap();
+                    let get_up_sample = context.asset_samples.iter().find(|sample| sample.identity == "get_up");
+                    assert_eq!(get_up_sample.map(|sample| sample.clock.weight), (get_up_weight > 0.0).then_some(get_up_weight));
+                    if let Some(sample) = get_up_sample {
+                        assert!((sample.clock.position - get_up["position"].as_f64().unwrap() as f32).abs() < 1e-6);
+                    }
+                    let roll_sample = context.asset_samples.iter().find(|sample| sample.identity.starts_with("roll:")).unwrap();
+                    assert_eq!(roll_sample.clock.weight, roll_weight);
+                    assert_eq!(roll_sample.clock.position, roll["position"].as_f64().unwrap() as f32);
+                }
+            }
+        }
     }
 
     #[test]

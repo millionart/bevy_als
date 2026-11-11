@@ -2393,7 +2393,10 @@ impl Plugin for AlsRollDrivePlugin {
                     prepare_roll_slot_samples.before(AnimationGraphSet::PrePhysics),
                     ensure_root_motion_output,
                     ensure_roll_state,
-                    bridge_roll_slot_samples.after(AnimationGraphSet::PrePhysics).before(crate::animation_events::AlsAnimationEventSet::Dispatch),
+                    bridge_roll_slot_samples
+                        .after(AnimationGraphSet::PrePhysics)
+                        .before(crate::animation_events::AlsAnimationEventSet::Dispatch)
+                        .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
                     roll_drive_system
                         .after(ensure_roll_state)
                         .after(bridge_roll_slot_samples)
@@ -2542,7 +2545,7 @@ fn discard_roll_target(
     }
 }
 
-fn prepare_roll_slot_samples(
+pub(crate) fn prepare_roll_slot_samples(
     rolls: Query<&AlsRollState, With<crate::als::character::AlsCharacter>>,
     mut samplers: Query<(&AlsRollSlotSampler, &mut AnimationGraphPlayer, Option<&AlsRollTail>)>,
 ) {
@@ -2620,13 +2623,34 @@ fn bridge_roll_slot_samples(
         let pose_ready = pose.is_some();
         if let Some(pose) = &pose { target_player.set_global_input_data("roll.pose", DataValue::Pose(pose.clone())); }
         target_player.set_global_input_data("roll.weight", weight);
-        source_inputs.get_mut(target).unwrap().set_slot_input_context("roll.pose", context.clone());
+        let mut target_inputs = source_inputs.get_mut(target).unwrap();
+        target_inputs.set_slot_input_context("roll.pose", context.clone());
         let curve_values = ROLL_SLOT_CURVE_NAMES.map(|name| context.as_ref().and_then(|context| context.curves.get(&crate::extensions::SourceCurveName::from(name))).copied().unwrap_or_default());
         for (name, value) in ROLL_SLOT_CURVE_NAMES.into_iter().zip(curve_values) {
             target_player.set_global_input_data(format!("{ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX}{name}"), value);
         }
-        if !get_ups.contains(character) {
-            source_inputs.get_mut(target).unwrap().set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, context);
+        if let Some(get_up) = get_ups.get(character).ok().filter(|get_up| get_up.pose_ready) {
+            if let Some(roll_pose) = pose.as_ref()
+                && let Some(get_up_pose) = target_player.get_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY)
+                    .and_then(|value| value.as_pose().ok()).cloned()
+            {
+                let total = get_up.weight + weight;
+                let alpha = weight / total;
+                let mixed = crate::extensions::slot_node::blend_slot_pose(get_up_pose, Some(roll_pose), Some(alpha));
+                target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, DataValue::Pose(mixed));
+                target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, total.min(1.0));
+                if let (Some(get_up_context), Some(roll_context)) =
+                    (target_inputs.slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY), context)
+                {
+                    let mixed_context = crate::extensions::source_pose_nodes::blend_animation_contexts([
+                        (get_up_context, 1.0 - alpha),
+                        (roll_context, alpha),
+                    ]);
+                    target_inputs.set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, Some(mixed_context));
+                }
+            }
+        } else {
+            target_inputs.set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, context);
             if let Some(pose) = pose {
                 target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_POSE_KEY, DataValue::Pose(pose.clone()));
                 target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, DataValue::Pose(pose));

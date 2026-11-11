@@ -6512,7 +6512,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
     - 预计开始2026-11-11 22:18 +08:00，预估结束23:13 +08:00。依据：.82/.214/.333/.387已有实际位置与原生混合历史，核对实际 Stop/Step 播放和反向/停播控制；依赖D118a，末端持有边界按D120/D257已有归属保留。
     - 本轮开始2026-11-11 21:02 +08:00，预估结束21:57 +08:00。已定位 ALS 排队的 Transition 槽、loop 1、触发0秒和 UE 的先混合后推进。按原时长重新提取左右Stop、Crouch Right和动态Step的原生时钟；旧 .82/.214/.333/.387 原始报告本机缺失。
 
-- [ ] BF144-D119 / P2 — GetUp停止与共槽混合读取上一帧Roll状态和权重。
+- [x] BF144-D119 / P2 — GetUp停止与共槽混合读取上一帧Roll状态和权重。
+  - 21:16 source/static 闭环：同一 SK_Als、PostLocomotion 槽的 Front/Back/Roll 原生报告确认62.5ms接替首帧权重为0.31640625与0.68359375，50ms为0.5与0.5，次帧旧实例退出且 Roll 槽仍为1。50ms移除组停止的原生对照旧权重仍为0.9145118；遗漏当前 Roll 时合槽只余旧权重。GetUp 先在当帧 Roll 推进后处理停止，现有 Roll bridge 拿到当帧姿态后合槽，实际角色在 PostPhysics 求值。已写双朝向双步长真实 SourceSlot 时钟/权重反例。原生请求、报告及 source 身份见 `docs/audit/bf144/d119/`。开始21:11，预估22:01，实际结束2026-11-11 21:16 +08:00，偏差−45分钟。结果：静态实现完成；目标测试、源码消融与真实入口待统一 Gate。
+  - 本轮开始2026-11-11 21:11 +08:00，预估结束22:01 +08:00。依据：.41 双朝向和两种步长已隔离 Stop 与槽生产者两条边，D118 已具备逐帧原生时钟。只追已确认的 GetUp → Roll 同槽接替，从两个 source 时点、当前真实角色阶段与合成槽最小反例收口。
   - Source：fresh `AlsCharacter_Actions.cpp:90–100`成功Montage_Play后立即置Rolling；`AnimInstance.cpp:2767–2772`同步停止同组旧montage，随后同一次UpdateMontage更新所有权重再求槽姿态。Roll原生BlendIn为0.1秒，已有GetUp混出保留原Cubic曲线并缩短时长。
   - Target：`get_up.rs:255–258,301–322,352–354`在PrePhysics前检查roll.active并读取roll.pose/weight，却没有排在`advance_rolls`之后；`roll_drive.rs:1912–1916,2094–2111`到PrePhysics后的bridge才写当前roll槽数据。旧GetUp与新Roll因而使用不同帧的数据。
   - 反例：62.5ms帧、已解锁的起身在第16帧接受Roll，当帧GetUp权重0.8709766而原生0.31640625，第17帧旧GetUp仍残留0.27558246而source已结束；实际Roll权重1但组合槽仅0.9591762。两朝向均失败；夹具只补GetUp晚于roll准备的顺序后，停止时点和旧权重全部恢复原生值，但第16帧组合槽仍只含GetUp的0.31640625，证明晚于Graph的bridge仍是独立阶段边界，未把该控制称作完整修复。证据`bf144_get_up_phase41_roll_order_controls`；50ms中断矩阵也复现。旧测试只覆盖Ragdoll替换和最终标记清理，没有同时核对新旧montage当帧权重。
