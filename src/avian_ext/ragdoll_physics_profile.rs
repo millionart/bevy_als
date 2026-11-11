@@ -560,7 +560,7 @@ impl RagdollPhysicsProfile {
 pub struct RagdollActiveMode(pub BodyMode);
 
 #[derive(Component, Default)]
-struct SourceRagdollFrameRotation {
+pub(crate) struct SourceRagdollFrameRotation {
     integrated: bool,
 }
 

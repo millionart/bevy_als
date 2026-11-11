@@ -6434,7 +6434,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧硬角速度测试只用0.5rad和unit inertia，位置lambda远离阈值；没有覆盖较小角误差与合法角色缩放。本项只判定锁定轴速度约束的激活，不宣称次轴向量的所有数值都已等价；仅登记。
   - 20:38 source/static摘要：fresh源lambda严格比较与cm²→m²换算已记录，独立工具生成cached目标阈值1e−12；非cached路径不变。已写阈值正负边界及clavicle/hand三档scale、小角度的实际solver对照；测试、消融、其他角速度轴向及完整角色/Playground待统一Gate。证据`docs/audit/bf144/d83/`。实际结束：2026-11-08 20:38 +08:00；偏差：−33分钟；结果：静态实现完成，未拆分。
 
-- [ ] BF144-D84 / P2 — Ragdoll自由角积分使用指数旋转，偏离源一阶quat积分。
+- [x] BF144-D84 / P2 — Ragdoll自由角积分使用指数旋转，偏离源一阶quat积分。
+  - 预构建修复结束2026-11-11 17:52 +08:00，偏差−11分钟。积分系统参数类型调整为 crate 内可见，真实入口的物理调度通过构建。自由旋转行为的测试和消融仍待统一 Gate。共享报告 `docs/audit/bf144/ragdoll-avian-switch/build-3.report.json`。
   - 2026-11-11 17:48 +08:00 因第二次预构建复开，预估结束18:03。旧静态收口未检查跨模块系统参数的可见性，`SourcePhysicsTimingPlugin` 无法引用签名含私有组件的积分系统。恢复同 crate 可见性，保留本轮功能入口。证据 `docs/audit/bf144/ragdoll-avian-switch/build-2.diagnostics.json`。
   - 本轮开始：2026-11-08 20:39 +08:00；预计结束：2026-11-08 21:34 +08:00。核对源物理帧时钟、W更新/clamp和Avian公开积分扩展点，限定Ragdoll动态body实现一次源角积分并保持线性/其他实体路径；统一验证留待升级后。
   - 20:42 source/static摘要：fresh PhysicsSettings确认未开启substepping、MaxPhysicsDeltaTime约1/30及最大角速度3600度/秒；UE先更新/clamp W再以物理帧dt做一次normalized一阶quat积分。Avian公开`CustomPositionIntegration`同时接管位置与旋转，需对本rig维持原有线性分步且仅接管自有动态body，不能更改全局子步；碰撞/力在子步间改变W的时序仍单列验证边界。
