@@ -1,0 +1,10 @@
+{
+  "asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+  "source_asset_file": "Plugins/ALS-Refactored/Content/ALS/Character/B_Als_Character.uasset",
+  "source_asset_sha256": "f21394b85b59ddae16b7b192aef6380ec874ba4cc7d1dac347cd64a5ced82036",
+  "native_archive": "docs/audit/bf144/d109/character.native.json.gz",
+  "primary_actor_tick": {
+    "TickGroup": "TG_PrePhysics",
+    "EndTickGroup": "TG_PrePhysics"
+  }
+}

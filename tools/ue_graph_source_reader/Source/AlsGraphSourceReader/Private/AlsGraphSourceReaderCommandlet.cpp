@@ -1849,50 +1849,6 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             MeshContacts.Reset(RequestedCapacity);
             Sample->SetNumberField(TEXT("mesh_contact_buffer_capacity"), MeshContacts.Max());
         }
-        bool CaptureMeshTriangleQuery = false;
-        if (Input->HasField(TEXT("capture_mesh_triangle_query"))
-            && !Input->TryGetBoolField(TEXT("capture_mesh_triangle_query"), CaptureMeshTriangleQuery)) { return nullptr; }
-        if (CaptureMeshTriangleQuery)
-        {
-            Chaos::FVec3 CoreScale;
-            Chaos::FReal WrapperMargin;
-            const Chaos::FTriangleMeshImplicitObject* Core = Chaos::UnwrapImplicit<Chaos::FTriangleMeshImplicitObject>(*Other, CoreScale, WrapperMargin);
-            if (!HasMesh || Core == nullptr) { return nullptr; }
-            Chaos::FRigidTransform3 MeshToConvex = Chaos::FRigidTransform3(BoxWorld).GetRelativeTransformNoScale(ShapeWorld);
-            MeshToConvex.SetScale3D(CoreScale);
-            const Chaos::FAABB3 ConvexBounds = Implicit->BoundingBox();
-            const Chaos::FAABB3 ObjectBounds = Chaos::FAABB3(ConvexBounds).Thicken(CullDistance);
-            const Chaos::FAABB3 MeshBounds = ObjectBounds.InverseTransformedAABB(MeshToConvex);
-            TArray<TSharedPtr<FJsonValue>> Triangles;
-            Core->VisitTriangles(MeshBounds, MeshToConvex, [&ObjectBounds, &Triangles](const Chaos::FTriangle& Triangle,
-                const int32 Face, const int32 Vertex0, const int32 Vertex1, const int32 Vertex2)
-            {
-                const Chaos::FAABB3 Bounds = Chaos::FAABB3::FromPoints(Triangle.GetVertex(0), Triangle.GetVertex(1), Triangle.GetVertex(2));
-                if (!Bounds.Intersects(ObjectBounds)) { return; }
-                TArray<TSharedPtr<FJsonValue>> Vertices;
-                TArray<TSharedPtr<FJsonValue>> Indices;
-                for (int32 Index = 0; Index < 3; ++Index)
-                {
-                    Vertices.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(Triangle.GetVertex(Index)))));
-                }
-                for (int32 Index : {Vertex0, Vertex1, Vertex2}) { Indices.Add(MakeShared<FJsonValueNumber>(Index)); }
-                TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
-                Value->SetNumberField(TEXT("face_index"), Face);
-                Value->SetArrayField(TEXT("vertex_indices"), Indices);
-                Value->SetArrayField(TEXT("vertices_cm"), Vertices);
-                Triangles.Add(MakeShared<FJsonValueObject>(Value));
-            });
-            TSharedRef<FJsonObject> Query = MakeShared<FJsonObject>();
-            Query->SetObjectField(TEXT("convex_min_cm"), CaptureVector(FVector(ConvexBounds.Min())));
-            Query->SetObjectField(TEXT("convex_max_cm"), CaptureVector(FVector(ConvexBounds.Max())));
-            Query->SetObjectField(TEXT("object_min_cm"), CaptureVector(FVector(ObjectBounds.Min())));
-            Query->SetObjectField(TEXT("object_max_cm"), CaptureVector(FVector(ObjectBounds.Max())));
-            Query->SetObjectField(TEXT("mesh_min_cm"), CaptureVector(FVector(MeshBounds.Min())));
-            Query->SetObjectField(TEXT("mesh_max_cm"), CaptureVector(FVector(MeshBounds.Max())));
-            Query->SetObjectField(TEXT("mesh_to_convex"), CaptureTransform(FTransform(MeshToConvex)));
-            Query->SetArrayField(TEXT("triangles"), Triangles);
-            Sample->SetObjectField(TEXT("mesh_triangle_query"), Query);
-        }
         Sample->SetArrayField(TEXT("points"), Points);
         Sample->SetNumberField(TEXT("collision_margin_0_cm"), Constraint->GetCollisionMargin0());
         Sample->SetNumberField(TEXT("collision_margin_1_cm"), Constraint->GetCollisionMargin1());

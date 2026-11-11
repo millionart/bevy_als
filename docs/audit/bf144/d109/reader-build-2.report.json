@@ -1,0 +1,14 @@
+{
+  "format": "ue_source_reader_watchdog_v1",
+  "success": true,
+  "exit_reason": "completed",
+  "started_at_utc": "2026-11-11T11:44:45.2214480Z",
+  "last_progress_at_utc": "2026-11-11T11:45:25.3391186Z",
+  "last_progress_source": "ue_graph_source_reader_build.stdout.log",
+  "finished_at_utc": "2026-11-11T11:45:25.6350470Z",
+  "elapsed_seconds": 40.414,
+  "no_progress_seconds": 0.296,
+  "no_progress_limit_seconds": 120,
+  "timeout_seconds": 600,
+  "process_exit_code": 0
+}
