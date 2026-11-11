@@ -13,6 +13,7 @@ use crate::als::start_stop::predict_stop_distance;
 use crate::als::state::{LocomotionState, RotationMode, Stance};
 use crate::als::transitions::{TransitionConfig, select_quick_stop};
 use crate::extensions::profile_blend::{AlphaBlendMode, MONTAGE_SECTION_END_OFFSET, MontageBlend};
+use crate::extensions::source_slot::MONTAGE_EVALUATION_WEIGHT_THRESHOLD;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
@@ -640,7 +641,7 @@ fn sample_transition_stack(
     clips: &Assets<bevy_animation_graph::core::animation_clip::GraphClip>,
     skeletons: &Assets<bevy_animation_graph::core::skeleton::Skeleton>,
 ) -> Option<(bevy_animation_graph::core::pose::Pose, crate::extensions::AnimationContextState, f32)> {
-    let samples = stack.entries.iter().filter(|entry| entry.active && entry.weight > 1e-6)
+    let samples = stack.entries.iter().filter(|entry| entry.active && entry.weight > MONTAGE_EVALUATION_WEIGHT_THRESHOLD)
         .map(|entry| crate::standing_source::sample_source_montage(
             source_transition_sequence(entry)?, entry.clip_time, assets, clips, skeletons,
         ).map(|(pose, mut context)| {
@@ -700,7 +701,9 @@ fn bridge_root_transition_slot_samples(
         };
         let sample = sample_transition_stack(stack, &montage_assets, &clips, &skeletons);
         let Some((pose, context, weight)) = sample else {
-            if stack.entries.iter().any(|entry| entry.weight > 1e-6) && !sampler.reported_unready {
+            if stack.entries.iter().any(|entry| entry.active && entry.weight > MONTAGE_EVALUATION_WEIGHT_THRESHOLD)
+                && !sampler.reported_unready
+            {
                 warn!(
                     "[TRANSITION-SLOT] sampler unavailable character={:?} error={:?}",
                     sampler.character,
@@ -708,13 +711,7 @@ fn bridge_root_transition_slot_samples(
                 );
                 sampler.reported_unready = true;
             }
-            target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
-            target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
-            target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
-            target_player
-                .set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
-            target_player
-                .set_global_input_data(GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY, 0.0_f32);
+            clear_transition_slot(&mut target_player, source_inputs.get_mut(sampler.target_player).ok());
             write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
@@ -1390,6 +1387,45 @@ mod tests {
                     assert_eq!(Some(playback.active), frame["valid"].as_bool(), "{report} {name} frame {i}");
                     assert_eq!(Some(playback.playing), frame["playing"].as_bool(), "{report} {name} frame {i}");
                     assert_eq!(Some(playback.stop_elapsed.is_some()), frame["stopped"].as_bool(), "{report} {name} frame {i}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn transition_slot_submits_only_native_relevant_montages() {
+        let mut app = crate::standing_source::tests::loaded_montage_app();
+        app.add_systems(Update, bridge_root_transition_slot_samples);
+        let character = app.world_mut().spawn((Stance::Standing, AlsTransitionMontageStack::default())).id();
+        let player = app.world_mut().spawn(AnimationGraphPlayer::new(Handle::default())).id();
+        app.world_mut().spawn(AlsRootTransitionSlotSampler { character, target_player: player, reported_unready: false });
+        for stance in [Stance::Standing, Stance::Crouching] {
+            app.world_mut().entity_mut(character).insert(stance);
+            for case in crate::extensions::source_slot::montage_eligibility_cases().into_iter().rev() {
+                let mut stack = app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap();
+                stack.entries = case.weights.iter().copied().enumerate().map(|(index, weight)| {
+                    let mut entry = if stance == Stance::Crouching {
+                        AlsTransitionPlayback::crouching_dynamic(index as f32)
+                    } else {
+                        AlsTransitionPlayback::standing_dynamic(index as f32)
+                    };
+                    entry.weight = weight;
+                    entry.instance_id = index as u64;
+                    entry
+                }).collect();
+                app.update();
+                let runtime = app.world().get::<AlsRootTransitionSlotRuntime>(character).unwrap();
+                assert!(runtime.active);
+                assert_eq!(runtime.weight, case.total, "{stance:?} {:?}", case.weights);
+                let inputs = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap();
+                let context = inputs.slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY);
+                if case.eligible == 0 {
+                    assert!(!runtime.pose_ready && context.is_none());
+                } else {
+                    assert!(runtime.pose_ready);
+                    let context = context.unwrap();
+                    assert_eq!(context.asset_samples.len(), case.eligible);
+                    assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("AllowTransitions")), Some(&-case.total));
                 }
             }
         }

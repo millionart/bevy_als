@@ -14,6 +14,28 @@ use crate::extensions::{
     mesh_space_additive::apply_mesh_space_additive,
 };
 
+pub(crate) const MONTAGE_EVALUATION_WEIGHT_THRESHOLD: f32 = 1e-5;
+
+#[cfg(test)]
+#[derive(serde::Deserialize)]
+pub(crate) struct MontageEligibilityCase {
+    pub weights: Vec<f32>,
+    pub eligible: usize,
+    pub total: f32,
+}
+
+#[cfg(test)]
+pub(crate) fn montage_eligibility_cases() -> Vec<MontageEligibilityCase> {
+    #[derive(serde::Deserialize)]
+    struct Fixture {
+        cases: Vec<MontageEligibilityCase>,
+    }
+    let fixture: Fixture = serde_json::from_str(include_str!(
+        "../../docs/audit/bf144/d168/eligibility.replay.json"
+    )).unwrap();
+    fixture.cases
+}
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -73,6 +95,7 @@ impl SourceSlotNode {
                 .map(|value| value.as_f32())
                 .transpose()?,
         );
+        let slot_weight = if slot_weight > MONTAGE_EVALUATION_WEIGHT_THRESHOLD { slot_weight } else { 0.0 };
         let layer_weight = slot_blend_weight(
             ctx.graph_context
                 .global_input_data
@@ -260,7 +283,7 @@ mod tests {
                 .unwrap();
             let curves =
                 crate::extensions::animation_context::graph_output_context_state(graph, &context, "Pose")
-                    .unwrap();
+                    .unwrap_or_default();
             let base_id = graph
                 .nodes
                 .values()
@@ -336,6 +359,15 @@ mod tests {
             Some(context),
         );
         world.entity_mut(entity).insert(source_inputs);
+        for weight in [3e-6, 1e-5] {
+            let (pose, context, source_updated) = world.run_system_cached_with(
+                query, (handle.clone(), entity, base.clone(), overlay.clone(), weight),
+            ).unwrap();
+            assert!(source_updated);
+            assert_eq!(pose.get_bone(bone).unwrap().translation, Some(Vec3::ZERO));
+            assert_eq!(pose.get_bone(bone).unwrap().rotation, Some(Quat::from_rotation_x(0.5)));
+            assert!(!context.curves.contains_key(&crate::extensions::SourceCurveName::from("FootLeftIk")));
+        }
         for (handle, always_update, weight) in [
             (handle.clone(), false, 0.6),
             (handle.clone(), false, 1.0),

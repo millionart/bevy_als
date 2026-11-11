@@ -6875,7 +6875,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：先推进1秒，再推进0.0221220143秒，源位置1.5331829786尚未到混出窗口，站立目标已开始混出。左右站立单元及实际角色均复现；随后10/50ms两帧的最大权重偏差约0.05975，仅将本次播放时长恢复原生float后，触发帧与权重偏差均恢复。蹲姿同输入和窗口之后控制通过。另一时钟反算分支已归D118，不把数值抵消误认为源等价。
   - 漏检/边界：旧时钟测试直接引用相同六位小数时长，普通帧长也不会落进这个窄区间。本项为受控有效动画时钟输入，未宣称默认动作自然触发；证据`82/boundary.native.json`、`bf144_animation_phase82_trigger_boundaries`和`bf144_animation_phase82_actual_trigger_boundaries`。仅记录，未改原始导出、目标配置或转换器。
 
-- [ ] BF144-D168 / P3 — Transition/Turn槽遗漏源实例求值资格，小权重仍改变运动曲线。
+- [x] BF144-D168 / P3 — Transition/Turn槽遗漏源实例求值资格，小权重仍改变运动曲线。
+  - 2026-11-12 03:55 +0800 实际结束，较04:34预估提前39分钟，未拆分。三原生槽15帧及精确/双小权重对照见 `docs/audit/bf144/d168/`。在合成前过滤资格，Turn姿态和曲线上下文保留同一合格集合，低权重清除旧槽上下文。已补实际桥接及槽 fixture，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 03:46 +08:00，预估结束2026-11-12 04:34 +08:00。独立核原生Transition及站蹲Turn槽，恢复求值集合与曲线上下文共用资格，保持播放时钟与资源就绪。
   - Source：fresh `AnimInstance.cpp:4648–4669`先仅向MontageEvaluationData提交weight>1e−5的实例，`AnimInstanceProxy.cpp:2105–2148`再合计这些实例的槽权重；`SlotEvaluatePose:1897–1904`在总权重≤1e−5时直接保留基础Pose/Curve。四个当前动态过渡的源`AllowTransitions`初值均为−1，普通相关权重才按加性规则进入基础曲线。
   - Target：`stop_link.rs:625–649`从>1e−6的单实例开始预混Pose与曲线，`711–718`随后向生成槽发布weight/layer_weight=1；`source_slot.rs:112–149`因此继续消费预混曲线，源总槽相关性判断已无法从该输入恢复。
   - 反例：真实角色的Standing/Crouching均保持稳定Idle，以共同有效基础曲线0.999992及单实例权重3e−6测试，源槽输出仍0.999992，目标为0.99998903；实际下一帧`transitions_state.b_transitions_allowed`由应为true变false。权重1e−5也复现；基础曲线1的控制只出现曲线偏差。64组中8FAIL，32组仅恢复源门槛的对照全部PASS；零权重、0.5e−6、1.1e−5及普通权重控制通过。

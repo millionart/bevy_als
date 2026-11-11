@@ -1,6 +1,7 @@
 use crate::als::rotate_in_place::RotateInPlaceState;
 use crate::als::state::Stance;
 use crate::als::turn_in_place::{TurnInPlaceConfig, TurnVariant, wrap_angle_degrees};
+use crate::extensions::source_slot::MONTAGE_EVALUATION_WEIGHT_THRESHOLD;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
@@ -473,7 +474,7 @@ fn compose_turn_montage_poses(
         .iter()
         .filter_map(|entry| {
             let weight = entry.weight();
-            (entry.crouching == crouching && weight > f32::EPSILON)
+            (entry.crouching == crouching && weight > MONTAGE_EVALUATION_WEIGHT_THRESHOLD)
                 .then(|| poses.get(&entry.id).cloned().map(|pose| (pose, weight)))
                 .flatten()
         })
@@ -560,14 +561,17 @@ fn bridge_turn_slot_samples(
                 &clips,
                 &skeletons,
             ) {
+                let weight = entry.weight();
                 for sample in &mut context.asset_samples {
                     sample.identity = format!("turn:{}", entry.id);
-                    sample.clock.weight = entry.weight();
+                    sample.clock.weight = weight;
                     sample.interrupted = entry.blend_out_elapsed.is_some();
                 }
                 entry.sampling_ready = true;
                 poses.insert(entry.id, pose);
-                contexts.insert(entry.id, context);
+                if weight > MONTAGE_EVALUATION_WEIGHT_THRESHOLD {
+                    contexts.insert(entry.id, context);
+                }
             }
         }
         write_turn_inertialization_inputs(&mut player, &drive);
@@ -752,6 +756,7 @@ mod tests {
         app.cleanup();
         let transition = crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0);
         let turn_name = source_turn_sequence(false, false, 0.0);
+        let crouch_turn_name = source_turn_sequence(true, false, 0.0);
         let transition_name = crate::stop_link::source_transition_sequence(&transition).unwrap();
         let started = std::time::Instant::now();
         let watchdog_reason = |wall: std::time::Duration, stalled: std::time::Duration| {
@@ -768,16 +773,16 @@ mod tests {
             let assets = app.world().resource::<crate::standing_source::SourceMontageAssets>();
             let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
             let skeletons = app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
-            let ready = [turn_name, transition_name].into_iter().filter(|name|
+            let ready = [turn_name, crouch_turn_name, transition_name].into_iter().filter(|name|
                 crate::standing_source::sample_source_montage(name, 0.42, assets, clips, skeletons).is_some()).count();
             if ready > loaded {
                 loaded = ready;
                 last_progress = std::time::Instant::now();
             }
-            if ready == 2 { break; }
+            if ready == 3 { break; }
             let reason = watchdog_reason(started.elapsed(), last_progress.elapsed());
             assert!(reason.is_empty(), "{}", serde_json::json!({"exit_reason":reason,
-                "last_progress_loaded":loaded,"required":2,"wait_seconds":last_progress.elapsed().as_secs()}));
+                "last_progress_loaded":loaded,"required":3,"wait_seconds":last_progress.elapsed().as_secs()}));
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         let (old_turn, old_transition) = {
@@ -878,6 +883,37 @@ mod tests {
         assert_eq!((seen.turn_clock, seen.transition_clock), (Some(0.42), Some(0.42)));
         assert_eq!((turn_weight, transition_weight), (Some(1.0), Some(1.0)));
         assert_eq!((turn_pose_time, transition_pose_time), (Some(0.42), Some(0.42)));
+
+        for crouching in [false, true] {
+            let contract = turn_slot_contract(crouching);
+            for case in crate::extensions::source_slot::montage_eligibility_cases().into_iter().rev() {
+                let stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap().into_inner();
+                stack.entries.clear();
+                for (index, &weight) in case.weights.iter().enumerate() {
+                    stack.begin(0.0, false, TURN_DUR_90, 1.0, crouching);
+                    let entry = stack.entries.last_mut().unwrap();
+                    entry.elapsed = if index == 0 { 0.15 } else { 0.42 };
+                    entry.blend_out_elapsed = Some(0.0);
+                    entry.blend_out_start_weight = weight;
+                }
+                app.world_mut().run_system_once(bridge_turn_slot_samples).unwrap();
+                let runtime = app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap();
+                assert!(runtime.active && runtime.pose_ready);
+                assert_eq!(runtime.weight, case.total, "crouching={crouching} {:?}", case.weights);
+                let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+                assert!(stack.entries.iter().all(|entry| entry.sampling_ready));
+                let inputs = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap();
+                let context = inputs.slot_input_context(contract.generated_pose_key);
+                if case.eligible == 0 {
+                    assert!(context.is_none());
+                } else {
+                    let context = context.unwrap();
+                    assert_eq!(context.asset_samples.len(), case.eligible);
+                    let expected_position = if case.weights.len() == 1 { 0.15 } else { 0.42 };
+                    assert_eq!(context.asset_samples[0].clock.position, expected_position);
+                }
+            }
+        }
     }
 
     #[test]

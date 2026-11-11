@@ -1,0 +1,178 @@
+{
+  "native_frames": [
+    {
+      "slot": "Transition",
+      "frame": 0,
+      "montage_weight": 0,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "Transition",
+      "frame": 1,
+      "montage_weight": 2.997999445142341e-06,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "Transition",
+      "frame": 2,
+      "montage_weight": 8.158515811373945e-06,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "Transition",
+      "frame": 3,
+      "montage_weight": 1.0816282156156376e-05,
+      "submitted": true,
+      "slot_weight": 1.0816282156156376e-05,
+      "allow_transitions": 0.9999812245368958,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "Transition",
+      "frame": 4,
+      "montage_weight": 0.5028499364852905,
+      "submitted": true,
+      "slot_weight": 0.5028499364852905,
+      "allow_transitions": 0.49714207649230957,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "frame": 0,
+      "montage_weight": 0,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "frame": 1,
+      "montage_weight": 2.997999445142341e-06,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "frame": 2,
+      "montage_weight": 8.158515811373945e-06,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "frame": 3,
+      "montage_weight": 1.0816282156156376e-05,
+      "submitted": true,
+      "slot_weight": 1.0816282156156376e-05,
+      "allow_transitions": 0.9999812245368958,
+      "rotation_yaw_speed": -2.14084714400542e-08
+    },
+    {
+      "slot": "TurnInPlaceStanding",
+      "frame": 4,
+      "montage_weight": 0.5028499364852905,
+      "submitted": true,
+      "slot_weight": 0.5028499364852905,
+      "allow_transitions": 0.4971460998058319,
+      "rotation_yaw_speed": -2.373626708984375
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "frame": 0,
+      "montage_weight": 0,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "frame": 1,
+      "montage_weight": 2.997999445142341e-06,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "frame": 2,
+      "montage_weight": 8.158515811373945e-06,
+      "submitted": false,
+      "slot_weight": 0,
+      "allow_transitions": 0.9999920129776001,
+      "rotation_yaw_speed": 0
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "frame": 3,
+      "montage_weight": 1.0816282156156376e-05,
+      "submitted": true,
+      "slot_weight": 1.0816282156156376e-05,
+      "allow_transitions": 0.9999812245368958,
+      "rotation_yaw_speed": -1.8323243367035502e-08
+    },
+    {
+      "slot": "TurnInPlaceCrouching",
+      "frame": 4,
+      "montage_weight": 0.5028499364852905,
+      "submitted": true,
+      "slot_weight": 0.5028499364852905,
+      "allow_transitions": 0.4971460998058319,
+      "rotation_yaw_speed": -2.0380337238311768
+    }
+  ],
+  "cases": [
+    {
+      "weights": [
+        3.000000106112566e-06
+      ],
+      "eligible": 0,
+      "total": 0.0
+    },
+    {
+      "weights": [
+        9.999999747378752e-06
+      ],
+      "eligible": 0,
+      "total": 0.0
+    },
+    {
+      "weights": [
+        9.000000318337698e-06,
+        9.000000318337698e-06
+      ],
+      "eligible": 0,
+      "total": 0.0
+    },
+    {
+      "weights": [
+        1.1000000085914508e-05
+      ],
+      "eligible": 1,
+      "total": 1.1000000085914508e-05
+    },
+    {
+      "weights": [
+        9.000000318337698e-06,
+        0.25
+      ],
+      "eligible": 1,
+      "total": 0.25
+    }
+  ]
+}
