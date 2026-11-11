@@ -1,0 +1,120 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Core/Private/Math/UnrealMath.cpp",
+      "sha256": "0e0bfe3cb82a6f322f45d159ab97ea37666d4e0744861372d5885a652dd4a6e6",
+      "anchors": [
+        {
+          "line": 691,
+          "source": "FRotator3d FQuat4d::Rotator() const"
+        },
+        {
+          "line": 694,
+          "source": "const double SingularityTest = Z * X - W * Y;"
+        },
+        {
+          "line": 695,
+          "source": "const double YawY = 2.0 * (W * Z + X * Y);"
+        },
+        {
+          "line": 696,
+          "source": "const double YawX = (1.0 - 2.0 * (FMath::Square(Y) + FMath::Square(Z)));"
+        },
+        {
+          "line": 698,
+          "source": "const double SINGULARITY_THRESHOLD = 0.4999995;"
+        },
+        {
+          "line": 702,
+          "source": "if (SingularityTest < -SINGULARITY_THRESHOLD)"
+        },
+        {
+          "line": 705,
+          "source": "Yaw = FRotator3d::NormalizeAxis(-2.0 * FMath::Atan2(X, W) * RAD_TO_DEG);"
+        },
+        {
+          "line": 706,
+          "source": "Roll = 0.0;"
+        },
+        {
+          "line": 708,
+          "source": "else if (SingularityTest > SINGULARITY_THRESHOLD)"
+        },
+        {
+          "line": 711,
+          "source": "Yaw = FRotator3d::NormalizeAxis(2.0 * FMath::Atan2(X, W) * RAD_TO_DEG);"
+        },
+        {
+          "line": 712,
+          "source": "Roll = 0.0;"
+        },
+        {
+          "line": 717,
+          "source": "Yaw = (FMath::Atan2(YawY, YawX) * RAD_TO_DEG);"
+        },
+        {
+          "line": 718,
+          "source": "Roll = (FMath::Atan2(-2.0 * (W * X + Y * Z), (1.0 - 2.0 * (FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+      "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+      "anchors": [
+        {
+          "line": 951,
+          "source": "[[nodiscard]] static constexpr T UnwindDegrees(T A)"
+        },
+        {
+          "line": 953,
+          "source": "while(A > 180.f)"
+        },
+        {
+          "line": 958,
+          "source": "while(A < -180.f)"
+        }
+      ]
+    },
+    {
+      "path": "Plugins/ALS-Refactored/Source/ALS/Private/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+      "anchors": [
+        {
+          "line": 1078,
+          "source": "const auto PelvisTransform{GetMesh()->GetSocketTransform(UAlsConstants::PelvisBoneName())};"
+        },
+        {
+          "line": 1079,
+          "source": "const auto PelvisRotation{PelvisTransform.Rotator()};"
+        },
+        {
+          "line": 1080,
+          "source": ""
+        },
+        {
+          "line": 1100,
+          "source": ""
+        },
+        {
+          "line": 1102,
+          "source": "NewActorRotation.Yaw = bRagdollFacingUpward ? PelvisRotation.Yaw - 180.0f : PelvisRotation.Yaw;"
+        },
+        {
+          "line": 1103,
+          "source": ""
+        },
+        {
+          "line": 1105,
+          "source": ""
+        }
+      ]
+    }
+  ],
+  "native_actor_asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+  "mesh_default_source_yaw_degrees": -90.0,
+  "target_basis": "Remove the runtime positive-Y quarter turn, then swap Y and Z and negate the quaternion axial components.",
+  "actor_yaw": "Negate the source yaw in the target basis and add a half-turn for the facing-up pose.",
+  "native_comparisons": 7,
+  "historical_target_report_available": false
+}

@@ -6441,7 +6441,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_ground_follow`与`apply_ragdoll_ground_follow`没有世界暂停门槛，Time.delta=0时仍刷新并写actor位置。把它移到physics前仍不能补齐这个执行条件。
   - 反例：活动Ragdoll和actor均置于(0,10,0)，world pause后外部把pelvis横移0.1m；目标actor也移动0.1m，源应保持原位。暂停/正常×移动/不移动共4组3PASS/1FAIL；实际delta=0已断言。证据`bf144_ragdoll_phase38_follow_respects_world_pause`、`38/clock_final/`。D30覆盖移动基座，本项是独立Ragdoll跟随consumer；既有驱动力暂停检查未覆盖它。
 
-- [ ] BF144-D111 / P2 — 恢复朝向的低精度分解在边界选反起身方向与yaw。
+- [x] BF144-D111 / P2 — 恢复朝向的低精度分解在边界选反起身方向与yaw。 静态实现完成，统一验证待执行。
+  - 19:56 source/static 闭环：实际 mesh 默认 yaw −90°，明确反射轴与目标四分之一转；先提升为 double 再按源 rotator 的0.4999995门槛、pole 零 roll 与 Roll≤0 生成目标 yaw。7份同目标骨盆姿态的原生结果包含近零正 roll、两侧 pole 与普通控制，已写退出朝向回归。原生请求、原记录及 fixture 见 `docs/audit/bf144/d111/`。目标编译、测试、消融和真实入口待统一 Gate。开始19:50，预估20:35，实际结束2026-11-11 19:56 +08:00，偏差−39分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 19:50 +08:00，预估结束20:35 +08:00。依据：fresh FQuat4d 分支和轴向归属已定位，沿已有 GeometryQueryProbe 读取同一个目标骨盆姿态反映射后的原生 rotator，保留近零 roll、正负 pole 及普通控制。
   - Source：`AlsCharacter_Actions.cpp:1080–1104`使用FQuat4d::Rotator的Roll，经UnwindDegrees后<=0选朝上，yaw相应减180度。fresh `UnrealMath.cpp:690–722`的double singularity门槛为0.4999995，pole分支强制Roll=0。
   - Target：`ragdoll_recovery_rotation:922–938`以f32骨骼基向量重新计算roll和pole条件；`restore_ragdoll_player_parent:984–1046`据此写actor yaw及GetUp选择。近零roll的舍入与接近竖直时的分支可能不同于源，旧测试只有±0.7roll及精确pole。
   - 反例：同一世界姿态换回源坐标后，native原生输出分别为Roll=+0.000416479°、pole Pitch=−90°/Roll=0、Roll=+1.2259694e−7°；完整退出流程的facing在三组均相反，actor yaw相差约π，实际AlsGetUpState也选择相反方向。99组96PASS/3FAIL，原生99个Rotator逐项验证参考。证据`bf144_ragdoll_phase38_recovery_rotation_uses_source_rotator`、`38/recovery_final/`、`38/queries.native.json`。保持源的零点判据，未添加容差或平滑。

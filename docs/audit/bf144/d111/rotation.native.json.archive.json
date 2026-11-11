@@ -1,0 +1,8 @@
+{
+  "format": "gzip",
+  "raw_path": "docs/audit/bf144/d111/rotation.native.json",
+  "archive_path": "docs/audit/bf144/d111/rotation.native.json.gz",
+  "raw_bytes": 9922144,
+  "raw_sha256": "c82f1e1b21048f43a467b4cc897c2ccc725a9b33224264b5e92e29efadd82ec0",
+  "archive_bytes": 369003
+}

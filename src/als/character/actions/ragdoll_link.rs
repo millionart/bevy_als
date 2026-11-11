@@ -21,6 +21,7 @@ use avian3d::prelude::{
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::ecs::schedule::ApplyDeferred;
+use bevy::math::DQuat;
 use bevy::prelude::*;
 use bevy::transform::helper::TransformHelper;
 use bevy_animation_graph::core::animated_scene::{
@@ -1034,22 +1035,21 @@ fn limit_initial_ragdoll_speed(
 }
 
 pub(crate) fn ragdoll_recovery_rotation(pelvis: Quat) -> (Quat, bool) {
-    let forward = pelvis * Vec3::X;
-    let (yaw, facing_up) = if forward.y.abs() > 0.999999 {
-        let canonical = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2) * pelvis;
-        let yaw = 2.0 * (-canonical.x).atan2(canonical.w) * -forward.y.signum();
-        (yaw, true)
+    let half = std::f64::consts::FRAC_1_SQRT_2;
+    let canonical = DQuat::from_xyzw(0.0, -half, 0.0, half) * pelvis.as_dquat();
+    let (x, y, z, w) = (-canonical.x, -canonical.z, -canonical.y, canonical.w);
+    let singularity = z * x - w * y;
+    let (yaw, roll) = if singularity.abs() > 0.4999995 {
+        (2.0 * x.atan2(w) * singularity.signum(), 0.0)
     } else {
-        let roll = (-(pelvis * Vec3::Z).y).atan2((pelvis * Vec3::Y).y);
         (
-            crate::als::orientation::world_forward_to_yaw(forward),
-            roll <= 0.0,
+            (2.0 * (w * z + x * y)).atan2(1.0 - 2.0 * (y * y + z * z)),
+            (-2.0 * (w * x + y * z)).atan2(1.0 - 2.0 * (x * x + y * y)),
         )
     };
-    (
-        Quat::from_rotation_y(yaw + if facing_up { std::f32::consts::PI } else { 0.0 }),
-        facing_up,
-    )
+    let facing_up = roll <= 0.0;
+    let yaw = if facing_up { std::f64::consts::PI - yaw } else { -yaw };
+    (DQuat::from_rotation_y(yaw).as_quat(), facing_up)
 }
 
 pub(crate) fn restore_ragdoll_player_parent(
@@ -3612,6 +3612,30 @@ pub(crate) mod tests {
                     assert!(rotation.dot(Quat::from_rotation_y(expected_yaw)).abs() > 0.99999);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn ragdoll_recovery_matches_native_rotator_boundaries() {
+        #[derive(serde::Deserialize)]
+        struct RecoveryCase {
+            name: String,
+            target_pelvis_xyzw: [f32; 4],
+            facing_up: bool,
+            actor_yaw_degrees: f64,
+        }
+
+        let cases: Vec<RecoveryCase> = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d111/recovery-cases.json"
+        )).unwrap();
+        assert_eq!(cases.len(), 7);
+        for case in cases {
+            let pelvis = Quat::from_array(case.target_pelvis_xyzw);
+            let (rotation, facing_up) = ragdoll_recovery_rotation(pelvis);
+            let expected = DQuat::from_rotation_y(case.actor_yaw_degrees.to_radians()).as_quat();
+            let aligned = if rotation.dot(expected) < 0.0 { -rotation } else { rotation };
+            assert_eq!(facing_up, case.facing_up, "{}", case.name);
+            assert!(aligned.abs_diff_eq(expected, 1e-6), "{}: {aligned:?} {expected:?}", case.name);
         }
     }
 
