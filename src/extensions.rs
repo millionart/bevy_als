@@ -149,6 +149,8 @@ pub(crate) mod source_mesh_bvh;
 pub(crate) mod source_mesh_box;
 #[path = "avian_ext/source_mesh_capsule.rs"]
 pub(crate) mod source_mesh_capsule;
+#[path = "avian_ext/source_mesh_contact.rs"]
+pub(crate) mod source_mesh_contact;
 #[path = "avian_ext/source_mesh_query.rs"]
 pub(crate) mod source_mesh_query;
 #[path = "avian_ext/source_gjk_simplex.rs"]

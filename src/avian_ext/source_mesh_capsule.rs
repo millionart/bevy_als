@@ -3,25 +3,11 @@ use bevy::math::DVec3;
 use super::source_contact_capsule::SourceCapsuleGeometry;
 use super::source_contact_polygon::{source_direction, source_position};
 use super::source_contact_segment::source_nearest_segments;
+use super::source_mesh_contact::{SourceTriangleContact, SourceTriangleContactKind};
 
 const NORMAL_TOLERANCE: f64 = 1.0e-5;
 const NORMAL_TOLERANCE_SQUARED: f64 = NORMAL_TOLERANCE * NORMAL_TOLERANCE;
 const FACE_CONTACT_SIN_ANGLE_THRESHOLD: f64 = 0.34;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum SourceTriangleContactKind {
-    VertexPlane,
-    EdgeEdge,
-    PlaneVertex,
-}
-
-pub(super) struct SourceTriangleContact {
-    pub first_cm: DVec3,
-    pub second_cm: DVec3,
-    pub normal: DVec3,
-    pub phi_cm: f64,
-    pub kind: SourceTriangleContactKind,
-}
 
 #[derive(Clone, Copy, Default)]
 struct SourceCapsuleTriangleEdge {

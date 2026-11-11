@@ -1,7 +1,7 @@
 use bevy::math::DVec3;
 
 use super::source_contact_polygon::{SOURCE_BOX_FACE_VERTICES, SOURCE_SMALL_NUMBER, clip_plane, reduce_source_points_along, source_position};
-use super::source_mesh_capsule::{SourceTriangleContact, SourceTriangleContactKind};
+use super::source_mesh_contact::{SourceTriangleContact, SourceTriangleContactKind, source_triangle_normal};
 
 const SAT_DATA: ([[usize; 4]; 12], f32, f64) = include!("source_mesh_box_sat_data.rs");
 const BOX_NORMALS: [DVec3; 6] = [DVec3::NEG_X, DVec3::NEG_Y, DVec3::NEG_Z, DVec3::X, DVec3::Y, DVec3::Z];
@@ -57,13 +57,7 @@ fn source_box_triangle_sat(
     triangle: [DVec3; 3],
     cull_cm: f64,
 ) -> Option<SourceBoxTriangleSat> {
-    let cross = (triangle[1] - triangle[0]).cross(triangle[2] - triangle[0]);
-    let squared = cross.length_squared();
-    let triangle_normal = if squared < f64::from(SOURCE_SMALL_NUMBER) {
-        DVec3::ZERO
-    } else {
-        cross * squared.sqrt().recip()
-    };
+    let triangle_normal = source_triangle_normal(triangle);
     let triangle_center = (triangle[0] + triangle[1] + triangle[2]) / 3.0;
     let vertices: [DVec3; 8] = std::array::from_fn(|index| shape.vertex(index));
     let vertex_distances = vertices.map(|vertex| (vertex - triangle_center).dot(triangle_normal));
