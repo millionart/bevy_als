@@ -6924,7 +6924,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色由实际输入进入移动，核实Turn Slot未更新且FSM无惯性化请求；使用已由真实回调创建的Turn实例作为共同受控输入，再显式停止。原样站立/蹲姿各有3帧错误混合，首帧骨骼局部位置最大偏移约6.48/9.12cm、旋转约25.47°/18.98°；只清除该epoch绑定的14帧控制全部恢复当前输入姿态。正常Idle显式/自然停止及移除请求的56帧对照通过，当前RotationYawSpeed过滤断言也通过。
   - 漏检/边界：旧测试只检查生成图绑定键及Idle停止，未覆盖状态机仍更新而内部Slot不更新的情况。证据`86/standing.native.json`、`86/crouching.native.json`、`86/analysis.json`及`bf144_animation_phase86_irrelevant_slot`；请求存在与停止时点受控，不宣称默认动作自然触发，亦未以请求链验证代替完整惯性求解器等价。仅登记，生产、转换器和资产未改。
 
-- [ ] BF144-D173 / P2 — LandToGrounded误用其他过渡的参数，并固定选择站立动画。
+- [x] BF144-D173 / P2 — LandToGrounded误用其他过渡的参数，并固定选择站立动画。
+  - 2026-11-12 04:37 +0800 实际结束，较05:18预估提前41分钟，未拆分。fresh Locomotion实参与站蹲两Montage对照见 `docs/audit/bf144/d173/`。改用当前姿势、0.1/0.2、1.4与起点0；真实生成通知和同组淡出fixture已加入，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 04:32 +08:00，预估结束2026-11-12 05:18 +08:00。重采Locomotion通知实参、站蹲Right序列与被替换Montage权重，沿实际通知分发核对。
   - Source：fresh AB_Als_Locomotion的`AnimNotify_LandToGrounded`直接调用`PlayTransitionRightAnimation`，原生节点`183f8499-4c3b-6ddd-3000-fe957622821c`参数为混入0.1秒、混出0.2秒、速率1.4、起点0、StandingIdleOnly=false。`AlsAnimationInstance.cpp:1650–1661`按当前Stance选择站立或蹲姿Right Sequence。
   - Target：`transition_notify.rs:352–357`调用固定`standing_transition_right()`；`stop_link.rs:151–161`给出混入0.2秒、混出0.2秒、速率1.5、起点0.2，且不读取当前stance。这既改变新动画的采样与混入，也以错误0.2秒延长同组旧动画的混出。
   - 反例：实际角色跳跃、经历Air并落地后，无通知注入的真实回调得到上述错误参数。另在站蹲各6帧的受控单事件消费中，首个采样帧source应为0.07秒/权重0.5，actual为0.275秒/0.15625；旧动画应为0.5，actual为0.84375。蹲姿还采样了Standing Right。仅把事件改接原生参数和当前stance选择，12帧恢复全部通过，根Transition Slot实际消费的20个样本也核对通过。

@@ -356,7 +356,11 @@ fn dispatch_transition_notifications(
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
                                 telemetry.land_to_grounded_count += 1;
                             }
-                            game_thread_transition = Some(AlsTransitionPlayback::standing_transition_right());
+                            if let Ok(stance) = stances.get(avatar.character) {
+                                game_thread_transition = Some(AlsTransitionPlayback::transition_animation(
+                                    *stance == crate::als::state::Stance::Crouching, false, 0.1, 0.2, 1.4, 0.0,
+                                ));
+                            }
                         }
                         Some(TransitionNotifyAction::StopLeft) => {
                             cursor
@@ -509,6 +513,84 @@ fn dispatch_transition_notifications(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_landing_notify_uses_native_profile_and_current_stance() {
+        use crate::als::{input::AlsInputCommand, state::{LocomotionState, Stance}};
+        use bevy::ecs::system::RunSystemOnce;
+
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            profile: Profile,
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Profile {
+            blend_in: f32,
+            blend_out: f32,
+            play_rate: f32,
+            start: f32,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            crouching: bool,
+            sequence: String,
+            duration: f32,
+            first_position: f32,
+            first_weight: f32,
+            replaced_weight: f32,
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../../docs/audit/bf144/d173/landing.replay.json"
+        )).unwrap();
+        for case in fixture.cases {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+            let before = app.world().get::<TransitionNotifyTelemetry>(character).unwrap().land_to_grounded_count;
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = false;
+            let stance = if case.crouching { Stance::Crouching } else { Stance::Standing };
+            app.add_systems(PostUpdate, (move |mut actors: Query<(&LocomotionState, &mut Stance)>| {
+                let (mode, mut current) = actors.get_mut(character).unwrap();
+                if *mode == LocomotionState::Grounded { *current = stance; }
+            }).after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
+                .before(dispatch_transition_notifications));
+            let mut airborne = *app.world().get::<LocomotionState>(character).unwrap() == LocomotionState::Air;
+            let mut landing = None;
+            for _ in 0..240 {
+                app.update();
+                airborne |= *app.world().get::<LocomotionState>(character).unwrap() == LocomotionState::Air;
+                if app.world().get::<TransitionNotifyTelemetry>(character).unwrap().land_to_grounded_count > before {
+                    landing = app.world().get::<AlsTransitionMontageStack>(character).and_then(AlsTransitionMontageStack::latest).copied();
+                    break;
+                }
+            }
+            assert!(airborne);
+            let playback = landing.expect("The generated Locomotion graph did not dispatch LandToGrounded");
+            let profile = &fixture.profile;
+            assert_eq!(crate::stop_link::source_transition_sequence(&playback), Some(case.sequence.as_str()));
+            assert_eq!((playback.blend_in, playback.blend_out, playback.play_rate, playback.start_time, playback.duration),
+                (profile.blend_in, profile.blend_out, profile.play_rate, profile.start, case.duration));
+            let mut first = playback;
+            first.advance(0.05);
+            assert_eq!((first.clip_time, first.weight), (case.first_position, case.first_weight));
+
+            first.advance(0.05);
+            app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap().entries = vec![first];
+            app.world_mut().run_system_once(move |mut commands: Commands| {
+                play_transition(&mut commands, character, playback);
+            }).unwrap();
+            app.world_mut().flush();
+            let mut stack = app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap();
+            assert_eq!(stack.entries.len(), 2);
+            stack.entries[0].advance(0.05);
+            assert_eq!(stack.entries[0].weight, case.replaced_weight);
+        }
+    }
 
     #[test]
     fn generated_pivot_notifications_capture_the_evaluated_instance_speed() {
