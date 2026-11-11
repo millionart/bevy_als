@@ -6527,7 +6527,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：50ms帧在第24帧用Ragdoll缩短/重启GetUp混出后，两朝向第25–27帧都采样1.5而source为1.49995；动作Ragdoll和输入标记保持正确。早期中断及未越过末端的控制通过，证据`bf144_get_up_phase41_interrupted_cleanup`。差值约50微秒，只登记低优先级姿态/曲线采样尾差，不扩大为可见表现结论。
   - BF144.82动态过渡补充：四个当前Sequence的原生动态Montage停在1.5332833529秒；`stop_link.rs:260`夹到duration，`standing_source.rs:65`又夹到六位小数配置时长，实际Transition槽尾段采样1.5333329439。站立/蹲姿左右脚及半速/倍速六组全部复现，60Hz单位倍率保持12个尾帧；只恢复原生位置的六组和零速控制全部通过。归并同一遗漏的section末端规则，没有新增重复编号；证据`82/*.native.json`和`bf144_animation_phase82_actual_sampling_clock`。
 
-- [ ] BF144-D121 / P3 — 源浮点记录舍入，改变通知、同步标记边界及曲线输入。
+- [x] BF144-D121 / P3 — 源浮点记录舍入，改变通知、同步标记边界及曲线输入。
+  - 三个子项的静态 Gate 均已通过。通知、同步和曲线依次用当次源数据重新生成。涉及图转换的两轮均覆盖全部15个安装根、23个AnimBP和374个生成文件。父项开始2026-11-11 21:25 +08:00，末子项调整后预估结束23:29，实际结束22:59，偏差−30分钟。结果为分拆完成并分别提交。目标编译、测试和真实入口留统一阶段。
   - Source：fresh原生GetEndTriggerTime为1.1665666103363037，`AnimMontage.cpp:2988–3012`在End branching marker执行NotifyEnd，ALS仅在当前仍GettingUp时置空并解锁。
   - Target：`docs/bf103-notify-source-audit.json:266–267`保存1.166667的end/duration，`generate_als_notify_manifest.py:104,125`将该值及offset传入manifest，实际f32终点为1.1665669679641724；`animation_events.rs:679–693`直接使用此终点。
   - 反例：前15帧62.5ms，再前进约34.638941ms，源/目标clip都到1.1665667，原生通知已结束，目标仍GettingUp且输入阻塞。两朝向都复现；边界前/后控制通过，在夹具内仅把manifest终点恢复原生精度也通过。证据`41/notify_exact.native.json`、`notify_edges.native.json`与`bf144_get_up_phase41_notify_end_precision_controls`。常规帧步长无此差异；未改原始记录、manifest或转换规则，未据此复开其他已完成通知资产。
@@ -6562,7 +6563,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
     - 22:02 source/static 摘要：英语批次14根通过，AB_Als递归资产读取失败后触发未校验的Sequence节点查表。已加回既有资产绑定检查以保留首个失败，Standalone Standing按当前源重转通过。保留两轮结果，先独立转最大安装根，再完成整批及diff。
     - 22:17 source/static 摘要：最大根独立运行通过，全部15根和374文件生成完成。完整diff证实27个图含UE CallFunction原生平台换行差异，原引擎 FTextBuilder 使用LINE_TERMINATOR，Playground按原CRLF标题定位。已统一该节点类型的目标标题格式，保留原生报告和其余节点换行，重新生成全部安装根。
   - [x] BF144-D121c — CurveFloat 原生键和单位转换精度。
-    - 22:59 source/static 闭环。原生RichCurveKey字段贯通Standalone设置和AnimBP。StanceChange及两条Stride共243原生采样精确，恢复六位小数的93帧失败。15个安装根、23个AnimBP及递归依赖全量374文件生成完成。17个变化文件逐一对应StanceChange、Aim In/Out、Camera Quick/Smooth五份原生曲线，安装后全374逐字节相同。Stand/Air两份运行时设置恢复16个实际F32字段。证据在 `docs/audit/bf144/d121c/`。开始21:34，预估23:29，实际结束2026-11-11 22:59 +08:00，偏差−30分钟。结果为静态实现和全量生成完成。目标运行验证按统一阶段执行。
+    - 22:59 source/static 闭环。原生RichCurveKey字段贯通Standalone设置和AnimBP。StanceChange及两条Stride共243原生采样精确，恢复六位小数的93帧失败。15个安装根、23个AnimBP及递归依赖全量374文件生成完成。17个变化文件逐一对应StanceChange、Aim In/Out、Camera Quick/Smooth五份原生曲线，安装后全374逐字节相同。Stand/Air两份运行时设置恢复16个实际F32字段。证据在 `docs/audit/bf144/d121c/`。开始22:34，预估23:29，实际结束2026-11-11 22:59 +08:00，偏差−30分钟。结果为静态实现和全量生成完成。目标运行验证按统一阶段执行。
     - 预计开始2026-11-11 23:05 +08:00，预估结束2026-11-12 00:00 +08:00。依据：.123/.155/.159/.432已定位StanceChange、Stride Walk/Run的键、切线与直接消费者，核对共享曲线转换和相关全量产物。
     - 本轮开始2026-11-11 22:34 +08:00，预估结束23:29 +08:00。重读StanceChange、Stride Walk/Run的原生键与取样，核对AIS默认配置的直接消费者，再统一生成所有安装根。
     - 22:42 source/static 摘要：已取三条曲线的原生求值与8条CurveFloat精确键，确认原始F32值和切线低位差。原生reader现提供RichCurveKey的typed数值，生成器共用字段解析。进入全量安装根转换，同时复算Stand/Air单位投影。
