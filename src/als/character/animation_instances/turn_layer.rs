@@ -596,7 +596,7 @@ fn bridge_turn_slot_samples(
             let Some((pose, weight, denominator)) = compose_turn_montage_poses(&stack, &poses, crouching) else {
                 continue;
             };
-            let mut context = crate::extensions::source_pose_nodes::blend_animation_contexts(
+            let mut context = crate::extensions::source_pose_nodes::blend_contexts_with_curve_accumulation(
                 stack
                     .entries
                     .iter()
@@ -886,10 +886,10 @@ mod tests {
         assert_eq!((turn_weight, transition_weight), (Some(1.0), Some(1.0)));
         assert_eq!((turn_pose_time, transition_pose_time), (Some(0.42), Some(0.42)));
 
-        let publish = |app: &mut App, crouching, weights: &[f32], positions: [f32; 2]| {
+        let publish = |app: &mut App, crouching, weights: &[f32], positions: &[f32]| {
             let stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap().into_inner();
             stack.entries.clear();
-            for (&weight, position) in weights.iter().zip(positions) {
+            for (&weight, &position) in weights.iter().zip(positions) {
                 stack.begin(0.0, false, TURN_DUR_90, 1.0, crouching);
                 let entry = stack.entries.last_mut().unwrap();
                 entry.elapsed = position;
@@ -898,11 +898,24 @@ mod tests {
             }
             app.world_mut().run_system_once(bridge_turn_slot_samples).unwrap();
         };
+        #[derive(serde::Deserialize)]
+        struct CurveFixture {
+            cases: HashMap<String, Vec<CurveCase>>,
+        }
+        #[derive(serde::Deserialize)]
+        struct CurveCase {
+            weights: Vec<f32>,
+            positions: Vec<f32>,
+            effective: Vec<f32>,
+        }
+        let fixture: CurveFixture = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d179/curve-accumulation.replay.json"
+        )).unwrap();
         let yaw_speed = crate::extensions::SourceCurveName::from("RotationYawSpeed");
         for crouching in [false, true] {
             let contract = turn_slot_contract(crouching);
             for case in crate::extensions::source_slot::montage_eligibility_cases().into_iter().rev() {
-                publish(&mut app, crouching, &case.weights, [0.15, 0.42]);
+                publish(&mut app, crouching, &case.weights, &[0.15, 0.42]);
                 let runtime = app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap();
                 assert!(runtime.active && runtime.pose_ready);
                 assert_eq!(runtime.weight, case.total, "crouching={crouching} {:?}", case.weights);
@@ -919,15 +932,16 @@ mod tests {
                     assert_eq!(context.asset_samples[0].clock.position, expected_position);
                 }
             }
-            let layer_curve = crate::standing_source::sample_source_montage(
-                source_turn_sequence(crouching, false, 0.0), 0.25,
+            let curve_at = |app: &App, position| crate::standing_source::sample_source_montage(
+                source_turn_sequence(crouching, false, 0.0), position,
                 app.world().resource::<crate::standing_source::SourceMontageAssets>(),
                 app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>(),
                 app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>(),
             ).unwrap().1.curves[&yaw_speed];
+            let layer_curve = curve_at(&app, 0.25);
             let slot = if crouching { "crouching-turn" } else { "standing-turn" };
             for case in crate::extensions::source_slot::montage_normalization_cases(slot) {
-                publish(&mut app, crouching, &case.weights, [0.25; 2]);
+                publish(&mut app, crouching, &case.weights, &[0.25; 2]);
                 let runtime = app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap();
                 assert_eq!(runtime.weight, case.slot_weight);
                 let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap()
@@ -937,6 +951,17 @@ mod tests {
                 let expected = case.effective.iter().map(|weight| layer_curve * weight).sum::<f32>();
                 assert!((actual - expected).abs() <= 2.0 * f32::EPSILON * expected.abs().max(1.0),
                     "{slot} {:?}: {actual} != {expected}", case.weights);
+            }
+            let stance = if crouching { "crouching" } else { "standing" };
+            for case in &fixture.cases[stance] {
+                publish(&mut app, crouching, &case.weights, &case.positions);
+                let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap()
+                    .slot_input_context(contract.generated_pose_key).unwrap();
+                let expected = case.positions.iter().zip(&case.effective).enumerate()
+                    .filter(|(index, (_, weight))| *index == 0 || **weight > 1e-5)
+                    .map(|(_, (&position, &weight))| curve_at(&app, position) * weight).sum::<f32>();
+                let actual = context.curves[&yaw_speed];
+                assert_eq!(actual, expected, "{slot} {:?}", case.weights);
             }
         }
     }

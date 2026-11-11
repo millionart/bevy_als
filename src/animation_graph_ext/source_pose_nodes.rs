@@ -1001,6 +1001,17 @@ pub fn blend_animation_contexts(
     output
 }
 
+pub(crate) fn blend_contexts_with_curve_accumulation(
+    contexts: impl IntoIterator<Item = (AnimationContextState, f32)>,
+) -> AnimationContextState {
+    blend_animation_contexts(contexts.into_iter().enumerate().map(|(index, (mut context, weight))| {
+        if index > 0 && !(weight > crate::extensions::source_slot::MONTAGE_EVALUATION_WEIGHT_THRESHOLD) {
+            context.curves.clear();
+        }
+        (context, weight)
+    }))
+}
+
 pub(crate) fn blend_list_contexts(contexts: Vec<(AnimationContextState, f32)>, pass_through: bool) -> AnimationContextState {
     let direct_curves = pass_through.then(|| contexts.iter().find(|(_, weight)| *weight >= 1.0 - 1e-5)
         .map(|(context, _)| (context.curves.clone(), context.curves_are_authoritative)).unwrap_or_default());

@@ -77,6 +77,15 @@ impl ProfiledBlendNode {
     pub const OUT_POSE: &'static str = "pose";
 }
 
+fn profile_curve_value(source: f32, target: f32, alpha: f32) -> f32 {
+    let source = source * (1.0 - alpha);
+    if alpha > crate::extensions::source_slot::MONTAGE_EVALUATION_WEIGHT_THRESHOLD {
+        source + target * alpha
+    } else {
+        source
+    }
+}
+
 pub fn profile_target_weight(alpha: f32, scale: f32) -> f32 {
     let alpha = alpha.clamp(0.0, 1.0);
     let target = (alpha * scale).max(WEIGHT_THRESHOLD);
@@ -296,21 +305,16 @@ impl NodeLike for ProfiledBlendNode {
             .get(&source.skeleton);
         let alpha = self.blend_pose(&mut source, &target, factor, skeleton,
             crate::extensions::interruptible_fsm::in_interruptible_transition_graph(&ctx));
-        let mut context = crate::extensions::source_pose_nodes::blend_animation_contexts([
+        let mut context = crate::extensions::source_pose_nodes::blend_contexts_with_curve_accumulation([
             (source_context, 1.0 - alpha),
             (target_context, alpha),
         ]);
         for curve in &self.curve_names {
             let source_value = ctx.data_back(curve_a_input(curve))?.as_f32()?;
             let target_value = ctx.data_back(curve_b_input(curve))?.as_f32()?;
-            context.curves.insert(
-                curve.clone().into(),
-                source_value + (target_value - source_value) * alpha,
-            );
-            ctx.set_data_fwd(
-                curve.clone(),
-                source_value + (target_value - source_value) * alpha,
-            );
+            let value = profile_curve_value(source_value, target_value, alpha);
+            context.curves.insert(curve.clone().into(), value);
+            ctx.set_data_fwd(curve.clone(), value);
         }
         ctx.set_time(source.timestamp);
         ctx.set_data_fwd(Self::OUT_POSE, source);
@@ -574,6 +578,25 @@ mod tests {
         }.blend_pose(&mut source, &target, 0.1, Some(&skeleton), false);
         let value = source.get_bone(foot).unwrap().translation.unwrap().x;
         assert!((value - 0.7352941).abs() < 1e-6);
+    }
+
+    #[test]
+    fn profiled_curves_keep_the_first_layer_and_gate_later_accumulation() {
+        use crate::extensions::{AnimationContextState, SourceCurveName, source_pose_nodes::blend_contexts_with_curve_accumulation};
+
+        let name = SourceCurveName::from("ProbeCurve");
+        let context = |value| {
+            let mut context = AnimationContextState::default();
+            context.curves.insert(name.clone(), value);
+            context
+        };
+        for (alpha, target_is_relevant) in [(1e-6_f32, false), (1e-5, false), (1.1e-5, true), (0.999995, true)] {
+            let mut expected = -(1.0 - alpha);
+            if target_is_relevant { expected += 90.0 * alpha; }
+            assert_eq!(profile_curve_value(-1.0, 90.0, alpha), expected);
+            let blended = blend_contexts_with_curve_accumulation([(context(-1.0), 1.0 - alpha), (context(90.0), alpha)]);
+            assert_eq!(blended.curves[&name], expected);
+        }
     }
 
     #[test]
