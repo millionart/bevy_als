@@ -492,12 +492,12 @@ fn compose_turn_montage_poses(
     Some((output, slot_weight, denominator))
 }
 
-fn write_turn_inertialization_inputs(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive) {
+fn write_turn_inertialization_inputs(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive, requested: bool) {
     for crouching in [false, true] {
         let contract = turn_slot_contract(crouching);
         player.set_global_input_data(
             contract.inertialization_epoch_key,
-            drive.inertialization_request_epoch,
+            if requested { drive.inertialization_request_epoch } else { 0.0 },
         );
         player.set_global_input_data(
             contract.inertialization_duration_key,
@@ -521,6 +521,7 @@ fn clear_old_turn_player(
     source_inputs: Option<&mut crate::extensions::SourceAnimationInputs>,
 ) {
     write_turn_pins(player, &AlsTurnDrive::default(), false);
+    write_turn_inertialization_inputs(player, &AlsTurnDrive::default(), false);
     clear_turn_slot_inputs(player);
     if let Some(source_inputs) = source_inputs {
         for crouching in [false, true] {
@@ -580,7 +581,6 @@ fn bridge_turn_slot_samples(
                 }
             }
         }
-        write_turn_inertialization_inputs(&mut player, &drive);
         clear_turn_slot_inputs(&mut player);
         let mut runtime = AlsStandingTurnSlotRuntime {
             active: !stack.entries.is_empty(),
@@ -653,7 +653,6 @@ fn write_turn_pins(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive, crou
         );
         player.set_global_input_data(contract.play_rate_key, drive.play_rate);
     }
-    write_turn_inertialization_inputs(player, drive);
 }
 
 #[allow(clippy::type_complexity)]
@@ -690,7 +689,8 @@ fn turn_pin_driver(
         let natural_end = stack.advance(dt);
         synchronize_turn_drive(&mut drive, &stack);
         drive.advance(dt);
-        if request_turn_inertialization(natural_end, &mut drive) {
+        let requested = request_turn_inertialization(natural_end, &mut drive);
+        if requested {
             warn!(
                 "[TURN-SLOT][INERTIALIZATION-REQUEST] avatar={entity:?} epoch={:.0} duration={TURN_INERTIALIZATION_DURATION:.3}",
                 drive.inertialization_request_epoch
@@ -698,6 +698,7 @@ fn turn_pin_driver(
         }
         if let Some(mut player) = current_player.and_then(|player| players.get_mut(player).ok()) {
             write_turn_pins(&mut player, &drive, *stance == Stance::Crouching);
+            write_turn_inertialization_inputs(&mut player, &drive, requested);
         }
     }
 }
@@ -1578,18 +1579,25 @@ mod tests {
     }
 
     #[test]
-    fn generated_turn_inertialization_nodes_consume_runtime_requests() {
-        for (graph, epoch, duration) in [
+    fn generated_turn_slots_publish_requests_to_the_parent_inertialization() {
+        for (graph, idle, epoch, duration) in [
             ("assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+                "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S0_Idle.animgraph.ron",
                 STANDING_TURN_INERTIALIZATION_EPOCH_KEY, STANDING_TURN_INERTIALIZATION_DURATION_KEY),
             ("assets/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+                "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
                 CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY, CROUCHING_TURN_INERTIALIZATION_DURATION_KEY),
         ] {
             let graph_text = std::fs::read_to_string(graph).unwrap();
             let node = graph_text.lines().find(|line| line.contains("InertializationPassthroughNode")
                 && line.contains("filtered_curves: [\"RotationYawSpeed\"]")).unwrap();
-            assert!(node.contains(&format!("request_epoch_key: \"{epoch}\"")), "{graph}");
-            assert!(node.contains(&format!("request_duration_key: \"{duration}\"")), "{graph}");
+            assert!(node.contains("request_epoch_key: \"\""), "{graph}");
+            assert!(node.contains("request_duration_key: \"\""), "{graph}");
+            let idle_text = std::fs::read_to_string(idle).unwrap();
+            let slot = idle_text.lines().find(|line| line.contains("SourceSlotNode")
+                && line.contains("TurnInPlace")).unwrap();
+            assert!(slot.contains(&format!("request_epoch_key: \"{epoch}\"")), "{idle}");
+            assert!(slot.contains(&format!("request_duration_key: \"{duration}\"")), "{idle}");
         }
     }
 
@@ -1773,6 +1781,12 @@ mod tests {
         assert!(stack.entries.is_empty());
         let mut drive = AlsTurnDrive::default();
         assert!(request_turn_inertialization(stack.advance(0.0), &mut drive));
+        assert_eq!(drive.inertialization_request_epoch, 1.0);
+        let mut player = AnimationGraphPlayer::new(Handle::default());
+        write_turn_inertialization_inputs(&mut player, &drive, true);
+        assert_eq!(player.get_global_input_data(CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY).unwrap().as_f32().unwrap(), 1.0);
+        write_turn_inertialization_inputs(&mut player, &drive, false);
+        assert_eq!(player.get_global_input_data(CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY).unwrap().as_f32().unwrap(), 0.0);
         assert_eq!(drive.inertialization_request_epoch, 1.0);
         assert!(!stack.advance(0.0));
     }

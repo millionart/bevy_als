@@ -10,7 +10,7 @@ use crate::extensions::slot_node::{blend_slot_pose, slot_blend_weight};
 use crate::extensions::source_gameplay_tag_input::active_slot_input_context;
 use crate::extensions::source_pose_nodes::blend_animation_contexts;
 use crate::extensions::{
-    animation_context::{AnimationContextState, pose_input_context_state},
+    animation_context::{AnimationContextState, SourceInertializationRequest, merge_inertialization_request, pose_input_context_state},
     mesh_space_additive::apply_mesh_space_additive,
 };
 
@@ -73,6 +73,8 @@ pub struct SourceSlotNode {
     pub layer_weight_key: String,
     pub mesh_space_additive_key: String,
     pub always_update_source_pose: bool,
+    pub request_epoch_key: String,
+    pub request_duration_key: String,
 }
 
 fn source_slot_additive_weight(slot_weight: f32, layer_weight: f32) -> f32 {
@@ -108,11 +110,34 @@ impl Default for SourceSlotNode {
             layer_weight_key: "layer_slot_weight".to_owned(),
             mesh_space_additive_key: String::new(),
             always_update_source_pose: false,
+            request_epoch_key: String::new(),
+            request_duration_key: String::new(),
         }
     }
 }
 
 impl SourceSlotNode {
+    fn with_inertialization_request(
+        &self,
+        ctx: &NodeContext,
+        mut context: Option<AnimationContextState>,
+    ) -> Result<Option<AnimationContextState>, GraphError> {
+        let scalar = |key: &str| ctx.graph_context.global_input_data.get(key)
+            .map_or(Ok(0.0), |value| value.as_f32());
+        if !self.request_epoch_key.is_empty() && scalar(&self.request_epoch_key)? > 0.0 {
+            let request = SourceInertializationRequest {
+                frame: ctx.graph_context.frame_index(),
+                duration: scalar(&self.request_duration_key)?,
+                ..default()
+            };
+            merge_inertialization_request(
+                &mut context.get_or_insert_with(AnimationContextState::default).inertialization_request,
+                Some(&request),
+            );
+        }
+        Ok(context)
+    }
+
     pub(crate) fn update_weights(&self, ctx: &NodeContext) -> Result<(f32, f32, bool, f32), GraphError> {
         let slot_weight = slot_blend_weight(
             ctx.graph_context
@@ -165,13 +190,13 @@ impl NodeLike for SourceSlotNode {
         if source_weight == 0.0
             && let Some(pose) = overlay.as_ref()
         {
-            let mut context = slot_context(
+            let context = slot_context(
                 pose_input_context_state(&ctx, "Source"),
                 active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key),
                 1.0,
                 false,
-            )
-            .unwrap_or_default();
+            );
+            let mut context = self.with_inertialization_request(&ctx, context)?.unwrap_or_default();
             for sample in context.asset_samples.iter_mut().filter(|sample| sample.montage && sample.slot_key.is_empty()) {
                 sample.slot_key.clone_from(&self.pose_key);
             }
@@ -191,6 +216,7 @@ impl NodeLike for SourceSlotNode {
             slot_weight * layer_weight,
             mesh_space_additive,
         );
+        let context = self.with_inertialization_request(&ctx, context)?;
         let pose = if mesh_space_additive {
             let mut pose = base;
             if let Some(overlay) = overlay.as_ref() {
@@ -265,11 +291,13 @@ mod tests {
             utils::testing::TestIoEnv,
         };
         fn query(
-            In((handle, entity, base, overlay, weight)): In<(
+            In((handle, entity, base, overlay, weight, idle, epoch)): In<(
                 Handle<AnimationGraph>,
                 Entity,
                 Pose,
                 Pose,
+                f32,
+                bool,
                 f32,
             )>,
             resources: SystemResources,
@@ -283,6 +311,9 @@ mod tests {
                 ("slot_pose".to_owned(), DataValue::Pose(overlay)),
                 ("slot_weight".to_owned(), DataValue::F32(weight)),
                 ("layer_slot_weight".to_owned(), DataValue::F32(1.0)),
+                ("idle".to_owned(), DataValue::F32(if idle { 1.0 } else { 0.0 })),
+                ("slot_request".to_owned(), DataValue::F32(epoch)),
+                ("slot_request_duration".to_owned(), DataValue::F32(0.2)),
             ]);
             let entities = HashMap::new();
             let env = TestIoEnv::default();
@@ -332,18 +363,29 @@ mod tests {
                 output: "Pose".to_owned(),
             },
         );
-        let slot_node = AnimationNode::new("slot", SourceSlotNode::default());
+        let slot = SourceSlotNode {
+            request_epoch_key: "slot_request".into(),
+            request_duration_key: "slot_request_duration".into(),
+            ..default()
+        };
+        let slot_node = AnimationNode::new("slot", slot.clone());
+        let branch = AnimationNode::new("idle or moving", crate::extensions::source_pose_nodes::SourceTwoWayBlendNode {
+            alpha_key: "idle".into(), ..default()
+        });
         graph.add_node(base_node.clone());
         graph.add_node(slot_node.clone());
+        graph.add_node(branch.clone());
         graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
         graph.add_node_parameter_edge(base_node.id, "Pose", slot_node.id, "Source");
-        graph.add_output_data_edge(slot_node.id, "Pose", "Pose");
+        graph.add_node_parameter_edge(base_node.id, "Pose", branch.id, "A");
+        graph.add_node_parameter_edge(slot_node.id, "Pose", branch.id, "B");
+        graph.add_output_data_edge(branch.id, "Pose", "Pose");
         let mut always_graph = graph.clone();
         let mut always_slot = AnimationNode::new(
             "slot",
             SourceSlotNode {
                 always_update_source_pose: true,
-                ..default()
+                ..slot
             },
         );
         always_slot.id = slot_node.id;
@@ -387,12 +429,21 @@ mod tests {
         world.entity_mut(entity).insert(source_inputs);
         for weight in [3e-6, 1e-5] {
             let (pose, context, source_updated) = world.run_system_cached_with(
-                query, (handle.clone(), entity, base.clone(), overlay.clone(), weight),
+                query, (handle.clone(), entity, base.clone(), overlay.clone(), weight, true, 0.0),
             ).unwrap();
             assert!(source_updated);
             assert_eq!(pose.get_bone(bone).unwrap().translation, Some(Vec3::ZERO));
             assert_eq!(pose.get_bone(bone).unwrap().rotation, Some(Quat::from_rotation_x(0.5)));
             assert!(!context.curves.contains_key(&crate::extensions::SourceCurveName::from("FootLeftIk")));
+        }
+        for (idle, weight, epoch, expected) in [
+            (true, 0.0, 1.0, Some(0.2)), (true, 1.0, 1.0, Some(0.2)),
+            (false, 0.0, 1.0, None), (true, 0.0, 0.0, None),
+        ] {
+            let (_, context, _) = world.run_system_cached_with(
+                query, (handle.clone(), entity, base.clone(), overlay.clone(), weight, idle, epoch),
+            ).unwrap();
+            assert_eq!(context.inertialization_request.map(|request| request.duration), expected);
         }
         for (handle, always_update, weight) in [
             (handle.clone(), false, 0.6),
@@ -409,6 +460,8 @@ mod tests {
                         base.clone(),
                         overlay.clone(),
                         weight,
+                        true,
+                        0.0,
                     ),
                 )
                 .unwrap();

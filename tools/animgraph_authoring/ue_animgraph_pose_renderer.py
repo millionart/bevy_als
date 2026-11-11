@@ -518,6 +518,9 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ", mesh_space_additive_key: "
             + quoted(keys[3])
             + (", always_update_source_pose: true" if value.get("always_update_source_pose", False) else "")
+            + (", request_epoch_key: " + quoted(value["request_epoch_key"])
+                + ", request_duration_key: " + quoted(value["request_duration_key"])
+                if "request_epoch_key" in value else "")
             + ")",
         )
     if renderer == "bool_blend":

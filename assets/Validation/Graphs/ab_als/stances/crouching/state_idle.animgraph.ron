@@ -67,6 +67,8 @@
                     pose_key: "als_crouching_turn_pose",
                     weight_key: "als_crouching_turn_weight",
                     layer_weight_key: "als_crouching_turn_layer_weight",
+                    request_epoch_key: "als_crouching_turn_inertialization_epoch",
+                    request_duration_key: "als_crouching_turn_inertialization_duration",
                 ),
             },
             should_debug: false,

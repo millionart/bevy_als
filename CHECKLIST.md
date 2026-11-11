@@ -6915,7 +6915,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际Standing/Crouching各启动一个Turn，再通过原图Dynamic回调/dispatcher播放两次Transition，第二次发生在旧淡出0.15秒时。source下一帧结束，目标随后三帧仍有0.13183594、0.078125、0.024414063权重，生成Turn槽直接消费这些值。只保留第二次请求前的旧淡出进度，两侧都恢复；单次替换控制通过。60个测量帧中6个原始失败。
   - 漏检/边界：旧测试只核对第一次同组替换或最终清理，没有在已混出时重复同组播放。本项控制了请求资格/时点，使用当前0.2秒设置，未宣称默认动画曲线会自然允许该精确组合。证据`85/turn_standing.native.json`、`85/turn_crouching.native.json`及`bf144_animation_phase85_repeated_group_replacement`；仅登记，未修改生产逻辑。
 
-- [ ] BF144-D172 / P2 — Turn Slot未更新时，停止请求仍对当前移动姿态启动惯性混合。
+- [x] BF144-D172 / P2 — Turn Slot未更新时，停止请求仍对当前移动姿态启动惯性混合。
+  - 2026-11-12 04:31 +0800 实际结束，较05:11预估提前40分钟，未拆分。fresh站蹲源图、槽请求生命周期fixture和完整重转diff见 `docs/audit/bf144/d172/`。15根/374产物仅四份生成图移动请求绑定，已安装并更新专用验证入口。Cargo/真实Playground待统一验证。
+  - 本轮开始2026-11-12 04:12 +08:00，预估结束2026-11-12 05:11 +08:00。fresh核站蹲Idle Slot与父惯性化，按当帧Slot更新发请求并验证错过即丢弃；共享绑定变更须全量重转。
+  - 04:21 活动摘要：fresh站蹲源图确定各自Idle Slot与状态机后父Inertialization，Move分支不会调用该Slot。运行时在Turn停止当帧发布请求，Slot更新向父传递现有inertialization上下文；已补分支与发布生命周期fixture，转换器自测通过，全量转换中。
   - Source：fresh `AnimNode_Slot.cpp:60–71`只在Slot的Update中把组请求交给当前惯性化消息；`AnimInstance.cpp:4671–4675`每帧复制并清空请求。两种原生Turn Slot均位于Idle，父Inertialization位于整个站蹲状态机之后；移动分支不更新Idle Slot时，不应由这次停止产生该父节点的惯性化请求。
   - Target：`ue_animgraph_converter.py:1357–1390`按状态机内部存在Slot就把epoch绑定到父惯性化节点；`turn_layer.rs:490–501`向两种stance持续发布全局epoch，`inertialization_passthrough.rs:507–512`直接消费其增加，未保留Slot当帧更新资格。
   - 反例：完整角色由实际输入进入移动，核实Turn Slot未更新且FSM无惯性化请求；使用已由真实回调创建的Turn实例作为共同受控输入，再显式停止。原样站立/蹲姿各有3帧错误混合，首帧骨骼局部位置最大偏移约6.48/9.12cm、旋转约25.47°/18.98°；只清除该epoch绑定的14帧控制全部恢复当前输入姿态。正常Idle显式/自然停止及移除请求的56帧对照通过，当前RotationYawSpeed过滤断言也通过。

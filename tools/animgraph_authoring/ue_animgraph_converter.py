@@ -1361,39 +1361,14 @@ def resolve_control_rig_program(semantic, content_root, mount, source_reader):
 
 
 def bind_inertialization_requests(graphs, slot_requests):
-    issues = []
     for graph in graphs:
-        nodes = {node["source_node"]: node for node in graph["nodes"]}
         for node in graph["nodes"]:
-            if node["renderer"] != "inertialization" or not isinstance(node.get("semantic"), dict):
+            semantic = node.get("semantic")
+            if node["renderer"] != "slot" or not isinstance(semantic, dict):
                 continue
-            sources = [
-                nodes.get(link["source"]["node_object_path"])
-                for link in graph["links"]
-                if link["target"]["node_object_path"] == node["source_node"]
-                and link["target"]["pin_name"] == "Source"
-            ]
-            if len(sources) != 1 or sources[0] is None or sources[0]["renderer"] != "state_machine":
-                continue
-            machine = (sources[0].get("semantic") or {}).get("fsm_source_graph")
-            if not isinstance(machine, str) or not machine:
-                continue
-            candidates = {
-                (request["epoch_key"], request["duration_key"])
-                for nested in graphs
-                if nested["kind"] == "graph" and nested["source_graph"].startswith(machine + ".")
-                for slot in nested["nodes"]
-                if slot["renderer"] == "slot"
-                for request in [slot_requests.get((slot.get("semantic") or {}).get("slot_name"))]
-                if request is not None
-            }
-            if len(candidates) > 1:
-                issues.append({"kind": "source_inertialization_request_ambiguous",
-                    "source_node": node["source_node"], "candidates": sorted(candidates)})
-            elif candidates:
-                epoch, duration = next(iter(candidates))
-                node["semantic"].update(request_epoch_key=epoch, request_duration_key=duration)
-    return issues
+            request = slot_requests.get(semantic.get("slot_name"))
+            if request is not None:
+                semantic.update(request_epoch_key=request["epoch_key"], request_duration_key=request["duration_key"])
 
 
 def self_test_inertialization_request_binding():
@@ -1418,21 +1393,27 @@ def self_test_inertialization_request_binding():
 
     for root, machine, inertial in [("AnimGraph", "M1", "I1"), ("RenamedGraph", "M99", "I99")]:
         graphs = fixture(root, machine, inertial, "TurnInPlaceStanding")
-        assert not bind_inertialization_requests(graphs, requests)
-        assert graphs[0]["nodes"][1]["semantic"] == {
+        bind_inertialization_requests(graphs, requests)
+        assert not graphs[0]["nodes"][1]["semantic"]
+        assert graphs[1]["nodes"][0]["semantic"] == {
+            "slot_name": "TurnInPlaceStanding",
             "request_epoch_key": requests["TurnInPlaceStanding"]["epoch_key"],
             "request_duration_key": requests["TurnInPlaceStanding"]["duration_key"],
         }
     graphs = fixture("AnimGraph", "M1", "I1", "TurnInPlaceCrouching")
-    assert not bind_inertialization_requests(graphs, requests)
-    assert graphs[0]["nodes"][1]["semantic"]["request_epoch_key"] == requests["TurnInPlaceCrouching"]["epoch_key"]
-    graphs = fixture("AnimGraph", "M1", "I1", "Head")
-    assert not bind_inertialization_requests(graphs, requests)
+    bind_inertialization_requests(graphs, requests)
     assert not graphs[0]["nodes"][1]["semantic"]
+    assert graphs[1]["nodes"][0]["semantic"]["request_epoch_key"] == requests["TurnInPlaceCrouching"]["epoch_key"]
+    graphs = fixture("AnimGraph", "M1", "I1", "Head")
+    bind_inertialization_requests(graphs, requests)
+    assert graphs[1]["nodes"][0]["semantic"] == {"slot_name": "Head"}
     graphs = fixture("AnimGraph", "M1", "I1", "TurnInPlaceStanding")
     graphs[1]["nodes"].append({"source_node": "/Asset:AnimGraph.M1.States.OtherSlot",
         "renderer": "slot", "semantic": {"slot_name": "TurnInPlaceCrouching"}})
-    assert bind_inertialization_requests(graphs, requests)[0]["kind"] == "source_inertialization_request_ambiguous"
+    bind_inertialization_requests(graphs, requests)
+    assert not graphs[0]["nodes"][1]["semantic"]
+    assert [node["semantic"]["request_epoch_key"] for node in graphs[1]["nodes"]] == [
+        requests[slot]["epoch_key"] for slot in ("TurnInPlaceStanding", "TurnInPlaceCrouching")]
 
 
 def bind_linked_pose_cache_order(graph, source_schedule):
@@ -1611,8 +1592,7 @@ def build_ir(
                 graph_value["fsm_renderer"] = fsm_plan
         graphs.append({**entry, **graph_value})
         unsupported.extend(graph_unsupported)
-    unsupported.extend(bind_inertialization_requests(
-        graphs, RUNTIME_PROVIDER_CONTRACT["slot_inertialization_requests"]))
+    bind_inertialization_requests(graphs, RUNTIME_PROVIDER_CONTRACT["slot_inertialization_requests"])
     sync_group_plans, supported_sync_nodes, sync_issues = build_sync_group_plans(
         source["asset_path"],
         graphs,

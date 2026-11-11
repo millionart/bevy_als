@@ -318,14 +318,13 @@ fn setup(
         .values()
         .filter(|node| node.name == "Inertialization")
         .filter_map(|node| node.try_inner_downcast_ref::<InertializationPassthroughNode>())
-        .any(|node| {
-            node.request_epoch_key == case.inertialization_epoch_key
-                && node.request_duration_key == case.inertialization_duration_key
-        });
+        .any(|node| node.request_epoch_key.is_empty() && node.request_duration_key.is_empty());
     if !slot.is_some_and(|slot| {
         slot.pose_key == case.pose_key
             && slot.weight_key == case.weight_key
             && slot.layer_weight_key == case.layer_weight_key
+            && slot.request_epoch_key == case.inertialization_epoch_key
+            && slot.request_duration_key == case.inertialization_duration_key
     }) || !turn_inputs
         || !inertialization
     {
@@ -482,6 +481,7 @@ fn observe(
                 "[TURN-SLOT] case={} inertial_distance={inertial_distance:.6}",
                 case.label
             );
+            standing.set_global_input_data(case.inertialization_epoch_key, 0.0_f32);
             standing.queue_time_update(TimeUpdate::Delta(0.25));
             state.phase = 5;
         }
