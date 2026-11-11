@@ -6726,7 +6726,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色保留有效锁定，受控世界时钟0.1s、当帧移动10cm且未超过自动瞬移阈值，source应跟随组件重定位，实际Rig输入多出10cm偏移、rebase次数0。通过公开事件在游戏时间0建立源时间后，同输入恢复；0.3s/1s及恢复控制全部通过，共6组5PASS/1FAIL。
   - 漏检：旧时钟测试先显式发送事件，再验证超时与暂停，未覆盖默认时间0的有效分支。证据`bf144_animation_phase71_initial_teleport_window`及本批最终记录；初始夹具混用当前组件与上帧组件的恢复失败已排除，最终判据用真实上帧组件历史。仅登记，未改生产。
 
-- [ ] BF144-D157 / P3 — Feet无效时provider覆盖源应保留的曲线历史，改变起跳脚选择。
+- [x] BF144-D157 / P3 — Feet无效时provider覆盖源应保留的曲线历史，改变起跳脚选择。
+  - 2026-11-12 01:19 +0800 实际结束早于01:53预估，未拆分。fresh Feet有效性、原生Jump两条判定与已安装consumer闭环见 `docs/audit/bf144/d157/`。provider发布实际Feet状态历史，无实例状态时采用源零值。八组静态重放中恢复旧曲线读取使两组无效反号选错，两个符号均已加入真实Tnua起跳反例。旧71原始运行证据未随当前Git保留，Rust、消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 01:15 +08:00，预估结束2026-11-12 01:53 +08:00。核对Feet历史的生产时序与原生Jump Entry Conduit的两条判定。
   - Source：fresh `RefreshFeet:1299–1305`在bValid=false时立即返回，保留FootPlantedAmount/FeetCrossingAmount；原生Locomotion的Jump Entry Conduit以FootPlantedAmount≤0进入Left Foot，>0进入Right Foot。
   - Target：`ab_als_provider.rs:139–149,424`直接按最新RootAnimationContext生成这两个字段，绕过`AlsFootLockState`已正确保留的历史；实际SourceScalarExpression的global回退读到该新值。
   - 反例：完整角色在source明确判为无效的identity pelvis条件下起跳，FeetState原值−0.8、最新曲线+0.8时，实际Jump选择Right Foot而源应Left Foot；反号同样选错。仅发布保留字段即恢复两种选择，有效Feet四个控制通过，共8组6PASS/2FAIL，均在第一帧实际Jump FSM记录权重。

@@ -1,0 +1,77 @@
+{
+  "cases": [
+    {
+      "valid": false,
+      "retained_planted": -0.8,
+      "current_planted_curve": -0.8,
+      "effective_planted": -0.8,
+      "effective_crossing": 0.2,
+      "source_jump_foot": "Left Foot",
+      "jump_foot_from_current_curve": "Left Foot"
+    },
+    {
+      "valid": false,
+      "retained_planted": -0.8,
+      "current_planted_curve": 0.8,
+      "effective_planted": -0.8,
+      "effective_crossing": 0.2,
+      "source_jump_foot": "Left Foot",
+      "jump_foot_from_current_curve": "Right Foot"
+    },
+    {
+      "valid": false,
+      "retained_planted": 0.8,
+      "current_planted_curve": -0.8,
+      "effective_planted": 0.8,
+      "effective_crossing": 0.2,
+      "source_jump_foot": "Right Foot",
+      "jump_foot_from_current_curve": "Left Foot"
+    },
+    {
+      "valid": false,
+      "retained_planted": 0.8,
+      "current_planted_curve": 0.8,
+      "effective_planted": 0.8,
+      "effective_crossing": 0.2,
+      "source_jump_foot": "Right Foot",
+      "jump_foot_from_current_curve": "Right Foot"
+    },
+    {
+      "valid": true,
+      "retained_planted": -0.8,
+      "current_planted_curve": -0.8,
+      "effective_planted": -0.8,
+      "effective_crossing": 0.7,
+      "source_jump_foot": "Left Foot",
+      "jump_foot_from_current_curve": "Left Foot"
+    },
+    {
+      "valid": true,
+      "retained_planted": -0.8,
+      "current_planted_curve": 0.8,
+      "effective_planted": 0.8,
+      "effective_crossing": 0.7,
+      "source_jump_foot": "Right Foot",
+      "jump_foot_from_current_curve": "Right Foot"
+    },
+    {
+      "valid": true,
+      "retained_planted": 0.8,
+      "current_planted_curve": -0.8,
+      "effective_planted": -0.8,
+      "effective_crossing": 0.7,
+      "source_jump_foot": "Left Foot",
+      "jump_foot_from_current_curve": "Left Foot"
+    },
+    {
+      "valid": true,
+      "retained_planted": 0.8,
+      "current_planted_curve": 0.8,
+      "effective_planted": 0.8,
+      "effective_crossing": 0.7,
+      "source_jump_foot": "Right Foot",
+      "jump_foot_from_current_curve": "Right Foot"
+    }
+  ],
+  "jump_foot_failures_with_current_curve": 2
+}

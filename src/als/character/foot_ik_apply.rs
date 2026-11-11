@@ -1182,6 +1182,70 @@ mod tests {
             assert_eq!(app.world().get::<AlsFootLockState>(actor).unwrap().valid, prior_valid);
         }
     }
+
+    #[test]
+    fn jump_foot_selection_uses_the_effective_feet_curve_history() {
+        use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeActionDiscriminant};
+        use crate::als::input::AlsInputCommand;
+        use crate::animation_context_projection::AlsRootAnimationContext;
+        use crate::extensions::interruptible_fsm::InterruptibleFsmState;
+        use bevy_animation_graph::core::context::node_states::StateKey;
+        use bevy_tnua::TnuaController;
+
+        let left = "0658d344-4936-9679-25bf-e2860e9b7e84";
+        let right = "dc05dc35-4a57-916b-bb5f-4daba6b11c61";
+        for valid in [false, true] {
+            for history in [-0.8_f32, 0.8] {
+                let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+                for _ in 0..5 { app.update(); }
+                let entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+                let bones = *app.world().get::<AlsFootBones>(actor).unwrap();
+                let pelvis = app.world().get::<ChildOf>(bones.left_thigh).unwrap().parent();
+                let pelvis_parent = app.world().get::<ChildOf>(pelvis).unwrap().parent();
+                if !valid {
+                    app.add_systems(PostUpdate, (move |mut space: ParamSet<(TransformHelper, Query<&mut Transform>)>| {
+                        let mesh = space.p0().compute_global_transform(avatar).unwrap();
+                        let parent = space.p0().compute_global_transform(pelvis_parent).unwrap();
+                        *space.p1().get_mut(pelvis).unwrap() = mesh.reparented_to(&parent);
+                    }).after(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs));
+                }
+                {
+                    let mut feet = app.world_mut().get_mut::<AlsFootLockState>(actor).unwrap();
+                    feet.valid = valid;
+                    feet.foot_planted_amount = history;
+                    feet.feet_crossing_amount = 0.2;
+                    let mut context = app.world_mut().get_mut::<AlsRootAnimationContext>(entity).unwrap();
+                    context.curves.insert("FootPlanted".into(), -history);
+                    context.curves.insert("FeetCrossing".into(), 0.7);
+                }
+                app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().jump_pressed = true;
+                app.update();
+                let flow = app.world().get::<TnuaController<AlsControlScheme>>(actor).unwrap().action_flow_status();
+                assert_eq!(flow.just_starting(), Some(AlsControlSchemeActionDiscriminant::Jump));
+                assert_eq!(app.world().get::<AlsFootLockState>(actor).unwrap().valid, valid);
+                let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+                let scalar = |key| player.get_global_input_data(key).unwrap().as_f32().unwrap();
+                let planted = if valid { -history } else { history };
+                assert_eq!(scalar("feet_state.foot_planted_amount"), planted);
+                assert_eq!(scalar("feet_state.feet_crossing_amount"), if valid { 0.7 } else { 0.2 });
+                let arena = player.get_context_arena().unwrap();
+                let graphs = app.world().resource::<Assets<AnimationGraph>>();
+                let jump = arena.iter_context_ids().find_map(|id| {
+                    let context = arena.get_context(id)?;
+                    let node = graphs.get(context.get_graph_id())?.nodes.values()
+                        .find(|node| node.name == "Jump States\nState Machine")?;
+                    if !context.node_caches.is_updated(node.id, StateKey::Default) { return None; }
+                    context.node_states.get_all_upcoming_states::<InterruptibleFsmState>(node.id).ok()?
+                        .find(|state| state.last_output_pose().is_some())
+                }).expect("Jump States must evaluate on the takeoff frame");
+                let (expected, other) = if planted <= 0.0 { (left, right) } else { (right, left) };
+                assert_eq!(jump.recorded_state_weight(expected), 1.0);
+                assert_eq!(jump.recorded_state_weight(other), 0.0);
+            }
+        }
+    }
+
     use crate::character_assembly::AlsCharacterAvatar;
     use bevy_animation_graph::core::animation_clip::EntityPath;
 

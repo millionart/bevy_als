@@ -136,16 +136,16 @@ fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool)
     ]
 }
 
-fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>) -> [(&'static str, f32); 9] {
+fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>, feet: Option<&AlsFootLockState>) -> [(&'static str, f32); 9] {
     let curve = |name| context.and_then(|state| state.f32(name)).unwrap_or(0.0);
     [
         (
             "feet_state.foot_planted_amount",
-            curve("FootPlanted").clamp(-1.0, 1.0),
+            feet.map_or(0.0, |state| state.foot_planted_amount),
         ),
         (
             "feet_state.feet_crossing_amount",
-            curve("FeetCrossing").clamp(0.0, 1.0),
+            feet.map_or(0.0, |state| state.feet_crossing_amount),
         ),
         ("pose_state.standing_amount", curve("PoseStanding")),
         ("pose_state.crouching_amount", curve("PoseCrouching")),
@@ -423,7 +423,7 @@ fn ab_als_input_writer(
                 ("locomotion_state.speed", motion.horizontal_speed),
             ]
             .into_iter()
-            .chain(source_pose_curve_inputs(context))
+            .chain(source_pose_curve_inputs(context, feet))
             .chain(source_crouching_movement_inputs(
                 motion.horizontal_speed,
                 avatar_transform.to_scale_rotation_translation().0.y,
@@ -1067,7 +1067,7 @@ mod tests {
     fn generated_overlay_gait_inputs_follow_pose_curve_weights() {
         for gait in [-1.0_f32, 0.0, 1.4, 2.4, 4.0] {
             let context = AlsRootAnimationContext { curves: [("PoseGait".into(), gait)].into_iter().collect() };
-            let inputs: std::collections::HashMap<_,_> = source_pose_curve_inputs(Some(&context)).into_iter().collect();
+            let inputs: std::collections::HashMap<_,_> = source_pose_curve_inputs(Some(&context), None).into_iter().collect();
             assert!((inputs["pose_state.gait_running_amount"] - (gait.clamp(0.0,3.0) - 1.0).clamp(0.0,1.0)).abs() < 1e-6);
             assert!((inputs["pose_state.gait_sprinting_amount"] - (gait.clamp(0.0,3.0) - 2.0).clamp(0.0,1.0)).abs() < 1e-6);
         }
@@ -1077,8 +1077,8 @@ mod tests {
     fn generated_pose_inputs_preserve_actual_curve_weights_and_source_defaults() {
         let context = AlsRootAnimationContext {
             curves: [
-                ("FootPlanted", -1.2),
-                ("FeetCrossing", 0.3),
+                ("FootPlanted", 1.0),
+                ("FeetCrossing", 0.8),
                 ("PoseStanding", 0.4),
                 ("PoseCrouching", 0.2),
                 ("PoseInAir", 0.4),
@@ -1089,12 +1089,12 @@ mod tests {
             .map(|(name, value)| (name.into(), value))
             .collect(),
         };
+        let feet = AlsFootLockState { foot_planted_amount: -1.0, feet_crossing_amount: 0.3, ..default() };
+        assert_eq!(source_pose_curve_inputs(Some(&context), Some(&feet)).map(|(_, value)| value),
+            [-1.0, 0.3, 0.4, 0.2, 0.4, 0.6, 1.0, 1.0, 2.4 - 2.0]);
+        assert_eq!(source_pose_curve_inputs(Some(&context), None).map(|(_, value)| value)[..2], [0.0, 0.0]);
         assert_eq!(
-            source_pose_curve_inputs(Some(&context)).map(|(_, value)| value),
-            [-1.0, 0.3, 0.4, 0.2, 0.4, 0.6, 1.0, 1.0, 2.4 - 2.0]
-        );
-        assert_eq!(
-            source_pose_curve_inputs(None).map(|(_, value)| value),
+            source_pose_curve_inputs(None, None).map(|(_, value)| value),
             [0.0; 9]
         );
     }
