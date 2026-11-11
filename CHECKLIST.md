@@ -6634,7 +6634,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - 04:46实现闭环：D125a/b/c已分别提交正时间查询核、壳层初始穿透和共同场景入口；已登记原生正时间样本、已知穿透边界与消费用例。勾选仅表示实现完成；`43/queries.native.json`、`70/penetration.native.json`及穿透隔离目录未在当前Git和可用历史找到，最终需重采核验；全部测试、消融和真实Playground Gate尚未运行，失败时复开对应项。
 
-- [ ] BF144-D146 / P3 — 隐藏期间更新montage后，恢复图更新没有重新触发OnBecomeRelevant。
+- [x] BF144-D146 / P3 — 隐藏期间更新montage后，恢复图更新没有重新触发OnBecomeRelevant。
+  - 2026-11-12 00:13 +0800 实际结束，早于00:52预估，未拆分。fresh UE清理顺序和原生Head/Transition闭包见 `docs/audit/bf144/d146/`。已按推进前实例资格清理OnBecomeRelevant历史，保留arena帧号及其他实例状态。五组静态重放和source reader watchdog自测通过，消融会漏末节保持或终止帧。旧65运行原始报告未随当前Git保留，真实角色反例、Rust消融恢复及Playground Gate留待统一验证，失败复开本项。
+  - 本轮开始2026-11-11 23:57 +08:00，预估结束2026-11-12 00:52 +08:00。沿ShouldTickPose实际Montage实例资格、proxy计数和AB_Als_Head的InitializeHead，覆盖隐藏推进后恢复与纯空闲隐藏对照。
   - Source：fresh `SkeletalMeshComponent.cpp:1883–1918`在隐藏时仅因活动montage等条件允许TickPose；`AnimInstance.cpp:709–724`的montage-only路径重置proxy更新计数。`AnimNode_LinkedAnimGraph.cpp:96`同步子实例计数，`AnimNode_CallFunction.cpp:29–40`据计数不连续触发OnBecomeRelevant。原生AB_Als_Head将InitializeHead放在该调用点，父实例随后直接把pitch/yaw设为当前目标。
   - Target：`post_physics_animation.rs:188–190`跳过求值时保留原arena计数；`source_instance.rs:212–217`下次只看到连续的一次递增，因此SourcePropertyWriteNode不再执行初始化。
   - 反例：完整角色隐藏超过1秒后，播放实际transition montage并确认隐藏期间clip推进到0.2秒、pose_ready、根图计数未推进；恢复可见时目标pitch第三人称4.921°、第一人称30.767°，源应为45°。60/30Hz共16组12PASS/4FAIL，只补回InitializeHead标志的控制全部PASS；持续可见及无montage的纯空闲隐藏控制也通过。实际Head回调写入当前帧，并进入生成的BS_Als_Look输入链，最终head姿态已采样。

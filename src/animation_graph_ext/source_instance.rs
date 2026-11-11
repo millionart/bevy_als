@@ -1,9 +1,10 @@
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{platform::collections::HashMap, prelude::*, reflect::ReflectMut};
 use bevy_animation_graph::core::{
     animation_graph::NodeId,
+    animation_graph_player::AnimationGraphPlayer,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{
-        graph_context_arena::GraphContextId, new_context::NodeContext, node_states::StateKey,
+        graph_context_arena::{GraphContextArena, GraphContextId}, new_context::NodeContext, node_states::StateKey,
         spec_context::SpecContext,
     },
     edge_data::{DataSpec, DataValue},
@@ -215,6 +216,22 @@ pub fn source_call_became_relevant(ctx: &NodeContext) -> Result<bool, GraphError
         .call_frames
         .insert((ctx.graph_context.context_id, ctx.node_id), frame);
     Ok(previous.is_none_or(|previous| frame.wrapping_sub(previous) % u64::from(u16::MAX) > 1))
+}
+
+pub(crate) fn reset_source_call_relevancy(player: &mut AnimationGraphPlayer) {
+    let ReflectMut::Struct(fields) = player.reflect_mut() else {
+        panic!("Animation graph player must reflect as a struct");
+    };
+    let arena = fields.field_mut("context_arena")
+        .and_then(|field| field.try_downcast_mut::<Option<GraphContextArena>>())
+        .expect("Animation graph player must expose its context arena");
+    let Some(arena) = arena.as_mut() else { return; };
+    let states = &mut arena.get_toplevel_mut().node_states;
+    let node = NodeId::default();
+    if states.get::<SourceInstanceProperties>(node, StateKey::Default).is_ok_and(|state| !state.call_frames.is_empty()) {
+        states.get_mut_or_insert_with(node, StateKey::Default, SourceInstanceProperties::default)
+            .expect("source instance property state must keep its type").call_frames.clear();
+    }
 }
 
 #[derive(Reflect, Clone, Debug)]

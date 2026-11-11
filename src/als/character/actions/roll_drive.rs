@@ -2389,7 +2389,8 @@ impl Plugin for AlsRollDrivePlugin {
             .add_systems(
                 PostUpdate,
                 (
-                    advance_rolls.after(ensure_roll_state).before(prepare_roll_slot_samples),
+                    advance_rolls.after(ensure_roll_state).after(crate::animation_visibility::AlsAnimationVisibilitySet)
+                        .before(prepare_roll_slot_samples),
                     prepare_roll_slot_samples.before(AnimationGraphSet::PrePhysics),
                     ensure_root_motion_output,
                     ensure_roll_state,

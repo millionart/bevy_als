@@ -1,7 +1,13 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer};
+use crate::als::roll::AlsRollState;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::extensions::post_physics_animation::AnimationPoseUpdateGate;
+use crate::get_up::AlsGetUpState;
+use crate::mantle_drive::AlsMantleMontages;
+use crate::roll_drive::AlsRollTail;
+use crate::stop_link::AlsTransitionMontageStack;
+use crate::turn_layer::AlsTurnMontageStack;
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize)]
 pub enum AlsAnimationTickOption {
@@ -16,9 +22,13 @@ struct AlsMeshRenderTime(f32);
 
 pub struct AlsAnimationVisibilityPlugin;
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct AlsAnimationVisibilitySet;
+
 impl Plugin for AlsAnimationVisibilityPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, refresh_mesh_animation_visibility.before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics))
+        app.configure_sets(PostUpdate, AlsAnimationVisibilitySet.before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics))
+            .add_systems(PostUpdate, refresh_mesh_animation_visibility.in_set(AlsAnimationVisibilitySet))
             .add_observer(|event: On<Discard, AnimationGraphPlayer>, mut commands: Commands| {
                 commands.entity(event.entity).try_remove::<AnimationPoseUpdateGate>();
             });
@@ -29,13 +39,17 @@ fn refresh_mesh_animation_visibility(
     time: Res<Time>,
     spawner: Option<Res<bevy::world_serialization::WorldInstanceSpawner>>,
     meshes: Query<(&ViewVisibility, &InheritedVisibility), With<Mesh3d>>,
-    mut avatars: Query<(Entity, &AnimatedSceneInstance, &bevy::world_serialization::WorldInstance, Option<&AlsAnimationTickOption>, Option<&mut AlsMeshRenderTime>), With<AlsCharacterAvatar>>,
-    mut players: Query<(&AnimationGraphPlayer, Option<&mut AnimationPoseUpdateGate>)>,
+    mut avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance, &bevy::world_serialization::WorldInstance,
+        Option<&AlsAnimationTickOption>, Option<&mut AlsMeshRenderTime>, Option<&AlsTurnMontageStack>)>,
+    actor_montages: Query<(Option<&AlsTransitionMontageStack>, Option<&AlsRollState>,
+        Option<&AlsGetUpState>, Option<&AlsMantleMontages>, Option<&Children>)>,
+    roll_tails: Query<(), With<AlsRollTail>>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&mut AnimationPoseUpdateGate>)>,
     mut commands: Commands,
 ) {
     let Some(spawner) = spawner else { return; };
     let now = time.elapsed_secs_f64();
-    for (avatar, instance, world_instance, option, render_time) in &mut avatars {
+    for (avatar, owner, instance, world_instance, option, render_time, turns) in &mut avatars {
         let rendered = spawner.iter_instance_entities(**world_instance).any(|entity| meshes.get(entity).is_ok_and(|(view, inherited)| view.get() && inherited.get()));
         let previous = render_time.as_ref().map_or(0.0, |time| time.0);
         let last_render = if rendered { (now - time.delta_secs_f64()) as f32 } else { previous };
@@ -43,10 +57,23 @@ fn refresh_mesh_animation_visibility(
         else { commands.entity(avatar).insert(AlsMeshRenderTime(last_render)); }
         let recent = (last_render as f64) > now - crate::ab_als_provider::ANIMATION_COMPONENT.recently_rendered_seconds;
         let option = option.copied().unwrap_or(crate::ab_als_provider::ANIMATION_COMPONENT.visibility_tick_option);
-        let Ok((player, gate)) = players.get_mut(instance.player_entity()) else { continue; };
+        let Ok((mut player, gate)) = players.get_mut(instance.player_entity()) else { continue; };
         let initialize = player.get_animation_source().is_graph() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);
         let update_graph = initialize || recent || option != AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered;
         let refresh_bones = initialize || recent || option == AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones;
+        if !update_graph {
+            let montage_present = turns.is_some_and(AlsTurnMontageStack::has_montage_at_pose_tick)
+                || actor_montages.get(owner.character).is_ok_and(|(transitions, roll, get_up, mantle, children)| {
+                    transitions.is_some_and(AlsTransitionMontageStack::has_montage_at_pose_tick)
+                        || roll.is_some_and(|roll| roll.active)
+                        || get_up.is_some()
+                        || mantle.is_some_and(|mantle| !mantle.entries.is_empty())
+                        || children.is_some_and(|children| children.iter().any(|child| roll_tails.contains(child)))
+                });
+            if montage_present {
+                crate::extensions::source_instance::reset_source_call_relevancy(&mut player);
+            }
+        }
         if let Some(mut gate) = gate {
             gate.update_graph = update_graph;
             gate.refresh_bones = refresh_bones;
@@ -144,5 +171,70 @@ mod tests {
         for _ in 0..13 { app.update(); }
         assert!(!app.world().get::<AnimationPoseUpdateGate>(player).unwrap().update_graph);
         assert!(app.world().get::<AnimationPoseUpdateGate>(player).unwrap().pending_update);
+    }
+
+    #[test]
+    fn hidden_montage_ticks_restart_the_actual_head_relevance() {
+        use crate::als::aim::AlsLastFreeRotationMode;
+        use crate::als::state::RotationMode;
+        use crate::als::view::AlsViewPitch;
+        use crate::stop_link::{AlsTransitionPlayback, play_transition};
+
+        for (play_montage, terminal) in [(false, false), (true, false), (true, true)] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(character).insert((
+                RotationMode::ViewDirection,
+                AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                AlsViewPitch(0.0),
+            ));
+            app.world_mut().entity_mut(avatar).insert(AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+            for _ in 0..3 { app.update(); }
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            app.world_mut().entity_mut(avatar).insert(Visibility::Hidden);
+            app.update();
+            let frame = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_context_arena().unwrap().frame_index();
+            let now = app.world().resource::<Time>().elapsed_secs_f64();
+            app.world_mut().entity_mut(avatar).insert((
+                AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered,
+                AlsMeshRenderTime((now - 2.0) as f32),
+            ));
+            app.world_mut().entity_mut(character).insert(AlsViewPitch(std::f32::consts::FRAC_PI_4));
+            if play_montage {
+                let mut montage = AlsTransitionPlayback::standing_dynamic(0.0);
+                if terminal {
+                    montage.advance(montage.blend_in);
+                    montage.request_stop();
+                    montage.advance(montage.blend_out - 0.008);
+                    assert!(montage.active);
+                }
+                app.world_mut().run_system_once(move |mut commands: Commands| {
+                    play_transition(&mut commands, character, montage);
+                }).unwrap();
+            }
+            let hidden_updates = if terminal { 1 } else { 6 };
+            for _ in 0..hidden_updates { app.update(); }
+            let gate = app.world().get::<AnimationPoseUpdateGate>(player).unwrap();
+            assert!(!gate.update_graph && gate.pending_update);
+            let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert_eq!(graph.get_context_arena().unwrap().frame_index(), frame);
+            if play_montage {
+                let montage = app.world().get::<AlsTransitionMontageStack>(character).unwrap().latest().unwrap();
+                assert!(montage.clip_time > 0.0);
+                assert_eq!(montage.active, !terminal);
+            }
+            let now = app.world().resource::<Time>().elapsed_secs_f64();
+            app.world_mut().entity_mut(avatar).insert((Visibility::Visible, AlsMeshRenderTime(now as f32)));
+            app.update();
+            let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert!(graph.get_context_arena().unwrap().frame_index() > frame);
+            let target = graph.get_global_input_data("view_state.pitch_angle").unwrap().as_f32().unwrap();
+            assert!((target - 45.0).abs() < 1e-4);
+            let pitch = crate::head_layer::head_state_from_player(graph).pitch_angle;
+            if play_montage {
+                assert!((pitch - target).abs() < 1e-4, "Hidden montage (terminal={terminal}) resumed at {pitch}");
+            } else {
+                assert!((pitch - target).abs() > 1.0, "Idle hiding restarted the head at {pitch}");
+            }
+        }
     }
 }

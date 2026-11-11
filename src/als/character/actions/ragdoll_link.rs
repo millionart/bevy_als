@@ -2176,7 +2176,7 @@ pub(crate) mod tests {
             RigidBody::Kinematic,
             AlsCollisionLayerOwnership::default(),
             AlsNotifyLocomotionAction::Ragdolling,
-            AlsTransitionMontageStack { entries: vec![transition, second_transition] },
+            AlsTransitionMontageStack { entries: vec![transition, second_transition], ..default() },
         )).id();
         let mut turn = AlsTurnMontageStack::default();
         SourceTurnRequest {

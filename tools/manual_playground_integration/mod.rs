@@ -12330,7 +12330,7 @@ mod tests {
             played.advance(0.6);
             let mut replacement = AlsTransitionPlayback::standing_dynamic(1.0);
             replacement.kind = kind;
-            let mut stack = AlsTransitionMontageStack { entries: vec![played, replacement] };
+            let mut stack = AlsTransitionMontageStack { entries: vec![played, replacement], ..default() };
             let observed = standing_dynamic_observed(Some(&stack), Some(&played), kind, 0.0).unwrap();
             assert_eq!(observed.instance_id, played.instance_id);
             assert!(!standing_dynamic_stopped(true, Some(&played), Some(observed), true));

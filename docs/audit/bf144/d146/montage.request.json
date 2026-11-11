@@ -1,0 +1,66 @@
+{
+  "dynamic_montage": {
+    "slot": "Transition",
+    "blend_in_seconds": 0.2,
+    "blend_out_seconds": 0.2,
+    "blend_out_trigger_seconds": 0.0
+  },
+  "samples": [
+    {
+      "name": "running",
+      "steps": [
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.05
+        }
+      ]
+    },
+    {
+      "name": "terminal",
+      "steps": [
+        {
+          "delta_seconds": 0.2
+        },
+        {
+          "delta_seconds": 0.192,
+          "stop_seconds": 0.2
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "delta_seconds": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "held",
+      "start_time": 1.45,
+      "steps": [
+        {
+          "delta_seconds": 0.05
+        },
+        {
+          "delta_seconds": 0.06
+        },
+        {
+          "delta_seconds": 0.02
+        },
+        {
+          "delta_seconds": 0.2
+        },
+        {
+          "delta_seconds": 0.01
+        }
+      ]
+    }
+  ]
+}

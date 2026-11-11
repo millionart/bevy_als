@@ -179,6 +179,7 @@ pub struct AlsTurnMontageStack {
     owner_player: Option<Entity>,
     next_id: u64,
     inertialization_pending: bool,
+    had_instances_before_advance: bool,
 }
 
 fn reconcile_turn_player(
@@ -199,6 +200,10 @@ fn reconcile_turn_player(
 }
 
 impl AlsTurnMontageStack {
+    pub(crate) fn has_montage_at_pose_tick(&self) -> bool {
+        self.had_instances_before_advance || !self.entries.is_empty()
+    }
+
     fn begin(&mut self, lr: f32, is_180: bool, duration: f32, play_rate: f32, crouching: bool) {
         for entry in &mut self.entries {
             if entry.blend_out_elapsed.is_none() {
@@ -225,6 +230,7 @@ impl AlsTurnMontageStack {
     }
 
     fn advance(&mut self, delta_seconds: f32) -> bool {
+        self.had_instances_before_advance = !self.entries.is_empty();
         let delta_seconds = delta_seconds.max(0.0);
         let mut natural_end = std::mem::take(&mut self.inertialization_pending);
         for entry in &mut self.entries {
@@ -836,7 +842,7 @@ mod tests {
         transition.previous_clip_time = 0.40;
         transition.elapsed = 0.42;
         transition.weight = 1.0;
-        app.world_mut().entity_mut(character).insert(crate::stop_link::AlsTransitionMontageStack { entries: vec![transition] });
+        app.world_mut().entity_mut(character).insert(crate::stop_link::AlsTransitionMontageStack { entries: vec![transition], ..default() });
         app.world_mut().run_schedule(PostUpdate);
         app.world_mut().schedule_scope(PostUpdate, |_, schedule| {
             use bevy::ecs::schedule::NodeId;
@@ -1362,6 +1368,7 @@ mod tests {
         transition.weight = 0.75;
         let transitions = crate::stop_link::AlsTransitionMontageStack {
             entries: vec![transition],
+            ..default()
         };
         let character = app.world_mut().spawn((crate::als::character::AlsCharacter, transitions)).id();
         let avatar = app.world_mut().spawn((

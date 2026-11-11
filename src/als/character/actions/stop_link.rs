@@ -298,10 +298,15 @@ impl AlsTransitionPlayback {
 #[derive(Component, Debug, Default)]
 pub struct AlsTransitionMontageStack {
     pub entries: Vec<AlsTransitionPlayback>,
+    pub(crate) had_instances_before_advance: bool,
 }
 
 impl AlsTransitionMontageStack {
     pub fn latest(&self) -> Option<&AlsTransitionPlayback> { self.entries.last() }
+
+    pub(crate) fn has_montage_at_pose_tick(&self) -> bool {
+        self.had_instances_before_advance || self.entries.iter().any(|entry| entry.active)
+    }
 
     fn begin(&mut self, playback: AlsTransitionPlayback) {
         for entry in &mut self.entries {
@@ -320,6 +325,7 @@ impl AlsTransitionMontageStack {
     }
 
     fn advance(&mut self, delta_seconds: f32) {
+        self.had_instances_before_advance = self.entries.iter().any(|entry| entry.active);
         for entry in &mut self.entries { entry.advance(delta_seconds); }
         let last = self.entries.len().saturating_sub(1);
         let mut index = 0;
@@ -344,7 +350,7 @@ pub(crate) fn play_transition(commands: &mut Commands, character: Entity, playba
         if let Some(mut stack) = entity.get_mut::<AlsTransitionMontageStack>() {
             stack.begin(playback);
         } else {
-            entity.insert(AlsTransitionMontageStack { entries: vec![playback] });
+            entity.insert(AlsTransitionMontageStack { entries: vec![playback], ..default() });
         }
     });
 }
@@ -1405,7 +1411,7 @@ mod tests {
             Stance::Standing,
             AlsViewYaw(0.0),
             AlsInputCommand::default(),
-            AlsTransitionMontageStack { entries: vec![previous] },
+            AlsTransitionMontageStack { entries: vec![previous], ..default() },
         )).id();
         let player = app.world_mut().spawn(AnimationGraphPlayer::new(Handle::default())).id();
         app.world_mut().spawn((
