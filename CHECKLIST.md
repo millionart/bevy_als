@@ -6410,7 +6410,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_link.rs:529–536`的动画body同步及依赖`physics_systems_avian.rs:88–95`使用normalized差值quat的scaled-axis/dt。该差异发生在生成W时，独立于D84的动态旋转积分及D85的soft阻尼。
   - 反例：完整角色pelvis从共同旧pose到旋转0.6rad的新动画bone pose，经过实际sync与下一帧Dynamic handoff；夹具提前Dynamic排除D105。60Hz目标Wy=36rad/s、源35.46243；30Hz为18与17.731215。零旋转通过，仅改为源quat差分后恢复；长帧中的独立时钟差异归D107。联合24组15PASS/9FAIL，证据`bf144_ragdoll_phase37_animated_velocity_reaches_dynamic_handoff`、`37/final/`。
 
-- [ ] BF144-D107 / P2 — 动画刚体速度用全帧时间，未保留源physics delta clamp。
+- [x] BF144-D107 / P2 — 动画刚体速度用全帧时间，未保留源physics delta clamp。 静态实现完成，统一验证待执行。
+  - 19:35 source/static 闭环：两条 ALS 动画刚体 V/W 路径复用同一帧物理 cap，保留通用图体的世界时钟。已把实际相对目标 producer 夹具扩成60/30/10Hz，固定1cm和0.6rad输入，分别核线速度与角速度，并用通用体保留100ms对照。源与目标身份 `docs/audit/bf144/d107/`；编译、测试、消融和真实入口留待统一 Gate。开始19:33，预估20:13，实际结束2026-11-11 19:35 +08:00，偏差−38分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 19:33 +08:00，预估结束20:13 +08:00。依据：D106已统一角速度公式，两条动画刚体路径可复用现有物理 cap；fresh 核对同步源配置及实际 V/W 生成阶段，按60/30/10Hz 共同输入对照估时。
   - Source：fresh `PhysAnim.cpp:697–701`把骨骼pose写为kinematic target；`ChaosScene.cpp:331–357`在当前同步、无substepping配置下使用min(frame delta, MaxPhysicsDeltaTime)，原生上限为1/30秒；`PBDRigidsEvolutionGBF.cpp:1225–1243`用该物理步长生成V/W。
   - Target：`ragdoll_link.rs:526–537`和依赖的kinematic速度producer均直接使用全帧`Time.delta_secs()`。物理积分本身的clamp不会回头修正已生成的速度。
   - 反例：共同pelvis位移1cm、帧长0.1s、零旋转时，源Vx=0.3m/s，实际sync及隔离D105后的handoff均为0.1；只改速度分母为物理delta后恢复。60/30Hz对照通过；0.6rad的长帧组同时需要D106公式与本项分母，两项单独替换各自仍保留另一失败。沿用同一24组证据，不另计样本。源/目标重力约定没有改变，也未把全局帧率改成固定30Hz。

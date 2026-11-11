@@ -121,7 +121,7 @@ fn integrate_character_velocity(
     }
 }
 
-fn source_physics_delta(delta: Duration) -> Duration {
+pub(crate) fn source_physics_delta(delta: Duration) -> Duration {
     delta.min(SOURCE_MAX_PHYSICS_DELTA)
 }
 

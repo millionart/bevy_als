@@ -14,6 +14,7 @@ use crate::extensions::ragdoll_angular_drive::{
 use crate::extensions::{RagdollActiveMode, RagdollCollisionMember, RagdollPhysicsHandoffSet, RagdollPhysicsProfileApplied};
 use crate::extensions::SourceCollisionIgnorePawn;
 use crate::extensions::post_physics_animation::source_kinematic_angular_velocity;
+use crate::source_physics_timing::source_physics_delta;
 use avian3d::prelude::{
     AngularVelocity, Collider, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
     RigidBody, Rotation, ShapeCastConfig, ShapeHitData, SpatialQueryFilter,
@@ -588,6 +589,7 @@ fn sync_animated_ragdoll_bodies(
         &mut AngularVelocity,
     )>,
 ) {
+    let delta = source_physics_delta(time.delta()).as_secs_f32();
     for (avatar_entity, avatar, instance, handle) in &avatars {
         let Ok((action, assembly)) = characters.get(avatar.character) else {
             continue;
@@ -624,7 +626,6 @@ fn sync_animated_ragdoll_bodies(
                 continue;
             };
             let target = global.to_isometry() * mapping.bone.offset;
-            let delta = time.delta_secs();
             if !position.is_added() && delta > 0.0 {
                 linear_velocity.0 = (Vec3::from(target.translation) - position.0) / delta;
                 angular_velocity.0 = source_kinematic_angular_velocity(rotation.0, target.rotation, delta);

@@ -1,0 +1,88 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/PhysicsCore/Private/ChaosScene.cpp",
+      "sha256": "923b5f2907b3ff3a6bd06f4c507cb77365f22edae7fd35d275665aef36718fe8",
+      "anchors": [
+        {
+          "line": 331,
+          "source": "void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMinPhysicsDeltaTime /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping)"
+        },
+        {
+          "line": 337,
+          "source": ""
+        },
+        {
+          "line": 339,
+          "source": "{"
+        },
+        {
+          "line": 345,
+          "source": "}"
+        },
+        {
+          "line": 355,
+          "source": "{"
+        },
+        {
+          "line": 356,
+          "source": "Solver->SetMaxDeltaTime_External(InMaxPhysicsDeltaTime);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Experimental/Chaos/Private/Chaos/PBDRigidsEvolutionGBF.cpp",
+      "sha256": "733d0d1c075eb559319e9e8e4364923b8090652e6997738d6eebbec066b06712",
+      "anchors": [
+        {
+          "line": 1225,
+          "source": "FVec3f NewW = FVec3f(0);"
+        },
+        {
+          "line": 1228,
+          "source": "if (bPositionChanged)"
+        },
+        {
+          "line": 1230,
+          "source": "NewV = FVec3::CalculateVelocity(CurrentX, NewX, Dt);"
+        },
+        {
+          "line": 1234,
+          "source": "NewW = FRotation3f::CalculateAngularVelocity(CurrentR, NewR, static_cast<FRealSingle>(Dt));"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/PhysicsEngine/PhysAnim.cpp",
+      "sha256": "f016c46d7de73634d2337e98d1a833994d61260f17fdb462b24a8b6d668a6797",
+      "anchors": [
+        {
+          "line": 697,
+          "source": ""
+        },
+        {
+          "line": 699,
+          "source": "if(!bTeleport)"
+        },
+        {
+          "line": 701,
+          "source": "PhysScene->SetKinematicTarget_AssumesLocked(BodyInst, BoneTransform, true);"
+        }
+      ]
+    },
+    {
+      "path": "Config/DefaultEngine.ini",
+      "sha256": "e2ef4bad0d65cb55d773cb1e6202aea38f8873a2f02ebdac50985efc7d4decbe",
+      "anchors": [
+        {
+          "line": 80,
+          "source": "bTickPhysicsAsync=False ; If enabled, the character may fall through the ground when landing while the ragdoll is active."
+        }
+      ]
+    }
+  ],
+  "contract": "Animated kinematic targets generate velocity using the capped physics frame duration. The active project uses a synchronous physics frame without substeps.",
+  "existing_configuration": "src/als/character/movement/source_physics_timing.rs",
+  "physics_max_delta_nanoseconds": 33333333,
+  "retained_source_timing_evidence": "docs/audit/bf144/d86/source-facts.json"
+}

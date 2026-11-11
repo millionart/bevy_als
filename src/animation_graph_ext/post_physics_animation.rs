@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::source_physics_timing::source_physics_delta;
 use avian3d::prelude::{PhysicsSystems, Position, Rotation};
 use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, math::Isometry3d, prelude::*, transform::TransformSystems};
 use bevy_animation_graph::core::{
@@ -106,12 +107,14 @@ pub(crate) fn update_relative_kinematic_target_velocities(
         &mut RelativeKinematicBody, Has<crate::extensions::RagdollActiveMode>)>,
     references: Query<(&Position, &Rotation), Without<RelativeKinematicBodyPositionBased>>,
 ) {
-    let delta = time.delta_secs();
+    let world_delta = time.delta_secs();
+    let physics_delta = source_physics_delta(time.delta()).as_secs_f32();
     for (target, position, rotation, mut body, use_source) in &mut bodies {
         let world = Isometry3d::new(position.0, rotation.0);
         let current = target.relative_to.and_then(|entity| references.get(entity).ok())
             .map_or(world, |(position, rotation)| Isometry3d::new(position.0, rotation.0).inverse() * world);
         let next = target.relative_target;
+        let delta = if use_source { physics_delta } else { world_delta };
         body.kinematic_linear_velocity = ((next.translation - current.translation) / delta).into();
         body.kinematic_angular_velocity = if use_source {
             source_kinematic_angular_velocity(current.rotation, next.rotation, delta)
@@ -299,10 +302,7 @@ mod tests {
         use bevy_animation_graph::core::ragdoll::definition::BodyMode;
 
         let mut world = World::new();
-        let mut time = Time::<()>::default();
-        time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
-        let delta = time.delta_secs();
-        world.insert_resource(time);
+        world.insert_resource(Time::<()>::default());
         let base_rotation = Quat::from_rotation_z(0.4);
         let base = world.spawn((Position(Vec3::ZERO), Rotation(base_rotation))).id();
         let start = Quat::from_rotation_x(0.3);
@@ -317,13 +317,17 @@ mod tests {
             if source { entity.insert(crate::extensions::RagdollActiveMode(BodyMode::Dynamic)); }
             entity.id()
         });
-        world.run_system_once(update_relative_kinematic_target_velocities).unwrap();
-        let source = world.get::<RelativeKinematicBody>(source).unwrap();
-        let other = world.get::<RelativeKinematicBody>(other).unwrap();
-        assert_eq!(source.relative_to, Some(base));
-        assert!(source.kinematic_linear_velocity.abs_diff_eq(Vec3::X * (0.01 / delta), 1e-6));
-        assert!(source.kinematic_angular_velocity.abs_diff_eq(Vec3::Y * (2.0 * (angle * 0.5).sin() / delta), 1e-5));
-        assert!(other.kinematic_angular_velocity.abs_diff_eq(Vec3::Y * (angle / delta), 1e-5));
+        for (delta, physics_delta) in [(1.0 / 60.0, 1.0 / 60.0), (1.0 / 30.0, 1.0 / 30.0), (0.1, 1.0 / 30.0)] {
+            world.resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
+            world.run_system_once(update_relative_kinematic_target_velocities).unwrap();
+            let source = world.get::<RelativeKinematicBody>(source).unwrap();
+            let other = world.get::<RelativeKinematicBody>(other).unwrap();
+            assert_eq!(source.relative_to, Some(base));
+            assert!(source.kinematic_linear_velocity.abs_diff_eq(Vec3::X * (0.01 / physics_delta), 1e-6));
+            assert!(source.kinematic_angular_velocity.abs_diff_eq(Vec3::Y * (2.0 * (angle * 0.5).sin() / physics_delta), 1e-5));
+            assert!(other.kinematic_linear_velocity.abs_diff_eq(Vec3::X * (0.01 / delta), 1e-6));
+            assert!(other.kinematic_angular_velocity.abs_diff_eq(Vec3::Y * (angle / delta), 1e-5));
+        }
         assert_eq!(source_kinematic_angular_velocity(start, end, 1e-8), Vec3::ZERO);
     }
 
