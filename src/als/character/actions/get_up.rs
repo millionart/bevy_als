@@ -79,6 +79,7 @@ pub struct AlsGetUpState {
     pub facing_up: bool,
     pub elapsed: f32,
     pub clip_time: f32,
+    pub(crate) previous_clip_time: f32,
     pub weight: f32,
     pub pose_ready: bool,
     pub(crate) interrupted: bool,
@@ -93,6 +94,7 @@ impl AlsGetUpState {
             facing_up,
             elapsed: 0.0,
             clip_time: 0.0,
+            previous_clip_time: 0.0,
             weight: 1.0,
             pose_ready: false,
             interrupted: false,
@@ -110,6 +112,7 @@ impl AlsGetUpState {
     }
 
     pub(crate) fn advance(&mut self, delta: f32, settings: &GetUpClipSettings) {
+        self.previous_clip_time = self.clip_time;
         if self.weight == 0.0 { return; }
         if let Some(blend) = &mut self.stop {
             self.weight = blend.advance(delta);
@@ -259,7 +262,6 @@ fn update_get_up_pose(
             end_get_up_instance(&mut commands, character, action);
             continue;
         }
-        let previous_clip_time = state.clip_time;
         if action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
             state.stop(RAGDOLL_SETTINGS.stop_montage_blend_seconds);
         } else if roll.is_some_and(|roll| roll.active) {
@@ -293,10 +295,10 @@ fn update_get_up_pose(
         context.relevant_asset = Some(SourceRelevantAsset {
             duration: clip.duration,
             position: state.clip_time,
-            previous_position: previous_clip_time,
+            previous_position: state.previous_clip_time,
             has_previous_position: true,
             delta_seconds: delta,
-            playback_delta_seconds: state.clip_time - previous_clip_time,
+            playback_delta_seconds: state.clip_time - state.previous_clip_time,
             looping: false,
             weight: 1.0,
         });

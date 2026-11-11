@@ -7014,7 +7014,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：真实Roll到action结束且旧实例仍active时再次按Roll；默认1.3的六帧中两帧多发Begin/End但位移一致。先通过现有倍率组件设置2再重入时，目标改回1.3，随后五帧实际根运动驱动少移动约0.72–2.40cm；源此时应保留2。仅在夹具按源入队规则保留同一通知身份，12个真实重入恢复帧全部通过；四个普通接替失败帧也恢复。
   - 漏检/边界：旧多实例通知测试核对的是本就独立的branching动作；旧Roll重入倍率测试只核对默认1.3，未把排队状态的NoMergeOnConcurrentPlay与外部倍率改写组合。真实驱动的位移与缓存倍率逐帧吻合，误差来自重复Begin，源/目标都在通知前缓存当帧倍率，因此第一重入帧的位移保持一致。证据`93/native.json`、`93/analysis.json`及`bf144_animation_phase93_reentry_root_consumer`；倍率2为外部改写控制，未宣称默认1.3出现位移差异。
 
-- [ ] BF144-D183 / P3 — 即时动作状态只按帧末区间求值，遗漏branching marker回调。
+- [x] BF144-D183 / P3 — 即时动作状态只按帧末区间求值，遗漏branching marker回调。
+  - 2026-11-12 05:51 +0800 实际结束，较06:40预估提前49分钟，未拆分。fresh九个Montage的30标记与manifest逐值一致；旧回放60帧失配，分别移除标记、子步校正或首帧起点均失配。已复用Mantle真实上一位置及GetUp图时钟，原始读数和实际派发夹具见 `docs/audit/bf144/d183/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 05:42 +08:00，预估结束2026-11-12 06:40 +08:00。重采九个Montage的原生branching markers及端点；以UE拆步、区间校正和回调顺序恢复真实派发，复验精确端点、负起点、同帧多标记及跳转。
   - Source：fresh `AnimMontage.cpp:741–777,2281–2289`在(previous,current]中寻找首个标记并拆步；`2877–3005`先按start<position≤end校正活动状态，再执行Begin/End marker，最后仅Tick仍活跃状态。区间校正规则不能替代标记回调；零步长没有跨标记，但仍执行区间校正。
   - Target：`event_lifecycle.rs:171–194,263–275`直接用最终current_time求native状态，仅当同帧跨越start和end才补Begin/End。因此精确到达起点时不Begin，精确到达终点时不End；GetUp/Mantle从默认0开始、单帧越过结束点时，负起点不在跨越区间，又漏掉源会执行的Begin/End。
   - 反例：九个当前montage先统一原生精确端点以隔离D121。2250组局部比较有345FAIL；424个实际派发帧有28FAIL，其中10帧动作组件和实际图的locomotion_action不符。只在夹具把本帧标记语义映射回现有生命周期输入后，1125个局部及212个实际恢复全部通过；权重0、LOD过滤、chance0、普通零步长、中断直到终止及外部动作保护控制通过。

@@ -152,6 +152,17 @@ impl EventLifecycle {
         point_weight: f32,
         dispatch: EventDispatchContext,
     ) -> Vec<EventLifecycleSignal> {
+        let branching = definitions
+            .iter()
+            .filter(|definition| {
+                clock.is_some()
+                    && definition.kind == TimedEventKind::State
+                    && definition.state_boundary
+                        == StateIntervalBoundary::StartExclusiveEndInclusive
+                    && point_weight >= definition.weight_threshold
+                    && passes_dispatch(definition, dispatch)
+            })
+            .collect::<Vec<_>>();
         let definitions = definitions
             .iter()
             .map(|definition| (definition.id.as_str(), definition))
@@ -184,30 +195,15 @@ impl EventLifecycle {
             }
         }
 
-        if let Some(clock) = clock {
-            for definition in definitions.values().copied() {
-                if definition.kind != TimedEventKind::State
-                    || definition.state_boundary
-                        != StateIntervalBoundary::StartExclusiveEndInclusive
-                    || point_weight < definition.weight_threshold
-                    || !passes_dispatch(definition, dispatch)
-                    || !state_active_at(definition, clock.current_time)
-                {
-                    continue;
-                }
-                current.insert(
-                    definition.id.clone(),
-                    ActiveState {
-                        weight: point_weight,
-                        percentage: state_percentage(definition, clock.current_time),
-                        track: definition.track.clone(),
-                    },
-                );
-            }
-        }
-
         let previously_active = self.active_states.keys().cloned().collect::<HashSet<_>>();
-        let mut output = self.end_states(|id| !current.contains_key(id));
+        let mut output = self.end_states(|id| {
+            !current.contains_key(id) && !branching.iter().any(|definition| definition.id == id)
+        });
+        if let Some(clock) = clock
+            && !branching.is_empty()
+        {
+            self.update_branching_states(&branching, clock, point_weight, &mut output);
+        }
 
         let mut current_ids = current.keys().cloned().collect::<Vec<_>>();
         current_ids.sort();
@@ -244,6 +240,8 @@ impl EventLifecycle {
             .copied()
             .filter(|definition| {
                 definition.kind == TimedEventKind::State
+                    && definition.state_boundary
+                        == StateIntervalBoundary::StartInclusiveEndExclusive
                     && point_weight >= definition.weight_threshold
                     && passes_dispatch(definition, dispatch)
                     && !current_state_ids.contains(&definition.id)
@@ -295,6 +293,111 @@ impl EventLifecycle {
         }
         output
     }
+
+    fn update_branching_states(
+        &mut self,
+        definitions: &[&TimedEvent],
+        clock: EventClock,
+        weight: f32,
+        output: &mut Vec<EventLifecycleSignal>,
+    ) {
+        let mut markers = definitions
+            .iter()
+            .copied()
+            .flat_map(|definition| {
+                [
+                    (definition.start_time, definition, EventPhase::Begin),
+                    (definition.end_time, definition, EventPhase::End),
+                ]
+            })
+            .filter(|(time, _, _)| crossed_time(*time, clock))
+            .collect::<Vec<_>>();
+        if clock.direction == PlaybackDirection::Backward {
+            markers.reverse();
+        }
+        let order = |time: f32| match clock.direction {
+            PlaybackDirection::Forward => (clock.wrapped && time <= clock.previous_time, time),
+            PlaybackDirection::Backward => (clock.wrapped && time >= clock.previous_time, -time),
+        };
+        markers.sort_by(|(first, _, _), (second, _, _)| {
+            let (first_wrapped, first_time) = order(*first);
+            let (second_wrapped, second_time) = order(*second);
+            first_wrapped
+                .cmp(&second_wrapped)
+                .then_with(|| first_time.total_cmp(&second_time))
+        });
+        markers.dedup_by(|first, second| first.0 == second.0);
+        let needs_final_reconciliation = markers
+            .last()
+            .is_none_or(|marker| marker.0 != clock.current_time);
+        for (time, definition, phase) in markers {
+            self.reconcile_branching_states(definitions, time, weight, output);
+            output.push(self.branching_signal(definition, phase, time, weight));
+        }
+        if needs_final_reconciliation {
+            self.reconcile_branching_states(definitions, clock.current_time, weight, output);
+        }
+        for definition in definitions {
+            if self.active_states.contains_key(&definition.id) {
+                output.push(self.branching_signal(
+                    definition,
+                    EventPhase::Active,
+                    clock.current_time,
+                    weight,
+                ));
+            }
+        }
+    }
+
+    fn reconcile_branching_states(
+        &mut self,
+        definitions: &[&TimedEvent],
+        time: f32,
+        weight: f32,
+        output: &mut Vec<EventLifecycleSignal>,
+    ) {
+        let active_at_position =
+            |definition: &TimedEvent| definition.start_time < time && time <= definition.end_time;
+        output.extend(self.end_states(|id| {
+            definitions
+                .iter()
+                .any(|definition| definition.id == id && !active_at_position(definition))
+        }));
+        for definition in definitions {
+            if active_at_position(definition) && !self.active_states.contains_key(&definition.id) {
+                output.push(self.branching_signal(definition, EventPhase::Begin, time, weight));
+            }
+        }
+    }
+
+    fn branching_signal(
+        &mut self,
+        definition: &TimedEvent,
+        phase: EventPhase,
+        time: f32,
+        weight: f32,
+    ) -> EventLifecycleSignal {
+        let percentage = state_percentage(definition, time);
+        if phase == EventPhase::End {
+            self.active_states.remove(&definition.id);
+        } else {
+            self.active_states.insert(
+                definition.id.clone(),
+                ActiveState {
+                    weight,
+                    percentage,
+                    track: definition.track.clone(),
+                },
+            );
+        }
+        EventLifecycleSignal {
+            id: definition.id.clone(),
+            phase,
+            weight,
+            percentage,
+            track: definition.track.clone(),
+        }
+    }
 }
 
 pub fn crossed_time(time: f32, clock: EventClock) -> bool {
@@ -323,17 +426,6 @@ fn point_order(
     match direction {
         PlaybackDirection::Forward => order.then_with(|| first.id.cmp(&second.id)),
         PlaybackDirection::Backward => order.reverse().then_with(|| first.id.cmp(&second.id)),
-    }
-}
-
-fn state_active_at(definition: &TimedEvent, time: f32) -> bool {
-    match definition.state_boundary {
-        StateIntervalBoundary::StartInclusiveEndExclusive => {
-            definition.start_time <= time && time < definition.end_time
-        }
-        StateIntervalBoundary::StartExclusiveEndInclusive => {
-            definition.start_time < time && time <= definition.end_time
-        }
     }
 }
 
@@ -515,38 +607,59 @@ mod tests {
     }
 
     #[test]
-    fn native_branching_state_uses_exclusive_start_and_inclusive_end() {
+    fn native_branching_markers_run_after_interval_reconciliation() {
         let mut state = definition("state", TimedEventKind::State, 0.25, 0.5, 0.0);
         state.state_boundary = StateIntervalBoundary::StartExclusiveEndInclusive;
         let mut lifecycle = EventLifecycle::default();
-        let at_start = lifecycle.update(
-            &[state.clone()],
-            &EventQueue::default(),
-            Some(forward(0.2, 0.25, false)),
-            1.0,
+        let phases = |lifecycle: &mut EventLifecycle, previous, current| {
+            lifecycle
+                .update(
+                    std::slice::from_ref(&state),
+                    &EventQueue::default(),
+                    Some(forward(previous, current, false)),
+                    0.0,
+                )
+                .into_iter()
+                .map(|signal| signal.phase)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            phases(&mut lifecycle, 0.2, 0.25),
+            [EventPhase::Begin, EventPhase::Active]
         );
-        assert!(at_start.is_empty());
-        let during = lifecycle.update(
-            &[state.clone()],
-            &EventQueue::default(),
-            Some(forward(0.25, 0.3, false)),
-            1.0,
+        assert_eq!(phases(&mut lifecycle, 0.25, 0.25), [EventPhase::End]);
+        assert_eq!(
+            phases(&mut lifecycle, 0.25, 0.3),
+            [EventPhase::Begin, EventPhase::Active]
         );
-        assert_eq!(during[0].phase, EventPhase::Begin);
-        let at_end = lifecycle.update(
-            &[state.clone()],
-            &EventQueue::default(),
-            Some(forward(0.3, 0.5, false)),
-            1.0,
+        assert_eq!(phases(&mut lifecycle, 0.3, 0.5), [EventPhase::End]);
+        assert_eq!(
+            phases(&mut lifecycle, 0.5, 0.5),
+            [EventPhase::Begin, EventPhase::Active]
         );
-        assert_eq!(at_end[0].phase, EventPhase::Active);
-        let after_end = lifecycle.update(
+        assert_eq!(phases(&mut lifecycle, 0.5, 0.6), [EventPhase::End]);
+        assert!(phases(&mut lifecycle, 0.6, 0.7).is_empty());
+    }
+
+    #[test]
+    fn first_montage_step_runs_the_negative_start_state_end_marker() {
+        let mut state = definition("state", TimedEventKind::State, -0.0001, 0.5, 0.0);
+        state.state_boundary = StateIntervalBoundary::StartExclusiveEndInclusive;
+        let mut lifecycle = EventLifecycle::default();
+        let signals = lifecycle.update(
             &[state],
             &EventQueue::default(),
-            Some(forward(0.5, 0.6, false)),
-            1.0,
+            Some(forward(0.0, 0.75, false)),
+            0.0,
         );
-        assert_eq!(after_end[0].phase, EventPhase::End);
+        assert_eq!(
+            signals
+                .iter()
+                .map(|signal| signal.phase)
+                .collect::<Vec<_>>(),
+            [EventPhase::Begin, EventPhase::End]
+        );
+        assert_eq!(lifecycle.active_count(), 0);
     }
 
     #[test]

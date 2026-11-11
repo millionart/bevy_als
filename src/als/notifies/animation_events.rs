@@ -543,7 +543,7 @@ fn push_playback(
     graph_clip: &str,
     time: f32,
     weight: f32,
-    looped: bool,
+    previous_time: Option<f32>,
     interrupted: bool,
 ) {
     if !time.is_finite() || !weight.is_finite() || weight <= f32::EPSILON {
@@ -555,9 +555,9 @@ fn push_playback(
         source_asset: source_asset.into(),
         graph_clip: graph_clip.into(),
         time,
-        previous_time: None,
+        previous_time,
         weight: weight.clamp(0.0, 1.0),
-        looped,
+        looped: false,
     });
 }
 
@@ -614,10 +614,9 @@ fn refresh_animation_event_playbacks(
         for (instance_id, time, previous, weight, interrupted) in roll_instances {
             for source in [SOURCE_ROLL_SEQUENCE, SOURCE_ROLL_MONTAGE] {
                 if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
-                    push_playback(&mut entries, source, graph_clip, time, weight, false, interrupted);
+                    push_playback(&mut entries, source, graph_clip, time, weight, previous, interrupted);
                     if let Some(entry) = entries.last_mut() {
                         entry.instance_id = instance_id;
-                        entry.previous_time = previous;
                     }
                 }
             }
@@ -627,7 +626,7 @@ fn refresh_animation_event_playbacks(
                 let (sequence, montage) = mantle_sources(entry.kind);
                 for source in [sequence, montage] {
                     if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
-                        push_playback(&mut entries, source, graph_clip, entry.clip_time, entry.weight, false, entry.interrupted);
+                        push_playback(&mut entries, source, graph_clip, entry.clip_time, entry.weight, Some(entry.previous_clip_time), entry.interrupted);
                         let playback = entries.last_mut().unwrap();
                         playback.instance_id = entry.id;
                     }
@@ -644,7 +643,7 @@ fn refresh_animation_event_playbacks(
                         graph_clip,
                         get_up.clip_time,
                         get_up.weight,
-                        false,
+                        Some(get_up.previous_clip_time),
                         get_up.interrupted,
                     );
                 }
@@ -658,15 +657,6 @@ fn event_kind(event: &AlsNotifyManifestEvent) -> TimedEventKind {
     match event.kind.as_str() {
         "state" => TimedEventKind::State,
         _ => TimedEventKind::Point,
-    }
-}
-
-fn event_boundary(event: &AlsNotifyManifestEvent) -> StateIntervalBoundary {
-    match event.class_name.as_str() {
-        "AlsAnimNotifyState_SetLocomotionAction" | "AlsAnimNotifyState_EarlyBlendOut" => {
-            StateIntervalBoundary::StartExclusiveEndInclusive
-        }
-        _ => StateIntervalBoundary::StartInclusiveEndExclusive,
     }
 }
 
@@ -684,16 +674,23 @@ fn timed_events(clip: &AlsNotifyManifestClip, predicted_lod: i32) -> Vec<TimedEv
             is_branching_montage_notify(clip, event) || event.filter.filter_type == AlsNotifyFilterType::NoFiltering
                 || event.filter.lod > predicted_lod
         })
-        .map(|event| TimedEvent {
-            id: event.event_id.clone(),
-            kind: event_kind(event),
-            start_time: event.start_time,
-            end_time: event.end_time,
-            weight_threshold: if is_branching_montage_notify(clip, event) { 0.0 } else { event.weight_threshold },
-            track: Some(event.track.clone()),
-            state_boundary: event_boundary(event),
-            trigger_on_follower: event.filter.trigger_on_follower,
-            trigger_on_dedicated_server: event.filter.trigger_on_dedicated_server,
+        .map(|event| {
+            let branching = is_branching_montage_notify(clip, event);
+            TimedEvent {
+                id: event.event_id.clone(),
+                kind: event_kind(event),
+                start_time: event.start_time,
+                end_time: event.end_time,
+                weight_threshold: if branching { 0.0 } else { event.weight_threshold },
+                track: Some(event.track.clone()),
+                state_boundary: if branching {
+                    StateIntervalBoundary::StartExclusiveEndInclusive
+                } else {
+                    StateIntervalBoundary::StartInclusiveEndExclusive
+                },
+                trigger_on_follower: event.filter.trigger_on_follower,
+                trigger_on_dedicated_server: event.filter.trigger_on_dedicated_server,
+            }
         })
         .collect::<Vec<_>>();
     events.extend(clip.sync_markers.iter().map(|marker| TimedEvent {
@@ -1140,7 +1137,7 @@ pub(crate) mod tests {
         let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
         app.insert_resource(AlsNotifyManifestHandle(handle));
         let mut entries = Vec::new();
-        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, &graph_clip, 0.0, 1.0, false, false);
+        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, &graph_clip, 0.0, 1.0, None, false);
         app.world_mut().entity_mut(actor).insert((AlsAnimationEventPlaybacks { entries }, AlsNotifyRootMotionScale::default()));
         app.world_mut().run_system_once(ensure_animation_event_components).unwrap();
         app.world_mut().get_mut::<AlsAnimationEventRuntime>(actor).unwrap().sources.clear();
@@ -1406,7 +1403,7 @@ pub(crate) mod tests {
         app.insert_resource(AlsNotifyManifestHandle(handle));
         let actors = [0, 1].map(|_| {
             let mut entries = Vec::new();
-            push_playback(&mut entries, SOURCE_SPRINT, &graph_clip, 0.0, 1.0, false, false);
+            push_playback(&mut entries, SOURCE_SPRINT, &graph_clip, 0.0, 1.0, None, false);
             app.world_mut().spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries })).id()
         });
         let world = app.world_mut();
@@ -1665,7 +1662,7 @@ pub(crate) mod tests {
         }
         let mut runtime = AlsAnimationEventSourceRuntime::default();
         let mut entries = Vec::new();
-        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, "fixture", 0.6, 1.0, false, false);
+        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, "fixture", 0.6, 1.0, None, false);
         let mut playback = entries.remove(0);
         assert_eq!(playback_clock(&mut runtime, &playback).unwrap().previous_time, 0.6);
         runtime = default();
@@ -1719,7 +1716,7 @@ pub(crate) mod tests {
         let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
         app.insert_resource(AlsNotifyManifestHandle(handle));
         let mut entries = Vec::new();
-        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, &graph_clip, 0.0, 1.0, false, false);
+        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, &graph_clip, 0.0, 1.0, None, false);
         let character = app.world_mut().spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries }, AlsGroundedEntryMode::FromRoll)).id();
         app.world_mut().run_system_once(ensure_animation_event_components).unwrap();
         let mut dispatch = Schedule::default();
@@ -2469,7 +2466,7 @@ pub(crate) mod tests {
                 .add(manifest);
             app.insert_resource(AlsNotifyManifestHandle(handle));
             let mut entries = Vec::new();
-            push_playback(&mut entries, source, &graph_clip, 0.3, 1.0, false, false);
+            push_playback(&mut entries, source, &graph_clip, 0.3, 1.0, None, false);
             entries[0].instance_id = 1;
             let actor = app
                 .world_mut()
@@ -2669,17 +2666,25 @@ pub(crate) mod tests {
             "../../../assets/ALS/Animations/als_notify_manifest.json"
         ))
         .unwrap();
-        let mut world = World::new();
-        let mut manifests = Assets::<AlsNotifyManifest>::default();
-        let handle = manifests.add(manifest);
-        world.insert_resource(manifests);
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<GraphClip>()
+            .init_asset::<AlsNotifyManifest>()
+            .init_resource::<AlsNotifyGraphClipHandles>()
+            .add_message::<AlsAnimationEvent>()
+            .add_message::<AlsCameraShakeRequest>();
+        let world = app.world_mut();
+        let handle = world.resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
         world.insert_resource(AlsNotifyManifestHandle(handle));
         for facing_up in [false, true] {
+            let settings = get_up_settings(facing_up);
             let mut state = AlsGetUpState::new(facing_up);
-            state.clip_time = 0.2;
+            state.advance(1.25 / settings.play_rate, settings);
+            assert!(state.clip_time > settings.notify_end_clip_seconds && state.weight > 0.0);
             let entity = world
-                .spawn((AlsCharacter, AlsAnimationEventPlaybacks::default(), state))
+                .spawn((AlsCharacter, AlsNotifyLocomotionAction::GettingUp, state))
                 .id();
+            world.run_system_once(ensure_animation_event_components).unwrap();
             world
                 .run_system_once(refresh_animation_event_playbacks)
                 .unwrap();
@@ -2687,15 +2692,23 @@ pub(crate) mod tests {
                 .get::<AlsAnimationEventPlaybacks>(entity)
                 .unwrap()
                 .entries;
-            let settings = get_up_settings(facing_up);
             assert_eq!(entries.len(), 2);
             assert_eq!(entries[0].source_asset, settings.source_sequence);
             assert_eq!(entries[1].source_asset, settings.source_montage);
             assert!(
                 entries
                     .iter()
-                    .all(|entry| entry.time == 0.2 && entry.graph_clip == settings.clip)
+                    .all(|entry| entry.previous_time == Some(0.0)
+                        && entry.time == state.clip_time
+                        && entry.graph_clip == settings.clip)
             );
+            world.run_system_once(dispatch_animation_events).unwrap();
+            let action_phases = world.resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .filter(|event| event.source_asset == settings.source_montage
+                    && event.class_name == "AlsAnimNotifyState_SetLocomotionAction")
+                .map(|event| event.phase).collect::<Vec<_>>();
+            assert_eq!(action_phases, [EventPhase::Begin, EventPhase::End]);
+            assert_eq!(world.get::<AlsNotifyLocomotionAction>(entity), Some(&AlsNotifyLocomotionAction::None));
             world.despawn(entity);
         }
     }
