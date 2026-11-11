@@ -230,6 +230,34 @@ impl MeshContactAccumulator {
             self.contacts.push(candidate);
         }
     }
+
+    fn face_contact_count(&self, triangle: usize) -> usize {
+        let vertices = &self.topology.triangles[triangle].vertex_indices;
+        self.face_edges[triangle] + vertices.iter().filter(|vertex| {
+            self.vertices.get(*vertex).is_some_and(|owner| owner.face_contact)
+        }).count()
+    }
+}
+
+fn generate_mesh_contacts(
+    triangles: &[SourceMeshTriangle],
+    source_capacity: usize,
+    mut generate: impl FnMut(&SourceMeshTriangle) -> Vec<SourceTriangleContact>,
+) -> MeshContactAccumulator {
+    let mut contacts = MeshContactAccumulator::new(triangles, source_capacity);
+    let mut visited = vec![false; triangles.len()];
+    for (index, triangle) in triangles.iter().enumerate() {
+        if contacts.face_contact_count(index) == 0 {
+            contacts.add_triangle_contacts(index, generate(triangle));
+            visited[index] = true;
+        }
+    }
+    for (index, triangle) in triangles.iter().enumerate() {
+        if !visited[index] && contacts.face_contact_count(index) < 3 {
+            contacts.add_triangle_contacts(index, generate(triangle));
+        }
+    }
+    contacts
 }
 
 #[cfg(test)]
@@ -350,5 +378,45 @@ mod tests {
         assert_eq!(full.contacts.len(), 1);
         assert_eq!(full.contacts[0].face_index, 30);
         assert_eq!(full.contacts[0].point.normal, tilted);
+    }
+
+    #[test]
+    fn source_mesh_two_pass_defers_neighbors_and_skips_three_face_contacts() {
+        let [first, adjacent] = adjacent_triangles();
+        let isolated = triangle(50, [4, 5, 6], [DVec3::ZERO, 10.0 * DVec3::X, 10.0 * DVec3::Y]);
+        let triangles = [first, adjacent, isolated];
+        for (vertex_contact, expected) in [(false, vec![30, 50, 40]), (true, vec![30, 50])] {
+            let mut visits = Vec::new();
+            let manifold = generate_mesh_contacts(&triangles, 12, |triangle| {
+                visits.push(triangle.face_index);
+                if triangle.face_index != 30 {
+                    return Vec::new();
+                }
+                let mut points = vec![contact(2.5 * DVec3::X, DVec3::Z), contact(7.5 * DVec3::X, DVec3::Z)];
+                if vertex_contact {
+                    points.push(contact(DVec3::ZERO, DVec3::Z));
+                }
+                points
+            });
+            assert_eq!(visits, expected);
+            assert_eq!(manifold.face_contact_count(1), if vertex_contact { 3 } else { 2 });
+        }
+    }
+
+    #[test]
+    fn source_mesh_second_pass_checks_contacts_added_by_earlier_neighbors() {
+        let [first, adjacent] = adjacent_triangles();
+        let last = triangle(50, [1, 3, 4], [10.0 * DVec3::X, -10.0 * DVec3::Y, DVec3::new(10.0, -10.0, 0.0)]);
+        let mut visits = Vec::new();
+        let manifold = generate_mesh_contacts(&[first, adjacent, last], 12, |triangle| {
+            visits.push(triangle.face_index);
+            match triangle.face_index {
+                30 => vec![contact(10.0 * DVec3::X, DVec3::Z)],
+                40 => vec![contact(DVec3::new(7.5, -2.5, 0.0), DVec3::Z), contact(DVec3::new(2.5, -7.5, 0.0), DVec3::Z)],
+                _ => Vec::new(),
+            }
+        });
+        assert_eq!(visits, [30, 40]);
+        assert_eq!(manifold.face_contact_count(2), 3);
     }
 }
