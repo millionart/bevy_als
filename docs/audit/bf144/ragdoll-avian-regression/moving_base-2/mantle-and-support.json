@@ -1,0 +1,37 @@
+{
+  "mantle_frames": 55,
+  "active_mantle_frames": 54,
+  "max_mantle_position_error_m": 0.0,
+  "mantle_handoff_to_target": true,
+  "first_support_loss_frame": {
+    "world_delta_seconds": 0.05409483300000062,
+    "configured_max_physics_delta_seconds": 0.033333333,
+    "relative_delta_x_m": -0.19043350219726562,
+    "velocity_times_extra_world_delta_x_m": -0.19043362404013248,
+    "platform_velocity_x_mps": -9.172440528869629,
+    "local_before_m": [
+      -1.0,
+      1.921500325202942,
+      0.8500003814697266
+    ],
+    "local_after_m": [
+      -1.1904335021972656,
+      1.921500325202942,
+      0.8500022888183594
+    ],
+    "mode_before": "Grounded",
+    "mode_after": "Air"
+  },
+  "failed_checks": [
+    {
+      "name": "moving_base_after_mantle",
+      "covered": false,
+      "detail": "not covered"
+    },
+    {
+      "name": "moving_base_progress",
+      "covered": false,
+      "detail": "stage=AfterMantle base_matches=false relative_error=1.0972576 own_speed=0"
+    }
+  ]
+}

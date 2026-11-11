@@ -69,6 +69,7 @@ pub(super) struct Probe {
     maximum: Vec3,
     ride_since: Option<f64>,
     mantle_start: Option<Vec3>,
+    mantle_base_before_physics: Option<AlsMantleTargetBase>,
     step_released: [bool; 2],
     step_unlocked: [bool; 2],
     pub(super) steps: [bool; 2],
@@ -176,7 +177,7 @@ pub(super) fn drive(
     mut phase: ResMut<ManualRuntimePhaseEvidence>,
     time: Res<Time>,
     platforms: Query<(Entity, &Name, &PlaygroundKinematic, &GlobalTransform), Without<AlsCharacter>>,
-    colliders: Query<(Entity, &Collider, &ColliderOf), Without<AlsCharacter>>,
+    colliders: Query<(Entity, &Collider, &ColliderOf, &GlobalTransform), Without<AlsCharacter>>,
     characters: Query<(&Transform, &Position, &LinearVelocity, &AlsViewYaw, &AlsViewPitch, &Stance,
         &LocomotionState, &AlsMovementParamsHandle), With<AlsCharacter>>,
     params: Res<Assets<AlsMovementParams>>,
@@ -198,8 +199,16 @@ pub(super) fn drive(
         begin_phase(&mut state, IntegrationPhase::Finish);
         return;
     }
+    state.moving_base_probe.mantle_base_before_physics = None;
     let Some((body, _, path, global)) = platform else { return; };
-    let Some((collider, shape, _)) = colliders.iter().find(|(_, _, owner)| owner.body == body) else { return; };
+    let Some((collider, shape, _, collider_world)) = colliders.iter().find(|(_, _, owner, _)| owner.body == body) else { return; };
+    state.moving_base_probe.mantle_base_before_physics = Some(AlsMantleTargetBase {
+        entity: collider,
+        translation: collider_world.translation(),
+        rotation: collider_world.rotation(),
+        scale: collider_world.scale(),
+        relative_location: true,
+    });
     let Ok((transform, position, velocity, yaw, pitch, stance, mode, handle)) = characters.get(character) else { return; };
     let Some(params) = params.get(handle.id()) else { return; };
     let half = params.crouch.standing_capsule_half_height * transform.scale.y;
@@ -276,14 +285,15 @@ pub(super) fn observe(
     let same_base = base.entity == Some(collider);
     let (period, span, motion_point) = motion_sample(path.kind, global);
     let stage = state.moving_base_probe.stage;
+    let mantle_base_before_physics = state.moving_base_probe.mantle_base_before_physics;
     let mut expected = None;
     if mantle.root_motion_ready && *mode == LocomotionState::Custom
+        && let Some(base) = mantle_base_before_physics
         && let Some(clip) = motion.clips.get(assets.clip(mantle.kind))
         && let Some(skeleton) = motion.skeletons.get(&clip.skeleton)
         && let Some(root) = crate::mantle_drive::sample_mantle_root(clip, skeleton, mantle.clip_time()) {
         let mut reference = mantle.clone();
-        reference.refresh_target_base(Some(AlsMantleTargetBase { entity: collider, translation: global.translation(),
-            rotation: global.rotation(), scale: global.scale(), relative_location: true }));
+        reference.refresh_target_base(Some(base));
         expected = Some(reference.target_actor_transform_at(mantle.time, root));
     }
     let probe = &mut state.moving_base_probe;
@@ -359,6 +369,13 @@ pub(super) fn observe(
         })).collect::<Vec<_>>()).unwrap_or_default(),
         "slot":slot.map(|slot| serde_json::json!({"active":slot.active,"pose_ready":slot.pose_ready,"weight":slot.weight})),
     });
+    if let Some(base) = mantle_base_before_physics.filter(|_| expected.is_some()) {
+        snapshot["mantle_base_before_physics"] = serde_json::json!({
+            "translation": base.translation,
+            "rotation": base.rotation,
+            "scale": base.scale,
+        });
+    }
     snapshot["view"] = motion.rendered_views.iter().find(|(camera, _, owner)| camera.is_active && owner.character == character)
         .map(|(camera, transform, _)| serde_json::json!({
             "position":transform.translation,"rotation":transform.rotation,"viewport":camera.logical_viewport_size(),

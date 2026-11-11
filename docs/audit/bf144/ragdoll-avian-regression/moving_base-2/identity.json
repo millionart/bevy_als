@@ -1,0 +1,14 @@
+[
+  {
+    "path": "Cargo.lock",
+    "sha256": "7f7c2430a8fc7ea0ae303edb273f14a3be86b46ccba7042c2aa00f47a4b1c511"
+  },
+  {
+    "path": "target_game/play/examples/manual_playground",
+    "sha256": "da1f53cbc2317c7bce99ae46401e34b3b6e084930ecc86ef1ef75c8b81bc3c0f"
+  },
+  {
+    "path": "tools/manual_playground_integration/moving_base.rs",
+    "sha256": "704c77ef2701149079a265c56c073b84a9235f318f7eb8e7c4b8704dc805da7f"
+  }
+]
