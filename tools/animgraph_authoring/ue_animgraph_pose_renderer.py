@@ -1018,9 +1018,13 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ")",
         )
     if renderer == "root_output":
+        order = (value or {}).get("linked_pose_cache_order", [])
+        ordered_keys = ", linked_pose_cache_order: [" + ", ".join(
+            quoted(cache_key(graph_contract, name)) for name in order
+        ) + "]" if order else ""
         return (
             "als_ext::SourcePosePassthroughNode",
-            "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: \"\", call_site: \"\", synchronize_groups: " + bool_ron((value or {}).get("synchronize_groups", False)) + ")",
+            "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: \"\", call_site: \"\", synchronize_groups: " + bool_ron((value or {}).get("synchronize_groups", False)) + ordered_keys + ")",
         )
     if renderer == "save_cached_pose":
         return (

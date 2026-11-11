@@ -1,0 +1,16 @@
+{
+  "format": "ue_animgraph_conversion_report_v1",
+  "source": {
+    "uasset_name": "AB_Als.uasset",
+    "package_path": "/ALS/ALS/Character/AB_Als.AB_Als"
+  },
+  "function_dependencies": [],
+  "unsupported": [
+    {
+      "kind": "conversion_internal_failure",
+      "error_type": "KeyError",
+      "detail": "'semantic'"
+    }
+  ],
+  "pass": false
+}

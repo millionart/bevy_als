@@ -106,6 +106,39 @@ fn update_cached_requests(requests: Vec<CachedUpdateRequest>) -> Result<(), Grap
     Ok(())
 }
 
+pub(crate) fn prewarm_linked_pose_caches(ctx: &NodeContext, input: &str, order: &[String]) -> Result<(), GraphError> {
+    if order.is_empty() { return Ok(()); }
+    let graph = ctx.graph_context.graph;
+    let Some(source) = graph.edges_inverted.get(&TargetPin::NodeData(ctx.node_id, input.to_owned())) else {
+        return Ok(());
+    };
+    let mut requests = Vec::new();
+    collect_cached_requests(ctx, source, 1.0, false, &mut requests, &mut default())?;
+    let mut linked = Vec::new();
+    for key in order {
+        let Some(index) = requests.iter().position(|request| {
+            request.owner.0 == ctx.graph_context.context_id && graph.nodes.get(&request.owner.1)
+                .and_then(|node| node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+                    .map(|save| saved_cache_key(save, &node.name))) == Some(key.as_str())
+        }) else { continue; };
+        let request = requests.remove(index);
+        let Some(source) = graph.edges_inverted.get(&TargetPin::NodeData(request.owner.1, "Pose".to_owned())) else {
+            continue;
+        };
+        if matches!(source, SourcePin::NodeData(id, _) if graph.nodes[id]
+            .try_inner_downcast_ref::<crate::extensions::SourceLinkedInputPoseNode>().is_some())
+        {
+            linked.push(request);
+        } else {
+            collect_cached_requests(ctx, source, request.weight, request.forward, &mut requests, &mut default())?;
+        }
+    }
+    if linked.len() > 1 {
+        update_cached_requests(linked)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn prewarm_input_cached_poses(ctx: &NodeContext, inputs: impl IntoIterator<Item = (String, f32)>) -> Result<(), GraphError> {
     if !ctx.graph_context.graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceScopedCachedPoseUseNode>().is_some()
         || node.try_inner_downcast_ref::<SourceCachedPoseUseNode>().is_some()) { return Ok(()); }

@@ -586,6 +586,58 @@ mod tests {
     }
 
     #[test]
+    fn default_overlay_reads_the_same_ground_prediction_as_fall() {
+        use crate::als::state::LocomotionState;
+        use crate::extensions::source_pose_nodes::{SourceTwoWayBlendNode, SourceTwoWayBlendState};
+        use bevy_animation_graph::core::{animation_graph::AnimationGraph, context::node_states::StateKey};
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        let entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let update = |app: &mut App, blocked: bool| {
+            let origin = Vec3::Y * 4.0;
+            app.world_mut().get_mut::<Transform>(actor).unwrap().translation = origin;
+            app.world_mut().entity_mut(actor).insert((Position(origin), LinearVelocity(Vec3::NEG_Y * 10.0), LocomotionState::Air));
+            app.world_mut().get_mut::<AlsRootAnimationContext>(entity).unwrap()
+                .curves.insert("GroundPredictionBlock".into(), if blocked { 1.0 } else { 0.0 });
+            app.update();
+        };
+        let inputs = |app: &App| -> Option<(f32, f32, f32)> {
+            let world = app.world();
+            let player = world.get::<AnimationGraphPlayer>(entity).unwrap();
+            let arena = player.get_context_arena().unwrap();
+            let graphs = world.resource::<Assets<AnimationGraph>>();
+            let assets = world.resource::<AssetServer>();
+            let read = |path: &str| arena.iter_context_ids().find_map(|id| {
+                let context = arena.get_context(id)?;
+                if !assets.get_path(context.get_graph_id())?.path().ends_with(path) { return None; }
+                let graph = graphs.get(context.get_graph_id())?;
+                let node = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<SourceTwoWayBlendNode>()
+                    .is_some_and(|blend| blend.alpha_key == "in_air_state.ground_prediction_amount"))?;
+                if !context.node_caches.is_updated(node.id, StateKey::Default) { return None; }
+                context.node_states.get::<SourceTwoWayBlendState>(node.id, StateKey::Default).ok().map(|state| state.input_alpha)
+            });
+            Some((
+                player.get_global_input_data("in_air_source.ground_prediction_amount")?.as_f32().ok()?,
+                read("S1_Fall.animgraph.ron")?,
+                read("AB_Als_Default/Overlay.animgraph.ron")?,
+            ))
+        };
+        for _ in 0..20 {
+            update(&mut app, true);
+            if inputs(&app).is_some() { break; }
+        }
+        assert!(inputs(&app).is_some(), "The actual Fall and Default Overlay nodes must become active");
+        for blocked in [true, false, false, true] {
+            update(&mut app, blocked);
+            let (prediction, fall, overlay) = inputs(&app).unwrap();
+            assert_eq!(prediction == 0.0, blocked);
+            assert_eq!(fall, prediction);
+            assert_eq!(overlay, prediction, "Default Overlay read an older prediction (blocked={blocked})");
+        }
+    }
+
+    #[test]
     fn ground_prediction_uses_the_source_mesh_scaled_sweep() {
         fn sample(spatial: crate::extensions::RagdollSpatialQuery) -> [f32; 5] {
             let filter = SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);

@@ -26,6 +26,8 @@ pub struct SourcePosePassthroughNode {
     pub source_function: String,
     pub call_site: String,
     pub synchronize_groups: bool,
+    #[reflect(default)]
+    pub linked_pose_cache_order: Vec<String>,
 }
 
 impl Default for SourcePosePassthroughNode {
@@ -38,6 +40,7 @@ impl Default for SourcePosePassthroughNode {
             source_function: default(),
             call_site: default(),
             synchronize_groups: false,
+            linked_pose_cache_order: default(),
         }
     }
 }
@@ -77,6 +80,7 @@ impl NodeLike for SourcePosePassthroughNode {
             preview_ctx.graph_context.context_arena = (&mut snapshot).into();
             preview_ctx.graph_context.deferred_gizmos = (&mut gizmos).into();
             preview_ctx.graph_context.global_input_data = &global_inputs;
+            crate::extensions::source_cached_pose::prewarm_linked_pose_caches(&preview_ctx, &self.input, &self.linked_pose_cache_order)?;
             preview_ctx.data_back(self.input.clone())?;
             let current = pose_input_context_state(&preview_ctx, &self.input).unwrap_or_default();
             let previous = ctx
@@ -140,6 +144,7 @@ impl NodeLike for SourcePosePassthroughNode {
         }
         let mut source_ctx = ctx.clone();
         source_ctx.graph_context.global_input_data = &global_inputs;
+        crate::extensions::source_cached_pose::prewarm_linked_pose_caches(&source_ctx, &self.input, &self.linked_pose_cache_order)?;
         let pose = source_ctx.data_back(self.input.clone())?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);

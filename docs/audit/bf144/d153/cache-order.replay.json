@@ -1,0 +1,50 @@
+{
+  "source_order": [
+    "Legs",
+    "Pelvis",
+    "Spine",
+    "Head",
+    "Locomotion Additive Mesh Space",
+    "Arm Left",
+    "Arm Right",
+    "Locomotion Additive Local Space",
+    "Base Poses",
+    "Locomotion",
+    "Overlay"
+  ],
+  "linked_order_from_pelvis_request": [
+    "Locomotion",
+    "Overlay"
+  ],
+  "grounded_source_order": [
+    "Standing",
+    "Crouching"
+  ],
+  "cases": [
+    {
+      "frame": 1,
+      "fall": 0.0,
+      "ordered_overlay": 0.0,
+      "demand_order_overlay": 0.0
+    },
+    {
+      "frame": 2,
+      "fall": 0.8923675,
+      "ordered_overlay": 0.8923675,
+      "demand_order_overlay": 0.0
+    },
+    {
+      "frame": 3,
+      "fall": 0.8923675,
+      "ordered_overlay": 0.8923675,
+      "demand_order_overlay": 0.8923675
+    },
+    {
+      "frame": 4,
+      "fall": 0.0,
+      "ordered_overlay": 0.0,
+      "demand_order_overlay": 0.8923675
+    }
+  ],
+  "identity_changes_keep_the_same_order": true
+}

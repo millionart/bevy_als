@@ -1,0 +1,38 @@
+[
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
+    "sha256": "8dbc876b99bf3bfb74e38b45edb0a68590572c1a5a15f8ae48e0d6ee7e183ed3"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron",
+    "sha256": "0736fa67b5b320a32b57bf32451fbb870519ab2d79462f2d22c2a6b5057c8212"
+  },
+  {
+    "path": "src/als/character/animation_instances/locomotion_layer.rs",
+    "sha256": "e4d9933dc05c9c9a97f580b63eac6eabfcb3dc7770654987bfbd6d1602d38e5a"
+  },
+  {
+    "path": "src/animation_graph_ext/source_cached_pose.rs",
+    "sha256": "fd223dbb7ebef84516907d70062cce07dab6f75b2cadcf4119fc2313b37ad92b"
+  },
+  {
+    "path": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "0b0e5d13f7fe318866d9c4c7136c147d83797d3338c356e4c7bbbdeb23e7b1d5"
+  },
+  {
+    "path": "src/animation_graph_ext/source_pose_passthrough.rs",
+    "sha256": "eeece331431e0cc2c88146687c2b51463d89c6f8f76b98265031cd65580b9cc5"
+  },
+  {
+    "path": "src/animation_graph_ext/source_stop_nodes.rs",
+    "sha256": "de2a48eb45c9e45052dc8e7250c8856344af5caf366f09d2be99a2e23c3f3623"
+  },
+  {
+    "path": "tools/animgraph_authoring/ue_animgraph_converter.py",
+    "sha256": "e0794bfb3604c266dc5a379d1d5e7011de89e36a92148c7af2050180e192c4a7"
+  },
+  {
+    "path": "tools/animgraph_authoring/ue_animgraph_pose_renderer.py",
+    "sha256": "8d36e1b85d0b20f3f045ee758a92c03799da159f35368bbde656ace41b3bfc6c"
+  }
+]

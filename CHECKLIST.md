@@ -6693,7 +6693,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色实际Fall、中心高3m、vy=−10m/s，平台边缘距中心0.4m。原生源胶囊不命中，目标命中并发布GroundPredictionAmount=0.345407，活动Fall混合节点读到该值；仅把当次查询形体替换成源尺寸即恢复0。unit/nonuniform×平台居中/边缘×原样/恢复共8组7PASS/1FAIL，全部恢复与unit控制通过。
   - 漏检：旧查询测试覆盖uniform缩放和当前位置，并以同一物理Collider复算期望，未独立读取组件getter。额外原生半径0.6m控制仍命中该平台，证明单独修复D11的物理圆截面不能修复此输入边界。证据`70/queries.native.json`、`70/geometry_initial/`与`bf144_animation_phase70_prediction_capsule_input`；仅登记，未改生产。
 
-- [ ] BF144-D153 / P3 — 缓存Pose求值顺序丢失源队列，Default Overlay的预测输入滞后一帧。
+- [x] BF144-D153 / P3 — 缓存Pose求值顺序丢失源队列，Default Overlay的预测输入滞后一帧。
+  - 2026-11-12 01:02 +0800 实际结束早于01:33预估，未拆分。fresh Layering和Grounded原生队列、Default Overlay绑定与静态消融见 `docs/audit/bf144/d153/`。修复首轮语义字段缺省后，15个根及递归依赖全部重转，374份逐文件diff只有两处编译队列字段，均已按源顺序安装。开关切换及Pelvis间接需求反例、身份改名与数值自测通过。旧70运行证据未随当前Git保留，已加入实际Fall与Default Overlay同帧用例，Rust、消融恢复与Playground待统一验证。
+  - 本轮开始2026-11-12 00:35 +08:00，预估结束2026-11-12 01:33 +08:00。核对原生编译队列、最大请求权重与linked输入实际调用，加入可生成的顺序数据后重转全部已安装AnimBP。
+  - 00:48 source/static摘要。原生Layering的11项顺序、两条直接linked输入及Default Overlay字段绑定已闭环。首轮全量在根节点缺省semantic时报错，已用实际原生图确认修复，转换器和renderer自测通过。全量重转正在复跑，先核完整产物diff再安装。
   - Source：fresh AB_Als_Layering原生cached-pose队列共11项，Locomotion位于Overlay之前；两个输入分别只进入自己的SaveCachedPose。`AnimNode_SaveCachedPose.cpp:111–125,178–201`先登记请求，再在PostGraphUpdate更新源；`AnimInstanceProxy.cpp:150–158`按原生队列执行，因此Locomotion内RefreshInAir先刷新父状态，Default Overlay的TwoWayBlend再读取当前GroundPredictionAmount。
   - Target：`source_cached_pose.rs:86–105`按收集顺序立即resolve请求，未消费源编译队列。完整角色中Fall节点已读到当帧预测，而Default Overlay节点`adf49347-4a01-b4bd-6434-518242a029cb`仍读上一帧的父字段。
   - 反例：固定源已核验的世界速度(−6,−40,−6)、mesh scale=2和原生平面查询结果，仅切换GroundPredictionBlock。解除屏蔽时source=0.8923675、Overlay actual=0；重新屏蔽时source=0、actual=0.8923675。仅在求值前发布同一个当前父字段，两次切换均恢复；连续不变的两帧本已通过，共8组6PASS/2FAIL，Fall当前值全程正确。

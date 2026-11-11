@@ -200,7 +200,7 @@ def source_reader_failure(report_path, exit_code):
     return f"native UE source reader failed with exit code {exit_code}"
 
 
-def read_uasset_source(uasset, content_root, mount, source_reader, timeout_seconds, no_progress_seconds, *, notify_clock=False):
+def read_uasset_source(uasset, content_root, mount, source_reader, timeout_seconds, no_progress_seconds, *, notify_clock=False, cached_pose_schedule=False):
     if not source_reader.is_file():
         raise ConversionError("native UE source reader is unavailable")
     if timeout_seconds <= 0 or no_progress_seconds <= 0:
@@ -227,6 +227,8 @@ def read_uasset_source(uasset, content_root, mount, source_reader, timeout_secon
         ]
         if notify_clock:
             command.append("-NotifyClockProbe")
+        if cached_pose_schedule:
+            command.append("-CachedPoseSchedule")
         process = subprocess.run(
             command,
             cwd=ROOT,
@@ -1433,6 +1435,26 @@ def self_test_inertialization_request_binding():
     assert bind_inertialization_requests(graphs, requests)[0]["kind"] == "source_inertialization_request_ambiguous"
 
 
+def bind_linked_pose_cache_order(graph, source_schedule):
+    layer = next((layer for layer in source_schedule.get("layers", [])
+                  if layer["name"] == graph["source_graph"]), None)
+    if layer is None:
+        return
+    saves = {node["source_node"]: node["semantic"]["cache_name"] for node in graph["nodes"]
+             if node["renderer"] == "save_cached_pose" and node.get("semantic")}
+    linked_inputs = {node["source_node"] for node in graph["nodes"] if node["renderer"] == "linked_input_pose"}
+    linked_saves = {saves[link["target"]["node_object_path"]] for link in graph["links"]
+                    if link["source"]["node_object_path"] in linked_inputs
+                    and link["target"]["node_object_path"] in saves
+                    and link["target"]["pin_name"] == "Pose"}
+    order = [node["cache_name"] for node in layer["nodes"] if node["cache_name"] in saves.values()]
+    if len(linked_saves.intersection(order)) < 2:
+        return
+    for node in graph["nodes"]:
+        if node["renderer"] == "root_output":
+            node["semantic"] = {**(node.get("semantic") or {}), "linked_pose_cache_order": order}
+
+
 def build_ir(
     source,
     root_graph,
@@ -1533,6 +1555,7 @@ def build_ir(
             assets,
             linked_graph_targets,
         )
+        bind_linked_pose_cache_order(graph_value, source.get("cached_pose_schedule", {}))
         for node in graph_value["nodes"]:
             if node.get("renderer") == "inertialization" and node.get("semantic") is not None:
                 semantic = node["semantic"]
@@ -2491,6 +2514,7 @@ def convert_source_tree(
                 source_reader,
                 timeout_seconds,
                 no_progress_seconds,
+                cached_pose_schedule=True,
             )
             child = convert_source_tree(
                 child_source,
@@ -4100,6 +4124,7 @@ def main():
         args.source_reader,
         args.source_reader_timeout_seconds,
         args.source_reader_no_progress_seconds,
+        cached_pose_schedule=True,
     )
     output_namespace = (
         asset_namespace(args.install_namespace)
