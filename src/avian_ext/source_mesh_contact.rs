@@ -128,6 +128,110 @@ impl MeshContactTopology {
     }
 }
 
+struct MeshContactCandidate {
+    point: SourceTriangleContact,
+    face_index: usize,
+    triangle: usize,
+    feature: MeshContactFeature,
+    normal_dot: f32,
+    enabled: bool,
+}
+
+struct EdgeContactOwner {
+    triangle: usize,
+    points: [Option<usize>; 2],
+    normal_dot: f32,
+    face_contact: bool,
+}
+
+impl EdgeContactOwner {
+    fn new(triangle: usize) -> Self {
+        Self { triangle, points: [None; 2], normal_dot: 0.0, face_contact: false }
+    }
+}
+
+struct VertexContactOwner {
+    point: usize,
+    face_contact: bool,
+}
+
+struct MeshContactAccumulator {
+    topology: MeshContactTopology,
+    contacts: Vec<MeshContactCandidate>,
+    edges: HashMap<MeshEdge, EdgeContactOwner>,
+    vertices: HashMap<usize, VertexContactOwner>,
+    face_edges: Vec<usize>,
+    capacity: usize,
+}
+
+impl MeshContactAccumulator {
+    fn new(triangles: &[SourceMeshTriangle], source_capacity: usize) -> Self {
+        let capacity = source_capacity.min(triangles.len().saturating_mul(4));
+        Self {
+            topology: MeshContactTopology::new(triangles),
+            contacts: Vec::with_capacity(capacity),
+            edges: HashMap::new(),
+            vertices: HashMap::new(),
+            face_edges: vec![0; triangles.len()],
+            capacity,
+        }
+    }
+
+    fn add_triangle_contacts(&mut self, triangle: usize, points: Vec<SourceTriangleContact>) {
+        let geometry = &self.topology.triangles[triangle];
+        for point in points {
+            let index = self.contacts.len();
+            if index == self.capacity {
+                break;
+            }
+            let feature = geometry.contact_feature(point.second_cm);
+            let normal_dot = point.normal.dot(geometry.normal) as f32;
+            let face_contact = normal_dot > CONTACT_SETTINGS.1;
+            let mut candidate = MeshContactCandidate {
+                point, face_index: geometry.face_index, triangle, feature, normal_dot, enabled: true,
+            };
+            match feature {
+                MeshContactFeature::Edge(edge) => {
+                    let owner = self.edges.entry(edge).or_insert_with(|| EdgeContactOwner::new(triangle));
+                    if owner.triangle != triangle {
+                        if owner.face_contact || (!face_contact && normal_dot < owner.normal_dot) {
+                            continue;
+                        }
+                        for previous in owner.points.into_iter().flatten() {
+                            self.contacts[previous].enabled = false;
+                        }
+                        *owner = EdgeContactOwner::new(triangle);
+                    }
+                    let slot = if owner.points[0].is_some() { 1 } else { 0 };
+                    owner.points[slot] = Some(index);
+                    owner.normal_dot = owner.normal_dot.max(normal_dot);
+                    owner.face_contact |= face_contact;
+                    if face_contact {
+                        self.face_edges[triangle] += 1;
+                        if let Some(other) = self.topology.other_triangle(triangle, edge) {
+                            self.face_edges[other] += 1;
+                        }
+                    }
+                }
+                MeshContactFeature::Vertex(vertex) => {
+                    if let Some(owner) = self.vertices.get_mut(&vertex) {
+                        let existing = &mut self.contacts[owner.point];
+                        if !owner.face_contact && normal_dot > existing.normal_dot {
+                            candidate.enabled = existing.enabled;
+                            *existing = candidate;
+                            owner.face_contact = face_contact;
+                        }
+                        continue;
+                    }
+                    self.vertices.insert(vertex, VertexContactOwner { point: index, face_contact });
+                }
+                MeshContactFeature::Face => {}
+            }
+            self.contacts.push(candidate);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,5 +293,62 @@ mod tests {
             point["face_index"] == 252 && topology.triangles[0].contact_feature(position) == MeshContactFeature::Edge([75, 76])
         }).count();
         assert_eq!(shared_points, 2);
+    }
+
+    fn adjacent_triangles() -> [SourceMeshTriangle; 2] {
+        [triangle(30, [0, 1, 2], [DVec3::ZERO, 10.0 * DVec3::X, 10.0 * DVec3::Y]),
+            triangle(40, [1, 0, 3], [10.0 * DVec3::X, DVec3::ZERO, -10.0 * DVec3::Y])]
+    }
+
+    fn contact(second_cm: DVec3, normal: DVec3) -> SourceTriangleContact {
+        SourceTriangleContact {
+            first_cm: second_cm - normal,
+            second_cm,
+            normal,
+            phi_cm: -1.0,
+            kind: SourceTriangleContactKind::EdgeEdge,
+        }
+    }
+
+    #[test]
+    fn source_mesh_edge_owner_replaces_old_slots_and_keeps_first_face_owner() {
+        let triangles = adjacent_triangles();
+        let mut manifold = MeshContactAccumulator::new(&triangles, 8);
+        let aligned = DVec3::new(0.6, 0.0, 0.8);
+        manifold.add_triangle_contacts(0, vec![contact(2.5 * DVec3::X, aligned), contact(7.5 * DVec3::X, aligned)]);
+        manifold.add_triangle_contacts(1, vec![contact(5.0 * DVec3::X, DVec3::new(0.8, 0.0, 0.6))]);
+        assert_eq!(manifold.contacts.len(), 2);
+        assert!(manifold.contacts.iter().all(|point| point.enabled));
+
+        manifold.add_triangle_contacts(1, vec![contact(5.0 * DVec3::X, DVec3::Z)]);
+        manifold.add_triangle_contacts(0, vec![contact(5.0 * DVec3::X, DVec3::Z)]);
+        assert_eq!(manifold.contacts.len(), 3);
+        assert!(manifold.contacts[..2].iter().all(|point| !point.enabled));
+        assert!(manifold.contacts[2].enabled);
+        assert_eq!(manifold.contacts[2].face_index, 40);
+        assert_eq!(manifold.contacts[2].feature, MeshContactFeature::Edge([0, 1]));
+        assert_eq!(manifold.face_edges, [1, 1]);
+    }
+
+    #[test]
+    fn source_mesh_vertex_replacement_preserves_slot_and_stops_at_capacity() {
+        let triangles = adjacent_triangles();
+        let mut manifold = MeshContactAccumulator::new(&triangles, 8);
+        let vertex = DVec3::ZERO;
+        let inside = DVec3::new(2.0, 2.0, 0.0);
+        let tilted = DVec3::new(0.6, 0.0, 0.8);
+        manifold.add_triangle_contacts(0, vec![contact(vertex, tilted), contact(inside, DVec3::Z)]);
+        manifold.add_triangle_contacts(1, vec![contact(vertex, DVec3::Z)]);
+        assert_eq!(manifold.contacts.len(), 2);
+        assert_eq!(manifold.contacts[0].face_index, 40);
+        assert_eq!(manifold.contacts[0].triangle, 1);
+        assert_eq!(manifold.contacts[1].point.second_cm, inside);
+
+        let mut full = MeshContactAccumulator::new(&triangles, 1);
+        full.add_triangle_contacts(0, vec![contact(vertex, tilted)]);
+        full.add_triangle_contacts(1, vec![contact(vertex, DVec3::Z)]);
+        assert_eq!(full.contacts.len(), 1);
+        assert_eq!(full.contacts[0].face_index, 30);
+        assert_eq!(full.contacts[0].point.normal, tilted);
     }
 }

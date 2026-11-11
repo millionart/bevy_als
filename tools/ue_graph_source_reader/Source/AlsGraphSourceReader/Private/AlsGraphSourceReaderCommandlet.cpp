@@ -1840,6 +1840,15 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             Nearest->SetObjectField(TEXT("second_point_cm"), CaptureVector(FVector(SecondPoint)));
             Sample->SetObjectField(TEXT("segment_nearest"), Nearest);
         }
+        if (Input->HasField(TEXT("mesh_contact_buffer_request")))
+        {
+            int32 RequestedCapacity = 0;
+            if (!Input->TryGetNumberField(TEXT("mesh_contact_buffer_request"), RequestedCapacity)
+                || RequestedCapacity < 1 || RequestedCapacity > 100000) { return nullptr; }
+            TArray<Chaos::FContactPoint> MeshContacts;
+            MeshContacts.Reset(RequestedCapacity);
+            Sample->SetNumberField(TEXT("mesh_contact_buffer_capacity"), MeshContacts.Max());
+        }
         bool CaptureMeshTriangleQuery = false;
         if (Input->HasField(TEXT("capture_mesh_triangle_query"))
             && !Input->TryGetBoolField(TEXT("capture_mesh_triangle_query"), CaptureMeshTriangleQuery)) { return nullptr; }
