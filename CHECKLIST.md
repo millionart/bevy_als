@@ -6434,7 +6434,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_link.rs:219–224,1115–1151`在PhysicsSystems::Last之后读取当前pelvis，随后apply跟随写actor位置。目标因此少了一次源规定的采样延迟。
   - 反例：完整Ragdoll在空中、零重力/阻尼并排除joint/contact，pelvis从(0,10,0)以1m/s水平运动。60/30Hz首帧目标actor.x为0.0166667/0.0333333m，源应仍为0；只把实际follow consumer的输入恢复为physics前位置即通过，静止控制亦通过。8组6PASS/2FAIL，证据`bf144_ragdoll_phase38_follow_samples_pelvis_before_physics`、`38/clock_final/`。这是actor运动时点差异，未扩展相机表现。
 
-- [ ] BF144-D110 / P3 — 世界暂停时Ragdoll仍随外部pelvis位置移动。
+- [x] BF144-D110 / P3 — 世界暂停时Ragdoll仍随外部pelvis位置移动。 静态实现完成，统一验证待执行。
+  - 19:50 source/static 闭环：现行 CDO 原始字段 bTickEvenWhenPaused=False 已与本地资产身份核对，UE pause 只调度允许暂停的 Tick。仅对采样与 actor 写回组添加世界暂停门槛，保持活动体模式与既有启动/清理调度。真实角色夹具增加暂停中外部横移0.1m、缓存保持及恢复后读取控制。证据 `docs/audit/bf144/d110/`；编译、测试、消融和真实入口待统一 Gate。开始19:48，预估20:18，实际结束2026-11-11 19:50 +08:00，偏差−28分钟。结果：静态实现完成。
+  - 本轮开始2026-11-11 19:48 +08:00，预估结束20:18 +08:00。依据：当前原生角色 CDO 已可读取，fresh 对照世界暂停 Tick 路径和 D109 的单一跟随阶段；只为该阶段接暂停门槛，扩充现有真实角色暂停夹具。
   - Source：fresh角色bTickEvenWhenPaused=False，UE暂停Tick路径不调用其RefreshRagdolling；mesh已detach，外部移动pelvis不会自行移动capsule actor。
   - Target：`ragdoll_ground_follow`与`apply_ragdoll_ground_follow`没有世界暂停门槛，Time.delta=0时仍刷新并写actor位置。把它移到physics前仍不能补齐这个执行条件。
   - 反例：活动Ragdoll和actor均置于(0,10,0)，world pause后外部把pelvis横移0.1m；目标actor也移动0.1m，源应保持原位。暂停/正常×移动/不移动共4组3PASS/1FAIL；实际delta=0已断言。证据`bf144_ragdoll_phase38_follow_respects_world_pause`、`38/clock_final/`。D30覆盖移动基座，本项是独立Ragdoll跟随consumer；既有驱动力暂停检查未覆盖它。

@@ -241,9 +241,9 @@ impl Plugin for AlsRagdollLinkPlugin {
             PostUpdate,
             (
                 sync_ragdoll_body_modes,
-                ragdoll_ground_follow,
-                ApplyDeferred,
-                apply_ragdoll_ground_follow,
+                (ragdoll_ground_follow, ApplyDeferred, apply_ragdoll_ground_follow)
+                    .chain()
+                    .run_if(|time: Res<Time<Virtual>>| !time.is_paused()),
                 ragdoll_joint_drive_adapter_system,
                 limit_initial_ragdoll_speed,
                 ApplyDeferred,
@@ -2392,7 +2392,7 @@ pub(crate) mod tests {
         assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Ragdolling));
         let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
         let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
-        let bodies = spawned.bodies.values().map(|entity| (*entity,
+        let mut bodies = spawned.bodies.values().map(|entity| (*entity,
             app.world().get::<Position>(*entity).unwrap().0,
             app.world().get::<Rotation>(*entity).unwrap().0,
             app.world().get::<LinearVelocity>(*entity).unwrap().0,
@@ -2401,6 +2401,9 @@ pub(crate) mod tests {
         let actor = *app.world().get::<Transform>(character).unwrap();
         let follow = *app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
         let drive = *app.world().get::<RagdollAngularDrive>(player).unwrap();
+        let pelvis = *spawned.bodies.values().find(|entity| {
+            app.world().get::<BodyLabel>(**entity).is_some_and(|label| label.0 == PELVIS_LABEL)
+        }).unwrap();
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
         for _ in 0..4 {
             app.update();
@@ -2418,8 +2421,18 @@ pub(crate) mod tests {
                 assert_eq!(app.world().get::<AngularVelocity>(*entity).unwrap().0, *angular);
             }
         }
+        let moved = app.world().get::<Position>(pelvis).unwrap().0 + Vec3::X * 0.1;
+        app.world_mut().get_mut::<Position>(pelvis).unwrap().0 = moved;
+        app.update();
+        assert_eq!(app.world().get::<Position>(pelvis).unwrap().0, moved);
+        assert_eq!(*app.world().get::<Transform>(character).unwrap(), actor);
+        let current = app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
+        assert_eq!((current.pelvis, current.target), (follow.pelvis, follow.target));
+        bodies.iter_mut().find(|(entity, _, _, _, _)| *entity == pelvis).unwrap().1 = moved;
+
         app.world_mut().resource_mut::<Time<Virtual>>().unpause();
         app.update();
+        assert_eq!(app.world().get::<AlsRagdollGroundFollow>(character).unwrap().pelvis, moved);
         assert!(bodies.iter().any(|(entity, position, _, _, _)|
             app.world().get::<Position>(*entity).unwrap().0.distance(*position) > 1e-6),
             "Source resumed ragdoll physics continues moving its active bodies");

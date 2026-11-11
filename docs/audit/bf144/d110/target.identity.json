@@ -1,0 +1,10 @@
+[
+  {
+    "path": "Cargo.lock",
+    "sha256": "7f7c2430a8fc7ea0ae303edb273f14a3be86b46ccba7042c2aa00f47a4b1c511"
+  },
+  {
+    "path": "src/als/character/actions/ragdoll_link.rs",
+    "sha256": "f8cf5c9617c6012e5daccfa30962d821f5e78ae2e62d45845f602f7dcf95a044"
+  }
+]
