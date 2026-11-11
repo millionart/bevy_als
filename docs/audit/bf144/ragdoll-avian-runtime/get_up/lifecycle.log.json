@@ -1,0 +1,7 @@
+[
+  "2026-11-11T10:01:19.842212Z  INFO bevy_als::manual_playground_integration: [MANUAL-INTEGRATION] ragdoll ground follow stabilized",
+  "2026-11-11T10:01:20.339673Z  INFO bevy_als::manual_playground_integration: [MANUAL-INTEGRATION] ragdoll recovered position=(-15.000,0.919,-15.028) velocity=0.000",
+  "2026-11-11T10:01:23.154561Z  INFO bevy_als::manual_playground_integration: [MANUAL-INTEGRATION] ragdoll ground follow stabilized",
+  "2026-11-11T10:01:23.777007Z  INFO bevy_als::manual_playground_integration: [MANUAL-INTEGRATION] ragdoll recovered position=(-15.016,0.919,-14.971) velocity=0.000",
+  "2026-11-11T10:01:24.511814Z  INFO bevy_als::manual_playground_integration: [MANUAL-INTEGRATION][GET-UP] jump requested during input lock"
+]
