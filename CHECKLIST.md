@@ -6649,7 +6649,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`head_layer.rs:194–204`每次PostUpdate都调用unscaled_delta_seconds并写回历史倍率，即使AnimationPoseUpdateGate已经停止图更新。
   - 反例：无montage隐藏期间把全局倍率从1变为0.25，恢复帧scaled dt=0.004166667秒。源保留旧倍率1，未缩放dt仍为0.004166667；目标却使用隐藏期间写入的0.25，得到0.016666668。实际Head pitch为30.767°、源应为11.286°；只恢复历史倍率即通过。6组5PASS/1FAIL，持续可见与第三人称控制通过；和D146的montage重激活条件分离，见`65/checked_initial/`。
 
-- [ ] BF144-D148 / P3 — 替换动画实例后保留旧曲线投影，改变新实例的首帧姿态。
+- [x] BF144-D148 / P3 — 替换动画实例后保留旧曲线投影，改变新实例的首帧姿态。
+  - 2026-11-12 00:20 +0800 实际结束早于00:50预估，未拆分。fresh原生AB_Als_Head绑定与全部曲线清空链见 `docs/audit/bf144/d148/`。通过播放器Discard同步清空整个曲线投影，十二组静态重放通过，保留旧曲线的消融在两条瞄准替换路径退回alpha 0.005088。旧66运行原始报告未随当前Git保留，已加入实际Rifle换实例首帧反例，Rust、运行时消融和Playground Gate待统一验证。
+  - 本轮开始2026-11-12 00:17 +08:00，预估结束2026-11-12 00:50 +08:00。核对完整曲线容器的实例所有权，覆盖直接覆写、移除重插与实际Head首帧。
   - Source：fresh `AnimInstance.cpp:363–369,446–455`在Initialize前执行Uninitialize；`AnimInstanceProxy.cpp:455–466`清空全部AnimationCurves。`AlsAnimationInstance.cpp:400–405`以新实例的空曲线计算HeadBlendAmount=1；原生Head Additive节点绑定GetParent.ViewState.HeadBlendAmount。
   - Target：`source_gameplay_tag_input.rs:89–95`在Discard清理输入，`animation_visibility.rs:25–27`清理gate，但`animation_context_projection.rs:44–98`仅在求值后覆盖AlsRootAnimationContext；`head_layer.rs:61–69,206–218`在新实例首次求值前消费旧曲线。
   - 反例：实际Rifle瞄准后，PoseAiming=0.994912；覆写播放器或移除后重插时，新实例frame=1、elapsed=0，Head alpha仍为0.005088而源应为1。两路径×普通/瞄准旧姿态×保留/全部清空/仅清PoseAiming的12组10PASS/2FAIL，两个恢复控制均通过。仅清该字段使最终head四元数从约(0.025741,0.113965,−0.004760,0.993140)变为(0.026208,0.219716,−0.001992,0.975210)，其余旧曲线保持不变。

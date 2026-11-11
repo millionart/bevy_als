@@ -46,7 +46,12 @@ impl Plugin for AlsRootAnimationContextPlugin {
         .add_systems(
             PostUpdate,
             project_root_animation_context.in_set(AlsRootAnimationContextSet),
-        );
+        )
+        .add_observer(|event: On<Discard, AnimationGraphPlayer>, mut contexts: Query<&mut AlsRootAnimationContext>| {
+            if let Ok(mut context) = contexts.get_mut(event.entity) {
+                context.curves.clear();
+            }
+        });
     }
 }
 
@@ -106,6 +111,50 @@ fn project_root_animation_context(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn replaced_aiming_player_starts_head_with_empty_previous_curves() {
+        use crate::als::input::AlsInputCommand;
+        use crate::als::motion::AlsInputOverride;
+        use crate::als::state::OverlayState;
+        use crate::als::transition::AlsStateRequest;
+        use crate::animation_visibility::AlsAnimationTickOption;
+        use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+
+        for remove_first in [false, true] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(avatar).insert(AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+            app.world_mut().entity_mut(character).insert(AlsInputOverride(AlsInputCommand {
+                aim_held: true,
+                ..default()
+            }));
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().overlay_state = Some(OverlayState::Rifle);
+            let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let aiming_curve = |world: &World| world.get::<AlsRootAnimationContext>(player_entity)
+                .and_then(|context| context.f32("PoseAiming")).unwrap_or(0.0);
+            for _ in 0..120 {
+                app.update();
+                if aiming_curve(app.world()) > 0.9 { break; }
+            }
+            assert!(aiming_curve(app.world()) > 0.9, "Rifle never published its aiming curve");
+            let original = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let AnimationSource::Graph(graph) = original.get_animation_source() else { panic!("Character must use the source graph"); };
+            let mut replacement = AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
+            replacement.play_one_frame();
+            let mut entity = app.world_mut().entity_mut(player_entity);
+            if remove_first { entity.remove::<AnimationGraphPlayer>(); }
+            entity.insert(replacement);
+            assert!(entity.get::<AlsRootAnimationContext>().unwrap().curves.is_empty());
+
+            app.update();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
+            assert_eq!(player.get_context_arena().unwrap().frame_index(), 1);
+            assert_eq!(player.elapsed(), 0.0);
+            let alpha = player.get_global_input_data("view_state.head_blend_amount").unwrap().as_f32().unwrap();
+            assert_eq!(alpha, 1.0, "Replacement (remove_first={remove_first}) used an old curve");
+        }
+    }
 
     #[test]
     fn root_context_uses_pose_output_edge_not_editor_name() {

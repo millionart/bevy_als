@@ -1,0 +1,14 @@
+[
+  {
+    "path": "assets/ALS/Character/AnimationInstances/AB_Als_Head/AnimGraph.animgraph.ron",
+    "sha256": "2f59d0d40f4e718ff7c25c6e393ee36bb4d243cf17c744260dde16c20c8d0851"
+  },
+  {
+    "path": "src/als/character/animation_instances/animation_context_projection.rs",
+    "sha256": "233f3dca1facb2e4a8680248ae7ee9063f56cd3dd7cb5fd42c1c1904e8a3d004"
+  },
+  {
+    "path": "src/als/character/animation_instances/head_layer.rs",
+    "sha256": "20ce4fc23428eb2da5f9f35a1a4a680926b5a2a3e9947a5c1f52d08bb75f33a6"
+  }
+]
