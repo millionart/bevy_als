@@ -1,0 +1,8 @@
+{
+  "format": "gzip",
+  "raw_path": "docs/audit/bf144/ragdoll-avian-regression/moving_base/report.json",
+  "archive_path": "docs/audit/bf144/ragdoll-avian-regression/moving_base/report.json.gz",
+  "raw_bytes": 20084723,
+  "raw_sha256": "fe0d0727780708dcfdc98963279b189c03796019d7d58d30dbf1132c5a42aac5",
+  "archive_bytes": 1692147
+}

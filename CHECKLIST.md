@@ -4895,6 +4895,11 @@
 
 - [ ] BF144-RAGDOLL-AVIAN-REGRESSION — 回归普通行走、台阶、攀爬和脚部 IK。
   - 预计开始：2026-11-11 19:06 +08:00。预估结束：2026-11-11 19:51 +08:00。沿现有真实场景和自动场景的公共入口验证，保留仍服务普通角色的查询及动画路径。实际开始时按场景闭包更新。
+  - 本轮开始：2026-11-11 18:02 +08:00。预估结束：18:47 +08:00。沿已通过 startup 与布娃娃场景的同一二进制和公共入口，依次跑 standing_response 的行走与加减速、stairs 的上下台阶、moving_base 的移动目标攀爬、foot_ik 的地面与足锁。先执行 standing_response 功能 Gate。
+  - 18:02 standing_response 功能 Gate 通过，行走及起停、步态与速度响应覆盖 6 项。证据 `docs/audit/bf144/ragdoll-avian-regression/standing_response/`。同一入口开始 stairs，验证真实上、下台阶。
+  - 18:03 stairs 功能 Gate 通过，6条上下台阶路线全部通过，保持角色运动与动画合同。证据 `docs/audit/bf144/ragdoll-avian-regression/stairs/`。同一入口开始 moving_base，验证真实移动支撑及攀爬交接。
+  - 18:04 moving_base 未通过。骑乘、跳离、换支撑与攀爬安装均已发生；首个 Custom 帧的期望位置与实际相差0.127932m，等于平台该帧位移。现场报告已生成，0图错误，沿攀爬安装和基座携带的源链定位首帧合同。foot_ik 与该链独立，同一已构建二进制继续取证。
+  - 18:06 foot_ik 功能 Gate 通过，含无命中恢复、权重、传送、地形、足锁和静态攀爬。唯一待复验场景为 moving_base。fresh CMC/RMS 源与目标调度核对确认 D60 的公共校验取样阶段过晚，已保存反例，复开 D60。
 
 - [ ] BF144-RAGDOLL-AVIAN-CLEANUP — 清理仅服务 Chaos 布娃娃碰撞对齐的实现和计划。
   - 预计开始：2026-11-11 19:51 +08:00。预估结束：2026-11-11 20:46 +08:00。依赖切换与功能验证。核对代码引用、CHECKLIST、TODO 及依赖计划，保留其他 ALS 功能和已接受差异说明。若实际闭包超过60分钟，先按代码与任务清理拆分。
@@ -6247,7 +6252,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：实际活动Mantle中，kinematic基座在该运动帧前横移2cm，owner0.5/1/2时RMS和发布动画速度分别多出2.4/1.2/0.6m/s；最终位置仍正确。`bf144_mantle_physics_velocity_excludes_pre_movement_base_carry`5组2PASS/3FAIL；静止基座及夹具先携带actor的对照通过。证据`target/bf144/19/initial/`。
   - 漏检：旧移动Mantle速度测试以target自身RMS之前的actor位置计算预期，未先复算源CMC基座携带；这个预期把同一错误带入oracle。仅登记实际速度消费差异，不把位置正确误当速度等价。
 
-- [x] BF144-D60 / P2 — Mantle物理后重算warp，偏离源基座脚底携带及绝对朝向；静态实现完成，统一验证待执行。
+- [ ] BF144-D60 / P2 — Mantle物理后重算warp，偏离源基座脚底携带及绝对朝向；静态实现完成，统一验证待执行。
+  - 2026-11-11 18:07 +08:00 因提前 moving_base 功能 Gate 复开，预估结束18:37。真实攀爬安装与RMS已发生，首帧断言把物理后平台变换代入了物理前RMS。fresh UE读取运动组件准备RMS时的目标组件变换；现有焦点测试已改用物理前输入，公共入口仍在读帧末。以独立的物理前碰撞体读数校验，保留动作、携带及交接合同。反例和源读数见 `docs/audit/bf144/ragdoll-avian-regression/moving_base/`。
   - 活动：开始2026-11-08 18:18 +08:00；预估结束19:03 +08:00；实际结束18:23 +08:00，提前40分钟；未拆分，测试/消融/Gate暂缓。
   - 复盘：已有限复开归档BF115.09e2b2中的BF116.03c2b物理后消费者；旧Gate以重算warp为oracle，漏掉模拟基座的脚底携带、绝对朝向及scale边界，其他已完成范围不复开。
   - 闭环：fresh UE post tick/脚底携带及native角色设置保存在`docs/audit/bf144/d60/`；目标移除物理后二次warp并复用模拟基座携带，已写父空间、旋转/scale及亚微秒对照，旧测试oracle同步修正。旧target报告缺失，归档边界和动画Gate待统一验证后恢复。

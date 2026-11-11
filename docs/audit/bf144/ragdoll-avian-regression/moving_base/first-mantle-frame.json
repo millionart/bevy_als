@@ -1,0 +1,80 @@
+{
+  "item": "BF144-D60",
+  "root_motion_ready": true,
+  "target_delta_x_m": -0.1279315948486328,
+  "velocity_times_frame_delta_x_m": -0.12793159244208496,
+  "position_m": [
+    15.75,
+    0.9239999055862427,
+    -27.350000381469727
+  ],
+  "late_expected_position_m": [
+    15.622068405151367,
+    0.9239999055862427,
+    -27.350000381469727
+  ],
+  "current_platform_m": [
+    16.90770149230957,
+    0.0,
+    -28.75
+  ],
+  "physics_stage": "kinematic platform pose advances after mantle root motion",
+  "source": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "anchors": [
+        {
+          "line": 2476,
+          "source": "void UCharacterMovementComponent::MaybeUpdateBasedMovement(float DeltaSeconds)"
+        },
+        {
+          "line": 2484,
+          "source": "if (!MovementBaseUtility::IsSimulatedBase(MovementBaseInterfaceData))"
+        },
+        {
+          "line": 2487,
+          "source": "UpdateBasedMovement(DeltaSeconds);"
+        },
+        {
+          "line": 2840,
+          "source": "MaybeUpdateBasedMovement(DeltaSeconds);"
+        },
+        {
+          "line": 2941,
+          "source": "CurrentRootMotion.PrepareRootMotion(DeltaSeconds, *CharacterOwner, *this, true);"
+        }
+      ]
+    },
+    {
+      "path": "Plugins/ALS-Refactored/Source/ALS/Private/RootMotionSources/AlsRootMotionSource_Mantling.cpp",
+      "sha256": "624964d860117f3794d249a2b8d25e5d0c610b7dd852751e052e60bb19b7d55e",
+      "anchors": [
+        {
+          "line": 80,
+          "source": "FTransform StartTransform{StartRotation, StartLocation};"
+        },
+        {
+          "line": 84,
+          "source": "if (MovementBaseUtility::UseRelativeLocation(&MovementBaseData))"
+        },
+        {
+          "line": 88,
+          "source": "StartTransform *= TargetPrimitive->GetComponentTransform();"
+        },
+        {
+          "line": 91,
+          "source": "TargetTransform *= TargetPrimitive->GetComponentTransform();"
+        },
+        {
+          "line": 122,
+          "source": "const FTransform FinalRootMotion{"
+        },
+        {
+          "line": 127,
+          "source": "RootMotionParams.Set(FinalRootMotion);"
+        }
+      ]
+    }
+  ]
+}
