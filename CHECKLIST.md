@@ -7136,7 +7136,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Consumer：当前主AB惯性输出进入Layering的Overlay Input；fresh源的Accumulate→Override曲线路径保留该差值。实际生产合成节点和AbAlsProvider验证：共同Locomotion值0.25时，发布的pose_state.grounded_amount分别约0.78887993/1.24745607，恢复值与原生一致。当前空Curves槽与这两个选定曲线的路径已闭合，未声明全Root骨骼姿态或默认场景自然触发。
   - 漏检/边界：旧测试覆盖无历史或两份历史，没有单历史曲线回退；也不能只凭骨骼Pose的clone证明曲线有同样处理。证据`103/native.json`、`analysis.json`、`layering-analysis.json`、`consumer-layering.json`；只登记，未修复。
 
-- [ ] BF144-D197 / P3 — 标准Profile混合用目标权重的补数代替源权重，丢失近单位总和容差。
+- [x] BF144-D197 / P3 — 标准Profile混合用目标权重的补数代替源权重，丢失近单位总和容差。
+  - 2026-11-12 07:11 +0800 实际结束，较08:00预估提前49分钟，未拆分。fresh两个Profile十条轨迹核对独立权重与姿态，补数消融72骨骼失配。原始读数、双权重及稀疏控制夹具见 `docs/audit/bf144/d197/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 07:05 +08:00，预估结束2026-11-12 08:00 +08:00。重采两个实际Profile在近单位容差内外的独立权重和姿态；按原生双权重合成并核对缺省骨骼和稀疏通道合同。
   - Source：fresh `BlendProfile.cpp:456–485`分别计算正向/反向骨骼权重；`AnimationAsset.cpp:783–850`仅在权重和偏离1超过1e−5时归一化。`AnimNode_StateMachine.cpp:1101–1105`把保留的两份权重分别用于位置、缩放及最短符号旋转累加。
   - Target：`profile_blend.rs:81–93,140–149`只返回目标权重，再交给BonePose::linear_blend_mut以1−目标权重隐式重建源权重；源允许的微小欠额/超额因此被消去。此处并非D169的槽总权重提前除法，修复槽合成不会改变该独立路径。
   - 反例：两个实际Profile、六组合、50份已加载转场节点，权重和约1±5e−6的100组覆盖骨骼全部失败；同输入源权重与目标补数最大差5.1111e−6，局部位置分量最大差9.6962e−7m、scale最大差6.6042e−6。先只恢复nlerp仍有100组失败；再恢复源双权重后全部通过，最大位置误差2.08e−8m、scale1.51e−7、四元数距离1.19e−7。总和恰为1、偏离超过容差和61根缺省骨骼控制通过。
