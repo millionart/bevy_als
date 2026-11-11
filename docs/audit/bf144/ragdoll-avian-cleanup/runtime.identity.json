@@ -1,0 +1,22 @@
+[
+  {
+    "path": "Cargo.lock",
+    "sha256": "7f7c2430a8fc7ea0ae303edb273f14a3be86b46ccba7042c2aa00f47a4b1c511"
+  },
+  {
+    "path": "assets/ALS/Character/PA_Als.physics.json",
+    "sha256": "83f958105715e152196499114fcfea137bbf57076785f7cd2e8a30f7f04de324"
+  },
+  {
+    "path": "run_manual.ps1",
+    "sha256": "1269a5dd3e4612b8be0d40f4c3e49a7f3b87047ff9a93f1fe1260ba7bd7238e3"
+  },
+  {
+    "path": "src/als/character/playable_character.rs",
+    "sha256": "c1c6048a86d496face94d87ccff20ddc7ff5af44ff9e272b086a84d7aea25f07"
+  },
+  {
+    "path": "target_game/play/examples/manual_playground",
+    "sha256": "eb532e750d454e7f3cef0de5d2907f2c88657119215b6f5bc74c86e47bdc5433"
+  }
+]

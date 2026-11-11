@@ -23,6 +23,8 @@
 
 `import/probe_anim_graph_nodes.py`、`probe_property_access.py`、`probe_gltf_curves.py` 接受显式资产参数，仍可检查原生属性或导出曲线。没有其他脚本调用一个 CLI，不等于它已经无用。
 
+`PhysicsContactProbe` 提供 UE 原生接触数据，用于复验历史取证。当前布娃娃功能按 [布娃娃物理边界](../README.md#布娃娃物理边界) 验收。
+
 `run_ue_source_reader.ps1 -PhysicsContactProbe <request.json>` 的 capsule/trimesh sample 可选 `triangle_indices`，使用 cooked mesh 索引调用原生 `ConstructCapsuleTriangleOneShotManifold2`，输出合并前的 `triangle_contacts`。其中两个 `shape_point_*_cm` 都在胶囊形状空间，`world_point_*_cm` 与 `world_normal` 已转换到世界空间；组上的 `triangle_index` 是请求的 cooked face，未归并点的 `face_index` 保留原生−1。该选项不改变正常 `points` 或 `aggregate_contacts`；用 `python tools/tests/test_physics_triangle_contact_probe.py <output.json>` 核对输出。
 
 接触 sample 在已有 `next` 时可选 `history`：`friction_ratios` 与首帧 manifold 点一一对应，`anchor_offset_0_cm` / `anchor_offset_1_cm` 是两侧形状空间的旧锚点偏移。读取器调用原生 `SetSolverResults` 和下一帧 `Activate`，输出 `saved_points` 与 `next_history`；这是受控保存/匹配探针，不运行 Chaos 动力仿真。使用 `tools/tests/fixtures/physics_contact_history.request.json` 和 `python tools/tests/test_physics_contact_history.py <output.json>` 核对8点保存边界、比例插值、匹配标志与世界锚点差。

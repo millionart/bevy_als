@@ -39,6 +39,8 @@ ALS-Refactored 使用 UE Chaos。本项目使用 Avian 的原生碰撞与接触�
 
 布娃娃仍须正常倒下、与场景碰撞并起身。碰撞体、关节和必要的碰撞过滤继续提供这些行为。行走、上下台阶、攀爬、脚部 IK 及其他普通角色移动和动画功能继续按 ALS 的既定目标验证。这项豁免仅适用于布娃娃碰撞的引擎差异。
 
+每个刚体的 CCD 开关映射到 Avian `SweptCcd`。Avian 0.7 的扫掠 CCD 作用于刚体根实体上的碰撞体。当前 `PA_Als` 的 21 个刚体均关闭 CCD。
+
 ## 快速上手
 
 Mac 与 Windows 共用 PowerShell 7、Rust 和 Python 3.10+。Mac 还需要 Xcode；UE 原生读取器使用对应平台的 UE 5.8.3 安装。PowerShell 安装见 [官方说明](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)。

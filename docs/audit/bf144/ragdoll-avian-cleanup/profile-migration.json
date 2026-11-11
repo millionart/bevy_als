@@ -1,0 +1,29 @@
+{
+  "path": "assets/ALS/Character/PA_Als.physics.json",
+  "previous_sha256": "412920646a20d5fe8ee26b3e730eef5e9a562423a5d6c537b59cc08b031ea475",
+  "sha256": "83f958105715e152196499114fcfea137bbf57076785f7cd2e8a30f7f04de324",
+  "removed_key": "target_ccd",
+  "unchanged_body_ccd_flags": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ]
+}

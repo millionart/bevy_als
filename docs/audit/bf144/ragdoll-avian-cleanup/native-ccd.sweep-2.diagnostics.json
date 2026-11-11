@@ -1,0 +1,8 @@
+{
+  "test": "ragdoll_profile_preserves_native_ccd_flag",
+  "case": "disabled",
+  "ccd_component_present": false,
+  "end_x_m": 3.0000005,
+  "fixture_speculative_margin": "Avian default",
+  "finding": "This optional stress setup crosses the thin wall with CCD disabled. Native option mapping and shipped ragdoll contact are exercised by their respective fixtures."
+}

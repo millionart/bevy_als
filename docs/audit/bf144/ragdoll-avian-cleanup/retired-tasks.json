@@ -1,0 +1,649 @@
+{
+  "historical_revision": "d4e53931",
+  "retired_repairs": [
+    {
+      "id": "BF144-D92",
+      "checked": true
+    },
+    {
+      "id": "BF144-D93",
+      "checked": true
+    },
+    {
+      "id": "BF144-D94",
+      "checked": true
+    },
+    {
+      "id": "BF144-D94a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D94b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D95",
+      "checked": true
+    },
+    {
+      "id": "BF144-D96",
+      "checked": true
+    },
+    {
+      "id": "BF144-D96a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D96b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D97",
+      "checked": true
+    },
+    {
+      "id": "BF144-D99",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100",
+      "checked": false
+    },
+    {
+      "id": "BF144-D100a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b",
+      "checked": false
+    },
+    {
+      "id": "BF144-D100b1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b2a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b2b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b3a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b3b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b3b1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b3b2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b3b3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b3b3a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3b3b3b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c2a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c2b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3c",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3c1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3c2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3c3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3c3a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3c3b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3c4c3c3c",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3d",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b3b3e",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4",
+      "checked": false
+    },
+    {
+      "id": "BF144-D100b4a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4a1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4a2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b1a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b1b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2a1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2a2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2a3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2a4",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2b1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b2b2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b3a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b3b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b3c",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b3d",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b3e",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4b3f",
+      "checked": true
+    },
+    {
+      "id": "BF144-D100b4c",
+      "checked": false
+    },
+    {
+      "id": "BF144-D101",
+      "checked": false
+    },
+    {
+      "id": "BF144-D102",
+      "checked": false
+    },
+    {
+      "id": "BF144-D103",
+      "checked": false
+    },
+    {
+      "id": "BF144-D104",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b2a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b2b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b3",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b3a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b3b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b3c",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b3c1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D104b3c2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D126",
+      "checked": false
+    },
+    {
+      "id": "BF144-D127",
+      "checked": false
+    },
+    {
+      "id": "BF144-D128",
+      "checked": false
+    },
+    {
+      "id": "BF144-D129",
+      "checked": false
+    },
+    {
+      "id": "BF144-D130",
+      "checked": true
+    },
+    {
+      "id": "BF144-D130a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D130b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D130b1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D130b2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D130c",
+      "checked": true
+    },
+    {
+      "id": "BF144-D130c1",
+      "checked": true
+    },
+    {
+      "id": "BF144-D130c2",
+      "checked": true
+    },
+    {
+      "id": "BF144-D131",
+      "checked": false
+    },
+    {
+      "id": "BF144-D132",
+      "checked": false
+    },
+    {
+      "id": "BF144-D133",
+      "checked": false
+    },
+    {
+      "id": "BF144-D134",
+      "checked": false
+    },
+    {
+      "id": "BF144-D135",
+      "checked": false
+    },
+    {
+      "id": "BF144-D136",
+      "checked": false
+    },
+    {
+      "id": "BF144-D137",
+      "checked": false
+    },
+    {
+      "id": "BF144-D138",
+      "checked": false
+    },
+    {
+      "id": "BF144-D139",
+      "checked": false
+    },
+    {
+      "id": "BF144-D140",
+      "checked": false
+    },
+    {
+      "id": "BF144-D141",
+      "checked": false
+    },
+    {
+      "id": "BF144-D142",
+      "checked": false
+    },
+    {
+      "id": "BF144-D143",
+      "checked": true
+    },
+    {
+      "id": "BF144-D143a",
+      "checked": true
+    },
+    {
+      "id": "BF144-D143b",
+      "checked": true
+    },
+    {
+      "id": "BF144-D144",
+      "checked": false
+    },
+    {
+      "id": "BF144-D145",
+      "checked": false
+    }
+  ],
+  "retired_audits": [
+    {
+      "id": "BF144.29",
+      "checked": true
+    },
+    {
+      "id": "BF144.30",
+      "checked": true
+    },
+    {
+      "id": "BF144.31",
+      "checked": true
+    },
+    {
+      "id": "BF144.32",
+      "checked": true
+    },
+    {
+      "id": "BF144.33",
+      "checked": true
+    },
+    {
+      "id": "BF144.34",
+      "checked": true
+    },
+    {
+      "id": "BF144.35",
+      "checked": true
+    },
+    {
+      "id": "BF144.36",
+      "checked": true
+    },
+    {
+      "id": "BF144.45",
+      "checked": true
+    },
+    {
+      "id": "BF144.46",
+      "checked": true
+    },
+    {
+      "id": "BF144.47",
+      "checked": true
+    },
+    {
+      "id": "BF144.48",
+      "checked": true
+    },
+    {
+      "id": "BF144.49",
+      "checked": true
+    },
+    {
+      "id": "BF144.50",
+      "checked": true
+    },
+    {
+      "id": "BF144.51",
+      "checked": true
+    },
+    {
+      "id": "BF144.52",
+      "checked": true
+    },
+    {
+      "id": "BF144.53",
+      "checked": true
+    },
+    {
+      "id": "BF144.54",
+      "checked": true
+    },
+    {
+      "id": "BF144.55",
+      "checked": true
+    },
+    {
+      "id": "BF144.56",
+      "checked": true
+    },
+    {
+      "id": "BF144.57",
+      "checked": true
+    },
+    {
+      "id": "BF144.58",
+      "checked": true
+    },
+    {
+      "id": "BF144.59",
+      "checked": true
+    },
+    {
+      "id": "BF144.60",
+      "checked": true
+    },
+    {
+      "id": "BF144.61",
+      "checked": true
+    },
+    {
+      "id": "BF144.62",
+      "checked": true
+    },
+    {
+      "id": "BF144.63",
+      "checked": true
+    },
+    {
+      "id": "BF144.64",
+      "checked": true
+    }
+  ],
+  "retired_boundaries": [
+    {
+      "id": "BF144-U02",
+      "checked": true
+    },
+    {
+      "id": "BF144-U03",
+      "checked": true
+    }
+  ]
+}

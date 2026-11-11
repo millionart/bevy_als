@@ -117,7 +117,7 @@
   - 待执行 Transition Slot consumer 边界（2026-09-02）：本地 ALS `AB_Als_Standing` C++ 已证明 Quick Stop 通过 `Transition` Slot 播放 additive dynamic montage。当前目标 focused gate 已证明 sampled quick-stop delta 非零，`AB_Als` 的 `Slot 'Transition'` 输出也变化；但其后的最终 root pose 未变化，故丢失点位于 Slot 后的 Locomotion/root consumer。本条执行时必须重新提取本地 `AB_Als_Locomotion` 及其 Grounded Input/状态图 source fact，逐链比较 Slot 输入 pose、additive/curve context、Locomotion 输出与最终 root pose；不得以 BF111.03 的中间 Slot 成功宣称 end-to-end 等价，也不得在本条开始前修改该 consumer。
 - [ ] BF111.07 / BF109.05 `AB_Als_Layering`：检查 Base Poses、Additive、Slot、mask、curve layer 与可见输入边界，并修订实际图／合同／位置与 context 边界。验收：Layering 静态链路与真实入口路径 PASS。
 - [ ] BF111.08 / BF109.06 `AB_Als_Head`：检查 Look BlendSpace、head/neck 混合、曲线与输入边界，并修订实际图／合同／位置与 context 边界。验收：Head 静态链路与真实入口路径 PASS。
-- [ ] BF111.09 / BF109.07 `PA_Als`：复核 body、constraint、collider、坐标转换和 ragdoll consumer boundary。验收：资产/transform 静态链路与 ragdoll 真实入口路径 PASS。
+- [ ] BF111.09 / BF109.07 `PA_Als`：复核 body、constraint、collider、坐标转换和 ragdoll consumer boundary。验收：资产/transform 静态链路与 ragdoll 真实入口路径 PASS，碰撞按 [布娃娃物理边界](README.md#布娃娃物理边界) 验收。
 - [ ] BF111.10 / BF109.08 `AB_Als_Ragdolling`：检查 pose input、混合、退出、PA consumer boundary 与 position。验收：Ragdolling 静态链路与真实入口路径 PASS；保持 `ragdoll_config → Outputs` 不变。
 - [ ] BF111.11 / BF109.09 `ALI_Overlay`：检查 interface pin、linked layer、fallback 与实例生命周期边界。验收：Overlay 静态链路与真实入口路径 PASS。
 - [x] BF111.12 / BF109.10 `CR_Als`：复核 graph/stage、骨骼／虚骨、Construction/runtime 分相、target-space 数据与 `AB_Als` 接入边界。验收：资产/transform/lifecycle 静态链路与 ControlRig 真实入口路径 PASS。

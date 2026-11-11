@@ -971,14 +971,6 @@ def build_profile(source, project_max_angular_velocity_degrees):
         "source_units_per_meter": 100.0,
         "target_axis_mapping": ["x", "z", "y"],
         "solver_settings": props(physics["solver_settings_properties"]),
-        "target_ccd": {
-            "enable_threshold_bounds_scale": float(cvars["p.Chaos.CCD.EnableThresholdBoundsScale"]),
-            "allowed_depth_bounds_scale": float(cvars["p.Chaos.CCD.AllowedDepthBoundsScale"]),
-            "axis_threshold_mode": int(cvars["p.Chaos.CCD.AxisThresholdMode"]),
-            "new_target_depth_mode": cvars["p.Chaos.CCD.NewTargetDepthMode"].lower() == "true",
-            "include_probe_shapes": cvars["p.Chaos.CCD.CCDSweepsUseProbeShapes"].lower() == "true",
-            "only_dynamic_static": int(cvars["p.Chaos.CCD.OnlyConsiderDynamicStatic"]) != 0,
-        },
         "target_inertia_conditioning": {
             "enabled": cvars["p.Chaos.Solver.InertiaConditioning.Enabled"].lower() == "true",
             "distance_m": float(cvars["p.Chaos.Solver.InertiaConditioning.Distance"]) * CM_TO_M,
