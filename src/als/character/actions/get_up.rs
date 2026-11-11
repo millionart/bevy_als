@@ -4,7 +4,7 @@ use crate::als::{
     character::AlsCharacter, motion::AlsMovementInputBlocked, roll::AlsRollState,
 };
 use crate::extensions::{
-    AlsAnimCurves,
+    AlsAnimCurves, AlsPoseCurves,
     animation_context::{AnimationContextState, SourceRelevantAsset},
     profile_blend::{AlphaBlendMode, MONTAGE_SECTION_END_OFFSET, MontageBlend, advance_forward_montage_position},
 };
@@ -30,6 +30,8 @@ pub struct GetUpClipSettings {
     pub source_sequence: String,
     pub clip: String,
     pub curves: String,
+    #[serde(default)]
+    pub montage_curves: AlsPoseCurves,
     pub sequence_length: f32,
     pub play_rate: f32,
     pub blend_out_seconds: f32,
@@ -216,11 +218,7 @@ pub(crate) fn sampled_curve_context(
     time: f32,
 ) -> AnimationContextState {
     AnimationContextState {
-        curves: curves
-            .0
-            .iter()
-            .map(|(name, curve)| (name.clone(), curve.sample(time)))
-            .collect(),
+        curves: curves.sample_all(time),
         relevant_asset: None,
         curves_are_authoritative: true,
         ..default()
@@ -286,6 +284,7 @@ fn update_get_up_pose(
         };
         let pose = crate::extensions::source_sequence_player::sample_pose(clip, state.clip_time);
         let mut context = sampled_curve_context(curves, state.clip_time);
+        context.curves.extend(settings.montage_curves.sample_all(state.clip_time));
         context.relevant_asset = Some(SourceRelevantAsset {
             duration: clip.duration,
             position: state.clip_time,
@@ -348,6 +347,20 @@ impl Plugin for AlsGetUpPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn evaluated_post_locomotion_context(app: &App, target: Entity) -> &AnimationContextState {
+        use bevy_animation_graph::core::{animation_graph::AnimationGraph, context::node_states::StateKey};
+        let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+        assert!(player.get_error().is_none());
+        let arena = player.get_context_arena().unwrap();
+        let graphs = app.world().resource::<Assets<AnimationGraph>>();
+        arena.iter_context_ids().find_map(|id| {
+            let context = arena.get_context(id)?;
+            let graph = graphs.get(context.get_graph_id())?;
+            let slot = graph.nodes.values().find(|node| node.name == "Slot 'PostLocomotion'\nGroup 'Locomotion'")?;
+            crate::extensions::animation_context::node_context_state(&context.node_states, StateKey::Default, slot.id)
+        }).unwrap()
+    }
 
     #[test]
     fn fresh_audit_get_up_slot_uses_the_current_actor_clock() {
@@ -636,6 +649,7 @@ mod tests {
         let settings = GetUpClipSettings {
             source_montage: String::new(), source_sequence: String::new(), clip: String::new(),
             curves: String::new(), sequence_length: 1.5, play_rate: 1.2,
+            montage_curves: default(),
             blend_out_seconds: 0.0, notify_end_clip_seconds: 1.0,
         };
         let mut state = AlsGetUpState::new(true);
@@ -704,7 +718,6 @@ mod tests {
 
     #[test]
     fn get_up_to_roll_uses_both_current_samples_in_the_actual_slot() {
-        use bevy_animation_graph::core::{animation_graph::AnimationGraph, context::node_states::StateKey};
         let read = |file: &str| -> serde_json::Value {
             let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/audit/bf144/d119").join(file);
             serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
@@ -735,14 +748,7 @@ mod tests {
                     let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
                     assert!(player.get_error().is_none());
                     assert_eq!(player.get_global_input_data(POST_LOCOMOTION_WEIGHT).unwrap().as_f32().unwrap(), (get_up_weight + roll_weight).min(1.0));
-                    let arena = player.get_context_arena().unwrap();
-                    let graphs = app.world().resource::<Assets<AnimationGraph>>();
-                    let context = arena.iter_context_ids().find_map(|id| {
-                        let context = arena.get_context(id)?;
-                        let graph = graphs.get(context.get_graph_id())?;
-                        let slot = graph.nodes.values().find(|node| node.name == "Slot 'PostLocomotion'\nGroup 'Locomotion'")?;
-                        crate::extensions::animation_context::node_context_state(&context.node_states, StateKey::Default, slot.id)
-                    }).unwrap();
+                    let context = evaluated_post_locomotion_context(&app, target);
                     let get_up_sample = context.asset_samples.iter().find(|sample| sample.identity == "get_up");
                     assert_eq!(get_up_sample.map(|sample| sample.clock.weight), (get_up_weight > 0.0).then_some(get_up_weight));
                     if let Some(sample) = get_up_sample {
@@ -751,6 +757,53 @@ mod tests {
                     let roll_sample = context.asset_samples.iter().find(|sample| sample.identity.starts_with("roll:")).unwrap();
                     assert_eq!(roll_sample.clock.weight, roll_weight);
                     assert_eq!(roll_sample.clock.position, roll["position"].as_f64().unwrap() as f32);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn get_up_montage_curves_join_the_sequence_curves_in_the_actual_slot() {
+        for (facing_up, source) in [
+            (false, include_str!("../../../../docs/audit/bf144/d122/front.native.json")),
+            (true, include_str!("../../../../docs/audit/bf144/d122/back.native.json")),
+        ] {
+            let native: serde_json::Value = serde_json::from_str(source).unwrap();
+            let samples = native["montage_clock_probe"]["samples"].as_array().unwrap();
+            let settings = get_up_settings(facing_up);
+            for sample in samples {
+                let frame = &sample["frames"][0];
+                let time = frame["position"].as_f64().unwrap() as f32;
+                let expected = frame["curves"].as_object().unwrap();
+                assert_eq!(expected.len(), 11);
+                assert_eq!(settings.montage_curves.0.len(), expected.len());
+                for (name, value) in expected {
+                    let actual = settings.montage_curves.sample(name, time).unwrap();
+                    assert!((actual - value.as_f64().unwrap() as f32).abs() < 1e-6, "{name} at {time}");
+                }
+            }
+
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+            play_loaded_get_up(&mut app, character, facing_up);
+            let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            for index in [0, 6, 12] {
+                let frame = &samples[index]["frames"][0];
+                let time = frame["position"].as_f64().unwrap() as f32;
+                app.world_mut().get_mut::<AlsGetUpState>(character).unwrap().clip_time = time;
+                app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::ZERO);
+                app.world_mut().run_schedule(PostUpdate);
+                let context = evaluated_post_locomotion_context(&app, target);
+                for (name, value) in frame["curves"].as_object().unwrap() {
+                    let curve = crate::extensions::SourceCurveName::from(name.as_str());
+                    let actual = context.curves[&curve];
+                    assert!((actual - value.as_f64().unwrap() as f32).abs() < 1e-6, "{name} at {time}");
+                }
+                let assets = app.world().resource::<GetUpAssets>();
+                let sequence = app.world().resource::<Assets<AlsAnimCurves>>()
+                    .get(&assets.curves[usize::from(facing_up)]).unwrap().first().unwrap();
+                for (name, value) in sequence.sample_all(time) {
+                    assert_eq!(context.curves[&name], value);
                 }
             }
         }
@@ -779,6 +832,7 @@ mod tests {
             let settings = GetUpClipSettings {
                 source_montage: String::new(), source_sequence: String::new(), clip: String::new(),
                 curves: String::new(), sequence_length: 1.5, play_rate: rate,
+                montage_curves: default(),
                 blend_out_seconds: 0.3, notify_end_clip_seconds: 1.166567,
             };
             let mut state = AlsGetUpState::new(false);

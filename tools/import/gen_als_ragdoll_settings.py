@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 
 from gen_ragdoll import bool_after, expanded_text, number_after, props
+from gen_standing_curves import project_runtime_curve
+from ue_animation_asset_resolver import float_curve_fixture, native_rich_curve
 from ue_animation_timing import native_notify_times
 
 
@@ -51,6 +53,22 @@ def field_text(asset, name):
     return expanded_text(next(entry for entry in asset["asset_properties"] if entry["name"] == name))
 
 
+def get_up_montage_curves(asset):
+    raw, = [entry for entry in asset["asset_properties"] if entry["name"] == "RawCurveData"]
+    floats, = [entry for entry in raw["fields"] if entry["name"] == "FloatCurves"]
+    curves = {}
+    for entry in floats["elements"]:
+        fields = {field["name"]: field for field in entry["fields"]}
+        name = fields["CurveName"]["exported_text"]
+        if not name or name in curves:
+            raise ValueError("get-up montage curve name is invalid or duplicated")
+        keys, pre, post = native_rich_curve(fields["FloatCurve"])
+        curves[name] = project_runtime_curve(keys, pre, post, 1.0, 1.0)
+    if not curves:
+        raise ValueError("get-up montage has no float curves")
+    return curves
+
+
 def montage_settings(asset, assets_root):
     values = props(asset["asset_properties"])
     tracks = values["SlotAnimTracks"]
@@ -81,6 +99,7 @@ def montage_settings(asset, assets_root):
         "source_sequence": sequence,
         "clip": clip,
         "curves": clip.removesuffix(".anim.ron") + ".gltf#AlsCurves",
+        "montage_curves": get_up_montage_curves(asset),
         "sequence_length": float(values["SequenceLength"]),
         "play_rate": float(values["RateScale"]),
         "blend_out_seconds": number_after(blend_out, "BlendTime"),
@@ -124,10 +143,17 @@ def main():
         montage["notify_clock_probe"] = {"cases": [{"events": [
             {"event_index": 0, "trigger_time": -0.0001, "end_trigger_time": 1.1665666103363037}
         ]}]}
+        curve = float_curve_fixture([{"Value": 1.0}, {"Time": 1.0}])["asset_properties"][0]
+        montage["asset_properties"].append({"name": "RawCurveData", "exported_text": "()", "fields": [
+            {"name": "FloatCurves", "elements": [{"fields": [
+                {"name": "CurveName", "exported_text": "ViewBlock"}, curve,
+            ]}]},
+        ]})
         converted = montage_settings(montage, ROOT / "assets")
         assert converted["clip"] == "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron"
         assert converted["curves"] == "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf#AlsCurves"
         assert converted["notify_end_clip_seconds"] == 1.1665666103363037
+        assert converted["montage_curves"]["ViewBlock"]["values"] == [1.0, 0.0]
         print("ALS ragdoll settings self-test PASS")
         return
     report = {"success": False}

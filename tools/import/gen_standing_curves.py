@@ -14,6 +14,10 @@ from ue_exported_text import field, parse_number, parse_struct
 
 def runtime_curve(source, input_scale, value_scale):
     keys, pre, post = native_float_curve(source)
+    return project_runtime_curve(keys, pre, post, input_scale, value_scale)
+
+
+def project_runtime_curve(keys, pre, post, input_scale, value_scale):
     if len(keys) < 2:
         raise ValueError('source curve key times are invalid')
     if any(key['tangent_weight_mode'] != 'None' for key in keys):

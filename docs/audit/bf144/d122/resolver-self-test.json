@@ -1,0 +1,21 @@
+{
+  "source_object_reference_parsed": "PASS",
+  "native_source_cache_normalizes_the_reader_key": "PASS",
+  "unique_animation_clip_resolved": "PASS",
+  "blendspace_metadata_resolved": "PASS",
+  "blendspace_samples_resolve_to_target_clips": "PASS",
+  "ambiguous_target_rejected": "PASS",
+  "source_animation_path_resolves_inside_mount": "PASS",
+  "sequence_nodes_resolve_from_source_graphs": "PASS",
+  "blendspace_evaluator_schema_is_validated": "PASS",
+  "one_dimensional_dynamic_blendspace_evaluator_supported": "PASS",
+  "blendspace_player_source_asset_and_timing_contract_resolved": "PASS",
+  "empty_skeleton_blend_profile_preserved": "PASS",
+  "unsupported_blend_profile_rejected": "PASS",
+  "cooked_sequence_and_blend_profile_native_fallback_preserved": "PASS",
+  "legacy_sequence_native_timing_and_curves_preserved": "PASS",
+  "native_sequence_curve_fields_and_read_failures_preserved": "PASS",
+  "source_rich_curve_keys_preserved": "PASS",
+  "single_key_curve_float_and_invalid_boundaries": "PASS",
+  "unsupported_curve_float_extrapolation_rejected": "PASS"
+}

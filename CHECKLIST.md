@@ -6570,7 +6570,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
     - 22:44 source/static 闭环：三曲线243个源Eval采样逐值复算，恢复六位舍入93个失败。真实Stand/Air生成器共用native键解析，Standing六个F32字段和Air十个F32字段恢复，Yaw数值控制相同。完整转换仍进行中。
     - 22:57 全量diff出现Aim In/Out与Camera Quick/Smooth的实际消费者。编译IR证明同一CurveFloat路径，沿四份源资产核对所有17处产物变化。
 
-- [ ] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
+- [x] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
+  - 23:11 source/static 闭环。双朝向各11条动态Montage曲线已按精确键生成，随当帧片段时钟覆盖到序列曲线，再发布给实际PostLocomotion槽。30个时点共330个源曲线值精确复算，去Montage数据缺330值，恢复六位舍入错264值。现有目标采样算术复算最大差1.79e−7。共享CurveFloat解析在12份旧源记录上逐值相同，Standing/Air产物字节相同。已写真实槽的双朝向回归，证据在 `docs/audit/bf144/d122/`。开始23:01，预估23:46，实际结束2026-11-11 23:11 +08:00，偏差−35分钟。结果为静态实现完成，目标编译与槽运行验证按统一阶段执行。
+  - 本轮开始2026-11-11 23:01 +08:00，预估结束23:46 +08:00。依赖D121精确键及D120当前采样时钟。两朝向各11条源montage曲线为动态键，沿原生求值、Curve Combine及当前PostLocomotion槽闭合。
   - Source：fresh两套GetUp montage的原生RawCurveData包含FootLeft/RightIk、FootLeft/RightLock、LayerArmLeft/Right、LayerHead/Legs/Pelvis/Spine、ViewBlock；sequence另有PoseCrouching和PoseGrounded。`AnimInstanceProxy.cpp:1968–1978`先采样AnimTrack，再EvaluateCurveData并Combine montage曲线。
   - Target：`get_up.rs:130–146,270–280`仅加载、采样sequence的GraphClip和AlsCurves；目标glTF的ALS_float_curves只含上述两条sequence曲线，没有montage曲线数据或组合步骤。
   - 反例：实际角色两朝向在clip=0时，post_locomotion.pose的上下文仅含PoseCrouching=1与PoseGrounded≈0；源还应有ViewBlock=1、六条Layer曲线=−1及四条Foot曲线=0。两组均遗漏全部11条，实际SourceSlot输出的六条Layer及ViewBlock数值也不符；夹具内补齐曲线后两组producer/consumer控制通过，sequence控制通过，证据`bf144_get_up_phase42_montage_curves`。旧Gate核对播放/通知/输入恢复及动作pose，没有将montage和sequence曲线同时纳入合同；仅记录，未改生产数据或代码。

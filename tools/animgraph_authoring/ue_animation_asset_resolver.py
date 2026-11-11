@@ -215,16 +215,8 @@ def rich_curve_key(value):
         raise AssetResolutionError("source rich curve key is invalid") from error
 
 
-def native_float_curve(source):
-    if (
-        not isinstance(source, dict)
-        or source.get("format") != "ue_asset_source_v1"
-        or source.get("asset_class") != "/Script/Engine.CurveFloat"
-        or not isinstance(source.get("asset_path"), str)
-    ):
-        raise AssetResolutionError("source CurveFloat is invalid")
+def native_rich_curve(curve):
     try:
-        curve, = [row for row in source["asset_properties"] if row["name"] == "FloatCurve"]
         fields = {row["name"]: row for row in curve["fields"]}
         if not math.isfinite(fields["DefaultValue"]["numeric_value"]):
             raise ValueError("curve default is invalid")
@@ -244,6 +236,21 @@ def native_float_curve(source):
     if not keys or any(right["t"] <= left["t"] for left, right in zip(keys, keys[1:])):
         raise AssetResolutionError("source CurveFloat key times are invalid")
     return keys, pre, post
+
+
+def native_float_curve(source):
+    if (
+        not isinstance(source, dict)
+        or source.get("format") != "ue_asset_source_v1"
+        or source.get("asset_class") != "/Script/Engine.CurveFloat"
+        or not isinstance(source.get("asset_path"), str)
+    ):
+        raise AssetResolutionError("source CurveFloat is invalid")
+    try:
+        curve, = [row for row in source["asset_properties"] if row["name"] == "FloatCurve"]
+    except (KeyError, TypeError, ValueError) as error:
+        raise AssetResolutionError("source CurveFloat native fields are invalid") from error
+    return native_rich_curve(curve)
 
 
 def curve_float_contract(source):

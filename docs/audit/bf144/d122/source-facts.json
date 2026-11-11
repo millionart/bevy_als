@@ -1,0 +1,125 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimInstanceProxy.cpp",
+      "sha256": "05bbce3b799bcb42df19528c8f014eadea728e922382fffda1bb074d0e4a40b1",
+      "anchors": [
+        {
+          "line": 1967,
+          "source": "AnimTrack->GetAnimationPose(NewAnimationPoseData, ExtractionContext);"
+        },
+        {
+          "line": 1968,
+          "source": ""
+        },
+        {
+          "line": 1976,
+          "source": "TotalWeight += MontageWeight;"
+        },
+        {
+          "line": 1977,
+          "source": "#endif // DEBUG_MONTAGEINSTANCE_WEIGHT"
+        },
+        {
+          "line": 1978,
+          "source": ""
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimSequenceBase.cpp",
+      "sha256": "892b16349d9b0842080174813c8edbc6635aea4e8d44d529e22589497904e4e1",
+      "anchors": [
+        {
+          "line": 1025,
+          "source": "void UAnimSequenceBase::EvaluateCurveData(FBlendedCurve& OutCurve, const FAnimExtractContext& AnimExtractContext, bool bForceUseRawData) const"
+        },
+        {
+          "line": 1030,
+          "source": "RawCurveData.EvaluateCurveData(OutCurve, AnimExtractContext.CurrentTime);"
+        },
+        {
+          "line": 1034,
+          "source": "float UAnimSequenceBase::EvaluateCurveData(FName CurveName, const FAnimExtractContext& AnimExtractContext, bool bForceUseRawData) const"
+        },
+        {
+          "line": 1037,
+          "source": "const FFloatCurve* Curve = (const FFloatCurve*)RawCurveData.GetCurveData(CurveName, ERawCurveTrackTypes::RCT_Float);"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/Animation/AnimCurveTypes.cpp",
+      "sha256": "4338cd75f5161e63bdddc253ddafd1891932ee142bedda40dcab32aef6adf510",
+      "anchors": [
+        {
+          "line": 428,
+          "source": "void FRawCurveTracks::EvaluateCurveData( FBlendedCurve& Curves, float CurrentTime ) const"
+        },
+        {
+          "line": 434,
+          "source": "return FloatCurves[InCurveIndex].GetName();"
+        },
+        {
+          "line": 439,
+          "source": "return FloatCurves[InCurveIndex].Evaluate(CurrentTime);"
+        },
+        {
+          "line": 443,
+          "source": "UE::Anim::FCurveUtils::BuildUnsorted(Curves, FloatCurves.Num(), GetNameFromIndex, GetValueFromIndex, Curves.GetFilter());"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Public/Animation/AnimCurveTypes.h",
+      "sha256": "d6596763a2b64cb65809560d28798586db9a40927476a96bead60aa2c8952886",
+      "anchors": [
+        {
+          "line": 901,
+          "source": "void Combine(const TBaseBlendedCurve<OtherAllocator, OtherElementType>& CurveToCombine)"
+        },
+        {
+          "line": 905,
+          "source": "UE::Anim::FNamedValueArrayUtils::Union(*this, CurveToCombine, [](ElementType& InOutThisElement, const OtherElementType& InCurveToCombineElement, UE::Anim::ENamedValueUnionFlags InFlags)"
+        },
+        {
+          "line": 907,
+          "source": "if(EnumHasAnyFlags(InFlags, UE::Anim::ENamedValueUnionFlags::ValidArg1))"
+        },
+        {
+          "line": 908,
+          "source": "{"
+        }
+      ]
+    }
+  ],
+  "native_assets": [
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.uasset",
+        "sha256": "b7e8d8218c10575706324a957710e0a07fd74fcb3ecbc3bb12e2ff5315c49cf7"
+      },
+      "report": "back.native.json"
+    },
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.uasset",
+        "sha256": "2427b8ca1d3d5aa3846b672b25aef646ded754c649ea8cbca73d18a07a59a391"
+      },
+      "report": "front.native.json"
+    },
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Data/Character/CS_Als_Default.uasset",
+        "sha256": "396a58b953c55e8bf103feab2475bc1994a7c0a0463ec73eb73c9c2cc254d2df"
+      },
+      "report": "settings.native.json"
+    }
+  ],
+  "source_comparison": "curve-comparison.json",
+  "curve_binding": "post_locomotion.pose",
+  "consumer": "update_get_up_pose",
+  "assembly": "Sample the sequence context, then overwrite matching keys with the montage values.",
+  "shared_curve_parser_control": "curve-parser-compatibility.json",
+  "target_gate": "Pending unified target build and actual slot regression."
+}

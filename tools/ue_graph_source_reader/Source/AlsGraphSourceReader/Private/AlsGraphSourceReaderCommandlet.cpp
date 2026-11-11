@@ -239,7 +239,8 @@ TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const vo
             if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
             {
                 if (const FStructProperty* ElementStruct = CastField<FStructProperty>(ArrayProperty->Inner);
-                    ElementStruct != nullptr && ElementStruct->Struct == FRichCurveKey::StaticStruct())
+                    ElementStruct != nullptr &&
+                    (ElementStruct->Struct == FRichCurveKey::StaticStruct() || ElementStruct->Struct == FFloatCurve::StaticStruct()))
                 {
                     FScriptArrayHelper Array(ArrayProperty, Value);
                     TArray<TSharedPtr<FJsonValue>> Elements;
@@ -6390,6 +6391,11 @@ TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& 
         UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Montage clock probe asset or request is invalid."));
         return nullptr;
     }
+    bool bCaptureCurves = false;
+    if (Request->HasField(TEXT("capture_curves")) && !Request->TryGetBoolField(TEXT("capture_curves"), bCaptureCurves))
+    {
+        return nullptr;
+    }
     if (Montage == nullptr)
     {
         UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
@@ -6467,6 +6473,15 @@ TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& 
             Frame->SetBoolField(TEXT("valid"), Instance.IsValid());
             Frame->SetBoolField(TEXT("playing"), Instance.IsPlaying());
             Frame->SetBoolField(TEXT("stopped"), Instance.IsStopped());
+            if (bCaptureCurves)
+            {
+                TSharedRef<FJsonObject> Curves = MakeShared<FJsonObject>();
+                for (const FFloatCurve& Curve : Montage->GetCurveData().FloatCurves)
+                {
+                    Curves->SetNumberField(Curve.GetName().ToString(), Curve.Evaluate(Instance.GetPosition()));
+                }
+                Frame->SetObjectField(TEXT("curves"), Curves);
+            }
             Frames.Add(MakeShared<FJsonValueObject>(Frame));
         }
         TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();

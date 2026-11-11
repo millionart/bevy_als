@@ -1,0 +1,140 @@
+{
+  "capture_curves": true,
+  "samples": [
+    {
+      "name": "seek-0",
+      "start_time": 0.0,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-1",
+      "start_time": 0.25,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-2",
+      "start_time": 0.375,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-3",
+      "start_time": 0.75,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-4",
+      "start_time": 0.9,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-5",
+      "start_time": 1.0,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-6",
+      "start_time": 1.1,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-7",
+      "start_time": 1.2,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-8",
+      "start_time": 1.216,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-9",
+      "start_time": 1.23,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-10",
+      "start_time": 1.2333333492279053,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-11",
+      "start_time": 1.3999,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-12",
+      "start_time": 1.4333332777023315,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-13",
+      "start_time": 1.45,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "seek-14",
+      "start_time": 1.4999500513076782,
+      "steps": [
+        {
+          "delta_seconds": 0.0
+        }
+      ]
+    }
+  ]
+}

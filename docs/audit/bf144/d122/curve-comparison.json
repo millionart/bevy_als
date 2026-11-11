@@ -1,0 +1,52 @@
+[
+  {
+    "source": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.AM_Als_GetUp_Front",
+    "positions": 15,
+    "values": 165,
+    "rounded_failures": 165,
+    "max_runtime_sampling_error": 1.7881393432617188e-07,
+    "sequence_only_missing_values": 165,
+    "montage_curves": [
+      "FootLeftIk",
+      "FootLeftLock",
+      "FootRightIk",
+      "FootRightLock",
+      "LayerArmLeft",
+      "LayerArmRight",
+      "LayerHead",
+      "LayerLegs",
+      "LayerPelvis",
+      "LayerSpine",
+      "ViewBlock"
+    ],
+    "sequence_curves": [
+      "PoseCrouching",
+      "PoseGrounded"
+    ]
+  },
+  {
+    "source": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.AM_Als_GetUp_Back",
+    "positions": 15,
+    "values": 165,
+    "rounded_failures": 99,
+    "max_runtime_sampling_error": 1.1999509297311306e-07,
+    "sequence_only_missing_values": 165,
+    "montage_curves": [
+      "FootLeftIk",
+      "FootLeftLock",
+      "FootRightIk",
+      "FootRightLock",
+      "LayerArmLeft",
+      "LayerArmRight",
+      "LayerHead",
+      "LayerLegs",
+      "LayerPelvis",
+      "LayerSpine",
+      "ViewBlock"
+    ],
+    "sequence_curves": [
+      "PoseCrouching",
+      "PoseGrounded"
+    ]
+  }
+]
