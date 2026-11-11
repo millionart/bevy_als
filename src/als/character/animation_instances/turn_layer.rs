@@ -268,10 +268,14 @@ impl AlsTurnMontageStack {
     }
 
     pub(crate) fn stop_for_group_replacement(&mut self, duration: f32) {
+        let duration = duration.max(0.0);
         for entry in &mut self.entries {
+            if entry.blend_out_elapsed.is_some() && duration >= entry.blend_out_duration {
+                continue;
+            }
             entry.blend_out_start_weight = entry.weight();
             entry.blend_out_elapsed = Some(0.0);
-            entry.blend_out_duration = duration.max(0.0);
+            entry.blend_out_duration = duration;
         }
         self.entries.retain(|entry| entry.weight() > f32::EPSILON);
     }
@@ -1412,6 +1416,63 @@ mod tests {
         immediate.entries[0].blend_in_elapsed = 0.1;
         immediate.stop_for_group_replacement(0.0);
         assert!(immediate.entries.is_empty());
+    }
+
+    #[test]
+    fn repeated_grounded_transition_preserves_the_native_turn_blend_out() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            crouching: bool,
+            frames: Vec<Frame>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct Frame {
+            delta_seconds: f32,
+            stop_seconds: Option<f32>,
+            weight: f32,
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/d171/replacement.replay.json"
+        )).unwrap();
+        let mut app = App::new();
+        let character = app.world_mut().spawn(crate::als::character::AlsCharacter).id();
+        let avatar = app.world_mut().spawn(AlsCharacterAvatar { character }).id();
+        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly { avatar, camera: None });
+        for case in fixture.cases {
+            let mut turns = AlsTurnMontageStack::default();
+            SourceTurnRequest {
+                variant: TurnVariant::Left90, yaw: -90.0, crouching: case.crouching,
+            }.play(&mut turns);
+            turns.entries[0].sampling_ready = true;
+            app.world_mut().entity_mut(avatar).insert(turns);
+            app.world_mut().entity_mut(character).insert(crate::stop_link::AlsTransitionMontageStack::default());
+            for (index, frame) in case.frames.into_iter().enumerate() {
+                if let Some(duration) = frame.stop_seconds {
+                    let mut transition = if case.crouching {
+                        crate::stop_link::AlsTransitionPlayback::crouching_dynamic(0.0)
+                    } else {
+                        crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0)
+                    };
+                    transition.blend_in = duration;
+                    app.world_mut().run_system_once(move |mut commands: Commands| {
+                        crate::stop_link::play_transition(&mut commands, character, transition);
+                    }).unwrap();
+                    app.world_mut().flush();
+                }
+                let mut turns = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap();
+                assert!(!turns.advance(frame.delta_seconds));
+                let weight = turns.entries.first().map_or(0.0, AlsTurnMontage::weight);
+                assert_eq!(weight, frame.weight, "{} crouching={} frame {index}", case.name, case.crouching);
+            }
+        }
     }
 
     #[test]

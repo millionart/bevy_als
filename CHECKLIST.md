@@ -6907,7 +6907,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.304真实Head full=1扩展：源mesh加性快路直接使用实际近单位delta再乘Base，partial路径的预先delta归一化不发生；在固定28组真实Base/delta/alpha=1的源double模型中只补入该weighted-delta normalize，1736 double旋转行改变、9行改变f32，T/S保持。旧weight1单位quat控制通过不能外推近单位原生delta；源Head Apply→rig-source2212骨精确基线与其他stage单因素分开，归本full快路而不新增编号或称可见故障。源码字节恢复/同target重编以.304摘要为准；证据 `target/bf144/304/factors-check.json`、`source-apply.json`。
 
-- [ ] BF144-D171 / P2 — Transition再次替换同组Turn时重启旧淡出，延长旧姿态的消费。
+- [x] BF144-D171 / P2 — Transition再次替换同组Turn时重启旧淡出，延长旧姿态的消费。
+  - 2026-11-12 04:12 +0800 实际结束，较04:44预估提前32分钟，未拆分。fresh Grounded组及48帧站蹲原生停止对照见 `docs/audit/bf144/d171/`。旧重启12帧失配，等长/更长保留进度，更短控制保持源行为。已补实际Transition分发fixture，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 04:08 +08:00，预估结束2026-11-12 04:44 +08:00。重采站蹲Turn的单次、相等、更长和更短停止请求，沿真实同组Transition分发验证淡出进度。
   - Source：fresh `AnimInstance.cpp:3671–3695`对同组实例调用Stop；`AnimMontage.cpp:1632–1642`在已混出状态仅接受更短时长，相等或更长请求不重置进度。Skeleton原生组映射确认Transition、TurnInPlaceStanding和TurnInPlaceCrouching均为Grounded；当前替换混入时长为0.2秒。
   - Target：`turn_layer.rs:264–270`的`stop_for_group_replacement`无条件把当前权重作为新起点、elapsed归零；`stop_link.rs:324–332`每次播放Transition都会调用它，因此同样的0.2秒请求也延长旧Turn。
   - 反例：实际Standing/Crouching各启动一个Turn，再通过原图Dynamic回调/dispatcher播放两次Transition，第二次发生在旧淡出0.15秒时。source下一帧结束，目标随后三帧仍有0.13183594、0.078125、0.024414063权重，生成Turn槽直接消费这些值。只保留第二次请求前的旧淡出进度，两侧都恢复；单次替换控制通过。60个测量帧中6个原始失败。
