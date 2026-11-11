@@ -6578,7 +6578,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际角色两朝向在clip=0时，post_locomotion.pose的上下文仅含PoseCrouching=1与PoseGrounded≈0；源还应有ViewBlock=1、六条Layer曲线=−1及四条Foot曲线=0。两组均遗漏全部11条，实际SourceSlot输出的六条Layer及ViewBlock数值也不符；夹具内补齐曲线后两组producer/consumer控制通过，sequence控制通过，证据`bf144_get_up_phase42_montage_curves`。旧Gate核对播放/通知/输入恢复及动作pose，没有将montage和sequence曲线同时纳入合同；仅记录，未改生产数据或代码。
 
 
-- [ ] BF144-D123 / P2 — GetUp/Roll及Turn组合槽过早归一化，改变与基础姿态的多方旋转混合。
+- [x] BF144-D123 / P2 — GetUp/Roll及Turn组合槽过早归一化，改变与基础姿态的多方旋转混合。
+  - 三个子项的静态 Gate 均已通过。起身与翻滚槽、站蹲转身槽和Movement标准中断栈均在实际输出阶段归一化。父项开始2026-11-11 23:13 +08:00，末子项调整后预估次日00:22，实际结束23:39，偏差−43分钟。结果为分拆完成并分别提交。目标编译、测试和真实入口按统一阶段执行。
   - Source：fresh `AnimInstanceProxy.cpp:2007–2070`把所有非加性montage及剩余基础姿态一起送入BlendPosesTogetherIndirect；`AnimationRuntime.cpp:458–478`逐项加权累加后只归一化一次。
   - Target：`get_up.rs:308–311`先经blend_slot_pose归一化GetUp/Roll，再由实际AB_Als的SourceSlotNode与基础姿态混合；中间归一化改变了两montage合向量的长度，三个输入均非零时不再等价。
   - 反例：完整角色两朝向，在50ms帧、GetUp接受Roll后的第23帧，已消费的GetUp/Roll/base权重约0.129629/0.5/0.370371；目标相对相同输入、相同权重的源一次累加结果，最大四元数距离约0.01280（约1.47度）。62.5ms另一组约0.00220；四组三方混合均失败，十组单montage/基础姿态控制通过。实际producer/consumer分别与原实现计算完全一致；只在夹具去掉中间归一化即恢复到约1.2e−7。证据`bf144_get_up_phase42_three_pose_slot_blend`。此判据固定已消费的时间和权重，独立于D118/D119，不重复计入旧时序差异；生产未改。
