@@ -1,0 +1,11 @@
+{
+  "phase": "UE source reader linkage",
+  "function": "CapturePhysicsContactProbe",
+  "source_only_option": "capture_mesh_triangle_query",
+  "undefined_symbol": "Chaos::TAABB<double, 3>::InverseTransformedAABB(Chaos::TRigidTransform<double, 3> const&) const",
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "asset_read_started": false
+}

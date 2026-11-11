@@ -4744,7 +4744,8 @@
   - 18:39单帧红测通过复现：世界步长54.095ms，物理33.333ms，台面左移0.305748m，角色左移0.496182m并进入 Air，断言在保持 Grounded 失败。已保留 `before-4` 同 target 输入身份。将有水平支撑速度的单步也交给现有相对 Walking 事务，自身扫掠和基座携带分开，执行 focused 复验及同入口 moving_base。
   - 18:44同 target 的 focused 绿测通过，同一54.095ms长帧中角色与台面均左移0.305748m，保持原碰撞体支撑和 Grounded。旧单步分支反例和恢复证据在 `docs/audit/bf144/d317/`。已启动同启动器二进制重建与真实 moving_base。
 
-- [x] BF144-RAGDOLL-AVIAN-CLEANUP — 清理仅服务 Chaos 布娃娃碰撞对齐的实现和计划。
+- [ ] BF144-RAGDOLL-AVIAN-CLEANUP — 清理仅服务 Chaos 布娃娃碰撞对齐的实现和计划。
+  - 2026-11-11 19:44 +08:00 复开，预估结束20:04。D109 fresh CDO 读取的默认 source reader 重建失败。旧 Gate 覆盖 Rust 与可见场景，遗漏 C++ 读取器重建；退役 mesh 三角接触查询仍引用当前 Chaos 动态库无法链接的 `InverseTransformedAABB`。仅清理该旧请求和专属测试，保留共享只读入口。报告 `docs/audit/bf144/d109/reader-build-1.report.json`。
   - 19:19清理 Gate 通过。已删除171个旧运行时、专属工具和计划文件，移除130个修复项（其中105个曾勾选）、28个旧审计项和2个核验边界；活跃计划无悬挂引用。PA 形体、关节和开关数据逐值核对，生成器、原生 CCD 开关映射及两项碰撞过滤测试通过。真实 startup 与 ragdoll 功能复验通过，源读取器仍可复验历史证据。开始18:48，预估19:43，实际结束2026-11-11 19:19 +08:00，偏差−24分钟。结果：通过。报告 `docs/audit/bf144/ragdoll-avian-cleanup/`。
   - 预计开始：2026-11-11 19:51 +08:00。预估结束：2026-11-11 20:46 +08:00。依赖切换与功能验证。核对代码引用、CHECKLIST、TODO 及依赖计划，保留其他 ALS 功能和已接受差异说明。若实际闭包超过60分钟，先按代码与任务清理拆分。
   - 本轮开始2026-11-11 18:48 +08:00，预估结束19:43 +08:00。功能回归均已通过。按停用模块及生成物、布娃娃 CCD/摩擦求解遗留、活动清单与依赖逐组核引用。保留通用场景几何、普通查询、PA 形体、关节、过滤和每形体的原生 CCD 开关。源码读取及历史证据的共享能力按仍有的消费者核对。Gate：无生产或计划悬挂引用、同 target_game 构建、相关 focused 与真实入口复验。
@@ -6425,6 +6426,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色经Ragdoll输入启动，首帧V=1m/s，随后每帧在实际限速consumer前给V=3；entry speed=0时第9帧目标仍为2、源应为3。60/30Hz×entry speed=0/5×11帧共44组42PASS/2FAIL，仅低入口速度的第9帧失败；前8帧、之后帧以及较高入口speed limit控制均通过。证据`bf144_ragdoll_phase37_input_frame_consumes_first_refresh_budget`、`37/final/`。旧Gate只检查总调用预算和限速数值，没有把本地输入与actor当帧Refresh组合。
 
 - [ ] BF144-D109 / P2 — Ragdoll actor跟随采样晚于源阶段，提前使用本帧physics结果。
+  - 本轮开始2026-11-11 19:38 +08:00，预估结束20:23 +08:00。依据：fresh Actor Tick、pelvis 读取与写位置的源闭包；目标现有物理前 handoff 已接入实际 rig。核对启动和物理后确认动作的边界，按移动单一跟随阶段及60/30Hz实际角色夹具估时。
+  - 19:41 fresh CDO 读取在原生读取器链接阶段退出；复开布娃娃清理的专用探针边界，随后用同一默认入口重读。
   - Source：fresh B_Als_Character的PrimaryActorTick/EndTickGroup均TG_PrePhysics；`AlsCharacter.cpp:294`在该Tick调用RefreshRagdolling，`AlsCharacter_Actions.cpp:880–901`读取上次完成的pelvis位置并立即SetActorLocation。相应mesh tick依赖actor，不能将actor跟随改成physics后采样。
   - Target：`ragdoll_link.rs:219–224,1115–1151`在PhysicsSystems::Last之后读取当前pelvis，随后apply跟随写actor位置。目标因此少了一次源规定的采样延迟。
   - 反例：完整Ragdoll在空中、零重力/阻尼并排除joint/contact，pelvis从(0,10,0)以1m/s水平运动。60/30Hz首帧目标actor.x为0.0166667/0.0333333m，源应仍为0；只把实际follow consumer的输入恢复为physics前位置即通过，静止控制亦通过。8组6PASS/2FAIL，证据`bf144_ragdoll_phase38_follow_samples_pelvis_before_physics`、`38/clock_final/`。这是actor运动时点差异，未扩展相机表现。
