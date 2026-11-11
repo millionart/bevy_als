@@ -1,4 +1,4 @@
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{math::DVec3, platform::collections::HashMap, prelude::*};
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
@@ -16,7 +16,6 @@ use crate::extensions::animation_context::{
 use crate::extensions::inertialization::source_inertial_float;
 
 const SOURCE_KINDA_SMALL_NUMBER: f32 = 1e-4;
-const TRANSLATION_DISTANCE_THRESHOLD: f32 = 1e-6;
 
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
@@ -72,8 +71,8 @@ struct SourceInertialBone {
     bone: BoneId,
     duration: f32,
     translation_direction: Vec3,
-    translation_magnitude: f32,
-    translation_speed: f32,
+    translation_magnitude_cm: f32,
+    translation_speed_cm_s: f32,
     rotation_axis: Vec3,
     rotation_angle: f32,
     rotation_speed: f32,
@@ -135,12 +134,45 @@ fn source_delta(time_update: &TimeUpdate) -> f32 {
     }
 }
 
-fn vector_difference(
+fn translation_difference(
     target: Option<Vec3>,
     previous: Option<Vec3>,
     previous_previous: Option<Vec3>,
     delta: f32,
-    distance_threshold: f32,
+) -> (Vec3, f32, f32) {
+    let (Some(target), Some(previous), Some(previous_previous)) =
+        (target, previous, previous_previous)
+    else {
+        return (Vec3::ZERO, 0.0, 0.0);
+    };
+    let source_point = |point: Vec3| {
+        DVec3::new(f64::from(point.x), f64::from(point.z), f64::from(point.y)) * 100.0
+    };
+    let target = source_point(target);
+    let difference = source_point(previous) - target;
+    let magnitude = difference.length() as f32;
+    if !magnitude.is_finite() {
+        return (Vec3::ZERO, 0.0, 0.0);
+    }
+    if magnitude <= SOURCE_KINDA_SMALL_NUMBER {
+        return (Vec3::ZERO, magnitude, 0.0);
+    }
+    let direction = difference * f64::from(magnitude).recip();
+    let speed = if delta > SOURCE_KINDA_SMALL_NUMBER {
+        let previous_magnitude = (source_point(previous_previous) - target).dot(direction) as f32;
+        (magnitude - previous_magnitude) / delta
+    } else {
+        0.0
+    };
+    let runtime_direction = Vec3::new(direction.x as f32, direction.z as f32, direction.y as f32);
+    (runtime_direction, magnitude, speed)
+}
+
+fn scale_difference(
+    target: Option<Vec3>,
+    previous: Option<Vec3>,
+    previous_previous: Option<Vec3>,
+    delta: f32,
 ) -> (Vec3, f32, f32) {
     let (Some(target), Some(previous), Some(previous_previous)) =
         (target, previous, previous_previous)
@@ -152,7 +184,7 @@ fn vector_difference(
     if !magnitude.is_finite() {
         return (Vec3::ZERO, 0.0, 0.0);
     }
-    if magnitude <= distance_threshold {
+    if magnitude <= SOURCE_KINDA_SMALL_NUMBER {
         return (Vec3::ZERO, magnitude, 0.0);
     }
     let direction = difference / magnitude;
@@ -221,13 +253,12 @@ fn source_inertial_bones(
             let target_bone = target.get_bone(bone)?;
             let previous_bone = previous.get_bone(bone)?;
             let previous_previous_bone = previous_previous.get_bone(bone)?;
-            let (translation_direction, translation_magnitude, translation_speed) =
-                vector_difference(
+            let (translation_direction, translation_magnitude_cm, translation_speed_cm_s) =
+                translation_difference(
                     target_bone.translation,
                     previous_bone.translation,
                     previous_previous_bone.translation,
                     delta,
-                    TRANSLATION_DISTANCE_THRESHOLD,
                 );
             let (rotation_axis, rotation_angle, rotation_speed) = rotation_difference(
                 target_bone.rotation,
@@ -235,19 +266,18 @@ fn source_inertial_bones(
                 previous_previous_bone.rotation,
                 delta,
             );
-            let (scale_direction, scale_magnitude, scale_speed) = vector_difference(
+            let (scale_direction, scale_magnitude, scale_speed) = scale_difference(
                 target_bone.scale,
                 previous_bone.scale,
                 previous_previous_bone.scale,
                 delta,
-                SOURCE_KINDA_SMALL_NUMBER,
             );
             Some(SourceInertialBone {
                 bone,
                 duration: 0.0,
                 translation_direction,
-                translation_magnitude,
-                translation_speed,
+                translation_magnitude_cm,
+                translation_speed_cm_s,
                 rotation_axis,
                 rotation_angle,
                 rotation_speed,
@@ -293,13 +323,15 @@ fn apply_source_inertialization(target: &Pose, state: &SourceInertializationStat
             continue;
         };
         if let Some(translation) = bone.translation {
-            let offset = source_inertial_float(
-                difference.translation_magnitude * 100.0,
-                difference.translation_speed * 100.0,
+            let offset_cm = source_inertial_float(
+                difference.translation_magnitude_cm,
+                difference.translation_speed_cm_s,
                 state.elapsed,
                 difference.duration,
-            ) / 100.0;
-            bone.translation = Some(translation + difference.translation_direction * offset);
+            );
+            let position_cm = translation.as_dvec3() * 100.0
+                + difference.translation_direction.as_dvec3() * f64::from(offset_cm);
+            bone.translation = Some((position_cm / 100.0).as_vec3());
         }
         if let Some(rotation) = bone.rotation
             && difference.rotation_angle > f32::EPSILON
@@ -1159,8 +1191,8 @@ mod tests {
                     bone,
                     duration: case["duration_seconds"].as_f64().unwrap() as f32,
                     translation_direction: Vec3::X,
-                    translation_magnitude: case["magnitude_m"].as_f64().unwrap() as f32,
-                    translation_speed: case["speed_mps"].as_f64().unwrap() as f32,
+                    translation_magnitude_cm: case["magnitude_m"].as_f64().unwrap() as f32 * 100.0,
+                    translation_speed_cm_s: case["speed_mps"].as_f64().unwrap() as f32 * 100.0,
                     ..default()
                 }],
                 ..default()
@@ -1173,6 +1205,45 @@ mod tests {
                 let expected = frame["translation_m"].as_f64().unwrap();
                 assert!((actual - expected).abs() <= tolerance, "{} at {}: {actual} vs {expected}", case["name"], state.elapsed);
             }
+        }
+    }
+
+    #[test]
+    fn translation_projection_preserves_native_float_narrowing() {
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d192/projection.replay.json"
+        )).unwrap();
+        let bone = BoneId::default();
+        for case in reference["cases"].as_array().unwrap() {
+            let scalar = |key| case[key].as_f64().unwrap() as f32;
+            let vector = |key: &str| {
+                let row = &case[key];
+                Vec3::new(row[0].as_f64().unwrap() as f32, row[1].as_f64().unwrap() as f32, row[2].as_f64().unwrap() as f32)
+            };
+            let target = vector("target");
+            let (direction, magnitude, speed) = translation_difference(
+                Some(target), Some(vector("previous")), Some(vector("older")), scalar("history_delta"),
+            );
+            assert_eq!(magnitude, scalar("magnitude_cm"), "{}", case["name"]);
+            assert_eq!(speed, scalar("speed_cm_s"), "{}", case["name"]);
+
+            let mut pose = Pose::default();
+            pose.add_bone(BonePose::from_transform(Transform::from_translation(target)), bone);
+            let state = SourceInertializationState {
+                elapsed: scalar("elapsed"),
+                bones: vec![SourceInertialBone {
+                    bone,
+                    duration: scalar("duration"),
+                    translation_direction: direction,
+                    translation_magnitude_cm: magnitude,
+                    translation_speed_cm_s: speed,
+                    ..default()
+                }],
+                ..default()
+            };
+            let result = apply_source_inertialization(&pose, &state);
+            let actual = result.get_bone(bone).unwrap().translation.unwrap();
+            assert!(actual.abs_diff_eq(vector("native_m"), 8e-10), "{}: {actual:?}", case["name"]);
         }
     }
 
