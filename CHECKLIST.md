@@ -6485,7 +6485,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`apply_profile_to_spawned_ragdoll:1347–1351`直接令已有body的Transform.translation乘scale_factor，该量已经包含世界位移；随后的实际Position因此围绕世界原点缩放。
   - 反例：完整角色的detached mesh origin=(3,0.0015,−2)，从1缩到0.75时，pelvis相对source额外移动(−0.75,−0.000375,+0.5)m，误差约0.901388m；放大到1.5时误差约1.802776m。unit/0.75/1.5×经过零/直接更新×默认/平移/零origin共18组10PASS/8FAIL；unit和零origin均通过，所有质量/关节锚点及rotation控制通过。证据`bf144_ragdoll_phase40_recovery_mass_frames_and_pose_controls`、`40/final/`。旧缩放Gate只核对Collider尺寸、质量和关节局部frame，未核对实际body Position与mesh origin。
 
-- [ ] BF144-D118 / P2 — GetUp、Roll与动态过渡反算播放时钟，改变原生混出临界帧。
+- [x] BF144-D118 / P2 — GetUp、Roll与动态过渡反算播放时钟，改变原生混出临界帧。
+  - 三个子项的静态 Gate 均已收口。GetUp、Roll、动态 Transition 共用原生混合累积公式，各自使用真实片段时钟。开始2026-11-11 20:33 +08:00，子项调整后预估结束21:57，实际结束21:08，偏差−49分钟。结果：分拆为D118a、D118b、D118c并分别提交。统一目标验证将在剩余静态项和依赖迁移之后执行。
   - BF144.507 自动落地Roll补充：原生AM_Als_Roll在通知点拆分、增量推进、按剩余片段起淡出并累积Alpha；目标AlsRollState以elapsed反算。两个同输入临界样本使源偏移27、目标26恢复Grounded。可见Playground复现其中一个，偏移26槽权重0.965706408而源为1，两个Grounded节点提前写VelocityBlend。仅恢复该帧源槽权重即推迟一帧，Roll时钟、角色位置及速度相同。证据 docs/audit/bf144/507/summary.json。
   - Source：fresh `AnimInstance.cpp:562–578`先UpdateWeight再Advance；`AnimMontage.cpp:2234–2256,2328–2333,2626–2637`逐步累加clip位置，并按当前section剩余时间开始混出；`AlphaBlend.cpp:192–228`累加AlphaLerp和剩余时间。两套原生montage均为1.5秒、RateScale=1.2、0.3秒Cubic，通知会把Advance切到精确分支点。
   - Target：`get_up.rs:107–126`用elapsed×rate反算clip位置、用剩余时间比例反算alpha，临界浮点结果与原生积累状态不同。50ms帧的target在clip约1.1400002就开始混出，原生该帧尚未跨入窗口；不能把数学上等价的表达式视为生命周期等价。
