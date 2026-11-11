@@ -1,0 +1,7 @@
+{
+  "compiled": true,
+  "focused_test_executed": true,
+  "focused_test": "source_physics_timing::tests::idle_character_keeps_edge_support_during_a_clamped_physics_frame",
+  "failure": "The fixture did not verify the expected platform displacement before the actor assertions.",
+  "assertion": "(shift - speed * SOURCE_MAX_PHYSICS_DELTA.as_secs_f32()).abs() < 1e-5"
+}

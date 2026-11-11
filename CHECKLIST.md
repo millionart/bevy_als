@@ -4911,6 +4911,7 @@
   - Source：非模拟基座在 CMC 步前按组件变换携带。ALS `PhysWalking` 的 `MoveAlongFloor` 用角色自身速度，台面运动留在基座阶段。Target：零自身位移时 Walking 仍只走一个 CMC 子步，单步扫掠把支撑速度乘完整 world 步长，查询到物理前台面之外。源和失败证据见 `docs/audit/bf144/d317/` 与 `docs/audit/bf144/ragdoll-avian-regression/moving_base-2/`。
   - 与 BF134.01K15a2（积分后的自身位移）、a3（墙前向预测）及D253（零支撑位移舍入）分别核对。本项 Gate：场景记录中同一长帧、单帧边缘 focused 回归、真实 moving_base 普通功能。先执行单帧反例，随后沿现有相对位移事务修复。
   - 18:22首次 focused Cargo test 在旧地面预测和布娃娃缩放夹具的类型检查退出。已复开 D10b、D74，补齐夹具输入签名再复跑未修 D317。
+  - 18:27库测试编译通过，单帧夹具先在台面位移前提断言退出。记录 `before-2`，补台面初始位置、物理时钟和本步实际位移见证，再验证角色支撑。
 
 - [ ] BF144-RAGDOLL-AVIAN-CLEANUP — 清理仅服务 Chaos 布娃娃碰撞对齐的实现和计划。
   - 预计开始：2026-11-11 19:51 +08:00。预估结束：2026-11-11 20:46 +08:00。依赖切换与功能验证。核对代码引用、CHECKLIST、TODO 及依赖计划，保留其他 ALS 功能和已接受差异说明。若实际闭包超过60分钟，先按代码与任务清理拆分。
@@ -5806,7 +5807,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 子项拆分：D10a复用源几何面算法并修地面资格；D10b接入空中GroundPrediction；D10c接入StepUp首滑面资格。依次静态实现并分别提交，父项在三者完成后标记；运行Gate仍统一延后。
   - [x] BF144-D10a — 保留接触Normal并以源最反向几何ImpactNormal判定地面sweep。开始2026-11-08 13:06 +08:00；预估结束13:46 +08:00；实际结束13:16 +08:00，提前30分钟；静态实现完成，拆分为D10a/b/c，测试/消融/Gate暂缓。
     - 闭环：fresh ALS/UE地面、结果转换与Chaos面选择源，以及原生盒体前向/向下控制已保存在`docs/audit/bf144/d10a/`；新增30°/60°凸体和初始重叠focused fixture，复用已有多形体/穿透测试。尚未运行目标测试，GroundPrediction和StepUp分别由后续子项覆盖。
-  - [ ] BF144-D10b — GroundPrediction按相同几何ImpactNormal判可行走。开始2026-11-08 13:17 +08:00；预估结束13:47 +08:00；实际结束13:20 +08:00，提前27分钟；静态实现完成，测试/消融/Gate暂缓。
+  - [x] BF144-D10b — GroundPrediction按相同几何ImpactNormal判可行走。开始2026-11-08 13:17 +08:00；预估结束13:47 +08:00；实际结束13:20 +08:00，提前27分钟；静态实现完成，测试/消融/Gate暂缓。
+    - 夹具修复结束2026-11-11 18:29 +08:00，偏差−11分钟。地面预测夹具明确使用实际消费的 `RagdollSpatialQuery`，同 target_game 库测试已编译且运行了 D317 单帧反例。地面预测自身数值验证仍待统一 Gate。共享报告 `docs/audit/bf144/d317/before-2.report.json`。
     - 2026-11-11 18:22 +08:00 因 D317 focused 预构建复开，预估结束18:40。旧静态 Gate 未编译夹具，`SpatialQuery` 同时从 Avian 与项目包装引入。使用生产地面预测所需的 `RagdollSpatialQuery`。证据 `docs/audit/bf144/d317/before.diagnostics.json`。
     - 闭环：fresh ALS预测逻辑、动画设置和曲线保存在`docs/audit/bf144/d10b/`，几何面与初始重叠复用D10a源证据；动画图输入和`AlsAirState`均接入同一资格，已写30°/60°边缘和加载角色动画输入对照。目标测试与真实图混合尚未执行，StepUp仍留给D10c。
   - [x] BF144-D10c — StepUp首次滑动按同一ImpactNormal判可行走。开始2026-11-08 13:20 +08:00；预估结束14:00 +08:00；实际结束13:23 +08:00，提前37分钟；静态实现完成，测试/消融/Gate暂缓。

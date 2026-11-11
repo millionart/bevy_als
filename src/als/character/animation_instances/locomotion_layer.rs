@@ -462,7 +462,7 @@ mod tests {
                     crate::als::character::AlsCollisionLayer::Visibility], LayerMask::ALL), Transform::IDENTITY));
             app.update();
             app.update();
-            let (contact, animation, trace, state) = app.world_mut().run_system_once(|spatial: SpatialQuery| {
+            let (contact, animation, trace, state) = app.world_mut().run_system_once(|spatial: crate::extensions::RagdollSpatialQuery| {
                 let origin = Vec3::new(0.1, 2.0, 0.0);
                 let velocity = Vec3::NEG_Y * 10.0;
                 let capsule = crate::als::character::als_character_capsule(0.9, 0.3);
