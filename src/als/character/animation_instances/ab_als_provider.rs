@@ -8,7 +8,7 @@ use crate::als::{
     motion::AlsViewYaw,
     movement_direction::{AlsGroundedMovementIntent, classify_grounded_movement_intent},
     params::AlsMovementParams,
-    state::{Gait, RotationMode, Stance},
+    state::{Gait, LocomotionState, RotationMode, Stance},
 };
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::platform::collections::HashMap;
@@ -223,7 +223,7 @@ fn ab_als_input_writer(
             Option<&AlsFirstPersonView>,
             Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
             Option<&AlsFootLockState>,
-            (&AlsMovementParamsHandle, Option<&AlsGroundedDynamics>),
+            (&AlsMovementParamsHandle, Option<&AlsGroundedDynamics>, Option<&LocomotionState>),
         ),
         With<AlsCharacter>,
     >,
@@ -246,7 +246,7 @@ fn ab_als_input_writer(
         first_person,
         custom_dilation,
         feet,
-        (params_handle, dynamics),
+        (params_handle, dynamics, locomotion),
     ) in &characters
     {
         let Some(params) = params_assets.get(&params_handle.0) else {
@@ -335,9 +335,11 @@ fn ab_als_input_writer(
             );
             player.set_global_input_data(
                 "locomotion_state.max_braking_deceleration",
-                dynamics.map_or(params.acceleration.braking_deceleration, |value| {
-                    value.0.braking_deceleration
-                }),
+                if locomotion == Some(&LocomotionState::Custom) {
+                    0.0
+                } else {
+                    dynamics.map_or(params.acceleration.braking_deceleration, |value| value.0.braking_deceleration)
+                },
             );
             for (key, value) in [
                 (
@@ -576,6 +578,66 @@ mod tests {
         assert_eq!(player.get_global_input_data("locomotion_state.acceleration_world_space")
             .and_then(|value| value.as_vec3().ok()), Some(Vec3::ZERO),
             "Native animation rate-of-change must be zero when its delta is zero");
+    }
+
+    #[test]
+    fn high_mantle_grounded_lean_uses_custom_braking_limit() {
+        use crate::actual_motion::AlsActualMotionSet;
+        use crate::als::mantle::{AlsMantleState, MantleKind};
+        use crate::extensions::source_instance::SourceInstanceProperties;
+        use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};
+
+        #[derive(Resource)]
+        struct Acceleration(Vec3);
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let lean = "standing_source.acceleration_forward";
+        let scalar = |player: &AnimationGraphPlayer, key| player.get_global_input_data(key).unwrap().as_f32().unwrap();
+        app.insert_resource(Acceleration(Vec3::NEG_Z * 4.0));
+        app.add_systems(PostUpdate, (move |acceleration: Res<Acceleration>, mut motions: Query<&mut AlsActualMotion>| {
+            let mut motion = motions.get_mut(actor).unwrap();
+            motion.world_velocity = Vec3::NEG_Z;
+            motion.world_acceleration = acceleration.0;
+        }).after(AlsActualMotionSet).before(AbAlsProviderSet));
+        for _ in 0..6 { app.update(); }
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        let walking_braking = scalar(player, "locomotion_state.max_braking_deceleration");
+        assert!(walking_braking > 0.0);
+        let origin = app.world().get::<avian3d::prelude::Position>(actor).unwrap().0;
+        let mut mantle = AlsMantleState::default();
+        mantle.begin(MantleKind::High, origin, origin + Vec3::new(0.0, 1.5, -0.8), 1.5, 0.0, 0.0);
+        app.world_mut().entity_mut(actor).insert(mantle);
+
+        for braking in [false, true] {
+            app.world_mut().resource_mut::<Acceleration>().0 = if braking { Vec3::Z * 4.0 } else { Vec3::NEG_Z * 4.0 };
+            let mut sampled = false;
+            for _ in 0..12 {
+                app.update();
+                if *app.world().get::<LocomotionState>(actor).unwrap() != LocomotionState::Custom { continue; }
+                let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+                let weight = scalar(player, crate::get_up::POST_LOCOMOTION_WEIGHT);
+                let arena = player.get_context_arena().unwrap();
+                let properties = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+                if !(0.0 < weight && weight < 1.0) || properties.write_frames.get(lean) != Some(&arena.frame_index()) { continue; }
+                let vector = |key| player.get_global_input_data(key).unwrap().as_vec3().unwrap();
+                let velocity = vector("locomotion_state.velocity_world_space");
+                let acceleration = vector("locomotion_state.acceleration_world_space");
+                assert_eq!(acceleration.dot(velocity) < 0.0, braking);
+                let rotation = player.get_global_input_data("locomotion_state.rotation_quaternion_world_space").unwrap().as_quat().unwrap();
+                let max_acceleration = scalar(player, "locomotion_state.max_acceleration");
+                let expected = crate::als::animation::acceleration_amount(acceleration, velocity, rotation, max_acceleration, 0.0).x;
+                let walking = crate::als::animation::acceleration_amount(acceleration, velocity, rotation, max_acceleration, walking_braking).x;
+                assert_eq!((expected - walking).abs() > 1e-3, braking);
+                assert_eq!(scalar(player, "locomotion_state.max_braking_deceleration"), 0.0);
+                assert!((properties.values[lean].as_f32().unwrap() - expected).abs() < 1e-6);
+                assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
+                sampled = true;
+                break;
+            }
+            assert!(sampled, "High Mantle did not evaluate a partial slot with Grounded lean (braking={braking})");
+        }
     }
 
     #[test]

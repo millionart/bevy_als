@@ -1,0 +1,33 @@
+{
+  "standing_lean_node": "34f57700-443d-7c77-5457-2cb100b5b922",
+  "cases": [
+    {
+      "source_pose_weight": 0.9803240727633238,
+      "acceleration_dot_velocity": 4.0,
+      "published_braking_limit": 0.0,
+      "target_lean": 0.5,
+      "forward_lean": 0.05177938615535831
+    },
+    {
+      "source_pose_weight": 0.9803240727633238,
+      "acceleration_dot_velocity": 4.0,
+      "published_braking_limit": 12.5,
+      "target_lean": 0.5,
+      "forward_lean": 0.05177938615535831
+    },
+    {
+      "source_pose_weight": 0.9259259179234505,
+      "acceleration_dot_velocity": -4.0,
+      "published_braking_limit": 0.0,
+      "target_lean": 0.0,
+      "forward_lean": 0.023590558623402196
+    },
+    {
+      "source_pose_weight": 0.9259259179234505,
+      "acceleration_dot_velocity": -4.0,
+      "published_braking_limit": 12.5,
+      "target_lean": -0.32,
+      "forward_lean": 0.005549709002950279
+    }
+  ]
+}

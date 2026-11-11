@@ -1,0 +1,10 @@
+{
+  "samples": [{
+    "name": "early_high_mantle",
+    "steps": [
+      {"delta_seconds": 0.016666666666666666},
+      {"delta_seconds": 0.016666666666666666},
+      {"delta_seconds": 0.016666666666666666}
+    ]
+  }]
+}
