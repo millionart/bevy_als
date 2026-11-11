@@ -1,0 +1,64 @@
+{
+  "raw_gltf_paths": [
+    "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.gltf",
+    "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf",
+    "ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.gltf"
+  ],
+  "virtual_bones": [
+    {
+      "source_bone": "root",
+      "target_bone": "root",
+      "virtual_bone": "VB foot_root"
+    },
+    {
+      "source_bone": "VB foot_root",
+      "target_bone": "foot_l",
+      "virtual_bone": "VB foot_l"
+    },
+    {
+      "source_bone": "VB foot_root",
+      "target_bone": "foot_r",
+      "virtual_bone": "VB foot_r"
+    },
+    {
+      "source_bone": "hand_l",
+      "target_bone": "hand_r",
+      "virtual_bone": "VB hand_l_to_hand_r"
+    },
+    {
+      "source_bone": "VB hand_l_to_hand_r",
+      "target_bone": "hand_r",
+      "virtual_bone": "VB hand_r"
+    },
+    {
+      "source_bone": "hand_l",
+      "target_bone": "ik_hand_gun",
+      "virtual_bone": "VB hand_l_to_ik_hand_gun"
+    },
+    {
+      "source_bone": "VB hand_l_to_ik_hand_gun",
+      "target_bone": "hand_r",
+      "virtual_bone": "VB ik_hand_r"
+    },
+    {
+      "source_bone": "hand_r",
+      "target_bone": "hand_r",
+      "virtual_bone": "VB hand_r_to_hand_r"
+    },
+    {
+      "source_bone": "VB hand_r_to_hand_r",
+      "target_bone": "hand_l",
+      "virtual_bone": "VB hand_l"
+    },
+    {
+      "source_bone": "hand_r",
+      "target_bone": "ik_hand_gun",
+      "virtual_bone": "VB hand_r_to_ik_hand_gun"
+    },
+    {
+      "source_bone": "VB hand_r_to_ik_hand_gun",
+      "target_bone": "hand_l",
+      "virtual_bone": "VB ik_hand_l"
+    }
+  ]
+}

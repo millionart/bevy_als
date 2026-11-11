@@ -12,6 +12,7 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_clip::GraphClip,
     animation_graph_player::AnimationGraphPlayer, edge_data::DataValue, plugin::AnimationGraphSet,
+    skeleton::Skeleton,
 };
 use serde::Deserialize;
 
@@ -231,6 +232,7 @@ fn update_get_up_pose(
     time: Res<Time>,
     assets: Res<GetUpAssets>,
     clips: Res<Assets<GraphClip>>,
+    skeletons: Res<Assets<Skeleton>>,
     curves: Res<Assets<AlsAnimCurves>>,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut characters: Query<
@@ -282,7 +284,10 @@ fn update_get_up_pose(
             state.pose_ready = false;
             continue;
         };
-        let pose = crate::extensions::source_sequence_player::sample_pose(clip, state.clip_time);
+        let Some(pose) = crate::extensions::source_sequence_player::sample_source_clip_pose(clip, state.clip_time, &skeletons) else {
+            state.pose_ready = false;
+            continue;
+        };
         let mut context = sampled_curve_context(curves, state.clip_time);
         context.curves.extend(settings.montage_curves.sample_all(state.clip_time));
         context.relevant_asset = Some(SourceRelevantAsset {
@@ -841,7 +846,8 @@ mod tests {
             assert!(state.weight > 0.0 && roll_weight > 0.0 && total < 1.0);
             let assets = app.world().resource::<GetUpAssets>();
             let clip = app.world().resource::<Assets<GraphClip>>().get(&assets.clips[usize::from(facing_up)]).unwrap();
-            let get_up = crate::extensions::source_sequence_player::sample_pose(clip, state.clip_time);
+            let get_up = crate::extensions::source_sequence_player::sample_source_clip_pose(
+                clip, state.clip_time, app.world().resource::<Assets<Skeleton>>()).unwrap();
             let base = crate::mantle_drive::tests::current_post_locomotion_base(&app, target);
             let expected = crate::extensions::source_pose_nodes::blend_source_poses(&[
                 (get_up.clone(), state.weight), (roll.clone(), roll_weight), (base.clone(), 1.0 - total),

@@ -1,14 +1,14 @@
-use std::any::TypeId;
+use std::{any::TypeId, path::Path, sync::LazyLock};
 
 use bevy::{
     animation::animation_curves::WeightsCurveSample,
-    asset::Handle,
-    platform::hash::Hashed,
+    asset::{Assets, Handle},
+    platform::{collections::HashMap, hash::Hashed},
     prelude::{EvaluatorId, Transform, VariableCurve},
     reflect::prelude::*,
 };
 use bevy_animation_graph::core::{
-    animation_clip::GraphClip,
+    animation_clip::{GraphClip, loader::GraphClipSource},
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
@@ -18,7 +18,9 @@ use bevy_animation_graph::core::{
     pose::{BonePose, Pose},
     skeleton::Skeleton,
 };
+use serde::Deserialize;
 
+use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::global_f32_input::root_defaults_enabled;
 use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
@@ -109,6 +111,107 @@ pub fn sample_pose(clip: &GraphClip, time: f32) -> Pose {
     pose
 }
 
+#[derive(Deserialize)]
+struct VirtualBoneBinding {
+    source_bone: String,
+    target_bone: String,
+    virtual_bone: String,
+}
+
+#[derive(Deserialize)]
+struct RawVirtualBones {
+    raw_gltf_paths: Vec<String>,
+    virtual_bones: Vec<VirtualBoneBinding>,
+}
+
+static RAW_VIRTUAL_BONES: LazyLock<RawVirtualBones> = LazyLock::new(|| {
+    serde_json::from_str(include_str!(
+        "../../assets/ALS/Data/AnimationInstance/als_raw_virtual_bones.json"
+    ))
+    .expect("generated raw virtual bone bindings")
+});
+
+fn source_component_transform(
+    pose: &Pose,
+    skeleton: &Skeleton,
+    bone: BoneId,
+    components: &mut HashMap<BoneId, RigTransform>,
+) -> Option<RigTransform> {
+    if let Some(component) = components.get(&bone) {
+        return Some(*component);
+    }
+    let reference = skeleton.default_transforms(bone)?.local;
+    let local = pose
+        .get_bone(bone)
+        .map_or(reference, |pose| pose.to_transform_with_base(reference));
+    let local = RigTransform {
+        translation: local.translation.as_dvec3() * 100.0,
+        rotation: local.rotation.as_dquat(),
+        scale: local.scale.as_dvec3(),
+    };
+    let component = match skeleton.parent(&bone) {
+        Some(parent) => local.global(source_component_transform(
+            pose, skeleton, parent, components,
+        )?),
+        None => local,
+    };
+    components.insert(bone, component);
+    Some(component)
+}
+
+pub(crate) fn sample_source_clip_pose(
+    clip: &GraphClip,
+    time: f32,
+    skeletons: &Assets<Skeleton>,
+) -> Option<Pose> {
+    let mut pose = sample_pose(clip, time);
+    let Some(GraphClipSource::GltfNamed { path, .. }) = &clip.source else {
+        return Some(pose);
+    };
+    if !RAW_VIRTUAL_BONES
+        .raw_gltf_paths
+        .iter()
+        .any(|source| Path::new(source) == path.path())
+    {
+        return Some(pose);
+    }
+    let skeleton = skeletons.get(&clip.skeleton)?;
+    let bones: HashMap<_, _> = skeleton
+        .iter_bones()
+        .filter_map(|bone| {
+            let name = skeleton.id_to_path(bone)?.parts.into_iter().last()?;
+            Some((name.as_str().to_owned(), bone))
+        })
+        .collect();
+    let mut components = HashMap::new();
+    for binding in &RAW_VIRTUAL_BONES.virtual_bones {
+        let source = *bones.get(&binding.source_bone)?;
+        let target = *bones.get(&binding.target_bone)?;
+        let virtual_bone = *bones.get(&binding.virtual_bone)?;
+        if skeleton.parent(&virtual_bone) != Some(source) {
+            return None;
+        }
+        let source = source_component_transform(&pose, skeleton, source, &mut components)?;
+        let target = source_component_transform(&pose, skeleton, target, &mut components)?;
+        let local = target.relative(source);
+        components.insert(virtual_bone, local.global(source));
+        let transform = Transform {
+            translation: (local.translation * 0.01).as_vec3(),
+            rotation: local.rotation.as_quat(),
+            scale: local.scale.as_vec3(),
+        };
+        if let Some(index) = pose.paths.get(&virtual_bone).copied() {
+            let bone = &mut pose.bones[index];
+            bone.translation = Some(transform.translation);
+            bone.rotation = Some(transform.rotation);
+            bone.scale = Some(transform.scale);
+        } else {
+            pose.add_bone(BonePose::from_transform(transform), virtual_bone);
+        }
+    }
+    Some(pose)
+}
+
 pub(crate) fn sample_source_pose(
     ctx: &NodeContext,
     clip: &GraphClip,
@@ -118,11 +221,13 @@ pub(crate) fn sample_source_pose(
     mesh_space: bool,
     root_lock: Option<SourceRootLock>,
 ) -> Result<Pose, GraphError> {
-    let target = sample_pose(clip, time);
+    let skeletons = &ctx.graph_context.resources.skeleton_assets;
+    let target = sample_source_clip_pose(clip, time, skeletons).ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
     let mut pose = if let Some(reference_handle) = additive_reference {
         let reference_clip = ctx.graph_context.resources.graph_clip_assets.get(reference_handle)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let reference = sample_pose(reference_clip, reference_position.max(0.0));
+        let reference = sample_source_clip_pose(reference_clip, reference_position.max(0.0), skeletons)
+            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         let skeleton = ctx.graph_context.resources.skeleton_assets.get(&reference.skeleton)
             .or_else(|| ctx.graph_context.resources.skeleton_assets.get(&target.skeleton))
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
@@ -829,6 +934,124 @@ mod tests {
         world.insert_resource(graphs);
         assert_eq!(world.run_system_cached_with(query, (root, excluded.id, included.id)).unwrap(),
             (None, Some(1.0), 1.0, 1));
+    }
+
+    #[test]
+    fn raw_als_clips_reconstruct_their_virtual_bones_after_sampling() {
+        use bevy::prelude::{AssetServer, Quat, Vec3};
+
+        let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
+        let cases = [
+            (
+                "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron",
+                "front.native.json",
+                [3, 5],
+            ),
+            (
+                "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.anim.ron",
+                "back.native.json",
+                [3, 5],
+            ),
+            (
+                "ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.anim.ron",
+                "sprint.native.json",
+                [6, 7],
+            ),
+        ];
+        let handles = cases.map(|(clip, _, _)| {
+            app.world()
+                .resource::<AssetServer>()
+                .load::<GraphClip>(clip)
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            let clips = app.world().resource::<Assets<GraphClip>>();
+            let skeletons = app.world().resource::<Assets<Skeleton>>();
+            if handles.iter().all(|handle| {
+                clips
+                    .get(handle)
+                    .is_some_and(|clip| skeletons.contains(&clip.skeleton))
+            }) {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Raw sequence clips did not become ready"
+            );
+            app.update();
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let clips = app.world().resource::<Assets<GraphClip>>();
+        let skeletons = app.world().resource::<Assets<Skeleton>>();
+        let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/audit/bf144/d124");
+        for ((_, file, samples), handle) in cases.into_iter().zip(handles) {
+            let clip = clips.get(&handle).unwrap();
+            let skeleton = skeletons.get(&clip.skeleton).unwrap();
+            let native: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(evidence.join(file)).unwrap()).unwrap();
+            let mut unbound = clip.clone();
+            unbound.source = None;
+            for index in samples {
+                let frame = &native["sequence_pose_probe"]["frames"][index];
+                let time = frame["time"].as_f64().unwrap() as f32;
+                let baked = sample_pose(clip, time);
+                let reconstructed = sample_source_clip_pose(clip, time, skeletons).unwrap();
+                let control = sample_source_clip_pose(&unbound, time, skeletons).unwrap();
+                let native_bones = frame["bones"].as_array().unwrap();
+                let mut baked_error = 0.0_f32;
+                for binding in &RAW_VIRTUAL_BONES.virtual_bones {
+                    let name = binding.virtual_bone.as_str();
+                    let id = skeleton
+                        .iter_bones()
+                        .find(|id| {
+                            skeleton.id_to_path(*id).is_some_and(|path| {
+                                path.parts.last().is_some_and(|bone| bone.as_str() == name)
+                            })
+                        })
+                        .unwrap();
+                    let bone = native_bones
+                        .iter()
+                        .find(|bone| bone["name"] == name)
+                        .unwrap();
+                    let transform = &bone["local_transform"];
+                    let component =
+                        |group: &str, axis: &str| transform[group][axis].as_f64().unwrap();
+                    let position = Vec3::new(
+                        (component("translation", "x") * 0.01) as f32,
+                        (component("translation", "z") * 0.01) as f32,
+                        (component("translation", "y") * 0.01) as f32,
+                    );
+                    let rotation = Quat::from_xyzw(
+                        -component("rotation", "x") as f32,
+                        -component("rotation", "z") as f32,
+                        -component("rotation", "y") as f32,
+                        component("rotation", "w") as f32,
+                    );
+                    let raw = baked.get_bone(id).unwrap();
+                    let result = reconstructed.get_bone(id).unwrap();
+                    let unbound = control.get_bone(id).unwrap();
+                    assert_eq!(
+                        (unbound.translation, unbound.rotation, unbound.scale),
+                        (raw.translation, raw.rotation, raw.scale)
+                    );
+                    baked_error =
+                        baked_error.max((raw.translation.unwrap() - position).abs().max_element());
+                    assert!(
+                        (result.translation.unwrap() - position).abs().max_element() < 3e-5,
+                        "{file} {name} at {time}"
+                    );
+                    let actual = result.rotation.unwrap();
+                    assert!(
+                        (actual - rotation)
+                            .length()
+                            .min((actual + rotation).length())
+                            < 3e-5,
+                        "{file} {name} at {time}"
+                    );
+                }
+                assert!(baked_error > 1e-4, "{file} at {time}");
+            }
+        }
     }
 
     #[test]

@@ -1,0 +1,110 @@
+{
+  "sources": [
+    {
+      "path": "Engine/Plugins/Animation/AnimationData/Source/AnimationData/Private/AnimSequencerDataModel.cpp",
+      "sha256": "67c327e9e12bb8d1efe1c1991dc33a4f3ad814a8d103d06696578ba6e6955345",
+      "anchors": [
+        {
+          "line": 1466,
+          "source": "// Generate relative transform for VirtualBones according to source/target"
+        },
+        {
+          "line": 1471,
+          "source": "VBCompactPoseData = RequiredBones.GetVirtualBoneCompactPoseData();"
+        },
+        {
+          "line": 1477,
+          "source": "for (const FVirtualBoneCompactPoseData& VB : VBCompactPoseData)"
+        },
+        {
+          "line": 1479,
+          "source": "const FTransform Source = CSPose1.GetComponentSpaceTransform(VB.SourceIndex);"
+        },
+        {
+          "line": 1480,
+          "source": "const FTransform Target = CSPose1.GetComponentSpaceTransform(VB.TargetIndex);"
+        },
+        {
+          "line": 1481,
+          "source": "const FTransform RelativeTransform = Target.GetRelativeTransform(Source);"
+        },
+        {
+          "line": 1493,
+          "source": "}"
+        }
+      ]
+    },
+    {
+      "path": "Engine/Source/Runtime/Engine/Private/BoneContainer.cpp",
+      "sha256": "d818086ac799c9b155f9e916fd159627f25a3c6b07d9767e5fe5c0b7a32179e0",
+      "anchors": [
+        {
+          "line": 248,
+          "source": "for (const FVirtualBoneRefData& VBRefBone : RefSkeleton->GetVirtualBoneRefData())"
+        },
+        {
+          "line": 251,
+          "source": "const int32 SourceInd = MeshIndexToCompactPoseIndex[VBRefBone.SourceRefSkelIndex];"
+        },
+        {
+          "line": 256,
+          "source": "VirtualBoneCompactPoseData.Add(FVirtualBoneCompactPoseData(FCompactPoseBoneIndex(VBInd), FCompactPoseBoneIndex(SourceInd), FCompactPoseBoneIndex(TargetInd)));"
+        }
+      ]
+    }
+  ],
+  "native_assets": [
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.uasset",
+        "sha256": "f8da7d9c7409b13bc9c6fd7c0121bda0ca2ef5be3c62dad4672ad3151c024228"
+      },
+      "report": "back.native.json",
+      "pose_modes": [
+        "raw_model"
+      ]
+    },
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.uasset",
+        "sha256": "5255aa56d452ab31a31f3990d2dabde45c53386eb5178684fb83f1f6e285c287"
+      },
+      "report": "front.native.json",
+      "pose_modes": [
+        "raw_model"
+      ]
+    },
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Character/SKM_Als.uasset",
+        "sha256": "dc5a3fde1b293fc2bcab6751e4f43d843923b649263e702fe82f0ef7064273c8"
+      },
+      "report": "mesh.native.json"
+    },
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.uasset",
+        "sha256": "cfb32c85532d15df1ff0174dacb2ecf592ecbd01a14ac1e4181dd4fee68d1101"
+      },
+      "report": "sprint-compressed.native.json",
+      "pose_modes": [
+        "compressed"
+      ]
+    },
+    {
+      "asset": {
+        "path": "Plugins/ALS-Refactored/Content/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.uasset",
+        "sha256": "cfb32c85532d15df1ff0174dacb2ecf592ecbd01a14ac1e4181dd4fee68d1101"
+      },
+      "report": "sprint.native.json",
+      "pose_modes": [
+        "raw_model"
+      ]
+    }
+  ],
+  "sample_comparison": "virtual-bone-comparison.json",
+  "consumer": "sample_source_clip_pose in SourceSequencePlayerNode and GetUp",
+  "raw_selection": "Verified raw glTF origin paths and source-derived virtual bone parent order.",
+  "target_skeleton": "ALS/Character/SKM_Als.skn.ron",
+  "runtime_gate": "Pending unified target build and raw clip regression."
+}

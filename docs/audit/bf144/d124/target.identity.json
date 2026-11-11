@@ -1,0 +1,22 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "1ef25a3fe65bf0fd68c57de4a6e5dba45cdba2ac7e4c82c2ff5d13a1653ecf9d"
+  },
+  {
+    "path": "assets/ALS/Data/AnimationInstance/als_raw_virtual_bones.json",
+    "sha256": "87dd691c41c4dc35ea61027fb0448be14df84143d19702e95b331408eef79bf2"
+  },
+  {
+    "path": "src/als/character/actions/get_up.rs",
+    "sha256": "39362aba49c99ff45b9bc07576766e90a1c9490086b7b75235819c586308f44a"
+  },
+  {
+    "path": "src/animation_graph_ext/source_sequence_player.rs",
+    "sha256": "75bb88e7917efc185c2f7e2796149f30922fa2d54b8319cad8ee8d3b297d5bf0"
+  },
+  {
+    "path": "tools/import/gen_als_virtual_bones.py",
+    "sha256": "60d7099f43ffb64741ca822a7469a3d43315b60da72a8298a29da460bb519811"
+  }
+]
