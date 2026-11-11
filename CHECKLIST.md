@@ -7187,7 +7187,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.170当前本地clock生产补充：新10路径独立重建2185次Start更新及20次reset，native组与实际本地clock/惯性作用域全等；source保留未更新节点缓存的663条值变化均未改变本批活跃候选，回接后的1738帧native资格/自动消费保持一致。此处本地时钟共用边界已关闭，父权重/原始方向参数及完整新Movement反馈仍保留；未将本批未触发From Walk/Pivot算作新运行通过。证据`target/bf144/170/summary.json`，未修生产。
 
-- [ ] BF144-D201 / P3 — 无marker同步时钟反复归一化，Land自动末端转场提前。
+- [x] BF144-D201 / P3 — 无marker同步时钟反复归一化，Land自动末端转场提前。
+  - 2026-11-12 07:56 +0800 实际结束，较08:33预估提前37分钟，未拆分。fresh Land/Idle十条1196帧原生秒域、previous和ratio闭环，旧往返844处失配及一次提前结束。原始读数和实际resolver夹具见 `docs/audit/bf144/d201/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 07:51 +08:00，预估结束2026-11-12 08:33 +08:00。重采Land/Idle无marker累计、末点及正反循环；修复leader秒域推进并核对原生previous与组内发布。
   - BF144.445当前Overlay Idle消费者：fresh原Idle资产确认长度2.6666667461395264/rate1/无marker，原生240均为Secondary Motion唯一实际tick且权重0.75；public tick逐步精确当前319查询，直接F32秒累计逐步精确native240。对齐正步数后首共同previous0.1666666716337204、dt0.03333333507180214，源0.20000000298023224、当前0.19999998807907104；240共同计数中235不等，与原.228/.344同根。去直接秒因子丢首反例exit101，源码bytes恢复同target重编、完整数组/模型恢复。新证据`docs/audit/bf144/445/idle.native.json`、`idle-input.json`、`replay-restored.json`、`summary.json`在Git中；source/target自身历史配对621差不全归D201，不称完整Root或可见故障恢复，生产未修。
   - Source：fresh `AnimSequenceBase.cpp:515–544`直接以累计秒数执行AdvanceTime，随后发布ratio供follower；leader自身不经过ratio往返。两个Land资产原生长度均为1.1666666269302368秒，与已加载target clip长度相同；当前自动规则trigger=0、名义淡入0.8秒。
   - Target：`sync_group_phase.rs:537–543`的无marker推进每帧先除duration再经phase_to_time乘回，`SourceSequencePlayerNode`发布该位置，实际主图同步出口沿用这一推进；浮点残差跨帧累积，独立于D199的Jump导出长度偏差。

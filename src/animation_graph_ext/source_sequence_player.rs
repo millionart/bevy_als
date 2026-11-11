@@ -244,6 +244,15 @@ pub(crate) fn sample_source_pose(
     Ok(pose)
 }
 
+pub(crate) fn bound_source_sample_time(position: f32, duration: f32, looped: bool) -> f32 {
+    let duration = duration.max(0.0);
+    if looped && (position < 0.0 || position > duration) {
+        if duration <= 1e-8 { 0.0 } else { position.rem_euclid(duration) }
+    } else {
+        position.clamp(0.0, duration)
+    }
+}
+
 fn next_position(
     state: &mut SourceSequencePlayerState,
     update: TimeUpdate,
@@ -264,11 +273,7 @@ fn next_position(
         TimeUpdate::Absolute(value) => state.position = start_position + *value * play_rate,
         TimeUpdate::PercentOfEvent { .. } => {}
     }
-    state.position = if loop_animation && (state.position < 0.0 || state.position > duration) {
-        state.position.rem_euclid(duration)
-    } else {
-        state.position.clamp(0.0, duration)
-    };
+    state.position = bound_source_sample_time(state.position, duration, loop_animation);
     state.previous_position = previous_position;
     state.has_previous_position = has_previous_position;
     state.delta_seconds = match &update {

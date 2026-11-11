@@ -537,7 +537,7 @@ impl SourceSyncPlayerTick {
     fn advance_with_record(&self, previous_time: f32, mut record: SourceMarkerRecord) -> SourceSyncPlayerStep {
         let delta = self.delta_seconds * self.play_rate;
         let (time, advance) = if record.markers.is_empty() {
-            (phase_to_time((previous_time + delta) / self.duration.max(EPSILON), self.duration, self.looped),
+            (crate::extensions::source_sequence_player::bound_source_sample_time(previous_time + delta, self.duration, self.looped),
                 SourceMarkerAdvance { forward: delta >= 0.0, ..default() })
         } else { record.advance(previous_time, delta, self.looped) };
         let phase = advance.end.as_ref().filter(|position| position.is_valid())
@@ -1609,6 +1609,46 @@ mod tests {
         current = ticks(0.0625);
         current[2].role = SourceSyncGroupRole::AlwaysLeader;
         assert!(resolve_source_sync_phases(&current, &previous)[0].marker_resets.is_empty());
+    }
+
+    #[test]
+    fn markerless_sync_leader_keeps_native_seconds_and_ratios() {
+        #[derive(serde::Deserialize)]
+        struct Trace {
+            asset: String,
+            name: String,
+            duration: f32,
+            rate: f32,
+            looped: bool,
+            frames: Vec<[f32; 4]>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Reference {
+            cases: Vec<Trace>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d201/clock.replay.json"
+        )).unwrap();
+        for trace in reference.cases {
+            let mut position = trace.frames[0][1];
+            let mut previous = None;
+            for [delta, native_previous, native_position, ratio] in trace.frames {
+                let tick = SourceSyncPlayerTick {
+                    key: "fixture".into(), role: SourceSyncGroupRole::CanBeLeader, weight: 1.0,
+                    duration: trace.duration, phase_duration: trace.duration, play_rate: trace.rate,
+                    delta_seconds: delta, looped: trace.looped, sample_time_hint: Some(position),
+                    ..default()
+                };
+                let group = resolve_source_sync_phases(std::slice::from_ref(&tick), previous.as_slice()).remove(0);
+                let (_, step) = &group.leader_samples[0];
+                assert_eq!((step.previous_time, step.time), (native_previous, native_position),
+                    "{} {} at {native_previous}", trace.asset, trace.name);
+                assert_eq!(group.length_ratios.unwrap().y, ratio);
+                position = step.time;
+                previous = Some(tick);
+            }
+        }
     }
 
     #[test]
