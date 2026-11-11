@@ -10,6 +10,7 @@ const BARYCENTRIC_TOLERANCE: f64 = CONTACT_SETTINGS.0;
 const FACE_NORMAL_DOT_THRESHOLD: f32 = CONTACT_SETTINGS.1;
 const EDGE_NORMAL_DOT_REJECT_TOLERANCE: f32 = CONTACT_SETTINGS.2;
 const BACKFACE_CULL_TOLERANCE: f64 = CONTACT_SETTINGS.3;
+const VERTEX_NORMAL_TOLERANCE_SQUARED: f64 = include!("../als/settings/mesh_contact_vertex.rs");
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum SourceTriangleContactKind {
@@ -129,6 +130,10 @@ impl MeshContactTopology {
     fn other_triangle(&self, triangle: usize, edge: MeshEdge) -> Option<usize> {
         let &(first, second) = self.edges.get(&edge)?;
         if first == triangle { second } else { Some(first) }
+    }
+
+    fn is_shared_edge(&self, edge: MeshEdge) -> bool {
+        self.edges.get(&edge).is_some_and(|(_, second)| second.is_some())
     }
 }
 
@@ -259,8 +264,10 @@ impl MeshContactAccumulator {
                 continue;
             }
             if contact.normal_dot < FACE_NORMAL_DOT_THRESHOLD {
-                if let MeshContactFeature::Edge(edge) = contact.feature {
-                    correct_mesh_edge_normal(&self.topology, contact, edge);
+                match contact.feature {
+                    MeshContactFeature::Edge(edge) => correct_mesh_edge_normal(&self.topology, contact, edge),
+                    MeshContactFeature::Vertex(vertex) => correct_mesh_vertex_normal(&self.topology, contact, vertex),
+                    MeshContactFeature::Face => {}
                 }
             }
         }
@@ -295,6 +302,38 @@ fn correct_mesh_edge_normal(topology: &MeshContactTopology, contact: &mut MeshCo
     let oriented = if dot > -f64::from(SOURCE_SMALL_NUMBER) { corrected } else { -corrected };
     contact.set_normal(oriented);
     contact.triangle = corrected_triangle;
+}
+
+fn correct_mesh_vertex_normal(topology: &MeshContactTopology, contact: &mut MeshContactCandidate, vertex: usize) {
+    let original = &topology.triangles[contact.triangle];
+    let Some(local) = original.vertex_indices.iter().position(|&id| id == vertex) else {
+        return;
+    };
+    let position = original.vertices_cm[local];
+    for (index, triangle) in topology.triangles.iter().enumerate() {
+        let Some(local) = triangle.vertex_indices.iter().position(|&id| id == vertex) else {
+            continue;
+        };
+        let next = (local + 1) % 3;
+        let previous = (local + 2) % 3;
+        if !topology.is_shared_edge(mesh_edge(vertex, triangle.vertex_indices[next]))
+            || !topology.is_shared_edge(mesh_edge(vertex, triangle.vertex_indices[previous]))
+        {
+            contact.set_normal(original.normal);
+            return;
+        }
+
+        let edges = [triangle.vertices_cm[next] - position, position - triangle.vertices_cm[previous]];
+        let in_prism = edges.into_iter().all(|edge| {
+            let sign = contact.point.normal.dot(triangle.normal.cross(edge));
+            sign * sign.abs() >= -VERTEX_NORMAL_TOLERANCE_SQUARED * edge.length_squared()
+        });
+        if in_prism {
+            contact.set_normal(triangle.normal);
+            contact.triangle = index;
+            return;
+        }
+    }
 }
 
 fn generate_mesh_contacts(
@@ -548,5 +587,39 @@ mod tests {
         assert!(fixed.point.normal.distance(vector(&expected["normal"])) < 1e-9);
         assert!(fixed.point.first_cm.distance(vector(&expected["first_cm"])) < 1e-5);
         assert!((fixed.point.phi_cm - expected["phi_cm"].as_f64().unwrap()).abs() < 1e-5);
+    }
+
+    #[test]
+    fn source_mesh_boundary_vertex_uses_original_face_normal() {
+        let [first, _] = adjacent_triangles();
+        let tilted = triangle(40, [1, 0, 3], [10.0 * DVec3::X, DVec3::ZERO, DVec3::new(0.0, -8.0, 6.0)]);
+        let mut manifold = MeshContactAccumulator::new(&[first, tilted], 8);
+        manifold.add_triangle_contacts(1, vec![contact(DVec3::ZERO, DVec3::Z)]);
+        assert_eq!(manifold.contacts[0].feature, MeshContactFeature::Vertex(0));
+        manifold.correct_contact_normals();
+        let fixed = &manifold.contacts[0];
+        let original = DVec3::new(0.0, 0.6, 0.8);
+        assert_eq!((fixed.triangle, fixed.face_index), (1, 40));
+        assert!(fixed.point.normal.distance(original) < 1e-12);
+        assert!(fixed.point.first_cm.distance(-original) < 1e-12);
+        assert_eq!(fixed.point.phi_cm, -1.0);
+    }
+
+    #[test]
+    fn source_mesh_closed_vertex_fan_uses_first_matching_prism() {
+        let [a, b, c, d, e] = [DVec3::ZERO, 10.0 * DVec3::X, 10.0 * DVec3::Y,
+            DVec3::new(-10.0, 0.0, 6.0), -10.0 * DVec3::Y];
+        let triangles = [triangle(10, [0, 1, 2], [a, b, c]), triangle(20, [0, 2, 3], [a, c, d]),
+            triangle(30, [0, 3, 4], [a, d, e]), triangle(40, [0, 4, 1], [a, e, b])];
+        let mut manifold = MeshContactAccumulator::new(&triangles, 16);
+        manifold.add_triangle_contacts(0, vec![contact(a, DVec3::new(-0.6, 0.4, 0.48_f64.sqrt()))]);
+        manifold.correct_contact_normals();
+        let fixed = &manifold.contacts[0];
+        let expected = DVec3::new(0.6, 0.0, 1.0).normalize();
+        assert!(fixed.enabled);
+        assert_eq!((fixed.triangle, fixed.face_index), (1, 10));
+        assert!(fixed.point.normal.distance(expected) < 1e-12);
+        assert!(fixed.point.first_cm.distance(-expected) < 1e-12);
+        assert_eq!(fixed.point.phi_cm, -1.0);
     }
 }
