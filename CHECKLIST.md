@@ -7153,7 +7153,11 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：当前Land Movement→Grounded自动规则（名义0.3秒、trigger=−1）在共同缓存的remaining为epsilon或半epsilon时，调整后的正时长分别为约1.19209e−7秒、5.96046e−8秒。delta=0的两组各两帧中，原生FAlphaBlend仍未完成、姿态Alpha=0，但目标状态权重均为0/1；实际GetInstanceStateWeight次帧的4个读数同样颠倒。2epsilon、正delta、普通残余时长及其余11规则控制通过。
   - 恢复/边界：只把发布状态权重恢复为源单次转场公式，2040次实际getter核验全部通过，原来的姿态、时长、惯性请求和转场判定保持。共同缓存使用合法正时长及对应末端位置，只证明缓存合同之后的控制反例，不宣称默认场景自然到达该极窄边界；播放器与相关性producer另审。340组1020帧、44个公开原生时钟样本和消费者证据见`target/bf144/109/analysis.json`、`consumer_summary.json`。旧普通时钟测试覆盖名义时长，未覆盖自动规则减出来的极短正时长；仅登记，未修改生产。
 
-- [ ] BF144-D199 / P3 — 导出时间轴略短，改变播放器时钟及Jump自动末端规则。
+- [x] BF144-D199 / P3 — 导出时间轴略短，改变播放器时钟及Jump自动末端规则。
+  - 2026-11-12 07:44 +0800 实际结束，较08:14预估提前30分钟，未拆分。fresh 21读数与128序列扫描确认20末点漂移，独立ALSRuntime副本和原文件哈希闭环；15根递归全量转换374文件逐字一致。原始证据、完整diff与消融见 `docs/audit/bf144/d199/`；Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 07:16 +08:00，预估结束2026-11-12 08:14 +08:00。核对当前128个序列的安装时长，生成独立目标时间轴并验证全量AnimBP与递归依赖。
+  - 07:19 活动摘要：全128序列安装扫描发现20个端点比原生记录短1个float步长，含已登记Jump/Crouch及同一站姿Walk时间轴。Bow Draw的manifest值为0，fresh原生及安装GraphClip为1秒，归元数据控制。逐个重采原生长度，复用单缓冲加载合同及原始导出。
+  - 07:29 活动摘要：21个fresh资产读数完成，20个GraphClip引用已重编；原始glTF/bin、目标端点、导入器校验、事件轨道与消融恢复均通过。原始证据见 `docs/audit/bf144/d199/`，15根动画蓝图递归全量转换中。
   - Source：fresh `AnimSequenceBase.cpp:501–593`的无marker leader用GetPlayLength执行AdvanceTime并发布TimeAccumulator；`AnimNode_StateMachine.cpp:820–854`以实际资产长度减累计时间判断自动规则。四个Jump资产原生长度均为1.6666666269302368秒。
   - Target：Walk/Run × Left/Right四个glTF唯一input accessor末值均为1.6666665077209473秒，已加载GraphClip沿用该值；SourceSequencePlayerNode发布较短duration，Jump Left/Right自动规则把同一末端邻域位置认作已结束。不是sync phase duration造成：单独恢复该字段，结果逐值不变。
   - 反例：原生与实际播放器共同输入的末端邻域有44帧source remaining仍大于0、target为0；两条实际FSM规则的1152组对照中，44组目标提前进入Jump目标状态并发出0.2秒惯性请求。仅在受控资产副本恢复源长度，全部提前触发消失；30/60/120Hz常规轨迹的末端判断及其他邻域控制通过。

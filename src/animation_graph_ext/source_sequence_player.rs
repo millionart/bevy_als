@@ -662,6 +662,41 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
+    fn installed_clip_durations_use_the_native_timeline_endpoints() {
+        use std::time::{Duration, Instant};
+
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d199/timeline-compiler.json"
+        )).unwrap();
+        let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
+        let server = app.world().resource::<AssetServer>();
+        let clips = reference["corrected"].as_array().unwrap().iter().map(|case| {
+            let path = case["clip"].as_str().unwrap();
+            let duration = case["native_duration"].as_f64().unwrap() as f32;
+            (server.load::<GraphClip>(path.to_owned()), path, duration)
+        }).collect::<Vec<_>>();
+        let mut last_progress = Instant::now();
+        let mut previous_ready = 0;
+        loop {
+            let loaded = app.world().resource::<Assets<GraphClip>>();
+            let ready = clips.iter().filter(|(handle, _, _)| loaded.contains(handle)).count();
+            if ready == clips.len() {
+                for (handle, path, duration) in &clips {
+                    assert_eq!(loaded.get(handle).unwrap().duration(), *duration, "{path}");
+                }
+                break;
+            }
+            if ready > previous_ready {
+                last_progress = Instant::now();
+                previous_ready = ready;
+            }
+            assert!(last_progress.elapsed() < Duration::from_secs(10), "Timeline clips stalled at {ready}/{}", clips.len());
+            app.update();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
     fn rifle_follower_only_group_keeps_the_source_zero_play_rate() {
         use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance,
             animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer};

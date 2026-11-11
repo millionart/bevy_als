@@ -1,6 +1,6 @@
 (
     source: GltfNamed(
-        path: "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf",
+        path: "ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf",
         animation_name: "A_Als_Crouch_Walk_Forward_0",
     ),
     skeleton: "ALS/Character/SKM_Als.skn.ron",

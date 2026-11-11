@@ -1,0 +1,174 @@
+{
+  "native_lengths": {
+    "ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron": 1.6666666269302368,
+    "ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron": 1.6666666269302368,
+    "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron": 1.6666666269302368,
+    "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron": 1.6666666269302368,
+    "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.anim.ron": 1.1333333253860474,
+    "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.anim.ron": 1.1333333253860474,
+    "ALS/OverlayObjects/Bow/A_Als_Bow_Draw.anim.ron": 1
+  },
+  "timeline_differences": [
+    {
+      "clip": "ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron",
+      "binary_offset": 5256,
+      "before_hex": "5455d53f",
+      "after_hex": "5555d53f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron",
+      "binary_offset": 5256,
+      "before_hex": "5455d53f",
+      "after_hex": "5555d53f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron",
+      "binary_offset": 5256,
+      "before_hex": "5455d53f",
+      "after_hex": "5555d53f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron",
+      "binary_offset": 5256,
+      "before_hex": "5455d53f",
+      "after_hex": "5555d53f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    },
+    {
+      "clip": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.anim.ron",
+      "binary_offset": 5192,
+      "before_hex": "1011913f",
+      "after_hex": "1111913f",
+      "previous_endpoint_remaining_seconds": 1.1920928955078125e-07
+    }
+  ],
+  "metadata_control": {
+    "clip": "ALS/OverlayObjects/Bow/A_Als_Bow_Draw.anim.ron",
+    "installed": 1.0,
+    "manifest": 0.0
+  },
+  "ablation_rejected": true,
+  "ablation_recovered": true
+}
