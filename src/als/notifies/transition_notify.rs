@@ -907,7 +907,9 @@ mod tests {
         notification.name = "AnotherNotification".to_owned();
         let renamed = transition_animation_call(&notification, Stance::Standing, false).unwrap();
         assert_ne!(renamed.instance_id, playback.instance_id);
-        assert_eq!(renamed, AlsTransitionPlayback { instance_id: renamed.instance_id, ..playback });
+        let mut expected = playback;
+        expected.instance_id = renamed.instance_id;
+        assert_eq!(renamed, expected);
         notification.arguments[4].value = DataValue::Bool(false);
         notification.arguments[3].value = DataValue::F32(0.65);
         notification.function = "PlayTransitionRightAnimation".to_owned();

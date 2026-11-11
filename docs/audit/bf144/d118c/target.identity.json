@@ -1,0 +1,18 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "d1fa60d3e1143581c2fbd801f3fae7dcf6e28c5417a251cace7a4cc23fbc166b"
+  },
+  {
+    "path": "src/als/character/actions/stop_link.rs",
+    "sha256": "a4b8d31505807dd20037a3d607a2a7d923287b6c5551ff7ce65b97af35873dfd"
+  },
+  {
+    "path": "src/als/notifies/transition_notify.rs",
+    "sha256": "85b03d2e07d639534aaebd11ffa69a3b64ea41cd603f9b7964aa7a346dffbed5"
+  },
+  {
+    "path": "src/animation_graph_ext/profile_blend.rs",
+    "sha256": "55cc32b9aa6f605b0ba64809b56dedf77aa51c9dfbeffa3e10fe0f6c14d6e5f1"
+  }
+]

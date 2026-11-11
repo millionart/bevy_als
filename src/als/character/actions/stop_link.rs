@@ -12,6 +12,7 @@ use crate::als::params::AlsMovementParams;
 use crate::als::start_stop::predict_stop_distance;
 use crate::als::state::{LocomotionState, RotationMode, Stance};
 use crate::als::transitions::{TransitionConfig, select_quick_stop};
+use crate::extensions::profile_blend::{AlphaBlendMode, MontageBlend};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
@@ -88,6 +89,8 @@ pub struct AlsTransitionPlayback {
     pub stop_start_weight: f32,
     pub stop_duration: f32,
     pub interrupted: bool,
+    blend: MontageBlend,
+    playing: bool,
 }
 
 impl AlsTransitionPlayback {
@@ -101,24 +104,28 @@ impl AlsTransitionPlayback {
         duration: f32,
     ) -> Self {
         static NEXT_INSTANCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let blend = MontageBlend::new(0.0, 1.0, blend_in, AlphaBlendMode::HermiteCubic);
+        let position = start_time.clamp(0.0, duration);
         Self {
             instance_id: NEXT_INSTANCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             active: true,
             kind,
             elapsed: 0.0,
-            clip_time: start_time,
-            previous_clip_time: start_time,
+            clip_time: position,
+            previous_clip_time: position,
             index,
             play_rate,
             blend_in,
             blend_out,
             start_time,
             duration,
-            weight: if blend_in <= 0.0 { 1.0 } else { 0.0 },
+            weight: blend.weight(),
             stop_elapsed: None,
             stop_start_weight: 0.0,
             stop_duration: 0.0,
             interrupted: false,
+            blend,
+            playing: true,
         }
     }
 
@@ -176,6 +183,8 @@ impl AlsTransitionPlayback {
             if left { 0.0 } else { 1.0 }, blend_in, blend_out, play_rate, start_time, TRANSITION_SEQUENCE_DURATION,
         );
         playback.duration = crate::standing_source::MONTAGES[source_transition_sequence(&playback).unwrap()].duration;
+        playback.clip_time = start_time.clamp(0.0, playback.duration);
+        playback.previous_clip_time = playback.clip_time;
         playback
     }
 
@@ -242,11 +251,13 @@ impl AlsTransitionPlayback {
             return;
         }
         self.stop_start_weight = self.weight;
-        self.stop_duration = duration.max(0.0);
+        self.blend = MontageBlend::new(self.weight, 0.0, duration, AlphaBlendMode::HermiteCubic);
+        self.stop_duration = self.blend.duration;
         self.stop_elapsed = Some(0.0);
-        if duration <= 0.0 {
+        self.weight = self.blend.weight();
+        if self.stop_duration == 0.0 {
             self.active = false;
-            self.weight = 0.0;
+            self.playing = false;
         }
     }
 
@@ -254,38 +265,32 @@ impl AlsTransitionPlayback {
         if !self.active {
             return;
         }
+        let delta = delta_seconds.max(0.0);
         self.previous_clip_time = self.clip_time;
-        self.elapsed += delta_seconds.max(0.0);
-        let play_rate = if self.play_rate.abs() <= 1e-8 { 0.0 } else { self.play_rate };
-        let position = self.start_time + self.elapsed * play_rate;
-        self.clip_time = if play_rate > 0.0 && position >= self.duration
-            && (delta_seconds > 0.0 || self.previous_clip_time < self.duration) {
-            self.duration - TRANSITION_SECTION_END_OFFSET
-        } else {
-            position.clamp(0.0, self.duration)
-        };
-        let playback_duration = if play_rate == 0.0 {
-            f32::INFINITY
-        } else if play_rate < 0.0 {
-            self.start_time.max(0.0) / -play_rate
-        } else {
-            (self.duration - self.start_time).max(0.0) / play_rate
-        };
+        self.elapsed += delta;
+        self.weight = self.blend.advance(delta);
         if let Some(stop_elapsed) = &mut self.stop_elapsed {
-            *stop_elapsed += delta_seconds.max(0.0);
-        } else {
-            self.weight = transition_blend_amount(self.elapsed, self.blend_in);
-            if playback_duration - self.elapsed > 1e-4 {
-                return;
-            }
-            self.stop_with_duration(self.blend_out, false);
-            return;
+            *stop_elapsed += delta;
         }
-        let stop_elapsed = self.stop_elapsed.unwrap();
-        self.weight = self.stop_start_weight * (1.0 - transition_blend_amount(stop_elapsed, self.stop_duration));
-        if stop_elapsed >= self.stop_duration {
+        let rate = self.play_rate;
+        if self.playing && delta > 1e-8 && rate.abs() > 1e-8 {
+            let forward = rate > 0.0;
+            let end = if forward { self.duration } else { 0.0 };
+            let remaining = end - self.clip_time;
+            let movement = delta * rate;
+            let reached_end = if forward { movement >= remaining } else { movement <= remaining };
+            self.clip_time += if reached_end { remaining } else { movement };
+            if self.stop_elapsed.is_none() && ((end - self.clip_time) / rate).abs() <= 1e-4 {
+                self.stop_with_duration(self.blend_out, false);
+            }
+            if reached_end {
+                self.playing = false;
+                self.clip_time = if forward { end - TRANSITION_SECTION_END_OFFSET } else { end };
+            }
+        }
+        if self.stop_elapsed.is_some() && self.weight == 0.0 {
             self.active = false;
-            self.weight = 0.0;
+            self.playing = false;
         }
     }
 }
@@ -1130,6 +1135,8 @@ mod tests {
         assert!(playback.clip_time < crate::standing_source::MONTAGES["A_Als_Crouch_Transition_Right"].duration);
         playback.advance(0.0);
         assert_eq!(playback.clip_time, 2.333_283_2);
+        playback.advance(0.000_01);
+        assert_eq!(playback.clip_time, 2.333_283_2);
 
         let mut at_end = AlsTransitionPlayback::new(AlsTransitionKind::CrouchingStop, 1.0,
             0.2, 0.2, 1.0, TRANSITION_SEQUENCE_DURATION, TRANSITION_SEQUENCE_DURATION);
@@ -1151,6 +1158,7 @@ mod tests {
                 let mut playback = AlsTransitionPlayback::new(AlsTransitionKind::StandingTransition, 1.0, 0.0, 0.2, rate, start, 1.0);
                 playback.advance(0.0);
                 assert_eq!(playback.clip_time, start);
+                assert!(playback.stop_elapsed.is_none());
                 let lifetime = if rate < 0.0 { start / -rate } else { (1.0 - start) / rate };
                 let dt = lifetime.min(0.1);
                 playback.advance(dt);
@@ -1158,9 +1166,8 @@ mod tests {
                     1.0 - TRANSITION_SECTION_END_OFFSET
                 } else { (start + dt * rate).clamp(0.0, 1.0) };
                 assert!((playback.clip_time - expected).abs() < 1e-6, "Signed time failed: rate={rate}, start={start}, actual={}", playback.clip_time);
-                playback.advance((lifetime - dt).max(0.0));
-                let expected = if rate < 0.0 { 0.0 } else if lifetime == 0.0 { 1.0 }
-                    else { 1.0 - TRANSITION_SECTION_END_OFFSET };
+                playback.advance(if lifetime == 0.0 { 0.001 } else { lifetime - dt });
+                let expected = if rate < 0.0 { 0.0 } else { 1.0 - TRANSITION_SECTION_END_OFFSET };
                 assert!((playback.clip_time - expected).abs() < 1e-6);
                 assert!(playback.active && playback.stop_elapsed.is_some());
                 playback.advance(0.1);
@@ -1303,9 +1310,8 @@ mod tests {
         for rate in [0.5, 1.5, 3.0] {
             let mut playback = AlsTransitionPlayback::standing_dynamic(0.0);
             playback.play_rate = rate;
-            playback.elapsed = playback.duration / rate - 0.02;
+            playback.advance(playback.blend_in);
             playback.clip_time = playback.duration - 0.02 * rate;
-            playback.weight = 1.0;
             playback.advance(0.1);
             assert_eq!(playback.weight, 1.0);
             assert_eq!(playback.stop_elapsed, Some(0.0));
@@ -1321,6 +1327,67 @@ mod tests {
         assert_eq!(short.stop_elapsed, Some(0.0));
         short.advance(0.1);
         assert_eq!(short.weight, 0.25);
+    }
+
+    #[test]
+    fn transition_clock_matches_native_montage_frames() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/audit/bf144/d118c");
+        let read = |name: &str| -> serde_json::Value {
+            serde_json::from_slice(&std::fs::read(root.join(name)).unwrap()).unwrap()
+        };
+        let value = |v: &serde_json::Value, name: &str| v[name].as_f64().unwrap() as f32;
+        for (report, request) in [
+            ("stop-left.native.json", "stop-clock.request.json"),
+            ("stop-right.native.json", "stop-clock.request.json"),
+            ("crouch-right.native.json", "stop-clock.request.json"),
+            ("crouch-step.native.json", "step-clock.request.json"),
+            ("crouch-quick.native.json", "quick-clock.request.json"),
+        ] {
+            let native = read(report);
+            let native = &native["montage_clock_probe"];
+            let request = read(request);
+            let options = &request["dynamic_montage"];
+            let samples = request["samples"].as_array().unwrap();
+            let native_samples = native["samples"].as_array().unwrap();
+            assert_eq!(samples.len(), native_samples.len());
+            let duration = value(native, "montage_length");
+            for (sample, expected) in samples.iter().zip(native_samples) {
+                assert_eq!(sample["name"], expected["name"]);
+                let name = sample["name"].as_str().unwrap();
+                let mut playback = match (report, name) {
+                    ("stop-left.native.json", "natural_stop") => AlsTransitionPlayback::stop(0.0),
+                    ("stop-right.native.json", "natural_stop") => AlsTransitionPlayback::stop(1.0),
+                    ("crouch-right.native.json", "crouching_right") => AlsTransitionPlayback::crouching_stop_right(),
+                    (_, "step_window") => AlsTransitionPlayback::crouching_dynamic(0.0),
+                    (_, "quick_stop") => AlsTransitionPlayback::crouching_quick_stop(0.0, 1.75),
+                    _ => AlsTransitionPlayback::new(
+                        AlsTransitionKind::CrouchingStop, 0.0, value(options, "blend_in_seconds"),
+                        value(options, "blend_out_seconds"), value(sample, "play_rate"),
+                        value(sample, "start_time"), duration,
+                    ),
+                };
+                assert_eq!(playback.duration, duration);
+                let steps = sample["steps"].as_array().unwrap();
+                let frames = expected["frames"].as_array().unwrap();
+                assert_eq!(steps.len(), frames.len());
+                for (i, (step, frame)) in steps.iter().zip(frames).enumerate() {
+                    if let Some(seconds) = step["stop_seconds"].as_f64() {
+                        playback.stop_with_duration(seconds as f32, true);
+                    }
+                    let was_active = playback.active;
+                    let previous = playback.clip_time;
+                    playback.advance(value(step, "delta_seconds"));
+                    if was_active {
+                        assert_eq!(playback.previous_clip_time, previous, "{report} {name} frame {i}");
+                    }
+                    assert_eq!(playback.clip_time, value(frame, "position"), "{report} {name} frame {i}");
+                    assert_eq!(playback.weight, value(frame, "weight"), "{report} {name} frame {i}");
+                    assert_eq!(Some(playback.active), frame["valid"].as_bool(), "{report} {name} frame {i}");
+                    assert_eq!(Some(playback.playing), frame["playing"].as_bool(), "{report} {name} frame {i}");
+                    assert_eq!(Some(playback.stop_elapsed.is_some()), frame["stopped"].as_bool(), "{report} {name} frame {i}");
+                }
+            }
+        }
     }
 
     #[test]
