@@ -182,54 +182,40 @@ def rich_curve_enum(fields, name, default, values):
     return target
 
 
+RICH_CURVE_KEY_NUMBERS = {
+    "t": "Time",
+    "v": "Value",
+    "arrive_tangent": "ArriveTangent",
+    "arrive_weight": "ArriveTangentWeight",
+    "leave_tangent": "LeaveTangent",
+    "leave_weight": "LeaveTangentWeight",
+}
+
+
+def rich_curve_key_fields(fields):
+    reject_unknown_fields(fields, {"InterpMode", "TangentMode", "TangentWeightMode", *RICH_CURVE_KEY_NUMBERS.values()})
+    result = {
+        "interpolation": rich_curve_enum(fields, "InterpMode", "RCIM_Linear", RICH_CURVE_INTERPOLATIONS),
+        "tangent_mode": rich_curve_enum(fields, "TangentMode", "RCTM_Auto", RICH_CURVE_TANGENT_MODES),
+        "tangent_weight_mode": rich_curve_enum(fields, "TangentWeightMode", "RCTWM_WeightedNone", RICH_CURVE_TANGENT_WEIGHT_MODES),
+    }
+    for name, field_name in RICH_CURVE_KEY_NUMBERS.items():
+        value = struct_field(fields, field_name, "0.0")
+        if type(value) in (float, int) and math.isfinite(value):
+            result[name] = float(value)
+        else:
+            result[name] = parse_number(value)
+    return result
+
+
 def rich_curve_key(value):
     try:
-        fields = parse_struct(value)
-        reject_unknown_fields(
-            fields,
-            {
-                "InterpMode",
-                "TangentMode",
-                "TangentWeightMode",
-                "Time",
-                "Value",
-                "ArriveTangent",
-                "ArriveTangentWeight",
-                "LeaveTangent",
-                "LeaveTangentWeight",
-            },
-        )
-        return {
-            "interpolation": rich_curve_enum(
-                fields,
-                "InterpMode",
-                "RCIM_Linear",
-                RICH_CURVE_INTERPOLATIONS,
-            ),
-            "tangent_mode": rich_curve_enum(
-                fields,
-                "TangentMode",
-                "RCTM_Auto",
-                RICH_CURVE_TANGENT_MODES,
-            ),
-            "tangent_weight_mode": rich_curve_enum(
-                fields,
-                "TangentWeightMode",
-                "RCTWM_WeightedNone",
-                RICH_CURVE_TANGENT_WEIGHT_MODES,
-            ),
-            "t": parse_number(struct_field(fields, "Time", "0.0")),
-            "v": parse_number(struct_field(fields, "Value", "0.0")),
-            "arrive_tangent": parse_number(struct_field(fields, "ArriveTangent", "0.0")),
-            "arrive_weight": parse_number(struct_field(fields, "ArriveTangentWeight", "0.0")),
-            "leave_tangent": parse_number(struct_field(fields, "LeaveTangent", "0.0")),
-            "leave_weight": parse_number(struct_field(fields, "LeaveTangentWeight", "0.0")),
-        }
+        return rich_curve_key_fields(parse_struct(value))
     except ExportedTextError as error:
         raise AssetResolutionError("source rich curve key is invalid") from error
 
 
-def curve_float_contract(source):
+def native_float_curve(source):
     if (
         not isinstance(source, dict)
         or source.get("format") != "ue_asset_source_v1"
@@ -238,21 +224,34 @@ def curve_float_contract(source):
     ):
         raise AssetResolutionError("source CurveFloat is invalid")
     try:
-        fields = parse_struct(asset_property(source, "FloatCurve"))
-        reject_unknown_fields(
-            fields,
-            {"Keys", "DefaultValue", "PreInfinityExtrap", "PostInfinityExtrap"},
-        )
-        parse_number(struct_field(fields, "DefaultValue"))
-        if struct_field(fields, "PreInfinityExtrap", "RCCE_Constant") != "RCCE_Constant":
-            raise AssetResolutionError("source CurveFloat pre-infinity extrapolation is unsupported")
-        if struct_field(fields, "PostInfinityExtrap", "RCCE_Constant") != "RCCE_Constant":
-            raise AssetResolutionError("source CurveFloat post-infinity extrapolation is unsupported")
-        keys = [rich_curve_key(value) for value in parse_list(struct_field(fields, "Keys"))]
-    except ExportedTextError as error:
-        raise AssetResolutionError("source CurveFloat properties are invalid") from error
+        curve, = [row for row in source["asset_properties"] if row["name"] == "FloatCurve"]
+        fields = {row["name"]: row for row in curve["fields"]}
+        if not math.isfinite(fields["DefaultValue"]["numeric_value"]):
+            raise ValueError("curve default is invalid")
+        pre = fields["PreInfinityExtrap"]["exported_text"]
+        post = fields["PostInfinityExtrap"]["exported_text"]
+        keys = []
+        for element in fields["Keys"]["elements"]:
+            key = {row["name"]: row for row in element["fields"]}
+            values = {name: key[name]["numeric_value"] for name in RICH_CURVE_KEY_NUMBERS.values()}
+            if any(type(value) not in (int, float) for value in values.values()):
+                raise TypeError("curve key number is invalid")
+            for name in ("InterpMode", "TangentMode", "TangentWeightMode"):
+                values[name] = key[name]["exported_text"]
+            keys.append(rich_curve_key_fields(values))
+    except (KeyError, TypeError, ValueError) as error:
+        raise AssetResolutionError("source CurveFloat native fields are invalid") from error
     if not keys or any(right["t"] <= left["t"] for left, right in zip(keys, keys[1:])):
         raise AssetResolutionError("source CurveFloat key times are invalid")
+    return keys, pre, post
+
+
+def curve_float_contract(source):
+    keys, pre, post = native_float_curve(source)
+    if pre != "RCCE_Constant":
+        raise AssetResolutionError("source CurveFloat pre-infinity extrapolation is unsupported")
+    if post != "RCCE_Constant":
+        raise AssetResolutionError("source CurveFloat post-infinity extrapolation is unsupported")
     return {"source_curve": source["asset_path"], "keys": keys}
 
 
@@ -1218,6 +1217,26 @@ def resolve_graph_animation_assets(
     return rows
 
 
+def float_curve_fixture(keys, pre="RCCE_Constant", post="RCCE_Constant"):
+    elements = []
+    for key in keys:
+        fields = [{"name": name, "numeric_value": key.get(name, 0.0)} for name in RICH_CURVE_KEY_NUMBERS.values()]
+        fields.extend({"name": name, "exported_text": key.get(name, default)} for name, default in [
+            ("InterpMode", "RCIM_Linear"),
+            ("TangentMode", "RCTM_Auto"),
+            ("TangentWeightMode", "RCTWM_WeightedNone"),
+        ])
+        elements.append({"fields": fields})
+    return {"format": "ue_asset_source_v1", "asset_class": "/Script/Engine.CurveFloat",
+            "asset_path": "/ALS/ALS/Data/AnimationInstance/Blending/CF_Test.CF_Test",
+            "asset_properties": [{"name": "FloatCurve", "exported_text": "()", "fields": [
+                {"name": "DefaultValue", "numeric_value": 0.0},
+                {"name": "PreInfinityExtrap", "exported_text": pre},
+                {"name": "PostInfinityExtrap", "exported_text": post},
+                {"name": "Keys", "elements": elements},
+            ]}]}
+
+
 def run_self_test():
     from copy import deepcopy
     from unittest.mock import patch
@@ -1849,17 +1868,12 @@ def run_self_test():
         finally:
             globals()["UAsset"] = original_uasset
             globals()["native_source_asset"] = original_native
-    curve_source = {
-        "format": "ue_asset_source_v1",
-        "asset_path": "/ALS/ALS/Data/AnimationInstance/Blending/CF_Test.CF_Test",
-        "asset_class": "/Script/Engine.CurveFloat",
-        "asset_properties": [
-            {
-                "name": "FloatCurve",
-                "exported_text": "(Keys=((InterpMode=RCIM_Cubic),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.400000,Value=0.400000,ArriveTangent=2.730308,LeaveTangent=2.730308),(Time=1.000000,Value=1.000000)),DefaultValue=340282346638528859811704183484516925440.000000,PreInfinityExtrap=RCCE_Constant,PostInfinityExtrap=RCCE_Constant)",
-            }
-        ],
-    }
+    curve_source = float_curve_fixture([
+        {"InterpMode": "RCIM_Cubic"},
+        {"InterpMode": "RCIM_Cubic", "TangentMode": "RCTM_User", "Time": 0.4000000059604645,
+         "Value": 0.4000000059604645, "ArriveTangent": 2.7303075790405273, "LeaveTangent": 2.7303075790405273},
+        {"Time": 1.0, "Value": 1.0},
+    ])
     curve = curve_float_contract(curve_source)
     assert curve["keys"] == [
         {
@@ -1877,11 +1891,11 @@ def run_self_test():
             "interpolation": "Cubic",
             "tangent_mode": "User",
             "tangent_weight_mode": "None",
-            "t": 0.4,
-            "v": 0.4,
-            "arrive_tangent": 2.730308,
+            "t": 0.4000000059604645,
+            "v": 0.4000000059604645,
+            "arrive_tangent": 2.7303075790405273,
             "arrive_weight": 0.0,
-            "leave_tangent": 2.730308,
+            "leave_tangent": 2.7303075790405273,
             "leave_weight": 0.0,
         },
         {
@@ -1896,28 +1910,20 @@ def run_self_test():
             "leave_weight": 0.0,
         },
     ]
-    constant_source = deepcopy(curve_source)
     for interpolation in ("Constant", "Linear", "Cubic"):
-        constant_source["asset_properties"][0]["exported_text"] = (
-            f"(Keys=((InterpMode=RCIM_{interpolation},Time=0.400000,Value=0.700000)),DefaultValue=0.000000)"
-        )
-        constant = curve_float_contract(constant_source)
+        constant = curve_float_contract(float_curve_fixture([{"InterpMode": f"RCIM_{interpolation}", "Time": 0.4, "Value": 0.7}]))
         assert len(constant["keys"]) == 1
         assert constant["keys"][0]["t"] == 0.4 and constant["keys"][0]["v"] == 0.7
         assert constant["keys"][0]["interpolation"] == interpolation
-    for keys in ("", "(Time=0.4),(Time=0.4)", "(Time=0.4),(Time=0.3)", "(Time=nan)", "(Value=inf)"):
-        constant_source["asset_properties"][0]["exported_text"] = f"(Keys=({keys}),DefaultValue=0.000000)"
+    for keys in ([], [{"Time": 0.4}, {"Time": 0.4}], [{"Time": 0.4}, {"Time": 0.3}], [{"Time": float("nan")}], [{"Value": float("inf")}]):
         try:
-            curve_float_contract(constant_source)
+            curve_float_contract(float_curve_fixture(keys))
         except AssetResolutionError:
             pass
         else:
             raise AssertionError("empty or invalid CurveFloat keys were accepted")
-    curve_source["asset_properties"][0]["exported_text"] = curve_source["asset_properties"][0][
-        "exported_text"
-    ].replace("PreInfinityExtrap=RCCE_Constant", "PreInfinityExtrap=RCCE_Linear")
     try:
-        curve_float_contract(curve_source)
+        curve_float_contract(float_curve_fixture([{"Value": 1.0}], pre="RCCE_Linear"))
     except AssetResolutionError:
         pass
     else:

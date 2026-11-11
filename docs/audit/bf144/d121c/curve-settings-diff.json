@@ -1,0 +1,252 @@
+[
+  {
+    "file": "assets/ALS/Data/AnimationInstance/Grounded/als_standing_curves.json",
+    "numeric_changes": [
+      {
+        "field": [
+          "stride_walk",
+          "times",
+          1
+        ],
+        "old": 0.58299999,
+        "new": 0.5829999923706055,
+        "effective_f32_change": false
+      },
+      {
+        "field": [
+          "stride_walk",
+          "values",
+          0
+        ],
+        "old": 0.2,
+        "new": 0.20000000298023224,
+        "effective_f32_change": false
+      },
+      {
+        "field": [
+          "stride_walk",
+          "values",
+          1
+        ],
+        "old": 0.55,
+        "new": 0.5499999523162842,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "stride_walk",
+          "arrive_tangents",
+          1
+        ],
+        "old": 1.2879,
+        "new": 1.2879322282969952,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "stride_walk",
+          "leave_tangents",
+          1
+        ],
+        "old": 1.2879,
+        "new": 1.2879322282969952,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "stride_run",
+          "times",
+          1
+        ],
+        "old": 1.66899994,
+        "new": 1.6689999389648438,
+        "effective_f32_change": false
+      },
+      {
+        "field": [
+          "stride_run",
+          "values",
+          0
+        ],
+        "old": 0.2,
+        "new": 0.20000000298023224,
+        "effective_f32_change": false
+      },
+      {
+        "field": [
+          "stride_run",
+          "values",
+          1
+        ],
+        "old": 0.45,
+        "new": 0.45000001788139343,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "stride_run",
+          "arrive_tangents",
+          1
+        ],
+        "old": 0.3366,
+        "new": 0.3365721320733428,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "stride_run",
+          "leave_tangents",
+          1
+        ],
+        "old": 0.3366,
+        "new": 0.3365721320733428,
+        "effective_f32_change": true
+      }
+    ]
+  },
+  {
+    "file": "assets/ALS/Data/AnimationInstance/Air/als_in_air_settings.json",
+    "numeric_changes": [
+      {
+        "field": [
+          "lean",
+          "times",
+          1
+        ],
+        "old": -32.77683105,
+        "new": -32.7768310546875,
+        "effective_f32_change": false
+      },
+      {
+        "field": [
+          "lean",
+          "times",
+          2
+        ],
+        "old": -22.51930908,
+        "new": -22.51930908203125,
+        "effective_f32_change": false
+      },
+      {
+        "field": [
+          "lean",
+          "times",
+          3
+        ],
+        "old": -12.47548828,
+        "new": -12.47548828125,
+        "effective_f32_change": false
+      },
+      {
+        "field": [
+          "lean",
+          "values",
+          1
+        ],
+        "old": -0.122851,
+        "new": -0.12285149097442627,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "lean",
+          "values",
+          2
+        ],
+        "old": -0.93224,
+        "new": -0.9322402477264404,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "lean",
+          "values",
+          3
+        ],
+        "old": -0.794192,
+        "new": -0.7941915988922119,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "lean",
+          "arrive_tangents",
+          1
+        ],
+        "old": -0.05330000000000001,
+        "new": -0.053329713409766555,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "lean",
+          "arrive_tangents",
+          2
+        ],
+        "old": -0.0466,
+        "new": -0.04659098631236702,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "lean",
+          "arrive_tangents",
+          3
+        ],
+        "old": 0.0858,
+        "new": 0.08580370922572911,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "lean",
+          "leave_tangents",
+          1
+        ],
+        "old": -0.05330000000000001,
+        "new": -0.053329713409766555,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "lean",
+          "leave_tangents",
+          2
+        ],
+        "old": -0.0466,
+        "new": -0.04663115832954645,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "lean",
+          "leave_tangents",
+          3
+        ],
+        "old": 0.0858,
+        "new": 0.08580370922572911,
+        "effective_f32_change": true
+      },
+      {
+        "field": [
+          "ground_prediction",
+          "arrive_tangents",
+          0
+        ],
+        "old": -2.066087,
+        "new": -2.066087007522583,
+        "effective_f32_change": false
+      },
+      {
+        "field": [
+          "ground_prediction",
+          "leave_tangents",
+          0
+        ],
+        "old": -2.066088,
+        "new": -2.0660884380340576,
+        "effective_f32_change": true
+      }
+    ]
+  }
+]

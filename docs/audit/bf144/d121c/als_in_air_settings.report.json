@@ -1,0 +1,9 @@
+{
+  "format": "als_in_air_settings_v1",
+  "success": true,
+  "source_settings": "/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default",
+  "source_curves": {
+    "lean": "/ALS/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.CF_Als_LeanAmount_Air",
+    "ground_prediction": "/ALS/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.CF_Als_GroundPredictionAmount"
+  }
+}

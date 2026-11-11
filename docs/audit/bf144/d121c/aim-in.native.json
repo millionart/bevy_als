@@ -1,0 +1,754 @@
+{
+	"format": "ue_asset_source_v1",
+	"asset_path": "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In",
+	"asset_class": "/Script/Engine.CurveFloat",
+	"asset_properties": [
+		{
+			"name": "FloatCurve",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "StructProperty",
+			"cpp_type": "FRichCurve",
+			"flags": "0x10000000000000",
+			"exported_text": "(Keys=((InterpMode=RCIM_Cubic),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.200000,Value=0.250000,ArriveTangent=2.523595,ArriveTangentWeight=0.904833,LeaveTangent=2.523595,LeaveTangentWeight=0.904837),(Time=1.000000,Value=1.000000)),DefaultValue=340282346638528859811704183484516925440.000000,PreInfinityExtrap=RCCE_Constant,PostInfinityExtrap=RCCE_Constant)",
+			"fields": [
+				{
+					"name": "Keys",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x10000000000241",
+					"exported_text": "((InterpMode=RCIM_Cubic),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.200000,Value=0.250000,ArriveTangent=2.523595,ArriveTangentWeight=0.904833,LeaveTangent=2.523595,LeaveTangentWeight=0.904837),(Time=1.000000,Value=1.000000))",
+					"elements": [
+						{
+							"fields": [
+								{
+									"name": "InterpMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveInterpMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCIM_Cubic"
+								},
+								{
+									"name": "TangentMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveTangentMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCTM_Auto"
+								},
+								{
+									"name": "TangentWeightMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveTangentWeightMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCTWM_WeightedNone"
+								},
+								{
+									"name": "Time",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "Value",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "ArriveTangent",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "ArriveTangentWeight",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "LeaveTangent",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "LeaveTangentWeight",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						},
+						{
+							"fields": [
+								{
+									"name": "InterpMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveInterpMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCIM_Cubic"
+								},
+								{
+									"name": "TangentMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveTangentMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCTM_User"
+								},
+								{
+									"name": "TangentWeightMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveTangentWeightMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCTWM_WeightedNone"
+								},
+								{
+									"name": "Time",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.200000",
+									"numeric_value": 0.20000000298023224
+								},
+								{
+									"name": "Value",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "0.250000",
+									"numeric_value": 0.25
+								},
+								{
+									"name": "ArriveTangent",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "2.523595",
+									"numeric_value": 2.5235950946807861
+								},
+								{
+									"name": "ArriveTangentWeight",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.904833",
+									"numeric_value": 0.90483260154724121
+								},
+								{
+									"name": "LeaveTangent",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "2.523595",
+									"numeric_value": 2.5235950946807861
+								},
+								{
+									"name": "LeaveTangentWeight",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.904837",
+									"numeric_value": 0.90483677387237549
+								}
+							]
+						},
+						{
+							"fields": [
+								{
+									"name": "InterpMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveInterpMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCIM_Linear"
+								},
+								{
+									"name": "TangentMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveTangentMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCTM_Auto"
+								},
+								{
+									"name": "TangentWeightMode",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "ByteProperty",
+									"cpp_type": "TEnumAsByte<ERichCurveTangentWeightMode>",
+									"flags": "0x18001040000205",
+									"exported_text": "RCTWM_WeightedNone"
+								},
+								{
+									"name": "Time",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "Value",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000205",
+									"exported_text": "1.000000",
+									"numeric_value": 1
+								},
+								{
+									"name": "ArriveTangent",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "ArriveTangentWeight",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "LeaveTangent",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								},
+								{
+									"name": "LeaveTangentWeight",
+									"array_index": 0,
+									"array_dim": 1,
+									"property_class": "FloatProperty",
+									"cpp_type": "float",
+									"flags": "0x18001040000200",
+									"exported_text": "0.000000",
+									"numeric_value": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "DefaultValue",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "FloatProperty",
+					"cpp_type": "float",
+					"flags": "0x18001040000201",
+					"exported_text": "340282346638528859811704183484516925440.000000",
+					"numeric_value": 3.4028234663852886e+38
+				},
+				{
+					"name": "PreInfinityExtrap",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ERichCurveExtrapolation>",
+					"flags": "0x18001040000200",
+					"exported_text": "RCCE_Constant"
+				},
+				{
+					"name": "PostInfinityExtrap",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ByteProperty",
+					"cpp_type": "TEnumAsByte<ERichCurveExtrapolation>",
+					"flags": "0x18001040000200",
+					"exported_text": "RCCE_Constant"
+				},
+				{
+					"name": "KeyHandlesToIndices",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FKeyHandleMap",
+					"flags": "0x20080000002000",
+					"exported_text": "()",
+					"fields": []
+				}
+			]
+		},
+		{
+			"name": "bIsEventCurve",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000200",
+			"exported_text": "False"
+		},
+		{
+			"name": "AssetImportData",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UAssetImportData>",
+			"flags": "0x11E0018000A0209",
+			"exported_text": "/Script/Engine.AssetImportData'/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In:AssetImportData'"
+		}
+	],
+	"engine_debug_fonts":
+	{
+		"tiny":
+		{
+			"size_points": 8,
+			"max_char_height": 13,
+			"style": "Light"
+		},
+		"medium":
+		{
+			"size_points": 10,
+			"max_char_height": 15,
+			"style": "Regular"
+		}
+	},
+	"blueprint_cdo_path": "None",
+	"blueprint_cdo_properties": [],
+	"blueprint_cdo_subobjects": [],
+	"asset_objects": [
+		{
+			"index": 0,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In",
+			"class_path": "/Script/Engine.CurveFloat",
+			"properties": [
+				{
+					"name": "FloatCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FRichCurve",
+					"flags": "0x10000000000000",
+					"exported_text": "(Keys=((InterpMode=RCIM_Cubic),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.200000,Value=0.250000,ArriveTangent=2.523595,ArriveTangentWeight=0.904833,LeaveTangent=2.523595,LeaveTangentWeight=0.904837),(Time=1.000000,Value=1.000000)),DefaultValue=340282346638528859811704183484516925440.000000,PreInfinityExtrap=RCCE_Constant,PostInfinityExtrap=RCCE_Constant)",
+					"fields": [
+						{
+							"name": "Keys",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ArrayProperty",
+							"cpp_type": "TArray",
+							"flags": "0x10000000000241",
+							"exported_text": "((InterpMode=RCIM_Cubic),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.200000,Value=0.250000,ArriveTangent=2.523595,ArriveTangentWeight=0.904833,LeaveTangent=2.523595,LeaveTangentWeight=0.904837),(Time=1.000000,Value=1.000000))",
+							"elements": [
+								{
+									"fields": [
+										{
+											"name": "InterpMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveInterpMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCIM_Cubic"
+										},
+										{
+											"name": "TangentMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveTangentMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCTM_Auto"
+										},
+										{
+											"name": "TangentWeightMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveTangentWeightMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCTWM_WeightedNone"
+										},
+										{
+											"name": "Time",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "Value",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "ArriveTangent",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "ArriveTangentWeight",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "LeaveTangent",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "LeaveTangentWeight",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										}
+									]
+								},
+								{
+									"fields": [
+										{
+											"name": "InterpMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveInterpMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCIM_Cubic"
+										},
+										{
+											"name": "TangentMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveTangentMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCTM_User"
+										},
+										{
+											"name": "TangentWeightMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveTangentWeightMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCTWM_WeightedNone"
+										},
+										{
+											"name": "Time",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "0.200000",
+											"numeric_value": 0.20000000298023224
+										},
+										{
+											"name": "Value",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "0.250000",
+											"numeric_value": 0.25
+										},
+										{
+											"name": "ArriveTangent",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "2.523595",
+											"numeric_value": 2.5235950946807861
+										},
+										{
+											"name": "ArriveTangentWeight",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.904833",
+											"numeric_value": 0.90483260154724121
+										},
+										{
+											"name": "LeaveTangent",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "2.523595",
+											"numeric_value": 2.5235950946807861
+										},
+										{
+											"name": "LeaveTangentWeight",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.904837",
+											"numeric_value": 0.90483677387237549
+										}
+									]
+								},
+								{
+									"fields": [
+										{
+											"name": "InterpMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveInterpMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCIM_Linear"
+										},
+										{
+											"name": "TangentMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveTangentMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCTM_Auto"
+										},
+										{
+											"name": "TangentWeightMode",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "ByteProperty",
+											"cpp_type": "TEnumAsByte<ERichCurveTangentWeightMode>",
+											"flags": "0x18001040000205",
+											"exported_text": "RCTWM_WeightedNone"
+										},
+										{
+											"name": "Time",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "1.000000",
+											"numeric_value": 1
+										},
+										{
+											"name": "Value",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000205",
+											"exported_text": "1.000000",
+											"numeric_value": 1
+										},
+										{
+											"name": "ArriveTangent",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "ArriveTangentWeight",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "LeaveTangent",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										},
+										{
+											"name": "LeaveTangentWeight",
+											"array_index": 0,
+											"array_dim": 1,
+											"property_class": "FloatProperty",
+											"cpp_type": "float",
+											"flags": "0x18001040000200",
+											"exported_text": "0.000000",
+											"numeric_value": 0
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "DefaultValue",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "FloatProperty",
+							"cpp_type": "float",
+							"flags": "0x18001040000201",
+							"exported_text": "340282346638528859811704183484516925440.000000",
+							"numeric_value": 3.4028234663852886e+38
+						},
+						{
+							"name": "PreInfinityExtrap",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ERichCurveExtrapolation>",
+							"flags": "0x18001040000200",
+							"exported_text": "RCCE_Constant"
+						},
+						{
+							"name": "PostInfinityExtrap",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "ByteProperty",
+							"cpp_type": "TEnumAsByte<ERichCurveExtrapolation>",
+							"flags": "0x18001040000200",
+							"exported_text": "RCCE_Constant"
+						},
+						{
+							"name": "KeyHandlesToIndices",
+							"array_index": 0,
+							"array_dim": 1,
+							"property_class": "StructProperty",
+							"cpp_type": "FKeyHandleMap",
+							"flags": "0x20080000002000",
+							"exported_text": "()",
+							"fields": []
+						}
+					]
+				},
+				{
+					"name": "bIsEventCurve",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000200",
+					"exported_text": "False"
+				},
+				{
+					"name": "AssetImportData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UAssetImportData>",
+					"flags": "0x11E0018000A0209",
+					"exported_text": "/Script/Engine.AssetImportData'/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In:AssetImportData'"
+				}
+			]
+		},
+		{
+			"index": 1,
+			"object_path": "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In:AssetImportData",
+			"class_path": "/Script/Engine.AssetImportData",
+			"properties": [
+				{
+					"name": "SourceData",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "StructProperty",
+					"cpp_type": "FAssetImportInfo",
+					"flags": "0x10000800020001",
+					"exported_text": "()",
+					"fields": []
+				}
+			]
+		}
+	],
+	"graphs": []
+}

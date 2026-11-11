@@ -1,0 +1,23 @@
+[
+  {
+    "name": "stance",
+    "keys": 3,
+    "samples": 81,
+    "exact_failures": 0,
+    "rounded_failures": 28
+  },
+  {
+    "name": "stride-walk",
+    "keys": 3,
+    "samples": 81,
+    "exact_failures": 0,
+    "rounded_failures": 19
+  },
+  {
+    "name": "stride-run",
+    "keys": 3,
+    "samples": 81,
+    "exact_failures": 0,
+    "rounded_failures": 46
+  }
+]

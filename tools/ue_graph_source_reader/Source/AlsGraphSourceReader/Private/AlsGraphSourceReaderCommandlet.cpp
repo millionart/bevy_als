@@ -236,6 +236,22 @@ TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const vo
             {
                 Entry->SetArrayField(TEXT("fields"), CaptureProperties(StructProperty->Struct, Value, Parent, bIncludeUnitMetadata));
             }
+            if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+            {
+                if (const FStructProperty* ElementStruct = CastField<FStructProperty>(ArrayProperty->Inner);
+                    ElementStruct != nullptr && ElementStruct->Struct == FRichCurveKey::StaticStruct())
+                {
+                    FScriptArrayHelper Array(ArrayProperty, Value);
+                    TArray<TSharedPtr<FJsonValue>> Elements;
+                    for (int32 Index = 0; Index < Array.Num(); ++Index)
+                    {
+                        TSharedRef<FJsonObject> Element = MakeShared<FJsonObject>();
+                        Element->SetArrayField(TEXT("fields"), CaptureProperties(ElementStruct->Struct, Array.GetRawPtr(Index), Parent, bIncludeUnitMetadata));
+                        Elements.Add(MakeShared<FJsonValueObject>(Element));
+                    }
+                    Entry->SetArrayField(TEXT("elements"), Elements);
+                }
+            }
             if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
             {
                 if (const FStructProperty* ValueStruct = CastField<FStructProperty>(MapProperty->ValueProp))

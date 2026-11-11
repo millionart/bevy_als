@@ -6561,8 +6561,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
     - 21:48 source/static 摘要：默认系统语言令Barrel节点标题本地化，并使AB_Als递归Standing的4个枚举标签解析失败。fresh英语Barrel恢复原英文标签，按UE命令行合同固定读取器culture后重转全部安装根。共享时长消费已生成18个Transition/Turn配置与Mantle完整源闭包，只有时长字段变化；High/InAir使用2.666666746秒。
     - 22:02 source/static 摘要：英语批次14根通过，AB_Als递归资产读取失败后触发未校验的Sequence节点查表。已加回既有资产绑定检查以保留首个失败，Standalone Standing按当前源重转通过。保留两轮结果，先独立转最大安装根，再完成整批及diff。
     - 22:17 source/static 摘要：最大根独立运行通过，全部15根和374文件生成完成。完整diff证实27个图含UE CallFunction原生平台换行差异，原引擎 FTextBuilder 使用LINE_TERMINATOR，Playground按原CRLF标题定位。已统一该节点类型的目标标题格式，保留原生报告和其余节点换行，重新生成全部安装根。
-  - [ ] BF144-D121c — CurveFloat 原生键和单位转换精度。
+  - [x] BF144-D121c — CurveFloat 原生键和单位转换精度。
+    - 22:59 source/static 闭环。原生RichCurveKey字段贯通Standalone设置和AnimBP。StanceChange及两条Stride共243原生采样精确，恢复六位小数的93帧失败。15个安装根、23个AnimBP及递归依赖全量374文件生成完成。17个变化文件逐一对应StanceChange、Aim In/Out、Camera Quick/Smooth五份原生曲线，安装后全374逐字节相同。Stand/Air两份运行时设置恢复16个实际F32字段。证据在 `docs/audit/bf144/d121c/`。开始21:34，预估23:29，实际结束2026-11-11 22:59 +08:00，偏差−30分钟。结果为静态实现和全量生成完成。目标运行验证按统一阶段执行。
     - 预计开始2026-11-11 23:05 +08:00，预估结束2026-11-12 00:00 +08:00。依据：.123/.155/.159/.432已定位StanceChange、Stride Walk/Run的键、切线与直接消费者，核对共享曲线转换和相关全量产物。
+    - 本轮开始2026-11-11 22:34 +08:00，预估结束23:29 +08:00。重读StanceChange、Stride Walk/Run的原生键与取样，核对AIS默认配置的直接消费者，再统一生成所有安装根。
+    - 22:42 source/static 摘要：已取三条曲线的原生求值与8条CurveFloat精确键，确认原始F32值和切线低位差。原生reader现提供RichCurveKey的typed数值，生成器共用字段解析。进入全量安装根转换，同时复算Stand/Air单位投影。
+    - 22:44 source/static 闭环：三曲线243个源Eval采样逐值复算，恢复六位舍入93个失败。真实Stand/Air生成器共用native键解析，Standing六个F32字段和Air十个F32字段恢复，Yaw数值控制相同。完整转换仍进行中。
+    - 22:57 全量diff出现Aim In/Out与Camera Quick/Smooth的实际消费者。编译IR证明同一CurveFloat路径，沿四份源资产核对所有17处产物变化。
 
 - [ ] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
   - Source：fresh两套GetUp montage的原生RawCurveData包含FootLeft/RightIk、FootLeft/RightLock、LayerArmLeft/Right、LayerHead/Legs/Pelvis/Spine、ViewBlock；sequence另有PoseCrouching和PoseGrounded。`AnimInstanceProxy.cpp:1968–1978`先采样AnimTrack，再EvaluateCurveData并Combine montage曲线。

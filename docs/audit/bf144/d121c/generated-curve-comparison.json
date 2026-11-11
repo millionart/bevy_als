@@ -1,0 +1,140 @@
+{
+  "roots": 15,
+  "source_assets": [
+    "/ALS/ALS/Character/AB_Als.AB_Als",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
+    "/ALS/ALS/Character/AnimationInstances/AB_Als_Ragdolling.AB_Als_Ragdolling",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel.AB_Als_Barrel",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars.AB_Als_Binoculars",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow.AB_Als_Bow",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Box.AB_Als_Box",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine.AB_Als_Feminine",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied.AB_Als_HandsTied",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured.AB_Als_Injured",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine.AB_Als_Masculine",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded.AB_Als_PistolOneHanded",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded.AB_Als_PistolTwoHanded",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle.AB_Als_Rifle",
+    "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch.AB_Als_Torch",
+    "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching",
+    "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+    "/ALS/ALS/OverlayObjects/Bow/AB_Als_Bow.AB_Als_Bow",
+    "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera"
+  ],
+  "materialized_files": 374,
+  "changed_files": [
+    {
+      "file": "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/T19/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.CF_Als_StanceChange"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/T9/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.CF_Als_StanceChange"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out.CF_Als_Aim_Out"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T22/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T5/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out.CF_Als_Aim_Out"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T22/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T5/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out.CF_Als_Aim_Out"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T22/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In"
+      ]
+    },
+    {
+      "file": "ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T5/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out.CF_Als_Aim_Out"
+      ]
+    },
+    {
+      "file": "ALSCamera/AB_Als_Camera/AnimGraph.animgraph.ron",
+      "curves": [
+        "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Quick.CF_Als_CameraBlend_Quick"
+      ]
+    },
+    {
+      "file": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T3/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth.CF_Als_CameraBlend_Smooth"
+      ]
+    },
+    {
+      "file": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T4/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth.CF_Als_CameraBlend_Smooth"
+      ]
+    },
+    {
+      "file": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T5/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Quick.CF_Als_CameraBlend_Quick"
+      ]
+    },
+    {
+      "file": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T6/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth.CF_Als_CameraBlend_Smooth"
+      ]
+    },
+    {
+      "file": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T7/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth.CF_Als_CameraBlend_Smooth"
+      ]
+    },
+    {
+      "file": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T8/Transition.transition.animgraph.ron",
+      "curves": [
+        "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Quick.CF_Als_CameraBlend_Quick"
+      ]
+    }
+  ],
+  "curve_uses": {
+    "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.CF_Als_Aim_In": 4,
+    "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out.CF_Als_Aim_Out": 4,
+    "/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.CF_Als_StanceChange": 2,
+    "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Quick.CF_Als_CameraBlend_Quick": 3,
+    "/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth.CF_Als_CameraBlend_Smooth": 4
+  }
+}

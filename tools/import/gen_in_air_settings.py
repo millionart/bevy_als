@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from gen_standing_curves import ROOT, runtime_curve
 from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE
-from ue_animation_asset_resolver import asset_property, native_source_asset, source_object_path
+from ue_animation_asset_resolver import asset_property, float_curve_fixture, native_source_asset, source_object_path
 from ue_animgraph_converter import content_root_for_uasset, read_uasset_source
 from ue_exported_text import field, parse_number, parse_struct
 
@@ -56,9 +56,8 @@ def self_test():
         {'name': 'General', 'exported_text': '(LeanInterpolationHalfLife=0.2)'},
         {'name': 'InAir', 'exported_text': '(LeanAmountCurve="/Script/Engine.CurveFloat\'/Test/Lean.Lean\'",GroundPredictionAmountCurve="/Script/Engine.CurveFloat\'/Test/Prediction.Prediction\'",GroundPredictionSweepChannel=ECC_Visibility,GroundPredictionSweepResponses=(WorldStatic=ECR_Block,WorldDynamic=ECR_Block,Destructible=ECR_Block))'},
     ]}
-    curve = {'format': 'ue_asset_source_v1', 'asset_class': '/Script/Engine.CurveFloat', 'asset_properties': [
-        {'name': 'FloatCurve', 'exported_text': '(Keys=((InterpMode=RCIM_Cubic,Time=-100,LeaveTangent=0.01),(Value=1,ArriveTangent=0.02)),DefaultValue=0)'},
-    ]}
+    curve = float_curve_fixture([{'InterpMode':'RCIM_Cubic', 'Time':-100.0, 'LeaveTangent':0.01},
+                                 {'Value':1.0, 'ArriveTangent':0.02}])
     raw = json.dumps([settings, curve])
     source = 'void UAlsAnimationInstance::RefreshInAir()\n{ ReferenceSpeed{600.0f}; MinPlayRate{1.2f}; MaxPlayRate{1.5f}; }\nvoid UAlsAnimationInstance::RefreshInAirLean()\n{ ReferenceSpeed{350.0f}; }\nvoid UAlsAnimationInstance::RefreshGroundPrediction()\n{ VerticalVelocityThreshold{-200.0f}; MinVerticalVelocity{-4000.0f}; MaxVerticalVelocity{-200.0f}; MinSweepDistance{150.0f}; MaxSweepDistance{2000.0f}; }'
     with patch(__name__ + '.native_source_asset', return_value=curve) as reader:

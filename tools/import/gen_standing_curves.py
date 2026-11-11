@@ -7,27 +7,22 @@ from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE, source_heading_yaw_
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools/animgraph_authoring'))
-from ue_animation_asset_resolver import asset_property, native_source_asset, rich_curve_key, source_object_path, source_uasset_path
+from ue_animation_asset_resolver import asset_property, float_curve_fixture, native_float_curve, native_source_asset, source_object_path, source_uasset_path
 from ue_animgraph_converter import content_root_for_uasset, read_uasset_source
-from ue_exported_text import field, parse_list, parse_number, parse_struct, reject_unknown_fields
+from ue_exported_text import field, parse_number, parse_struct
 
 
 def runtime_curve(source, input_scale, value_scale):
-    if source.get('format') != 'ue_asset_source_v1' or source.get('asset_class') != '/Script/Engine.CurveFloat':
-        raise ValueError('source is not a native CurveFloat')
-    fields = parse_struct(asset_property(source, 'FloatCurve'))
-    reject_unknown_fields(fields, {'Keys', 'DefaultValue', 'PreInfinityExtrap', 'PostInfinityExtrap'})
-    parse_number(field(fields, 'DefaultValue'))
-    keys = [rich_curve_key(value) for value in parse_list(field(fields, 'Keys'))]
-    if len(keys) < 2 or any(right['t'] <= left['t'] for left, right in zip(keys, keys[1:])):
+    keys, pre, post = native_float_curve(source)
+    if len(keys) < 2:
         raise ValueError('source curve key times are invalid')
     if any(key['tangent_weight_mode'] != 'None' for key in keys):
         raise ValueError('weighted setting curves require tangent weight conversion')
     if input_scale < 0 and any(key['interpolation'] != 'Linear' for key in keys):
         raise ValueError('reversed setting curves require linear interpolation')
     extrapolations = {'RCCE_Constant': 'Constant', 'RCCE_CycleWithOffset': 'CycleWithOffset'}
-    pre = extrapolations[field(fields, 'PreInfinityExtrap', 'RCCE_Constant')]
-    post = extrapolations[field(fields, 'PostInfinityExtrap', 'RCCE_Constant')]
+    pre = extrapolations[pre]
+    post = extrapolations[post]
     if input_scale < 0:
         keys.reverse()
         pre, post = post, pre
@@ -53,13 +48,14 @@ def velocity_blend_half_life(grounded):
 
 
 def self_test():
-    source = {'format': 'ue_asset_source_v1', 'asset_class': '/Script/Engine.CurveFloat', 'asset_properties': [
-        {'name': 'FloatCurve', 'exported_text': '(Keys=((Time=-60,Value=-30),(Time=60,Value=30)),DefaultValue=0,PreInfinityExtrap=RCCE_CycleWithOffset,PostInfinityExtrap=RCCE_CycleWithOffset)'}]}
+    source = float_curve_fixture([{'Time':-60.0, 'Value':-30.0}, {'Time':60.0, 'Value':30.0}],
+                                 pre='RCCE_CycleWithOffset', post='RCCE_CycleWithOffset')
     raw = json.dumps(source)
     yaw = runtime_curve(source, -1.0, -1.0)
     assert yaw['times'] == [-60.0, 60.0] and yaw['values'] == [-30.0, 30.0]
     assert yaw['pre_infinity'] == 'CycleWithOffset' and json.dumps(source) == raw
-    source['asset_properties'][0]['exported_text'] = '(Keys=((InterpMode=RCIM_Cubic,LeaveTangent=0.5),(Time=100,Value=1,ArriveTangent=0.25)),DefaultValue=0)'
+    source = float_curve_fixture([{'InterpMode':'RCIM_Cubic','LeaveTangent':0.5},
+                                  {'Time':100.0,'Value':1.0,'ArriveTangent':0.25}])
     stride = runtime_curve(source, SOURCE_LENGTH_TO_RUNTIME_SCALE, 1.0)
     assert stride['times'] == [0.0, 1.0]
     assert stride['leave_tangents'][0] == 50.0 and stride['arrive_tangents'][1] == 25.0
