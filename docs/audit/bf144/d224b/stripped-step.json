@@ -1,0 +1,18 @@
+{
+  "result": "PASS_STRIPPED_STEP_CODEC_RECOVERY",
+  "nearest_key_mismatches": 18,
+  "first_mismatch": {
+    "time": 0.03333333507180214,
+    "actual_translation": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "source_translation": [
+      8.0,
+      -8.0,
+      4.0
+    ]
+  },
+  "restored_sha256": "b4d6f1ff40f64a245ab894e283f048809e3b88560d84635d8e55f2f33f0bc9d3"
+}

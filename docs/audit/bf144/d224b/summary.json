@@ -1,0 +1,42 @@
+{
+  "result": "PASS_PREPARED_ACL_KEYS_AND_SAMPLING",
+  "sequences": 127,
+  "track_modes": {
+    "bone_wrap": 62,
+    "no_scale_stream": 127,
+    "stripped_step_clips": 1,
+    "bone_mode_0": 19428,
+    "bone_mode_2": 6719,
+    "bone_mode_1": 3442,
+    "curve_mode_1": 210,
+    "curve_mode_2": 157,
+    "empty_curves": 45
+  },
+  "sdk_sample_match": {
+    "bone_poses": 1040,
+    "bone_components": 807520,
+    "curve_poses": 656,
+    "curve_components": 2936
+  },
+  "native_readback": {
+    "curve_values_exact": 24,
+    "written_bone_components_exact": 321,
+    "foot_planted_delta_vs_raw": [
+      0.0007331222295761108,
+      0.0007331520318984985,
+      0.0,
+      0.0007330179214477539,
+      0.0007329583168029785,
+      0.0007331222295761108
+    ],
+    "sorted_index_as_stream_order_mismatches": 23
+  },
+  "removed_contract_mismatches": {
+    "normalize_keys": 9069,
+    "clamp_wrapped_endpoint": 6207,
+    "batch_root_arithmetic": 1
+  },
+  "float_key_values": 890009,
+  "target_sha256": "14be26dbaf176b7311f7ba2dd9020fd728be8f6fd90b414a5ddbec11778a6922",
+  "watchdog_self_test": "PASS"
+}
