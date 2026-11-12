@@ -69,6 +69,7 @@ struct CubicFilterState {
     time: f32,
     value: Vec2,
     samples: Vec<CubicFilterSample>,
+    next_index: usize,
 }
 
 fn cubic_filter_sample(
@@ -83,22 +84,40 @@ fn cubic_filter_sample(
     }
     if delta_seconds > 1e-4 {
         state.time += delta_seconds;
-        state.samples.push(CubicFilterSample {
+        if state.samples.is_empty() {
+            state.samples.resize(10, CubicFilterSample::default());
+        }
+        for sample in &mut state.samples {
+            if state.time - sample.time > window_seconds {
+                sample.time = 0.0;
+            }
+        }
+        let count = state.samples.len();
+        let index = (state.next_index..count).chain(0..state.next_index)
+            .find(|index| state.samples[*index].time == 0.0)
+            .unwrap_or_else(|| {
+                state.samples.resize(count + 5, CubicFilterSample::default());
+                count
+            });
+        state.samples[index] = CubicFilterSample {
             value: target,
             time: state.time,
-        });
-        state
-            .samples
-            .retain(|sample| state.time - sample.time <= window_seconds + EPSILON);
+        };
+        state.next_index = (index + 1) % state.samples.len();
         let (sum, total) = state
             .samples
             .iter()
+            .filter(|sample| sample.time > 0.0)
             .fold((Vec2::ZERO, 0.0_f32), |(sum, total), sample| {
-                let age = ((state.time - sample.time) / window_seconds).clamp(0.0, 1.0);
+                let age = (state.time - sample.time) / window_seconds;
                 let weight = 1.0 - age * age * age;
-                (sum + sample.value * weight, total + weight)
+                if weight > 0.0 {
+                    (sum + sample.value * weight, total + weight)
+                } else {
+                    (sum, total)
+                }
             });
-        state.value = if total > EPSILON { sum / total } else { target };
+        state.value = if total > 0.0 { sum / total } else { Vec2::ZERO };
     }
     state.value
 }
@@ -1559,6 +1578,59 @@ mod tests {
         assert_eq!(cubic_filter_sample(&mut disabled, Vec2::ONE, 0.0, 0.0), Vec2::ONE);
         assert_eq!(disabled.time, 0.0);
         assert!(disabled.samples.is_empty());
+    }
+
+    #[test]
+    fn cubic_axis_slots_match_native_walk_run_sample_weights() {
+        #[derive(Deserialize)]
+        struct Frame {
+            input: [f32; 2],
+            delta: f32,
+            position: [f32; 2],
+            samples: Vec<(usize, f32)>,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            windows: [f32; 2],
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d211/slots.replay.json"
+        )).unwrap();
+        let blend_space = NormalizedBlendSpaceNode {
+            points: [Vec2::X, Vec2::ZERO, Vec2::ONE, Vec2::Y].into_iter().map(|point|
+                NormalizedBlendSpacePoint { point, ..default() }).collect(),
+            source_triangulation: Some(SourceBlendSpaceTriangulation {
+                axis_min: Vec2::ZERO,
+                axis_max: Vec2::ONE,
+                triangles: vec![[1, 0, 3], [0, 2, 3]],
+                ..default()
+            }),
+            ..default()
+        };
+        for case in reference.cases {
+            let [mut x, mut y] = std::array::from_fn(|_| CubicFilterState::default());
+            let mut triangle = None;
+            for (index, frame) in case.frames.into_iter().enumerate() {
+                let position = Vec2::new(
+                    cubic_filter_sample(&mut x, Vec2::X * frame.input[0], frame.delta, reference.windows[0]).x,
+                    cubic_filter_sample(&mut y, Vec2::Y * frame.input[1], frame.delta, reference.windows[1]).y,
+                );
+                assert_eq!(position.to_array(), frame.position, "{} at frame {index}", case.name);
+                let mut samples = blend_space.source_weights(position, &mut triangle).unwrap();
+                samples.sort_by_key(|(index, _)| *index);
+                assert_eq!(samples, frame.samples, "{} at frame {index}", case.name);
+                if index == 24 {
+                    assert_eq!([x.samples.len(), y.samples.len()], [25, 25], "{}", case.name);
+                }
+            }
+        }
     }
 
     #[test]
