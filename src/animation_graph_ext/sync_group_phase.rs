@@ -404,6 +404,12 @@ pub fn resolve_source_sync_phases(
             common_marker_names(&previous_players, prior));
         let previous_marker_leader = previous_leader.filter(|prior| prior.marker_advance.as_ref().is_none_or(|advance|
             advance.end.as_ref().is_some_and(SyncMarkerPosition::is_valid)));
+        let reset_marker_before_tick = |player: &SourceSyncPlayerTick| {
+            let prior = previous_players.iter().find(|prior| prior.identity == player.identity
+                && prior.sync_group_eligible()
+                && (prior.role != SourceSyncGroupRole::ExclusiveAlwaysLeader || prior.ticked_as_leader));
+            common != previous_common || prior.is_none_or(|prior| prior.source_asset != player.source_asset)
+        };
         let mut marker_advance = None;
         let mut leader_samples = Vec::new();
         let mut phase = None;
@@ -415,6 +421,9 @@ pub fn resolve_source_sync_phases(
             let mut grouped = leader.clone();
             grouped.markers.retain(|marker| common.contains(&marker.name));
             grouped.phase_markers.retain(|marker| common.contains(&marker.name));
+            if reset_marker_before_tick(leader) {
+                grouped.previous_marker_record = None;
+            }
             if common.is_empty() {
                 grouped.play_rate = grouped.length_play_rate.unwrap_or(grouped.play_rate);
             }
@@ -492,10 +501,7 @@ pub fn resolve_source_sync_phases(
             previous_order.iter().position(|player| player.identity == leader.identity));
         let leader_changed = previous_leader_index != leader_samples.len().checked_sub(1);
         let marker_resets = players.iter().filter(|player| {
-            let prior = previous_players.iter().find(|prior| prior.identity == player.identity
-                && prior.sync_group_eligible()
-                && (prior.role != SourceSyncGroupRole::ExclusiveAlwaysLeader || prior.ticked_as_leader));
-            common != previous_common || prior.is_none_or(|prior| prior.source_asset != player.source_asset)
+            reset_marker_before_tick(player)
                 || (leader_changed && !leader_samples.iter().any(|(identity, ..)| *identity == player.identity))
         }).map(|player| player.identity).collect();
         let ungrouped = players
@@ -1945,6 +1951,65 @@ mod tests {
                         .and_then(|(_, step)| step.record.clone());
                 }
                 previous = current;
+            }
+        }
+    }
+
+    #[test]
+    fn marker_prepare_rebuilds_distances_after_an_empty_group_frame() {
+        #[derive(Deserialize)]
+        struct Frame {
+            delta: f32,
+            time: [f32; 2],
+            start: (String, String, f32),
+            end: (String, String, f32),
+            reset: bool,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            duration: f32,
+            markers: Vec<SyncMarker>,
+            frames: Vec<Option<Frame>>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d209/marker.replay.json"
+        )).unwrap();
+        for case in reference.cases {
+            let mut tick = SourceSyncPlayerTick {
+                key: "Movement".into(), weight: 1.0, duration: case.duration, phase_duration: case.duration,
+                markers: case.markers.clone(), phase_markers: case.markers, looped: true,
+                play_rate: 1.0, sample_time_hint: Some(0.0), ..default()
+            };
+            let mut previous = None;
+            for frame in case.frames {
+                let Some(frame) = frame else {
+                    assert!(resolve_source_sync_phases(&[], previous.as_slice()).is_empty());
+                    previous = None;
+                    continue;
+                };
+                tick.delta_seconds = frame.delta;
+                let group = resolve_source_sync_phases(std::slice::from_ref(&tick), previous.as_slice()).remove(0);
+                let (_, step) = &group.leader_samples[0];
+                assert_eq!([step.previous_time, step.time], frame.time, "{}", case.name);
+                assert_eq!(group.marker_resets.contains(&tick.identity), frame.reset, "{}", case.name);
+                for (marker, (previous_name, next, alpha)) in [
+                    (step.advance.start.as_ref().unwrap(), frame.start),
+                    (step.advance.end.as_ref().unwrap(), frame.end),
+                ] {
+                    assert_eq!((&marker.previous, &marker.next, marker.alpha), (&previous_name, &next, alpha), "{}", case.name);
+                }
+                tick.sample_time_hint = Some(step.time);
+                tick.previous_marker_record = step.record.clone();
+                tick.phase = step.phase;
+                previous = Some(SourceSyncPlayerTick {
+                    selected_leader: true, marker_advance: Some(step.advance.clone()), ..tick.clone()
+                });
             }
         }
     }

@@ -7305,7 +7305,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例/消费：六条零步长加入/换leader路径各26个失败帧，共156帧，最大位置差约0.827秒；原Crouching方向FSM的Forward状态保持，VelocityBlend由Forward=1变为Forward=0.3/Left=0.7时插入一个零步长，实际25帧时钟不符，最大差约0.211秒。只恢复源零步长规则的受控节点消除这一类错误，正步长控制保持；完整原图的左脚局部旋转25帧改变，最大约37.79°。该角度是同一target姿态图恢复正确时钟前后的差，不是UE整角色姿态测量。
   - 漏检/边界：旧`sync_scope_uses_current_weights_cache_maximum_and_marker_continuity`只检查零delta标量和期望相位保持；`excluded_blendspace_samples_keep_their_own_clock`直接跳过零delta断言，未以原生marker有效性及随后帧验证加入时钟。源/目标provider允许零delta进入动画输入，但未证明默认游戏自然触发本次输入顺序；未扩展为普通帧、零速率或所有同步角色结论。证据`target/bf144/127/exact-analysis.json`、`zero-analysis.json`、`consumer-exact-analysis.json`、`consumer-both-analysis.json`、`pose_consumer.json`；仅登记，未修生产。
 
-- [ ] BF144-D209 / P3 — 整组失活后在清理旧marker记录前推进leader，保留过期距离残差。
+- [x] BF144-D209 / P3 — 整组失活后在清理旧marker记录前推进leader，保留过期距离残差。
+  - 2026-11-12 09:10 +0800 实际结束，较09:51预估提前41分钟，未拆分。fresh Crouch 20条784帧及九帧缓存生命周期静态闭环；延后清理重现三条14帧差异。Prepare清理在实际leader推进前生效并保留本地时钟；原生请求和resolver夹具见 `docs/audit/bf144/d209/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 09:05 +08:00，预估结束2026-11-12 09:51 +08:00。重采Crouch整组空帧与连续对照，按Prepare/Finalize时序在leader推进前清理记录。
   - Source：fresh `AnimationAsset.cpp:199–209`在没有上一帧组或公共marker集合变化时，先Reset全部成员的MarkerTickRecord，再由TickByMarkerAsLeader按当前时间重算距离并推进。当前Crouch缓存失活后保留子时间，本机九帧CachedPoseLifecycleProbe再次确认，不能把它替换成播放器从0重播。
   - Target：`sync_group_phase.rs:447–479`先用grouped.previous_marker_record计算leader step，`482–495`之后才给出marker_resets；`source_pose_passthrough.rs`将清理信号传入最终求值时，已生成的leader位置/记录又被写回。旧距离因此跨越整组空帧保留。
   - 反例/恢复：隔离D121/D199并恢复零步长规则后，六条整组失活路径中四条共25帧仍有位置/previous或marker差异；最大时钟差约0.179µs，四次marker区间标签不符。Backward从0.483333528继续到源Right边界0.5时，target到0.500000179，后续继续保持尾差；只把清理提前到leader推进前，全部剩余差异归零，普通成员交接保持。证据`target/bf144/127/zero-analysis.json`、`reset-analysis.json`、`both-analysis.json`。
