@@ -7345,7 +7345,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.157实际Sprint交接补充：在正确源首时钟下，604个活跃BS帧中仍有218处时间顺序累加结果偏离原生槽顺序；两者合用后filter/内部权重全部逐值一致。证据`target/bf144/157/filter-controls.json`、`filter-analysis.json`。
 
-- [ ] BF144-D212 / P3 — BlendSpace新leader样本从本地默认起点开始，漏掉现有marker相位初始化。
+- [x] BF144-D212 / P3 — BlendSpace新leader样本从本地默认起点开始，漏掉现有marker相位初始化。
+  - 2026-11-12 09:25 +0800 实际结束，较10:02预估提前37分钟，未拆分。fresh RightForward/Forward八条54帧原生，4条无记录新leader按有效组标记取得原生previous/position，4条本地记录控制保持。原生请求及resolver夹具见 `docs/audit/bf144/d212/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 09:19 +08:00，预估结束2026-11-12 10:02 +08:00。重采两个Standing空间的首样本接替及已有follower对照，按有效组标记初始化无本地记录的新leader。
   - Source：fresh `BlendSpace.cpp:700–725`在新leader的MarkerTickRecord无效且组起始marker有效时，先GetMarkerIndicesForPosition，把新样本映射到既有组相位，再推进本帧时间。
   - Target：`normalized_blendspace.rs:744–761`为无历史样本提供start_position×duration的sample_time_hint；外层resolver把同一BlendSpace节点视作持续成员，优先从该hint推进。内部新样本未先按现有marker位置初始化；该问题与D205的无marker惯性长度重同步范围不同。
   - 反例/恢复：在原生过滤/精确数据已恢复的97帧RightForward入口中，首个50µs帧使用Pose样本，下一正常帧新的Forward样本首次成为leader。源previous time为0.2267164439，目标从约0.226666674起步，随后96帧偏差最多约49.83µs。只在这一次激活前恢复原生previous time并清理新样本记录，全部样本时间逐值一致；普通六图2880帧不需要此恢复。

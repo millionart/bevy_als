@@ -1,0 +1,247 @@
+{
+  "cases": [
+    {
+      "name": "right_forward_below",
+      "duration": 1.1333333253860474,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.09166666865348816
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ],
+      "anchor": {
+        "previous": "Left",
+        "next": "Right",
+        "alpha": 0.2418801635503769,
+        "valid": true
+      },
+      "local": 0.2266666740179062,
+      "local_record": false,
+      "delta": 0.01666666753590107,
+      "rate": 1.0,
+      "clock": [
+        0.22671644389629364,
+        0.24338310956954956
+      ]
+    },
+    {
+      "name": "right_forward_at",
+      "duration": 1.1333333253860474,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.09166666865348816
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ],
+      "anchor": {
+        "previous": "Left",
+        "next": "Right",
+        "alpha": 0.2419697344303131,
+        "valid": true
+      },
+      "local": 0.2266666740179062,
+      "local_record": false,
+      "delta": 0.01666666753590107,
+      "rate": 1.0,
+      "clock": [
+        0.2267664521932602,
+        0.2434331178665161
+      ]
+    },
+    {
+      "name": "right_forward_above",
+      "duration": 1.1333333253860474,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.09166666865348816
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ],
+      "anchor": {
+        "previous": "Left",
+        "next": "Right",
+        "alpha": 0.2419719249010086,
+        "valid": true
+      },
+      "local": 0.2267676740884781,
+      "local_record": true,
+      "delta": 0.01666666753590107,
+      "rate": 1.0,
+      "clock": [
+        0.2267676740884781,
+        0.243434339761734
+      ]
+    },
+    {
+      "name": "right_forward_existing_follower",
+      "duration": 1.1333333253860474,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.09166666865348816
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ],
+      "anchor": {
+        "previous": "Left",
+        "next": "Right",
+        "alpha": 0.2716413736343384,
+        "valid": true
+      },
+      "local": 0.2433331161737442,
+      "local_record": true,
+      "delta": 0.20999999344348907,
+      "rate": 1.0,
+      "clock": [
+        0.2433331161737442,
+        0.4533331096172333
+      ]
+    },
+    {
+      "name": "forward_below",
+      "duration": 1.1333333253860474,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.0833333358168602
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ],
+      "anchor": {
+        "previous": "Left",
+        "next": "Right",
+        "alpha": 0.25302988290786743,
+        "valid": true
+      },
+      "local": 0.2266666740179062,
+      "local_record": false,
+      "delta": 0.01666666753590107,
+      "rate": 1.0,
+      "clock": [
+        0.22671693563461304,
+        0.24338360130786896
+      ]
+    },
+    {
+      "name": "forward_at",
+      "duration": 1.1333333253860474,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.0833333358168602
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ],
+      "anchor": {
+        "previous": "Left",
+        "next": "Right",
+        "alpha": 0.2531181275844574,
+        "valid": true
+      },
+      "local": 0.2266666740179062,
+      "local_record": false,
+      "delta": 0.01666666753590107,
+      "rate": 1.0,
+      "clock": [
+        0.2267669439315796,
+        0.2434336096048355
+      ]
+    },
+    {
+      "name": "forward_above",
+      "duration": 1.1333333253860474,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.0833333358168602
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ],
+      "anchor": {
+        "previous": "Left",
+        "next": "Right",
+        "alpha": 0.25311940908432007,
+        "valid": true
+      },
+      "local": 0.2267676740884781,
+      "local_record": true,
+      "delta": 0.01666666753590107,
+      "rate": 1.0,
+      "clock": [
+        0.2267676740884781,
+        0.243434339761734
+      ]
+    },
+    {
+      "name": "forward_existing_follower",
+      "duration": 1.1333333253860474,
+      "markers": [
+        {
+          "name": "Left",
+          "time": 0.0833333358168602
+        },
+        {
+          "name": "Right",
+          "time": 0.6500000357627869
+        }
+      ],
+      "anchor": {
+        "previous": "Left",
+        "next": "Right",
+        "alpha": 0.28235340118408203,
+        "valid": true
+      },
+      "local": 0.2433336079120636,
+      "local_record": true,
+      "delta": 0.20999999344348907,
+      "rate": 1.0,
+      "clock": [
+        0.2433336079120636,
+        0.45333361625671387
+      ]
+    }
+  ],
+  "native_frames": 54,
+  "local_start_ablation": {
+    "right_forward_below": [
+      0.2266666740179062,
+      0.22671644389629364
+    ],
+    "right_forward_at": [
+      0.2266666740179062,
+      0.2267664521932602
+    ],
+    "forward_below": [
+      0.2266666740179062,
+      0.22671693563461304
+    ],
+    "forward_at": [
+      0.2266666740179062,
+      0.2267669439315796
+    ]
+  }
+}

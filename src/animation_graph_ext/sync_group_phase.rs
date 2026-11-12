@@ -463,12 +463,15 @@ pub fn resolve_source_sync_phases(
                 let continuing = common == previous_common && previous_players.iter().any(|prior|
                     prior.identity == leader.identity && prior.source_asset == leader.source_asset
                         && (prior.duration - leader.duration).abs() <= EPSILON);
-                if let Some(time) = grouped.sample_time_hint.filter(|_| continuing) {
+                let position = previous_marker_leader.and_then(|prior| prior.marker_advance.as_ref())
+                    .and_then(|advance| advance.end.as_ref()).filter(|position| position.is_valid());
+                let initialize_blend_space_sample = grouped.length_play_rate.is_some()
+                    && position.is_some()
+                    && grouped.previous_marker_record.as_ref().is_none_or(|record| !record.indices_valid(grouped.looped));
+                if let Some(time) = grouped.sample_time_hint.filter(|_| continuing && !initialize_blend_space_sample) {
                     grouped.advance_from_time(time)
                 } else {
                     grouped.previous_marker_record = None;
-                    let position = previous_leader.and_then(|prior| prior.marker_advance.as_ref())
-                        .and_then(|advance| advance.end.as_ref()).filter(|position| position.is_valid());
                     if let Some(position) = position {
                         grouped.advance_from_position(grouped.sample_time_hint.unwrap_or(phase * grouped.duration), Some(position))
                     } else { grouped.advance(phase) }
@@ -929,8 +932,12 @@ pub struct SourceMarkerRecord {
 
 impl SourceMarkerRecord {
     fn valid(&self, markers: &[SyncMarker], duration: f32, looped: bool) -> bool {
-        self.markers == markers && self.duration == duration && [self.previous, self.next].iter()
-            .all(|index| *index >= if looped { 0 } else { -1 } && *index < markers.len() as i64)
+        self.markers == markers && self.duration == duration && self.indices_valid(looped)
+    }
+
+    fn indices_valid(&self, looped: bool) -> bool {
+        [self.previous, self.next].iter()
+            .all(|index| *index >= if looped { 0 } else { -1 } && *index < self.markers.len() as i64)
     }
 
     fn at_time(markers: &[SyncMarker], duration: f32, looped: bool, time: f32,
@@ -2010,6 +2017,66 @@ mod tests {
                 previous = Some(SourceSyncPlayerTick {
                     selected_leader: true, marker_advance: Some(step.advance.clone()), ..tick.clone()
                 });
+            }
+        }
+    }
+
+    #[test]
+    fn new_blend_space_leader_sample_starts_at_the_existing_marker_position() {
+        #[derive(Deserialize)]
+        struct Position {
+            previous: String,
+            next: String,
+            alpha: f32,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            duration: f32,
+            markers: Vec<SyncMarker>,
+            anchor: Position,
+            local: f32,
+            local_record: bool,
+            delta: f32,
+            rate: f32,
+            clock: [f32; 2],
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d212/leader.replay.json"
+        )).unwrap();
+        for case in reference.cases {
+            let record = SourceMarkerRecord::at_time(&case.markers, case.duration, true, case.local, None);
+            let tick = SourceSyncPlayerTick {
+                key: "Movement".into(), weight: 1.0, duration: case.duration, phase_duration: case.duration,
+                markers: case.markers.clone(), phase_markers: case.markers, looped: true,
+                play_rate: case.rate, length_play_rate: Some(case.rate), delta_seconds: case.delta,
+                sample_time_hint: Some(case.local), previous_marker_record: case.local_record.then(|| record.clone()),
+                ..default()
+            };
+            let prior = SourceSyncPlayerTick {
+                selected_leader: true,
+                marker_advance: Some(SourceMarkerAdvance {
+                    end: Some(SyncMarkerPosition { previous: case.anchor.previous, next: case.anchor.next, alpha: case.anchor.alpha }),
+                    ..default()
+                }),
+                ..tick.clone()
+            };
+            let resolve = |player: &SourceSyncPlayerTick| {
+                let resolution = resolve_source_sync_phases(std::slice::from_ref(player), std::slice::from_ref(&prior));
+                let step = &resolution[0].leader_samples[0].1;
+                [step.previous_time, step.time]
+            };
+            assert_eq!(resolve(&tick), case.clock, "{}", case.name);
+            if !case.local_record {
+                let stale = SourceSyncPlayerTick { previous_marker_record: Some(record), ..tick };
+                let local_clock = resolve(&stale);
+                assert_eq!(local_clock[0], case.local, "{}", case.name);
+                assert_ne!(local_clock, case.clock, "{}", case.name);
             }
         }
     }
