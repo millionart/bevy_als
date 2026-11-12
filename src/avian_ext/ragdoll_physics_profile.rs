@@ -11,6 +11,7 @@ use avian3d::dynamics::integrator::{IntegrationSystems, VelocityIntegrationData,
 use avian3d::dynamics::solver::solver_body::{SolverBodies, SolverBodyFlags, SolverBodyIndex, SolverBodyInertia};
 use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
 use avian3d::collider_tree::{ColliderTreeProxyKey, ColliderTrees, MovedProxies};
+use avian3d::parry::shape::Capsule;
 use avian3d::schedule::LastPhysicsTick;
 use bevy::ecs::change_detection::Tick;
 use bevy::ecs::schedule::ApplyDeferred;
@@ -698,9 +699,41 @@ impl RagdollSpatialQuery<'_, '_> {
             return self.spatial.cast_shape_predicate(shape, origin, rotation, direction, config, filter,
                 &|entity| self.queryable(entity) && predicate(entity));
         };
+        self.cast_shape_with_capsule_core(shape, capsule, origin, rotation, direction, config, filter, predicate)
+    }
+
+    pub(crate) fn cast_source_sphere_predicate(
+        &self,
+        sphere: &Collider,
+        origin: Vec3,
+        direction: Dir3,
+        distance: f32,
+        filter: &SpatialQueryFilter,
+        predicate: &dyn Fn(Entity) -> bool,
+    ) -> Option<ShapeHitData> {
+        let radius = sphere.shape_scaled().as_ball()?.radius;
+        let core = Capsule::new(Vec3::ZERO, Vec3::ZERO, radius);
+        self.cast_shape_with_capsule_core(
+            sphere, &core, origin, Quat::IDENTITY, direction,
+            &ShapeCastConfig::from_max_distance(distance), filter, predicate,
+        )
+    }
+
+    fn cast_shape_with_capsule_core(
+        &self,
+        shape: &Collider,
+        capsule: &Capsule,
+        origin: Vec3,
+        rotation: Quat,
+        direction: Dir3,
+        config: &ShapeCastConfig,
+        filter: &SpatialQueryFilter,
+        predicate: &dyn Fn(Entity) -> bool,
+    ) -> Option<ShapeHitData> {
         use avian3d::parry::{math::Pose3, query::{cast_shapes, contact, ShapeCastOptions}};
         use crate::extensions::source_capsule_sweep::{capsule_cuboid_sweep, CapsuleSweepResult};
 
+        let scaled = shape.shape_scaled();
         let swept_pose = Pose3::from_parts(origin, rotation);
         let bounds = shape.aabb(origin, rotation, 0.0);
         let mut best_rank = config.max_distance;

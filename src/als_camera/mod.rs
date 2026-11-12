@@ -1,6 +1,6 @@
 use crate::als::character::AlsCollisionLayer;
 use avian3d::prelude::{
-    Collider, Position, Rotation, ShapeCastConfig, SimpleCollider, SpatialQueryFilter,
+    Collider, Position, Rotation, SimpleCollider, SpatialQueryFilter,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 #[path = "notifies/shake.rs"]
@@ -720,19 +720,11 @@ fn trace_with_start_adjustment(
         adjustment_resolved: false,
     };
     let vector = end - start;
+    let distance = vector.length();
     let predicate = |entity| ignored.get(entity).is_err();
-    if vector.length() > 1e-10 {
+    if distance > 1e-10 {
         let direction = Dir3::new(vector).unwrap();
-        let config = ShapeCastConfig::from_max_distance(vector.length());
-        let Some(hit) = spatial.cast_shape_predicate(
-            shape,
-            start,
-            Quat::IDENTITY,
-            direction,
-            &config,
-            filter,
-            &predicate,
-        ) else {
+        let Some(hit) = spatial.cast_source_sphere_predicate(shape, start, direction, distance, filter, &predicate) else {
             return result;
         };
         if hit.distance > 0.0 {
@@ -761,16 +753,9 @@ fn trace_with_start_adjustment(
         result.adjustment_resolved = !has_blocking_overlap(spatial, shape, start, filter, ignored);
         if result.adjustment_resolved {
             let adjusted_vector = end - start;
-            if let Ok(adjusted_direction) = Dir3::new(adjusted_vector) {
-                let adjusted_config = ShapeCastConfig::from_max_distance(adjusted_vector.length());
-                if let Some(adjusted_hit) = spatial.cast_shape_predicate(
-                    shape,
-                    start,
-                    Quat::IDENTITY,
-                    adjusted_direction,
-                    &adjusted_config,
-                    filter,
-                    &predicate,
+            if let Ok((adjusted_direction, adjusted_distance)) = Dir3::new_and_length(adjusted_vector) {
+                if let Some(adjusted_hit) = spatial.cast_source_sphere_predicate(
+                    shape, start, adjusted_direction, adjusted_distance, filter, &predicate,
                 ) && adjusted_hit.distance > 0.0
                 {
                     result.location = start + adjusted_direction.as_vec3() * adjusted_hit.distance;
@@ -1922,13 +1907,14 @@ mod tests {
     }
 
     #[test]
-    fn source_camera_touching_start_is_a_blocking_hit_without_adjustment() {
+    fn source_camera_touching_start_uses_the_padded_penetration_retry() {
         let walls = [(Vec3::new(0.0, 0.0, 0.25), Vec3::new(4.0, 4.0, 0.25))];
         let (trace, _) = trace_fixture(&walls, Vec3::ZERO, Vec3::Z, Vec3::NEG_Z, 5.0 / 6.0, false, 1.0);
         assert!(trace.blocking_hit);
-        assert!(!trace.adjusted_start, "Touching is not initial penetration");
-        assert_eq!(trace.adjustment_count, 0);
-        assert!(trace.start.abs_diff_eq(Vec3::ZERO, 1e-6));
+        assert!(trace.adjusted_start && trace.adjustment_resolved);
+        assert_eq!(trace.adjustment_count, 1);
+        assert!(trace.start.abs_diff_eq(Vec3::NEG_Z * 0.00833333, 1e-6));
+        assert!(trace.location.abs_diff_eq(Vec3::ZERO, 1e-6));
     }
 
     #[test]
@@ -1939,7 +1925,7 @@ mod tests {
         assert!(!trace.adjusted_start);
         assert_eq!(trace.adjustment_count, 0);
         assert!(
-            trace.location.z > 0.0 && trace.location.z < 1e-5,
+            (trace.location.z - 0.0000050067907).abs() < 1e-7,
             "{}",
             trace.location
         );

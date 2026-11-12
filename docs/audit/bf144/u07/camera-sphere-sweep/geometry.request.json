@@ -1,0 +1,169 @@
+{
+  "samples": [
+    {
+      "name": "near",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "sphere_sweep": {
+        "box_translation_cm": [
+          0,
+          16.000500321388245,
+          0
+        ],
+        "box_half_extents_cm": [
+          200,
+          0.9999999776482582,
+          200
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "length_cm": 100.0,
+        "radius_cm": 15.000000953674316
+      }
+    },
+    {
+      "name": "contraction",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "sphere_sweep": {
+        "box_translation_cm": [
+          0,
+          100.0,
+          0
+        ],
+        "box_half_extents_cm": [
+          200,
+          10.000000149011612,
+          200
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "length_cm": 200.0,
+        "radius_cm": 15.000000953674316
+      }
+    },
+    {
+      "name": "touch",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "sphere_sweep": {
+        "box_translation_cm": [
+          0,
+          25.0,
+          0
+        ],
+        "box_half_extents_cm": [
+          200,
+          12.5,
+          200
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "length_cm": 100.0,
+        "radius_cm": 12.5
+      }
+    },
+    {
+      "name": "penetrating",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "sphere_sweep": {
+        "box_translation_cm": [
+          0,
+          15.50000011920929,
+          0
+        ],
+        "box_half_extents_cm": [
+          200,
+          0.9999999776482582,
+          200
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "length_cm": 100.0,
+        "radius_cm": 15.000000953674316
+      }
+    },
+    {
+      "name": "separated",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "sphere_sweep": {
+        "box_translation_cm": [
+          0,
+          16.000500321388245,
+          0
+        ],
+        "box_half_extents_cm": [
+          200,
+          0.9999999776482582,
+          200
+        ],
+        "start_cm": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "length_cm": 0.00019999999949504854,
+        "radius_cm": 15.000000953674316
+      }
+    }
+  ]
+}
