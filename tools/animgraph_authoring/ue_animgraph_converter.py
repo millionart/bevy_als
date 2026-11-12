@@ -1416,13 +1416,18 @@ def self_test_inertialization_request_binding():
         requests[slot]["epoch_key"] for slot in ("TurnInPlaceStanding", "TurnInPlaceCrouching")]
 
 
-def bind_linked_pose_cache_order(graph, source_schedule):
+def bind_cached_pose_order(graph, source_schedule):
     layer = next((layer for layer in source_schedule.get("layers", [])
                   if layer["name"] == graph["source_graph"]), None)
     if layer is None:
         return
     saves = {node["source_node"]: node["semantic"]["cache_name"] for node in graph["nodes"]
              if node["renderer"] == "save_cached_pose" and node.get("semantic")}
+    ranks = {node["cache_name"]: index for index, node in enumerate(layer["nodes"])}
+    for node in graph["nodes"]:
+        name = saves.get(node["source_node"])
+        if name in ranks:
+            node["semantic"]["submission_order"] = ranks[name]
     linked_inputs = {node["source_node"] for node in graph["nodes"] if node["renderer"] == "linked_input_pose"}
     linked_saves = {saves[link["target"]["node_object_path"]] for link in graph["links"]
                     if link["source"]["node_object_path"] in linked_inputs
@@ -1536,7 +1541,7 @@ def build_ir(
             assets,
             linked_graph_targets,
         )
-        bind_linked_pose_cache_order(graph_value, source.get("cached_pose_schedule", {}))
+        bind_cached_pose_order(graph_value, source.get("cached_pose_schedule", {}))
         for node in graph_value["nodes"]:
             if node.get("renderer") == "inertialization" and node.get("semantic") is not None:
                 semantic = node["semantic"]
@@ -2952,6 +2957,14 @@ def run_self_test():
     assert default_install_namespace({"asset_path": "/ALS/ALS/Character/AB_Als.AB_Als"}) == ""
     assert installation_manifest_path("/ALS/ALS/Character/AB_Als.AB_Als", "") == "ALS/Character/AB_Als/installation.manifest.json"
     self_test_inertialization_request_binding()
+    cache_graph = {"source_graph": "AnimGraph", "links": [], "nodes": [
+        {"source_node": f"/Asset:AnimGraph.{name}", "renderer": "save_cached_pose", "semantic": {"cache_name": name}}
+        for name in ("Base", "Move")
+    ]}
+    bind_cached_pose_order(cache_graph, {"layers": [{"name": "AnimGraph", "nodes": [
+        {"cache_name": name} for name in ("Unused", "Move", "Base")
+    ]}]})
+    assert [node["semantic"]["submission_order"] for node in cache_graph["nodes"]] == [2, 1]
     registry = fixture_registry()
     assert source_property_key("StandingState.PlayRate") == "standing_state.play_rate"
     assert (

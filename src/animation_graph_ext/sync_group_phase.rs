@@ -95,6 +95,7 @@ pub struct SourceSyncPlayerBinding {
 #[derive(Reflect, Clone, Debug, Default)]
 pub struct SourceSyncPlayerTick {
     pub identity: (GraphContextId, NodeId),
+    pub cached_submission_order: Option<(GraphContextId, usize)>,
     pub key: String,
     pub role: SourceSyncGroupRole,
     pub source_asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>,
@@ -1597,6 +1598,7 @@ mod tests {
         let new_id: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
         let tick = |id, clip, phase, override_position| SourceSyncPlayerTick {
             identity: (GraphContextId::default(), id),
+            cached_submission_order: None,
             key: "Movement".to_owned(),
             role: SourceSyncGroupRole::CanBeLeader,
             source_asset: Some(clip),

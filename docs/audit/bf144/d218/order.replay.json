@@ -1,0 +1,70 @@
+{
+  "ranks": [
+    4,
+    5
+  ],
+  "frames": [
+    {
+      "weights": [
+        0.25925934314727783,
+        0.3703703284263611,
+        0.3703703284263611
+      ],
+      "submission": [
+        "sprint",
+        "acceleration",
+        "base"
+      ],
+      "leader": "acceleration",
+      "old_leader": "sprint"
+    },
+    {
+      "weights": [
+        0.375,
+        0.375,
+        0.0
+      ],
+      "submission": [
+        "sprint",
+        "base"
+      ],
+      "leader": "base",
+      "old_leader": "sprint"
+    },
+    {
+      "weights": [
+        0.5,
+        0.0,
+        0.5
+      ],
+      "submission": [
+        "acceleration",
+        "base"
+      ],
+      "leader": "base",
+      "old_leader": "acceleration"
+    }
+  ],
+  "summary": {
+    "both": {
+      "frames": 61,
+      "leaders": 10,
+      "clock_or_marker": 53
+    },
+    "ordinary": {
+      "frames": 61,
+      "leaders": 2,
+      "clock_or_marker": 55
+    },
+    "acceleration": {
+      "frames": 61,
+      "leaders": 2,
+      "clock_or_marker": 55
+    },
+    "blocked": {
+      "frames": 61,
+      "leaders": 0,
+      "clock_or_marker": 0
+    }
+  }
+}

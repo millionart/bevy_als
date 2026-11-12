@@ -7498,7 +7498,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 实际消费/边界：原Forward FSM、两原缓存/BS与原Clip的四条384帧中，D212恢复后还剩26帧上述差异，最大时钟差约0.229秒；完整恢复后所有时钟/marker通过。真实Clip时间通道参与对照，未只改报告值；本组对应的左脚姿态保持，未宣称全部骨骼不变、可见抖动或默认世界自然触发。这里只核对当前运动图的时钟/采样，不把通知上下文或其他同步角色计为已通过。
   - 漏检/证据：旧普通delta矩阵及单播放器检查没有同时覆盖冷/热记录与group follower的零步长；源Sequence与BS规则不同，通用相位标量不足以证明等价。证据`target/bf144/136/history-analysis.json`、`all-analysis.json`、`consumer-all-analysis.json`、`pose-consumers.json`与native报告；仅登记，未修改生产。
 
-- [ ] BF144-D218 / P2 — 同步候选使用姿态合并顺序，丢失缓存延后提交的真实顺序。
+- [x] BF144-D218 / P2 — 同步候选使用姿态合并顺序，丢失缓存延后提交的真实顺序。
+  - 2026-11-12 10:39 +0800 实际结束，较11:17预估提前38分钟，未拆分。fresh Standing 244帧父级及488帧原生组重放，旧顺序改变14次leader、163帧比例/标记；15个AnimBP根全量核对374产物，仅迁移9图36个缓存队列位置。证据及实际同步出口夹具见 `docs/audit/bf144/d218/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 10:19 +08:00，预估结束2026-11-12 11:17 +08:00。重采Standing编译缓存队列与实际BlendList/TwoWay提交顺序，贯通源缓存排序并全量核对生成产物。
+  - 10:30 source/static 闭环：fresh编译队列、244帧父级原生调用及488帧原生组重放，旧提交顺序改变14次leader与163帧时钟/标记。当前与历史同步列表共用排序，转换器self-test通过，全量产物diff运行中。
   - Source：fresh `AnimInstanceProxy.cpp:139–158`先Update根图，再按编译队列PostGraphUpdate；Standing队列中Move Forward先于Move Forward Base。gait的基础缓存只登记请求，Sprint直接子项先提交tick，随后基础缓存中的BS才提交。原生BlendList/TwoWay/SaveCachedPose组合记录的终端顺序为Sprint、Sprint Acceleration、Forward BS（跳过未更新项）。
   - Target：`animation_context.rs:396–417`按姿态上下文合并时的先遇顺序push同步播放器；`source_pose_nodes.rs:1016–1030`按gait pose输入先取基础缓存再取Sprint，`sync_group_phase.rs:346–351`用该列表索引作为source_order。列表内部采用UE排序仍不能恢复原始提交顺序。D153是缓存引起的字段消费时点问题，本项即使父字段、alpha与资格都正确，候选顺序仍错；D202则是已有列表中的同分排序算法。
   - 反例/控制：原Forward方向、gait、SprintBlock、共享Base缓存与两Sprint播放器的6条1288帧历史，精确数据/gait权重下还有626帧同步残差。仅恢复源提交顺序有1215帧残差，仅恢复原生排序有849帧；两者合用所有当前时间、leader与marker逐值匹配，剩11个previous值由D213解释，完整恢复全部通过。单独修复一项可能暴露另一项，不能以部分错误抵消认定等价。

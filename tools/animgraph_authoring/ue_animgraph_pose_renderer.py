@@ -1030,9 +1030,13 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: \"\", call_site: \"\", synchronize_groups: " + bool_ron((value or {}).get("synchronize_groups", False)) + ordered_keys + ")",
         )
     if renderer == "save_cached_pose":
+        order = value.get("submission_order")
+        if order is not None and (type(order) is not int or order < 0):
+            raise PoseRenderError("source saved pose submission order is invalid")
+        order_field = f", submission_order: Some({order})" if order is not None else ""
         return (
             "als_ext::SourceCachedPoseSaveNode",
-            "(cache_key: " + quoted(cache_key(graph_contract, value["cache_name"])) + ")",
+            "(cache_key: " + quoted(cache_key(graph_contract, value["cache_name"])) + order_field + ")",
         )
     if renderer == "use_cached_pose":
         name = value["cache_name"]

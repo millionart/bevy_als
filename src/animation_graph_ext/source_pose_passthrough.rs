@@ -45,6 +45,15 @@ impl Default for SourcePosePassthroughNode {
     }
 }
 
+fn order_source_sync_players(ctx: &NodeContext, context: &mut AnimationContextState) {
+    let owner = ctx.graph_context.context_id;
+    context.sync_players.sort_by_key(|player| {
+        player.cached_submission_order
+            .filter(|(context, _)| *context == owner)
+            .map(|(_, order)| order)
+    });
+}
+
 impl NodeLike for SourcePosePassthroughNode {
     fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         if self.output_time {
@@ -82,7 +91,8 @@ impl NodeLike for SourcePosePassthroughNode {
             preview_ctx.graph_context.global_input_data = &global_inputs;
             crate::extensions::source_cached_pose::prewarm_linked_pose_caches(&preview_ctx, &self.input, &self.linked_pose_cache_order)?;
             preview_ctx.data_back(self.input.clone())?;
-            let current = pose_input_context_state(&preview_ctx, &self.input).unwrap_or_default();
+            let mut current = pose_input_context_state(&preview_ctx, &self.input).unwrap_or_default();
+            order_source_sync_players(&preview_ctx, &mut current);
             let previous = ctx
                 .state::<AnimationContextState>()
                 .cloned()
@@ -150,6 +160,7 @@ impl NodeLike for SourcePosePassthroughNode {
         ctx.set_data_fwd(self.output.clone(), pose);
         if let Some(mut context) = pose_input_context_state(&source_ctx, &self.input) {
             if self.synchronize_groups {
+                order_source_sync_players(&source_ctx, &mut context);
                 for sample in &mut context.asset_samples {
                     if sample.sync_identity.is_some_and(|identity|
                         global_inputs.contains_key(&source_sync_excluded_key(identity))) {
@@ -573,6 +584,113 @@ mod tests {
                 world.run_system_cached_with(query, (handle, leader.id, follower.id, blendspace, adjacent, blendspace_leads, reverse, turnaround)).unwrap();
             }
         }
+    }
+
+    #[test]
+    fn compiled_cache_queue_orders_submissions_before_sync_sorting() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
+            context::{graph_context::QueryOutputTime, new_context::GraphContext, node_states::StateKey,
+                system_resources::SystemResources},
+            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{
+            SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceMultiWayBlendNode, SourceSequencePlayerNode,
+            source_sequence_player::SourceSequenceSynchronization,
+        };
+
+        #[derive(serde::Deserialize)]
+        struct Frame {
+            weights: [f32; 3],
+            submission: Vec<String>,
+            leader: String,
+            old_leader: String,
+        }
+        #[derive(serde::Deserialize)]
+        struct Reference {
+            ranks: [usize; 2],
+            frames: Vec<Frame>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d218/order.replay.json"
+        )).unwrap();
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let clip = world.resource_mut::<Assets<GraphClip>>().add(GraphClip { duration: 1.0, ..default() });
+        let names = ["base", "sprint", "acceleration"];
+        let fixtures = [true, false].map(|scheduled| {
+            let mut graph = AnimationGraph::new();
+            let leaves = names.map(|name| {
+                let node = AnimationNode::new(name, SourceSequencePlayerNode {
+                    clip: clip.clone(), loop_animation: true,
+                    expose_play_rate_pin: false, expose_start_position_pin: false, expose_loop_animation_pin: false,
+                    synchronization: Some(SourceSequenceSynchronization {
+                        key: "Movement".into(), delta_seconds_key: "delta".into(), ..default()
+                    }), ..default()
+                });
+                let id = node.id;
+                graph.add_node(node);
+                id
+            });
+            let saves = ["Move Forward", "Move Forward Base"].into_iter().zip(reference.ranks).map(|(name, rank)| {
+                AnimationNode::new(name, SourceCachedPoseSaveNode { submission_order: scheduled.then_some(rank), ..default() })
+            }).collect::<Vec<_>>();
+            let uses = saves.iter().map(|save| AnimationNode::new("Use cache", SourceCachedPoseUseNode {
+                cache_node: save.name.clone()
+            })).collect::<Vec<_>>();
+            let blend = AnimationNode::new("Blend", SourceMultiWayBlendNode {
+                pose_count: 3, desired_alpha_keys: names.map(str::to_owned).to_vec(),
+                desired_alpha_defaults: vec![0.0; 3], normalize_alpha: false, ..default()
+            });
+            let root = AnimationNode::new("Sync", SourcePosePassthroughNode {
+                synchronize_groups: true, output_time: false, ..default()
+            });
+            for node in saves.iter().chain(&uses).chain([&blend, &root]) {
+                graph.add_node(node.clone());
+            }
+            graph.add_node_parameter_edge(leaves[0], "Pose", saves[1].id, "Pose");
+            graph.add_node_parameter_edge(uses[1].id, "Pose", blend.id, "Poses 0");
+            graph.add_node_parameter_edge(leaves[1], "Pose", blend.id, "Poses 1");
+            graph.add_node_parameter_edge(leaves[2], "Pose", blend.id, "Poses 2");
+            graph.add_node_parameter_edge(blend.id, "Pose", saves[0].id, "Pose");
+            graph.add_node_parameter_edge(uses[0].id, "Pose", root.id, "Source");
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(root.id, "Pose", "Pose");
+            (world.resource_mut::<Assets<AnimationGraph>>().add(graph), leaves, root.id, scheduled)
+        });
+        world.run_system_once(move |resources: SystemResources| {
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            for (handle, leaves, root, scheduled) in &fixtures {
+                let graph = resources.animation_graph_assets.get(handle).unwrap();
+                let mut arena = GraphContextArena::new(handle.id());
+                for frame in &reference.frames {
+                    let delta = 1.0 / 60.0;
+                    let mut inputs = HashMap::from([("delta".to_owned(), DataValue::F32(delta))]);
+                    inputs.extend(names.into_iter().zip(frame.weights).map(|(name, weight)| (name.to_owned(), DataValue::F32(weight))));
+                    graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
+                        GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                    let context = arena.get_toplevel().node_states.get::<AnimationContextState>(*root, StateKey::Default).unwrap();
+                    let name = |id| names[leaves.iter().position(|leaf| *leaf == id).unwrap()];
+                    let submission: Vec<_> = context.sync_players.iter().map(|tick| name(tick.identity.1)).collect();
+                    if *scheduled {
+                        assert_eq!(submission, frame.submission.iter().map(String::as_str).collect::<Vec<_>>());
+                    } else {
+                        assert_eq!(submission.first(), Some(&"base"));
+                    }
+                    let leader = context.sync_players.iter().find(|tick| tick.selected_leader).unwrap();
+                    assert_eq!(name(leader.identity.1), if *scheduled { frame.leader.as_str() } else { frame.old_leader.as_str() });
+                }
+            }
+        }).unwrap();
     }
 
     #[test]

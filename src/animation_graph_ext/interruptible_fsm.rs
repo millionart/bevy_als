@@ -2735,7 +2735,7 @@ mod tests {
         machine_node.id = NodeId::default();
         root.add_node(machine_node);
         let probe = AnimationNode::new("weight", MachineWeightProbe);
-        let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned() });
+        let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned(), ..default() });
         root.add_node(probe.clone());
         root.add_node(cache.clone());
         root.add_node_parameter_edge(probe.id, "Pose", cache.id, "Pose");
@@ -2843,7 +2843,7 @@ mod tests {
         machine_node.id = NodeId::default();
         root.add_node(machine_node);
         let probe = AnimationNode::new("weight", MachineWeightProbe);
-        let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned() });
+        let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned(), ..default() });
         root.add_node(probe.clone());
         root.add_node(cache.clone());
         root.add_node_parameter_edge(probe.id, "Pose", cache.id, "Pose");
@@ -2914,7 +2914,7 @@ mod tests {
         machine_node.id = NodeId::default();
         root.add_node(machine_node);
         let probe = AnimationNode::new("weight", MachineWeightProbe);
-        let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned() });
+        let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned(), ..default() });
         root.add_node(probe.clone());
         root.add_node(cache.clone());
         root.add_node_parameter_edge(probe.id, "Pose", cache.id, "Pose");
@@ -3761,6 +3761,7 @@ mod tests {
             "fixture cache",
             SourceCachedPoseSaveNode {
                 cache_key: "fixture-cache".to_owned(),
+                ..default()
             },
         );
         let fsm_node = AnimationNode::new(
@@ -4099,6 +4100,7 @@ mod tests {
                 "movement",
                 SourceCachedPoseSaveNode {
                     cache_key: "movement".to_owned(),
+                    ..default()
                 },
             );
             let machine = AnimationNode::new(

@@ -433,6 +433,8 @@ pub fn resolve_scoped_cached_pose(
 #[type_path = "als_ext"]
 pub struct SourceCachedPoseSaveNode {
     pub cache_key: String,
+    #[reflect(default)]
+    pub submission_order: Option<usize>,
 }
 
 impl NodeLike for SourceCachedPoseSaveNode {
@@ -440,7 +442,15 @@ impl NodeLike for SourceCachedPoseSaveNode {
         let pose = ctx.data_back("Pose")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(CACHED_POSE_VALUE, pose);
-        if let Some(context) = pose_input_context_state(&ctx, "Pose") {
+        if let Some(mut context) = pose_input_context_state(&ctx, "Pose") {
+            if let Some(order) = self.submission_order {
+                let owner = ctx.graph_context.context_id;
+                for player in &mut context.sync_players {
+                    if player.cached_submission_order.is_none_or(|(context, _)| context != owner) {
+                        player.cached_submission_order = Some((owner, order));
+                    }
+                }
+            }
             *ctx.state_mut_or_else(AnimationContextState::default)? = AnimationContextState {
                 cached_pose_request_route: None, ..context
             };
@@ -655,7 +665,7 @@ mod tests {
 
         let mut graphs = Assets::<AnimationGraph>::default();
         let input = AnimationNode::new("input", GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
-        let cache = AnimationNode::new("cache", SourceCachedPoseSaveNode { cache_key: "shared".into() });
+        let cache = AnimationNode::new("cache", SourceCachedPoseSaveNode { cache_key: "shared".into(), ..default() });
         let machine = AnimationNode::new("machine", InterruptibleFsmNode::default());
         let mut shared = AnimationGraph::new();
         for node in [&input, &cache, &machine] { shared.add_node(node.clone()); }
@@ -709,6 +719,7 @@ mod tests {
     fn scoped_cache_key_overrides_only_the_internal_lookup_identity() {
         let cache = SourceCachedPoseSaveNode {
             cache_key: "ab_als_crouching:movement".to_owned(),
+            ..default()
         };
         assert_eq!(
             saved_cache_key(&cache, "Save cached pose 'Movement'"),
