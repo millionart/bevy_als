@@ -7297,7 +7297,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 数据有效性：这54帧的输出还带有空pose留下的缺省skeleton句柄；最终恢复控制的全部1332帧均保留正确骨架。未把这一数据风险等同于已运行默认角色并观察到A-pose。
   - 漏检/边界：旧alias验证覆盖条件选择、首次进入及缓存复用，未覆盖旧混合完成而新混合尚活跃时的前态回退。测试使用原状态/条件/转场和完整受控站蹲pose；未宣称默认世界角色已显示A-pose，也未证明其他alias成员或相邻FSM已等价。证据`target/bf144/123/resolved.json`、`analysis.json`；未实施通用alias修复或重写生成资产。
 
-- [ ] BF144-D208 / P2 — 零步长标记组仍执行相位对齐，改变新成员时钟及后续姿态。
+- [x] BF144-D208 / P2 — 零步长标记组仍执行相位对齐，改变新成员时钟及后续姿态。
+  - 2026-11-12 09:05 +0800 实际结束，较09:47预估提前42分钟，未拆分。fresh Crouch 7条48帧，12次零移动尝试保留本地时钟，5个恢复帧从实际本地时刻开始；去前组终点有效性控制使新leader从约0.13955秒代替原生0.8秒开始。原生请求和resolver夹具见 `docs/audit/bf144/d208/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 08:59 +08:00，预估结束2026-11-12 09:47 +08:00。重采Crouch实际标记组零移动、换leader和下一正步，保留本地时间并区分有效标记终点。
   - Source：fresh `AnimSequenceBase.cpp:522–548`在实际移动delta为0时只按需要建立本地marker索引，不调用TickByMarkerAsLeader或发布有效marker起止；`AnimSync.cpp:219–258`继续按分数尝试候选，所有候选都无有效终点时最后一项成为记录leader。下帧从各自未移动的时间继续。本机原生FAnimSync确认这一行为；Crouch PlayRate源下限0.0001，本反例使用合法rate=1和delta=0。
   - Target：`sync_group_phase::SourceMarkerRecord::advance`在delta=0时仍产生有效start/end；`resolve_source_sync_phases`据此接受最高分leader并把刚加入的成员映射到已有marker相位。`SourceSequencePlayerNode`直接用重同步时间采样，后续正常帧继续沿错误起点推进。
   - 反例/消费：六条零步长加入/换leader路径各26个失败帧，共156帧，最大位置差约0.827秒；原Crouching方向FSM的Forward状态保持，VelocityBlend由Forward=1变为Forward=0.3/Left=0.7时插入一个零步长，实际25帧时钟不符，最大差约0.211秒。只恢复源零步长规则的受控节点消除这一类错误，正步长控制保持；完整原图的左脚局部旋转25帧改变，最大约37.79°。该角度是同一target姿态图恢复正确时钟前后的差，不是UE整角色姿态测量。

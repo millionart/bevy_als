@@ -1,0 +1,448 @@
+{
+  "players": [
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.A_Als_Crouch_Walk_Forward",
+      "start": 0.125,
+      "rate": 1.0,
+      "looping": true
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.A_Als_Crouch_Walk_Left_Forward",
+      "start": 0.425,
+      "rate": 1.0,
+      "looping": true
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.A_Als_Crouch_Walk_Right_Forward",
+      "start": 0.8,
+      "rate": 1.0,
+      "looping": true
+    }
+  ],
+  "samples": [
+    {
+      "name": "zero_join",
+      "steps": [
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zero_handoff",
+      "steps": [
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            0.25,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            0.25,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            0.25,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zero_then_new_leader",
+      "steps": [
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.1,
+            0.1,
+            0.8
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.1,
+            0.1,
+            0.8
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zero_three_equal",
+      "steps": [
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0,
+          "weights": [
+            0.5,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.5,
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "positive_join",
+      "steps": [
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cold_zero",
+      "steps": [
+        {
+          "delta_seconds": 0,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zero_rate_high_score",
+      "steps": [
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.75,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ],
+          "rates": [
+            1.0,
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "weights": [
+            0.25,
+            0.75,
+            null
+          ]
+        }
+      ]
+    }
+  ]
+}

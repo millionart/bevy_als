@@ -402,6 +402,8 @@ pub fn resolve_source_sync_phases(
         let previous_leader = group_leader(&previous_players);
         let previous_common = previous_leader.map_or_else(Vec::new, |prior|
             common_marker_names(&previous_players, prior));
+        let previous_marker_leader = previous_leader.filter(|prior| prior.marker_advance.as_ref().is_none_or(|advance|
+            advance.end.as_ref().is_some_and(SyncMarkerPosition::is_valid)));
         let mut marker_advance = None;
         let mut leader_samples = Vec::new();
         let mut phase = None;
@@ -426,14 +428,14 @@ pub fn resolve_source_sync_phases(
                     })).map(|prior| prior.resolved_length_ratio.unwrap_or_else(||
                         marker_phase_sample_time(prior.phase, prior.phase_duration,
                             &prior.phase_markers, prior.duration, &prior.markers, prior.looped) / prior.duration.max(EPSILON)))
-            } else if common.is_empty() {
+            } else if common.is_empty() || grouped.sequence_marker_sync_paused() {
                 None
             } else if leader.override_position_when_joining_sync_group_as_leader && joined {
                 None
             } else if common == previous_common {
-                previous_leader.map(|prior| prior.phase)
+                previous_marker_leader.map(|prior| prior.phase)
             } else {
-                previous_leader.and_then(|prior| {
+                previous_marker_leader.and_then(|prior| {
                     let prior_time = marker_phase_sample_time(prior.phase, prior.phase_duration,
                         &prior.phase_markers, prior.duration, &prior.markers, prior.looped);
                     let position = marker_position_at_time(&prior.markers, prior.duration, prior_time, prior.looped)?;
@@ -517,6 +519,10 @@ impl SourceSyncPlayerTick {
                 && (self.has_been_full_weight || self.weight >= 1.0 - 1e-5))
     }
 
+    fn sequence_marker_sync_paused(&self) -> bool {
+        self.length_play_rate.is_none() && self.delta_seconds * self.play_rate == 0.0
+    }
+
     pub fn advance(&self, previous_phase: f32) -> SourceSyncPlayerStep {
         let position = marker_position_at_time(&self.phase_markers, self.phase_duration,
             phase_to_time(previous_phase, self.phase_duration, self.looped), self.looped);
@@ -544,6 +550,8 @@ impl SourceSyncPlayerTick {
         let (time, advance) = if record.markers.is_empty() {
             (crate::extensions::source_sequence_player::bound_source_sample_time(previous_time + delta, self.duration, self.looped),
                 SourceMarkerAdvance { forward: delta >= 0.0, ..default() })
+        } else if self.sequence_marker_sync_paused() {
+            (previous_time, SourceMarkerAdvance { forward: true, ..default() })
         } else { record.advance(previous_time, delta, self.looped) };
         let phase = advance.end.as_ref().filter(|position| position.is_valid())
             .and_then(|position| time_for_marker_position(&self.phase_markers, self.phase_duration,
@@ -1839,6 +1847,104 @@ mod tests {
                 previous = Some(SourceSyncPlayerTick {
                     selected_leader: true, phase: step.phase, resolved_length_ratio: Some(ratio), ..tick
                 });
+            }
+        }
+    }
+
+    #[test]
+    fn paused_crouch_players_keep_local_clocks_and_publish_no_group_markers() {
+        #[derive(Deserialize)]
+        struct Player {
+            duration: f32,
+            markers: Vec<SyncMarker>,
+        }
+        #[derive(Deserialize)]
+        struct Position {
+            previous: String,
+            next: String,
+            alpha: f32,
+        }
+        #[derive(Deserialize)]
+        struct Frame {
+            delta: f32,
+            weights: Vec<Option<f32>>,
+            rates: Vec<f32>,
+            inputs: Vec<f32>,
+            leader: usize,
+            attempted: Vec<usize>,
+            clocks: Vec<[f32; 2]>,
+            start: Option<Position>,
+            end: Option<Position>,
+            ratios: [f32; 2],
+            after_pause: bool,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            players: Vec<Player>,
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d208/marker.replay.json"
+        )).unwrap();
+        let canonical = &reference.players[0];
+        let ids: Vec<NodeId> = (0..reference.players.len()).map(|index|
+            bevy::asset::uuid::Uuid::from_u128(index as u128 + 1).into()).collect();
+        for case in reference.cases {
+            let mut previous: Vec<SourceSyncPlayerTick> = Vec::new();
+            for frame in case.frames {
+                let mut current: Vec<_> = frame.weights.iter().enumerate().filter_map(|(index, weight)| {
+                    let player = &reference.players[index];
+                    let identity = (GraphContextId::default(), ids[index]);
+                    let previous_marker_record = previous.iter().find(|prior| prior.identity == identity)
+                        .and_then(|prior| prior.previous_marker_record.clone());
+                    Some(SourceSyncPlayerTick {
+                        identity, key: "Movement".into(), weight: (*weight)?, duration: player.duration,
+                        phase_duration: canonical.duration, markers: player.markers.clone(),
+                        phase_markers: canonical.markers.clone(), play_rate: frame.rates[index],
+                        looped: true, delta_seconds: frame.delta, sample_time_hint: Some(frame.inputs[index]),
+                        previous_marker_record, ..default()
+                    })
+                }).collect();
+                let group = resolve_source_sync_phases(&current, &previous).remove(0);
+                let attempts: Vec<_> = group.leader_samples.iter().map(|(identity, _)| identity.1).collect();
+                assert_eq!(attempts, frame.attempted.iter().map(|index| ids[*index]).collect::<Vec<_>>(), "{}", case.name);
+                assert_eq!(attempts.last(), Some(&ids[frame.leader]), "{}", case.name);
+                for ((_, step), (&index, clock)) in group.leader_samples.iter().zip(frame.attempted.iter().zip(&frame.clocks)) {
+                    let times = [step.previous_time, step.time];
+                    if frame.delta * frame.rates[index] == 0.0 || frame.after_pause {
+                        assert_eq!(times, *clock, "{} player {index}", case.name);
+                    } else {
+                        assert!(times.iter().zip(clock).all(|(actual, expected)| (actual - expected).abs() < EPSILON), "{}", case.name);
+                    }
+                }
+                let advance = group.marker_advance.as_ref().unwrap();
+                for (actual, expected) in [(advance.start.as_ref(), frame.start.as_ref()), (advance.end.as_ref(), frame.end.as_ref())] {
+                    match (actual, expected) {
+                        (Some(actual), Some(expected)) => {
+                            assert_eq!((&actual.previous, &actual.next), (&expected.previous, &expected.next), "{}", case.name);
+                            assert!((actual.alpha - expected.alpha).abs() < EPSILON, "{}", case.name);
+                        }
+                        (None, None) => {}
+                        _ => panic!("Group marker validity differs for {}", case.name),
+                    }
+                }
+                let ratios = group.length_ratios.unwrap().to_array();
+                assert!(ratios.iter().zip(frame.ratios).all(|(actual, expected)| (actual - expected).abs() < EPSILON), "{}", case.name);
+                for tick in &mut current {
+                    tick.phase = group.phase.unwrap();
+                    tick.selected_leader = tick.identity.1 == ids[frame.leader];
+                    tick.marker_advance = tick.selected_leader.then(|| advance.clone());
+                    tick.resolved_length_ratio = tick.selected_leader.then_some(ratios[1]);
+                    tick.previous_marker_record = group.leader_samples.iter().find(|(identity, _)| *identity == tick.identity)
+                        .and_then(|(_, step)| step.record.clone());
+                }
+                previous = current;
             }
         }
     }
