@@ -8,8 +8,10 @@ use bevy_animation_graph::core::{
 };
 use serde::{Deserialize, Deserializer};
 
+use crate::extensions::raw_sequence_sampling::RawControlSample;
+
 use super::{
-    bone_id, clip_source_key, project_rotation, project_scale, project_translation,
+    PreparedBone, bone_id, clip_source_key, project_rotation, project_scale, project_translation,
     source_frame_time,
 };
 
@@ -73,6 +75,7 @@ fn bone_id_from_path<'de, D: Deserializer<'de>>(deserializer: D) -> Result<BoneI
 struct TrackBone {
     #[serde(rename = "path", deserialize_with = "bone_id_from_path")]
     id: BoneId,
+    reference: PreparedBone,
     rotation: Track<[f32; 4]>,
     translation: Track<[f32; 3]>,
     scale: Track<[f32; 3]>,
@@ -112,6 +115,18 @@ fn rotation_lerp(a: [f32; 4], b: [f32; 4], alpha: f32) -> [f32; 4] {
 
 pub(super) fn has_clip(clip: &GraphClip) -> bool {
     clip_source_key(clip) == Some((PREPARED.gltf.as_path(), PREPARED.animation.as_str()))
+}
+
+pub(super) fn retain_raw_reference_pose(pose: &mut Pose, controls: &RawControlSample) {
+    for (index, control) in controls.bones() {
+        let bone = &PREPARED.bones[index];
+        bone.reference.retain_raw_reference(
+            pose,
+            bone.id,
+            control,
+            PREPARED.source_length_to_runtime_scale,
+        );
+    }
 }
 
 pub(super) fn sample_pose(clip: &GraphClip, time: f32) -> Option<Pose> {

@@ -32,7 +32,7 @@ pub fn rig_quaternion(euler: DVec3) -> DQuat {
     DQuat::from_xyzw(-source_x, -source_z, -source_y, source_w)
 }
 
-fn rotation_basis(rotation: DQuat) -> DQuat {
+pub(crate) fn rotation_basis(rotation: DQuat) -> DQuat {
     DQuat::from_xyzw(-rotation.x, -rotation.z, -rotation.y, rotation.w)
 }
 

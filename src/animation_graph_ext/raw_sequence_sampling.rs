@@ -1,14 +1,15 @@
-use std::{path::PathBuf, sync::LazyLock};
+use std::{mem::size_of, path::PathBuf, sync::LazyLock};
 
 use bevy::{
-    math::{DQuat, Quat},
+    math::{DQuat, DVec3, Quat},
     prelude::VariableCurve,
 };
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use serde::Deserialize;
 
-use crate::extensions::control_rig_math::{rig_euler, rig_quaternion};
-use crate::extensions::source_compression::clip_source_key;
+use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize};
+use crate::extensions::control_rig_math::{rig_euler, rig_quaternion, rotation_basis};
+use crate::extensions::source_compression::{clip_source_key, source_frame_time};
 
 #[derive(Deserialize)]
 struct RotationTimeline(PathBuf, String, Vec<f32>);
@@ -45,9 +46,7 @@ pub(crate) fn raw_rotation_interval(clip: &GraphClip, time: f32) -> Option<RawRo
     })
 }
 
-fn interpolate_rotation(start: Quat, end: Quat, alpha: f32) -> DQuat {
-    let start = start.as_dquat();
-    let end = end.as_dquat();
+fn interpolate_rotation(start: DQuat, end: DQuat, alpha: f32) -> DQuat {
     let alpha = f64::from(alpha);
     let bias = if start.dot(end) < 0.0 { -1.0 } else { 1.0 };
     let left = start.to_array();
@@ -56,6 +55,10 @@ fn interpolate_rotation(start: Quat, end: Quat, alpha: f32) -> DQuat {
         (left[axis] * bias).mul_add(1.0 - alpha, right[axis] * alpha)
     }))
     .normalize()
+}
+
+fn euler_roundtrip(rotation: DQuat) -> DQuat {
+    rig_quaternion(rig_euler(rotation).as_vec3().as_dvec3())
 }
 
 impl RawRotationInterval {
@@ -76,9 +79,137 @@ impl RawRotationInterval {
         } else if (self.alpha - 1.0).abs() <= 1e-5 {
             key(self.end)?.as_dquat()
         } else {
-            interpolate_rotation(key(self.start)?, key(self.end)?, self.alpha)
+            interpolate_rotation(
+                key(self.start)?.as_dquat(),
+                key(self.end)?.as_dquat(),
+                self.alpha,
+            )
         };
-        Some(rig_quaternion(rig_euler(blended).as_vec3().as_dvec3()).as_quat())
+        Some(euler_roundtrip(blended).as_quat())
+    }
+}
+
+#[derive(Deserialize)]
+struct RawControlSequence {
+    gltf: PathBuf,
+    animation: String,
+    duration: f32,
+    step: bool,
+    frame_rate: [u32; 2],
+    frame_count: usize,
+    tracks: Vec<(usize, [usize; 2])>,
+}
+
+struct RawControls {
+    sequences: Vec<RawControlSequence>,
+    keys: &'static [u8],
+}
+
+static RAW_CONTROLS: LazyLock<RawControls> = LazyLock::new(|| {
+    let data = include_bytes!("../../assets/ALSRuntime/Animations/als_raw_fk_controls.bin");
+    let (length, payload) = data.split_at(4);
+    let length = u32::from_le_bytes(length.try_into().expect("Raw control header length")) as usize;
+    let (header, keys) = payload.split_at(length);
+    let mut sequences: Vec<RawControlSequence> =
+        serde_json::from_slice(header).expect("Generated raw FK controls");
+    sequences.sort_unstable_by(|left, right| {
+        (&left.gltf, &left.animation).cmp(&(&right.gltf, &right.animation))
+    });
+    RawControls { sequences, keys }
+});
+
+pub(crate) struct RawControlSample {
+    sequence: &'static RawControlSequence,
+    keys: &'static [u8],
+    first: usize,
+    second: usize,
+    alpha: f32,
+}
+
+pub(crate) fn raw_control_sample(clip: &GraphClip, time: f32) -> Option<RawControlSample> {
+    let key = clip_source_key(clip)?;
+    let data = &*RAW_CONTROLS;
+    let index = data
+        .sequences
+        .binary_search_by(|sequence| {
+            (sequence.gltf.as_path(), sequence.animation.as_str()).cmp(&key)
+        })
+        .ok()?;
+    let sequence = &data.sequences[index];
+    let (frame, fraction) =
+        source_frame_time(time.max(0.0).min(sequence.duration), sequence.frame_rate);
+    let last = sequence.frame_count - 1;
+    let first = (frame as usize).min(last);
+    let second = (first + 1).min(last);
+    let alpha = if sequence.step || first == second {
+        0.0
+    } else {
+        fraction
+    };
+    Some(RawControlSample {
+        sequence,
+        keys: data.keys,
+        first,
+        second,
+        alpha,
+    })
+}
+
+impl RawControlSample {
+    fn key(&self, [offset, count]: [usize; 2], frame: usize) -> RigTransform {
+        let base = offset + 9 * frame.min(count - 1);
+        let values: [f64; 9] = std::array::from_fn(|index| {
+            let start = (base + index) * size_of::<f32>();
+            f64::from(f32::from_le_bytes(
+                self.keys[start..start + size_of::<f32>()]
+                    .try_into()
+                    .expect("Generated raw FK key"),
+            ))
+        });
+        let [x, y, z, roll, pitch, yaw, sx, sy, sz] = values;
+        RigTransform {
+            translation: DVec3::new(x, y, z),
+            rotation: rotation_basis(rig_quaternion(DVec3::new(roll, -yaw, pitch))),
+            scale: DVec3::new(sx, sy, sz),
+        }
+    }
+
+    fn control(&self, span: [usize; 2]) -> RigTransform {
+        let start = self.key(span, self.first);
+        if self.alpha <= 1e-8 {
+            return RigTransform {
+                rotation: rig_normalize(start.rotation),
+                ..start
+            };
+        }
+        let mut blended = if self.alpha <= 1e-5 {
+            start
+        } else {
+            let end = self.key(span, self.second);
+            if (self.alpha - 1.0).abs() <= 1e-5 {
+                end
+            } else {
+                let weight = f64::from(self.alpha);
+                RigTransform {
+                    translation: start.translation + (end.translation - start.translation) * weight,
+                    rotation: interpolate_rotation(start.rotation, end.rotation, self.alpha),
+                    scale: start.scale + (end.scale - start.scale) * weight,
+                }
+            }
+        };
+        blended.translation = blended.translation.as_vec3().as_dvec3();
+        blended.rotation = rig_normalize(rotation_basis(euler_roundtrip(rotation_basis(
+            blended.rotation,
+        ))));
+        blended.scale = blended.scale.as_vec3().as_dvec3();
+        blended
+    }
+
+    pub(crate) fn bones(&self) -> impl Iterator<Item = (usize, RigTransform)> + '_ {
+        self.sequence
+            .tracks
+            .iter()
+            .map(|&(index, span)| (index, self.control(span)))
     }
 }
 

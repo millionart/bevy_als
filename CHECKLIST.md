@@ -7622,7 +7622,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：关键帧不经过相同的帧间Quaternion→Euler转换，只有source-first帧间oracle才能暴露；不把源分支当可优化缺陷，不声明可见故障或compressed路径也采用Euler往返。证据`target/bf144/175/euler-counterexample-check.json`、`euler-peak-{raw,compressed}.native.json`及`sequence-controls.json`；尚未修复生产。
 
 
-- [ ] BF144-D227 / P3 — raw Sequence省略源FK Control Rig的近参考变换保留规则。
+- [x] BF144-D227 / P3 — raw Sequence省略源FK Control Rig的近参考变换保留规则。 开始：2026-11-12 13:15:14 +08:00；预估结束：2026-11-12 13:50:14 +08:00。
+  - 实际结束：2026-11-12 13:30:57 +08:00；偏差：−19分17秒；结果：静态Gate PASS。glTF后写回键会误拒真实近参考反例，已改用128原Sequencer的8660 FK轨，两个读键模式和时钟一致后去重复。340控制判断逐项相等，29个保留参考的目标投影与原生全等；平移/scale越界反例、同target reader复验与生成字节一致。Cargo统一后置，证据 `docs/audit/bf144/d227/summary.json`。
   - Source：fresh `AnimSequencerDataModel.cpp:1560–1566`每次先ResetPoseToInitial(Bone)，`FKControlRig.cpp:158–162`的当前Direct分支以bForce=false写回骨骼（.177 fresh模式取证修正早先Replace分支引用，保留条件相同）；`RigHierarchy.cpp:5454–5461`在变换未脏且FRigComputedTransform::Equals时跳过写入。`RigHierarchyElements.h:476–481`要求translation、quat和scale全部在0.0001f内；translation使用源厘米，该门槛是算法条件而非审计容差。
   - Target：`source_sequence_player.rs:56–110`直接消费glTF采样值，没有raw Control Rig参考保持步骤；仅恢复D225的nlerp和D226的Euler仍不覆盖。raw模型中的参考scale/translation微量值也因此留在最终pose，不能统一替换成动画轨道值或identity。
   - 最小反例：Crouch_Walk_Forward实际60Hz handoff第210帧、calf_twist_01_l、time=0.5037120581。同原资产的GetBoneTransform强制raw单轨经源Euler后，相对fresh参考translation差3.814697e−6cm、quat差8.53836e−5、scale差4.768372e−7，全部满足源条件；GetAnimationPose完整模型确实保留参考值。只恢复该规则后translation/scale精确、rotation差4.90e−11；0.5秒同样保留，0.5333333秒超门槛正常写入，translation/scale任一单项越界控制也拒绝保留。

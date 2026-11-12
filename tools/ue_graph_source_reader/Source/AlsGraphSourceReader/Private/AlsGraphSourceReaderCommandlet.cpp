@@ -2397,6 +2397,91 @@ TSharedPtr<FJsonObject> CaptureSequenceCompression(const UAnimSequence& Sequence
     return Compression;
 }
 
+FEulerTransform ReadSequenceControlFrame(const FTransformParameterNameAndCurves& Parameter, FFrameNumber Frame, int32 KeyCount, bool bPreferDefault)
+{
+    const auto Read = [Frame, KeyCount, bPreferDefault](const FMovieSceneFloatChannel& Channel, float Fallback)
+    {
+        if (bPreferDefault && Channel.GetDefault().IsSet()) { return Channel.GetDefault().GetValue(); }
+        if (!bPreferDefault && Channel.GetValues().Num() == KeyCount) { return Channel.GetValues()[Frame.Value].Value; }
+        Channel.Evaluate(Frame, Fallback);
+        return Fallback;
+    };
+    return FEulerTransform(
+        FRotator(Read(Parameter.Rotation[1], 0.f), Read(Parameter.Rotation[2], 0.f), Read(Parameter.Rotation[0], 0.f)),
+        FVector(Read(Parameter.Translation[0], 0.f), Read(Parameter.Translation[1], 0.f), Read(Parameter.Translation[2], 0.f)),
+        FVector(Read(Parameter.Scale[0], 1.f), Read(Parameter.Scale[1], 1.f), Read(Parameter.Scale[2], 1.f)));
+}
+
+TSharedPtr<FJsonObject> CaptureSequenceRawControls(const UAnimSequence& Sequence)
+{
+    const auto Model = Sequence.GetDataModelInterface();
+    if (Model.GetObject() == nullptr || Model.GetInterface() == nullptr) { return nullptr; }
+    TArray<UObject*> Objects;
+    GetObjectsWithOuter(Model.GetObject(), Objects, EGetObjectsFlags::IncludeNestedObjects);
+    const UMovieSceneControlRigParameterSection* Section = nullptr;
+    for (UObject* Object : Objects)
+    {
+        const UMovieSceneControlRigParameterSection* Candidate = Cast<UMovieSceneControlRigParameterSection>(Object);
+        if (Candidate != nullptr && Candidate->IsActive())
+        {
+            if (Section != nullptr) { return nullptr; }
+            Section = Candidate;
+        }
+    }
+    const UMovieScene* Scene = Section != nullptr ? Section->GetTypedOuter<UMovieScene>() : nullptr;
+    if (Scene == nullptr) { return nullptr; }
+    const FFrameRate Rate = Model->GetFrameRate();
+    const FFrameRate Tick = Scene->GetTickResolution();
+    const int32 KeyCount = Model->GetNumberOfKeys();
+    if (KeyCount < 1) { return nullptr; }
+    const int32 Frames = FFrameRate::TransformTime(FFrameTime(KeyCount - 1), Rate, Tick).CeilToFrame().Value + 1;
+    const FReferenceSkeleton& Reference = Sequence.GetSkeleton()->GetReferenceSkeleton();
+    const auto Append = [](TArray<float>& Values, const FEulerTransform& Transform)
+    {
+        Values.Append({
+            float(Transform.Location.X), float(Transform.Location.Y), float(Transform.Location.Z),
+            float(Transform.Rotation.Roll), float(Transform.Rotation.Pitch), float(Transform.Rotation.Yaw),
+            float(Transform.Scale.X), float(Transform.Scale.Y), float(Transform.Scale.Z)
+        });
+    };
+    const auto Encode = [](const TArray<float>& Values)
+    {
+        return FBase64::Encode(reinterpret_cast<const uint8*>(Values.GetData()), Values.Num() * sizeof(float));
+    };
+    TArray<TSharedPtr<FJsonValue>> Tracks;
+    for (int32 Bone = 0; Bone < Reference.GetRawBoneNum(); ++Bone)
+    {
+        const FName Name = UFKControlRig::GetControlName(Reference.GetBoneName(Bone), ERigElementType::Bone);
+        const FTransformParameterNameAndCurves* Parameter = Section->GetTransformParameterNamesAndCurves().FindByPredicate(
+            [Name](const FTransformParameterNameAndCurves& Value) { return Value.ParameterName == Name; });
+        if (Parameter == nullptr) { continue; }
+        TArray<float> Discrete, Interpolated;
+        Discrete.Reserve(9 * Frames);
+        Interpolated.Reserve(9 * Frames);
+        for (int32 Frame = 0; Frame < Frames; ++Frame)
+        {
+            Append(Discrete, ReadSequenceControlFrame(*Parameter, FFrameNumber(Frame), KeyCount, false));
+            Append(Interpolated, ReadSequenceControlFrame(*Parameter, FFrameNumber(Frame), KeyCount, true));
+        }
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetNumberField(TEXT("bone"), Bone);
+        Row->SetStringField(TEXT("discrete"), Encode(Discrete));
+        if (FMemory::Memcmp(Discrete.GetData(), Interpolated.GetData(), Discrete.Num() * sizeof(float)) != 0)
+        {
+            Row->SetStringField(TEXT("interpolated"), Encode(Interpolated));
+        }
+        Tracks.Add(MakeShared<FJsonValueObject>(Row));
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetNumberField(TEXT("frame_count"), Frames);
+    Result->SetNumberField(TEXT("rate_numerator"), Rate.Numerator);
+    Result->SetNumberField(TEXT("rate_denominator"), Rate.Denominator);
+    Result->SetNumberField(TEXT("tick_numerator"), Tick.Numerator);
+    Result->SetNumberField(TEXT("tick_denominator"), Tick.Denominator);
+    Result->SetArrayField(TEXT("tracks"), Tracks);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const FString& RequestPath)
 {
     USkeletalMesh* Mesh = Cast<USkeletalMesh>(Asset);
@@ -2412,6 +2497,10 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
         return nullptr;
     }
 
+    bool bCaptureRawControls = false;
+    if (Request->HasField(TEXT("raw_controls")) &&
+        (Request->TryGetField(TEXT("raw_controls"))->Type != EJson::Boolean ||
+         !Request->TryGetBoolField(TEXT("raw_controls"), bCaptureRawControls))) { return nullptr; }
     USkeleton* Skeleton = Mesh->GetSkeleton();
     const FReferenceSkeleton& Ref = Skeleton->GetReferenceSkeleton();
     TArray<FBoneIndexType> Indices;
@@ -2462,6 +2551,16 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
             Row->SetField(TEXT("forced_root_lock"), MakeShared<FJsonValueNull>());
         }
         Row->SetStringField(TEXT("pose_mode"), bRaw ? TEXT("raw_model") : TEXT("compressed"));
+        if (bCaptureRawControls)
+        {
+            const TSharedPtr<FJsonObject> Controls = CaptureSequenceRawControls(*Sequence);
+            if (!Controls.IsValid())
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Source raw controls are unavailable for %s."), *Path);
+                return nullptr;
+            }
+            Row->SetObjectField(TEXT("raw_controls"), Controls.ToSharedRef());
+        }
         if (!bRaw)
         {
             const TSharedPtr<FJsonObject> Compression = CaptureSequenceCompression(*Sequence);
@@ -2592,29 +2691,15 @@ TSharedPtr<FJsonObject> CaptureSequenceRigStages(const UAnimSequence& Sequence, 
         if (DataModel == nullptr || Scene == nullptr) { return nullptr; }
         const FFrameTime SampleTime = FFrameRate::TransformTime(DataModel->GetFrameRate().AsFrameTime(Time), DataModel->GetFrameRate(), Scene->GetTickResolution());
         const float Alpha = SampleTime.GetSubFrame();
-        const auto ChannelValue = [DataModel](const FMovieSceneFloatChannel& Channel, FFrameNumber Frame, bool bPreferDefault, float Fallback)
-        {
-            if (bPreferDefault && Channel.GetDefault().IsSet()) { return Channel.GetDefault().GetValue(); }
-            if (!bPreferDefault && Channel.GetValues().Num() == DataModel->GetNumberOfKeys()) { return Channel.GetValues()[Frame.Value].Value; }
-            float Value = Fallback;
-            Channel.Evaluate(Frame, Value);
-            return Value;
-        };
         TMap<FName, FTransform> ChannelControls;
         for (const FTransformParameterNameAndCurves& Parameter : Section->GetTransformParameterNamesAndCurves())
         {
-            const auto EvaluateEuler = [&](FFrameNumber Frame, bool bPreferDefault)
-            {
-                return FEulerTransform(FRotator(ChannelValue(Parameter.Rotation[1], Frame, bPreferDefault, 0.f), ChannelValue(Parameter.Rotation[2], Frame, bPreferDefault, 0.f), ChannelValue(Parameter.Rotation[0], Frame, bPreferDefault, 0.f)),
-                    FVector(ChannelValue(Parameter.Translation[0], Frame, bPreferDefault, 0.f), ChannelValue(Parameter.Translation[1], Frame, bPreferDefault, 0.f), ChannelValue(Parameter.Translation[2], Frame, bPreferDefault, 0.f)),
-                    FVector(ChannelValue(Parameter.Scale[0], Frame, bPreferDefault, 1.f), ChannelValue(Parameter.Scale[1], Frame, bPreferDefault, 1.f), ChannelValue(Parameter.Scale[2], Frame, bPreferDefault, 1.f)));
-            };
             FEulerTransform Euler;
-            if (FMath::IsNearlyZero(Alpha)) { Euler = EvaluateEuler(SampleTime.FrameNumber, false); }
+            if (FMath::IsNearlyZero(Alpha)) { Euler = ReadSequenceControlFrame(Parameter, SampleTime.FrameNumber, DataModel->GetNumberOfKeys(), false); }
             else
             {
-                const FTransform From = EvaluateEuler(SampleTime.FloorToFrame(), true).ToFTransform();
-                const FTransform To = EvaluateEuler(SampleTime.CeilToFrame(), true).ToFTransform();
+                const FTransform From = ReadSequenceControlFrame(Parameter, SampleTime.FloorToFrame(), DataModel->GetNumberOfKeys(), true).ToFTransform();
+                const FTransform To = ReadSequenceControlFrame(Parameter, SampleTime.CeilToFrame(), DataModel->GetNumberOfKeys(), true).ToFTransform();
                 FTransform Blended;
                 Blended.Blend(From, To, Alpha);
                 Euler = FEulerTransform(Blended);

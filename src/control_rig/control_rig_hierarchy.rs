@@ -280,7 +280,7 @@ impl RigTransform {
         }
     }
 
-    fn same(self, other: Self, translation_tolerance: f64) -> bool {
+    pub(crate) fn same(self, other: Self, translation_tolerance: f64) -> bool {
         let tolerance = 1e-4_f32 as f64;
         (self.translation - other.translation).abs().max_element() <= translation_tolerance
             && (self.scale - other.scale).abs().max_element() <= tolerance

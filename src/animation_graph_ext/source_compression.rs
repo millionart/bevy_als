@@ -5,7 +5,10 @@ use std::{
     sync::LazyLock,
 };
 
-use bevy::prelude::{Name, Quat, Transform, Vec3};
+use bevy::{
+    math::{DQuat, DVec3},
+    prelude::{Name, Quat, Transform, Vec3},
+};
 use bevy_animation_graph::core::{
     animation_clip::{EntityPath, GraphClip, loader::GraphClipSource},
     id::BoneId,
@@ -14,6 +17,8 @@ use bevy_animation_graph::core::{
 use serde::Deserialize;
 
 use crate::extensions::als_curves::{AlsPoseCurves, SourceCurveName, SourceCurveValues};
+use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize};
+use crate::extensions::raw_sequence_sampling::raw_control_sample;
 use crate::extensions::source_sequence_player::{SourceRootLock, source_root_lock_transform};
 
 #[path = "source_per_track.rs"]
@@ -95,10 +100,46 @@ struct SourceTransform {
     scale: SourceVector,
 }
 
+impl SourceTransform {
+    fn rig_transform(&self) -> RigTransform {
+        RigTransform {
+            translation: DVec3::from_array(self.translation.values()),
+            rotation: DQuat::from_array(self.rotation.values()),
+            scale: DVec3::from_array(self.scale.values()),
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct PreparedBone {
     skeleton_pose: SourceTransform,
     mesh_pose: SourceTransform,
+}
+
+impl PreparedBone {
+    fn retain_raw_reference(
+        &self,
+        pose: &mut Pose,
+        id: BoneId,
+        candidate: RigTransform,
+        unit_scale: f64,
+    ) {
+        let Some(index) = pose.paths.get(&id).copied() else {
+            return;
+        };
+        let bone = &mut pose.bones[index];
+        if candidate.same(self.skeleton_pose.rig_transform(), f64::from(1e-4_f32)) {
+            let reference = self.mesh_pose.rig_transform();
+            bone.translation = Some(project_translation(
+                reference.translation.to_array(),
+                unit_scale,
+            ));
+            bone.rotation = Some(project_rotation(
+                rig_normalize(reference.rotation).to_array(),
+            ));
+            bone.scale = Some(project_scale(reference.scale.to_array()));
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -213,7 +254,7 @@ pub(crate) fn clip_source_key(clip: &GraphClip) -> Option<(&Path, &str)> {
         .then_some((path.path(), animation_name.as_str()))
 }
 
-fn source_frame_time(time: f32, frame_rate: [u32; 2]) -> (f64, f32) {
+pub(crate) fn source_frame_time(time: f32, frame_rate: [u32; 2]) -> (f64, f32) {
     let [numerator, denominator] = frame_rate.map(f64::from);
     let frame_time = f64::from(time) * numerator / denominator;
     let frame = frame_time.floor();
@@ -448,6 +489,25 @@ pub(crate) fn has_prepared_pose(clip: &GraphClip) -> bool {
     PREPARED_ACL.sequence(clip).is_some() || per_track::has_clip(clip)
 }
 
+pub(crate) fn retain_raw_reference_pose(clip: &GraphClip, time: f32, pose: &mut Pose) {
+    let Some(controls) = raw_control_sample(clip, time) else {
+        return;
+    };
+    if PREPARED_ACL.sequence(clip).is_some() {
+        let data = &*PREPARED_ACL;
+        for (index, control) in controls.bones() {
+            data.bone_references[index].retain_raw_reference(
+                pose,
+                data.bone_ids[index],
+                control,
+                data.source_length_to_runtime_scale,
+            );
+        }
+    } else if per_track::has_clip(clip) {
+        per_track::retain_raw_reference_pose(pose, &controls);
+    }
+}
+
 pub(crate) fn sample_prepared_root(clip: &GraphClip, root: BoneId, time: f32) -> Option<Transform> {
     let data = &*PREPARED_ACL;
     let sequence = data.sequence(clip)?;
@@ -599,5 +659,38 @@ mod tests {
             Quat::from_xyzw(0.0, 0.026351282, -0.99965274, 2.3107445e-5)
         );
         assert!(sample_source_curves(Some(&bow), &AlsPoseCurves::default(), 0.505).is_empty());
+    }
+
+    #[test]
+    fn raw_reference_retention_uses_the_fk_control_before_gltf_writeback() {
+        let crouch = clip(
+            "ALSRUNTIME/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf",
+            "A_Als_Crouch_Walk_Forward_0",
+        );
+        let bone = EntityPath::from_slashed_string(
+            "GltfNode0/root/pelvis/thigh_l/calf_l/calf_twist_01_l".to_owned(),
+        )
+        .id();
+        let sampled = Transform {
+            translation: Vec3::new(-0.20476779, 6.915116e-9, -1.2133295e-8),
+            rotation: Quat::from_xyzw(0.0029125006, -0.00761252, 0.001934104, 0.9999649),
+            scale: Vec3::new(1.0000001, 1.0000001, 1.0000005),
+        };
+        let mut pose = Pose::default();
+        pose.add_bone(BonePose::from_transform(sampled), bone);
+        retain_raw_reference_pose(&crouch, 0.53333336, &mut pose);
+        assert_eq!(pose.get_bone(bone).unwrap().to_transform(), sampled);
+
+        retain_raw_reference_pose(&crouch, 0.50371206, &mut pose);
+        let actual = pose.get_bone(bone).unwrap().to_transform();
+        assert_eq!(
+            actual.translation,
+            Vec3::new(-0.20476779, 7.781708e-9, -1.4251387e-8)
+        );
+        assert_eq!(actual.scale, sampled.scale);
+        assert_eq!(
+            actual.rotation,
+            Quat::from_xyzw(-0.0028089457, 0.0076127234, -0.001933307, -0.9999652)
+        );
     }
 }

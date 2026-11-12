@@ -90,7 +90,7 @@ def compile_capture(capture, assets):
         translation = offsets[2 * index]
         rotation = offsets[2 * index + 1]
         scale = offsets[layout["track_offsets"] + index]
-        decoded = {"path": list(paths[bone])}
+        decoded = {"path": list(paths[bone]), "reference": capture["bones"][bone]}
         formats = {}
         for channel, offset in (("rotation", rotation), ("translation", translation), ("scale", scale)):
             decoded[channel], formats[channel] = decode_track(stream, offset, channel, frame_count)
