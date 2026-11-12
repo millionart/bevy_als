@@ -1,0 +1,13 @@
+{
+  "format": "als_animation_visual_runner_v1",
+  "case": "startup",
+  "frame_delta_seconds": null,
+  "frame_hitch_seconds": null,
+  "manual_exit_code": 101,
+  "report_path": "docs/audit/bf144/u07/bevy-0.20/startup-ordered/report.json",
+  "report_exists": false,
+  "validation_exit_code": null,
+  "validation_scope": "functional",
+  "render_effects_passed": false,
+  "decal_renderer_passed": false
+}

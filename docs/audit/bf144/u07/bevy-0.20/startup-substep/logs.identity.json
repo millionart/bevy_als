@@ -1,0 +1,12 @@
+{
+  "process.stderr.log.gz": {
+    "bytes": 5021,
+    "sha256": "d61af6638b5ad1bd3955e61aed9867e992df73d05cfe2499b50297e930fd7a41",
+    "redacted": true
+  },
+  "process.stdout.log.gz": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "redacted": false
+  }
+}

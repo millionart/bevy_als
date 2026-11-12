@@ -22,6 +22,7 @@ const SOURCE_WORLD_SOLVER_ITERATIONS: [u32; 3] = include!("../../settings/world_
 pub enum SourcePhysicsTimingSet {
     Clamp,
     Restore,
+    IntegratePosition,
 }
 
 #[derive(Resource, Default)]
@@ -84,9 +85,10 @@ impl Plugin for SourcePhysicsTimingPlugin {
             .add_systems(
                 SubstepSchedule,
                 integrate_character_position
-                    .in_set(IntegrationSystems::Position)
-                    .after(avian3d::dynamics::integrator::integrate_positions)
-                    .after(crate::extensions::ragdoll_physics_profile::integrate_source_ragdoll_rotation),
+                    .in_set(SourcePhysicsTimingSet::IntegratePosition)
+                    .after(IntegrationSystems::Position)
+                    .after(crate::extensions::ragdoll_physics_profile::integrate_source_ragdoll_rotation)
+                    .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax),
             );
     }
 }

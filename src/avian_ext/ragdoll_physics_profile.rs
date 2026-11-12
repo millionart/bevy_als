@@ -825,14 +825,17 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .after(initialize_profile_dof)
             .after(avian3d::dynamics::solver::xpbd::prepare_xpbd_joint::<SourcePhysicsJoint>))
         .add_systems(avian3d::prelude::SubstepSchedule, condition_profile_solver_inertia
-            .after(avian3d::dynamics::integrator::IntegrationSystems::Position)
+            .after(IntegrationSystems::Position)
+            .after(integrate_source_ragdoll_rotation)
+            .after(crate::source_physics_timing::SourcePhysicsTimingSet::IntegratePosition)
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
         .add_systems(avian3d::prelude::SubstepSchedule, solve_profile_dof
             .after(avian3d::dynamics::solver::xpbd::XpbdSolverSystems::VelocityProjection)
             .after(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Damping)
             .after(crate::extensions::source_physics_joint::solve_source_joint_velocity_iterations))
         .add_systems(PhysicsSchedule, disable_ragdoll_gyroscopic_torque
-            .in_set(SolverSystems::PreSubstep))
+            .in_set(SolverSystems::PreSubstep)
+            .after(avian3d::dynamics::rigid_body::forces::ForceSystems::ApplyConstantForces))
         .add_systems(PhysicsSchedule, apply_source_linear_damping
             .in_set(IntegrationSystems::UpdateVelocityIncrements)
             .after(pre_process_velocity_increments))
@@ -840,11 +843,12 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .in_set(IntegrationSystems::UpdateVelocityIncrements)
             .after(avian3d::dynamics::rigid_body::forces::ForceSystems::ApplyConstantForces)
             .before(pre_process_velocity_increments))
-        .add_systems(PhysicsSchedule, (enable_source_ragdoll_rotation, ApplyDeferred)
-            .chain().in_set(SolverSystems::PreSubstep))
+        .add_systems(PhysicsSchedule, enable_source_ragdoll_rotation
+            .after(avian3d::prelude::PhysicsStepSystems::NarrowPhase)
+            .before(SolverSystems::PrepareSolverBodies))
         .add_systems(avian3d::prelude::SubstepSchedule, integrate_source_ragdoll_rotation
-            .in_set(avian3d::dynamics::integrator::IntegrationSystems::Position)
-            .after(avian3d::dynamics::integrator::integrate_positions))
+            .after(IntegrationSystems::Position)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
         .add_systems(PhysicsSchedule, (disable_source_ragdoll_rotation, ApplyDeferred)
             .chain().in_set(SolverSystems::PostSubstep))
         .add_systems(PhysicsSchedule, prepare_profile_sleep_islands

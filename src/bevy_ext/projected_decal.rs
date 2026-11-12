@@ -2,7 +2,7 @@ use bevy::{
     light::ClusteredDecal,
     pbr::{ExtendedMaterial, MaterialExtension, MaterialExtensionKey, MaterialExtensionPipeline},
     prelude::*,
-    render::{RenderApp, render_resource::{AsBindGroup, RenderPipelineDescriptor, SpecializedMeshPipelineError}, storage::ShaderBuffer},
+    render::{RenderApp, render_resource::{AsBindGroup, RenderPipelineDescriptor, ShaderType, SpecializedMeshPipelineError}, storage::ShaderBuffer},
     mesh::MeshVertexBufferLayoutRef,
     shader::ShaderRef,
 };
@@ -82,7 +82,12 @@ pub struct PackedDecalMaterial {
 #[require(Transform, Visibility, ClusteredDecal)]
 pub struct PackedDecal(pub Handle<PackedDecalMaterial>);
 
-type PackedDecalData = [Vec4; 6];
+#[derive(Clone, Default, ShaderType)]
+pub struct PackedDecalData {
+    pub local_from_world: Mat4,
+    pub color: Vec4,
+    pub material: Vec4,
+}
 
 #[derive(Resource, Clone, Default, bevy::render::extract_resource::ExtractResource)]
 #[extract_app(RenderApp)]
@@ -95,7 +100,7 @@ pub struct PackedDecalBuffers {
 
 impl PackedDecalBuffers {
     fn new(buffers: &mut Assets<ShaderBuffer>, enabled: bool) -> Self {
-        Self { materials: buffers.add(ShaderBuffer::from(vec![PackedDecalData::default()])),
+        Self { materials: buffers.add(ShaderBuffer::from(vec![[Vec4::ZERO; 6]])),
             probe: buffers.add(ShaderBuffer::from(probe_words(enabled, &DecalProbeRequest::default()))), capacity: 1, probe_enabled: enabled }
     }
 }
@@ -261,23 +266,26 @@ fn prepare_decals(
         decal.normal_map_texture = None;
         decal.emissive_texture = None;
         decal.metallic_roughness_texture = Some(material.texture.clone());
-        let local_from_world = Mat4::from(transform.affine().inverse());
-        values.push([
-            local_from_world.x_axis,
-            local_from_world.y_axis,
-            local_from_world.z_axis,
-            local_from_world.w_axis,
-            material.color,
-            Vec4::new(material.roughness_scale, material.metallic, material.specular, 0.0),
-        ]);
+        values.push(PackedDecalData {
+            local_from_world: transform.affine().inverse().into(),
+            color: material.color,
+            material: Vec4::new(material.roughness_scale, material.metallic, material.specular, 0.0),
+        });
     }
     let required = values.len().max(1);
     if required > handles.capacity { handles.capacity = required.next_power_of_two(); }
     values.resize(handles.capacity, default());
-    if handles.probe_enabled { for value in &mut values { value[5].w = frame.0 as f32; } }
+    if handles.probe_enabled { for value in &mut values { value.material.w = frame.0 as f32; } }
     let mut materials = buffers.get_mut(&handles.materials).unwrap();
     materials.clear();
-    materials.extend_from_slice(&values);
+    materials.extend(values.into_iter().map(|value| [
+        value.local_from_world.x_axis,
+        value.local_from_world.y_axis,
+        value.local_from_world.z_axis,
+        value.local_from_world.w_axis,
+        value.color,
+        value.material,
+    ]));
 }
 
 fn prepare_receivers(
