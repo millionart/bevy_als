@@ -319,6 +319,16 @@ fn process_stance_dimension(
     }
 }
 
+pub(crate) fn locomotion_mode_locked(
+    mode: LocomotionState,
+    mantle: Option<&crate::als::mantle::AlsMantleState>,
+    action: Option<&AlsNotifyLocomotionAction>,
+) -> bool {
+    (mode == LocomotionState::Custom
+        && mantle.is_some_and(|state| state.active || state.root_motion_ready))
+        || (mode == LocomotionState::None && action == Some(&AlsNotifyLocomotionAction::Ragdolling))
+}
+
 pub fn state_transition_system(
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
@@ -352,10 +362,7 @@ pub fn state_transition_system(
         mantle,
     ) in &mut actors
     {
-        let mode_locked = (*loco == LocomotionState::Custom
-            && mantle.is_some_and(|state| state.active || state.root_motion_ready))
-            || (*loco == LocomotionState::None
-                && action.as_deref() == Some(&AlsNotifyLocomotionAction::Ragdolling));
+        let mode_locked = locomotion_mode_locked(*loco, mantle, action.as_deref());
         if mode_locked {
             req.locomotion_state = None;
         }

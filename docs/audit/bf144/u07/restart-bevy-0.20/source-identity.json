@@ -1,0 +1,98 @@
+{
+  "previous_commit": "81bec2fc",
+  "baseline_source_commit": "337d9298",
+  "source_sha256": {
+    "Engine/Source/Runtime/Engine/Private/Character.cpp": "52affb05aa94b16a2c28dfb8d959de14ad42ba899edb52dc1d50b9011fc1a16a",
+    "Engine/Source/Runtime/Engine/Private/Pawn.cpp": "c3e036835d105482d7703099b7bdc3ae6a42aacab6ac73be36b1c4dfe20b9570",
+    "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+    "Source/ALS/Private/AlsCharacterMovementComponent.cpp": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda"
+  },
+  "baseline": {
+    "bytes": 1346,
+    "sha256": "7cdb809051a80c2f6acfd6b03c7fc2031d0bd536a9ad3aa815566283ffd8359e",
+    "redacted": false
+  },
+  "compiler_setup": {
+    "elapsed_seconds": 263.33,
+    "exit_reason": "no_progress_limit",
+    "last_progress": "stderr.log",
+    "no_progress_limit_seconds": 240,
+    "no_progress_seconds": 240.103,
+    "process_exit_code": -9,
+    "source": "restart-early-mode",
+    "success": false,
+    "timeout_seconds": 3600
+  },
+  "focused_profile": {
+    "profile": "play",
+    "project_opt_level": 1,
+    "incremental": true
+  },
+  "checks": {
+    "restart-early-mode-incremental": {
+      "watchdog": {
+        "elapsed_seconds": 251.125,
+        "exit_reason": "completed",
+        "last_progress": "stdout.log",
+        "no_progress_limit_seconds": 420,
+        "no_progress_seconds": 0.0,
+        "process_exit_code": 0,
+        "source": "restart-early-mode-incremental",
+        "success": true,
+        "timeout_seconds": 3600
+      },
+      "stdout": "restart-early-mode-incremental.stdout.log.gz",
+      "bytes": 701,
+      "sha256": "530b381b4c055203253b472bca6c8c879a89950cc8413eae8bcdd5fd538e6231"
+    },
+    "restart-without-support": {
+      "watchdog": {
+        "elapsed_seconds": 154.445,
+        "exit_reason": "process_failed",
+        "last_progress": "stderr.log",
+        "no_progress_limit_seconds": 420,
+        "no_progress_seconds": 0.0,
+        "process_exit_code": 101,
+        "source": "restart-without-support",
+        "success": false,
+        "timeout_seconds": 3600
+      },
+      "stdout": "restart-without-support.stdout.log.gz",
+      "bytes": 784,
+      "sha256": "bf346c1384ec85d8f9b9a3b4f4c67897ab741c929d87ed2931f28b401896ab38"
+    },
+    "restart-without-owner-lock": {
+      "stdout": "restart-without-owner-lock.stdout.log.gz",
+      "bytes": 742,
+      "sha256": "1b7b76916485bc85f7906bc361984862432e61afd6f57fc02464e224f004da36",
+      "watchdog": {
+        "elapsed_seconds": 165.474,
+        "exit_reason": "process_failed",
+        "last_progress": "stderr.log",
+        "no_progress_limit_seconds": 420,
+        "no_progress_seconds": 0.0,
+        "process_exit_code": 101,
+        "source": "restart-without-owner-lock",
+        "success": false,
+        "timeout_seconds": 3600
+      }
+    },
+    "restart-early-mode-restored": {
+      "stdout": "restart-early-mode-restored.stdout.log.gz",
+      "bytes": 791,
+      "sha256": "62903f482702aa6f8d1c81cc28446e3c8b781f5174299011e7ec4ff5c931f56f",
+      "watchdog": {
+        "elapsed_seconds": 163.437,
+        "exit_reason": "completed",
+        "last_progress": "stdout.log",
+        "no_progress_limit_seconds": 420,
+        "no_progress_seconds": 0.0,
+        "process_exit_code": 0,
+        "source": "restart-early-mode-restored",
+        "success": true,
+        "timeout_seconds": 3600
+      }
+    }
+  },
+  "playground_sha256": "5992f77a19dcbe389ae4b972fd96f48609c28301f46233b5b60183208116955b"
+}

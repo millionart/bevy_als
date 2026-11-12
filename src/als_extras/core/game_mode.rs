@@ -1,3 +1,4 @@
+use crate::als::character::AlsInitialMovementModePending;
 use crate::als::control_scheme::AlsControlSchemeConfig;
 use crate::als::input::AlsInputMap;
 use crate::als::params::AlsMovementParams;
@@ -6,6 +7,8 @@ use crate::als::player_start::{
     AlsPlayerStartSettings, AlsPlayerStartOccupancy, PLAYER_START_TELEPORT_SKIN,
     choose_player_start, player_start_tag_matches, teleport_xy_adjustments,
 };
+use crate::als::state::{AlsNotifyLocomotionAction, LocomotionState};
+use crate::als::transition::{Dimension, StateTransitionEvent, StateValue, locomotion_mode_locked};
 use avian3d::prelude::SpatialQueryFilter;
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
@@ -159,8 +162,10 @@ fn admit_pending_players(
     pending: Query<(Entity, &AlsPlayerAdmission, Option<&AlsPlayerAdmissionComplete>), With<AlsPlayerAdmissionPending>>,
     mut characters: Query<(Option<&mut crate::als::input::AlsInputCommand>,
         Option<&mut crate::als::transition::AlsStateRequest>, &Transform,
-        Option<&mut crate::als::motion::AlsViewYaw>, Option<&mut crate::als::view::AlsViewPitch>),
-        With<crate::als::character::AlsCharacter>>,
+        Option<&mut crate::als::motion::AlsViewYaw>, Option<&mut crate::als::view::AlsViewPitch>,
+        Option<&mut LocomotionState>, Option<&crate::als::mantle::AlsMantleState>,
+        Option<&AlsNotifyLocomotionAction>), With<crate::als::character::AlsCharacter>>,
+    mut transitions: Option<ResMut<Messages<StateTransitionEvent>>>,
     assets: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
@@ -171,7 +176,8 @@ fn admit_pending_players(
     }
     for (request, _, previous) in &pending {
         if let Some(previous) = previous && characters.contains(previous.character) {
-            if let Ok((input, mode, transform, yaw, pitch)) = characters.get_mut(previous.character) {
+            if let Ok((input, request, transform, yaw, pitch, locomotion, mantle, action)) =
+                characters.get_mut(previous.character) {
                 let forward = transform.forward().as_vec3();
                 if let Some(mut yaw) = yaw { yaw.0 = crate::als::orientation::world_forward_to_yaw(forward); }
                 if let Some(mut pitch) = pitch { pitch.0 = forward.y.atan2(Vec2::new(forward.x, forward.z).length()); }
@@ -180,8 +186,22 @@ fn admit_pending_players(
                     input.jump_held = false;
                     input.move_dir = Vec2::ZERO;
                 }
-                if let Some(mut mode) = mode {
-                    mode.locomotion_state = Some(crate::als::state::LocomotionState::Grounded);
+                if let Some(mut request) = request {
+                    request.locomotion_state = locomotion.is_none().then_some(LocomotionState::Grounded);
+                }
+                if let Some(mut locomotion) = locomotion
+                    && *locomotion != LocomotionState::Grounded
+                    && !locomotion_mode_locked(*locomotion, mantle, action) {
+                    if let Some(transitions) = transitions.as_deref_mut() {
+                        transitions.write(StateTransitionEvent {
+                            entity: previous.character,
+                            dimension: Dimension::LocomotionState,
+                            from: StateValue::LocomotionState(*locomotion),
+                            to: StateValue::LocomotionState(LocomotionState::Grounded),
+                        });
+                    }
+                    *locomotion = LocomotionState::Grounded;
+                    commands.entity(previous.character).insert(AlsInitialMovementModePending);
                 }
             }
             commands.entity(previous.character).insert(avian3d::prelude::LinearVelocity::ZERO);

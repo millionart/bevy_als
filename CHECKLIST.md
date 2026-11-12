@@ -7416,6 +7416,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 首普通 Jump 复验（2026-11-13 03:44）：D244恢复后，独立出生 Jump 用例仍未见 Tnua 启动，尚未进入 D149 的图选择验证。fresh UE CheckJumpInput/DoJump 与 ALS Input_OnJump 的接受顺序已读，先在原用例记录传感器后、Tnua Logic 前和帧末的 mode/输入、pending、马达及动作。
   - 统一库回归（2026-11-13 04:15）：D244/D149 自身及真实启动通过。当前整库1991过／149失败，较2059过／81失败的基线恢复4、出现72个失败。定向重现四个共用 `loaded_roll_character` 的实际测试；该夹具在零姿态的Grounded种子处返回，尚未运行D252首普通支撑判定。先修共用夹具的真实放行条件并重验，保留出生和实际起跳 Gate。深穿透已另外取得原生104cm及Parry状态证据，待夹具验证后处理。
   - 统一夹具恢复（2026-11-13 04:22）：共用出生夹具等待两个初始化标志清除及真实Grounded后返回，定向6项通过。整库2061过／79失败，相对出生两项修复之前减少2个失败，新增失败0。四到六轮日志及失败差分见 `docs/audit/bf144/u07/bevy-0.20/tests-round-4-lib/` 至 `tests-round-6-lib/`。
+  - 时序段复盘（2026-11-13 04:39:15）：上轮03:33:40开始、预估04:18:40，实际复盘晚20分35秒。D244/D149、共享出生夹具、D125深穿透复验均完成，最新完整库2061过／79失败，深穿透另有6项定向恢复。原时序段耗时集中在两个出生阶段消融和两种Parry初始重叠语义，现以失败的源消费者逐项追踪。本轮04:39:15开始、预估05:19:15先完成渲染实际Gate及Restart源码和消费者，再至05:46:45处理剩余运动/图回归及原始反馈证据，继续原完整范围。
+  - 贴花真实 Gate 前：WESL接收管线在启动中已就绪，按实际入口 `footprint` 验证材质响应、贴花移动和GPU缓冲生命周期，使用最新同target二进制、截图0与功能范围。
+  - 贴花真实 Gate（2026-11-13 04:40）：GPU验证36请求、576样本全通过。整场因三处贴花Locomotion和两处旋转基座Standing姿态链被判static而失败。原始报告与独立GPU结果保留在 `docs/audit/bf144/u07/bevy-0.20/footprint-round-1/`。
+  - BF134.01K4b2b2 复开（2026-11-13 04:42，预估05:05）：fresh UE Restart 先StopMovement并清Jump，然后 SetDefaultMovementMode 在无base时同帧进入Falling；ALS原锁拒绝mode写。当前重新准入只在原初始化阶段之后排队Grounded，静止地板系统到CMC之后才置Air，首帧竖速仍0。复用既有mode锁和D252地板初始化，定向迭代临时使用opt-level 1及增量编译，真实入口保持原play配置。
+  - BF134.01K4b2b2 真实入口前（2026-11-13 05:01）：Restart定向及同target字节恢复7项通过。移除支撑初始化复现无base时首帧竖速0，移除原锁条件使Mantle的Custom变Air。使用正常play启动真实Playground，核对准入和动画启动。
+  - BF134.01K4b2b2 已恢复（2026-11-13 05:03）：原生首帧Grounded/Air及清Jump两项失败修复，原owner锁、输入/视角及复用角色保持。两个消融与同target恢复7项、正式启动均通过，见 `docs/audit/bf144/u07/restart-bevy-0.20/`。
   - .265补充：真实Locomotion入口与独立同mesh Stand0全部790分量精确，五个相关mesh-space层化模板顺序重放消除245旋转分量供应差，再接原Additive/Head得到真实raw首Root790分量精确；初始化源骨姿态链已闭合，未关闭初始target组合差、曲线反馈或完整原warm→77历史。见 `target/bf144/265/summary.json`，不把源本来具有的层化运算误记成新差异；截图0、性能暂停。
   - .264补充：真实Head Base/Additive及实际alpha/空间模式已读，13次源合成10270分量精确；Additive独立采样匹配，初始Base的245个旋转分量与同mesh Stand0不等，残差供应边进一步缩至Layering→Locomotion→Standing。Head/Rig/Root观察与同输入Head算法不再是未知点；不以该局部闭环关闭初始化Base或完整warm反馈。见 `target/bf144/264/summary.json`，截图0、性能暂停。
   - .263补充：真实首Head→Rig与主图Root现已从原求值直接取得，初始化和12帧旧字段完全保持；首帧790分量/完整curve与Rig层级一致，后续七根腿/骨盆骨验证写回边界。273个double旋转/20个近零float的候选残差已在实际Head输出存在，下一只补Head实际Base/Additive输入，不复开Rig或下游Root算法；13份原始source Root可供后续反馈核验，完整warm→77仍未通过。见 `target/bf144/263/summary.json`，截图0、性能暂停。
