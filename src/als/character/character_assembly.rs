@@ -255,7 +255,7 @@ fn spawn_als_character_internal(
             AlsNotifyEarlyBlendOut::default(),
             crate::als::character::AlsBirthAnimationPending,
             avian3d::prelude::RigidBodyDisabled,
-            bevy_tnua::TnuaToggle::Disabled,
+            bevy_tnua::TnuaToggle::SenseOnly,
         ))
         .id();
     if blueprint.spawn_input {

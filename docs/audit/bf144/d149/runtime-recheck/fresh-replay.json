@@ -1,0 +1,23 @@
+{
+  "linked_locomotion": "5b8f6ccb-4375-69e2-303f-7980cbb0e327",
+  "cases": [
+    {
+      "case": "first_ordinary",
+      "pending_during_jump_request": true,
+      "jumped": false,
+      "state": "Fall"
+    },
+    {
+      "case": "first_ordinary_without_registration_guard",
+      "pending_during_jump_request": false,
+      "jumped": true,
+      "state": "Jump"
+    },
+    {
+      "case": "second_ordinary",
+      "pending_during_jump_request": false,
+      "jumped": true,
+      "state": "Jump"
+    }
+  ]
+}

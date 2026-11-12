@@ -247,7 +247,10 @@ pub fn evaluate_players<F: QueryFilter>(
     resources: SystemResources,
 ) {
     players.par_iter_mut().for_each(|(entity, mut player, inputs, mut gate, initial)| {
-        if gate.as_ref().is_some_and(|gate| !gate.update_graph) || initial.is_some_and(|initial| !initial.ready) { return; }
+        if gate.as_ref().is_some_and(|gate| !gate.update_graph)
+            || initial.is_some_and(|initial| !initial.ready || player.get_default_output_pose().is_some()) {
+            return;
+        }
         let playing = !player.is_paused();
         let initialize = initial.is_some() || gate.is_some() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);
         player.set_global_input_data("animation.evaluate_pose", initialize || gate.as_ref().is_none_or(|gate| gate.refresh_bones));

@@ -6668,6 +6668,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：既有Discard测试只覆盖标签、slot、linked graph与rig query输入，没有覆盖独立的根曲线投影。实例ID已变化、旧标签和gate已清理，排除旧实例继续运行。证据`66/initial/`、`66/field_initial/`与`bf144_animation_phase66_replacement_curve_ownership`；仅登记，未修复。
 
 - [x] BF144-D149 / P3 — 启动零delta求值后提前清除pending，改变首个普通更新的动画选择。
+  - 2026-11-13 03:51 复开，预估04:16。原首普通用例在传感器后仍Grounded、输入边沿已消费且Tnua启用，动作却未开始。Bevy 0.20 配套Tnua 0.33.2 在Logic按需创建地面传感器，缺实体即跳过动作；出生时Disabled使首普通帧首次创建。旧 Gate 漏掉依赖升级后的出生传感器准备。将已有SenseOnly用于预备，零时间可先生成一次注册姿态，再按实际传感器就绪放行。
+  - 04:04 定向和消融：fresh T19/T20 重放为 Fall/Jump/Jump。当前真实角色的立即及延后一帧 Jump、出生姿态和 root/linked 时钟三项通过。去传感器等待时零步长用例提前放行，去零姿态幂等条件时第二个等待帧变为第2次求值，两次均在原断言失败。源码已按字节恢复并在同一 target_game 重编。
+  - 04:08 真实入口前：两处消融后按源码字节恢复，同target的三个定向全部通过。真实启动从 `run_manual.ps1` 验证注册后角色、根图姿态和渲染，截图0、功能范围。
+  - 2026-11-13 04:11 复验通过，03:51开始，预估04:16，提前5分钟。三个定向在同target恢复通过，正式无驱动启动的根姿态、图和渲染均通过。源报告、首次失败、两处消融和恢复证据见 `docs/audit/bf144/d149/runtime-recheck/`。
   - 2026-11-12 00:25 +0800 实际结束早于00:58预估，未拆分。fresh根图、Locomotion原生T19/T20和UE组件注册闭环见 `docs/audit/bf144/d149/`。零delta出生求值保留pending，普通更新成功后清除。三组静态重放得到Fall、移除条件后Jump及延迟输入Jump，压缩源报告解压哈希一致。旧66原始运行报告未随当前Git保留，已加入真实出生/起跳反例，Rust、消融恢复和Playground待统一验证。
   - 本轮开始2026-11-12 00:20 +08:00，预估结束2026-11-12 00:58 +08:00。核对注册态与首个普通更新的pending边界，以及实际InAir状态图的Jump/Fall转换。
   - Source：fresh `Actor.cpp:6262,6297`先逐个RegisterComponent，再标记全部注册完成；`SkeletalMeshComponent.cpp:1036,1215–1216`在mesh注册过程中执行初始化零delta求值。ALS `NativePostUpdateAnimation:227`因此保留pending；之后`InitializeComponent:1455`以force=False调用InitAnim，不重新初始化已有主实例。首个普通tick仍按pending执行`RefreshInAirOnGameThread:1103–1104`，抑制并清除Jump请求，随后才清pending。
@@ -7404,6 +7408,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF134.01D 真实 Gate 前（2026-11-12 22:03）：已重读源 Look 资产，Bevy 同输入时钟对照得到旧100ms、源50ms，键鼠、世界时钟和 UI 的52项通过。使用实际 `run_manual.ps1` 启动 `interface`，检验菜单、慢动作和输入消费阶段。
   - BF134.01D 复验通过（2026-11-12 22:08）：源50ms上限恢复，52项键鼠/暂停/世界时钟/UI回归通过，正式 Interface 功能通过。证据在 `docs/audit/bf144/u07/look-clock-bevy-0.20/` 与 `docs/audit/bf144/u07/bevy-0.20/interface-round-1/`。
   - 跨日复盘（2026-11-13 03:33:40）：上轮21:41:50开始，首段预估22:31:50，复盘时点已晚5时1分50秒。上一轮完成Look时钟与Interface，保持真实布娃娃及起身通过。校正原始资产根的库测试复验2059过／81失败。D244独立复现证实等待中Grounded被改为Air，已定位地面马达计划与静止地板处理链，下一步读原生注册和首正常帧后修复。继续按可独立验收的两段工作复核。出生/首跳/地面时序 03:33:40开始、预估04:18:40，图/曲线/Rig原输入和渲染场景后续段预估04:18:40开始、04:48:40复盘。本轮保留81个失败及完整反馈数值的验证边界。
+  - 首普通 Jump 复验（2026-11-13 03:44）：D244恢复后，独立出生 Jump 用例仍未见 Tnua 启动，尚未进入 D149 的图选择验证。fresh UE CheckJumpInput/DoJump 与 ALS Input_OnJump 的接受顺序已读，先在原用例记录传感器后、Tnua Logic 前和帧末的 mode/输入、pending、马达及动作。
   - .265补充：真实Locomotion入口与独立同mesh Stand0全部790分量精确，五个相关mesh-space层化模板顺序重放消除245旋转分量供应差，再接原Additive/Head得到真实raw首Root790分量精确；初始化源骨姿态链已闭合，未关闭初始target组合差、曲线反馈或完整原warm→77历史。见 `target/bf144/265/summary.json`，不把源本来具有的层化运算误记成新差异；截图0、性能暂停。
   - .264补充：真实Head Base/Additive及实际alpha/空间模式已读，13次源合成10270分量精确；Additive独立采样匹配，初始Base的245个旋转分量与同mesh Stand0不等，残差供应边进一步缩至Layering→Locomotion→Standing。Head/Rig/Root观察与同输入Head算法不再是未知点；不以该局部闭环关闭初始化Base或完整warm反馈。见 `target/bf144/264/summary.json`，截图0、性能暂停。
   - .263补充：真实首Head→Rig与主图Root现已从原求值直接取得，初始化和12帧旧字段完全保持；首帧790分量/完整curve与Rig层级一致，后续七根腿/骨盆骨验证写回边界。273个double旋转/20个近零float的候选残差已在实际Head输出存在，下一只补Head实际Base/Additive输入，不复开Rig或下游Root算法；13份原始source Root可供后续反馈核验，完整warm→77仍未通过。见 `target/bf144/263/summary.json`，截图0、性能暂停。

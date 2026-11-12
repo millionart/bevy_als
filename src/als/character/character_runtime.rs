@@ -142,21 +142,25 @@ fn release_birth_animation_players(
     mut commands: Commands,
     avatars: Query<(Entity, &crate::character_assembly::AlsCharacterAvatar,
         &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
-    characters: Query<(&crate::character_assembly::AlsCharacterAssembly, Option<&bevy_tnua::TnuaToggle>),
+    characters: Query<(&crate::character_assembly::AlsCharacterAssembly, Option<&bevy_tnua::TnuaToggle>,
+        &bevy_tnua::TnuaSensorsEntities<crate::als::control_scheme::AlsControlScheme>),
         With<crate::als::character::AlsBirthAnimationPending>>,
     players: Query<(&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
         &crate::extensions::post_physics_animation::InitialAnimation)>,
 ) {
     for (avatar_entity, avatar, instance) in &avatars {
-        let Ok((assembly, toggle)) = characters.get(avatar.character) else { continue; };
+        let Ok((assembly, toggle, sensors)) = characters.get(avatar.character) else { continue; };
         if assembly.avatar != avatar_entity { continue; }
         let Ok((player, initial)) = players.get(instance.player_entity()) else { continue; };
-        if !initial.ready || player.get_error().is_some() || player.get_default_output_pose().is_none() { continue; }
+        if !initial.ready || player.get_error().is_some() || player.get_default_output_pose().is_none()
+            || (toggle != Some(&bevy_tnua::TnuaToggle::Disabled) && sensors.ground.is_none()) {
+            continue;
+        }
         commands.entity(avatar.character).remove::<(
             crate::als::character::AlsBirthAnimationPending,
             avian3d::prelude::RigidBodyDisabled,
         )>();
-        if toggle == Some(&bevy_tnua::TnuaToggle::Disabled) {
+        if toggle == Some(&bevy_tnua::TnuaToggle::SenseOnly) {
             commands.entity(avatar.character).remove::<bevy_tnua::TnuaToggle>();
         }
         commands.entity(instance.player_entity()).remove::<crate::extensions::post_physics_animation::InitialAnimation>();
@@ -325,6 +329,9 @@ mod tests {
         let fall = "edccb450-4d4e-e5ca-ad05-ae8b1d2b22d3";
         let jump = "3c79c741-4298-752a-f317-838c0ca38811";
         for (x, delay_jump) in [(0.0, false), (5.0, true)] {
+            if delay_jump {
+                app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::ZERO));
+            }
             let actor = app.world_mut().run_system_once_with(|In(x): In<f32>, mut commands: Commands, assets: Res<AssetServer>,
                 mut params: ResMut<Assets<crate::als::params::AlsMovementParams>>,
                 mut configs: ResMut<Assets<crate::als::control_scheme::AlsControlSchemeConfig>>| {
@@ -344,9 +351,19 @@ mod tests {
                 assert!(std::time::Instant::now() < deadline, "Birth animation did not become ready");
                 std::thread::sleep(std::time::Duration::from_millis(5));
             };
+            if delay_jump {
+                assert!(app.world().get::<crate::als::character::AlsBirthAnimationPending>(actor).is_some());
+                app.update();
+                assert_eq!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_context_arena().unwrap().frame_index(), 1);
+                app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+                app.update();
+            }
             let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
             assert_eq!(player.get_context_arena().unwrap().frame_index(), 1);
             assert_eq!(player.elapsed(), 0.0);
+            assert!(app.world().get::<crate::als::character::AlsBirthAnimationPending>(actor).is_none());
+            let ground = app.world().get::<bevy_tnua::TnuaSensorsEntities<AlsControlScheme>>(actor).unwrap().ground.unwrap();
+            assert!(app.world().get::<bevy_tnua::TnuaProximitySensor>(ground).is_some());
             if delay_jump { app.update(); }
             assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
             app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().jump_pressed = true;

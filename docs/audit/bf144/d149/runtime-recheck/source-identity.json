@@ -1,0 +1,114 @@
+{
+  "native_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion",
+  "native_bytes": 41880347,
+  "native_sha256": "a1c706647186816a473ab5d39d3739e4463a45ed79ca22da9119d3907870393e",
+  "tnua": {
+    "commit": "e7639530e98c1c67da1e6b66eeee7da0bcac2351",
+    "files": {
+      "src/controller.rs": "3918f3cf933566fe77aea88827755e2df48fd3bdb8b99d2efe4abccd98348b26",
+      "src/builtins/walk.rs": "4fca71b82733286bab728d0ff3de5810ee9e393aab7736544dce97d1b85b4e7d",
+      "src/sensor_sets.rs": "6aa292e7f447eccf017cd2f5822525b9e02362f9309774e75deaa818560b1930",
+      "physics-integration-layer/src/data_for_backends.rs": "de50dd7a41617d15e818ff9af1f9200f706f13c18c71ce54f394090656d72c65"
+    }
+  },
+  "baseline": {
+    "elapsed_seconds": 216.979,
+    "exit_reason": "process_failed",
+    "last_progress": "stderr.log",
+    "no_progress_limit_seconds": 240,
+    "no_progress_seconds": 0.0,
+    "process_exit_code": 101,
+    "source": "first-jump-observation",
+    "success": false,
+    "timeout_seconds": 3600
+  },
+  "baseline_logs": {
+    "baseline.stdout.log.gz": {
+      "bytes": 361,
+      "sha256": "1eb7132454776d104eb05b981daf13b0b55bb048ee2ae0b7a1040eaaea98d666",
+      "redacted": false
+    },
+    "baseline.stderr.log.gz": {
+      "bytes": 8477,
+      "sha256": "8834acd102367ace4ca258a67ae1d2c07d268fb6ef5f1e69cf0e0d9d092023a5",
+      "redacted": true
+    }
+  },
+  "checks": {
+    "d149-birth-sensors": {
+      "watchdog": {
+        "elapsed_seconds": 214.931,
+        "exit_reason": "completed",
+        "last_progress": "stdout.log",
+        "no_progress_limit_seconds": 240,
+        "no_progress_seconds": 0.0,
+        "process_exit_code": 0,
+        "source": "d149-birth-sensors",
+        "success": true,
+        "timeout_seconds": 3600
+      },
+      "stdout": {
+        "file": "d149-birth-sensors.stdout.log.gz",
+        "bytes": 426,
+        "sha256": "10b260a5f55243feeab64f91279d484a2f6abaf646af9f69a84e033686dc4783"
+      }
+    },
+    "d149-no-sensor-wait": {
+      "watchdog": {
+        "elapsed_seconds": 219.929,
+        "exit_reason": "process_failed",
+        "last_progress": "stderr.log",
+        "no_progress_limit_seconds": 240,
+        "no_progress_seconds": 0.0,
+        "process_exit_code": 101,
+        "source": "d149-no-sensor-wait",
+        "success": false,
+        "timeout_seconds": 3600
+      },
+      "stdout": {
+        "file": "d149-no-sensor-wait.stdout.log.gz",
+        "bytes": 838,
+        "sha256": "de8ad14ab813a3a1e80a1a43d4198453cc04aaa9192eaa04959690ded203d4d0"
+      }
+    },
+    "d149-repeat-zero-pose": {
+      "watchdog": {
+        "elapsed_seconds": 243.184,
+        "exit_reason": "process_failed",
+        "last_progress": "stderr.log",
+        "no_progress_limit_seconds": 240,
+        "no_progress_seconds": 0.0,
+        "process_exit_code": 101,
+        "source": "d149-repeat-zero-pose",
+        "success": false,
+        "timeout_seconds": 3600
+      },
+      "stdout": {
+        "file": "d149-repeat-zero-pose.stdout.log.gz",
+        "bytes": 789,
+        "sha256": "1a141fb5da7269efd0404564a2cf4fe45fd503c372b12b46380cf7033c152340"
+      }
+    }
+  },
+  "restored": {
+    "watchdog": {
+      "elapsed_seconds": 249.149,
+      "exit_reason": "completed",
+      "last_progress": "stdout.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 0,
+      "source": "d149-birth-restored",
+      "success": true,
+      "timeout_seconds": 3600
+    },
+    "stdout_bytes": 426,
+    "stdout_sha256": "f6983f56d289da3ec921189a95ded09feeb951b0494ffda6c67b02a6636c03e5",
+    "sources": {
+      "src/als/character/character_assembly.rs": "02443303703d49520529cbfddad45449a0ce4ec9a867a3e5cf948ecc15906f22",
+      "src/als/character/character_runtime.rs": "b62ab6b7e904315643fa44950242e18420f97b123b954856ce31151ba225434e",
+      "src/animation_graph_ext/post_physics_animation.rs": "ab6e14dbe610078d6f170a1f1f8fd5a6f3ed47d632e493adffddfbd3079ecdec"
+    }
+  },
+  "playground_sha256": "22df5807051616dc6474e0e3f27ac31b783a369d82a8a9241466e92ac54abbe4"
+}
