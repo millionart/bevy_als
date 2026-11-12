@@ -2439,6 +2439,14 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
         Row->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
         Row->SetNumberField(TEXT("additive_type"), Sequence->IsValidAdditive() ? Sequence->GetAdditiveAnimType() : AAT_None);
         Row->SetBoolField(TEXT("step"), Sequence->Interpolation == EAnimInterpolationType::Step);
+        if (Sequence->bForceRootLock)
+        {
+            Row->SetStringField(TEXT("forced_root_lock"), StaticEnum<ERootMotionRootLock::Type>()->GetNameStringByValue(Sequence->RootMotionRootLock));
+        }
+        else
+        {
+            Row->SetField(TEXT("forced_root_lock"), MakeShared<FJsonValueNull>());
+        }
         Row->SetStringField(TEXT("pose_mode"), bRaw ? TEXT("raw_model") : TEXT("compressed"));
         if (!bRaw)
         {

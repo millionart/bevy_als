@@ -8,6 +8,8 @@ use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
 use crate::extensions::{
     animation_context::SourceRelevantAsset,
     profile_blend::transition_alpha,
+    source_compression::{sample_prepared_pose, sample_prepared_root},
+    source_sequence_player::sample_pose,
 };
 use avian3d::prelude::{
     ColliderOf, CustomPositionIntegration, CustomVelocityIntegration, LinearVelocity, LockedAxes,
@@ -171,7 +173,7 @@ fn sample_mantle_pose(
     settings: &MantleMontageSettings,
     time: f32,
 ) -> Option<(Pose, crate::extensions::AnimationContextState)> {
-    let mut pose = crate::extensions::source_sequence_player::sample_pose(clip, time);
+    let mut pose = sample_prepared_pose(clip, time).map_or_else(|| sample_pose(clip, time), |(pose, _)| pose);
     crate::extensions::source_sequence_player::apply_source_root_lock(
         &mut pose,
         clip,
@@ -191,15 +193,19 @@ fn sample_mantle_pose(
 }
 
 pub(crate) fn sample_mantle_root(clip: &GraphClip, skeleton: &Skeleton, time: f32) -> Option<Transform> {
-    let pose = crate::extensions::source_sequence_player::sample_pose(clip, time);
     let root = crate::extensions::root_motion_defaults::derive_default_root_bone(clip, skeleton)?.id();
-    let bone = pose.get_bone(root)?;
-    let reference = skeleton.default_transforms(root)?.local;
+    let (translation, rotation) = if let Some(root) = sample_prepared_root(clip, root, time) {
+        (root.translation, root.rotation)
+    } else {
+        let pose = sample_pose(clip, time);
+        let bone = pose.get_bone(root)?;
+        let reference = skeleton.default_transforms(root)?.local;
+        (bone.translation.unwrap_or(reference.translation), bone.rotation.unwrap_or(reference.rotation))
+    };
     let basis = mesh_to_entity_yaw();
     Some(Transform {
-        translation: basis * bone.translation.unwrap_or(reference.translation),
-        rotation: (basis * bone.rotation.unwrap_or(reference.rotation) * basis.conjugate())
-            .normalize(),
+        translation: basis * translation,
+        rotation: (basis * rotation * basis.conjugate()).normalize(),
         ..default()
     })
 }

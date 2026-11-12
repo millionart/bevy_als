@@ -5,10 +5,16 @@ use std::{
     sync::LazyLock,
 };
 
-use bevy_animation_graph::core::animation_clip::{GraphClip, loader::GraphClipSource};
+use bevy::prelude::{Name, Quat, Transform, Vec3};
+use bevy_animation_graph::core::{
+    animation_clip::{EntityPath, GraphClip, loader::GraphClipSource},
+    id::BoneId,
+    pose::{BonePose, Pose},
+};
 use serde::Deserialize;
 
 use crate::extensions::als_curves::{AlsPoseCurves, SourceCurveName, SourceCurveValues};
+use crate::extensions::source_sequence_player::{SourceRootLock, source_root_lock_transform};
 
 #[derive(Deserialize)]
 struct SampleClock {
@@ -42,15 +48,108 @@ struct PreparedCurves {
 }
 
 #[derive(Deserialize)]
+struct PreparedBoneTrack(usize, (usize, u8), (usize, u8), (usize, u8));
+
+#[derive(Deserialize)]
+struct PreparedTransforms {
+    #[serde(flatten)]
+    clock: SampleClock,
+    has_scale: bool,
+    tracks: Vec<PreparedBoneTrack>,
+}
+
+#[derive(Deserialize)]
+struct SourceVector {
+    x: f64,
+    y: f64,
+    z: f64,
+}
+
+impl SourceVector {
+    fn values(&self) -> [f64; 3] {
+        [self.x, self.y, self.z]
+    }
+}
+
+#[derive(Deserialize)]
+struct SourceQuaternion {
+    x: f64,
+    y: f64,
+    z: f64,
+    w: f64,
+}
+
+impl SourceQuaternion {
+    fn values(&self) -> [f64; 4] {
+        [self.x, self.y, self.z, self.w]
+    }
+}
+
+#[derive(Deserialize)]
+struct SourceTransform {
+    translation: SourceVector,
+    rotation: SourceQuaternion,
+    scale: SourceVector,
+}
+
+#[derive(Deserialize)]
+struct PreparedBone {
+    skeleton_pose: SourceTransform,
+    mesh_pose: SourceTransform,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PreparedPoseKind {
+    Absolute,
+    LocalAdditive,
+    MeshAdditive,
+}
+
+#[derive(Deserialize)]
 struct PreparedSequence {
     gltf: PathBuf,
     animation: String,
+    duration: f32,
+    frame_rate: [u32; 2],
     curve: Option<PreparedCurves>,
+    bone: PreparedTransforms,
+    additive_type: u8,
+    step: bool,
+    single_root: bool,
+    forced_root_lock: Option<SourceRootLock>,
 }
 
 impl PreparedSequence {
     fn key(&self) -> (&Path, &str) {
         (&self.gltf, &self.animation)
+    }
+
+    fn clip_time(&self, time: f32) -> f32 {
+        time.max(0.0).min(self.duration)
+    }
+
+    fn pose_samples(&self, time: f32) -> (usize, usize, f32) {
+        let [numerator, denominator] = self.frame_rate.map(f64::from);
+        let frame_time = f64::from(self.clip_time(time)) * numerator / denominator;
+        let frame = frame_time.floor();
+        let subframe = (frame_time - frame) as f32;
+        let carry = subframe.trunc();
+        let max_subframe = f32::from_bits(1.0_f32.to_bits() - 1);
+        let fraction = ((subframe - carry).min(max_subframe) + 0.5 - 0.5).clamp(0.0, max_subframe);
+        let evaluation_time = ((frame + f64::from(carry)) * denominator
+            + f64::from(fraction) * denominator)
+            / numerator;
+        let (first, second, alpha) = self.bone.clock.samples(evaluation_time as f32);
+        (first, second, if self.step { 0.0 } else { alpha })
+    }
+
+    fn pose_kind(&self) -> PreparedPoseKind {
+        match self.additive_type {
+            0 => PreparedPoseKind::Absolute,
+            1 => PreparedPoseKind::LocalAdditive,
+            2 => PreparedPoseKind::MeshAdditive,
+            _ => unreachable!("Invalid prepared additive type"),
+        }
     }
 }
 
@@ -58,12 +157,19 @@ impl PreparedSequence {
 struct PreparedMetadata {
     format: String,
     curve_value_scales: HashMap<SourceCurveName, f32>,
+    source_length_to_runtime_scale: f64,
+    bones: Vec<PreparedBone>,
+    bone_paths: Vec<Vec<String>>,
     sequences: Vec<PreparedSequence>,
 }
 
 struct PreparedAcl {
-    metadata: PreparedMetadata,
     keys: &'static [u8],
+    curve_value_scales: HashMap<SourceCurveName, f32>,
+    source_length_to_runtime_scale: f64,
+    bone_references: Vec<PreparedBone>,
+    bone_ids: Vec<BoneId>,
+    sequences: Vec<PreparedSequence>,
 }
 
 static PREPARED_ACL: LazyLock<PreparedAcl> = LazyLock::new(|| {
@@ -71,14 +177,70 @@ static PREPARED_ACL: LazyLock<PreparedAcl> = LazyLock::new(|| {
     let (header, payload) = data.split_at(4);
     let length = u32::from_le_bytes(header.try_into().expect("ACL header length")) as usize;
     let (metadata, keys) = payload.split_at(length);
-    let mut metadata: PreparedMetadata =
-        serde_json::from_slice(metadata).expect("Generated ACL metadata");
-    assert_eq!(metadata.format, "als_prepared_acl_v1");
-    metadata
-        .sequences
-        .sort_unstable_by(|left, right| left.key().cmp(&right.key()));
-    PreparedAcl { metadata, keys }
+    let PreparedMetadata {
+        format,
+        curve_value_scales,
+        source_length_to_runtime_scale,
+        bones,
+        bone_paths,
+        mut sequences,
+    } = serde_json::from_slice(metadata).expect("Generated ACL metadata");
+    assert_eq!(format, "als_prepared_acl_v1");
+    sequences.sort_unstable_by(|left, right| left.key().cmp(&right.key()));
+    let bone_ids = bone_paths
+        .into_iter()
+        .map(|parts| {
+            EntityPath {
+                parts: parts.into_iter().map(Name::new).collect(),
+            }
+            .id()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(bone_ids.len(), bones.len());
+    PreparedAcl {
+        keys,
+        curve_value_scales,
+        source_length_to_runtime_scale,
+        bone_references: bones,
+        bone_ids,
+        sequences,
+    }
 });
+
+fn project_translation([x, y, z]: [f64; 3], scale: f64) -> Vec3 {
+    Vec3::new((x * scale) as f32, (z * scale) as f32, (y * scale) as f32)
+}
+
+fn project_rotation([x, y, z, w]: [f64; 4]) -> Quat {
+    Quat::from_xyzw(-x as f32, -z as f32, -y as f32, w as f32)
+}
+
+fn project_scale([x, y, z]: [f64; 3]) -> Vec3 {
+    Vec3::new(x as f32, z as f32, y as f32)
+}
+
+fn acl_lerp<const N: usize>(start: [f32; N], end: [f32; N], alpha: f32) -> [f32; N] {
+    std::array::from_fn(|axis| end[axis].mul_add(alpha, (-start[axis]).mul_add(alpha, start[axis])))
+}
+
+fn acl_dot(a: [f32; 4], b: [f32; 4], single_root: bool) -> f32 {
+    if single_root {
+        (a[0] * b[0] + a[2] * b[2]) + (a[1] * b[1] + a[3] * b[3])
+    } else {
+        a[3].mul_add(b[3], a[2].mul_add(b[2], a[1].mul_add(b[1], a[0] * b[0])))
+    }
+}
+
+fn acl_rotation(start: [f32; 4], end: [f32; 4], alpha: f32, single_root: bool) -> [f32; 4] {
+    let end = if acl_dot(start, end, single_root).is_sign_negative() {
+        end.map(|value| -value)
+    } else {
+        end
+    };
+    let rotation = acl_lerp(start, end, alpha);
+    let inverse_length = acl_dot(rotation, rotation, single_root).sqrt().recip();
+    rotation.map(|value| value * inverse_length)
+}
 
 impl PreparedAcl {
     fn sequence(&self, clip: &GraphClip) -> Option<&PreparedSequence> {
@@ -91,11 +253,10 @@ impl PreparedAcl {
         }
         let key = (path.path(), animation_name.as_str());
         let index = self
-            .metadata
             .sequences
             .binary_search_by(|sequence| sequence.key().cmp(&key))
             .ok()?;
-        self.metadata.sequences.get(index)
+        self.sequences.get(index)
     }
 
     fn key_value(&self, index: usize) -> f32 {
@@ -107,11 +268,138 @@ impl PreparedAcl {
         )
     }
 
+    fn channels<const N: usize>(
+        &self,
+        (offset, mode): (usize, u8),
+        (first, second, alpha): (usize, usize, f32),
+        default: [f32; N],
+        interpolate: impl FnOnce([f32; N], [f32; N], f32) -> [f32; N],
+    ) -> [f32; N] {
+        let key = |index| std::array::from_fn(|axis| self.key_value(offset + index * N + axis));
+        match mode {
+            0 => default,
+            1 => key(0),
+            2 => interpolate(key(first), key(second), alpha),
+            _ => unreachable!("Invalid prepared ACL bone mode"),
+        }
+    }
+
+    fn pose(&self, clip: &GraphClip, sequence: &PreparedSequence, time: f32) -> Pose {
+        let mut pose = Pose {
+            timestamp: time,
+            skeleton: clip.skeleton.clone(),
+            ..Pose::default()
+        };
+        let additive = sequence.pose_kind() != PreparedPoseKind::Absolute;
+        for (bone, id) in self.bone_references.iter().zip(&self.bone_ids) {
+            pose.add_bone(self.initial_bone(bone, additive), *id);
+        }
+        let samples = sequence.pose_samples(time);
+        for track in &sequence.bone.tracks {
+            self.write_bone(&mut pose.bones[track.0], track, samples, sequence, additive);
+        }
+        if let Some(lock) = sequence.forced_root_lock {
+            let reference = self
+                .initial_bone(&self.bone_references[0], false)
+                .to_transform_with_base(Transform::IDENTITY);
+            let root = source_root_lock_transform(lock, reference, additive, || {
+                Some(
+                    self.root_track(sequence, 0.0)
+                        .to_transform_with_base(Transform::IDENTITY),
+                )
+            })
+            .expect("Generated ACL root transform");
+            pose.bones[0] = BonePose::from_transform(root);
+        }
+        pose
+    }
+
+    fn root_track(&self, sequence: &PreparedSequence, time: f32) -> BonePose {
+        let additive = sequence.pose_kind() != PreparedPoseKind::Absolute;
+        let mut root = self.initial_bone(&self.bone_references[0], additive);
+        if sequence.single_root {
+            self.write_bone(
+                &mut root,
+                &sequence.bone.tracks[0],
+                sequence.pose_samples(time),
+                sequence,
+                additive,
+            );
+        }
+        root
+    }
+
+    fn initial_bone(&self, bone: &PreparedBone, additive: bool) -> BonePose {
+        let (translation, rotation, scale) = if additive {
+            (Vec3::ZERO, Quat::IDENTITY, Vec3::ZERO)
+        } else {
+            let reference = &bone.mesh_pose;
+            (
+                project_translation(
+                    reference.translation.values(),
+                    self.source_length_to_runtime_scale,
+                ),
+                project_rotation(reference.rotation.values()),
+                project_scale(reference.scale.values()),
+            )
+        };
+        BonePose {
+            translation: Some(translation),
+            rotation: Some(rotation),
+            scale: Some(scale),
+            ..BonePose::default()
+        }
+    }
+
+    fn write_bone(
+        &self,
+        local: &mut BonePose,
+        &PreparedBoneTrack(index, rotation, translation, scaling): &PreparedBoneTrack,
+        samples: (usize, usize, f32),
+        sequence: &PreparedSequence,
+        additive: bool,
+    ) {
+        let reference = &self.bone_references[index].skeleton_pose;
+        let single_root = sequence.single_root && index == 0;
+        let rotation_default = if additive {
+            [0.0, 0.0, 0.0, 1.0]
+        } else {
+            reference.rotation.values().map(|value| value as f32)
+        };
+        let translation_default = if additive {
+            [0.0; 3]
+        } else {
+            reference.translation.values().map(|value| value as f32)
+        };
+        local.rotation = Some(project_rotation(
+            self.channels(rotation, samples, rotation_default, |start, end, alpha| {
+                acl_rotation(start, end, alpha, single_root)
+            })
+            .map(f64::from),
+        ));
+        local.translation = Some(project_translation(
+            self.channels(translation, samples, translation_default, acl_lerp)
+                .map(f64::from),
+            self.source_length_to_runtime_scale,
+        ));
+        if sequence.bone.has_scale {
+            let scale_default = if additive {
+                [0.0; 3]
+            } else {
+                reference.scale.values().map(|value| value as f32)
+            };
+            local.scale = Some(project_scale(
+                self.channels(scaling, samples, scale_default, acl_lerp)
+                    .map(f64::from),
+            ));
+        }
+    }
+
     fn curves(&self, prepared: &PreparedSequence, time: f32) -> SourceCurveValues {
         let Some(curves) = &prepared.curve else {
             return SourceCurveValues::default();
         };
-        let (first, second, alpha) = curves.clock.samples(time);
+        let (first, second, alpha) = curves.clock.samples(prepared.clip_time(time));
         curves
             .tracks
             .iter()
@@ -125,16 +413,40 @@ impl PreparedAcl {
                     }
                     _ => unreachable!("Invalid prepared ACL curve mode"),
                 };
-                let scale = self
-                    .metadata
-                    .curve_value_scales
-                    .get(name)
-                    .copied()
-                    .unwrap_or(1.0);
+                let scale = self.curve_value_scales.get(name).copied().unwrap_or(1.0);
                 (name.clone(), value * scale)
             })
             .collect()
     }
+}
+
+pub(crate) fn sample_prepared_pose(
+    clip: &GraphClip,
+    time: f32,
+) -> Option<(Pose, PreparedPoseKind)> {
+    let sequence = PREPARED_ACL.sequence(clip)?;
+    Some((
+        PREPARED_ACL.pose(clip, sequence, time),
+        sequence.pose_kind(),
+    ))
+}
+
+pub(crate) fn has_prepared_pose(clip: &GraphClip) -> bool {
+    PREPARED_ACL.sequence(clip).is_some()
+}
+
+pub(crate) fn sample_prepared_root(clip: &GraphClip, root: BoneId, time: f32) -> Option<Transform> {
+    let data = &*PREPARED_ACL;
+    let sequence = data.sequence(clip)?;
+    if root != *data.bone_ids.first()? || !sequence.single_root {
+        return None;
+    }
+    let bone = data.root_track(sequence, time);
+    Some(Transform {
+        translation: bone.translation?,
+        rotation: bone.rotation?,
+        scale: bone.scale?,
+    })
 }
 
 pub(crate) fn sample_source_curves(
@@ -211,5 +523,48 @@ mod tests {
         }
         let yaw = sample_source_curves(Some(&turn), &raw, 0.4);
         assert_eq!(yaw[&SourceCurveName::from("RotationYawSpeed")], 111.28509);
+    }
+
+    #[test]
+    fn prepared_pose_preserves_baked_additive_and_mesh_reference_channels() {
+        let look = clip(
+            "ALS/Animations/View/A_Als_Look_Forward.gltf",
+            "A_Als_Look_Forward_0",
+        );
+        let stand = clip(
+            "ALSRUNTIME/Animations/Base/A_Als_Stand_Pose.gltf",
+            "A_Als_Stand_Pose_0",
+        );
+        let (look, kind) = sample_prepared_pose(&look, 0.5).unwrap();
+        let pelvis = EntityPath::from_slashed_string("GltfNode0/root/pelvis".to_owned()).id();
+        assert!(kind == PreparedPoseKind::MeshAdditive);
+        assert_eq!(look.paths.len(), 79);
+        assert_eq!(
+            look.get_bone(pelvis).unwrap().translation.unwrap().x,
+            3.921628e-5
+        );
+        assert!(look.bones.iter().all(|bone| bone.scale == Some(Vec3::ZERO)));
+
+        let (stand, kind) = sample_prepared_pose(&stand, 0.0).unwrap();
+        let virtual_foot_root =
+            EntityPath::from_slashed_string("GltfNode0/root/VB foot_root".to_owned()).id();
+        assert!(kind == PreparedPoseKind::Absolute);
+        assert_eq!(
+            stand.get_bone(virtual_foot_root).unwrap().scale,
+            Some(Vec3::ONE)
+        );
+    }
+
+    #[test]
+    fn prepared_root_keeps_unmasked_track_when_pose_is_locked() {
+        let roll = clip(
+            "ALS/Animations/Actions/Roll/A_Als_Roll.gltf",
+            "A_Als_Roll_0",
+        );
+        let root = EntityPath::from_slashed_string("GltfNode0/root".to_owned()).id();
+        let single = sample_prepared_root(&roll, root, 0.1).unwrap();
+        let (pose, _) = sample_prepared_pose(&roll, 0.1).unwrap();
+        assert_eq!(single.translation.z, 0.0719982767);
+        assert_eq!(pose.get_bone(root).unwrap().translation, Some(Vec3::ZERO));
     }
 }

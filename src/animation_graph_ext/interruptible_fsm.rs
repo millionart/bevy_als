@@ -3030,7 +3030,9 @@ mod tests {
         world.insert_resource(app.world_mut().remove_resource::<Assets<GraphClip>>().unwrap());
         world.insert_resource(app.world_mut().remove_resource::<Assets<Skeleton>>().unwrap());
         let actual=world.run_system_once_with(query,root).unwrap();
-        let expected=crate::extensions::source_sequence_player::sample_pose(world.resource::<Assets<GraphClip>>().get(&native_clip).unwrap(),0.1);
+        let expected=crate::extensions::source_sequence_player::sample_source_clip_pose(
+            world.resource::<Assets<GraphClip>>().get(&native_clip).unwrap(), 0.1,
+            world.resource::<Assets<Skeleton>>()).unwrap();
         let mut dot=1.0_f32;let mut distance=0.0_f32;
         for bone in expected.paths.keys() {
             let a=actual[2].get_bone(*bone).unwrap();let b=expected.get_bone(*bone).unwrap();

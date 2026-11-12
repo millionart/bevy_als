@@ -93,6 +93,34 @@ def unpack_stream(data, width, expected_tracks, values):
     return clock, tracks, probes
 
 
+def runtime_bone_paths(assets, skeleton_asset, bones):
+    descriptor = (assets / skeleton_asset).read_text()
+    scene = re.search(r'\bGltf\(source: "([^"]+)", label: "Scene(\d+)"\)', descriptor)
+    if scene is None:
+        raise ValueError(f"Missing installed skeleton scene: {skeleton_asset}")
+    document = json.loads((assets / scene[1]).read_bytes())
+    joints = {joint for skin in document["skins"] for joint in skin["joints"]}
+    paths = {}
+    pending = [(index, ()) for index in document["scenes"][int(scene[2])]["nodes"]]
+    while pending:
+        index, parent = pending.pop()
+        node = document["nodes"][index]
+        name = node.get("name", f"GltfNode{index}")
+        path = (*parent, name)
+        if index in joints:
+            if name in paths:
+                raise ValueError(f"Ambiguous installed bone name: {name}")
+            paths[name] = path
+        pending.extend((child, path) for child in node.get("children", ()))
+    if paths.keys() != {bone["name"] for bone in bones}:
+        raise ValueError(f"Installed bone names differ from the source mesh: {skeleton_asset}")
+    ordered = [paths[bone["name"]] for bone in bones]
+    for path, bone in zip(ordered, bones):
+        if bone["parent_index"] >= 0 and path[:-1] != ordered[bone["parent_index"]]:
+            raise ValueError(f"Installed bone hierarchy differs for {bone['name']}")
+    return ordered
+
+
 def compile_assets(capture, sequences, assets, sdk, output, work):
     report = work / "watchdog.json"
     work.mkdir(parents=True, exist_ok=True)
@@ -106,12 +134,14 @@ def compile_assets(capture, sequences, assets, sdk, output, work):
     records = []
     oracles = {}
     sources = set()
+    skeletons = set()
     for row in capture["sequences"]:
         asset = row["asset"]
         clip, _ = sequences[asset]
         descriptor = (assets / clip).read_text()
         path = re.search(r'\bpath:\s*"([^"]+)"', descriptor)[1]
         name = re.search(r'\banimation_name:\s*"([^"]+)"', descriptor)[1]
+        skeletons.add(re.search(r'\bskeleton:\s*"([^"]+)"', descriptor)[1])
         if (path, name) in sources:
             raise ValueError(f"Ambiguous installed animation source: {clip}")
         sources.add((path, name))
@@ -123,8 +153,11 @@ def compile_assets(capture, sequences, assets, sdk, output, work):
         mapping = data["track_to_skeleton"]
         single_root = mapping[0] == 0
         probe = {}
-        record = {key: row[key] for key in ("asset", "duration", "additive_type", "step")}
+        record = {key: row[key] for key in ("asset", "duration", "additive_type", "step", "forced_root_lock")}
+        if record["forced_root_lock"] not in (None, "RefPose", "AnimFirstFrame", "Zero"):
+            raise ValueError(f"Unknown source root lock for {asset}")
         record.update(clip=clip, gltf=path, animation=name, single_root=single_root)
+        record["frame_rate"] = [data["sampling_rate_numerator"], data["sampling_rate_denominator"]]
         indexed = data["indexed_curve_names"]
         curve_names = [item["name"] for item in indexed]
         for kind, names, width in (("bone", mapping, (4, 3, 3)), ("curve", curve_names, (1,))):
@@ -144,6 +177,8 @@ def compile_assets(capture, sequences, assets, sdk, output, work):
         records.append(record)
         oracles[asset] = probe
 
+    if len(skeletons) != 1:
+        raise ValueError("A prepared ACL corpus requires one installed skeleton")
     metadata = {
         "format": "als_prepared_acl_v1",
         "platform": capture["platform"],
@@ -151,6 +186,7 @@ def compile_assets(capture, sequences, assets, sdk, output, work):
         "source_length_to_runtime_scale": SOURCE_LENGTH_TO_RUNTIME_SCALE,
         "curve_value_scales": {"RotationYawSpeed": source_heading_yaw_degrees_to_runtime(1.0)},
         "bones": capture["bones"],
+        "bone_paths": runtime_bone_paths(assets, skeletons.pop(), capture["bones"]),
         "sequences": records,
     }
     header = json.dumps(metadata, separators=(",", ":")).encode()
@@ -175,7 +211,7 @@ def compile_assets(capture, sequences, assets, sdk, output, work):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ue-root", type=Path, required=True)
-    parser.add_argument("--capture", type=Path, default=ROOT / "docs/audit/bf144/d224a/character.native.json.gz")
+    parser.add_argument("--capture", type=Path, default=ROOT / "docs/audit/bf144/d224d/character.native.json.gz")
     parser.add_argument("--assets", type=Path, default=ROOT / "assets")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)

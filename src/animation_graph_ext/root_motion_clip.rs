@@ -1,11 +1,7 @@
-use std::any::TypeId;
-
 use bevy::{
-    animation::animation_curves::WeightsCurveSample,
     asset::Handle,
     math::{EulerRot, Quat, Vec3},
-    platform::hash::Hashed,
-    prelude::{EvaluatorId, Transform, VariableCurve},
+    prelude::VariableCurve,
     reflect::prelude::*,
 };
 use bevy_animation_graph::core::{
@@ -17,10 +13,12 @@ use bevy_animation_graph::core::{
     errors::GraphError,
     event_track::sample_tracks,
     id::BoneId,
-    pose::{BonePose, Pose, RootMotionDelta, RootMotionMode},
+    pose::{Pose, RootMotionDelta, RootMotionMode},
 };
 
 use crate::extensions::root_motion_defaults::derive_default_root_bone;
+use crate::extensions::source_compression::{sample_prepared_pose, sample_prepared_root};
+use crate::extensions::source_sequence_player::{CurveSample, sample_curve, sample_pose};
 
 pub const IN_TIME: &str = "time";
 pub const OUT_POSE: &str = "pose";
@@ -30,48 +28,6 @@ pub const OUT_EVENTS: &str = "events";
 struct RmPrevState {
     time: f32,
     cached_root: Option<EntityPath>,
-}
-
-enum CurveSample {
-    Translation(Vec3),
-    Rotation(Quat),
-    Scale(Vec3),
-    BoneWeights(Vec<f32>),
-}
-
-fn sample_curve(curve: &VariableCurve, time: f32) -> Option<CurveSample> {
-    let evaluator_id = curve.0.evaluator_id();
-    let translation_id = Hashed::new((TypeId::of::<Transform>(), 0));
-    let rotation_id = Hashed::new((TypeId::of::<Transform>(), 1));
-    let scale_id = Hashed::new((TypeId::of::<Transform>(), 2));
-
-    match evaluator_id {
-        EvaluatorId::ComponentField(id) => {
-            if id == &translation_id {
-                Some(CurveSample::Translation(
-                    *curve.0.sample_clamped(time).downcast_ref()?,
-                ))
-            } else if id == &rotation_id {
-                Some(CurveSample::Rotation(
-                    *curve.0.sample_clamped(time).downcast_ref()?,
-                ))
-            } else if id == &scale_id {
-                Some(CurveSample::Scale(
-                    *curve.0.sample_clamped(time).downcast_ref()?,
-                ))
-            } else {
-                None
-            }
-        }
-        EvaluatorId::Type(_) => Some(CurveSample::BoneWeights(
-            (*curve
-                .0
-                .sample_clamped(time)
-                .downcast::<WeightsCurveSample>()
-                .ok()?)
-            .0,
-        )),
-    }
 }
 
 fn sample_root(curves: &[VariableCurve], t: f32) -> (Vec3, Quat) {
@@ -146,25 +102,8 @@ impl NodeLike for RootMotionClipNode {
         let events =
             EventQueue::with_events(sample_tracks(clip.event_tracks.values(), current_time));
 
-        let mut out_pose = Pose {
-            timestamp: current_time,
-            skeleton: clip.skeleton.clone(),
-            ..Pose::default()
-        };
-
-        for (bone_id, curves) in &clip.curves {
-            let mut bone_pose = BonePose::default();
-            for curve in curves {
-                match sample_curve(curve, current_time) {
-                    Some(CurveSample::Translation(t)) => bone_pose.translation = Some(t),
-                    Some(CurveSample::Rotation(r)) => bone_pose.rotation = Some(r),
-                    Some(CurveSample::Scale(s)) => bone_pose.scale = Some(s),
-                    Some(CurveSample::BoneWeights(w)) => bone_pose.weights = Some(w),
-                    None => {}
-                }
-            }
-            out_pose.add_bone(bone_pose, BoneId::from(*bone_id));
-        }
+        let mut out_pose = sample_prepared_pose(clip, current_time)
+            .map_or_else(|| sample_pose(clip, current_time), |(pose, _)| pose);
 
         if self.root_motion_mode != RootMotionMode::Disabled {
             let Some(skeleton) = ctx
@@ -205,8 +144,9 @@ impl NodeLike for RootMotionClipNode {
                         root_path
                     );
                 }
-                let empty: Vec<VariableCurve> = Vec::new();
-                let root_curves = clip.curves.get(&target_id).unwrap_or(&empty);
+                let root_curves = clip.curves.get(&target_id).map_or(&[][..], Vec::as_slice);
+                let root_at = |time| sample_prepared_root(clip, root_bone_id, time)
+                    .map_or_else(|| sample_root(root_curves, time), |root| (root.translation, root.rotation));
                 let rest_local = skeleton.default_transforms(root_bone_id).map(|dt| dt.local);
                 let rest_translation = rest_local.map(|t| t.translation).unwrap_or(Vec3::ZERO);
                 let rest_rotation = rest_local.map(|t| t.rotation).unwrap_or(Quat::IDENTITY);
@@ -214,8 +154,8 @@ impl NodeLike for RootMotionClipNode {
                 let mut delta_rotation = Quat::IDENTITY;
                 let mut ground_yaw_delta = Quat::IDENTITY;
                 let mut accumulate = |from, to| {
-                    let (start_tr, start_rot) = sample_root(root_curves, from);
-                    let (end_tr, end_rot) = sample_root(root_curves, to);
+                    let (start_tr, start_rot) = root_at(from);
+                    let (end_tr, end_rot) = root_at(to);
                     delta_translation += delta_rotation * (start_rot.inverse() * (end_tr - start_tr));
                     delta_rotation = (delta_rotation * start_rot.inverse() * end_rot).normalize();
                     if matches!(self.root_motion_mode, RootMotionMode::GroundPlane) {
@@ -310,7 +250,7 @@ mod tests {
         animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
         context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
             graph_context_arena::GraphContextArena, new_context::GraphContext,
-            system_resources::SystemResources}, pose::RootMotionMode, skeleton::Skeleton,
+            system_resources::SystemResources}, pose::{BonePose, RootMotionMode}, skeleton::Skeleton,
         utils::testing::TestIoEnv,
     };
 

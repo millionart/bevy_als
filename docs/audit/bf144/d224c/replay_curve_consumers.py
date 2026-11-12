@@ -110,7 +110,11 @@ def replay():
     old = subprocess.check_output(["git", "show", f"1b5eee25:{PACK}"], cwd=ROOT)
     size, = struct.unpack_from("<I", old)
     scales = metadata.pop("curve_value_scales")
+    metadata.pop("bone_paths", None)
     assert scales == {"RotationYawSpeed": -1.0}
+    for clip in metadata["sequences"]:
+        clip.pop("frame_rate", None)
+        clip.pop("forced_root_lock", None)
     assert metadata == json.loads(old[4:4 + size]) and keys == old[4 + size:]
     sequences = metadata["sequences"]
     for clip in sequences:

@@ -1,17 +1,19 @@
 use bevy::prelude::*;
+use bevy_animation_graph::builtin_nodes::clip_node::ClipNode;
 use bevy_animation_graph::core::{
-    animation_graph::TimeUpdate,
-    animation_node::{NodeLike, ReflectNodeLike},
+    animation_clip::GraphClip,
+    animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin, TimeUpdate},
+    animation_node::{AnimationNode, NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
-    pose::{Pose, RootMotionDelta},
+    pose::{Pose, RootMotionDelta, RootMotionMode},
     utils::delaunay::Triangulation,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::extensions::global_f32_input::global_f32_or_root_default;
-use crate::extensions::source_compression::sample_source_curves;
+use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_pose, sample_source_curves};
 use crate::extensions::sync_group_phase::{
     SourceBlendSpaceClock, SourceSyncPlayerBinding, SourceSyncPlayerTick, blend_space_nearly_zero_delta, resolved_source_sync_phase,
     resolved_source_sync_markers, marker_phase_sample_time_near, follower_sample_time_near,
@@ -29,6 +31,26 @@ pub const IN_PHASE: &str = "phase";
 pub const OUT_VALUE: &str = "value";
 pub const OUT_POSE: &str = "pose";
 pub const OUT_SAMPLE_TIME: &str = "sample_time";
+
+fn pose_input_node(graph: &AnimationGraph, node: NodeId, pin: String) -> Option<&AnimationNode> {
+    let SourcePin::NodeData(source, _) = graph.edges_inverted.get(&TargetPin::NodeData(node, pin))? else {
+        return None;
+    };
+    graph.nodes.get(source)
+}
+
+fn clip_binding(node: &AnimationNode) -> Option<(&Handle<GraphClip>, bool)> {
+    let clip_node = node.try_inner_downcast_ref::<ClipNode>()?;
+    let fields = clip_node.reflect_ref().as_struct().ok()?;
+    let handle = fields.field("clip")?.try_downcast_ref::<Handle<GraphClip>>()?;
+    let has_native_duration = fields.field("override_duration")
+        .and_then(|value| value.try_downcast_ref::<Option<f32>>())
+        .is_some_and(Option::is_none);
+    let without_root_motion = fields.field("root_motion_mode")
+        .and_then(|value| value.try_downcast_ref::<RootMotionMode>())
+        .is_some_and(|mode| matches!(mode, RootMotionMode::Disabled));
+    Some((handle, has_native_duration && without_root_motion))
+}
 
 pub fn blend_normalized_root_motion(
     root_motions: &[(Option<RootMotionDelta>, f32)],
@@ -707,17 +729,16 @@ impl NodeLike for NormalizedBlendSpaceNode {
             && previous_state.is_some_and(|state| state.instance_markers_valid);
         let previous_normalized_time = self.playback.as_ref().map(|playback|
             previous_state.and_then(|state| state.normalized_time).unwrap_or(playback.start_position));
-        let sample_clip = |point: &NormalizedBlendSpacePoint| ctx.graph_context.graph.edges_inverted
-            .get(&bevy_animation_graph::core::animation_graph::TargetPin::NodeData(ctx.node_id, Self::pose_pin(&point.id)))
-            .and_then(|source| match source {
-                bevy_animation_graph::core::animation_graph::SourcePin::NodeData(node, _) => ctx.graph_context.graph.nodes.get(node),
-                _ => None,
-            })
-            .and_then(|node| node.try_inner_downcast_ref::<bevy_animation_graph::builtin_nodes::clip_node::ClipNode>())
-            .and_then(|node| node.reflect_ref().as_struct().ok()?.field("clip"))
-            .and_then(|value| value.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
-            .cloned();
-        let sample_clips = self.points.iter().map(sample_clip).collect::<Vec<_>>();
+        let graph = ctx.graph_context.graph;
+        let sample_nodes = self.points.iter()
+            .map(|point| pose_input_node(graph, ctx.node_id, Self::pose_pin(&point.id)))
+            .collect::<Vec<_>>();
+        let direct_clips = sample_nodes.iter()
+            .map(|node| node.and_then(clip_binding))
+            .collect::<Vec<_>>();
+        let sample_clips = direct_clips.iter()
+            .map(|binding| binding.map(|(handle, _)| handle.clone()))
+            .collect::<Vec<_>>();
         let leader = &self.points[leader_index];
         let leader_duration = self.point_duration(&mut ctx, leader)?;
         let sample_looped = self.looped && !self.teleport_to_normalized_time;
@@ -881,10 +902,32 @@ impl NodeLike for NormalizedBlendSpaceNode {
             sample_times[index] = Some(time);
             previous_sample_times[index] = Some(previous_time);
             ctx.set_time_update_back(Self::time_pin(&point.id), TimeUpdate::Absolute(time));
-            poses.push((
-                ctx.data_back(Self::pose_pin(&point.id))?.into_pose()?,
-                weight,
-            ));
+            let binding = direct_clips[index].map(|(handle, eligible)| (handle, eligible, None))
+                .or_else(|| {
+                    let node = sample_nodes[index]?;
+                    let kind = if node.try_inner_downcast_ref::<crate::extensions::ReferenceLocalDifferenceNode>().is_some() {
+                        PreparedPoseKind::LocalAdditive
+                    } else if node.try_inner_downcast_ref::<crate::extensions::ReferenceMeshDifferenceNode>().is_some() {
+                        PreparedPoseKind::MeshAdditive
+                    } else {
+                        return None;
+                    };
+                    let target = pose_input_node(graph, node.id, crate::extensions::reference_local_difference::TARGET_POSE.to_owned())?;
+                    let (handle, eligible) = clip_binding(target)?;
+                    Some((handle, eligible, Some(kind)))
+                });
+            let prepared = binding
+                .filter(|(_, eligible, _)| *eligible)
+                .and_then(|(handle, _, expected)| {
+                    let clip = ctx.graph_context.resources.graph_clip_assets.get(handle)?;
+                    let (pose, actual) = sample_prepared_pose(clip, time)?;
+                    expected.is_none_or(|expected| expected == actual).then_some(pose)
+                });
+            let pose = match prepared {
+                Some(pose) => pose,
+                None => ctx.data_back(Self::pose_pin(&point.id))?.into_pose()?,
+            };
+            poses.push((pose, weight));
             pose_indices.push(index);
             let clip = sample_clips[index].as_ref()
                 .and_then(|handle| ctx.graph_context.resources.graph_clip_assets.get(handle));

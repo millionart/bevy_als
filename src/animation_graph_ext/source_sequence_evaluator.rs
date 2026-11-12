@@ -8,7 +8,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::global_f32_input::root_defaults_enabled;
-use crate::extensions::source_compression::sample_source_curves;
+use crate::extensions::source_compression::{has_prepared_pose, sample_source_curves};
 use crate::extensions::source_instance::source_input_data;
 use crate::extensions::source_sequence_player::sample_source_pose;
 
@@ -99,7 +99,11 @@ impl NodeLike for SourceSequenceEvaluatorNode {
         let value = self.input_value(&ctx)?;
         let time = if self.use_explicit_frame { frame_to_time(value, self.frames_per_second) } else { value }
             .clamp(0.0, clip.duration().max(0.0));
-        let sample_time = if self.step_interpolation { step_sample_time(time, self.frames_per_second, clip.duration()) } else { time };
+        let sample_time = if self.step_interpolation && !has_prepared_pose(clip) {
+            step_sample_time(time, self.frames_per_second, clip.duration())
+        } else {
+            time
+        };
         let mut pose = sample_source_pose(&ctx, clip, sample_time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
         pose.timestamp = time;
         *ctx.state_mut_or_else(crate::extensions::AnimationContextState::default)? =
