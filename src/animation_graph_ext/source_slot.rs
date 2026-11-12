@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::NodeId,
@@ -8,15 +10,18 @@ use bevy_animation_graph::core::{
     },
     edge_data::DataSpec,
     errors::GraphError,
+    pose::Pose,
+    skeleton::Skeleton,
 };
 
 use crate::extensions::slot_node::{blend_slot_pose, slot_blend_weight};
 use crate::extensions::source_gameplay_tag_input::active_slot_input_context;
 use crate::extensions::source_instance::{SourceInstanceProperties, source_instance_properties};
 use crate::extensions::source_pose_nodes::blend_animation_contexts;
+use crate::extensions::source_pose::{SourcePose, blend_source_poses};
 use crate::extensions::{
     animation_context::{AnimationContextState, SourceInertializationRequest, merge_inertialization_request, pose_input_context_state},
-    mesh_space_additive::apply_mesh_space_additive,
+    mesh_space_additive::{accumulate_source_additive, apply_mesh_space_additive},
 };
 
 pub(crate) const MONTAGE_EVALUATION_WEIGHT_THRESHOLD: f32 = 1e-5;
@@ -95,6 +100,51 @@ pub struct SourceSlotNode {
 
 fn source_slot_additive_weight(slot_weight: f32, layer_weight: f32) -> f32 {
     slot_weight * layer_weight
+}
+
+fn precise_slot_pose(
+    base: Option<&SourcePose>,
+    overlay: &Pose,
+    context: &AnimationContextState,
+    slot_weight: f32,
+    layer_weight: f32,
+    additive_skeleton: Option<&Skeleton>,
+) -> Option<Arc<SourcePose>> {
+    if overlay.bones.iter().any(|bone| bone.weights.is_some()) {
+        return None;
+    }
+    let effective = slot_weight * layer_weight;
+    let mut inputs = if layer_weight == 1.0 && !context.source_slot_poses.is_empty() {
+        context.source_slot_poses.iter().map(|(source, weight)| (source.as_ref(), *weight)).collect()
+    } else {
+        vec![(context.source_pose_for(overlay)?.as_ref(), slot_weight)]
+    };
+    if let Some(skeleton) = additive_skeleton {
+        let mut pose = base?.clone();
+        let parents = pose.parent_indices(skeleton)?;
+        for (delta, weight) in inputs {
+            accumulate_source_additive(&mut pose, delta, weight * layer_weight, Some(&parents), 1)?;
+        }
+        return Some(Arc::new(pose));
+    }
+    if 1.0 - effective <= MONTAGE_EVALUATION_WEIGHT_THRESHOLD {
+        if layer_weight != 1.0 {
+            inputs[0].1 = effective;
+        }
+        let passes = usize::from(inputs.len() > 1);
+        return blend_source_poses(inputs, passes).map(Arc::new);
+    }
+    let base = base?;
+    if 1.0 - slot_weight > MONTAGE_EVALUATION_WEIGHT_THRESHOLD {
+        inputs.push((base, 1.0 - slot_weight));
+    }
+    let passes = usize::from(inputs.len() > 1);
+    let slot = blend_source_poses(inputs, passes)?;
+    if layer_weight == 1.0 {
+        Some(Arc::new(slot))
+    } else {
+        blend_source_poses([(&slot, layer_weight), (base, 1.0 - layer_weight)], 1).map(Arc::new)
+    }
 }
 
 fn slot_context(
@@ -218,38 +268,52 @@ impl NodeLike for SourceSlotNode {
             }
             let slot = active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key);
             let multiple = slot.as_ref().is_some_and(|context| context.slot_has_multiple_montages);
+            let source_pose = slot.as_ref().and_then(|context| {
+                precise_slot_pose(None, pose, context, slot_weight, layer_weight, None)
+            });
             let context = slot_context(None, slot, effective_weight, false);
             let mut context = self.with_inertialization_request(&ctx, context)?.unwrap_or_default();
             for sample in context.asset_samples.iter_mut().filter(|sample| sample.montage && sample.slot_key.is_empty()) {
                 sample.slot_key.clone_from(&self.pose_key);
             }
             ctx.set_time(pose.timestamp);
-            let pose = pose.scalar_mult(effective_weight);
-            ctx.set_data_fwd("Pose", if multiple { pose.normalize_quat() } else { pose });
+            let mut pose = pose.scalar_mult(effective_weight);
+            if multiple { pose = pose.normalize_quat(); }
+            if let Some(source) = &source_pose {
+                source.project_into(&mut pose);
+            }
+            context.source_pose = source_pose;
+            ctx.set_data_fwd("Pose", pose);
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
             return Ok(());
         }
         let base = crate::extensions::interruptible_fsm::with_machine_weight(source_weight,
             || ctx.data_back("Source"))?.into_pose()?;
         let base_context = pose_input_context_state(&ctx, "Source");
+        let slot = overlay.as_ref().and_then(|_| active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key));
+        let additive_skeleton = if mesh_space_additive && overlay.is_some() {
+            Some(ctx.graph_context.resources.skeleton_assets.get(&base.skeleton)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?)
+        } else { None };
+        let base_source = base_context.as_ref().and_then(|context| context.source_pose_for(&base));
+        let source_pose = if let Some(overlay) = &overlay {
+            slot.as_ref().and_then(|slot| {
+                if base.bones.iter().any(|bone| bone.weights.is_some()) { return None; }
+                precise_slot_pose(base_source.map(Arc::as_ref), overlay, slot, slot_weight, layer_weight, additive_skeleton)
+            })
+        } else {
+            base_source.cloned()
+        };
         let context = slot_context(
             base_context,
-            overlay
-                .as_ref()
-                .and_then(|_| active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key)),
+            slot,
             effective_weight,
             mesh_space_additive,
         );
         let context = self.with_inertialization_request(&ctx, context)?;
-        let pose = if mesh_space_additive {
+        let mut pose = if mesh_space_additive {
             let mut pose = base;
-            if let Some(overlay) = overlay.as_ref() {
-                let skeleton = ctx
-                    .graph_context
-                    .resources
-                    .skeleton_assets
-                    .get(&pose.skeleton)
-                    .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+            if let (Some(overlay), Some(skeleton)) = (overlay.as_ref(), additive_skeleton) {
                 let timestamp = pose.timestamp;
                 apply_mesh_space_additive(
                     &mut pose,
@@ -270,9 +334,17 @@ impl NodeLike for SourceSlotNode {
                 Some(layer_weight),
             )
         };
+        if let Some(source) = &source_pose
+            && overlay.is_some()
+        {
+            pose.bones.clear();
+            pose.paths.clear();
+            source.project_into(&mut pose);
+        }
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
         if let Some(mut context) = context {
+            context.source_pose = source_pose;
             for sample in context.asset_samples.iter_mut().filter(|sample| sample.montage && sample.slot_key.is_empty()) {
                 sample.slot_key.clone_from(&self.pose_key);
             }
@@ -295,6 +367,29 @@ impl NodeLike for SourceSlotNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn precise_turn_slot_accumulates_original_montage_weights() {
+        use bevy::math::DVec3;
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+        use crate::extensions::control_rig_hierarchy::RigTransform;
+
+        let pelvis = EntityPath::default().child("pelvis").id();
+        let source = |z| SourcePose {
+            bones: vec![(pelvis, RigTransform { translation: DVec3::Z * z, ..default() })],
+            length_scale: 0.01,
+        };
+        let base = source(96.75059914588928);
+        let sample = Arc::new(source(96.60486602783203));
+        let mut overlay = Pose::default();
+        sample.project_into(&mut overlay);
+        let context = AnimationContextState {
+            source_slot_poses: vec![(sample.clone(), 0.4), (sample, 0.3)],
+            ..default()
+        };
+        let output = precise_slot_pose(Some(&base), &overlay, &context, 0.4_f32 + 0.3, 1.0, None).unwrap();
+        assert_eq!(output.bones[0].1.translation.z, 96.64858307725075);
+    }
 
     #[test]
     fn actual_graph_uses_the_same_slot_weight_for_pose_and_curves() {

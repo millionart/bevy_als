@@ -1,12 +1,13 @@
-use bevy::math::DVec3;
+use bevy::{math::DVec3, platform::collections::HashMap};
 use bevy_animation_graph::core::{
     id::BoneId,
     pose::{BonePose, Pose},
+    skeleton::Skeleton,
 };
 
 use crate::extensions::{
     control_rig_hierarchy::RigTransform, raw_sequence_sampling::normalize_source_rotation,
-    source_compression::project_bone_transform,
+    source_compression::{project_bone_transform, source_quaternion_product},
 };
 
 #[derive(Clone, Debug)]
@@ -49,19 +50,50 @@ impl SourcePose {
         }
     }
 
+    pub(crate) fn same_layout(&self, other: &Self) -> bool {
+        self.length_scale == other.length_scale
+            && self.bones.iter().map(|(bone, _)| bone).eq(other.bones.iter().map(|(bone, _)| bone))
+    }
+
+    pub(crate) fn parent_indices(&self, skeleton: &Skeleton) -> Option<Vec<Option<usize>>> {
+        let indices: HashMap<_, _> = self.bones.iter().enumerate()
+            .map(|(index, (bone, _))| (*bone, index)).collect();
+        self.bones.iter().enumerate().map(|(index, (bone, _))| {
+            let parent = skeleton.parent(bone).and_then(|id| indices.get(&id).copied());
+            parent.is_none_or(|parent| parent < index).then_some(parent)
+        }).collect()
+    }
+
+    pub(crate) fn convert_rotations_to_mesh(&mut self, parents: &[Option<usize>]) {
+        for (index, &parent) in parents.iter().enumerate() {
+            if let Some(parent) = parent {
+                self.bones[index].1.rotation = source_quaternion_product(
+                    self.bones[parent].1.rotation, self.bones[index].1.rotation,
+                );
+            }
+        }
+    }
+
+    pub(crate) fn convert_rotations_to_local(&mut self, parents: &[Option<usize>]) {
+        for (index, &parent) in parents.iter().enumerate().rev() {
+            if let Some(parent) = parent {
+                self.bones[index].1.rotation = source_quaternion_product(
+                    self.bones[parent].1.rotation.conjugate(), self.bones[index].1.rotation,
+                );
+            }
+        }
+    }
+
     pub(crate) fn blend_pair(
         &self,
         target: &Self,
         weights: impl Fn(BoneId) -> (f32, f32),
     ) -> Option<Self> {
-        if self.length_scale != target.length_scale || self.bones.len() != target.bones.len() {
+        if !self.same_layout(target) {
             return None;
         }
         let mut output = self.clone();
-        for ((id, value), &(target_id, target)) in output.bones.iter_mut().zip(&target.bones) {
-            if *id != target_id {
-                return None;
-            }
+        for ((id, value), &(_, target)) in output.bones.iter_mut().zip(&target.bones) {
             let (a, b) = weights(*id);
             scale_pose(value, f64::from(a));
             accumulate(value, target, f64::from(b));

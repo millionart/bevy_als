@@ -668,9 +668,13 @@ fn sample_transition_stack(
     let pose = crate::extensions::mesh_space_additive::compose_mesh_space_additives(
         samples.iter().map(|(pose, _, weight)| (pose, weight / denominator)),
     )?;
-    let context = crate::extensions::source_pose_nodes::blend_animation_contexts(
+    let source_slot_poses = samples.iter().map(|(pose, context, weight)| {
+        Some((context.source_pose_for(pose)?.clone(), weight / denominator))
+    }).collect::<Option<Vec<_>>>().unwrap_or_default();
+    let mut context = crate::extensions::source_pose_nodes::blend_animation_contexts(
         samples.into_iter().map(|(_, context, weight)| (context, weight / denominator)),
     );
+    context.source_slot_poses = source_slot_poses;
     Some((pose, context, total.min(1.0)))
 }
 

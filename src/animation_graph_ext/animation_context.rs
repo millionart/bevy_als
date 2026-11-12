@@ -100,6 +100,8 @@ pub struct AnimationContextState {
     pub(crate) cached_pose_request_route: Option<SourceCachedPoseRequestRoute>,
     #[reflect(ignore)]
     pub(crate) source_pose: Option<std::sync::Arc<crate::extensions::source_pose::SourcePose>>,
+    #[reflect(ignore)]
+    pub(crate) source_slot_poses: Vec<(std::sync::Arc<crate::extensions::source_pose::SourcePose>, f32)>,
 }
 
 impl AnimationContextState {

@@ -17,8 +17,8 @@ use crate::extensions::animation_context::{
 };
 use crate::extensions::curve_bundle::blend_curve_value;
 use crate::extensions::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
-use crate::extensions::mesh_space_additive::{apply_local_space_additive, apply_mesh_space_additive, materialize_missing_reference_bones};
-use crate::extensions::mesh_space_difference::make_mesh_space_difference;
+use crate::extensions::mesh_space_additive::{apply_source_additive_pose, materialize_missing_reference_bones};
+use crate::extensions::mesh_space_difference::{make_mesh_space_difference, source_pose_difference};
 use crate::extensions::reference_local_difference::make_local_difference;
 use crate::extensions::source_pose::{SourcePose, blend_source_poses as blend_double_poses};
 use crate::extensions::{
@@ -554,24 +554,25 @@ impl NodeLike for SourceApplyAdditiveNode {
             delta,
         );
         let additive_is_relevant = alpha > 1e-5;
-        if additive_is_relevant {
+        let base_context = pose_input_context_state(&ctx, "Base").unwrap_or_default();
+        let mut source_pose = base_context.source_pose_for(&base).cloned();
+        let additive_context = if additive_is_relevant {
             let additive = crate::extensions::interruptible_fsm::with_machine_weight(alpha,
                 || ctx.data_back("Additive"))?.into_pose()?;
+            let context = pose_input_context_state(&ctx, "Additive").unwrap_or_default();
             let skeleton = ctx.graph_context.resources.skeleton_assets.get(&base.skeleton)
                 .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-            apply_local_space_additive(&mut base, &additive, alpha, skeleton);
-            normalize_source_pose_rotations(&mut base, 1);
-        }
+            let precise = source_pose.as_deref().zip(context.source_pose_for(&additive).map(Arc::as_ref));
+            source_pose = apply_source_additive_pose(&mut base, &additive, precise, alpha, skeleton, false, true);
+            context
+        } else { AnimationContextState::default() };
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
-        let base_context = pose_input_context_state(&ctx, "Base");
-        let additive_context = additive_is_relevant
-            .then(|| pose_input_context_state(&ctx, "Additive"))
-            .flatten();
-        let context = blend_animation_contexts([
-            (base_context.unwrap_or_default(), 1.0),
-            (additive_context.unwrap_or_default(), alpha),
+        let mut context = blend_animation_contexts([
+            (base_context, 1.0),
+            (additive_context, alpha),
         ]);
+        context.source_pose = source_pose;
         ctx.state_mut::<SourceBlendState>()?.context = context;
         Ok(())
     }
@@ -670,18 +671,18 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
             self.decreasing_speed,
             delta,
         );
-        if let Some(skeleton) = ctx
-            .graph_context
-            .resources
-            .skeleton_assets
-            .get(&base.skeleton)
+        let base_context = pose_input_context_state(&ctx, "Base").unwrap_or_default();
+        let mut source_pose = base_context.source_pose_for(&base).cloned();
+        if source_pose.is_none()
+            && let Some(skeleton) = ctx.graph_context.resources.skeleton_assets.get(&base.skeleton)
         {
             materialize_missing_reference_bones(&mut base, skeleton);
         }
         let additive_is_relevant = alpha > 1e-5;
-        if additive_is_relevant {
+        let additive_context = if additive_is_relevant {
             let additive = crate::extensions::interruptible_fsm::with_machine_weight(alpha,
                 || ctx.data_back("Additive"))?.into_pose()?;
+            let context = pose_input_context_state(&ctx, "Additive").unwrap_or_default();
             if ctx
                 .graph_context
                 .resources
@@ -697,18 +698,17 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
                 .skeleton_assets
                 .get(&base.skeleton)
                 .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-            apply_mesh_space_additive(&mut base, &additive, alpha, skeleton);
-            normalize_source_pose_rotations(&mut base, 1);
-        }
+            let precise = source_pose.as_deref().zip(context.source_pose_for(&additive).map(Arc::as_ref));
+            source_pose = apply_source_additive_pose(&mut base, &additive, precise, alpha, skeleton, true, true);
+            context
+        } else { AnimationContextState::default() };
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
-        let base_context = pose_input_context_state(&ctx, "Base");
-        let additive_context = additive_is_relevant
-            .then(|| pose_input_context_state(&ctx, "Additive")).flatten();
-        let context = blend_animation_contexts([
-            (base_context.unwrap_or_default(), 1.0),
-            (additive_context.unwrap_or_default(), alpha),
+        let mut context = blend_animation_contexts([
+            (base_context, 1.0),
+            (additive_context, alpha),
         ]);
+        context.source_pose = source_pose;
         ctx.state_mut::<SourceBlendState>()?.context = context;
         Ok(())
     }
@@ -773,11 +773,17 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         let mut difference =
             make_dynamic_additive_difference(&base, &additive, skeleton, self.mesh_space_additive);
+        let base_context = pose_input_context_state(&ctx, "Base").unwrap_or_default();
+        let mut context = pose_input_context_state(&ctx, "Additive").unwrap_or_default();
+        context.source_pose = base_context.source_pose_for(&base)
+            .zip(context.source_pose_for(&additive))
+            .and_then(|(base, target)| source_pose_difference(base, target, skeleton, self.mesh_space_additive));
+        if let Some(source) = &context.source_pose {
+            source.project_into(&mut difference);
+        }
         difference.timestamp = additive.timestamp;
         ctx.set_time(difference.timestamp);
         ctx.set_data_fwd("Pose", difference);
-        let base_context = pose_input_context_state(&ctx, "Base").unwrap_or_default();
-        let mut context = pose_input_context_state(&ctx, "Additive").unwrap_or_default();
         merge_sync_players(&mut context.sync_players, &base_context.sync_players, 1.0);
         merge_asset_samples(&mut context.asset_samples, &base_context.asset_samples, 1.0);
         merge_inertialization_request(&mut context.inertialization_request, base_context.inertialization_request.as_ref());
@@ -848,6 +854,7 @@ fn blend_source_curve_context(
             asset_samples: base.asset_samples,
             inertialization_request: base.inertialization_request,
             skipped_cached_pose_request: base.skipped_cached_pose_request,
+            source_pose: base.source_pose,
             ..default()
         },
     }

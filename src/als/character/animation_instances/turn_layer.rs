@@ -611,6 +611,12 @@ fn bridge_turn_slot_samples(
             context.slot_has_multiple_montages = stack.entries.iter()
                 .filter(|entry| entry.crouching == crouching && contexts.contains_key(&entry.id))
                 .nth(1).is_some();
+            context.source_slot_poses = stack.entries.iter()
+                .filter(|entry| entry.crouching == crouching && contexts.contains_key(&entry.id))
+                .map(|entry| {
+                    let source = contexts.get(&entry.id)?.source_pose_for(poses.get(&entry.id)?)?.clone();
+                    Some((source, entry.weight() / denominator.max(1.0)))
+                }).collect::<Option<Vec<_>>>().unwrap_or_default();
             player.set_global_input_data(contract.pose_key, DataValue::Pose(pose.clone()));
             player.set_global_input_data(contract.weight_key, weight);
             player.set_global_input_data(contract.layer_weight_key, 1.0_f32);

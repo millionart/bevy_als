@@ -1,8 +1,8 @@
 use crate::extensions::AnimationContextState;
-use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_pose};
+use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_source_pose};
 use bevy::prelude::*;
 use serde::Deserialize;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 #[derive(Deserialize)]
 pub(crate) struct SourceMontageSettings {
@@ -65,11 +65,18 @@ pub(crate) fn sample_source_montage(
     let (clip, reference) = assets.0.get(name)?;
     let time = time.min(settings.duration);
     let sequence = clips.get(clip)?;
-    let (mut pose, baked_additive) = match sample_prepared_pose(sequence, time) {
-        Some((pose, kind)) => (pose, kind != PreparedPoseKind::Absolute),
-        None => (crate::extensions::source_sequence_player::sample_pose(sequence, time), false),
+    let (mut pose, baked_additive, mut source_pose) = match sample_prepared_source_pose(sequence, time) {
+        Some((source, kind)) => {
+            let mut pose = bevy_animation_graph::core::pose::Pose {
+                skeleton: sequence.skeleton.clone(), timestamp: time, ..default()
+            };
+            source.project_into(&mut pose);
+            (pose, kind != PreparedPoseKind::Absolute, Some(Arc::new(source)))
+        }
+        None => (crate::extensions::source_sequence_player::sample_pose(sequence, time), false, None),
     };
     if let Some(reference) = reference.as_ref().filter(|_| !baked_additive) {
+        source_pose = None;
         let reference = crate::extensions::source_sequence_player::sample_pose(clips.get(reference)?, 0.0);
         pose = crate::extensions::mesh_space_difference::make_mesh_space_difference(
             &reference,
@@ -79,6 +86,7 @@ pub(crate) fn sample_source_montage(
         pose.timestamp = time;
     }
     let mut context = crate::get_up::sampled_curve_context(Some(sequence), &settings.curves, time);
+    context.source_pose = source_pose;
     context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
         identity: name.to_owned(), clip: clip.clone(), montage: true,
         clock: crate::extensions::SourceRelevantAsset { duration: settings.duration, position: time, weight: 1.0, ..default() },

@@ -136,9 +136,7 @@ pub(crate) fn blend_layered_source_poses(
     }
     let mut output = base.clone();
     let mut mesh = Vec::new();
-    let indices = mesh_space.then(|| {
-        base.bones.iter().enumerate().map(|(index, (bone, _))| (*bone, index)).collect::<HashMap<_, _>>()
-    });
+    let parents = if mesh_space { Some(base.parent_indices(skeleton)?) } else { None };
     for (index, (bone, transform)) in output.bones.iter_mut().enumerate() {
         let (layer, weight) = input(*bone);
         let (target_bone, target) = layers.get(layer)?.bones[index];
@@ -147,8 +145,8 @@ pub(crate) fn blend_layered_source_poses(
         }
         let original = *transform;
         *transform = blend_local_transform(original, target, weight);
-        if let Some(indices) = &indices {
-            let parent = skeleton.parent(bone).and_then(|bone| indices.get(&bone).copied());
+        if let Some(parents) = &parents {
+            let parent = parents[index];
             let [base_parent, target_parent, output_parent] = if let Some(parent) = parent {
                 *mesh.get(parent)?
             } else {

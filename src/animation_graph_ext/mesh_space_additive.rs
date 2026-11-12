@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 
-use bevy::prelude::*;
+use bevy::{math::{DQuat, DVec3}, prelude::*};
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
@@ -9,6 +9,12 @@ use bevy_animation_graph::core::{
     errors::GraphError,
     pose::{BonePose, Pose, RootMotionDelta},
     skeleton::Skeleton,
+};
+
+use crate::extensions::{
+    raw_sequence_sampling::interpolate_rotation,
+    source_compression::source_quaternion_product,
+    source_pose::{SourcePose, weighted_add},
 };
 
 const ALPHA_THRESHOLD: f32 = 1e-6;
@@ -195,6 +201,89 @@ fn merge_root_motion(
     }
 }
 
+fn accumulate_local_root_motion(base: &mut Pose, additive: &Pose, alpha: f32) {
+    if let Some(additive_motion) = &additive.root_motion {
+        let motion = base.root_motion.get_or_insert_with(RootMotionDelta::default);
+        motion.translation += additive_motion.translation * alpha;
+        motion.rotation = blend_additive_rotation(motion.rotation, additive_motion.rotation, alpha);
+    }
+}
+
+pub(crate) fn accumulate_source_additive(
+    base: &mut SourcePose,
+    additive: &SourcePose,
+    alpha: f32,
+    parents: Option<&[Option<usize>]>,
+    normalization_passes: usize,
+) -> Option<()> {
+    if !base.same_layout(additive) {
+        return None;
+    }
+    if alpha <= 1e-5 {
+        return Some(());
+    }
+    if let Some(parents) = parents {
+        base.convert_rotations_to_mesh(parents);
+    }
+    let weight = f64::from(alpha);
+    let full = alpha >= 1.0 - 1e-5;
+    for ((_, base), &(_, additive)) in base.bones.iter_mut().zip(&additive.bones) {
+        let delta = if full {
+            base.translation = weighted_add(base.translation, additive.translation, weight);
+            base.scale *= weighted_add(DVec3::ONE, additive.scale, weight);
+            additive.rotation * weight
+        } else {
+            base.translation += additive.translation * weight;
+            base.scale *= DVec3::ONE + additive.scale * weight;
+            interpolate_rotation(DQuat::IDENTITY, additive.rotation, alpha)
+        };
+        base.rotation = source_quaternion_product(delta, base.rotation);
+    }
+    if let Some(parents) = parents {
+        base.convert_rotations_to_local(parents);
+    }
+    base.normalize_rotations(normalization_passes);
+    Some(())
+}
+
+pub(crate) fn apply_source_additive_pose(
+    base: &mut Pose,
+    additive: &Pose,
+    precise: Option<(&SourcePose, &SourcePose)>,
+    alpha: f32,
+    skeleton: &Skeleton,
+    mesh_space: bool,
+    outer_normalization: bool,
+) -> Option<Arc<SourcePose>> {
+    let source = precise.and_then(|(source, delta)| {
+        if base.bones.iter().chain(&additive.bones).any(|bone| bone.weights.is_some()) {
+            return None;
+        }
+        let mut result = source.clone();
+        let parents = if mesh_space { Some(source.parent_indices(skeleton)?) } else { None };
+        accumulate_source_additive(&mut result, delta, alpha, parents.as_deref(), 1 + usize::from(outer_normalization))?;
+        Some(result)
+    });
+    if let Some(source) = source {
+        source.project_into(base);
+        if mesh_space {
+            base.root_motion = merge_root_motion(base.root_motion.take(), additive.root_motion.clone(), alpha);
+        } else {
+            accumulate_local_root_motion(base, additive, alpha);
+        }
+        return Some(Arc::new(source));
+    }
+    if mesh_space {
+        apply_mesh_space_additive(base, additive, alpha, skeleton);
+    } else {
+        apply_local_space_additive(base, additive, alpha, skeleton);
+    }
+    if outer_normalization {
+        crate::extensions::source_pose_nodes::normalize_source_pose_rotations(base, 1);
+    }
+    None
+}
+
 pub fn apply_local_space_additive(base: &mut Pose, additive: &Pose, alpha: f32, skeleton: &Skeleton) {
     if alpha.abs() <= ALPHA_THRESHOLD { return; }
     for (bone, additive_index) in &additive.paths {
@@ -211,11 +300,7 @@ pub fn apply_local_space_additive(base: &mut Pose, additive: &Pose, alpha: f32, 
         }
         merge_non_rotation(base_bone, additive_bone, alpha);
     }
-    if let Some(additive_motion) = &additive.root_motion {
-        let motion = base.root_motion.get_or_insert_with(RootMotionDelta::default);
-        motion.translation += additive_motion.translation * alpha;
-        motion.rotation = blend_additive_rotation(motion.rotation, additive_motion.rotation, alpha);
-    }
+    accumulate_local_root_motion(base, additive, alpha);
 }
 
 pub fn apply_mesh_space_additive(

@@ -8,6 +8,12 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
+use crate::extensions::{
+    AnimationContextState, animation_context::pose_input_context_state,
+    mesh_space_difference::source_pose_difference, source_pose::SourcePose,
+};
+use std::sync::Arc;
+
 pub const REFERENCE_POSE: &str = "reference_pose";
 pub const REFERENCE_TIME: &str = "reference_time";
 pub const TARGET_POSE: &str = "target_pose";
@@ -109,6 +115,18 @@ pub fn make_local_difference(reference: &Pose, target: &Pose, skeleton: &Skeleto
     difference
 }
 
+pub(crate) fn precise_reference_difference(
+    ctx: &NodeContext,
+    reference: &Pose,
+    target: &Pose,
+    skeleton: &Skeleton,
+    mesh_space: bool,
+) -> Option<Arc<SourcePose>> {
+    let source = pose_input_context_state(ctx, REFERENCE_POSE)?;
+    let target_context = pose_input_context_state(ctx, TARGET_POSE)?;
+    source_pose_difference(source.source_pose_for(reference)?, target_context.source_pose_for(target)?, skeleton, mesh_space)
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -145,9 +163,14 @@ impl NodeLike for ReferenceLocalDifferenceNode {
             .skeleton_assets
             .get(&reference.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let difference = make_local_difference(&reference, &target, skeleton);
+        let mut difference = make_local_difference(&reference, &target, skeleton);
+        let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, false);
+        if let Some(source) = &source_pose {
+            source.project_into(&mut difference);
+        }
         ctx.set_time(difference.timestamp);
         ctx.set_data_fwd(OUT_POSE, difference);
+        ctx.state_mut::<AnimationContextState>()?.source_pose = source_pose;
         Ok(())
     }
 

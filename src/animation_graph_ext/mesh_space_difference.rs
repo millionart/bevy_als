@@ -1,5 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 
+use bevy::math::DVec3;
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
@@ -10,6 +11,45 @@ use bevy_animation_graph::core::{
     pose::{BoneId, BonePose, Pose, RootMotionDelta},
     skeleton::Skeleton,
 };
+
+use crate::extensions::{
+    raw_sequence_sampling::normalize_source_rotation,
+    source_compression::source_quaternion_product,
+    source_pose::SourcePose,
+};
+
+pub(crate) fn source_pose_difference(
+    reference: &SourcePose,
+    target: &SourcePose,
+    skeleton: &Skeleton,
+    mesh_space: bool,
+) -> Option<Arc<SourcePose>> {
+    if !reference.same_layout(target) {
+        return None;
+    }
+    let mut target = target.clone();
+    let mut reference_mesh;
+    let reference = if mesh_space {
+        let parents = reference.parent_indices(skeleton)?;
+        reference_mesh = reference.clone();
+        reference_mesh.convert_rotations_to_mesh(&parents);
+        target.convert_rotations_to_mesh(&parents);
+        &reference_mesh
+    } else {
+        reference
+    };
+    for ((_, target), &(_, reference)) in target.bones.iter_mut().zip(&reference.bones) {
+        target.rotation = normalize_source_rotation(source_quaternion_product(
+            target.rotation, reference.rotation.conjugate(),
+        ));
+        target.translation -= reference.translation;
+        let reciprocal = reference.scale.to_array().map(|value| {
+            if value.abs() <= f64::from(1e-8_f32) { 0.0 } else { value.recip() }
+        });
+        target.scale = target.scale * DVec3::from_array(reciprocal) - DVec3::ONE;
+    }
+    Some(Arc::new(target))
+}
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]

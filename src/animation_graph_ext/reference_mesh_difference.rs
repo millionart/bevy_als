@@ -7,6 +7,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::mesh_space_difference::make_mesh_space_difference;
+use crate::extensions::{AnimationContextState, reference_local_difference::precise_reference_difference};
 
 pub const REFERENCE_POSE: &str = "reference_pose";
 pub const REFERENCE_TIME: &str = "reference_time";
@@ -51,9 +52,14 @@ impl NodeLike for ReferenceMeshDifferenceNode {
             .get(&reference.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         let mut difference = make_mesh_space_difference(&reference, &target, skeleton);
+        let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, true);
+        if let Some(source) = &source_pose {
+            source.project_into(&mut difference);
+        }
         difference.timestamp = target.timestamp;
         ctx.set_time(difference.timestamp);
         ctx.set_data_fwd(OUT_POSE, difference);
+        ctx.state_mut::<AnimationContextState>()?.source_pose = source_pose;
         Ok(())
     }
 
