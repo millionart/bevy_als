@@ -105,7 +105,7 @@ pub struct SourceSyncPlayerTick {
     pub selected_leader: bool,
     pub ticked_as_leader: bool,
     pub resolved_length_ratio: Option<f32>,
-    pub blend_space_normalized_time: Option<f32>,
+    pub blend_space_clock: Option<SourceBlendSpaceClock>,
     pub phase: f32,
     pub previous_phase: f32,
     pub previous_marker_record: Option<SourceMarkerRecord>,
@@ -119,6 +119,17 @@ pub struct SourceSyncPlayerTick {
     pub delta_seconds: f32,
     pub play_rate: f32,
     pub length_play_rate: Option<f32>,
+}
+
+#[derive(Reflect, Clone, Copy, Debug)]
+pub struct SourceBlendSpaceClock {
+    pub normalized_time: f32,
+    pub previous_sample_time: f32,
+    pub instance_markers_valid: bool,
+}
+
+pub(crate) fn blend_space_nearly_zero_delta(delta: f32) -> bool {
+    delta.abs() <= 1e-8
 }
 
 #[derive(Reflect, Clone, Debug, Default, PartialEq)]
@@ -422,10 +433,13 @@ pub fn resolve_source_sync_phases(
             let mut grouped = leader.clone();
             grouped.markers.retain(|marker| common.contains(&marker.name));
             grouped.phase_markers.retain(|marker| common.contains(&marker.name));
-            if reset_marker_before_tick(leader) {
+            if reset_marker_before_tick(leader) || (!common.is_empty()
+                && grouped.blend_space_clock.is_some_and(|clock| !clock.instance_markers_valid))
+            {
                 grouped.previous_marker_record = None;
-                if !common.is_empty() && let Some(normalized_time) = grouped.blend_space_normalized_time {
-                    grouped.sample_time_hint = Some(normalized_time * grouped.duration);
+                if !common.is_empty() && let Some(clock) = &mut grouped.blend_space_clock {
+                    clock.instance_markers_valid = false;
+                    grouped.sample_time_hint = Some(clock.normalized_time * grouped.duration);
                 }
             }
             if common.is_empty() {
@@ -441,7 +455,9 @@ pub fn resolve_source_sync_phases(
                     })).map(|prior| prior.resolved_length_ratio.unwrap_or_else(||
                         marker_phase_sample_time(prior.phase, prior.phase_duration,
                             &prior.phase_markers, prior.duration, &prior.markers, prior.looped) / prior.duration.max(EPSILON)))
-            } else if common.is_empty() || grouped.sequence_marker_sync_paused() {
+            } else if common.is_empty() || grouped.sequence_marker_sync_paused()
+                || grouped.paused_blend_space_clock().is_some_and(|clock| !clock.instance_markers_valid)
+            {
                 None
             } else if leader.override_position_when_joining_sync_group_as_leader && joined {
                 None
@@ -462,6 +478,9 @@ pub fn resolve_source_sync_phases(
             };
             let step = if let Some(ratio) = prior_phase.filter(|_| length_resync) {
                 grouped.previous_marker_record = None;
+                if let Some(clock) = &mut grouped.blend_space_clock {
+                    clock.normalized_time = ratio;
+                }
                 grouped.advance_from_time(ratio * grouped.duration)
             } else if let Some(phase) = prior_phase {
                 let continuing = common == previous_common && previous_players.iter().any(|prior|
@@ -498,7 +517,11 @@ pub fn resolve_source_sync_phases(
             };
             let valid_end = step.advance.end.as_ref().is_some_and(|position| position.is_valid());
             phase = Some(step.phase);
-            length_ratios = Some(Vec2::new(step.previous_time, step.time) / leader.duration.max(EPSILON));
+            let mut ratios = Vec2::new(step.previous_time, step.time) / leader.duration.max(EPSILON);
+            if !common.is_empty() && let Some(clock) = grouped.blend_space_clock {
+                ratios.x = clock.normalized_time;
+            }
+            length_ratios = Some(ratios);
             marker_advance = Some(step.advance.clone());
             leader_samples.push((leader.identity, step));
             if common.is_empty() || valid_end { break; }
@@ -536,6 +559,10 @@ impl SourceSyncPlayerTick {
         self.length_play_rate.is_none() && self.delta_seconds * self.play_rate == 0.0
     }
 
+    fn paused_blend_space_clock(&self) -> Option<SourceBlendSpaceClock> {
+        self.blend_space_clock.filter(|_| blend_space_nearly_zero_delta(self.delta_seconds * self.play_rate))
+    }
+
     pub fn advance(&self, previous_phase: f32) -> SourceSyncPlayerStep {
         let position = marker_position_at_time(&self.phase_markers, self.phase_duration,
             phase_to_time(previous_phase, self.phase_duration, self.looped), self.looped);
@@ -553,25 +580,36 @@ impl SourceSyncPlayerTick {
 
     pub fn advance_from_time(&self, previous_time: f32) -> SourceSyncPlayerStep {
         let markers = sorted_markers(&self.markers, self.duration);
-        let record = self.previous_marker_record.clone().filter(|record| record.valid(&markers, self.duration, self.looped))
-            .unwrap_or_else(|| SourceMarkerRecord::at_time(&markers, self.duration, self.looped, previous_time, self.source_asset.clone()));
-        self.advance_with_record(previous_time, record)
+        let record = self.previous_marker_record.clone().filter(|record| record.valid(&markers, self.duration, self.looped));
+        let retain_record = record.is_some() || self.paused_blend_space_clock().is_none_or(|clock| !clock.instance_markers_valid);
+        let mut step = self.advance_with_record(previous_time, record.unwrap_or_else(||
+            SourceMarkerRecord::at_time(&markers, self.duration, self.looped, previous_time, self.source_asset.clone())));
+        if !retain_record {
+            step.record = None;
+        }
+        step
     }
 
     fn advance_with_record(&self, previous_time: f32, mut record: SourceMarkerRecord) -> SourceSyncPlayerStep {
         let delta = self.delta_seconds * self.play_rate;
+        let paused_blend_space = self.paused_blend_space_clock().filter(|_| !record.markers.is_empty());
         let (time, advance) = if record.markers.is_empty() {
             (crate::extensions::source_sequence_player::bound_source_sample_time(previous_time + delta, self.duration, self.looped),
                 SourceMarkerAdvance { forward: delta >= 0.0, ..default() })
         } else if self.sequence_marker_sync_paused() {
             (previous_time, SourceMarkerAdvance { forward: true, ..default() })
+        } else if let Some(clock) = paused_blend_space {
+            let position = (!clock.instance_markers_valid).then(|| record.position(previous_time));
+            (previous_time, SourceMarkerAdvance { forward: delta >= 0.0,
+                start: position.clone(), end: position, ..default() })
         } else { record.advance(previous_time, delta, self.looped) };
         let phase = advance.end.as_ref().filter(|position| position.is_valid())
             .and_then(|position| time_for_marker_position(&self.phase_markers, self.phase_duration,
                 position, time / self.duration.max(EPSILON) * self.phase_duration, self.looped))
             .map(|time| time_to_phase(time, self.phase_duration, self.looped))
             .unwrap_or_else(|| time_to_phase(time, self.duration, self.looped));
-        SourceSyncPlayerStep { phase, advance, time, previous_time,
+        SourceSyncPlayerStep { phase, advance, time,
+            previous_time: paused_blend_space.map_or(previous_time, |clock| clock.previous_sample_time),
             record: (!record.markers.is_empty()).then_some(record) }
     }
 }
@@ -939,7 +977,7 @@ impl SourceMarkerRecord {
         self.markers == markers && self.duration == duration && self.indices_valid(looped)
     }
 
-    fn indices_valid(&self, looped: bool) -> bool {
+    pub(crate) fn indices_valid(&self, looped: bool) -> bool {
         [self.previous, self.next].iter()
             .all(|index| *index >= if looped { 0 } else { -1 } && *index < self.markers.len() as i64)
     }
@@ -1582,7 +1620,7 @@ mod tests {
             selected_leader: false,
             ticked_as_leader: false,
             resolved_length_ratio: None,
-            blend_space_normalized_time: None,
+            blend_space_clock: None,
         };
         let old = tick(old_id, old_clip.clone(), 0.8, false);
         let mut joining = tick(new_id, new_clip.clone(), 0.2, true);

@@ -7489,7 +7489,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例/控制：先恢复原生权重和1e−5资格，原SprintBlock/两个Forward Base缓存消费仍有54帧根平移与16帧scale不同，合计60帧；完整骨架受控两姿态的最大根平移差1.1920929e−7、scale差9.7155571e−6。仅恢复源分支后883帧所有位置、scale、调用数及上游权重对照通过；移除分支稳定恢复60帧失败。首帧双姿态权重[0.9803240895,0.0196759291]的第二项应以0.0196759105参与姿态。
   - 漏检/边界：旧测试把数学上等价的通用加权和当成逐float等价，且未覆盖单相关姿态。此证据限于实际外层节点与缓存的受控末端消费，不是UE整角色姿态测量；证据`target/bf144/133/native-weights-analysis.json`、`full-analysis.json`、`no-pose-branch-analysis.json`。生产未改。
 
-- [ ] BF144-D217 / P3 — BlendSpace在源应保持样本的近零步长仍重新同步时间。
+- [x] BF144-D217 / P3 — BlendSpace在源应保持样本的近零步长仍重新同步时间。
+  - 2026-11-12 10:19 +0800 实际结束，较11:01预估提前42分钟，未拆分。fresh 22条136帧，11次冷发布、9次热候选保持、2次零follower保持与3组无有效终点逐项闭环；原生读数和实际采样引脚夹具见 `docs/audit/bf144/d217/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 10:06 +08:00，预估结束2026-11-12 11:01 +08:00。重采BlendSpace冷/热leader与零步长follower，保留样本历史及有效标记发布边界。
   - Source：fresh `BlendSpace.cpp:700–752,773–795`对leader使用IsNearlyZero(NewDeltaTime)，在已有marker记录时不推进样本；新建记录仍按初始归一化时间建立marker，但不改样本默认previous。follower仅在Context Delta!=0时初始化/更新样本，因此首次零delta保留样本time/previous=0。`AnimSync.cpp:219–258`在候选无有效end时继续尝试，最后候选成为记录leader。当前rate与样本RateScale为1，near-zero上界为1e−8秒。
   - Target：`sync_group_phase.rs:447–483,530`统一构造step及有效marker；`normalized_blendspace.rs:715–843`又依据group相位重算leader/follower样本并把previous设为本次起点，没有区分上述BlendSpace生命周期。不能直接套用D208的Sequence规则：冷启动BS leader在零delta也可发布有效marker。
   - 反例/控制：42条4032帧固定组历史覆盖0、1e−9、1e−8、2e−8、50µs、100µs、101µs。隔离数据/过滤及D212后剩252帧失败；源角色/历史控制消除所有当前采样时间、leader、marker差，剩33个previous尾差由D213解释，完整恢复全部通过。首次zero follower的time应为0，目标约0.220–0.233秒；warm near-zero的源previous保留上次值，目标却改成本次current，且错误发布有效marker。原始stride输入仍在0.2–1，首次filter=0是源初始化输出，不是人为使用无效stride输入。

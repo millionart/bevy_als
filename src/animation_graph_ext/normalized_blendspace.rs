@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::sync_group_phase::{
-    SourceSyncPlayerBinding, SourceSyncPlayerTick, resolved_source_sync_phase,
+    SourceBlendSpaceClock, SourceSyncPlayerBinding, SourceSyncPlayerTick, blend_space_nearly_zero_delta, resolved_source_sync_phase,
     resolved_source_sync_markers, marker_phase_sample_time_near, follower_sample_time_near,
     marker_phase_sample_time_continuous, resolved_source_marker_advance, resolved_source_sync_sample_time,
 };
@@ -256,8 +256,10 @@ pub(crate) struct NormalizedBlendSpaceState {
     triangle: Option<usize>,
     samples: Vec<SourceBlendSpaceSampleWeight>,
     sample_times: Vec<Option<f32>>,
+    previous_sample_times: Vec<Option<f32>>,
     marker_records: Vec<Option<crate::extensions::sync_group_phase::SourceMarkerRecord>>,
     normalized_time: Option<f32>,
+    instance_markers_valid: bool,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -693,16 +695,17 @@ impl NodeLike for NormalizedBlendSpaceNode {
         } else { None };
         let weights = smoothed.as_ref().map_or_else(|| target_weights.clone(), |samples|
             samples.iter().map(|sample| (sample.index, sample.weight)).collect());
-        let mut sample_times = ctx.state::<NormalizedBlendSpaceState>().ok()
-            .map(|state| state.sample_times.clone()).unwrap_or_default();
+        let previous_state = ctx.state::<NormalizedBlendSpaceState>().ok();
+        let mut sample_times = previous_state.map(|state| state.sample_times.clone()).unwrap_or_default();
         sample_times.resize(self.points.len(), None);
-        let mut marker_records = ctx.state::<NormalizedBlendSpaceState>().ok()
-            .map(|state| state.marker_records.clone()).unwrap_or_default();
+        let mut previous_sample_times = previous_state.map(|state| state.previous_sample_times.clone()).unwrap_or_default();
+        previous_sample_times.resize(self.points.len(), None);
+        let mut marker_records = previous_state.map(|state| state.marker_records.clone()).unwrap_or_default();
         marker_records.resize(self.points.len(), None);
-        let reset_instance_markers = crate::extensions::sync_group_phase::source_sync_markers_reset(&ctx);
+        let instance_markers_valid = !crate::extensions::sync_group_phase::source_sync_markers_reset(&ctx)
+            && previous_state.is_some_and(|state| state.instance_markers_valid);
         let previous_normalized_time = self.playback.as_ref().map(|playback|
-            ctx.state::<NormalizedBlendSpaceState>().ok().and_then(|state| state.normalized_time)
-                .unwrap_or(playback.start_position));
+            previous_state.and_then(|state| state.normalized_time).unwrap_or(playback.start_position));
         let sample_clip = |point: &NormalizedBlendSpacePoint| ctx.graph_context.graph.edges_inverted
             .get(&bevy_animation_graph::core::animation_graph::TargetPin::NodeData(ctx.node_id, Self::pose_pin(&point.id)))
             .and_then(|source| match source {
@@ -728,15 +731,15 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let mut marker_advance = None;
         let mut leader_sample_time = resolved_source_sync_sample_time(&ctx)?;
         let resolved_time = leader_sample_time.is_some();
-        if !uses_marker_phase || (reset_instance_markers && resolved_time) {
+        if !uses_marker_phase || (!instance_markers_valid && resolved_time) {
             marker_records.fill(None);
         }
         let resolved_record = crate::extensions::sync_group_phase::resolved_source_marker_record(
             &ctx, &leader_markers, leader_duration, sample_clips[leader_index].clone())?;
-        let resolved_previous_time = crate::extensions::sync_group_phase::resolved_source_sync_previous_time(&ctx)?;
+        let mut leader_previous_sample_time = crate::extensions::sync_group_phase::resolved_source_sync_previous_time(&ctx)?;
         let length_ratios = self.playback.as_ref()
             .map(|playback| crate::extensions::sync_group_phase::resolved_source_sync_length_ratios(&ctx, &playback.key)).transpose()?.flatten();
-        let phase = if let Some(playback) = &self.playback {
+        let (phase, sample_delta) = if let Some(playback) = &self.playback {
             let play_rate = if playback.play_rate_key.is_empty() {
                 1.0
             } else {
@@ -755,10 +758,16 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 self.player_tick(playback, leader_index, previous.map(|tick| tick.phase), delta_seconds, play_rate,
                     &phase_markers, &leader_markers);
             tick.length_play_rate = Some(play_rate * leader_duration * normalized_speed);
-            tick.blend_space_normalized_time = previous_normalized_time;
+            tick.blend_space_clock = previous_normalized_time.map(|normalized_time| SourceBlendSpaceClock {
+                normalized_time, instance_markers_valid,
+                previous_sample_time: previous_sample_times[leader_index].unwrap_or_default(),
+            });
             if !uses_marker_phase { tick.play_rate = tick.length_play_rate.unwrap(); }
-            tick.sample_time_hint = Some(sample_times[leader_index]
-                .unwrap_or(playback.start_position * leader_duration));
+            tick.sample_time_hint = Some(if uses_marker_phase && !instance_markers_valid {
+                previous_normalized_time.unwrap_or(playback.start_position) * leader_duration
+            } else {
+                sample_times[leader_index].unwrap_or(if uses_marker_phase { 0.0 } else { playback.start_position * leader_duration })
+            });
             tick.identity = (ctx.graph_context.context_id, ctx.node_id);
             tick.has_been_full_weight = previous.is_some_and(|tick| tick.has_been_full_weight)
                 || (matches!(playback.role,
@@ -770,31 +779,42 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 crate::extensions::sync_group_phase::SOURCE_SYNC_INERTIAL_SCOPE)
                 .is_some_and(|value| value.as_bool().unwrap_or(false));
             tick.previous_phase = tick.phase;
-            tick.previous_marker_record = marker_records[leader_index].clone().filter(|record| record.asset == sample_clips[leader_index]);
+            tick.previous_marker_record = marker_records[leader_index].clone()
+                .filter(|record| instance_markers_valid && record.asset == sample_clips[leader_index]);
             let phase = if let Some(phase) = resolved_source_sync_phase(&ctx, &playback.key)? {
                 marker_advance = resolved_source_marker_advance(&ctx, &playback.key)?;
                 phase
             } else {
+                if !instance_markers_valid {
+                    marker_records.fill(None);
+                }
                 let mut step = tick.advance_from_time(tick.sample_time_hint.unwrap());
                 if let Some(record) = &mut step.record { record.asset = sample_clips[leader_index].clone(); }
                 leader_sample_time = Some(step.time);
+                leader_previous_sample_time = Some(step.previous_time);
                 marker_records[leader_index] = step.record;
                 marker_advance = Some(step.advance);
                 step.phase
             };
+            let sample_delta = tick.delta_seconds * tick.play_rate;
             tick.phase = phase;
             tick.marker_advance = marker_advance.clone();
             ctx.state_mut::<NormalizedBlendSpaceState>()?.context = AnimationContextState {
                 sync_players: vec![tick],
                 ..default()
             };
-            phase
+            (phase, sample_delta)
         } else {
-            normalize_phase(ctx.data_back(IN_PHASE)?.as_f32()?, sample_looped)
+            (normalize_phase(ctx.data_back(IN_PHASE)?.as_f32()?, sample_looped), 0.0)
         };
+        let valid_group_start = marker_advance.as_ref().and_then(|advance| advance.start.as_ref())
+            .is_some_and(|position| position.is_valid());
+        let hold_follower_samples = leader_sample_time.is_none() && uses_marker_phase && delta_seconds == 0.0 && valid_group_start;
+        let hold_leader_samples = leader_sample_time.is_some() && uses_marker_phase && instance_markers_valid
+            && blend_space_nearly_zero_delta(sample_delta);
         let leader_hint = previous_normalized_time
-            .filter(|_| reset_instance_markers && uses_marker_phase && delta_seconds != 0.0
-                && marker_advance.as_ref().and_then(|advance| advance.start.as_ref()).is_some_and(|position| position.is_valid()))
+            .filter(|_| !instance_markers_valid && uses_marker_phase && delta_seconds != 0.0
+                && valid_group_start)
             .map(|time| time * leader_duration)
             .or(sample_times[leader_index])
             .unwrap_or_else(|| self.playback.as_ref()
@@ -812,7 +832,9 @@ impl NodeLike for NormalizedBlendSpaceNode {
             }
         };
         let (leader_time, leader_previous_time) = if let Some(time) = leader_sample_time {
-            (time, resolved_previous_time.unwrap_or(leader_hint))
+            (time, leader_previous_sample_time.unwrap_or(leader_hint))
+        } else if hold_follower_samples {
+            (sample_times[leader_index].unwrap_or_default(), previous_sample_times[leader_index].unwrap_or_default())
         } else if uses_marker_phase {
             map_time(leader_index, &leader_markers, leader_duration, leader_hint,
                 sample_times[leader_index].is_some())
@@ -833,14 +855,16 @@ impl NodeLike for NormalizedBlendSpaceNode {
             let point_hint = sample_times[index].unwrap_or_else(|| self.playback.as_ref()
                 .map_or_else(|| phase_to_time(phase, duration, sample_looped),
                     |playback| playback.start_position * duration));
-            let time = if index == leader_index {
-                leader_time
+            let (time, previous_time) = if index == leader_index {
+                (leader_time, leader_previous_time)
+            } else if hold_leader_samples || hold_follower_samples {
+                (sample_times[index].unwrap_or_default(), previous_sample_times[index].unwrap_or_default())
             } else if uses_marker_phase {
-                map_time(index, &point_markers, duration, point_hint, sample_times[index].is_some()).0
+                map_time(index, &point_markers, duration, point_hint, sample_times[index].is_some())
             } else if let Some(ratios) = length_ratios {
-                ratios.y * duration
+                (ratios.y * duration, ratios.x * duration)
             } else {
-                follower_sample_time_near(
+                (follower_sample_time_near(
                     phase,
                     leader_duration,
                     &leader_markers,
@@ -848,10 +872,11 @@ impl NodeLike for NormalizedBlendSpaceNode {
                     &point_markers,
                     point_hint,
                     sample_looped,
-                )
+                ), point_hint)
             };
             let time = if self.teleport_to_normalized_time && point.asset_rate_scale < 0.0 { duration - time } else { time };
             sample_times[index] = Some(time);
+            previous_sample_times[index] = Some(previous_time);
             ctx.set_time_update_back(Self::time_pin(&point.id), TimeUpdate::Absolute(time));
             poses.push((
                 ctx.data_back(Self::pose_pin(&point.id))?.into_pose()?,
@@ -867,7 +892,10 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let state = ctx.state_mut::<NormalizedBlendSpaceState>()?;
         if self.playback.is_some() {
+            state.instance_markers_valid = marker_records[leader_index].as_ref()
+                .is_some_and(|record| record.indices_valid(sample_looped));
             state.sample_times = sample_times;
+            state.previous_sample_times = previous_sample_times;
             state.marker_records = marker_records;
             state.normalized_time = Some(if !uses_marker_phase && let Some(ratios) = length_ratios {
                 ratios.y
@@ -1276,6 +1304,160 @@ mod tests {
                         assert!(!arena.get_toplevel().node_caches.is_updated(space_id, StateKey::Default));
                     }
                     assert!((state.normalized_time.unwrap() - frame.normalized).abs() < EPSILON, "{} at frame {index}", case.name);
+                }
+            }
+        }).unwrap();
+    }
+
+    #[test]
+    fn blend_space_near_zero_keeps_native_sample_clocks_and_leader_selection() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, GraphInputPin},
+            animation_node::AnimationNode, context::{deferred_gizmos::DeferredGizmos,
+                graph_context::QueryOutputTime, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, skeleton::Skeleton, state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{SourceMultiWayBlendNode, SourcePosePassthroughNode};
+
+        #[derive(Deserialize)]
+        struct Clip {
+            duration: f32,
+            rate_scale: f32,
+            markers: Vec<SyncMarker>,
+        }
+        #[derive(Deserialize)]
+        struct Player {
+            position: [f32; 2],
+            clocks: Vec<(usize, f32, f32)>,
+            normalized: f32,
+            hold: bool,
+            cold: bool,
+        }
+        #[derive(Deserialize)]
+        struct Frame {
+            delta: f32,
+            weights: [Option<f32>; 2],
+            players: [Option<Player>; 2],
+            leader: usize,
+            valid: bool,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            timing: [[Clip; 2]; 2],
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d217/near_zero.replay.json"
+        )).unwrap();
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
+        let blend = AnimationNode::new("Blend", SourceMultiWayBlendNode {
+            desired_alpha_keys: vec!["a".into(), "b".into()], desired_alpha_defaults: vec![0.0, 0.0],
+            normalize_alpha: false, reference_skeleton: skeleton.clone(), ..default()
+        });
+        let root = AnimationNode::new("Sync", SourcePosePassthroughNode {
+            synchronize_groups: true, output_time: false, ..default()
+        });
+        let root_id = root.id;
+        let mut graph = AnimationGraph::new();
+        graph.add_node(blend.clone());
+        graph.add_node(root);
+        graph.set_default_data(GraphInputPin::passthrough("sample"), Pose { skeleton, ..default() }.into());
+        let spaces = [0, 1].map(|index| {
+            let points = reference.timing[index].iter().zip([("walk", Vec2::X), ("pose", Vec2::ZERO)])
+                .map(|(clip, (name, point))| NormalizedBlendSpacePoint {
+                    id: name.into(), point, duration: clip.duration, asset_rate_scale: clip.rate_scale,
+                    markers: clip.markers.clone(), ..default()
+                }).collect();
+            let space = AnimationNode::new("WalkRun", NormalizedBlendSpaceNode {
+                points, phase_duration: reference.timing[0][0].duration,
+                phase_markers: reference.timing[0][0].markers.clone(), looped: true,
+                source_triangulation: Some(SourceBlendSpaceTriangulation {
+                    axis_min: Vec2::ZERO, axis_max: Vec2::ONE, segments: vec![[1, 0]], ..default()
+                }),
+                playback: Some(SourceSyncPlayerBinding {
+                    key: "Movement".into(), start_position: [0.2, 0.35][index], delta_seconds_key: "delta".into(),
+                    ..default()
+                }),
+                ..default()
+            });
+            graph.add_node(space.clone());
+            graph.add_input_data_edge(GraphInputPin::passthrough(format!("position_{index}")), space.id, IN_POSITION);
+            for name in ["walk", "pose"] {
+                graph.add_input_data_edge(GraphInputPin::passthrough("sample"), space.id, NormalizedBlendSpaceNode::pose_pin(name));
+                graph.add_input_time_edge(GraphInputPin::passthrough(format!("time_{index}_{name}")),
+                    space.id, NormalizedBlendSpaceNode::time_pin(name));
+            }
+            graph.add_node_parameter_edge(space.id, OUT_POSE, blend.id, format!("Poses {index}"));
+            space.id
+        });
+        graph.add_node_parameter_edge(blend.id, "Pose", root_id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(root_id, "Pose", "Pose");
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        world.run_system_once(move |resources: SystemResources| {
+            let mut graph = resources.animation_graph_assets.get(&handle).unwrap().clone();
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            for case in &reference.cases {
+                let mut arena = GraphContextArena::new(handle.id());
+                let mut history = [[None; 2]; 2];
+                for (index, frame) in case.frames.iter().enumerate() {
+                    for (space, player) in frame.players.iter().enumerate() {
+                        let position = player.as_ref().map_or(Vec2::ZERO, |player| Vec2::from_array(player.position));
+                        graph.set_default_data(GraphInputPin::passthrough(format!("position_{space}")), DataValue::Vec2(position));
+                    }
+                    let inputs = HashMap::from([
+                        ("delta".into(), DataValue::F32(frame.delta)),
+                        ("a".into(), DataValue::F32(frame.weights[0].unwrap_or_default())),
+                        ("b".into(), DataValue::F32(frame.weights[1].unwrap_or_default())),
+                    ]);
+                    graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(frame.delta)),
+                        GraphContext::new(arena.get_toplevel_id(), &graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                    let graph_state = arena.get_toplevel();
+                    let context = graph_state.node_states.get::<AnimationContextState>(root_id, StateKey::Default).unwrap();
+                    let leader = context.sync_players.iter().find(|tick| tick.selected_leader).unwrap();
+                    assert_eq!(leader.identity.1, spaces[frame.leader], "{} frame {index}", case.name);
+                    let valid = leader.marker_advance.as_ref().and_then(|advance| advance.end.as_ref())
+                        .is_some_and(|position| position.is_valid());
+                    assert_eq!(valid, frame.valid, "{} frame {index}", case.name);
+                    for (space, player) in frame.players.iter().enumerate() {
+                        let Some(player) = player else { continue; };
+                        let state = graph_state.node_states.get::<NormalizedBlendSpaceState>(spaces[space], StateKey::Default).unwrap();
+                        assert!((state.normalized_time.unwrap() - player.normalized).abs() < EPSILON, "{} frame {index}", case.name);
+                        for &(sample, previous, time) in &player.clocks {
+                            let observed = [state.previous_sample_times[sample].unwrap(), state.sample_times[sample].unwrap()];
+                            if player.cold {
+                                assert_eq!(observed, [previous, time], "{} frame {index}", case.name);
+                            } else {
+                                assert!((observed[0] - previous).abs() < EPSILON && (observed[1] - time).abs() < EPSILON,
+                                    "{} frame {index}, sample {sample}", case.name);
+                            }
+                            if player.hold {
+                                assert_eq!(Some(observed), history[space][sample], "{} frame {index}", case.name);
+                            }
+                            let sample_time = graph_state.node_caches.get_input_time_update(spaces[space], StateKey::Default,
+                                NormalizedBlendSpaceNode::time_pin(["walk", "pose"][sample])).unwrap();
+                            assert!(matches!(sample_time, TimeUpdate::Absolute(time) if time == observed[1]));
+                            history[space][sample] = Some(observed);
+                        }
+                    }
                 }
             }
         }).unwrap();
