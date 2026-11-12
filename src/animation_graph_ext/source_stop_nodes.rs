@@ -274,8 +274,7 @@ impl SourceLayeredBoneBlendNode {
     pub(super) fn cached_pose_input_weights(&self, ctx: &NodeContext) -> Result<Vec<(String, f32)>, GraphError> {
         let mut weights = vec![(self.base_pose_pin.clone(), 1.0)];
         for index in 0..self.layer_count() {
-            let weight = if self.layer_weight(ctx, index)? > 1e-5 { 1.0 } else { 0.0 };
-            weights.push((self.layer_pin(index).to_owned(), weight));
+            weights.push((self.layer_pin(index).to_owned(), self.layer_weight(ctx, index)?));
         }
         Ok(weights)
     }

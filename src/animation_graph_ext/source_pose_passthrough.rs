@@ -154,7 +154,9 @@ impl NodeLike for SourcePosePassthroughNode {
         }
         let mut source_ctx = ctx.clone();
         source_ctx.graph_context.global_input_data = &global_inputs;
-        crate::extensions::source_cached_pose::prewarm_linked_pose_caches(&source_ctx, &self.input, &self.linked_pose_cache_order)?;
+        if self.synchronize_groups || !self.linked_pose_cache_order.is_empty() {
+            crate::extensions::source_cached_pose::prewarm_linked_pose_caches(&source_ctx, &self.input, &self.linked_pose_cache_order)?;
+        }
         let pose = source_ctx.data_back(self.input.clone())?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);

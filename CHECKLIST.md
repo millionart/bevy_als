@@ -7558,7 +7558,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：真实角色加载前史中Grounded未被更新，上一帧PoseStanding=1，首个移动输入为Crouching；target首帧即Crouching全权重。相同源条件的原生limit=1首帧仍Standing、下一帧才开始0.5秒CF；limit=2则复现target同帧Crouching。反向入口和同姿态控制共8组24帧核对，根因独立于D206曲线舍入和D207别名源姿态。
   - 恢复/消费：只在实际角色的首个Grounded更新扣掉入口边的一次额度，两个cold Crouch路径各240帧脚姿态改变（最大约59.55°/50.81°），六条同入口控制路径全保持；本批外层/参数为共同输入，不作完整UE角色视觉证明。移除该控制后45帧状态/权重再次失败，按源码字节恢复、同target重编后1920帧与独立源模型匹配，角色输出重现。证据`target/bf144/159/budget-consumption.json`、`no-budget-check.json`、`final-check.json`与`summary.json`；生产未修，默认世界仍待审。
 
-- [ ] BF144-D223 / P3 — 姿态缓存过早按局部首个请求更新，遗漏其他使用者的更高上下文权重。
+- [x] BF144-D223 / P3 — 姿态缓存过早按局部首个请求更新，遗漏其他使用者的更高上下文权重。
+  - 2026-11-12 11:33 +0800 实际结束，较12:14预估提前41分钟，未拆分。fresh Layering编译队列与实际依赖图闭环，五个原生缓存请求控制中首请求策略失败两组。单个可达linked cache按实例汇总，证据及实际linked graph夹具见 `docs/audit/bf144/d223/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 11:24 +08:00，预估结束2026-11-12 12:14 +08:00。重采Layering编译队列和缓存请求；先汇总实例内路径，按胜出的绝对上下文更新。
   - Source：fresh `AnimNode_SaveCachedPose.cpp:178–204`在PostGraphUpdate收齐当前实例请求后按严格最高FinalBlendWeight更新一次；Layering的Locomotion由多个身体部位的缓存路径共用。UE TwoWay接近满权重且A不相关时B获得完整Context，腿部mesh additive常量1因而有权重1的Locomotion请求；原生新5组缓存请求确认低→高与高→低都更新为1，零请求和空请求边界分别为一次0/零次更新。
   - Target：`source_cached_pose.rs:111–132`只为当前局部输入收集请求便立即`update_cached_requests→resolve_cached_pose`，其他身体路径稍后到达时节点已经缓存，不能把执行上下文提升到全局最高请求。现有局部预热的max本身不能代替原生实例级延后调度。
   - 实际反例：正确候选控制下真实角色60Hz handoff第37帧，左臂添加分支先以0.99999994触发Locomotion，后到完整权重请求未提升；Grounded缓存最终为0.72795283794，源应0.72795289755。受控使较高路径先执行（只作诊断，不作为生产修复）即得到Locomotion1和源Grounded值。当前仅证明一个1 ULP上下文差，不宣称可见姿态故障或其他帧的全局上限。

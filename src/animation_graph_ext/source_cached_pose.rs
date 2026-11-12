@@ -108,8 +108,23 @@ fn update_cached_requests(requests: Vec<CachedUpdateRequest>) -> Result<(), Grap
 }
 
 pub(crate) fn prewarm_linked_pose_caches(ctx: &NodeContext, input: &str, order: &[String]) -> Result<(), GraphError> {
-    if order.is_empty() { return Ok(()); }
     let graph = ctx.graph_context.graph;
+    let mut schedule = graph.nodes.values().filter_map(|node| {
+        let save = node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()?;
+        let rank = if order.is_empty() {
+            save.submission_order
+        } else {
+            order.iter().position(|key| key.as_str() == saved_cache_key(save, &node.name))
+        }?;
+        let source = graph.edges_inverted.get(&TargetPin::NodeData(node.id, "Pose".to_owned()))?;
+        let linked = matches!(source, SourcePin::NodeData(id, _) if graph.nodes[id]
+            .try_inner_downcast_ref::<crate::extensions::SourceLinkedInputPoseNode>().is_some());
+        Some((rank, node.id, source, linked))
+    }).collect::<Vec<_>>();
+    if !schedule.iter().any(|(_, _, _, linked)| *linked) {
+        return Ok(());
+    }
+    schedule.sort_by_key(|(rank, ..)| *rank);
     let Some(source) = graph.edges_inverted.get(&TargetPin::NodeData(ctx.node_id, input.to_owned())) else {
         return Ok(());
     };
@@ -117,28 +132,18 @@ pub(crate) fn prewarm_linked_pose_caches(ctx: &NodeContext, input: &str, order: 
     collect_cached_requests(ctx, source, crate::extensions::interruptible_fsm::current_machine_weight(),
         false, &mut requests, &mut default())?;
     let mut linked = Vec::new();
-    for key in order {
-        let Some(index) = requests.iter().position(|request| {
-            request.owner.0 == ctx.graph_context.context_id && graph.nodes.get(&request.owner.1)
-                .and_then(|node| node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
-                    .map(|save| saved_cache_key(save, &node.name))) == Some(key.as_str())
-        }) else { continue; };
-        let request = requests.remove(index);
-        let Some(source) = graph.edges_inverted.get(&TargetPin::NodeData(request.owner.1, "Pose".to_owned())) else {
+    for (_, cache, source, is_linked) in schedule {
+        let Some(index) = requests.iter().position(|request| request.owner == (ctx.graph_context.context_id, cache)) else {
             continue;
         };
-        if matches!(source, SourcePin::NodeData(id, _) if graph.nodes[id]
-            .try_inner_downcast_ref::<crate::extensions::SourceLinkedInputPoseNode>().is_some())
-        {
+        let request = requests.remove(index);
+        if is_linked {
             linked.push(request);
         } else {
             collect_cached_requests(ctx, source, request.weight, request.forward, &mut requests, &mut default())?;
         }
     }
-    if linked.len() > 1 {
-        update_cached_requests(linked)?;
-    }
-    Ok(())
+    update_cached_requests(linked)
 }
 
 pub(crate) fn prewarm_input_cached_poses(ctx: &NodeContext, inputs: impl IntoIterator<Item = (String, f32)>) -> Result<(), GraphError> {
@@ -533,6 +538,144 @@ impl NodeLike for SourceCachedPoseUseNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Reflect, Clone, Debug, Default)]
+    #[reflect(Default, NodeLike)]
+    struct CacheWeightProbe;
+
+    impl NodeLike for CacheWeightProbe {
+        fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+            ctx.state_mut_or_else(Vec::<f32>::new)?
+                .push(crate::extensions::interruptible_fsm::current_machine_weight());
+            ctx.set_data_fwd("Pose", Pose::default());
+            Ok(())
+        }
+
+        fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+            ctx.add_output_data("Pose", DataSpec::Pose);
+            Ok(())
+        }
+
+        fn display_name(&self) -> String {
+            "Cache weight probe".into()
+        }
+    }
+
+    #[test]
+    fn instance_queue_prewarms_one_linked_cache_with_the_native_maximum() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{GraphInputPin, TimeUpdate}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, system_resources::SystemResources},
+            edge_data::DataValue, skeleton::Skeleton, state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{LayeredGraphNode, SourceLinkedInputPoseNode, SourceMultiWayBlendNode, SourcePosePassthroughNode,
+            interruptible_fsm::with_machine_weight, sync_group_phase::SOURCE_SYNC_RESOLVED};
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            requests: Vec<f32>,
+            child_update_weights: Vec<f32>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Reference {
+            cases: Vec<Case>,
+            ranks: std::collections::HashMap<String, usize>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d223/cache.replay.json"
+        )).unwrap();
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
+        let fixtures = [true, false].map(|scheduled| {
+            let mut layer = AnimationGraph::new();
+            layer.add_input_data(GraphInputPin::passthrough("Locomotion"), DataSpec::Pose);
+            let input = AnimationNode::new("Linked input", SourceLinkedInputPoseNode {
+                input: "Locomotion".into(), output: "Pose".into(), ..default()
+            });
+            let cached = |name: &str| AnimationNode::new(name, SourceCachedPoseSaveNode {
+                submission_order: scheduled.then(|| reference.ranks[name]), ..default()
+            });
+            let save = cached("Locomotion");
+            let use_cache = AnimationNode::new("Use Locomotion", SourceCachedPoseUseNode { cache_node: save.name.clone() });
+            for node in [&input, &save, &use_cache] {
+                layer.add_node(node.clone());
+            }
+            layer.add_node_parameter_edge(input.id, "Pose", save.id, "Pose");
+            let root_blend = AnimationNode::new("Body", SourceMultiWayBlendNode {
+                desired_alpha_keys: vec!["use_left".into(), "use_legs".into()],
+                desired_alpha_defaults: vec![0.0; 2], normalize_alpha: false, reference_skeleton: skeleton.clone(), ..default()
+            });
+            layer.add_node(root_blend.clone());
+            for (index, (name, key)) in [("Arm Left", "left"), ("Legs", "legs")].into_iter().enumerate() {
+                let blend = AnimationNode::new("Request", SourceMultiWayBlendNode {
+                    pose_count: 1, desired_alpha_keys: vec![key.into()], desired_alpha_defaults: vec![0.0],
+                    normalize_alpha: false, ..default()
+                });
+                let body_save = cached(name);
+                let body_use = AnimationNode::new("Use body", SourceCachedPoseUseNode { cache_node: body_save.name.clone() });
+                for node in [&blend, &body_save, &body_use] {
+                    layer.add_node(node.clone());
+                }
+                layer.add_node_parameter_edge(use_cache.id, "Pose", blend.id, "Poses 0");
+                layer.add_node_parameter_edge(blend.id, "Pose", body_save.id, "Pose");
+                layer.add_node_parameter_edge(body_use.id, "Pose", root_blend.id, format!("Poses {index}"));
+            }
+            let root = AnimationNode::new("Layer output", SourcePosePassthroughNode {
+                synchronize_groups: true, output_time: false, ..default()
+            });
+            layer.add_node(root.clone());
+            layer.add_node_parameter_edge(root_blend.id, "Pose", root.id, "Source");
+            layer.add_output_data("Pose".into(), DataSpec::Pose);
+            layer.add_output_data_edge(root.id, "Pose", "Pose");
+            let layer = world.resource_mut::<Assets<AnimationGraph>>().add(layer);
+            let mut node = LayeredGraphNode::new(layer);
+            node.internalize_time = true;
+            let layer = AnimationNode::new("Layer", node);
+            let probe = AnimationNode::new("Probe", CacheWeightProbe);
+            let mut outer = AnimationGraph::new();
+            outer.add_node(probe.clone());
+            outer.add_node(layer.clone());
+            outer.add_node_parameter_edge(probe.id, "Pose", layer.id, "Locomotion");
+            outer.add_output_data("Pose".into(), DataSpec::Pose);
+            outer.add_output_data_edge(layer.id, "Pose", "Pose");
+            (world.resource_mut::<Assets<AnimationGraph>>().add(outer), probe.id, scheduled)
+        });
+        world.run_system_once(move |resources: SystemResources| {
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            for (handle, probe, scheduled) in &fixtures {
+                let graph = resources.animation_graph_assets.get(handle).unwrap();
+                for case in &reference.cases {
+                    let mut arena = GraphContextArena::new(handle.id());
+                    let root_weight = f32::from(case.requests.first() != Some(&0.0));
+                    let requests = [case.requests.first(), case.requests.get(1)];
+                    let inputs = HashMap::from([
+                        (SOURCE_SYNC_RESOLVED.into(), DataValue::Bool(true)),
+                        ("use_left".into(), DataValue::F32(f32::from(requests[0].is_some()))),
+                        ("use_legs".into(), DataValue::F32(f32::from(requests[1].is_some()))),
+                        ("left".into(), DataValue::F32(requests[0].copied().filter(|weight| *weight > 0.0).unwrap_or(1.0))),
+                        ("legs".into(), DataValue::F32(requests[1].copied().filter(|weight| *weight > 0.0).unwrap_or(1.0))),
+                    ]);
+                    with_machine_weight(root_weight, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)),
+                        GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs))).unwrap();
+                    let updates = arena.get_toplevel().node_states.get::<Vec<f32>>(*probe, StateKey::Default).cloned().unwrap_or_default();
+                    let expected = if *scheduled { &case.child_update_weights[..] } else { &case.requests[..case.requests.len().min(1)] };
+                    assert_eq!(updates.as_slice(), expected, "scheduled={scheduled} requests={:?}", case.requests);
+                }
+            }
+        }).unwrap();
+    }
 
     #[test]
     fn cached_update_request_cycle_returns_a_readable_error() {
