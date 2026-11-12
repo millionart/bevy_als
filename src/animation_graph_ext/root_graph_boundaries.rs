@@ -449,6 +449,7 @@ impl NodeLike for ControlRigBoundaryNode {
         if !meters_per_unit.is_finite() || meters_per_unit <= 0.0 {
             return Err(failure("rig length unit is invalid".to_owned()));
         }
+        let foot_locations = crate::extensions::source_gameplay_tag_input::active_rig_foot_locations_cm(ctx.graph_context.root_entity);
         let inputs = self
             .input_bindings
             .iter()
@@ -464,6 +465,15 @@ impl NodeLike for ControlRigBoundaryNode {
                         ))
                     })?;
                 target.path.extend_from_slice(&binding.path);
+                let foot_location = foot_locations.and_then(|locations| match binding.property.as_str() {
+                    "control_rig_input.foot_left_location" => Some(locations[0]),
+                    "control_rig_input.foot_right_location" => Some(locations[1]),
+                    _ => None,
+                });
+                if let Some(location) = foot_location {
+                    let units_per_centimeter = 0.01 / meters_per_unit;
+                    return Ok((target, RigValue::Vector(location.as_dvec3() * units_per_centimeter)));
+                }
                 let value = source_input_data(&ctx, &binding.property)
                     .ok_or_else(|| GraphError::GlobalInputDataMissing(binding.property.clone()))?;
                 Ok((target, input_value(value, meters_per_unit).map_err(&failure)?))

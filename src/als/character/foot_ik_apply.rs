@@ -22,7 +22,8 @@ use crate::extensions::{control_rig_hierarchy::{RigSpace, RigTransform, rig_norm
 
 use crate::animation_context_projection::AlsRootAnimationContextSet;
 use crate::character_assembly::AlsCharacterAssembly;
-use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, CrAlsRuntimeProfileTemplate};
+use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigFootLocationsCm, AlsControlRigInput,
+    CrAlsRuntimeProfileTemplate};
 
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub(crate) struct FootLockLifecycleState {
@@ -599,6 +600,7 @@ fn positive_scale_foot_rotation(
 }
 
 fn refresh_foot_lock_inputs(
+    mut commands: Commands,
     time: Res<Time>,
     profile: Res<CrAlsRuntimeProfileTemplate>,
     mut characters: Query<(
@@ -630,6 +632,7 @@ fn refresh_foot_lock_inputs(
             lock_state.valid = false;
             lock_state.became_valid = false;
             if let Some(input) = rig_input.as_mut() { input.foot_transforms_valid = false; }
+            commands.entity(entity).remove::<AlsControlRigFootLocationsCm>();
             if gate.is_some_and(|gate| !gate.update_graph) { continue; }
         }
         let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
@@ -750,12 +753,17 @@ fn refresh_foot_lock_inputs(
             }
         }
         if let Some(input) = rig_input.as_mut() {
-            let inverse = foot_component_transform(&armature).inverse();
+            let mut component = foot_component_transform(&armature);
+            component.translation *= 100.0;
+            let inverse = component.inverse();
+            let locations = [lock_state.left.final_location, lock_state.right.final_location]
+                .map(|location| inverse.transform_point(location.as_dvec3() * 100.0).as_vec3());
             input.foot_transforms_valid = lock_state.valid;
-            input.foot_left_location_armature = inverse.transform_point(lock_state.left.final_location.as_dvec3()).as_vec3();
+            input.foot_left_location_armature = (locations[0].as_dvec3() * 0.01).as_vec3();
             input.foot_left_rotation_armature = lock_state.left.final_rotation_armature;
-            input.foot_right_location_armature = inverse.transform_point(lock_state.right.final_location.as_dvec3()).as_vec3();
+            input.foot_right_location_armature = (locations[1].as_dvec3() * 0.01).as_vec3();
             input.foot_right_rotation_armature = lock_state.right.final_rotation_armature;
+            commands.entity(entity).insert(AlsControlRigFootLocationsCm(locations));
         }
         dynamic_transition.update(
             &lock_state, lock_input.allow_transitions, armature.to_scale_rotation_translation().0.z.abs(),

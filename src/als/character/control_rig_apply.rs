@@ -116,6 +116,9 @@ pub struct AlsControlRigInput {
     pub foot_right_rotation_armature: Quat,
 }
 
+#[derive(Component)]
+pub(crate) struct AlsControlRigFootLocationsCm(pub(crate) [Vec3; 2]);
+
 impl Default for AlsControlRigInput {
     fn default() -> Self {
         Self {
@@ -387,7 +390,8 @@ fn refresh_control_rig_input(
 
 pub(crate) fn publish_control_rig_inputs(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
-    characters: Query<(Entity, &AlsControlRigInput, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
+    characters: Query<(Entity, &AlsControlRigInput, Option<&AlsControlRigFootLocationsCm>,
+        Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance, Option<&Transform>, Option<&ChildOf>)>,
     mut players: Query<&mut AnimationGraphPlayer>,
     transforms: TransformHelper,
@@ -397,7 +401,7 @@ pub(crate) fn publish_control_rig_inputs(
     capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,
 ) {
     let mut world: Option<Arc<RigQueryWorld>> = None;
-    for (entity, input, assembly) in &characters {
+    for (entity, input, foot_locations, assembly) in &characters {
         let Some(assembly) = assembly else { continue; };
         let Ok((avatar, owner, instance, mount, parent)) = avatars.get(assembly.avatar) else { continue; };
         if owner.character != entity { continue; }
@@ -456,7 +460,12 @@ pub(crate) fn publish_control_rig_inputs(
                     to_world: RigTransform { translation, rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
             }))
         } else { None };
-        source_inputs.get_mut(root).unwrap().set_rig_query_context(context);
+        let mut source = source_inputs.get_mut(root).unwrap();
+        source.set_rig_query_context(context);
+        source.set_rig_foot_locations_cm(foot_locations.filter(|locations| input.foot_transforms_valid
+            && locations.0.map(|point| (point.as_dvec3() * 0.01).as_vec3())
+                == [input.foot_left_location_armature, input.foot_right_location_armature])
+            .map(|locations| locations.0));
     }
 }
 
@@ -599,6 +608,20 @@ mod tests {
         app.world_mut().run_schedule(PostUpdate);
         let query = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().rig_query_context().unwrap();
         assert_eq!(query.to_world.translation, bevy::math::DVec3::new(-15.0, -4.291_534_423_828_125e-8, -15.0));
+        let left = bevy::math::DVec3::new(17.076_301_574_707_03, 13.465_350_151_062_012, -5.072_169_780_731_201);
+        let right = bevy::math::DVec3::new(-17.076_314_926_147_46, 13.465_192_794_799_805, -5.072_188_854_217_529);
+        app.world_mut().entity_mut(actor).insert(AlsControlRigFootLocationsCm([left.as_vec3(), right.as_vec3()]));
+        {
+            let mut input = app.world_mut().get_mut::<AlsControlRigInput>(actor).unwrap();
+            input.foot_left_location_armature = (left * 0.01).as_vec3();
+            input.foot_right_location_armature = (right * 0.01).as_vec3();
+        }
+        app.world_mut().run_schedule(PostUpdate);
+        let source = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap();
+        assert_eq!(source.rig_foot_locations_cm().unwrap().map(Vec3::as_dvec3), [left, right]);
+        app.world_mut().get_mut::<AlsControlRigInput>(actor).unwrap().foot_left_location_armature = Vec3::X;
+        app.world_mut().run_schedule(PostUpdate);
+        assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().rig_foot_locations_cm().is_none());
         app.world_mut().entity_mut(actor).insert(actor_transform);
         app.world_mut().entity_mut(avatar).insert(avatar_transform);
 

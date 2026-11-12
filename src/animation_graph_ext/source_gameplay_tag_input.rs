@@ -16,6 +16,7 @@ struct SourceInputValues {
     tags: HashMap<String, GameplayTag>,
     slots: HashMap<String, crate::extensions::animation_context::AnimationContextState>,
     rig_query: Option<crate::extensions::control_rig_query::RigQueryContext>,
+    rig_foot_locations_cm: Option<[Vec3; 2]>,
     graphs: HashMap<String, LinkedGraphInput>,
 }
 
@@ -74,6 +75,14 @@ impl SourceAnimationInputs {
         self.0.rig_query.clone()
     }
 
+    pub(crate) fn set_rig_foot_locations_cm(&mut self, locations: Option<[Vec3; 2]>) {
+        Arc::make_mut(&mut self.0).rig_foot_locations_cm = locations;
+    }
+
+    pub(crate) fn rig_foot_locations_cm(&self) -> Option<[Vec3; 2]> {
+        self.0.rig_foot_locations_cm
+    }
+
     pub fn evaluate<T>(&self, entity: Entity, evaluate: impl FnOnce() -> T) -> T {
         struct Restore(Option<(Entity, SourceAnimationInputs)>);
         impl Drop for Restore {
@@ -113,6 +122,10 @@ pub(crate) fn active_slot_input_context(entity: Entity, key: &str) -> Option<cra
 
 pub(crate) fn active_rig_query_context(entity: Entity) -> Option<crate::extensions::control_rig_query::RigQueryContext> {
     current_inputs(entity)?.rig_query_context()
+}
+
+pub(crate) fn active_rig_foot_locations_cm(entity: Entity) -> Option<[Vec3; 2]> {
+    current_inputs(entity)?.rig_foot_locations_cm()
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
