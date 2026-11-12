@@ -76,7 +76,7 @@ fn scale_pose(value: &mut RigTransform, weight: f64) {
     value.scale *= weight;
 }
 
-fn weighted_add(current: DVec3, value: DVec3, weight: f64) -> DVec3 {
+pub(crate) fn weighted_add(current: DVec3, value: DVec3, weight: f64) -> DVec3 {
     DVec3::new(
         value.x.mul_add(weight, current.x),
         value.y.mul_add(weight, current.y),

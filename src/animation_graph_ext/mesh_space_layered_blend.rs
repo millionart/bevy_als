@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use bevy::math::DQuat;
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
@@ -13,6 +14,12 @@ use bevy_animation_graph::core::{
 };
 
 use super::mesh_space_additive::{normalize_pose_rotation, source_pose_rotation_product};
+use crate::extensions::{
+    control_rig_hierarchy::RigTransform,
+    raw_sequence_sampling::{interpolate_rotation, normalize_source_rotation},
+    source_compression::source_quaternion_product,
+    source_pose::{SourcePose, weighted_add},
+};
 
 const WEIGHT_THRESHOLD: f32 = 1e-6;
 
@@ -89,6 +96,74 @@ fn mesh_rotations(pose: &Pose, skeleton: &Skeleton, hierarchy: &[(BoneId, Option
         rotations.push(mesh);
     }
     rotations
+}
+
+fn blend_local_transform(base: RigTransform, target: RigTransform, weight: f32) -> RigTransform {
+    if weight == 0.0 {
+        return base;
+    }
+    if weight == 1.0 {
+        return target;
+    }
+    let alpha = f64::from(weight);
+    RigTransform {
+        translation: weighted_add(base.translation * (1.0 - alpha), target.translation, alpha),
+        scale: weighted_add(base.scale * (1.0 - alpha), target.scale, alpha),
+        rotation: interpolate_rotation(base.rotation, target.rotation, weight),
+    }
+}
+
+fn blend_source_mesh_rotation(base: DQuat, target: DQuat, weight: f32) -> DQuat {
+    if weight == 0.0 {
+        return base;
+    }
+    let dot = base.x * target.x + base.y * target.y + base.z * target.z + base.w * target.w;
+    let bias = if dot < 0.0 { -1.0 } else { 1.0 };
+    let weight = f64::from(weight);
+    let rotation = normalize_source_rotation(target * weight + base * (bias * (1.0 - weight)));
+    if weight == 1.0 { normalize_source_rotation(rotation) } else { rotation }
+}
+
+pub(crate) fn blend_layered_source_poses(
+    base: &SourcePose,
+    layers: &[&SourcePose],
+    skeleton: &Skeleton,
+    input: impl Fn(BoneId) -> (usize, f32),
+    mesh_space: bool,
+) -> Option<SourcePose> {
+    if layers.iter().any(|layer| layer.length_scale != base.length_scale || layer.bones.len() != base.bones.len()) {
+        return None;
+    }
+    let mut output = base.clone();
+    let mut mesh = Vec::new();
+    let indices = mesh_space.then(|| {
+        base.bones.iter().enumerate().map(|(index, (bone, _))| (*bone, index)).collect::<HashMap<_, _>>()
+    });
+    for (index, (bone, transform)) in output.bones.iter_mut().enumerate() {
+        let (layer, weight) = input(*bone);
+        let (target_bone, target) = layers.get(layer)?.bones[index];
+        if *bone != target_bone {
+            return None;
+        }
+        let original = *transform;
+        *transform = blend_local_transform(original, target, weight);
+        if let Some(indices) = &indices {
+            let parent = skeleton.parent(bone).and_then(|bone| indices.get(&bone).copied());
+            let [base_parent, target_parent, output_parent] = if let Some(parent) = parent {
+                *mesh.get(parent)?
+            } else {
+                [DQuat::IDENTITY; 3]
+            };
+            let base_mesh = source_quaternion_product(base_parent, original.rotation);
+            let target_mesh = source_quaternion_product(target_parent, target.rotation);
+            let rotation = blend_source_mesh_rotation(base_mesh, target_mesh, weight);
+            if parent.is_some() {
+                transform.rotation = normalize_source_rotation(source_quaternion_product(output_parent.conjugate(), rotation));
+            }
+            mesh.push([base_mesh, target_mesh, rotation]);
+        }
+    }
+    Some(output)
 }
 
 pub fn apply_mesh_space_layered_blend(
@@ -256,6 +331,29 @@ mod tests {
         skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
         skeleton.add_bone(child_path, Transform::IDENTITY, Transform::IDENTITY);
         (skeleton, root, child)
+    }
+
+    #[test]
+    fn local_layered_rotation_preserves_native_double_interpolation() {
+        let base = RigTransform {
+            rotation: DQuat::from_xyzw(3.144015849962146e-8, -4.578975454437547e-8,
+                0.5482223283742353, 0.8363326363785699),
+            ..default()
+        };
+        let target = RigTransform {
+            rotation: DQuat::from_xyzw(3.0043652317230444e-8, -4.737101512352676e-8,
+                0.5163659681604182, 0.8563680207280926),
+            ..default()
+        };
+        let expected = DQuat::from_xyzw(3.106743822773938e-8, -4.622314677328079e-8,
+            0.5396964419396865, 0.8418596976679885);
+        let result = blend_local_transform(base, target, 0.27).rotation;
+        #[cfg(target_arch = "aarch64")]
+        assert_eq!(result, expected);
+        #[cfg(not(target_arch = "aarch64"))]
+        assert!(result.abs_diff_eq(expected, 1e-15));
+        assert_eq!(blend_local_transform(base, target, 0.0), base);
+        assert_eq!(blend_local_transform(base, target, 1.0), target);
     }
 
     #[test]

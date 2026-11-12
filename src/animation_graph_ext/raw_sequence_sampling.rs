@@ -46,7 +46,7 @@ pub(crate) fn raw_rotation_interval(clip: &GraphClip, time: f32) -> Option<RawRo
     })
 }
 
-fn interpolate_rotation(start: DQuat, end: DQuat, alpha: f32) -> DQuat {
+pub(crate) fn interpolate_rotation(start: DQuat, end: DQuat, alpha: f32) -> DQuat {
     let alpha = f64::from(alpha);
     let dot = start.z.mul_add(end.z, start.x * end.x) + start.w.mul_add(end.w, start.y * end.y);
     let bias = if dot < 0.0 { -1.0 } else { 1.0 };

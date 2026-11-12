@@ -3,6 +3,8 @@ use crate::extensions::animation_context::{
     pose_input_context_state,
 };
 use crate::extensions::gameplay_tag_blend::{GameplayTagBlendMode, advance_gameplay_tag_weights};
+use crate::extensions::mesh_space_layered_blend::blend_layered_source_poses;
+use crate::extensions::source_compression::prepared_reference_pose;
 use crate::extensions::source_pose_nodes::{blend_list_pose_and_context, read_blend_list_child};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -11,9 +13,10 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
-    pose::{Pose, RootMotionDelta},
+    pose::{BoneId, Pose, RootMotionDelta},
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use crate::extensions::{
     build_branch_bone_mask, build_branch_filter_bone_mask_by_name,
@@ -182,6 +185,16 @@ struct SourceLayeredBoneData {
     hierarchy: Vec<(bevy_animation_graph::core::pose::BoneId, Option<usize>)>,
 }
 
+impl SourceLayeredBoneData {
+    fn blend_input(&self, bone: BoneId, weights: &[f32]) -> (usize, f32) {
+        let source = self.sources.get(&bone).copied().unwrap_or(0);
+        let weight = (self.mask.bone_weight(&bone) * weights[source]).clamp(0.0, 1.0);
+        if weight <= 1e-5 { (0, 0.0) }
+        else if weight >= 1.0 - 1e-5 { (source, 1.0) }
+        else { (source, weight) }
+    }
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct SourceLayeredBoneBlendState {
     pub(crate) context: AnimationContextState,
@@ -319,14 +332,19 @@ impl NodeLike for SourceLayeredBoneBlendNode {
         let mut base = ctx.data_back(self.base_pose_pin.clone())?.into_pose()?;
         let mut context = pose_input_context_state(&ctx, &self.base_pose_pin).unwrap_or_default();
         let mut overlays = Vec::with_capacity(weights.len());
+        let mut precise_overlays = Vec::with_capacity(weights.len());
         for (index, weight) in weights.iter().copied().enumerate() {
             if weight <= 1e-5 {
                 overlays.push(None);
+                precise_overlays.push(None);
                 continue;
             }
             let overlay = crate::extensions::interruptible_fsm::with_machine_weight(weight,
                 || ctx.data_back(self.layer_pin(index).to_owned()))?.into_pose()?;
-            if let Some(overlay_context) = pose_input_context_state(&ctx, self.layer_pin(index)) {
+            let overlay_context = pose_input_context_state(&ctx, self.layer_pin(index));
+            precise_overlays.push(overlay_context.as_ref()
+                .and_then(|context| context.source_pose_for(&overlay)).cloned());
+            if let Some(overlay_context) = overlay_context {
                 merge_sync_players(
                     &mut context.sync_players,
                     &overlay_context.sync_players,
@@ -381,38 +399,55 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                 let root_weight = root_source.map(|source| data.mask.bone_weight(&root) * weights[source]).unwrap_or(0.0);
                 let root_motion = source_layered_root_motion(&base, &overlays, &weights, root_source, root_weight,
                     self.blend_root_motion_based_on_root_bone);
-                let mut mask = data.mask.clone();
-                let sources = &data.sources;
-                let mut target = data.reference.clone();
-                for (bone, index) in &target.paths {
-                    let reference = target.bones[*index].clone();
-                    if let Some(base_index) = base.paths.get(bone).copied() {
-                        base.bones[base_index] = reference.overlay(&base.bones[base_index]);
-                    } else { base.add_bone(reference.clone(), *bone); }
-                    let mut source = sources.get(bone).copied().unwrap_or(0);
-                    let weight = (mask.bone_weight(bone) * weights[source]).clamp(0.0, 1.0);
-                    let weight = if weight <= 1e-5 { source = 0; 0.0 } else if weight >= 1.0 - 1e-5 { 1.0 } else { weight };
-                    mask.update_bone_weight(*bone, weight);
-                    if let Some(overlay) = overlays[source].as_ref().and_then(|pose| pose.get_bone(*bone)) {
-                        target.bones[*index] = reference.overlay(overlay);
+                let precise = context.source_pose_for(&base).and_then(|source| {
+                    if std::iter::once(&base).chain(overlays.iter().flatten())
+                        .any(|pose| pose.bones.iter().any(|bone| bone.weights.is_some()))
+                    {
+                        return None;
                     }
-                }
-                if self.mesh_space_rotation_blend {
-                    crate::extensions::mesh_space_layered_blend::apply_mesh_space_layered_blend_with_hierarchy(&mut base, &target, 1.0, &mask, skeleton, &data.hierarchy);
+                    let reference = overlays.iter().any(Option::is_none)
+                        .then(|| prepared_reference_pose(&base.skeleton)).flatten();
+                    let layers = overlays.iter().zip(&precise_overlays)
+                        .map(|(overlay, precise)| {
+                            if overlay.is_some() { precise.as_deref() } else { reference.as_ref() }
+                        }).collect::<Option<Vec<_>>>()?;
+                    blend_layered_source_poses(source, &layers, skeleton, |bone| data.blend_input(bone, &weights), self.mesh_space_rotation_blend)
+                });
+                context.source_pose = if let Some(source) = precise {
+                    source.project_into(&mut base);
+                    Some(Arc::new(source))
                 } else {
-                    for (bone, index) in &base.paths {
-                        let weight = mask.bone_weight(bone);
-                        if weight <= 1e-5 { continue; }
-                        if let Some(target) = target.get_bone(*bone) {
-                            base.bones[*index] = if weight >= 1.0 - 1e-5 { target.clone() }
-                                else {
-                                    let mut blended = base.bones[*index].scalar_mult(1.0 - weight).linear_add(&target.scalar_mult(weight));
-                                    blended.rotation = blended.rotation.map(crate::extensions::mesh_space_additive::normalize_pose_rotation);
-                                    blended
-                                };
+                    let mut mask = data.mask.clone();
+                    let mut target = data.reference.clone();
+                    for (bone, index) in &target.paths {
+                        let reference = target.bones[*index].clone();
+                        if let Some(base_index) = base.paths.get(bone).copied() {
+                            base.bones[base_index] = reference.overlay(&base.bones[base_index]);
+                        } else { base.add_bone(reference.clone(), *bone); }
+                        let (source, weight) = data.blend_input(*bone, &weights);
+                        mask.update_bone_weight(*bone, weight);
+                        if let Some(overlay) = overlays[source].as_ref().and_then(|pose| pose.get_bone(*bone)) {
+                            target.bones[*index] = reference.overlay(overlay);
                         }
                     }
-                }
+                    if self.mesh_space_rotation_blend {
+                        crate::extensions::mesh_space_layered_blend::apply_mesh_space_layered_blend_with_hierarchy(&mut base, &target, 1.0, &mask, skeleton, &data.hierarchy);
+                    } else {
+                        for (bone, index) in &base.paths {
+                            let weight = mask.bone_weight(bone);
+                            if weight <= 1e-5 { continue; }
+                            if let Some(target) = target.get_bone(*bone) {
+                                base.bones[*index] = if weight >= 1.0 - 1e-5 { target.clone() }
+                                    else {
+                                        let mut blended = base.bones[*index].scalar_mult(1.0 - weight).linear_add(&target.scalar_mult(weight));
+                                        blended.rotation = blended.rotation.map(crate::extensions::mesh_space_additive::normalize_pose_rotation);
+                                        blended
+                                    };
+                            }
+                        }
+                    }
+                    None
+                };
                 base.root_motion = root_motion;
             } else { bone_data = None; }
         }

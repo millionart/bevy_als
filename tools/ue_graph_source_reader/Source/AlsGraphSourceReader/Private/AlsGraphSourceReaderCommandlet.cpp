@@ -4395,6 +4395,18 @@ TSharedPtr<FJsonObject> CaptureLayeredBoneBlendProbe(UObject* Asset, const FStri
         Proxy.GetRequiredBones().InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
         FProbeLayered Node;
         static_cast<FAnimNode_LayeredBoneBlend&>(Node) = *Template;
+        if ((*Sample)->HasField(TEXT("blend_weights")))
+        {
+            const TArray<TSharedPtr<FJsonValue>>* BlendWeights = nullptr;
+            if (!(*Sample)->TryGetArrayField(TEXT("blend_weights"), BlendWeights) ||
+                BlendWeights->Num() != Node.BlendWeights.Num()) { return nullptr; }
+            for (int32 Index = 0; Index < BlendWeights->Num(); ++Index)
+            {
+                double Weight;
+                if (!(*BlendWeights)[Index]->TryGetNumber(Weight) || !FMath::IsFinite(Weight) || Weight < 0.0 || Weight > 1.0) { return nullptr; }
+                Node.BlendWeights[Index] = static_cast<float>(Weight);
+            }
+        }
         Node.InvalidatePerBoneBlendWeights();
         Node.BasePose.SetLinkNode(&Leaves[0]);
         for (int32 Index = 0; Index < Layers->Num(); ++Index) { Node.BlendPoses[Index].SetLinkNode(&Leaves[Index + 1]); }

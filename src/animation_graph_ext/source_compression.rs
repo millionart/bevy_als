@@ -342,7 +342,7 @@ pub(crate) fn project_bone_transform(bone: &mut BonePose, source: RigTransform, 
     bone.scale = Some(project_scale(source.scale.to_array()));
 }
 
-fn source_quaternion_product(a: DQuat, b: DQuat) -> DQuat {
+pub(crate) fn source_quaternion_product(a: DQuat, b: DQuat) -> DQuat {
     DQuat::from_xyzw(
         a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
         a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
