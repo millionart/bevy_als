@@ -214,10 +214,8 @@ fn source_automatic_transition_adjustment(
     trigger_time: f32,
     transition_duration: f32,
 ) -> Option<f32> {
-    let Some(relevant_asset) = relevant_asset else {
-        return None;
-    };
-    if relevant_asset.weight <= 0.0 || relevant_asset.duration <= f32::EPSILON {
+    let relevant_asset = relevant_asset.filter(|asset| asset.weight > 0.0)?;
+    if relevant_asset.duration <= f32::EPSILON {
         return None;
     }
     let mut remaining = relevant_asset.duration - relevant_asset.position;
@@ -714,13 +712,13 @@ impl InterruptibleFsmNode {
             .ok_or_else(|| Self::state_weight_error(ctx, "source transition blend mode is unavailable"))?;
         let target_weight = source_weights.iter().find(|weight| weight.state_id == transition.hl_target.uuid().to_string())
             .map_or(0.0, |weight| weight.value);
-        let context = self.source_target_context(machine, state, ctx)?;
+        let relevant_asset = self.source_target_relevant_asset(machine, state, ctx)?;
         let adjustment = Self::transition_id(transition).and_then(|id| match id {
             TransitionId::Direct(id) => self.source_transition_conditions.iter()
                 .find(|condition| condition.transition_id == id.uuid().to_string()),
             _ => None,
         }).and_then(|condition| condition.automatic_trigger_time.and_then(|trigger|
-            source_automatic_transition_adjustment(context.as_ref().and_then(|value| value.relevant_asset.as_ref()), trigger, condition.transition_duration)))
+            source_automatic_transition_adjustment(relevant_asset.as_ref(), trigger, condition.transition_duration)))
             .unwrap_or(0.0);
         Ok(Some(source_transition_duration(duration, target_weight, adjustment, profile.alpha_blend_mode)))
     }
@@ -908,17 +906,22 @@ impl InterruptibleFsmNode {
         }))
     }
 
-    fn source_target_context(
+    fn source_target_relevant_asset(
         &self,
         machine: &LowLevelStateMachine,
         state: &InterruptibleFsmState,
         ctx: &NodeContext,
-    ) -> Result<Option<AnimationContextState>, GraphError> {
+    ) -> Result<Option<SourceRelevantAsset>, GraphError> {
         let Some(target) = Self::source_condition_state(machine, &state.state) else { return Ok(None); };
         let target = LowLevelStateId::HlState(target);
         let (state_data, graph) = Self::active_graph(machine, &target, ctx)?;
         let sub_ctx = ctx.create_child_context(state_data.graph.id(), graph, Some(target.clone()));
-        Ok(graph_output_context_state(graph, &sub_ctx, self.state_pose_output_for(&target)))
+        let mut relevant_asset = graph_output_context_state(graph, &sub_ctx, self.state_pose_output_for(&target))
+            .and_then(|context| context.relevant_asset);
+        if let Some(asset) = &mut relevant_asset {
+            asset.weight *= state.recorded_machine_weight * Self::local_state_weight(&state.recorded_state_weights, &target);
+        }
+        Ok(relevant_asset)
     }
 
     fn source_transition_event(
@@ -932,7 +935,7 @@ impl InterruptibleFsmNode {
         let Some(active_state) = Self::source_condition_state(machine, &state.state) else {
             return Ok(None);
         };
-        let context = self.source_target_context(machine, &state, ctx)?;
+        let relevant_asset = self.source_target_relevant_asset(machine, &state, ctx)?;
         for condition in &self.source_transition_conditions {
             let transition = Self::source_condition_transition_id(machine, condition)
                 .ok_or_else(|| GraphError::UnknownErrorNode {
@@ -945,7 +948,7 @@ impl InterruptibleFsmNode {
             }
             let matched = if let Some(trigger_time) = condition.automatic_trigger_time {
                 automatic_relevancy_valid && source_automatic_transition_adjustment(
-                    context.as_ref().and_then(|value| value.relevant_asset.as_ref()),
+                    relevant_asset.as_ref(),
                     trigger_time,
                     condition.transition_duration,
                 ).is_some()
@@ -1479,7 +1482,6 @@ impl NodeLike for InterruptibleFsmNode {
             let state = ctx
                 .state_mut_or_else(|| initial_state.clone())
                 .map_err(|error| entry_error("state setup", error))?;
-            state.recorded_machine_weight = current_machine_weight();
             if self.reinitialize_on_becoming_relevant
                 && !state.first_update
                 && became_relevant(state.last_update_frame, frame)
@@ -4648,27 +4650,41 @@ mod tests {
     }
 
     #[test]
-    fn automatic_transition_signed_clock_drives_the_actual_fsm_and_fade() {
+    fn automatic_transition_uses_the_previous_clock_and_update_weight() {
         use bevy::ecs::system::RunSystemOnce;
-        fn query(In((root, node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) -> Vec<(LowLevelStateId, Option<f32>)> {
+        fn query(
+            In((root, node, previous_weights)): In<(Handle<AnimationGraph>, NodeId, [f32; 2])>,
+            resources: SystemResources,
+        ) -> Vec<(LowLevelStateId, Option<f32>)> {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arena = GraphContextArena::new(root.id());
             let mut values = Vec::new();
             for frame in 0..4 {
                 let dt = if frame == 0 { 0.0_f32 } else { 0.1 };
                 let inputs = HashMap::from([("delta".to_owned(), DataValue::F32(dt)), ("condition".to_owned(), DataValue::Bool(false))]);
-                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(dt)), GraphContext::new(arena.get_toplevel_id(), graph,
-                    &mut arena, &resources, &TestIoEnv::default(), Entity::PLACEHOLDER, &HashMap::new(), &mut DeferredGizmos::default(), &inputs)).unwrap();
+                let machine_weight = if frame == 1 { previous_weights[0] } else { 1.0 };
+                with_machine_weight(machine_weight, || {
+                    graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(dt)), GraphContext::new(arena.get_toplevel_id(), graph,
+                        &mut arena, &resources, &TestIoEnv::default(), Entity::PLACEHOLDER, &HashMap::new(), &mut DeferredGizmos::default(), &inputs))
+                }).unwrap();
+                if frame == 1 && previous_weights[1] == 0.0 {
+                    let state = arena.get_toplevel_mut().node_states
+                        .get_mut_or_insert_with::<InterruptibleFsmState>(node, StateKey::Default, || panic!("Expected an updated FSM"))
+                        .unwrap();
+                    state.recorded_state_weights.clear();
+                }
                 let state = arena.get_toplevel().node_states.get::<InterruptibleFsmState>(node, StateKey::Default).unwrap();
                 values.push((state.state.clone(), state.blend_duration));
             }
             values
         }
-        for (rate, start, trigger, expected_transition, expected_duration) in [
-            (-1.0_f32, 0.7_f32, 0.2_f32, false, 0.0_f32),
-            (-1.0, 0.05, 0.0, true, 0.2),
-            (1.0, 0.6, 0.0, false, 0.0),
-            (1.0, 0.95, 0.0, true, 0.2),
+        for (rate, start, trigger, previous_weights, expected_transition, expected_duration) in [
+            (-1.0_f32, 0.7_f32, 0.2_f32, [1.0, 1.0], false, 0.0_f32),
+            (-1.0, 0.05, 0.0, [1.0, 1.0], true, 0.2),
+            (1.0, 0.6, 0.0, [1.0, 1.0], false, 0.0),
+            (1.0, 0.95, 0.0, [1.0, 1.0], true, 0.2),
+            (1.0, 0.95, 0.0, [0.0, 1.0], false, 0.0),
+            (1.0, 0.95, 0.0, [1.0, 0.0], false, 0.0),
         ] {
             let mut graphs = Assets::<AnimationGraph>::default();
             let mut clips = Assets::<GraphClip>::default();
@@ -4718,7 +4734,7 @@ mod tests {
             root.add_output_data("pose".to_owned(), DataSpec::Pose); root.add_output_data_edge(fsm.id, "pose", "pose");
             let root = graphs.add(root);
             let mut world = World::new(); world.insert_resource(graphs); world.insert_resource(clips); world.insert_resource(machines); world.init_resource::<Assets<Skeleton>>();
-            let values = world.run_system_once_with(query, (root, fsm.id)).unwrap();
+            let values = world.run_system_once_with(query, (root, fsm.id, previous_weights)).unwrap();
             if expected_transition {
                 assert!(matches!(values[2].0, LowLevelStateId::HlTransition(_)), "Actual FSM did not transition: rate={rate}, start={start}, values={values:?}");
                 assert!((values[2].1.unwrap() - expected_duration).abs() < 1e-6);

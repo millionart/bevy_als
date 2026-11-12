@@ -1,0 +1,34 @@
+{
+  "cases": 9,
+  "native_replay_frames": 126,
+  "first_exit": {
+    "zero_0.75/weighted": null,
+    "zero_0.75/local_only": null,
+    "zero_0.875/weighted": 5,
+    "zero_0.875/local_only": 4,
+    "zero_1.0/weighted": 5,
+    "zero_1.0/local_only": 4,
+    "positive_small_0.75/weighted": null,
+    "positive_small_0.75/local_only": null,
+    "positive_small_0.875/weighted": 4,
+    "positive_small_0.875/local_only": 4,
+    "positive_small_1.0/weighted": 4,
+    "positive_small_1.0/local_only": 4,
+    "positive_0.75/weighted": null,
+    "positive_0.75/local_only": null,
+    "positive_0.875/weighted": 4,
+    "positive_0.875/local_only": 4,
+    "positive_1.0/weighted": 4,
+    "positive_1.0/local_only": 4
+  },
+  "local_weight_ablation": {
+    "zero_0.875": [
+      4,
+      5
+    ],
+    "zero_1.0": [
+      4,
+      5
+    ]
+  }
+}

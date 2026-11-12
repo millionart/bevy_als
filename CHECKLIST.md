@@ -7225,7 +7225,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.163 Heavy输入消费者补充：在已admit的真实角色中将缓存垂直速度设为−12.5m/s，fresh源TwoWay范围输出Land alpha1、Movement alpha0.5，实际四播放器均进入；两Additive相同权重但速率1.75/1.5，当前512帧有32个leader差、最大时钟差约0.09167秒。恢复源排序和独立秒域推进后全部逐值相同；去掉输入控制则两Heavy均不进入。该路径是明确控制的输入消费者，不宣称自然高落地或源输入生产等价；证据`target/bf144/163/heavy-current-analysis.json`、`source-mapping-check.json`、`heavy-source-restored-analysis.json`。
 
-- [ ] BF144-D203 / P3 — 状态局部候选未计入零状态权重，使自动退出提前一帧。
+- [x] BF144-D203 / P3 — 状态局部候选未计入零状态权重，使自动退出提前一帧。
+  - 2026-11-12 08:10 +0800 实际结束，较08:41预估提前31分钟，未拆分。fresh Locomotion 状态更新、Land 同步及原自动规则126帧闭环；只用局部权重使两个晚零步长入口提前一帧，7条控制保持。目标使用上次机器及状态更新权重。证据与实际 FSM fixture 见 `docs/audit/bf144/d203/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 08:05 +08:00，预估结束2026-11-12 08:41 +08:00。重采Locomotion进入/自动规则的缓存权重与同步时钟；自动资格读取上一次实际更新权重。
   - Source：fresh `AnimNode_AssetPlayerBase.cpp:27–33`缓存Context.GetFinalBlendWeight；FractionalWeight按父权重相乘，`AnimNode_StateMachine.cpp:688–709`以严格>0选择候选。进入时清空旧缓存权重，转场条件在该帧状态更新前检查；因此零delta进入Land Movement后的下一帧没有合格播放器，即使零权重成员已从Land同步到较晚的动画时间。
   - Target：`source_sequence_player.rs:497–506`先发布局部weight=1，再经状态内部组合；`interruptible_fsm.rs:911–921,942–952`直接把状态图relevant_asset交给自动规则，缺少前次实际状态权重。父状态权重0时，Land Movement仍发布局部1或0.5的候选，原T2会把其已同步的剩余时间用于退出。
   - 反例：保留原T1/T2、实际两个落地状态、四播放器及主图同步出口；在Land已经播放0.875/1.0秒时以零delta开始0.2秒普通转场，进入帧Land Movement权重0而局部候选为正，下一次0.025秒更新即开始Grounded转场。3种落地速度共6组失败；0.75秒进入及0.0001/0.025秒正delta的21组控制保持。共27路径，每种模式324帧；独立原生组243帧确认注册/同步时间事实。
