@@ -1,0 +1,45 @@
+{
+  "samples": [
+    {
+      "name": "perch-at-native-shortened-capsule-hit",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_capsule_sweep": {
+        "asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.SM_Als_Stairs_01",
+        "translation_cm": [
+          -333.32998752593994,
+          -3000,
+          17.999999225139618
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "start_cm": [
+          0.16995538816607442,
+          -3010.937488626777,
+          104.85786970605979
+        ],
+        "end_cm": [
+          0.16995538816607442,
+          -3010.937488626777,
+          26.257869706059793
+        ],
+        "trace_complex": false,
+        "radius_cm": 15,
+        "half_height_cm": 84,
+        "capsule_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  ]
+}

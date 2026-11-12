@@ -7430,8 +7430,17 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF132.R5E-11 复开（2026-11-13 05:15，预估05:36）：fresh 原生单/双壁MTD为10/20cm，收缩胶囊应用位移后两壁均不重叠。Avian 0.8 候选采用箱体在前的布尔查询，实际清空的x壁仍判重叠，z壁候选有负穿透。原Gate未覆盖新引擎该查询顺序，当前在PlayerStart的箱体候选处以实际接触深度复核。证据 `docs/audit/bf144/u07/player-start-overlap-bevy-0.20/`。
   - BF132.R5E-11 真实入口前（2026-11-13 05:21）：同target未复核箱体深度时单/双壁均失败，恢复深度复核后20项出生/场景/准入通过。用正式 `startup` 验证原场景准入、实际角色图与关卡启动。
   - BF132.R5E-11 复验通过（2026-11-13 05:24）：正式 `startup` 及渲染功能通过，同target定向20项通过。源、反例、恢复结果见 `docs/audit/bf144/u07/player-start-overlap-bevy-0.20/`，启动报告见 `docs/audit/bf144/u07/bevy-0.20/startup-player-start-round-1/`。
+  - 可变帧步上坡真实 Gate 前（2026-11-13 05:26）：fresh UE DoJump 先置竖直速度与 Falling，PhysFalling 只在有效阻挡/落地点处理后切地面。先按现有 `uphill_jump` 输入及移动模式日志复验原第六组失败，用报告区分 CMC 与帧末同步，保留固定60Hz独立通过证据。
+  - 可变帧步真实 Gate（2026-11-13 05:26）：第五组在台阶前接受 Jump 后同帧 Grounded、竖速0、无实际接触，帧末同步未记录模式切换；前四组通过。下一次用临时只读 trace 锁 CMC 的首命中、几何/扫掠法线及落地分支，随后按字节恢复观测。原报告 `docs/audit/bf144/u07/bevy-0.20/uphill-variable-round-2/`。
+  - 上坡 CMC 真实诊断前（2026-11-13 05:27）：沿 `DoJump`→`PhysFalling`→`IsValidLandingSpot` 和当前普通 CMC 消费确认需要原实际三角面输入，保持同可见场景与可变帧步，只记录上升扫掠和实际落地分支。
   - U07 资产键夹具（2026-11-13 05:31，预估05:50）：fresh 原生重采7个序列及 Crouch raw 时点，现行 `.anim.ron` 与压缩/FK/raw 曲线数据键拼写为 `ALSRuntime`。定向原版五个测试都因 `ALSRUNTIME` 逐字匹配失败。先恢复测试身份，再验证原数值断言；生产加载路径已使用正确键。
   - U07 资产键夹具恢复（2026-11-13 05:38，提前12分钟）：原键在同target复现5个失败。使用已安装描述符的原键后，原数值断言及同模块共11项通过。改动限测试键；原生、描述符、两端日志及身份见 `docs/audit/bf144/u07/sequence-asset-key/`，无需拆分。
+  - 上坡 CMC 诊断（2026-11-13 05:32）：可变帧步本次18组通过，trace记录数次仍上升时经台阶边缘回查正常进入Walking，均发生在已经观测到Air之后。复用同一观察二进制以25ms覆盖失败报告的较大帧步，锁定首帧案例与原生候选，再恢复观测字节。
+  - 上坡 CMC 稳定反例（2026-11-13 05:35）：25ms第六组起跳第一步竖速仍+3.954757m/s，Parry 碰实际 Stairs_01 三角面，D292边缘回查在碰撞停止点直接交还Walking。观察源码已按字节恢复。fresh UE `FBodyInstance::Sweep`→`Sweep_Geom`→`Chaos::SweepQuery`；现有reader支持同资产射线与箱体胶囊扫掠，缺原生mesh胶囊扫掠。补最小现有probe分支，再比较相同首扫与短地板扫资格。
+  - 上坡 source/static（2026-11-13 05:43，预估06:00）：fresh 原生同输入首命中2.61746cm，胶囊法线Z=0.54086、撞击面Z=0，回拉停止点通过边缘半径。实际短地板扫距离6.78033cm、ImpactNormal.Z=1，半球及边缘均通过；同一源流程合法在首步回到Walking，纯向上及更高起点对照扫空。Gate 驱动保留18个真实腾空/较高落地/姿态恢复；仅当前 Jump 当帧发出有序Grounded→Air→Grounded 时继续前进尝试，沿用首次Approach计时与原无进展上限。
+  - 上坡恢复真实 Gate 前（2026-11-13 05:44）：生产CMC源码字节已恢复，现只接Gate已有动作与移动事件。使用原场景固定25ms复跑失败反例，随后默认可变帧步验收。全库独立恢复复验2071过／69失败，较上轮减少7项，新增0。
+  - 上坡25ms恢复（2026-11-13 05:48）：18组真实腾空、较高落地和原姿态链全部通过，含第六组原始同帧回地后继续尝试。用同一已恢复正式二进制执行默认可变帧步，保持原场景、功能校验与日志记录。
+  - 上坡复验完成（2026-11-13 05:54）：05:43开始修复、预估06:00，提前6分钟。补采 ALS 15cm 窄停靠原生结果，两段高度约17.99cm满足42.6cm；原25ms完成5组，恢复18组并记录第6、12、18组的四次同帧落地，可变帧步亦18组。4项定向及validator自测通过，reader拒绝非法胶囊并保持原射线结果。证据 `docs/audit/bf144/u07/uphill-launch-window/`、`bevy-0.20/uphill-*`，无需拆分。
   - .265补充：真实Locomotion入口与独立同mesh Stand0全部790分量精确，五个相关mesh-space层化模板顺序重放消除245旋转分量供应差，再接原Additive/Head得到真实raw首Root790分量精确；初始化源骨姿态链已闭合，未关闭初始target组合差、曲线反馈或完整原warm→77历史。见 `target/bf144/265/summary.json`，不把源本来具有的层化运算误记成新差异；截图0、性能暂停。
   - .264补充：真实Head Base/Additive及实际alpha/空间模式已读，13次源合成10270分量精确；Additive独立采样匹配，初始Base的245个旋转分量与同mesh Stand0不等，残差供应边进一步缩至Layering→Locomotion→Standing。Head/Rig/Root观察与同输入Head算法不再是未知点；不以该局部闭环关闭初始化Base或完整warm反馈。见 `target/bf144/264/summary.json`，截图0、性能暂停。
   - .263补充：真实首Head→Rig与主图Root现已从原求值直接取得，初始化和12帧旧字段完全保持；首帧790分量/完整curve与Rig层级一致，后续七根腿/骨盆骨验证写回边界。273个double旋转/20个近零float的候选残差已在实际Head输出存在，下一只补Head实际Base/Additive输入，不复开Rig或下游Root算法；13份原始source Root可供后续反馈核验，完整warm→77仍未通过。见 `target/bf144/263/summary.json`，截图0、性能暂停。

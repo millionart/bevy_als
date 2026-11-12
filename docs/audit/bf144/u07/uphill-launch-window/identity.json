@@ -1,0 +1,67 @@
+{
+  "source_files": {
+    "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp": {
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "references": "DoJump, PhysFalling, IsValidLandingSpot, ShouldCheckForValidLandingSpot, FindFloor, ComputePerchResult"
+    },
+    "Engine/Source/Runtime/Engine/Private/Components/PrimitiveComponent.cpp": {
+      "sha256": "5ef63e4b1ce58c83e4dd3a8f8b6ea579e78811052bf3c4556db03743ebdae19c",
+      "references": "PullBackHit"
+    },
+    "Engine/Source/Runtime/Engine/Private/PhysicsEngine/Experimental/PhysInterface_Chaos.cpp": {
+      "sha256": "1fdafb0be6dcb9b669b6fca6c3beff0e5e392b0e05f45b7c9677b75234aaa0c8",
+      "references": "Sweep_Geom"
+    },
+    "Source/ALS/Private/AlsCharacter.cpp": {
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+      "references": "InitCapsuleSize(30,90)"
+    },
+    "Source/ALS/Private/AlsCharacterMovementComponent.cpp": {
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "references": "PerchRadiusThreshold(15)"
+    }
+  },
+  "captures": {
+    "first-sweep.native.json.gz": {
+      "bytes": 390038,
+      "sha256": "80242fe1b3c5d987bff62bf9ad753b719d0142ebe390726b6026e3e0fb9e14b6",
+      "redacted": false
+    },
+    "source-floor.native.json.gz": {
+      "bytes": 387042,
+      "sha256": "39a917e6f4d4207cb28f7304139e0a17cda64fc2bc9b7f78981d29996bb34a2f",
+      "redacted": false
+    },
+    "perch.native.json.gz": {
+      "bytes": 386017,
+      "sha256": "c559266f59941541905855f6d86869b88b2b2318985cc6e063fdb5a3b407f2d9",
+      "redacted": false
+    },
+    "focused.stdout.log.gz": {
+      "bytes": 622,
+      "sha256": "907386a25ea38b2141cc18295b619783176be5683bae0ec1123ff74936a86fb7",
+      "redacted": false
+    },
+    "focused.stderr.log.gz": {
+      "bytes": 7680,
+      "sha256": "bc0c421097c94069428418acae0a56ae4e811a6a5a5723c6e1ee71cc6d4fc69a",
+      "redacted": true
+    }
+  },
+  "geometry": {
+    "first_hit_cm": 2.617462158203125,
+    "first_normal_z": 0.5408611753490816,
+    "first_impact_normal_z": 0,
+    "first_hit_horizontal_edge_cm": 26.063178945267335,
+    "stop_cm": {
+      "x": 0.16995538816607442,
+      "y": -3010.937488626777,
+      "z": 111.63819720199237
+    },
+    "floor_hit_cm": 6.780327320098877,
+    "floor_horizontal_edge_cm": 26.057086873734136,
+    "perch_hit_cm": 2.85787034034729,
+    "perch_total_height_cm": 17.99085221538415,
+    "perch_max_height_cm": 42.6
+  }
+}

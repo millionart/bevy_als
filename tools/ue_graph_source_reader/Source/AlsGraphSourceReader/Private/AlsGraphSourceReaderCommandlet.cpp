@@ -1365,15 +1365,17 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             Result->SetNumberField(TEXT("length_b_cm"), LengthB);
             Sample->SetObjectField(TEXT("two_bone_ik"), Result);
         }
-        if ((*Input)->HasField(TEXT("mesh_raycast")))
+        const bool bMeshCapsuleSweep = (*Input)->HasField(TEXT("mesh_capsule_sweep"));
+        if (bMeshCapsuleSweep || (*Input)->HasField(TEXT("mesh_raycast")))
         {
+            const TCHAR* QueryKey = bMeshCapsuleSweep ? TEXT("mesh_capsule_sweep") : TEXT("mesh_raycast");
             const TSharedPtr<FJsonObject>* Ray = nullptr;
             FString MeshPath;
             TArray<double> TranslationValues, ScaleValues, StartValues, EndValues;
             bool bTraceComplex = false;
             bool bCaptureVisits = false;
             bool bCaptureRayGeometry = false;
-            if (!(*Input)->TryGetObjectField(TEXT("mesh_raycast"), Ray)
+            if (!(*Input)->TryGetObjectField(QueryKey, Ray)
                 || !(*Ray)->TryGetStringField(TEXT("asset_path"), MeshPath)
                 || !ReadArray(*Ray, TEXT("translation_cm"), TranslationValues, 3)
                 || !ReadArray(*Ray, TEXT("scale"), ScaleValues, 3)
@@ -1394,6 +1396,36 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
                 nullptr, nullptr, FInitBodySpawnParams(false, true));
             if (!Body.IsValidBodyInstance()) { return nullptr; }
             ON_SCOPE_EXIT { Body.TermBody(); };
+            if (bMeshCapsuleSweep)
+            {
+                double Radius, HalfHeight;
+                TArray<double> CapsuleRotationValues;
+                if (!(*Ray)->TryGetNumberField(TEXT("radius_cm"), Radius) || !FMath::IsFinite(static_cast<float>(Radius)) || Radius <= 0.0
+                    || !(*Ray)->TryGetNumberField(TEXT("half_height_cm"), HalfHeight) || !FMath::IsFinite(static_cast<float>(HalfHeight)) || HalfHeight < Radius
+                    || !ReadArray(*Ray, TEXT("capsule_rotation_xyzw"), CapsuleRotationValues, 4)) { return nullptr; }
+                const FQuat CapsuleRotation(CapsuleRotationValues[0], CapsuleRotationValues[1], CapsuleRotationValues[2], CapsuleRotationValues[3]);
+                if (!CapsuleRotation.IsNormalized()) { return nullptr; }
+                FHitResult Hit;
+                const bool bHit = Body.Sweep(Hit, FVector(StartValues[0], StartValues[1], StartValues[2]),
+                    FVector(EndValues[0], EndValues[1], EndValues[2]), CapsuleRotation,
+                    FCollisionShape::MakeCapsule(Radius, HalfHeight), bTraceComplex);
+                TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+                Result->SetNumberField(TEXT("collision_trace_flag"), static_cast<int32>(Setup->GetCollisionTraceFlag()));
+                Result->SetBoolField(TEXT("hit"), bHit);
+                if (bHit)
+                {
+                    Result->SetBoolField(TEXT("start_penetrating"), Hit.bStartPenetrating);
+                    Result->SetNumberField(TEXT("time"), Hit.Time);
+                    Result->SetNumberField(TEXT("distance_cm"), Hit.Distance);
+                    Result->SetObjectField(TEXT("location_cm"), CaptureVector(Hit.Location));
+                    Result->SetObjectField(TEXT("impact_point_cm"), CaptureVector(Hit.ImpactPoint));
+                    Result->SetObjectField(TEXT("normal"), CaptureVector(Hit.Normal));
+                    Result->SetObjectField(TEXT("impact_normal"), CaptureVector(Hit.ImpactNormal));
+                }
+                Sample->SetObjectField(QueryKey, Result);
+                Samples.Add(MakeShared<FJsonValueObject>(Sample));
+                continue;
+            }
             TArray<FPhysicsShapeHandle> Shapes;
             FPhysicsInterface::GetAllShapes_AssumedLocked(Body.GetPhysicsActorHandle(), Shapes);
             TArray<TSharedPtr<FJsonValue>> ShapeValues;

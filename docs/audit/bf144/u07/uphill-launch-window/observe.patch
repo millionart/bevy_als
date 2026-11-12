@@ -1,0 +1,56 @@
+diff --git a/src/als/character/movement/motion.rs b/src/als/character/movement/motion.rs
+index 4f3165b9..88f79ce7 100644
+--- a/src/als/character/movement/motion.rs
++++ b/src/als/character/movement/motion.rs
+@@ -3506,8 +3506,12 @@ pub(crate) fn falling_movement_sweep(
+         let Some(hit) = hit else {
+             applied += remaining;
+             if ditch && landing.is_some() {
++                trace!(target: "als_cmc_landing_probe", "Ditch without hit: sweep={sweep} start={start:?} applied={applied:?} velocity={velocity:?}");
+                 return (applied, velocity, contact, Some((0.0, true)), Some(LocomotionState::Grounded));
+             }
++            if sweep == 0 && movement.y > 0.0 {
++                trace!(target: "als_cmc_landing_probe", "Rising with no hit: start={start:?} rotation={rotation:?} movement={movement:?} step={step:?} velocity={velocity:?}");
++            }
+             if sidestepped { collision_mode = Some(LocomotionState::Air); }
+             if sweep == 2
+                 && let Some((cmc, jump_z, max_speed, seed)) = landing.as_mut()
+@@ -3540,9 +3544,11 @@ pub(crate) fn falling_movement_sweep(
+         let travel = movement_sweep_travel(distance, hit.distance);
+         applied += *direction * travel;
+         if sidestepped && travel == 0.0 {
++            trace!(target: "als_cmc_landing_probe", "Sidestep stopped: start={start:?} applied={applied:?} velocity={velocity:?} hit={hit:?}");
+             return (applied, velocity, contact, Some((0.0, true)), Some(LocomotionState::Grounded));
+         }
+         if sweep == 2 && ditch && landing.is_some() {
++            trace!(target: "als_cmc_landing_probe", "Ditch with hit: start={start:?} applied={applied:?} velocity={velocity:?} hit={hit:?}");
+             return (applied, velocity, contact, Some((0.0, true)), Some(LocomotionState::Grounded));
+         }
+         let Some(normal) = hit.normal1.try_normalize() else { break };
+@@ -3564,6 +3570,10 @@ pub(crate) fn falling_movement_sweep(
+         let qualification = geometry.map(|(qualification, _)| qualification);
+         let direct_landing = qualification.map_or(normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos(), |(direct, _)| direct);
+         let candidate_contact = qualification.map_or(normal.y > 0.0, |(direct, edge)| direct || edge);
++        if movement.y > 0.0 {
++            trace!(target: "als_cmc_landing_probe", "Rising impact: sweep={sweep} start={start:?} rotation={rotation:?} movement={movement:?} step={step:?} remaining={remaining:?} velocity={velocity:?} hit={hit:?} position={position:?} geometry={:?} impact_normal={impact_normal:?} qualification={qualification:?}",
++                shapes.get(hit.entity).ok().map(|(shape, position, rotation)| (shape.shape_scaled().shape_type(), position.0, rotation.0)));
++        }
+         contact |= candidate_contact && remaining.dot(normal) < 0.0;
+         let previous_time = remaining_time;
+         if !sidestepped { remaining_time *= 1.0 - travel / distance; }
+@@ -3572,6 +3582,7 @@ pub(crate) fn falling_movement_sweep(
+             && let Some((cmc, ..)) = landing.as_ref() {
+             if find_ground_floor(spatial, position, extent.y, extent.x.min(extent.z), cmc,
+                 LocomotionState::Air, &filter, entity, candidates).is_some() {
++                trace!(target: "als_cmc_landing_probe", "Direct landing: sweep={sweep} position={position:?} velocity={velocity:?} hit={hit:?}");
+                 record_character_impact(&mut impact_context, &hit, impact_normal, velocity, true);
+                 return (applied, velocity, contact, Some((remaining_time, sweep == 2)), None);
+             }
+@@ -3579,6 +3590,7 @@ pub(crate) fn falling_movement_sweep(
+         if sweep == 0 && qualification.is_some_and(|(_, edge)| edge)
+             && remaining.dot(normal) < 0.0 && let Some((cmc, ..)) = landing.as_ref() {
+             if edge_floor_landing(spatial, position, extent.y, extent.x.min(extent.z), cmc, entity, candidates) {
++                trace!(target: "als_cmc_landing_probe", "Edge landing: sweep={sweep} position={position:?} velocity={velocity:?} hit={hit:?}");
+                 record_character_impact(&mut impact_context, &hit, impact_normal, velocity, true);
+                 return (applied, velocity, contact, Some((remaining_time, false)), None);
+             }

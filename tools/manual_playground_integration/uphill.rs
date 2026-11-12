@@ -1,5 +1,7 @@
 use super::*;
 use crate::als::aim::AlsLastFreeRotationMode;
+use crate::als::control_scheme::AlsControlSchemeActionDiscriminant;
+use crate::als::transition::{StateTransitionEvent, StateValue};
 use avian3d::prelude::{Collisions, SpatialQueryFilter};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy_tnua::TnuaController;
@@ -34,13 +36,42 @@ pub(super) struct Probe {
 
 impl Probe {
     fn begin(&mut self, stage: Stage, now: f64) {
+        if !matches!(
+            (self.stage, stage),
+            (Stage::Approach, Stage::Flight) | (Stage::Flight, Stage::Approach)
+        ) {
+            self.stage_started = now;
+        }
         self.stage = stage;
-        self.stage_started = now;
         info!("[MANUAL-INTEGRATION][UPHILL] case={} stage={stage:?}", self.index);
     }
 
     fn gait(&self) -> Gait { if self.index % 6 < 3 { Gait::Running } else { Gait::Sprinting } }
     fn launch_distance(&self) -> f32 { 1.0 - [0.55, 0.15, -0.22][self.index % 3] }
+
+    fn retry_landed_jump(
+        &mut self,
+        now: f64,
+        pressed: bool,
+        transitions: impl Iterator<Item = (StateValue, StateValue)>,
+    ) -> bool {
+        use StateValue::LocomotionState as Mode;
+        let mut launched = false;
+        let mut landed = false;
+        for (from, to) in transitions {
+            match (from, to) {
+                (Mode(LocomotionState::Grounded), Mode(LocomotionState::Air)) => launched = true,
+                (Mode(LocomotionState::Air), Mode(LocomotionState::Grounded)) if launched => landed = true,
+                _ => {}
+            }
+        }
+        if self.stage == Stage::Flight && !self.air_seen && pressed && landed {
+            self.launch_y = None;
+            self.begin(Stage::Approach, now);
+            return true;
+        }
+        false
+    }
 
     fn record(&mut self, now: f64, mode: LocomotionState, position: Vec3, velocity: Vec3,
         supported: bool, graph: &LocomotionGraphSample, action_free: bool) {
@@ -124,7 +155,8 @@ pub(super) fn drive(
             input.0.move_dir = Vec2::Y;
             let progress = (position.0 - probe.start.unwrap()).dot(probe.direction);
             let next_progress = progress + velocity.0.dot(probe.direction).max(0.0) * time.delta_secs();
-            if next_progress >= probe.launch_distance() {
+            if next_progress >= probe.launch_distance() && *locomotion == LocomotionState::Grounded
+                && controller.action_flow_status().ongoing().is_none() {
                 input.0.jump_pressed = true;
                 probe.launch_y = Some(position.y);
                 probe.begin(Stage::Flight, now);
@@ -154,6 +186,7 @@ pub(super) fn observe(
     spatial: SpatialQuery,
     collisions: Collisions,
     candidates: Query<crate::als::motion::CharacterCollisionCandidates>,
+    mut transitions: MessageReader<StateTransitionEvent>,
     characters: Query<(&Position, &LinearVelocity, &LocomotionState, &Gait, &AlsInputOverride, &AlsMovementParamsHandle,
         &Transform, &Stance, &TnuaController<crate::als::control_scheme::AlsControlScheme>), With<AlsCharacter>>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
@@ -179,13 +212,20 @@ pub(super) fn observe(
     }));
     let supported = floor.is_some_and(|(center, impact, _)| (position.y - center).abs() <= 0.024 && impact < position.y - half + radius)
         && (*mode == LocomotionState::Grounded || contact);
-    probe.record(now, *mode, position.0, velocity.0, supported, &graph, controller.action_flow_status().ongoing().is_none());
+    let launch_y = probe.launch_y;
+    let action = controller.action_flow_status().ongoing();
+    let jump_landed = input.0.jump_pressed && *mode == LocomotionState::Grounded
+        && action == Some(AlsControlSchemeActionDiscriminant::Jump);
+    let character_transitions = transitions.read().filter(|event| event.entity == character)
+        .map(|event| (event.from, event.to));
+    let same_frame_landing = probe.retry_landed_jump(now, jump_landed, character_transitions);
+    probe.record(now, *mode, position.0, velocity.0, supported, &graph, action.is_none());
     report.uphill_trace.push(serde_json::json!({
         "case_index":probe.index,"mesh":MESHES[probe.index/6],"stage":probe.stage,"time":now,
         "requested_gait":probe.gait(),"actual_gait":gait,"launch_distance":probe.launch_distance(),
-        "launch_y":probe.launch_y,"position":position.0,"velocity":velocity.0,"mode":mode,
+        "launch_y":launch_y,"position":position.0,"velocity":velocity.0,"mode":mode,"same_frame_landing":same_frame_landing,
         "input":input.0.move_dir,"jump_pressed":input.0.jump_pressed,"supported":supported,"floor":floor.map(|(center, impact, _)| [center, impact]),
-        "contact":contact,"controller_action":format!("{:?}",controller.action_flow_status().ongoing()),
+        "contact":contact,"controller_action":format!("{action:?}"),
         "air_seen":probe.air_seen,"landed_seen":probe.landed_seen,"done":probe.done,"graph":graph,
     }));
     if matches!(probe.stage, Stage::Flight | Stage::Landing) {
@@ -204,6 +244,25 @@ pub(super) fn observe(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn same_frame_jump_landing_retries_within_the_original_watchdog() {
+        use StateValue::LocomotionState as Mode;
+        let ground = Mode(LocomotionState::Grounded);
+        let air = Mode(LocomotionState::Air);
+        let mut probe = Probe { stage: Stage::Ready, ..default() };
+        probe.begin(Stage::Approach, 1.0);
+        probe.begin(Stage::Flight, 1.5);
+        probe.launch_y = Some(1.1);
+        assert!(!probe.retry_landed_jump(1.5, true, [(air, ground)].into_iter()));
+        assert!(!probe.retry_landed_jump(1.5, false, [(ground, air), (air, ground)].into_iter()));
+        assert!(probe.retry_landed_jump(1.5, true, [(ground, air), (air, ground)].into_iter()));
+        assert_eq!(probe.stage, Stage::Approach);
+        assert_eq!(probe.launch_y, None);
+        assert!(!probe.air_seen);
+        probe.begin(Stage::Flight, 1.6);
+        assert_eq!(probe.stage_started, 1.0);
+    }
 
     #[test]
     fn coarse_step_jump_input_does_not_wait_until_after_the_launch_window() {

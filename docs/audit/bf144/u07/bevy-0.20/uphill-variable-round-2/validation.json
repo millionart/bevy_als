@@ -1,0 +1,29 @@
+{
+  "pass": false,
+  "issues": [
+    "manual integration timed_out is invalid",
+    "manual integration verdict is not pass",
+    "manual integration result is not covered",
+    "uphill_01_sprint_1: actual air, landing and grounded recovery evidence is incomplete",
+    "uphill_01_sprint_2: frame evidence is missing",
+    "uphill_02_run_0: frame evidence is missing",
+    "uphill_02_run_1: frame evidence is missing",
+    "uphill_02_run_2: frame evidence is missing",
+    "uphill_02_sprint_0: frame evidence is missing",
+    "uphill_02_sprint_1: frame evidence is missing",
+    "uphill_02_sprint_2: frame evidence is missing",
+    "uphill_03_run_0: frame evidence is missing",
+    "uphill_03_run_1: frame evidence is missing",
+    "uphill_03_run_2: frame evidence is missing",
+    "uphill_03_sprint_0: frame evidence is missing",
+    "uphill_03_sprint_1: frame evidence is missing",
+    "uphill_03_sprint_2: frame evidence is missing"
+  ],
+  "images": [],
+  "validation_scope": "functional",
+  "full_pass": false,
+  "deferred_performance_issues": [
+    "performance budget exceeded: max_frame_p95_ms",
+    "performance budget exceeded: max_eval_p95_ms"
+  ]
+}
