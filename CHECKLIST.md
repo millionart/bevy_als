@@ -7391,6 +7391,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Rust 测试入口复现（2026-11-12 20:06）：隔离逐项复现 145 个失败，确认 56 个物理 fixture 缺 Avian 0.8 缓存所读的 Mesh 资产事件，3 个库测试与 1 个集成测试缺 Enhanced Input 所需的 InputPlugin，4 个 UI fixture 缺新布局参数 RemSize。已补各自真实依赖，保持原断言；下一轮统计依赖恢复后仍失败的行为。
   - 统一验证复盘（2026-11-12 20:21:36）：19:23开始、预估20:00，实际已晚21分36秒。启动和 Control Rig 功能通过。第二轮库 2004 过／136 失败，所有集成测试通过。仅补事件后 54 个纯物理 fixture 仍缺碰撞构造器的 Assets<Mesh>，本地 Avian 已确认两个消费者，改为共用标准 AssetPlugin 与 MeshPlugin 初始化。下一轮20:21:36开始、预估21:17:06，先回归依赖修复，再对复现的普通碰撞和动画问题分别追踪源与实际消费者。
   - 第三轮回归（2026-11-12 20:32）：标准 AssetPlugin/MeshPlugin 恢复52个库测试，库2056过／84失败、集成全部通过。原三轮日志、失败差分和隔离资源复现均在 `docs/audit/bf144/u07/bevy-0.20/tests-round-*/`。真实 Control Rig 首轮功能报告也已保存，下一轮按84个剩余失败的实际根因复开原条目。
+  - U07 继续验证（2026-11-12 21:19）：D125已恢复，固定60Hz的正式上坡18组通过。默认可变帧步第六组 Jump 后未进入Air，保留报告待单独归因。依据当前布娃娃边界，从同一 Playground 执行 `ragdoll` 功能验收，核对倒地、场景碰撞和生命周期。
+  - 布娃娃 Gate（2026-11-12 21:23）功能通过。正式入口覆盖倒地、物理配置、跟随、缩放、关节驱动、恢复、相机及起身输入锁定和释放，保留原报告。下一步同一入口执行独立 `get_up`，核对起身动画与输入阶段。
+  - 起身 Gate（2026-11-12 21:26）：独立 `get_up` 功能通过，正面及背面起身的输入锁定/释放、动作期间拒绝跳跃和角色时钟均执行。两项正式运行及渲染验证报告见 `docs/audit/bf144/u07/bevy-0.20/ragdoll-round-1/`、`get-up-round-1/`。
   - .265补充：真实Locomotion入口与独立同mesh Stand0全部790分量精确，五个相关mesh-space层化模板顺序重放消除245旋转分量供应差，再接原Additive/Head得到真实raw首Root790分量精确；初始化源骨姿态链已闭合，未关闭初始target组合差、曲线反馈或完整原warm→77历史。见 `target/bf144/265/summary.json`，不把源本来具有的层化运算误记成新差异；截图0、性能暂停。
   - .264补充：真实Head Base/Additive及实际alpha/空间模式已读，13次源合成10270分量精确；Additive独立采样匹配，初始Base的245个旋转分量与同mesh Stand0不等，残差供应边进一步缩至Layering→Locomotion→Standing。Head/Rig/Root观察与同输入Head算法不再是未知点；不以该局部闭环关闭初始化Base或完整warm反馈。见 `target/bf144/264/summary.json`，截图0、性能暂停。
   - .263补充：真实首Head→Rig与主图Root现已从原求值直接取得，初始化和12帧旧字段完全保持；首帧790分量/完整curve与Rig层级一致，后续七根腿/骨盆骨验证写回边界。273个double旋转/20个近零float的候选残差已在实际Head输出存在，下一只补Head实际Base/Additive输入，不复开Rig或下游Root算法；13份原始source Root可供后续反馈核验，完整warm→77仍未通过。见 `target/bf144/263/summary.json`，截图0、性能暂停。

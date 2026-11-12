@@ -1,0 +1,10 @@
+{
+  "pass": true,
+  "issues": [],
+  "images": [],
+  "validation_scope": "functional",
+  "full_pass": false,
+  "deferred_performance_issues": [
+    "performance budget exceeded: max_frame_p95_ms"
+  ]
+}
