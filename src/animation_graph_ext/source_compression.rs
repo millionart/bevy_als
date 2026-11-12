@@ -18,7 +18,7 @@ use serde::Deserialize;
 
 use crate::extensions::als_curves::{AlsPoseCurves, SourceCurveName, SourceCurveValues};
 use crate::extensions::control_rig_hierarchy::RigTransform;
-use crate::extensions::raw_curve_sampling::sample_raw_curves;
+use crate::extensions::raw_curve_sampling::evaluate_raw_curves;
 use crate::extensions::raw_sequence_sampling::{normalize_source_rotation, raw_control_sample};
 use crate::extensions::source_sequence_player::{SourceRootLock, source_root_lock_transform};
 
@@ -564,7 +564,7 @@ pub(crate) fn sample_source_curves(
     } else if clip.is_some_and(per_track::has_clip) {
         SourceCurveValues::default()
     } else {
-        clip.and_then(|clip| sample_raw_curves(clip, time))
+        clip.and_then(|clip| evaluate_raw_curves(clip, time))
             .unwrap_or_else(|| raw.sample_all(time))
     }
 }

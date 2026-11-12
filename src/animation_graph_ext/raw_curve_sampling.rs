@@ -1,4 +1,7 @@
-use std::{path::PathBuf, sync::LazyLock};
+use std::{
+    path::PathBuf,
+    sync::{LazyLock, Mutex},
+};
 
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use serde::Deserialize;
@@ -65,6 +68,17 @@ struct RawSequenceCurves {
     duration: f32,
     frame_rate: [u32; 2],
     curves: Vec<RawCurve>,
+    #[serde(skip)]
+    writeback: Mutex<Vec<Option<f32>>>,
+}
+
+impl RawSequenceCurves {
+    fn values(&self, time: f32) -> impl Iterator<Item = (&SourceCurveName, f32)> + '_ {
+        let source_time = source_frame_time(time.max(0.0).min(self.duration), self.frame_rate);
+        self.curves
+            .iter()
+            .map(move |curve| (&curve.name, curve.sample(source_time, self.frame_rate)))
+    }
 }
 
 static CURVES: LazyLock<Vec<RawSequenceCurves>> = LazyLock::new(|| {
@@ -75,27 +89,41 @@ static CURVES: LazyLock<Vec<RawSequenceCurves>> = LazyLock::new(|| {
     curves.sort_unstable_by(|left, right| {
         (&left.gltf, &left.animation).cmp(&(&right.gltf, &right.animation))
     });
+    for sequence in &mut curves {
+        sequence.writeback = Mutex::new(vec![None; sequence.curves.len()]);
+    }
     curves
 });
 
-pub(crate) fn sample_raw_curves(clip: &GraphClip, time: f32) -> Option<SourceCurveValues> {
+fn raw_sequence(clip: &GraphClip) -> Option<&'static RawSequenceCurves> {
     let key = clip_source_key(clip)?;
     let index = CURVES
         .binary_search_by(|sequence| {
             (sequence.gltf.as_path(), sequence.animation.as_str()).cmp(&key)
         })
         .ok()?;
-    let sequence = &CURVES[index];
-    let source_time = source_frame_time(time.max(0.0).min(sequence.duration), sequence.frame_rate);
+    CURVES.get(index)
+}
+
+pub(crate) fn evaluate_raw_curves(clip: &GraphClip, time: f32) -> Option<SourceCurveValues> {
+    let sequence = raw_sequence(clip)?;
+    let mut history = sequence
+        .writeback
+        .lock()
+        .expect("Raw Sequencer curve state");
     Some(
         sequence
-            .curves
-            .iter()
-            .map(|curve| {
-                (
-                    curve.name.clone(),
-                    curve.sample(source_time, sequence.frame_rate),
-                )
+            .values(time)
+            .zip(history.iter_mut())
+            .map(|((name, value), previous)| {
+                let value = match *previous {
+                    Some(last) if (last - value).abs() <= 1e-8 => last,
+                    _ => {
+                        *previous = Some(value);
+                        value
+                    }
+                };
+                (name.clone(), value)
             })
             .collect(),
     )
@@ -106,15 +134,24 @@ mod tests {
     use super::*;
     use bevy_animation_graph::core::animation_clip::loader::GraphClipSource;
 
-    fn curve(path: &'static str, animation: &str, name: &str, time: f32) -> f32 {
-        let clip = GraphClip {
+    fn clip(path: &'static str, animation: &str) -> GraphClip {
+        GraphClip {
             source: Some(GraphClipSource::GltfNamed {
                 path: path.into(),
                 animation_name: animation.to_owned(),
             }),
             ..Default::default()
-        };
-        sample_raw_curves(&clip, time).unwrap()[&SourceCurveName::from(name)]
+        }
+    }
+
+    fn curve(path: &'static str, animation: &str, name: &str, time: f32) -> f32 {
+        let clip = clip(path, animation);
+        raw_sequence(&clip)
+            .unwrap()
+            .values(time)
+            .find(|(key, _)| key.as_str().eq_ignore_ascii_case(name))
+            .unwrap()
+            .1
     }
 
     #[test]
@@ -146,5 +183,26 @@ mod tests {
             ),
             0.72
         );
+    }
+
+    #[test]
+    fn raw_writeback_is_shared_by_source_and_prepared_reads_leave_it_alone() {
+        let clip = clip(
+            "ALSRUNTIME/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.gltf",
+            "A_Als_Crouch_Walk_Right_Backward_0",
+        );
+        let alias = clip.clone();
+        let name = SourceCurveName::from("FeetCrossing");
+        let raw = |clip: &GraphClip, time| evaluate_raw_curves(clip, time).unwrap()[&name];
+        assert_eq!(raw(&clip, 0.5), -6.6392736e-10);
+        assert_eq!(raw(&clip, 6.0 / 30.0), -4.321337e-8);
+        let _ = crate::extensions::source_compression::sample_source_curves(
+            Some(&clip),
+            &crate::extensions::AlsPoseCurves::default(),
+            0.5,
+        );
+        assert_eq!(raw(&alias, 7.0 / 30.0), -4.321337e-8);
+        assert_eq!(raw(&clip, 10.0 / 30.0), -2.4302505e-8);
+        assert_eq!(raw(&alias, 7.0 / 30.0), -3.8485652e-8);
     }
 }

@@ -7639,7 +7639,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.178 compressed曲线补充：fresh ACL scalar seek以实际float sample_rate计算f32(time×rate)格点，float1f按先round(start−round(start×alpha))、再fma(end,alpha,前值)求值，0-bit常量直接读回，绕过raw Rig曲线历史。原decoded键/实际流速率下7903个源值逐项精确；全部融合/全部逐步round/差值lerp控制分别留下44/14/78个微差，均保留为算子分类而不另计浮点缺陷。目标仍有1101项curve不等、峰值1.311302e−6；D224数据加本项帧域/求值合同共同覆盖当前curve恢复，不将raw规范化子帧或D229写回规则硬套compressed。证据`target/bf144/178/compressed-curve-key-check.json`，骨骼时间插值的完整目标恢复继续打开。
 
 
-- [ ] BF144-D229 / P3 — raw Sequence曲线遗漏源按上次写回值过滤微小变化的历史。
+- [x] BF144-D229 / P3 — raw Sequence曲线遗漏源按上次写回值过滤微小变化的历史。 开始：2026-11-12 13:49:37 +08:00；预估结束：2026-11-12 14:19:37 +08:00。
+  - 实际结束：2026-11-12 13:53:08 +08:00；偏差：−26分29秒；结果：静态Gate PASS。fresh raw冷启动未设置与实际同一源回返均确认，16原生值精确。省略历史或预置0各失败1值；按源动画身份保留写回，prepared无历史。Rust别名/压缩读取fixture与语法通过，Cargo统一后置。证据 `docs/audit/bf144/d229/summary.json`。
   - Source：fresh `AnimSequencerDataModel.cpp:1560–1582`只重置bone而不清curve历史；`FKControlRig.cpp:170–184`的Direct/Replace共享分支调用SetCurveValue默认bForce=false。`RigHierarchy.cpp:6432–6456`在已有值且FMath::IsNearlyZero(Previous−InValue)（1e−8f）时保留上次值。此处与D227骨骼相对参考变换/0.0001f门槛不同。
   - Target：`source_sequence_player.rs:508`从AlsPoseCurves.sample_all(position)直接发布无状态采样值；相同位置总给同值，无法保留该raw模型写回历史。
   - 最小反例：Crouch_Walk_Right_Backward、FeetCrossing，原生raw依次取6/30、7/30、10/30、7/30秒。源输出−4.321336888e−8、−4.321336888e−8、−2.430250667e−8、−3.848565200e−8；第二次所求新值−3.848565200e−8距上次小于1e−8而保留，末次同一个7/30秒因历史不同已超过门槛，正常写入。保持同曲线/时间的源过滤公式4次逐值精确；删除过滤在第2次稳定失败。目标秒域公式已由同资产1094个实际值校准，其相同时点无历史分支。
