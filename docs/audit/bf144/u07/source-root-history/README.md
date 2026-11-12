@@ -13,8 +13,9 @@ d=docs/audit/bf144/u07/source-root-history
 mkdir -p target/bevy020-gates/u07-root-history
 python "$d/reconstruct.py" target/bevy020-gates/u07-root-history/source-318.native.json
 cp "$d/observer.rs" target/bevy020-gates/u07-root-history/observer.rs
-git apply "$d/observer-hook.patch"
+gzip -dc "$d/observer-hook.patch.gz" > target/bevy020-gates/u07-root-history/observer-hook.patch
+git apply target/bevy020-gates/u07-root-history/observer-hook.patch
 pwsh -NoProfile -File "$d/run.ps1" -Directory target/bevy020-gates/u07-root-history/replay
-git apply -R "$d/observer-hook.patch"
+git apply -R target/bevy020-gates/u07-root-history/observer-hook.patch
 python "$d/compare_target.py" target/bevy020-gates/u07-root-history/source-318.native.json target/bevy020-gates/u07-root-history/replay/root-history.json
 ```
