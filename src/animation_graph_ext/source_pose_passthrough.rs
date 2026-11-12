@@ -694,6 +694,79 @@ mod tests {
     }
 
     #[test]
+    fn sync_exit_keeps_a_small_record_from_two_relevant_parent_blends() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
+            context::{graph_context::QueryOutputTime, new_context::GraphContext, node_states::StateKey,
+                system_resources::SystemResources},
+            pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{GlobalPoseInputNode, SourceSequencePlayerNode, SourceTwoWayBlendNode,
+            source_sequence_player::SourceSequenceSynchronization};
+
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let clip = world.resource_mut::<Assets<GraphClip>>().add(GraphClip { duration: 1.0, ..default() });
+        let [small, base] = ["Sprint", "Base"].map(|name| AnimationNode::new(name, SourceSequencePlayerNode {
+            clip: clip.clone(), loop_animation: true, expose_play_rate_pin: false, expose_start_position_pin: false,
+            synchronization: Some(SourceSequenceSynchronization {
+                key: "Movement".into(), delta_seconds_key: "delta".into(), ..default()
+            }), ..default()
+        }));
+        let empty = AnimationNode::new("Empty", GlobalPoseInputNode { key: "pose".into(), output: "Pose".into() });
+        let inner_alpha = 0.009837965;
+        let inner = AnimationNode::new("Inner", SourceTwoWayBlendNode {
+            expose_alpha_pin: false, alpha_key: "inner".into(), ..default()
+        });
+        let outer = AnimationNode::new("Outer", SourceTwoWayBlendNode {
+            expose_alpha_pin: false, alpha_key: "block".into(), ..default()
+        });
+        let sync = AnimationNode::new("Sync", SourcePosePassthroughNode { synchronize_groups: true, output_time: false, ..default() });
+        let mut graph = AnimationGraph::new();
+        for node in [&small, &base, &empty, &inner, &outer, &sync] {
+            graph.add_node(node.clone());
+        }
+        graph.add_node_parameter_edge(empty.id, "Pose", inner.id, "A");
+        graph.add_node_parameter_edge(small.id, "Pose", inner.id, "B");
+        graph.add_node_parameter_edge(inner.id, "Pose", outer.id, "A");
+        graph.add_node_parameter_edge(base.id, "Pose", outer.id, "B");
+        graph.add_node_parameter_edge(outer.id, "Pose", sync.id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(sync.id, "Pose", "Pose");
+        let [small_id, sync_id] = [small.id, sync.id];
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        world.run_system_once(move |resources: SystemResources| {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            for block in [0.999, 1.0, 0.25] {
+                let delta = 1.0 / 60.0;
+                let inputs = HashMap::from([
+                    ("block".to_owned(), DataValue::F32(block)),
+                    ("inner".to_owned(), DataValue::F32(inner_alpha)),
+                    ("delta".to_owned(), DataValue::F32(delta)),
+                    ("pose".to_owned(), DataValue::Pose(Pose::default())),
+                ]);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                        &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                let state = arena.get_toplevel();
+                let context = state.node_states.get::<AnimationContextState>(sync_id, StateKey::Default).unwrap();
+                let expected = (block < 1.0).then_some((1.0 - block) * inner_alpha);
+                assert_eq!(state.node_caches.is_updated(small_id, StateKey::Default), expected.is_some());
+                assert_eq!(context.sync_players.iter().find(|tick| tick.identity.1 == small_id).map(|tick| tick.weight), expected);
+            }
+        }).unwrap();
+    }
+
+    #[test]
     fn sync_scope_uses_current_weights_cache_maximum_and_marker_continuity() {
         use crate::extensions::sync_group_phase::SourceSyncPlayerBinding;
         use crate::extensions::{

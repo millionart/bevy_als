@@ -1,0 +1,58 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "6b85be9ee4631472a1edb537b12eec420a1c8b3c8cfbe4a2b826c3613b35772a"
+  },
+  {
+    "path": "docs/audit/bf144/d219/README.md",
+    "sha256": "71c2dbe93c52195a0a59dad4139083bc5083a5635d9a430c69dfd59cef330ebd"
+  },
+  {
+    "path": "docs/audit/bf144/d219/membership.native.json.gz",
+    "sha256": "549c9738abffd45d1d4bf131146416f1c4c9c55db0cfdb6d51c6e14bc846e3fd"
+  },
+  {
+    "path": "docs/audit/bf144/d219/membership.native.json.reader.report.json",
+    "sha256": "eb012ae89de823f787f64cb61e0a24820e2782de6b988e12bbc6a78882f37801"
+  },
+  {
+    "path": "docs/audit/bf144/d219/membership.native.sha256",
+    "sha256": "365af4e0386207414798a98d02183a4dcc41eca56f30272236a16cf96bceeef6"
+  },
+  {
+    "path": "docs/audit/bf144/d219/membership.request.json",
+    "sha256": "5f8a5240d247044aee5ec649514411092ceb777fc6b4eec7f24ed820fdc4c94e"
+  },
+  {
+    "path": "docs/audit/bf144/d219/replay_membership.py",
+    "sha256": "5be783209bde33406d6f2588fa43230088133c9b984c26059ff14288cbb8a7c0"
+  },
+  {
+    "path": "docs/audit/bf144/d219/summary.json",
+    "sha256": "ee17690f25cf40296462f9065ea0834b09442fa5fe55b6285563fdf6fefef02d"
+  },
+  {
+    "path": "docs/audit/bf144/d219/sync.native.json.gz",
+    "sha256": "8033d14a977e275a7f856a869174f4d48d1e75d8267ce08617a3ce0fe9cbf518"
+  },
+  {
+    "path": "docs/audit/bf144/d219/sync.native.json.reader.report.json",
+    "sha256": "16d66ff9855b5df03cbc63aef593697778b7fbb1b77769dbcddaba7d0ed70617"
+  },
+  {
+    "path": "docs/audit/bf144/d219/sync.native.sha256",
+    "sha256": "41b4a6f1fdc41bee4b227d14ee5f6f71fa171dc1a3114bffebbff59a0e72124d"
+  },
+  {
+    "path": "docs/audit/bf144/d219/sync.request.json",
+    "sha256": "9bad0c0285e8f868a95727e08ae45b37cb3c911dacb12c1c9c538522f1eb9a4f"
+  },
+  {
+    "path": "src/animation_graph_ext/animation_context.rs",
+    "sha256": "0455af113214dc2f78ae48b833a8271073bcf9349d364c41106c649060547862"
+  },
+  {
+    "path": "src/animation_graph_ext/source_pose_passthrough.rs",
+    "sha256": "b3a78fe4aa4f221acee99f955fbae6d09255618998b55b9878dea7f9d8698c00"
+  }
+]

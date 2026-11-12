@@ -401,9 +401,6 @@ pub fn merge_sync_players(
 ) {
     for player in source {
         let weight = player.weight * weight.max(0.0);
-        if weight <= 1e-5 {
-            continue;
-        }
         if let Some(existing) = target
             .iter_mut()
             .find(|existing| existing.identity == player.identity)
@@ -572,6 +569,26 @@ pub fn capture_context_curve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sync_merge_retains_updated_zero_weight_and_uses_the_largest_cache_request() {
+        use bevy_animation_graph::core::context::graph_context_arena::GraphContextId;
+        use crate::extensions::sync_group_phase::SourceSyncPlayerTick;
+
+        let tick = |index| SourceSyncPlayerTick {
+            identity: (GraphContextId::default(), bevy::asset::uuid::Uuid::from_u128(index).into()),
+            weight: 1.0, ..default()
+        };
+        let zero = tick(1);
+        let small = tick(2);
+        let mut merged = Vec::new();
+        merge_sync_players(&mut merged, std::slice::from_ref(&zero), 0.0);
+        merge_sync_players(&mut merged, std::slice::from_ref(&small), 1e-6);
+        merge_sync_players(&mut merged, std::slice::from_ref(&small), 0.0);
+        merge_sync_players(&mut merged, std::slice::from_ref(&small), 8e-6);
+        assert_eq!(merged.iter().map(|tick| (tick.identity, tick.weight)).collect::<Vec<_>>(),
+            [(zero.identity, 0.0), (small.identity, 8e-6)]);
+    }
 
     #[test]
     fn source_asset_samples_preserve_notify_weights_and_cache_scope() {

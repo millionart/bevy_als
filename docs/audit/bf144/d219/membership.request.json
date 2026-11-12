@@ -1,0 +1,600 @@
+{
+  "mode": "Cubic",
+  "blend_times": [
+    0.3,
+    0.2
+  ],
+  "cached_child": 0,
+  "two_way": {
+    "property": "AnimGraphNode_TwoWayBlend_1",
+    "child": 1
+  },
+  "outer_two_way": "AnimGraphNode_TwoWayBlend",
+  "samples": [
+    {
+      "name": "nested",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.0,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.999,
+          "parent_weight": 1
+        }
+      ]
+    },
+    {
+      "name": "almost_blocked",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.0,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.9999,
+          "parent_weight": 1
+        }
+      ]
+    },
+    {
+      "name": "blocked",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.0,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 1,
+          "parent_weight": 1
+        }
+      ]
+    },
+    {
+      "name": "zero_parent",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.0,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.5,
+          "parent_weight": 0
+        }
+      ]
+    },
+    {
+      "name": "normal",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.0,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666,
+          "two_way_alpha": 0.125,
+          "outer_alpha": 0.25,
+          "parent_weight": 1
+        }
+      ]
+    }
+  ]
+}
