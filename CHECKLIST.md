@@ -7320,7 +7320,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.145专用过渡组合补充：两条30Hz Crouch历史在再次移动时共80帧保留旧marker距离残差，最大时钟差约119ns；提前清理记录后逐值恢复。独立BS重建控制在本批无信号，已删除，避免按历史控制集合扩大修改范围。证据`target/bf144/145/update-weights-pruned-analysis.json`、`target/bf144/145/marker-only-analysis.json`。
   - BF144.305 恢复移动后缀补充：旧240历史在77–179整组失活，180恢复Forward，192跨Left marker后出现约0.179µs残差，并向210后Standing同步传播。更换为新历史源权重并固定点复核后，全3360成员槽已合格，仍有122个时钟/原子秒不同；只提前清理失活组record，240帧165更新（45 BS、120 Sequence）/90原子秒全部原生精确。旧表30漏槽/91权重差属于夹具控制边界，不计产品差异；旧77与240共同输入证据在generation双射后完整保留。证据`target/bf144/305/clock-check.json`、`d209-clock-check.json`、`feedback-check.json`；原生产算法未修，完整Root与自然角色移动仍独立开。
 
-- [ ] BF144-D210 / P2 — BlendSpace轴过滤的步长门控和首帧时钟与源不符。
+- [x] BF144-D210 / P2 — BlendSpace轴过滤的步长门控和首帧时钟与源不符。
+  - 2026-11-12 09:15 +0800 实际结束，较09:55预估提前40分钟，未拆分。fresh RightForward 209帧源参考精确；独立旧门控改变97帧，旧首时钟改变48帧，18帧前缀直接对照生产过滤核，环形槽顺序残差归D211。证据及Rust夹具见 `docs/audit/bf144/d210/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 09:10 +08:00，预估结束2026-11-12 09:55 +08:00。重采RightForward的步长阈值、初始时间与正常步长，隔离环形槽顺序D211。
   - Source：fresh `AnimInterpFilter.cpp:192–297`只在DeltaTime>UE_KINDA_SMALL_NUMBER（0.0001）时推进CurrentTime并写入历史，否则返回LastOutput；初始LastOutput和CurrentTime均为0。当前六个WalkRun使用Cubic过滤，X/Y窗口分别为0.2/0.4秒。
   - Target：`normalized_blendspace.rs:75–119`首帧无条件返回输入、将首历史时间记为0，后续只在delta≤0.000001时保持。源应保持的0.00005/0.0001秒帧会进入目标历史；正常首帧也漏掉源时钟推进，后续浮点年龄不同。
   - 反例/消费：RightForward的97帧合法轴输入在首个50µs及随后小步长切换中出现77帧过滤/权重差，最大权重差1，四帧样本成员不同；原图回放源过滤输出后权重全部恢复，左脚局部旋转最大改变约13.3°。时间仍有独立D212约49.83µs残差，不能把只改过滤视为完整修复。0.000101秒及普通步长对照验证阈值上侧；其余五图共享源配置并完成普通2880帧对照，边界原生时钟仅直接核验RightForward。

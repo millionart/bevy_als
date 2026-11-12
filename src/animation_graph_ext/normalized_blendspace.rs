@@ -66,7 +66,6 @@ struct CubicFilterSample {
 
 #[derive(Reflect, Clone, Debug, Default)]
 struct CubicFilterState {
-    initialized: bool,
     time: f32,
     value: Vec2,
     samples: Vec<CubicFilterSample>,
@@ -78,44 +77,29 @@ fn cubic_filter_sample(
     delta_seconds: f32,
     window_seconds: f32,
 ) -> Vec2 {
-    if !state.initialized {
-        state.initialized = true;
+    if window_seconds <= 0.0 {
         state.value = target;
-        state.samples = vec![CubicFilterSample {
-            value: target,
-            time: state.time,
-        }];
         return target;
     }
-    if window_seconds <= EPSILON {
-        state.time += delta_seconds.max(0.0);
-        state.value = target;
-        state.samples = vec![CubicFilterSample {
+    if delta_seconds > 1e-4 {
+        state.time += delta_seconds;
+        state.samples.push(CubicFilterSample {
             value: target,
             time: state.time,
-        }];
-        return target;
-    }
-    if delta_seconds <= EPSILON {
-        return state.value;
-    }
-    state.time += delta_seconds;
-    state.samples.push(CubicFilterSample {
-        value: target,
-        time: state.time,
-    });
-    state
-        .samples
-        .retain(|sample| state.time - sample.time <= window_seconds + EPSILON);
-    let (sum, total) = state
-        .samples
-        .iter()
-        .fold((Vec2::ZERO, 0.0_f32), |(sum, total), sample| {
-            let age = ((state.time - sample.time) / window_seconds).clamp(0.0, 1.0);
-            let weight = 1.0 - age * age * age;
-            (sum + sample.value * weight, total + weight)
         });
-    state.value = if total > EPSILON { sum / total } else { target };
+        state
+            .samples
+            .retain(|sample| state.time - sample.time <= window_seconds + EPSILON);
+        let (sum, total) = state
+            .samples
+            .iter()
+            .fold((Vec2::ZERO, 0.0_f32), |(sum, total), sample| {
+                let age = ((state.time - sample.time) / window_seconds).clamp(0.0, 1.0);
+                let weight = 1.0 - age * age * age;
+                (sum + sample.value * weight, total + weight)
+            });
+        state.value = if total > EPSILON { sum / total } else { target };
+    }
     state.value
 }
 
@@ -1510,9 +1494,10 @@ mod tests {
     fn cubic_filter_matches_the_source_fir_weight_curve() {
         let mut state = CubicFilterState::default();
         assert_eq!(
-            cubic_filter_sample(&mut state, Vec2::ZERO, 0.0, 0.4),
+            cubic_filter_sample(&mut state, Vec2::ONE, 0.0, 0.4),
             Vec2::ZERO
         );
+        assert_eq!(cubic_filter_sample(&mut state, Vec2::ZERO, 0.2, 0.4), Vec2::ZERO);
         let filtered = cubic_filter_sample(&mut state, Vec2::ONE, 0.2, 0.4);
         assert!((filtered.x - (1.0 / 1.875)).abs() < 1e-5);
         assert!((filtered.y - (1.0 / 1.875)).abs() < 1e-5);
@@ -1523,17 +1508,57 @@ mod tests {
         let mut x = CubicFilterState::default();
         let mut y = CubicFilterState::default();
         assert_eq!(
-            cubic_filter_sample(&mut x, Vec2::ZERO, 0.0, 0.2),
+            cubic_filter_sample(&mut x, Vec2::ZERO, 0.2, 0.2),
             Vec2::ZERO
         );
         assert_eq!(
-            cubic_filter_sample(&mut y, Vec2::ZERO, 0.0, 0.4),
+            cubic_filter_sample(&mut y, Vec2::ZERO, 0.2, 0.4),
             Vec2::ZERO
         );
         let x_value = cubic_filter_sample(&mut x, Vec2::X, 0.2, 0.2).x;
         let y_value = cubic_filter_sample(&mut y, Vec2::Y, 0.2, 0.4).y;
         assert!((x_value - 1.0).abs() < 1e-5);
         assert!((y_value - (1.0 / 1.875)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn cubic_axis_filter_matches_native_gate_and_initial_clock() {
+        #[derive(Deserialize)]
+        struct Frame {
+            input: [f32; 2],
+            delta: f32,
+            position: [f32; 2],
+            time: f32,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            windows: [f32; 2],
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d210/filter.replay.json"
+        )).unwrap();
+        for case in reference.cases {
+            let [mut x, mut y] = std::array::from_fn(|_| CubicFilterState::default());
+            for frame in case.frames {
+                let position = [
+                    cubic_filter_sample(&mut x, Vec2::X * frame.input[0], frame.delta, reference.windows[0]).x,
+                    cubic_filter_sample(&mut y, Vec2::Y * frame.input[1], frame.delta, reference.windows[1]).y,
+                ];
+                assert_eq!(position, frame.position, "{}", case.name);
+                assert_eq!([x.time, y.time], [frame.time; 2], "{}", case.name);
+            }
+        }
+        let mut disabled = CubicFilterState::default();
+        assert_eq!(cubic_filter_sample(&mut disabled, Vec2::ONE, 0.0, 0.0), Vec2::ONE);
+        assert_eq!(disabled.time, 0.0);
+        assert!(disabled.samples.is_empty());
     }
 
     #[test]
