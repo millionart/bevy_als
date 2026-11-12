@@ -1,0 +1,44 @@
+{
+  "result": "PASS_RAW_SEQUENCER_EULER_ROUNDTRIP",
+  "active_models": {
+    "/Script/AnimationData.AnimationSequencerDataModel": 128
+  },
+  "bone": "ik_foot_r",
+  "native_comparison": [
+    {
+      "time": 0.7666666507720947,
+      "alpha": 0.0,
+      "singularity_test": -0.5000000145874663,
+      "before_error": 1.084595835365576e-08,
+      "after_error": 1.084595835365576e-08
+    },
+    {
+      "time": 0.7666667699813843,
+      "alpha": 3.576282097128569e-06,
+      "singularity_test": -0.5000000145874663,
+      "before_error": 1.084595835365576e-08,
+      "after_error": 1.084595835365576e-08
+    },
+    {
+      "time": 0.7756271362304688,
+      "alpha": 0.2688148319721222,
+      "singularity_test": -0.4999995218732792,
+      "before_error": 0.0009342379439752219,
+      "after_error": 1.0017192297873123e-08
+    },
+    {
+      "time": 0.7799999713897705,
+      "alpha": 0.4000000059604645,
+      "singularity_test": -0.49999894133954764,
+      "before_error": 2.7514091699432086e-09,
+      "after_error": 2.9215826424788816e-08
+    },
+    {
+      "time": 0.800000011920929,
+      "alpha": 1.7881410485642846e-06,
+      "singularity_test": -0.4999933834949807,
+      "before_error": 1.4604064624279545e-09,
+      "after_error": 4.4794796094649314e-08
+    }
+  ]
+}

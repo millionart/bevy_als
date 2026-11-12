@@ -7614,7 +7614,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.179当前compressed闭环：原glTF通过实际生产sample_pose()与旧真实节点输出逐项校准；仅换解码前/归一化后compressed键，现有slerp/秒键路径仍分别有319929/319715骨骼不等，旋转峰值均0.001057819。保持生产采样入口，只在受控曲线恢复源解码前数据、类型位、nlerp及原单位/帧域/float运算次序后，5428份pose/428812骨骼与codec投影输出全部精确；对最终姿态仅剩D230相同5165份foot。物理去掉源算子曲线，319929反例重现；按字节恢复和同目录重编后全量输出复现。当前8资产无额外骨骼余差，其他资产/历史和BS/final不由此证明，生产未修。证据`target/bf144/179/target-sampler-check.json`、`target-ablation-check.json`与`restore-check.json`。
 
-- [ ] BF144-D226 / P3 — raw Sequence采样遗漏源Sequencer的Euler往返奇异分支。
+- [x] BF144-D226 / P3 — raw Sequence采样遗漏源Sequencer的Euler往返奇异分支。 开始：2026-11-12 13:08:28 +08:00；预估结束：2026-11-12 13:38:28 +08:00。
+  - 实际结束：2026-11-12 13:12:48 +08:00；偏差：−25分40秒；结果：静态Gate PASS。128个活动模型均为AnimationSequencerDataModel，压缩数据原字节保持；Crouch ik_foot_r五时点含raw/同时间prepared控制，奇异点余差0.000934238→1.00e−8。复用Control Rig Euler/Quaternion并按float角度写回，Rust语法与D225回放通过，Cargo统一后置。证据 `docs/audit/bf144/d226/summary.json`。
   - Source：fresh活动`AnimSequencerDataModel.cpp:1698–1715`在相邻键FTransform::Blend之后转换FEulerTransform，再经FRigControlValue::FEulerTransform_Float存入Control Rig；`EulerTransform.h:63–87`调用FQuat::Rotator，`RigHierarchyDefines.h:1176–1214`把角度/位置/scale存为float。`UnrealMath.cpp:688–721`的FQuat4d::Rotator在SingularityTest越过±0.4999995时将pitch设为±90°、roll设0，再经双精度Quaternion及FKControlRig取回局部pose。压缩GetAnimationPose绕过这段raw模型求值。
   - Target：`source_sequence_player.rs:56–110`直接在glTF四元数轨道采样，没有raw Sequencer的Quaternion→Euler→float→Quaternion步骤。只把时间插值从slerp恢复为nlerp（D225）仍不能复现此奇异分支；该差异也不依赖平台压缩键值D224。
   - 最小反例：实际60Hz stance-handoff第125帧player8、Crouch_Walk_Left_Forward、ik_foot_r、time=0.7756271362；独立native raw在23/30秒、当帧、24/30秒读取同一原资产。native两端键nlerp的SingularityTest=−0.4999995218761474，未做Euler往返时与源分量差0.000934239；仅加入fresh源Euler/float往返后差3.42e−11。常规Euler、端点、最短弧及显式raw/compressed模式控制通过；实际目标同骨旋转已由.174全节点输出独立保存。

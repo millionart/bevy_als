@@ -2448,6 +2448,8 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
         const bool bRaw = FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, FAnimExtractContext(0.0, false));
         TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
         Row->SetStringField(TEXT("asset"), ObjectPath(Sequence));
+        const UObject* Model = Sequence->GetDataModelInterface().GetObject();
+        Row->SetStringField(TEXT("data_model_class"), Model == nullptr ? TEXT("None") : ObjectPath(Model->GetClass()));
         Row->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
         Row->SetNumberField(TEXT("additive_type"), Sequence->IsValidAdditive() ? Sequence->GetAdditiveAnimType() : AAT_None);
         Row->SetBoolField(TEXT("step"), Sequence->Interpolation == EAnimInterpolationType::Step);

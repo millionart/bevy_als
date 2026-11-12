@@ -7,6 +7,7 @@ use bevy::{
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use serde::Deserialize;
 
+use crate::extensions::control_rig_math::{rig_euler, rig_quaternion};
 use crate::extensions::source_compression::clip_source_key;
 
 #[derive(Deserialize)]
@@ -44,7 +45,7 @@ pub(crate) fn raw_rotation_interval(clip: &GraphClip, time: f32) -> Option<RawRo
     })
 }
 
-fn interpolate_rotation(start: Quat, end: Quat, alpha: f32) -> Quat {
+fn interpolate_rotation(start: Quat, end: Quat, alpha: f32) -> DQuat {
     let start = start.as_dquat();
     let end = end.as_dquat();
     let alpha = f64::from(alpha);
@@ -55,7 +56,6 @@ fn interpolate_rotation(start: Quat, end: Quat, alpha: f32) -> Quat {
         (left[axis] * bias).mul_add(1.0 - alpha, right[axis] * alpha)
     }))
     .normalize()
-    .as_quat()
 }
 
 impl RawRotationInterval {
@@ -68,17 +68,17 @@ impl RawRotationInterval {
                 .ok()
                 .map(|value| *value)
         };
-        if self.alpha <= 1e-5 {
+        if self.alpha <= 1e-8 {
             return key(self.start);
         }
-        if (self.alpha - 1.0).abs() <= 1e-5 {
-            return key(self.end);
-        }
-        Some(interpolate_rotation(
-            key(self.start)?,
-            key(self.end)?,
-            self.alpha,
-        ))
+        let blended = if self.alpha <= 1e-5 {
+            key(self.start)?.as_dquat()
+        } else if (self.alpha - 1.0).abs() <= 1e-5 {
+            key(self.end)?.as_dquat()
+        } else {
+            interpolate_rotation(key(self.start)?, key(self.end)?, self.alpha)
+        };
+        Some(rig_quaternion(rig_euler(blended).as_vec3().as_dvec3()).as_quat())
     }
 }
 
@@ -91,33 +91,47 @@ mod tests {
     };
     use bevy_animation_graph::core::animation_clip::{EntityPath, loader::GraphClipSource};
 
-    #[test]
-    fn raw_pose_interpolates_the_installed_sprint_interval_with_nlerp() {
-        let bone = EntityPath::from_slashed_string("ik_hand_l".to_owned()).id();
+    fn clip_with_rotation(
+        bone: bevy_animation_graph::core::id::BoneId,
+        path: &'static str,
+        animation_name: &str,
+        keys: [(f32, Quat); 2],
+    ) -> GraphClip {
         let mut animation = AnimationClip::default();
         animation.add_curve_to_target(
             bone.animation_target_id(),
             AnimatableCurve::new(
                 animated_field!(Transform::rotation),
-                UnevenSampleAutoCurve::new([
-                    (
-                        0.33333334,
-                        Quat::from_xyzw(-0.06315641, 0.5647191, 0.7948048, 0.21304677),
-                    ),
-                    (
-                        0.36666667,
-                        Quat::from_xyzw(0.076489635, -0.5301, -0.82374704, 0.1859681),
-                    ),
-                ])
-                .unwrap(),
+                UnevenSampleAutoCurve::new(keys).unwrap(),
             ),
         );
         let mut clip =
             GraphClip::from_bevy_clip(animation, Default::default(), Default::default(), None);
         clip.source = Some(GraphClipSource::GltfNamed {
-            path: "ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.gltf".into(),
-            animation_name: "A_Als_Sprint_Acceleration_0".to_owned(),
+            path: path.into(),
+            animation_name: animation_name.to_owned(),
         });
+        clip
+    }
+
+    #[test]
+    fn raw_pose_interpolates_the_installed_sprint_interval_with_nlerp() {
+        let bone = EntityPath::from_slashed_string("ik_hand_l".to_owned()).id();
+        let mut clip = clip_with_rotation(
+            bone,
+            "ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.gltf",
+            "A_Als_Sprint_Acceleration_0",
+            [
+                (
+                    0.33333334,
+                    Quat::from_xyzw(-0.06315641, 0.5647191, 0.7948048, 0.21304677),
+                ),
+                (
+                    0.36666667,
+                    Quat::from_xyzw(0.076489635, -0.5301, -0.82374704, 0.1859681),
+                ),
+            ],
+        );
         let sample = |clip: &GraphClip| {
             crate::extensions::source_sequence_player::sample_pose(clip, 0.35955963)
                 .get_bone(bone)
@@ -126,7 +140,7 @@ mod tests {
                 .unwrap()
         };
         let actual = sample(&clip);
-        let expected = Quat::from_xyzw(0.07466473, -0.54490983, -0.82887614, 0.10228802);
+        let expected = Quat::from_xyzw(-0.07466473, 0.54490983, 0.82887614, -0.10228802);
         assert!(actual.abs_diff_eq(expected, 1e-7));
         clip.source = None;
         let legacy = sample(&clip);
@@ -136,5 +150,31 @@ mod tests {
             legacy
         };
         assert!((actual.w - aligned.w).abs() > 0.001);
+    }
+
+    #[test]
+    fn raw_pose_round_trips_the_singular_crouch_rotation_through_euler() {
+        let bone = EntityPath::from_slashed_string("ik_foot_r".to_owned()).id();
+        let clip = clip_with_rotation(
+            bone,
+            "ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.gltf",
+            "A_Als_Crouch_Walk_Left_Forward_0",
+            [
+                (
+                    0.76666665,
+                    Quat::from_xyzw(0.69643927, -0.69643927, -0.12236161, 0.12236161),
+                ),
+                (
+                    0.79999995,
+                    Quat::from_xyzw(-0.6960472, 0.69667786, 0.12457539, -0.12099273),
+                ),
+            ],
+        );
+        let pose = crate::extensions::source_sequence_player::sample_pose(&clip, 0.77562714);
+        let actual = pose.get_bone(bone).unwrap().rotation.unwrap();
+        assert!(actual.abs_diff_eq(
+            Quat::from_xyzw(0.69649875, -0.69649875, -0.122022554, 0.122022554),
+            1e-7
+        ));
     }
 }
