@@ -7730,7 +7730,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 最小反例：30Hz stance-sprint第59帧原Sprint Acceleration节点、alpha0.4052223861217499。source求值第二权重0.40522241592407227；同输入VB foot_r的runtime y/z为0.3320797085762024/0.20573998987674713，实际target与不回算控制为0.33207967877388/0.20573997497558594。原生API、同精度单改权重控制及实际节点三者关联；ik_foot_l与pelvis另有匹配不回算控制的分量。
   - 全量/边界：当前1875次双边相关TwoWay中95次回算改变alpha，隔离相同精度/数值空间后3516个骨骼改变，gait相同控制715骨归D216。31个实际alpha的原生标量回算均确认；其中替代不等curve端点的21例只作独立控制，不宣称自然曲线后果。证据`target/bf144/182/complement-witness-check.json`、`complement-native-check.json`、`parent-math-check.json`及`roundtrip-api-check.json`；仅登记，未修生产，未声明可见故障或完整角色反馈已通过。
 
-- [ ] BF144-D235 / P3 — Lean共同加性参考数据不符合源强制raw完整姿态合同。
+- [x] BF144-D235 / P3 — Lean共同加性参考数据不符合源强制raw完整姿态合同。 开始：2026-11-12 15:42:13 +08:00；预估结束：2026-11-12 16:27:13 +08:00。
+  - 实际结束：2026-11-12 15:49:09 +08:00；偏差：−38分04秒；结果：静态Gate PASS。Lean/Stand原生raw frame0的158骨独立生成，现场差分按Clip、参考pin及原时间读取。474原生delta精确，改用普通压缩参考分别改变210/225个f32 delta。51条播放器参考及23个BlendSpace包装仍走已证实baked路径，原生读取及生成字节复验通过，Cargo后置。证据 `docs/audit/bf144/d235/summary.json`。
   - BF144.497 Run Start之前的Lean实际时钟消费者。原生三活动叶的0时点delta均零，目标12帧真实权重/alpha/输出逐值，query105–110仅换raw Lean参考即去掉左虚拟足缩放增量。证据 docs/audit/bf144/497/summary.json。
   - BF144.496 Run Start实际消费者。query105两活动方向前/右的压缩加性scale为0，普通Lean参考下目标各一ULP。固定实际方向权重、Movement、Layering及Head输入，仅raw Lean参考使Run Start和Legs各少一ULP。动态加性普通Stand因子分开，证据 docs/audit/bf144/496/summary.json。
   - BF144.495 左虚拟足首个非均匀Head输出。实际 Default Overlay 的 Idle 局部加性与 Head 的 Look 网格加性均读取普通 Stand，两个算子各贡献一个F32步长。原生raw Stand scale=1且Idle/Look压缩delta=0；固定目标绝对值和权重，单换参考时query2/3仍余一ULP，双换时y=1。运动段另有上游缩放，证据 docs/audit/bf144/495/summary.json。

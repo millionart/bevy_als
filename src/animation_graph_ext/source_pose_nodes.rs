@@ -789,7 +789,8 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
         let mut context = pose_input_context_state(&ctx, "Additive").unwrap_or_default();
         context.source_pose = base_context.source_pose_for(&base)
             .zip(context.source_pose_for(&additive))
-            .and_then(|(base, target)| source_pose_difference(base, target, skeleton, self.mesh_space_additive));
+            .and_then(|(base, target)| source_pose_difference(base, target, skeleton, self.mesh_space_additive))
+            .map(Arc::new);
         if let Some(source) = &context.source_pose {
             source.project_into(&mut difference);
         }

@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, sync::Arc};
+use std::collections::{HashMap, HashSet};
 
 use bevy::math::DVec3;
 use bevy::prelude::*;
@@ -23,7 +23,7 @@ pub(crate) fn source_pose_difference(
     target: &SourcePose,
     skeleton: &Skeleton,
     mesh_space: bool,
-) -> Option<Arc<SourcePose>> {
+) -> Option<SourcePose> {
     if !reference.same_layout(target) {
         return None;
     }
@@ -48,7 +48,7 @@ pub(crate) fn source_pose_difference(
         });
         target.scale = target.scale * DVec3::from_array(reciprocal) - DVec3::ONE;
     }
-    Some(Arc::new(target))
+    Some(target)
 }
 
 #[derive(Reflect, Clone, Debug, Default)]

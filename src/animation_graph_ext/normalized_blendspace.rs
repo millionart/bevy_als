@@ -36,14 +36,14 @@ pub const OUT_VALUE: &str = "value";
 pub const OUT_POSE: &str = "pose";
 pub const OUT_SAMPLE_TIME: &str = "sample_time";
 
-fn pose_input_node(graph: &AnimationGraph, node: NodeId, pin: String) -> Option<&AnimationNode> {
+pub(super) fn pose_input_node(graph: &AnimationGraph, node: NodeId, pin: String) -> Option<&AnimationNode> {
     let SourcePin::NodeData(source, _) = graph.edges_inverted.get(&TargetPin::NodeData(node, pin))? else {
         return None;
     };
     graph.nodes.get(source)
 }
 
-fn clip_binding(node: &AnimationNode) -> Option<(&Handle<GraphClip>, bool)> {
+pub(super) fn clip_binding(node: &AnimationNode) -> Option<(&Handle<GraphClip>, bool)> {
     let clip_node = node.try_inner_downcast_ref::<ClipNode>()?;
     let fields = clip_node.reflect_ref().as_struct().ok()?;
     let handle = fields.field("clip")?.try_downcast_ref::<Handle<GraphClip>>()?;

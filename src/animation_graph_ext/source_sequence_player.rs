@@ -25,6 +25,7 @@ use crate::extensions::global_f32_input::root_defaults_enabled;
 use crate::extensions::raw_sequence_sampling::{RawRotationInterval, raw_rotation_interval};
 use crate::extensions::source_compression::{
     PreparedPoseKind, write_raw_control_pose, sample_prepared_pose, sample_prepared_root, sample_prepared_source_pose,
+    sample_raw_additive_reference,
     sample_source_curves,
 };
 use crate::extensions::source_pose::SourcePose;
@@ -257,16 +258,30 @@ pub(crate) fn sample_source_pose(
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?, false, None),
     };
     let mut pose = if let Some(reference_handle) = additive_reference.filter(|_| !baked_additive) {
-        source_pose = None;
         let reference_clip = ctx.graph_context.resources.graph_clip_assets.get(reference_handle)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let reference = sample_raw_source_clip_pose(reference_clip, reference_position.max(0.0), skeletons)
-            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        let time = reference_position.max(0.0);
+        let raw = sample_raw_additive_reference(reference_clip, time);
+        let reference = if let Some(raw) = &raw {
+            let mut reference = Pose { timestamp: time, skeleton: reference_clip.skeleton.clone(), ..Default::default() };
+            raw.project_into(&mut reference);
+            reference
+        } else {
+            sample_raw_source_clip_pose(reference_clip, time, skeletons)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?
+        };
         let skeleton = ctx.graph_context.resources.skeleton_assets.get(&reference.skeleton)
             .or_else(|| ctx.graph_context.resources.skeleton_assets.get(&target.skeleton))
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        if mesh_space { make_mesh_space_difference(&reference, &target, skeleton) }
-        else { make_local_difference(&reference, &target, skeleton) }
+        let mut difference = if mesh_space { make_mesh_space_difference(&reference, &target, skeleton) }
+            else { make_local_difference(&reference, &target, skeleton) };
+        source_pose = raw.as_ref().zip(source_pose.as_ref()).and_then(|(reference, target)| {
+            crate::extensions::mesh_space_difference::source_pose_difference(reference, target, skeleton, mesh_space)
+        });
+        if let Some(source) = &source_pose {
+            source.project_into(&mut difference);
+        }
+        difference
     } else { target };
     pose.timestamp = time;
     if let Some(mode) = root_lock {

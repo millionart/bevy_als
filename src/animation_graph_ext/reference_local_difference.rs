@@ -10,7 +10,9 @@ use bevy_animation_graph::core::{
 
 use crate::extensions::{
     AnimationContextState, animation_context::pose_input_context_state,
-    mesh_space_difference::source_pose_difference, source_pose::SourcePose,
+    mesh_space_difference::source_pose_difference, normalized_blendspace::{clip_binding, pose_input_node},
+    source_compression::sample_raw_additive_reference, source_pose::SourcePose,
+    time_position::{IN_POSE, TimePositionNode},
 };
 use std::sync::Arc;
 
@@ -117,14 +119,31 @@ pub fn make_local_difference(reference: &Pose, target: &Pose, skeleton: &Skeleto
 
 pub(crate) fn precise_reference_difference(
     ctx: &NodeContext,
-    reference: &Pose,
+    reference: &mut Pose,
     target: &Pose,
     skeleton: &Skeleton,
     mesh_space: bool,
 ) -> Option<Arc<SourcePose>> {
-    let source = pose_input_context_state(ctx, REFERENCE_POSE)?;
+    let graph = ctx.graph_context.graph;
+    let raw = pose_input_node(graph, ctx.node_id, REFERENCE_POSE.to_owned()).and_then(|node| {
+        let node = if node.try_inner_downcast_ref::<TimePositionNode>().is_some() {
+            pose_input_node(graph, node.id, IN_POSE.to_owned())?
+        } else {
+            node
+        };
+        let (handle, eligible) = clip_binding(node)?;
+        if !eligible { return None; }
+        let clip = ctx.graph_context.resources.graph_clip_assets.get(handle)?;
+        sample_raw_additive_reference(clip, reference.timestamp)
+    });
+    if let Some(raw) = &raw {
+        raw.project_into(reference);
+    }
+    let source = pose_input_context_state(ctx, REFERENCE_POSE);
+    let source = raw.as_ref().or_else(|| source.as_ref()?.source_pose_for(reference).map(Arc::as_ref))?;
     let target_context = pose_input_context_state(ctx, TARGET_POSE)?;
-    source_pose_difference(source.source_pose_for(reference)?, target_context.source_pose_for(target)?, skeleton, mesh_space)
+    source_pose_difference(source, target_context.source_pose_for(target)?, skeleton, mesh_space)
+        .map(Arc::new)
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -163,8 +182,8 @@ impl NodeLike for ReferenceLocalDifferenceNode {
             .skeleton_assets
             .get(&reference.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        let source_pose = precise_reference_difference(&ctx, &mut reference, &target, skeleton, false);
         let mut difference = make_local_difference(&reference, &target, skeleton);
-        let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, false);
         if let Some(source) = &source_pose {
             source.project_into(&mut difference);
         }

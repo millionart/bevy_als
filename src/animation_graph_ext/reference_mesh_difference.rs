@@ -51,8 +51,8 @@ impl NodeLike for ReferenceMeshDifferenceNode {
             .skeleton_assets
             .get(&reference.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        let source_pose = precise_reference_difference(&ctx, &mut reference, &target, skeleton, true);
         let mut difference = make_mesh_space_difference(&reference, &target, skeleton);
-        let source_pose = precise_reference_difference(&ctx, &reference, &target, skeleton, true);
         if let Some(source) = &source_pose {
             source.project_into(&mut difference);
         }

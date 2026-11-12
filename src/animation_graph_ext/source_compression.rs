@@ -103,6 +103,19 @@ struct SourceTransform {
     scale: SourceVector,
 }
 
+#[derive(Deserialize)]
+struct RawAdditiveReference {
+    gltf: PathBuf,
+    animation: String,
+    time: f32,
+    bones: Vec<SourceTransform>,
+}
+
+static RAW_ADDITIVE_REFERENCES: LazyLock<Vec<RawAdditiveReference>> = LazyLock::new(|| {
+    serde_json::from_slice(include_bytes!("../../assets/ALSRuntime/Animations/als_raw_additive_references.json"))
+        .expect("Generated raw additive reference poses")
+});
+
 impl SourceTransform {
     fn rig_transform(&self) -> RigTransform {
         RigTransform {
@@ -543,6 +556,21 @@ pub(crate) fn prepared_reference_pose(skeleton: &Handle<Skeleton>) -> Option<Sou
         .map(|_| PREPARED_ACL.reference_pose(false))
 }
 
+pub(crate) fn sample_raw_additive_reference(clip: &GraphClip, time: f32) -> Option<SourcePose> {
+    let (path, animation) = clip_source_key(clip)?;
+    let source = RAW_ADDITIVE_REFERENCES.iter().find(|source| {
+        source.gltf.as_path() == path && source.animation == animation && source.time == time
+    })?;
+    let data = &*PREPARED_ACL;
+    if source.bones.len() != data.bone_ids.len() {
+        return None;
+    }
+    Some(SourcePose {
+        bones: data.bone_ids.iter().copied().zip(source.bones.iter().map(SourceTransform::rig_transform)).collect(),
+        length_scale: data.source_length_to_runtime_scale,
+    })
+}
+
 pub(crate) fn sample_prepared_source_pose(
     clip: &GraphClip,
     time: f32,
@@ -686,6 +714,24 @@ mod tests {
         }
         let yaw = sample_source_curves(Some(&turn), &raw, 0.4);
         assert_eq!(yaw[&SourceCurveName::from("RotationYawSpeed")], 111.28509);
+    }
+
+    #[test]
+    fn raw_additive_reference_keeps_native_frame_and_clip_identity() {
+        let lean = clip(
+            "ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.gltf",
+            "A_Als_Lean_Pose_0",
+        );
+        let raw = sample_raw_additive_reference(&lean, 0.0).unwrap();
+        let ordinary = sample_prepared_source_pose(&lean, 0.0).unwrap().0;
+        assert_eq!(raw.bones.len(), 79);
+        let spine = EntityPath::from_slashed_string(
+            "GltfNode0/root/pelvis/spine_01/spine_02/spine_03".to_owned(),
+        ).id();
+        let raw = raw.bones.iter().find(|(bone, _)| *bone == spine).unwrap().1;
+        assert_eq!(raw.translation, DVec3::new(13.412386894226074, -0.4207170009613037, -9.5367431640625e-7));
+        assert_ne!(ordinary.bones.iter().find(|(bone, _)| *bone == spine).unwrap().1, raw);
+        assert!(sample_raw_additive_reference(&lean, 0.01).is_none());
     }
 
     #[test]

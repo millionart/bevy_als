@@ -1,0 +1,50 @@
+[
+  {
+    "path": "assets/ALSRuntime/Animations/als_prepared_acl.bin",
+    "sha256": "350f35c910acd3c5b5c3058e88128f4458f367096de156a702063c80a81bdca3"
+  },
+  {
+    "path": "assets/ALSRuntime/Animations/als_raw_additive_references.json",
+    "sha256": "f20ec2d4858efa1be54a2ea4ae22ff294076c75a31d64478dfccf2f6e1bc9fb4"
+  },
+  {
+    "path": "docs/audit/bf144/d232d/reference.request.json",
+    "sha256": "b1f1f626084d1dbba0bb6f9836c4fb144c37b2e0b59584772e0ee98e517cb470"
+  },
+  {
+    "path": "docs/audit/bf144/d235/replay_references.py",
+    "sha256": "2e55e3abc0395c6b4447f6c2e19a62707b6b602df152e2aa9adc61dc85c57d48"
+  },
+  {
+    "path": "src/animation_graph_ext/mesh_space_difference.rs",
+    "sha256": "dc5115011d360d865496d04e72fe31a8e17482cd8b99212acd1ef5e7b6fc629a"
+  },
+  {
+    "path": "src/animation_graph_ext/normalized_blendspace.rs",
+    "sha256": "313f8b506c1332844fa3c2c35877425e26c3e7b4d1c393d4b16eae1eb82c200f"
+  },
+  {
+    "path": "src/animation_graph_ext/reference_local_difference.rs",
+    "sha256": "8210a2458e449cdf7d452b16eec159d982fc5fe47fe6d56ec169389abdf31669"
+  },
+  {
+    "path": "src/animation_graph_ext/reference_mesh_difference.rs",
+    "sha256": "86379c3524640bf7989ec0a74fabe6ab1ded27c123540be6b0bba530c903b67a"
+  },
+  {
+    "path": "src/animation_graph_ext/source_compression.rs",
+    "sha256": "ab3e3feb6e648e4c21ded998ff29a4539672a1323aaf573add113dd64b612fdd"
+  },
+  {
+    "path": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "1fe5cdac6a734827d33352e06174406c55ef331cc006fb0027c9a09b31a22fce"
+  },
+  {
+    "path": "src/animation_graph_ext/source_sequence_player.rs",
+    "sha256": "56b20e1062a88157e3e47fcf82bf1c3a51cb3c0d6174406ac859dc835222dc29"
+  },
+  {
+    "path": "tools/import/compile_als_raw_additive_references.py",
+    "sha256": "7fc963ef698c6d85793a6e088c42d7932069e4fab50e6e7828f6011e8b9216e0"
+  }
+]
