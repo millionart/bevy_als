@@ -7723,7 +7723,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧父alpha/资格/时钟Gate未比较相同子curve输入的末尾数值；目前只有已读回实际记录与原生最小API证据，不声称可见故障或最终角色反馈已证明。证据`target/bf144/182/parent-formula-check.json`、`curve-witness.native.json`与`curve-witness-check.json`；只登记，生产/转换器未修，完整父层和其他数值残差继续审计。
   - BF144.182全量分离：21840父curve值中multi11135全等；TwoWay双边4842值有29个最终差，其中单改补数的加权控制29差、固定补数后的Lerp次序14差，7个同时参与，份额不能相加。gait双边242值的81个最终差中，3个来自已知D216补数分支，78个来自同一公共API的Lerp次序；其余gait单边2692值保持。此处将78个同因consumer扩展到本项，未重复登记。物理替换原生Lerp为weighted算子会稳定恢复两条最小失败，旧字段保持；恢复源码字节、同目录重编后原完整native输出精确。证据`target/bf144/182/curve-factor-check.json`与`native-ablation-check.json`。
 
-- [ ] BF144-D234 / P3 — TwoWay Evaluate保留原alpha作第二权重，遗漏源的补数回算。
+- [x] BF144-D234 / P3 — TwoWay Evaluate保留原alpha作第二权重，遗漏源的补数回算。 开始：2026-11-12 15:39:34 +08:00；预估结束：2026-11-12 15:59:34 +08:00。
+  - 实际结束：2026-11-12 15:41:15 +08:00；偏差：−18分19秒；结果：静态Gate PASS。真实Sprint alpha与不变控制的158个原生TQS精确，恢复旧权重改变79个double和57个f32骨骼结果。求值姿态、曲线、属性消费补数，Update资格和同步消费原alpha。缓存链接fixture后置。证据 `docs/audit/bf144/d234/summary.json`。
   - Source：fresh `AnimNode_TwoWayBlend.cpp:139`把1−InternalBlendAlpha作为WeightOfPoseOne传给InPlace混合；`AnimationRuntime.cpp:527–540`再以float 1−WeightOfPoseOne得到第二权重。Update中的FractionalWeight仍直接使用原alpha；求值与更新字段不能合并为同一标量。原生公共API已用实际父pose输入验证。
   - Target：`source_pose_nodes.rs:426–429`两边相关时直接构造(base,1−alpha)/(overlay,alpha)调用blend_source_poses，没有求值第二权重的回算。该项不同于D216的GameplayTags特定快路径，也不同于D233曲线Lerp求值次序，更新资格/alpha映射本身可保持正确。
   - 最小反例：30Hz stance-sprint第59帧原Sprint Acceleration节点、alpha0.4052223861217499。source求值第二权重0.40522241592407227；同输入VB foot_r的runtime y/z为0.3320797085762024/0.20573998987674713，实际target与不回算控制为0.33207967877388/0.20573997497558594。原生API、同精度单改权重控制及实际节点三者关联；ik_foot_l与pelvis另有匹配不回算控制的分量。

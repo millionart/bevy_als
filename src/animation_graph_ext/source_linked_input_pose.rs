@@ -85,6 +85,8 @@ mod tests {
     use bevy_animation_graph::core::{animation_clip::EntityPath, pose::Pose};
     use std::sync::Arc;
 
+    const SPRINT_ALPHA: f32 = 0.4052223861217499;
+
     fn translation(value: f32) -> f64 {
         1.0 + f64::from(value) * 1e-10
     }
@@ -157,7 +159,7 @@ mod tests {
             let mut gizmos = DeferredGizmos::default();
             let env = TestIoEnv::default();
             let entities = HashMap::new();
-            [1.0, 0.0, 0.5, 1.0, 0.0]
+            [1.0, 0.0, 0.5, SPRINT_ALPHA, 1.0, 0.0]
                 .into_iter()
                 .map(|alpha| {
                     let inputs = HashMap::from([("alpha".to_owned(), DataValue::F32(alpha))]);
@@ -248,12 +250,17 @@ mod tests {
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
+        let first = 1.0 - SPRINT_ALPHA;
+        let second = 1.0 - first;
+        assert_eq!(second, 0.40522241592407227);
         assert_eq!(
             world.run_system_cached_with(query, root).unwrap(),
             vec![
                 (0.75, 0.75, translation(0.75)),
                 (0.25, 0.25, translation(0.25)),
                 (0.5, 0.25, translation(0.75).mul_add(0.5, translation(0.25) * 0.5)),
+                (0.25 + 0.5 * second, 0.25,
+                    translation(0.75).mul_add(f64::from(second), translation(0.25) * f64::from(first))),
                 (0.75, 0.75, translation(0.75)),
                 (0.25, 0.25, translation(0.25))
             ]

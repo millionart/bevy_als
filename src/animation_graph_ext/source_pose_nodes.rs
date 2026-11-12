@@ -413,13 +413,15 @@ impl NodeLike for SourceTwoWayBlendNode {
             state.blend_alpha = alpha;
             (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b)
         };
+        let first_weight = 1.0 - alpha;
+        let evaluation_alpha = 1.0 - first_weight;
         let mut child_contexts = std::mem::take(&mut ctx.state_mut::<SourceTwoWayBlendState>()?.child_contexts);
         crate::extensions::source_cached_pose::prewarm_input_cached_poses(&ctx, [
-            ("A".into(), if a_is_relevant { if b_is_relevant { 1.0 - alpha } else { 1.0 } } else { 0.0 }),
+            ("A".into(), if a_is_relevant { if b_is_relevant { first_weight } else { 1.0 } } else { 0.0 }),
             ("B".into(), if b_is_relevant { if a_is_relevant { alpha } else { 1.0 } } else { 0.0 }),
         ])?;
         let (base, context_a) = if a_is_relevant {
-            crate::extensions::interruptible_fsm::with_machine_weight(if b_is_relevant { 1.0 - alpha } else { 1.0 }, ||
+            crate::extensions::interruptible_fsm::with_machine_weight(if b_is_relevant { first_weight } else { 1.0 }, ||
                 read_blend_list_child(&ctx, "A", 0, self.reset_child_on_activation, reset_a, &mut child_contexts))?
         } else {
             (Pose::default(), None)
@@ -433,7 +435,7 @@ impl NodeLike for SourceTwoWayBlendNode {
         let mut contexts = [
             (
                 context_a.unwrap_or_default(),
-                if b_is_relevant { 1.0 - alpha } else { 1.0 },
+                if b_is_relevant { first_weight } else { 1.0 },
             ),
             (
                 context_b.unwrap_or_default(),
@@ -447,7 +449,7 @@ impl NodeLike for SourceTwoWayBlendNode {
             let source = contexts[0].0.source_pose_for(&base).cloned();
             (base, source)
         } else {
-            let weights = [1.0 - alpha, alpha];
+            let weights = [first_weight, evaluation_alpha];
             let poses = [(base, weights[0]), (overlay, weights[1])];
             blend_precise_poses(&poses, &contexts, weights.into_iter(), 1)
                 .map(|(pose, source)| (pose, Some(source)))
@@ -455,7 +457,7 @@ impl NodeLike for SourceTwoWayBlendNode {
         };
         let curves = if a_is_relevant && b_is_relevant {
             let [(a, _), (b, _)] = &mut contexts;
-            Some(take_lerped_curves(a, b, alpha))
+            Some(take_lerped_curves(a, b, evaluation_alpha))
         } else {
             None
         };
