@@ -956,7 +956,7 @@ mod tests {
                         .y;
                     assert_eq!(
                         state.value(&definition.externals["FootHeight"]).unwrap(),
-                        RigValue::F64(foot_height)
+                        RigValue::Centimeters64(foot_height * (definition.geometry.meters_per_unit * 100.0))
                     );
                     let amount = if instance == 0 { 0.4 } else { 0.2 };
                     let scale = scale.unwrap_or(1.5);
@@ -1048,7 +1048,7 @@ mod tests {
                     let trace = &captured.traces[0];
                     assert!(trace.hit.is_none());
                     assert_eq!(trace.start.y, 0.5);
-                    assert_eq!(trace.end.y, -(0.8_f32 as f64));
+                    assert_eq!(trace.end.y, -0.8);
                     let call = captured.calls.iter().find(|call| call.instruction == trace.instruction).unwrap();
                     assert_eq!(call.arguments[6], RigValue::Bool(true));
                     let branches = captured.calls.iter().filter_map(|call| {

@@ -1,0 +1,40 @@
+{
+  "source": {
+    "character_history": "docs/audit/bf144/u07/source-root-history/identity.json",
+    "source_frame_index": 1,
+    "foot_height_cm": 13.46573036618927,
+    "downward_trace_cm": 80
+  },
+  "captures": {
+    "baseline.stdout.log.gz": {
+      "bytes": 845,
+      "sha256": "3e28e834c7ff78af53010c1020724aedaf428fb207ed5093b4cdd324e56daba2",
+      "redacted": false
+    },
+    "baseline.stderr.log.gz": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redacted": false
+    },
+    "restored.stdout.log.gz": {
+      "bytes": 2582,
+      "sha256": "e57ca60f5b551eacf1e50fdb736e4063fa71531e452ccac575c7587592ce24c5",
+      "redacted": false
+    },
+    "restored.stderr.log.gz": {
+      "bytes": 7722,
+      "sha256": "8564ddce2622652e44d25eda641855b8a621a5b2c00c9e4717650795e9909816",
+      "redacted": true
+    },
+    "native-endpoints.stdout.log.gz": {
+      "bytes": 1995,
+      "sha256": "24155b308fdeab27fa22efbbd2e13415d051ed8bbaed4f72a4b013651b1fffab",
+      "redacted": false
+    },
+    "native-endpoints.stderr.log.gz": {
+      "bytes": 7680,
+      "sha256": "b0fc51cd3d8394bfd43b29adc84da92a95eb04299a8ad552668bd561f6c920cf",
+      "redacted": true
+    }
+  }
+}
