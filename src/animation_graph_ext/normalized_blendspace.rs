@@ -257,6 +257,7 @@ pub(crate) struct NormalizedBlendSpaceState {
     samples: Vec<SourceBlendSpaceSampleWeight>,
     sample_times: Vec<Option<f32>>,
     marker_records: Vec<Option<crate::extensions::sync_group_phase::SourceMarkerRecord>>,
+    normalized_time: Option<f32>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -682,10 +683,12 @@ impl NodeLike for NormalizedBlendSpaceNode {
             ctx.set_data_fwd(OUT_POSE, Pose::default());
             return Ok(());
         };
+        let delta_seconds = self.playback.as_ref().map(|playback|
+            crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key))
+            .transpose()?.unwrap_or_default();
         let smoothed = if !self.per_bone_interpolation.is_empty() && self.playback.is_some() {
-            let delta = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &self.playback.as_ref().unwrap().delta_seconds_key)?;
             let state = ctx.state_mut::<NormalizedBlendSpaceState>()?;
-            state.samples = self.smooth_samples(&state.samples, &target_weights, delta);
+            state.samples = self.smooth_samples(&state.samples, &target_weights, delta_seconds);
             Some(state.samples.clone())
         } else { None };
         let weights = smoothed.as_ref().map_or_else(|| target_weights.clone(), |samples|
@@ -696,7 +699,10 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let mut marker_records = ctx.state::<NormalizedBlendSpaceState>().ok()
             .map(|state| state.marker_records.clone()).unwrap_or_default();
         marker_records.resize(self.points.len(), None);
-        if crate::extensions::sync_group_phase::source_sync_markers_reset(&ctx) { marker_records.fill(None); }
+        let reset_instance_markers = crate::extensions::sync_group_phase::source_sync_markers_reset(&ctx);
+        let previous_normalized_time = self.playback.as_ref().map(|playback|
+            ctx.state::<NormalizedBlendSpaceState>().ok().and_then(|state| state.normalized_time)
+                .unwrap_or(playback.start_position));
         let sample_clip = |point: &NormalizedBlendSpacePoint| ctx.graph_context.graph.edges_inverted
             .get(&bevy_animation_graph::core::animation_graph::TargetPin::NodeData(ctx.node_id, Self::pose_pin(&point.id)))
             .and_then(|source| match source {
@@ -722,13 +728,15 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let mut marker_advance = None;
         let mut leader_sample_time = resolved_source_sync_sample_time(&ctx)?;
         let resolved_time = leader_sample_time.is_some();
+        if !uses_marker_phase || (reset_instance_markers && resolved_time) {
+            marker_records.fill(None);
+        }
         let resolved_record = crate::extensions::sync_group_phase::resolved_source_marker_record(
             &ctx, &leader_markers, leader_duration, sample_clips[leader_index].clone())?;
         let resolved_previous_time = crate::extensions::sync_group_phase::resolved_source_sync_previous_time(&ctx)?;
         let length_ratios = self.playback.as_ref()
             .map(|playback| crate::extensions::sync_group_phase::resolved_source_sync_length_ratios(&ctx, &playback.key)).transpose()?.flatten();
         let phase = if let Some(playback) = &self.playback {
-            let delta_seconds = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key)?;
             let play_rate = if playback.play_rate_key.is_empty() {
                 1.0
             } else {
@@ -747,6 +755,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 self.player_tick(playback, leader_index, previous.map(|tick| tick.phase), delta_seconds, play_rate,
                     &phase_markers, &leader_markers);
             tick.length_play_rate = Some(play_rate * leader_duration * normalized_speed);
+            tick.blend_space_normalized_time = previous_normalized_time;
             if !uses_marker_phase { tick.play_rate = tick.length_play_rate.unwrap(); }
             tick.sample_time_hint = Some(sample_times[leader_index]
                 .unwrap_or(playback.start_position * leader_duration));
@@ -783,9 +792,14 @@ impl NodeLike for NormalizedBlendSpaceNode {
         } else {
             normalize_phase(ctx.data_back(IN_PHASE)?.as_f32()?, sample_looped)
         };
-        let leader_hint = sample_times[leader_index].unwrap_or_else(|| self.playback.as_ref()
-            .map_or_else(|| phase_to_time(phase, leader_duration, sample_looped),
-                |playback| playback.start_position * leader_duration));
+        let leader_hint = previous_normalized_time
+            .filter(|_| reset_instance_markers && uses_marker_phase && delta_seconds != 0.0
+                && marker_advance.as_ref().and_then(|advance| advance.start.as_ref()).is_some_and(|position| position.is_valid()))
+            .map(|time| time * leader_duration)
+            .or(sample_times[leader_index])
+            .unwrap_or_else(|| self.playback.as_ref()
+                .map_or_else(|| phase_to_time(phase, leader_duration, sample_looped),
+                    |playback| playback.start_position * leader_duration));
         let mut map_time = |index: usize, markers: &[SyncMarker], duration: f32, hint: f32, has_history: bool| {
             if let Some(advance) = marker_advance.as_ref() {
                 if !has_history { marker_records[index] = None; }
@@ -855,6 +869,13 @@ impl NodeLike for NormalizedBlendSpaceNode {
         if self.playback.is_some() {
             state.sample_times = sample_times;
             state.marker_records = marker_records;
+            state.normalized_time = Some(if !uses_marker_phase && let Some(ratios) = length_ratios {
+                ratios.y
+            } else if leader_duration > 0.0 {
+                leader_time / leader_duration
+            } else {
+                0.0
+            });
         }
         let context = &mut state.context;
         context.curves = curves;
@@ -1118,6 +1139,146 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn blend_space_reentry_rebuilds_native_leader_and_follower_clocks() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, GraphInputPin},
+            animation_node::AnimationNode, context::{deferred_gizmos::DeferredGizmos,
+                graph_context::QueryOutputTime, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, skeleton::Skeleton, state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{
+            SourceMultiWayBlendNode, SourcePosePassthroughNode, SourceSequencePlayerNode,
+            source_sequence_player::SourceSequenceSynchronization,
+        };
+
+        #[derive(Deserialize)]
+        struct Clip {
+            duration: f32,
+            rate_scale: f32,
+            markers: Vec<SyncMarker>,
+        }
+        #[derive(Deserialize)]
+        struct Frame {
+            delta: f32,
+            weights: [Option<f32>; 2],
+            clock: Option<[f32; 2]>,
+            run: bool,
+            boundary: bool,
+            normalized: f32,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            cases: Vec<Case>,
+            walk: Clip,
+            run: Clip,
+            sequence: Clip,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d213/normalized.replay.json"
+        )).unwrap();
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
+        let clip = world.resource_mut::<Assets<GraphClip>>().add(GraphClip {
+            duration: reference.sequence.duration, skeleton: skeleton.clone(), ..default()
+        });
+        let space = AnimationNode::new("WalkRun", NormalizedBlendSpaceNode {
+            points: [(&reference.walk, "walk", Vec2::ZERO), (&reference.run, "run", Vec2::Y)].into_iter()
+                .map(|(clip, name, point)| NormalizedBlendSpacePoint {
+                    id: name.into(), point, duration: clip.duration, asset_rate_scale: clip.rate_scale,
+                    markers: clip.markers.clone(), ..default()
+                }).collect(),
+            phase_duration: reference.walk.duration,
+            phase_markers: reference.walk.markers.clone(),
+            looped: true,
+            playback: Some(SourceSyncPlayerBinding {
+                key: "Movement".into(), start_position: 0.2, delta_seconds_key: "delta".into(), ..default()
+            }),
+            ..default()
+        });
+        let sequence = AnimationNode::new("Crouch", SourceSequencePlayerNode {
+            clip, start_position: 0.8, loop_animation: true, asset_rate_scale: reference.sequence.rate_scale,
+            expose_play_rate_pin: false, expose_start_position_pin: false, expose_loop_animation_pin: false,
+            synchronization: Some(SourceSequenceSynchronization {
+                key: "Movement".into(), delta_seconds_key: "delta".into(),
+                phase_duration: reference.walk.duration, phase_markers: reference.walk.markers,
+                markers: reference.sequence.markers, ..default()
+            }),
+            ..default()
+        });
+        let blend = AnimationNode::new("Blend", SourceMultiWayBlendNode {
+            desired_alpha_keys: vec!["space".into(), "sequence".into()],
+            desired_alpha_defaults: vec![0.0, 0.0], reference_skeleton: skeleton.clone(), ..default()
+        });
+        let root = AnimationNode::new("Sync", SourcePosePassthroughNode {
+            synchronize_groups: true, output_time: false, ..default()
+        });
+        let mut graph = AnimationGraph::new();
+        for node in [&space, &sequence, &blend, &root] {
+            graph.add_node(node.clone());
+        }
+        graph.add_input_data_edge(GraphInputPin::passthrough(IN_POSITION), space.id, IN_POSITION);
+        graph.set_default_data(GraphInputPin::passthrough("sample"), Pose { skeleton, ..default() }.into());
+        for name in ["walk", "run"] {
+            graph.add_input_data_edge(GraphInputPin::passthrough("sample"), space.id, NormalizedBlendSpaceNode::pose_pin(name));
+            graph.add_input_time_edge(GraphInputPin::passthrough(NormalizedBlendSpaceNode::time_pin(name)),
+                space.id, NormalizedBlendSpaceNode::time_pin(name));
+        }
+        graph.add_node_parameter_edge(space.id, OUT_POSE, blend.id, "Poses 0");
+        graph.add_node_parameter_edge(sequence.id, "Pose", blend.id, "Poses 1");
+        graph.add_node_parameter_edge(blend.id, "Pose", root.id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(root.id, "Pose", "Pose");
+        let space_id = space.id;
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        world.run_system_once(move |resources: SystemResources| {
+            let mut graph = resources.animation_graph_assets.get(&handle).unwrap().clone();
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            for case in &reference.cases {
+                let mut arena = GraphContextArena::new(handle.id());
+                for (index, frame) in case.frames.iter().enumerate() {
+                    let inputs = HashMap::from([
+                        ("delta".into(), DataValue::F32(frame.delta)),
+                        ("space".into(), DataValue::F32(frame.weights[0].unwrap_or_default())),
+                        ("sequence".into(), DataValue::F32(frame.weights[1].unwrap_or_default())),
+                    ]);
+                    graph.set_default_data(GraphInputPin::passthrough(IN_POSITION),
+                        DataValue::Vec2(if frame.run { Vec2::Y } else { Vec2::ZERO }));
+                    graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(frame.delta)),
+                        GraphContext::new(arena.get_toplevel_id(), &graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                    let state = arena.get_toplevel().node_states.get::<NormalizedBlendSpaceState>(space_id, StateKey::Default).unwrap();
+                    if let Some([previous, position]) = frame.clock {
+                        let clock = state.context.relevant_asset.as_ref().unwrap();
+                        if frame.boundary {
+                            assert_eq!(clock.previous_position, previous, "{} at frame {index}", case.name);
+                        }
+                        assert!((clock.position - position).abs() < EPSILON, "{} at frame {index}", case.name);
+                    } else {
+                        assert!(!arena.get_toplevel().node_caches.is_updated(space_id, StateKey::Default));
+                    }
+                    assert!((state.normalized_time.unwrap() - frame.normalized).abs() < EPSILON, "{} at frame {index}", case.name);
+                }
+            }
+        }).unwrap();
     }
 
     #[test]

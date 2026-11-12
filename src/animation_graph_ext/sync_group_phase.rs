@@ -105,6 +105,7 @@ pub struct SourceSyncPlayerTick {
     pub selected_leader: bool,
     pub ticked_as_leader: bool,
     pub resolved_length_ratio: Option<f32>,
+    pub blend_space_normalized_time: Option<f32>,
     pub phase: f32,
     pub previous_phase: f32,
     pub previous_marker_record: Option<SourceMarkerRecord>,
@@ -423,6 +424,9 @@ pub fn resolve_source_sync_phases(
             grouped.phase_markers.retain(|marker| common.contains(&marker.name));
             if reset_marker_before_tick(leader) {
                 grouped.previous_marker_record = None;
+                if !common.is_empty() && let Some(normalized_time) = grouped.blend_space_normalized_time {
+                    grouped.sample_time_hint = Some(normalized_time * grouped.duration);
+                }
             }
             if common.is_empty() {
                 grouped.play_rate = grouped.length_play_rate.unwrap_or(grouped.play_rate);
@@ -477,7 +481,7 @@ pub fn resolve_source_sync_phases(
                     } else { grouped.advance(phase) }
                 }
             } else {
-                let previous_time = leader.sample_time_hint.or_else(|| previous.iter()
+                let previous_time = grouped.sample_time_hint.or_else(|| previous.iter()
                     .find(|prior| prior.identity == leader.identity && prior.source_asset == leader.source_asset
                         && (prior.duration - leader.duration).abs() <= EPSILON)
                     .map(|prior| marker_phase_sample_time(prior.phase, prior.phase_duration,
@@ -916,7 +920,7 @@ pub fn marker_phase_sample_time_near(
 }
 
 impl SyncMarkerPosition {
-    fn is_valid(&self) -> bool { !self.previous.is_empty() && !self.next.is_empty() }
+    pub(crate) fn is_valid(&self) -> bool { !self.previous.is_empty() && !self.next.is_empty() }
 }
 
 #[derive(Reflect, Clone, Debug)]
@@ -1578,6 +1582,7 @@ mod tests {
             selected_leader: false,
             ticked_as_leader: false,
             resolved_length_ratio: None,
+            blend_space_normalized_time: None,
         };
         let old = tick(old_id, old_clip.clone(), 0.8, false);
         let mut joining = tick(new_id, new_clip.clone(), 0.2, true);

@@ -7354,7 +7354,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧native fixture通过平滑轴切换，让新样本先作为follower取得时间，未覆盖首次相关即为leader。大步长stride=0诊断超出当前源曲线最小0.2，不用其大幅结果提升优先级；本项仅确认合法小步长入口，不宣称肉眼故障或默认场景自然发生。证据`target/bf144/128/edge-both-analysis.json`、`edge-history-analysis.json`及一次恢复记录；未修生产。
   - BF144.136多组小步长补充：首次delta≤0.0001使源轴过滤保持初值0，下一普通帧才产生新的最高权重样本；原始stride输入始终在0.2–1。36条固定组历史在第1帧各只恢复一次新样本的源marker相位起点，失败帧从3438降到252，剩余近零语义和重建误差分别归D217/D213。原Forward四条历史中前三条各95帧左脚旋转改变，最大分量差约4.88e−5、角差约0.0058°，101µs控制保持；未泛化默认世界自然触发。证据`target/bf144/136/history-analysis.json`、`pose-consumers.json`。
 
-- [ ] BF144-D213 / P3 — BlendSpace记录重建误用样本秒数，未保留播放器归一化时间。
+- [x] BF144-D213 / P3 — BlendSpace记录重建误用样本秒数，未保留播放器归一化时间。
+  - 2026-11-12 09:35 +0800 实际结束，较10:15预估提前40分钟，未拆分。fresh 7条150帧原生，覆盖归一化乘回、短样本接替及follower previous；保留旧秒数使3条重建路径失配，清理follower本地样本记录使2条previous失配。证据与真实同步出口夹具见 `docs/audit/bf144/d213/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 09:25 +08:00，预估结束2026-11-12 10:15 +08:00。重采原BlendSpace的归一化累计、leader重建与follower previous，保留实例和样本记录的各自生命周期。
   - Source：fresh `BlendSpace.cpp:600,704–710,745`把TimeAccumulator保留为归一化值；组记录无效时，将leader时间重新设为NormalizedCurrentTime×sample length，再建marker记录并推进。先前归一化除法和重入乘法均为float，不能省去这一往返而称为逐值等价。
   - Target：`normalized_blendspace.rs:745–751`从sample_times取原秒数作为hint；`sync_group_phase.rs:459–466`在没有上一帧组时直接从该秒数推进。即使提前清理D209的旧记录，也没有按源保留的归一化值重建秒数。
   - 反例/恢复：原生Forward播放器预热13帧后time=0.4433335066，其归一化值重建为0.4433335364；空3帧再进入后，源previous/time为0.4433335364/0.460000217，目标为0.4433335066/0.460000187。原方向FSM与缓存的56帧入口保留26个残差帧，最大约0.119µs；只在整组重新出现时补该重建，记录清理控制下所有时钟/marker逐值一致。左脚四元数24帧受影响，最大分量差约1.49e−7。
