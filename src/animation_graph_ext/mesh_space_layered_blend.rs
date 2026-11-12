@@ -117,11 +117,13 @@ fn blend_source_mesh_rotation(base: DQuat, target: DQuat, weight: f32) -> DQuat 
     if weight == 0.0 {
         return base;
     }
+    if weight == 1.0 {
+        return target;
+    }
     let dot = base.x * target.x + base.y * target.y + base.z * target.z + base.w * target.w;
     let bias = if dot < 0.0 { -1.0 } else { 1.0 };
     let weight = f64::from(weight);
-    let rotation = normalize_source_rotation(target * weight + base * (bias * (1.0 - weight)));
-    if weight == 1.0 { normalize_source_rotation(rotation) } else { rotation }
+    normalize_source_rotation(target * weight + base * (bias * (1.0 - weight)))
 }
 
 pub(crate) fn blend_layered_source_poses(
@@ -205,6 +207,8 @@ pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(
         let weight = (alpha * mask_weight).clamp(0.0, 1.0);
         let rotation = if weight <= WEIGHT_THRESHOLD {
             source_mesh[index]
+        } else if weight >= 1.0 - crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD {
+            overlay_mesh[index]
         } else {
             let source_rotation = source_mesh[index];
             let overlay_rotation = overlay_mesh[index];
@@ -216,12 +220,11 @@ pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(
                     overlay_rotation
                 };
                 let blended = source_rotation * (1.0 - weight) + overlay_rotation * weight;
-                let normalized = normalize_pose_rotation(blended);
-                normalize_pose_rotation(normalized)
+                normalize_pose_rotation(blended)
             }
             #[cfg(not(target_arch = "aarch64"))]
             {
-                source_rotation.lerp(overlay_rotation, weight).normalize()
+                source_rotation.lerp(overlay_rotation, weight)
             }
         };
         output_mesh.push(rotation);
@@ -235,12 +238,10 @@ pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(
         {
             continue;
         }
-        let local = normalize_pose_rotation(
-            parent
-                .and_then(|parent| output_mesh.get(parent).copied())
-                .map(|parent| source_pose_rotation_product(parent.inverse(), rotation))
-                .unwrap_or(rotation),
-        );
+        let local = parent
+            .and_then(|parent| output_mesh.get(parent).copied())
+            .map(|parent| normalize_pose_rotation(source_pose_rotation_product(parent.inverse(), rotation)))
+            .unwrap_or(rotation);
         if let Some(index) = base.paths.get(&bone).copied() {
             base.bones[index].rotation = Some(local);
         } else {
@@ -418,6 +419,20 @@ mod tests {
         mask.add_bone_weight(child, skeleton.id_to_path(child).unwrap().clone(), 1.0);
         apply_mesh_space_layered_blend(&mut base, &overlay, 0.5, &mask, &skeleton);
         assert!(close_rotation(base.get_bone(child).unwrap().rotation.unwrap(), rotation));
+    }
+
+    #[test]
+    fn layered_full_weight_keeps_the_target_component_rotation() {
+        let (skeleton, root, _) = skeleton();
+        let rotation = Quat::from_xyzw(0.0, 0.0, 0.0, 0.99999994);
+        let mut base = Pose::default();
+        base.add_bone(BonePose { rotation: Some(Quat::IDENTITY), ..default() }, root);
+        let mut overlay = Pose::default();
+        overlay.add_bone(BonePose { rotation: Some(rotation), ..default() }, root);
+        let mut mask = BoneMask::none();
+        mask.add_bone_weight(root, skeleton.id_to_path(root).unwrap(), 1.0);
+        apply_mesh_space_layered_blend(&mut base, &overlay, 0.999995, &mask, &skeleton);
+        assert_eq!(base.get_bone(root).unwrap().rotation, Some(rotation));
     }
 
     #[test]

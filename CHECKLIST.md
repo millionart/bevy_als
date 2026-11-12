@@ -7765,7 +7765,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 最小反例：真实加载角色ViewDirection/Running，velocity runtime yaw=45°、view radians=2.094395160675049。原生source角75°应Forward，实际provider角75.00000762939453°发布Right；velocity5°时源115°应Right，目标115.00000762939453°变Backward，负对称亦复现。207组中4个producer失败；原Standing T7/T19/T3/T2规则共828个bool消费有8个不同，只恢复source分类后全对齐，18 Sprint/VelocityDirection强制Forward及其余203组方向控制保持。
   - 漏检/边界：2400帧正常矩阵使用View0，没有经过非零view换算临界；旧分类单元直接给degree，未覆盖实际provider的radians→f32 degree→差分。此处为独立Movement producer/规则合同，不是D174的QuickStop body/index/rate链；不宣称默认世界自然触发、整个FSM更新集合或可见姿态故障。证据`target/bf144/192/yaw-native-check.json`、`direction-consumer-check.json`及`yaw-detailed.json`。仅登记，生产未改。
 
-- [ ] BF144-D238 / P3 — Mesh-space LayeredBoneBlend整权重端点仍插值并单位化组件旋转。
+- [x] BF144-D238 / P3 — Mesh-space LayeredBoneBlend整权重端点仍插值并单位化组件旋转。 开始：2026-11-12 15:58:53 +08:00；预估结束：2026-11-12 16:23:53 +08:00。
+  - 实际结束：2026-11-12 16:01:41 +08:00；偏差：−22分12秒；结果：静态Gate PASS。整权重直接copy组件旋转、部分权重单次Normalize，父空间还原保留局部Normalize。948个新鲜原生骨骼逐值通过，含132部分权重；加回整权重两次Normalize改变202 double/14 f32。Rust近满fixture后置。证据 `docs/audit/bf144/d238/summary.json`。
   - Source：fresh `AnimationRuntime.cpp:2217–2257`在`FAnimWeight::IsFullWeight`时直接取TargetAtom/TargetRotations，转回局部空间时才按父组件quat求逆相乘并Normalize。当前Crouch Stop左右两层权重均1、16骨骼全覆盖，确实走该端点分支；真实原Layered模板34组/2686骨骼与独立double求值f64精确。
   - Target：`mesh_space_layered_blend.rs:131–137`对所有非零mask执行`source_rotation.lerp(overlay_rotation, weight).normalize()`；当前glam0.32.1的Quat::lerp内部已有normalize，外层再做一次。即使weight=1仍增加两次组件空间归一化；与D231源末尾归一化缺失、D123未单位化多方混合的贡献被改变均为不同阶段合同。
   - 最小反例：真实30Hz Crouch Stop第60帧、foot_r的runtime w=0.9499311447143555，同一实际Base/固定叶输入的原生应0.9499310851097107。保持f32、所有输入/parent乘法/求逆/末尾normalize，仅恢复全权重copy即为原生值；ball_r的runtime y也从−0.658962607383728恢复−0.6589625477790833。完整1343骨骼旋转原实现重放精确；copy控制改变102骨骼、恢复34个原生分量，1071 Base骨骼控制不变。单独去掉外层normalize或仅保留一次均改变51骨骼；此处只确认当前weight1，不声称近全权重或可见故障。
