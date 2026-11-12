@@ -1043,7 +1043,9 @@ pub(crate) mod tests {
         let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
         ready_roll_player(&mut app, avatar);
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        while *app.world().get::<LocomotionState>(character).unwrap() != LocomotionState::Grounded {
+        while app.world().get::<crate::als::character::AlsBirthAnimationPending>(character).is_some()
+            || app.world().get::<crate::als::character::AlsInitialMovementModePending>(character).is_some()
+            || *app.world().get::<LocomotionState>(character).unwrap() != LocomotionState::Grounded {
             app.update();
             assert!(std::time::Instant::now() < deadline, "Roll fixture did not reach the ground");
         }
