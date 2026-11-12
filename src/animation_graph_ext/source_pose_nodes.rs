@@ -430,7 +430,7 @@ impl NodeLike for SourceTwoWayBlendNode {
         } else {
             (Pose::default(), None)
         };
-        let contexts = [
+        let mut contexts = [
             (
                 context_a.unwrap_or_default(),
                 if b_is_relevant { 1.0 - alpha } else { 1.0 },
@@ -453,10 +453,20 @@ impl NodeLike for SourceTwoWayBlendNode {
                 .map(|(pose, source)| (pose, Some(source)))
                 .unwrap_or_else(|| (blend_source_poses(&poses), None))
         };
+        let curves = if a_is_relevant && b_is_relevant {
+            let [(a, _), (b, _)] = &mut contexts;
+            Some(take_lerped_curves(a, b, alpha))
+        } else {
+            None
+        };
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
         let mut context = blend_animation_contexts(contexts);
         context.source_pose = source_pose;
+        if let Some((curves, authoritative)) = curves {
+            context.curves = curves;
+            context.curves_are_authoritative = authoritative;
+        }
         let state = ctx.state_mut::<SourceTwoWayBlendState>()?;
         state.context = context;
         state.child_contexts = child_contexts;
@@ -1080,6 +1090,51 @@ fn source_pose_normalization_retains_the_second_double_pass() {
     assert_eq!(two.get_bone(bone).unwrap().rotation.unwrap().z, -0.4561729);
 }
 
+fn take_lerped_curves(
+    a: &mut AnimationContextState,
+    b: &mut AnimationContextState,
+    alpha: f32,
+) -> (crate::extensions::SourceCurveValues, bool) {
+    use crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD;
+
+    let mut first = std::mem::take(&mut a.curves);
+    let second = std::mem::take(&mut b.curves);
+    if alpha.abs() <= WEIGHT_THRESHOLD {
+        return (first, a.curves_are_authoritative);
+    }
+    if (alpha - 1.0).abs() <= WEIGHT_THRESHOLD {
+        return (second, b.curves_are_authoritative);
+    }
+    for (key, value) in &mut first {
+        *value = blend_curve_value(*value, second.get(key).copied().unwrap_or_default(), alpha);
+    }
+    for (key, value) in second {
+        first.entry(key).or_insert_with(|| blend_curve_value(0.0, value, alpha));
+    }
+    (first, a.curves_are_authoritative || b.curves_are_authoritative)
+}
+
+#[test]
+fn two_way_lerp_keeps_equal_curves_and_interpolates_missing_values_from_zero() {
+    let key = crate::extensions::SourceCurveName::from;
+    let planted = 0.24301831424236298;
+    let alpha = 0.7407407164573669;
+    let mut a = AnimationContextState {
+        curves: [(key("FootPlanted"), planted), (key("A"), 1.0)].into(),
+        curves_are_authoritative: true,
+        ..default()
+    };
+    let mut b = AnimationContextState {
+        curves: [(key("FootPlanted"), planted), (key("B"), 1.0)].into(),
+        ..default()
+    };
+    let (curves, authoritative) = take_lerped_curves(&mut a, &mut b, alpha);
+    assert!(authoritative);
+    assert_eq!(curves[&key("FootPlanted")], planted);
+    assert_eq!(curves[&key("A")], 1.0 - alpha);
+    assert_eq!(curves[&key("B")], alpha);
+}
+
 pub(crate) fn blend_list_pose_and_context(
     mut poses: Vec<(Pose, f32)>,
     mut contexts: Vec<(AnimationContextState, f32)>,
@@ -1099,22 +1154,7 @@ pub(crate) fn blend_list_pose_and_context(
         [(_, first), (_, second)] if (first + second - 1.0).abs() <= 1e-8 => {
             let alpha = 1.0 - first;
             if let [(a, _), (b, _)] = contexts.as_mut_slice() {
-                let mut first_curves = std::mem::take(&mut a.curves);
-                let second_curves = std::mem::take(&mut b.curves);
-                curves = Some(if alpha.abs() <= WEIGHT_THRESHOLD {
-                    (first_curves, a.curves_are_authoritative)
-                } else if (alpha - 1.0).abs() <= WEIGHT_THRESHOLD {
-                    (second_curves, b.curves_are_authoritative)
-                } else {
-                    let lerp = |left: f32, right: f32| left + (right - left) * alpha;
-                    for (key, value) in &mut first_curves {
-                        *value = lerp(*value, second_curves.get(key).copied().unwrap_or_default());
-                    }
-                    for (key, value) in second_curves {
-                        first_curves.entry(key).or_insert_with(|| lerp(0.0, value));
-                    }
-                    (first_curves, a.curves_are_authoritative || b.curves_are_authoritative)
-                });
+                curves = Some(take_lerped_curves(a, b, alpha));
             }
             let weights = [*first, alpha];
             blend_precise_poses(&poses, &contexts, weights.into_iter(), 1)

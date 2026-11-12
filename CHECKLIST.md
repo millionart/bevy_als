@@ -7715,7 +7715,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.330 Grounded共同输入扩展：actual runtime输入可逆lift到source厘米/double后按原独立权重、累加和末归一化，28帧/2212骨中当前T1049/S120行不等，峰5.9604645e-8m/1.1920929e-7；当前公共float helper逐骨精确，112 native同输入及4实际峰值原double raw/final全精确。nlerp控制保留相同T/S差，分离了D177；1861个余旋转行还含投影/归一化及算序共同因素，不将全部余差或各控制差值相加归本项。当前212直接Grounded帧无额外变化，原数据带来的上游差继续另查。证据`target/bf144/330/direct-check.json`、`analysis.json`、`native-check.json`与`focus-check.json`。
 
-- [ ] BF144-D233 / P3 — TwoWay及gait双姿态消费者的曲线用加权求和替代源三参数Lerp。
+- [x] BF144-D233 / P3 — TwoWay及gait双姿态消费者的曲线用加权求和替代源三参数Lerp。 开始：2026-11-12 15:36:21 +08:00；预估结束：2026-11-12 15:56:21 +08:00。
+  - 实际结束：2026-11-12 15:38:53 +08:00；偏差：−17分28秒；结果：静态Gate PASS。共享FBlendedCurve三参数Lerp及端点合同，七条原生值精确，两个同值反例撤回Lerp即失败。D216的26帧gait回放精确，TwoWay求值补数继续D234，Rust fixture后置。证据 `docs/audit/bf144/d233/summary.json`。
   - Source：fresh `AnimNode_TwoWayBlend.cpp:139`调用BlendTwoPosesTogetherInPlace；`AnimationRuntime.cpp:535–545`回算WeightOfPoseTwo后对curve使用FBlendedCurve::Lerp，`AnimCurveTypes.h:692–716`进入FMath::Lerp，`UnrealMathUtility.h:1123–1125`执行A+Alpha×(B−A)。两端相同有限float值时差值为0，输出保持原值。单边相关时直接传递，不是此反例。
   - Target：`source_pose_nodes.rs:430–448,972–985`将两个子context按1−alpha/alpha送入blend_animation_contexts，逐项value×weight后相加；与源曲线求值顺序不同。这不是D224曲线数据或D228时间格点，也独立于骨骼D231/D232。
   - 实际反例：30Hz crouch-directions第2帧Standing SprintBlock节点，两子输入FootPlanted均0.24301831424236298，alpha=0.7407407164573669；实际目标和同式加权控制均0.24301832914352417，原生Lerp为0.24301831424236298。第4帧两端0.2274143546819687、alpha0.2592592239379883，目标0.2274143397808075，source保持前值。读取原生FBlendedCurve两种算子及实际父输入共同确认；此两例alpha补数往返本身精确，不把另一个候选混入根因。

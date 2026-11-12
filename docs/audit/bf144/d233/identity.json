@@ -1,0 +1,18 @@
+[
+  {
+    "path": "docs/audit/bf144/d216/pose.replay.json",
+    "sha256": "d378f26a40b5a601d8ef9215098424d6ebd7c0c599530c8574ff2b440a778a18"
+  },
+  {
+    "path": "docs/audit/bf144/d233/curves.request.json",
+    "sha256": "b639034b8c0be06d1a0f9a725af22c1a3f865760b98e12c720fce7c1e4b3cedd"
+  },
+  {
+    "path": "docs/audit/bf144/d233/replay_curves.py",
+    "sha256": "368e2baa2e2dbc95b5e4cb5bce341fe71c89b82a518674db1f0316e4c9258502"
+  },
+  {
+    "path": "src/animation_graph_ext/source_pose_nodes.rs",
+    "sha256": "51cd14a69e66bc22060c54409a5e70646e124f2704827288de96f7ada612a35e"
+  }
+]
