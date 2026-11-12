@@ -653,6 +653,19 @@ fn rotation_response_system(
 }
 
 #[cfg(test)]
+pub(crate) fn spatial_query_test_app() -> App {
+    let mut app = App::new();
+    app.add_plugins((
+        MinimalPlugins,
+        bevy::asset::AssetPlugin::default(),
+        bevy::mesh::MeshPlugin,
+        TransformPlugin,
+        avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+    ));
+    app
+}
+
+#[cfg(test)]
 mod rotation_cap_tests {
     use crate::als::character::{
         AlsCharacterBundle, AlsCharacterPlugin, als_character_capsule,
@@ -1200,8 +1213,8 @@ mod rotation_cap_tests {
     #[test]
     fn spawn_movement_mode_uses_registered_floor_before_physics() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .insert_resource(Assets::<AlsMovementParams>::default())
             .add_message::<StateTransitionEvent>();
         app.finish();
@@ -6088,8 +6101,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (wall, floor, expect_walkable, expect_penetration) in [(true, false, false, true),
             (true, true, true, true), (false, true, true, false), (false, false, false, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             let wall_entity = wall.then(|| app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.5, 4.0, 4.0),
                 Transform::from_xyz(0.35, 100.0, 0.0))).id());
@@ -6294,8 +6306,7 @@ mod tests {
         for (body, sensor, actor_speed, expected) in [(RigidBody::Dynamic, true, 3.75, 0.025),
             (RigidBody::Dynamic, false, 3.75, 0.0), (RigidBody::Kinematic, true, 3.75, 0.0),
             (RigidBody::Dynamic, true, 0.0, 0.0)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             let actor = app.world_mut().spawn((AlsCharacter, Position(Vec3::ZERO), LinearVelocity(Vec3::X * actor_speed))).id();
             let other = app.world_mut().spawn((body, Collider::sphere(0.2), Transform::from_xyz(0.45, 0.0, 0.0),
@@ -6401,8 +6412,8 @@ mod tests {
             (RigidBody::Dynamic, 0.005, 1.5), (RigidBody::Dynamic, 0.1, 75.0),
             (RigidBody::Dynamic, -0.1, 75.0), (RigidBody::Static, 0.0, 0.0),
             (RigidBody::Kinematic, 0.0, 0.0)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<SourceCharacterImpact>();
             app.finish();
             let wall = app.world_mut().spawn((body, Collider::cuboid(0.1, 4.0, 4.0),
@@ -6434,8 +6445,8 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (body, wall_x, expected) in [(RigidBody::Dynamic, 0.42, 1.5),
             (RigidBody::Static, 0.42, 0.0), (RigidBody::Dynamic, 0.8, 0.0)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<SourceCharacterImpact>();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
@@ -6501,8 +6512,8 @@ mod tests {
         use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
         use bevy::ecs::system::RunSystemOnce;
         for (height, center_y, stepped, expected) in [(0.2, 0.1, true, 0.0), (0.1, 1.7, false, 1.5)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<SourceCharacterImpact>();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
@@ -6534,8 +6545,8 @@ mod tests {
         use avian3d::dynamics::integrator::VelocityIntegrationData;
         use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<SourceCharacterImpact>();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
@@ -6568,8 +6579,7 @@ mod tests {
     fn slide_records_only_the_sweeps_that_hit() {
         use bevy::ecs::system::RunSystemOnce;
         for third_wall in [false, true] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             let first = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 2.0, 0.1),
                 Transform::from_xyz(0.0, 1.0, -0.6).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4)))).id();
@@ -6595,8 +6605,8 @@ mod tests {
         use avian3d::dynamics::integrator::VelocityIntegrationData;
         use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<SourceCharacterImpact>();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
@@ -6635,8 +6645,8 @@ mod tests {
         use avian3d::dynamics::integrator::VelocityIntegrationData;
         use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<SourceCharacterImpact>();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0), Transform::from_xyz(0.0, -0.1, 0.0)));
@@ -6666,8 +6676,8 @@ mod tests {
         use avian3d::prelude::{LockedAxes, Mass, NoAutoMass};
         use bevy::ecs::system::RunSystemOnce;
         for blocked in [false, true] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<SourceCharacterImpact>();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0), Transform::from_xyz(0.0, -0.1, 0.0)));
@@ -6736,8 +6746,8 @@ mod tests {
         for (body, landing_allowed, expected) in [(RigidBody::Dynamic, true, -1.5),
             (RigidBody::Dynamic, false, 0.0), (RigidBody::Static, true, 0.0),
             (RigidBody::Kinematic, true, 0.0)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<SourceCharacterImpact>();
             app.finish();
             let floor = app.world_mut().spawn((body, Collider::cuboid(4.0, 0.2, 4.0),
@@ -6800,8 +6810,8 @@ mod tests {
             (RigidBody::Static, 100.0, 1.0, 1.0, 0.0),
             (RigidBody::Kinematic, 100.0, 1.0, 1.0, 0.0),
         ] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .insert_resource(Assets::<AlsMovementParams>::default());
             app.finish();
             let platform = app.world_mut().spawn((body, Collider::cuboid(4.0, 0.2, 4.0),
@@ -6896,8 +6906,8 @@ mod tests {
     fn falling_landing_jumps_off_forbidden_pawns() {
         use bevy::ecs::system::RunSystemOnce;
         for (pawn, allowed) in [(true, false), (true, true), (false, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<StateTransitionEvent>();
             app.finish();
             let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
@@ -6937,8 +6947,8 @@ mod tests {
     fn spawn_rejects_forbidden_pawn_bases() {
         use bevy::ecs::system::RunSystemOnce;
         for (pawn, allowed) in [(true, false), (true, true), (false, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .insert_resource(Assets::<AlsMovementParams>::default()).add_message::<StateTransitionEvent>();
             app.finish();
             let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
@@ -7329,8 +7339,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for angle in [20.0_f32, 40.0] {
             for ceiling in [false, true] {
-                let mut app = App::new();
-                app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+                let mut app = spatial_query_test_app();
                 app.finish();
                 let rotation = Quat::from_rotation_z(angle.to_radians());
                 let normal = rotation * Vec3::Y;
@@ -7397,8 +7406,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (angle, allows_step, wall) in [(40.0_f32, false, true), (40.0, true, true),
             (40.0, false, false), (60.0, false, true)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
                 Transform::from_xyz(-15.0, 1.9, -15.0)));
@@ -7513,8 +7521,7 @@ mod tests {
     fn rejected_step_sweeps_the_first_slide_before_each_walking_substep() {
         use bevy::ecs::system::RunSystemOnce;
         for (upper_hit, second_wall) in [(false, true), (true, true), (false, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
                 Transform::from_xyz(0.0, -0.1, 0.0)));
@@ -7629,8 +7636,7 @@ mod tests {
     #[test]
     fn free_walking_preserves_the_valid_floor_distance_band() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        let mut app = spatial_query_test_app();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 0.2, 10.0), Transform::from_xyz(0.0, -0.1, 0.0)));
         let actor = app.world_mut().spawn_empty().id();
@@ -7847,8 +7853,8 @@ mod tests {
     #[test]
     fn falling_rotated_wall_consumes_native_capsule_sweep_normal() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<StateTransitionEvent>();
         app.finish();
         let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 4.0, 2.0),
@@ -7889,8 +7895,8 @@ mod tests {
             (2.16, -12.36, 1.973, false), (2.215, -12.7, 1.973, false),
             (2.215, -12.7, 1.978, true), (2.29, -12.7, 1.973, false),
         ] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<StateTransitionEvent>();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
@@ -7989,8 +7995,7 @@ mod tests {
     fn floor_sweep_uses_convex_impact_face_at_a_steep_edge() {
         use bevy::ecs::system::RunSystemOnce;
         for angle in [30.0_f32, 60.0] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             let slope = angle.to_radians().tan();
             let mut points = Vec::new();
@@ -8030,8 +8035,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (top, pitch, expected) in [(2.16, 0.0_f32, true), (2.29, 0.0, false),
             (5.0, -0.003, false), (5.0, -0.03, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             let bottom = 1.0;
             let rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4) * Quat::from_rotation_z(pitch.to_radians());
@@ -8114,8 +8118,7 @@ mod tests {
     fn step_down_commits_a_miss_without_replaying_the_forward_move() {
         use bevy::ecs::system::RunSystemOnce;
         for width in [2.0, 2.9] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(width, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
@@ -8177,8 +8180,7 @@ mod tests {
     fn step_down_preserves_the_swept_gap_before_floor_adjustment() {
         use bevy::ecs::system::RunSystemOnce;
         for roof_bottom in [4.256, 4.28] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.5, 0.44, 2.0), Transform::from_xyz(-13.4, 2.22, -15.0)));
@@ -8203,8 +8205,7 @@ mod tests {
     fn unwalkable_step_down_rejects_only_opposed_or_high_hits() {
         use bevy::ecs::system::RunSystemOnce;
         for (yaw, contact_y, accepted) in [(0.0_f32, 2.88, true), (15.0, 2.88, false), (0.0, 2.94, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
@@ -8230,8 +8231,7 @@ mod tests {
     fn step_down_keeps_a_blocking_hit_when_the_perch_is_not_walkable() {
         use bevy::ecs::system::RunSystemOnce;
         for (deck_x, walkable) in [(-12.7, true), (-12.63, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 0.2, 1.3), Transform::from_xyz(deck_x, 2.08, -15.3)));
@@ -8281,8 +8281,7 @@ mod tests {
     fn two_wall_slide_sweeps_the_adjusted_direction_against_a_third_wall() {
         use bevy::ecs::system::RunSystemOnce;
         for third_wall in [false, true] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 2.0, 0.1),
                 Transform::from_xyz(0.0, 1.0, -0.6).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4))));
@@ -8307,8 +8306,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (two_walls, expected) in [(false, Vec2::new(-13.773913, -14.893581)),
             (true, Vec2::new(-13.802099, -14.883323))] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
@@ -8361,8 +8359,7 @@ mod tests {
     fn step_up_uses_the_source_edge_face_under_both_ceilings() {
         use bevy::ecs::system::RunSystemOnce;
         for (ceiling_bottom, expected_x) in [(4.07, -13.790219), (4.04, -13.821881)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             for (size, position) in [
                 (Vec3::new(4.0, 0.2, 4.0), Vec3::new(-15.0, 1.9, -15.0)),
@@ -8394,8 +8391,7 @@ mod tests {
     #[test]
     fn line_floor_retains_the_sweep_gap_used_by_the_slide_rule() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        let mut app = spatial_query_test_app();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(8.0, 0.2, 8.0), Transform::from_xyz(0.0, -0.1, 0.0)));
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 0.5, 4.0), Transform::from_xyz(0.15, 0.9215, 0.0)));
@@ -8416,8 +8412,7 @@ mod tests {
     fn step_up_flattens_a_downward_wall_only_near_the_old_floor() {
         use bevy::ecs::system::RunSystemOnce;
         for (gap, flattened) in [(0.018, true), (0.0215, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 3.0), Transform::from_xyz(-15.0, 1.9, -15.0)));
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 0.2, 0.02), Transform::from_xyz(-13.855, 2.08, -14.73)));
@@ -8445,8 +8440,7 @@ mod tests {
     fn step_up_retains_nonzero_submillimeter_progress() {
         use bevy::ecs::system::RunSystemOnce;
         for (front, accepted) in [(1.3845, false), (1.38638, true), (1.387, true)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             for (center, size) in [
                 (Vec3::new(-15.0, 1.9, -15.0), Vec3::new(4.0, 0.2, 3.0)),
@@ -8474,8 +8468,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (height, gap, accepted) in [(0.446, 0.0215, true), (0.449, 0.0215, true),
             (0.449, 0.003, true), (0.451, 0.0215, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 3.0),
                 Transform::from_xyz(-15.0, 1.9, -15.0)));
@@ -8528,8 +8521,8 @@ mod tests {
             (Vec3::Z, Vec3::new(0.0, -0.98087, -0.57504)),
             (Vec3::new(-0.5, 0.0, 0.75_f32.sqrt()), Vec3::new(-0.03079, -0.98087, -0.58047)),
         ] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<StateTransitionEvent>();
             app.finish();
             let rotation = Quat::from_rotation_y(-10.0_f32.to_radians()) * Quat::from_rotation_x(-60.0_f32.to_radians());
@@ -8572,8 +8565,8 @@ mod tests {
     #[test]
     fn falling_first_slope_hit_limits_only_inward_air_control() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<StateTransitionEvent>();
         app.finish();
         let rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4) * Quat::from_rotation_z(30.0_f32.to_radians());
@@ -8741,8 +8734,7 @@ mod tests {
     fn mantle_moving_base_writes_the_current_actor_parent_space() {
         use bevy::ecs::system::RunSystemOnce;
         use crate::als::mantle::MantleKind;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        let mut app = spatial_query_test_app();
         app.finish();
         app.update();
         for parented in [false, true] {
@@ -8882,8 +8874,8 @@ mod tests {
     fn falling_between_two_steep_slopes_lands_without_remaining_time() {
         use bevy::ecs::system::RunSystemOnce;
         for opposing in [false, true] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<StateTransitionEvent>();
             app.finish();
             for angle in [-60.0_f32, 60.0].into_iter().take(if opposing { 2 } else { 1 }) {
@@ -8963,8 +8955,7 @@ mod tests {
             (RigidBody::Dynamic, 1.0, 1.0, true, 5.0),
             (RigidBody::Dynamic, 1.0, 0.0, false, 0.0),
         ] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             let body = app.world_mut().spawn((kind, Transform::from_xyz(0.0, 2.0, 0.0),
                 LinearVelocity::ZERO, AngularVelocity::ZERO, GravityScale(0.0))).id();
@@ -9025,8 +9016,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (inside, blocked, direction) in [(true, false, 1.0_f32), (true, false, -1.0),
             (false, false, 1.0), (false, false, -1.0), (true, true, 1.0)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 4.0, 4.0), Transform::IDENTITY));
             if blocked {
@@ -9092,8 +9082,8 @@ mod tests {
     #[test]
     fn falling_substeps_clear_only_source_small_horizontal_velocity() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<StateTransitionEvent>();
         app.finish();
         let actor = app.world_mut().spawn_empty().id();
@@ -9167,8 +9157,8 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (ceiling, duration, expected_y) in [(true, 0.05_f32, 1.9961968_f32),
             (false, 0.05, 1.9977375), (true, 0.1, 1.9694), (false, 0.1, 1.97095)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<StateTransitionEvent>();
             app.finish();
             if ceiling {
@@ -9218,8 +9208,8 @@ mod tests {
     #[test]
     fn apex_ceiling_collision_preserves_source_air_control_timing() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<StateTransitionEvent>();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0), Transform::from_xyz(0.0, 2.9515, 0.0)));
@@ -9249,8 +9239,7 @@ mod tests {
     #[test]
     fn falling_overlap_combines_competing_mtds_when_the_first_sweep_is_blocked() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        let mut app = spatial_query_test_app();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 4.0, 4.0), Transform::IDENTITY));
         let normal = Vec3::new(0.5_f32.sqrt(), 0.0, -0.5_f32.sqrt());
@@ -9290,8 +9279,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         for (case, value) in [("floor-stuck", 3.0803), ("floor-positive", 3.077),
             ("slope-blocked", 0.0015), ("slope-escape", 0.00188)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             let start = Vec3::new(-13.0, 4.0, -15.0);
             let slope_case = case.starts_with("slope");
@@ -9362,8 +9350,8 @@ mod tests {
     fn third_impact_landing_discards_the_entire_remaining_frame() {
         use bevy::ecs::system::RunSystemOnce;
         for (floor_top, third_impact) in [(3.04, true), (3.065, false)] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<StateTransitionEvent>();
             app.finish();
             let slope_rotation = Quat::from_rotation_y(-10.0_f32.to_radians()) * Quat::from_rotation_x(-60.0_f32.to_radians());
@@ -9433,8 +9421,8 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         let mut baseline = None;
         for speed in [0.0, -2.0, 2.0] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            let mut app = spatial_query_test_app();
+            app
                 .add_message::<StateTransitionEvent>();
             app.finish();
             let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(1.0, 0.2, 2.0),
@@ -9575,8 +9563,7 @@ mod tests {
     #[test]
     fn walking_substep_keeps_unobstructed_velocity_at_landing_origins() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        let mut app = spatial_query_test_app();
         app.finish();
         let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 0.2, 100.0),
             Transform::from_xyz(0.0, -0.1, 0.0))).id();
@@ -9632,8 +9619,7 @@ mod tests {
             (Some(0.64), true, 0.1, false),
             (None, false, 0.1, false),
         ] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0),
                 Transform::from_xyz(0.0, -0.1, 0.0)));
@@ -9791,8 +9777,7 @@ mod tests {
     #[test]
     fn walking_floor_penetration_is_not_treated_as_a_missing_floor() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        let mut app = spatial_query_test_app();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0),
             Transform::from_xyz(0.0, -0.1, 0.0)));
@@ -9816,8 +9801,7 @@ mod tests {
             (None, 0.15, 4.2, None),
             (Some(0.001), 0.0, 4.2, None),
         ] {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+            let mut app = spatial_query_test_app();
             app.finish();
             let rotation = Quat::from_rotation_z(-40.0_f32.to_radians());
             let ledge = Vec3::new(0.0, 3.4, 0.0) - rotation * Vec3::Y * 0.311;
@@ -12550,8 +12534,8 @@ mod tests {
     #[test]
     fn falling_transaction_integrates_cached_walking_input_and_refreshes_in_air() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<StateTransitionEvent>();
         app.finish();
         let actor = app.world_mut().spawn_empty().id();
@@ -12585,8 +12569,8 @@ mod tests {
     #[test]
     fn landing_reuses_controlled_acceleration_and_reports_only_executed_walking_refresh() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+        let mut app = spatial_query_test_app();
+        app
             .add_message::<StateTransitionEvent>();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 0.2, 100.0), Transform::from_xyz(0.0, -0.1, 0.0)));

@@ -1147,10 +1147,9 @@ mod tests {
 
     #[test]
     fn foot_ground_probe_uses_mesh_origin_when_selected_marker_is_missing() {
-        use avian3d::prelude::{Collider, CollisionLayers, LayerMask, PhysicsPlugins, RigidBody};
+        use avian3d::prelude::{Collider, CollisionLayers, LayerMask, RigidBody};
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate)));
+        let mut app = crate::als::motion::spatial_query_test_app();
         app.finish();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.4, 0.2, 0.4),
             Transform::from_xyz(0.0, -0.1, 0.0), CollisionLayers::new(

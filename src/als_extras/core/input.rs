@@ -617,10 +617,7 @@ mod tests {
     #[test]
     fn spawn_creates_eighteen_actions_and_two_stick_groups_with_bindings() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins)
-            .add_plugins(EnhancedInputPlugin)
-            .add_plugins(AlsInputPlugin)
-            .insert_resource(ButtonInput::<KeyCode>::default());
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
         app.finish();
 
         let player = app.world_mut().spawn_empty().id();
@@ -829,10 +826,7 @@ mod tests {
     #[test]
     fn full_chain_from_action_mock_to_command() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins)
-            .add_plugins(EnhancedInputPlugin)
-            .add_plugins(AlsInputPlugin)
-            .insert_resource(ButtonInput::<KeyCode>::default());
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
         app.finish();
 
         let player = app.world_mut().spawn_empty().id();

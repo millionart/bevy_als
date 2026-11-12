@@ -590,6 +590,7 @@ pub(crate) mod tests {
         .init_resource::<AlsShowDebugHudState>()
         .init_resource::<UiScale>()
         .init_resource::<bevy::ui::ui_surface::UiSurface>()
+        .init_resource::<bevy::text::RemSize>()
         .init_resource::<bevy::text::TextPipeline>()
         .init_resource::<bevy::text::FontCx>()
         .init_resource::<bevy::text::ScaleCx>()
@@ -693,8 +694,8 @@ pub(crate) mod tests {
                 (Some(if custom { GamepadButton::Select } else { GamepadButton::Start }), None, false),
                 (None, Some(KeyCode::Tab), true), (None, Some(KeyCode::KeyZ), false)] {
                 let mut app = App::new();
-                app.add_plugins((MinimalPlugins, EnhancedInputPlugin, AlsInputPlugin))
-                    .insert_resource(ButtonInput::<KeyCode>::default()).init_resource::<AlsHudState>()
+                app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                    .init_resource::<AlsHudState>()
                     .add_systems(Update, (toggle_ui_system, slomo_system));
                 app.finish();
                 let gamepad = app.world_mut().spawn(Gamepad::default()).id();

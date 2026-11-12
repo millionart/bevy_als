@@ -579,7 +579,7 @@ mod tests {
         use bevy::{asset::AssetPlugin, ecs::system::RunSystemOnce};
         for parented in [false, true] {
             let mut app = App::new();
-            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
                 PhysicsPlugins::new(PostUpdate), AlsCharacterPlugin));
             app.finish();
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
@@ -624,7 +624,7 @@ mod tests {
         use avian3d::prelude::PhysicsPlugins;
         use bevy::asset::AssetPlugin;
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
             PhysicsPlugins::new(PostUpdate), AlsCharacterPlugin));
         app.finish();
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());

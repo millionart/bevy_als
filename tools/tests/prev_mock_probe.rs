@@ -7,10 +7,12 @@ use bevy_enhanced_input::prelude::*;
 #[test]
 fn prev_action_mock_fires_events() {
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
-        .add_plugins(EnhancedInputPlugin)
-        .add_plugins(bevy_als::als::input::AlsInputPlugin)
-        .insert_resource(ButtonInput::<KeyCode>::default());
+    app.add_plugins((
+        MinimalPlugins,
+        bevy::input::InputPlugin,
+        EnhancedInputPlugin,
+        bevy_als::als::input::AlsInputPlugin,
+    ));
     app.finish();
 
     let player = app.world_mut().spawn_empty().id();
