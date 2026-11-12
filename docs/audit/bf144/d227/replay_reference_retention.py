@@ -68,7 +68,7 @@ def gltf_candidate(clip, name, time):
     return tuple(source_rotation_to_runtime(rotation)), (x * 100.0, z * 100.0, y * 100.0), (sx, sz, sy)
 
 
-def control_at(sequence, keys, span, time):
+def control_at(sequence, keys, span, time, normalize=normalized, blend_rotation=nlerp):
     numerator, denominator = sequence["frame_rate"]
     decimal = time * numerator / denominator
     frame = int(decimal)
@@ -94,10 +94,10 @@ def control_at(sequence, keys, span, time):
 
     start = key(first)
     if alpha <= 1e-8:
-        return normalized(start[0]), start[1], start[2]
+        return normalize(start[0]), start[1], start[2]
     end = key(second)
-    rotation = nlerp(start[0], end[0], alpha)
-    rotation = normalized(source_rotation_to_runtime(roundtrip(source_rotation_to_runtime(rotation))[0]))
+    rotation = blend_rotation(start[0], end[0], alpha)
+    rotation = normalize(source_rotation_to_runtime(roundtrip(source_rotation_to_runtime(rotation))[0]))
     if alpha <= 1e-5:
         return tuple(rotation), start[1], start[2]
     if abs(f32(alpha - 1.0)) <= 1e-5:

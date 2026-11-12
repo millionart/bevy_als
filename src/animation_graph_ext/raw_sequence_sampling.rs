@@ -48,13 +48,17 @@ pub(crate) fn raw_rotation_interval(clip: &GraphClip, time: f32) -> Option<RawRo
 
 fn interpolate_rotation(start: DQuat, end: DQuat, alpha: f32) -> DQuat {
     let alpha = f64::from(alpha);
-    let bias = if start.dot(end) < 0.0 { -1.0 } else { 1.0 };
+    let dot = start.z.mul_add(end.z, start.x * end.x) + start.w.mul_add(end.w, start.y * end.y);
+    let bias = if dot < 0.0 { -1.0 } else { 1.0 };
     let left = start.to_array();
     let right = end.to_array();
-    DQuat::from_array(std::array::from_fn(|axis| {
+    normalize_source_rotation(DQuat::from_array(std::array::from_fn(|axis| {
         (left[axis] * bias).mul_add(1.0 - alpha, right[axis] * alpha)
-    }))
-    .normalize()
+    })))
+}
+
+pub(crate) fn normalize_source_rotation(rotation: DQuat) -> DQuat {
+    rotation_basis(rig_normalize(rotation_basis(rotation)))
 }
 
 fn euler_roundtrip(rotation: DQuat) -> DQuat {
@@ -79,11 +83,11 @@ impl RawRotationInterval {
         } else if (self.alpha - 1.0).abs() <= 1e-5 {
             key(self.end)?.as_dquat()
         } else {
-            interpolate_rotation(
-                key(self.start)?.as_dquat(),
-                key(self.end)?.as_dquat(),
+            rotation_basis(interpolate_rotation(
+                rotation_basis(key(self.start)?.as_dquat()),
+                rotation_basis(key(self.end)?.as_dquat()),
                 self.alpha,
-            )
+            ))
         };
         Some(euler_roundtrip(blended).as_quat())
     }
@@ -178,7 +182,7 @@ impl RawControlSample {
         let start = self.key(span, self.first);
         if self.alpha <= 1e-8 {
             return RigTransform {
-                rotation: rig_normalize(start.rotation),
+                rotation: normalize_source_rotation(start.rotation),
                 ..start
             };
         }
@@ -198,9 +202,9 @@ impl RawControlSample {
             }
         };
         blended.translation = blended.translation.as_vec3().as_dvec3();
-        blended.rotation = rig_normalize(rotation_basis(euler_roundtrip(rotation_basis(
-            blended.rotation,
-        ))));
+        blended.rotation = normalize_source_rotation(rotation_basis(euler_roundtrip(
+            rotation_basis(blended.rotation),
+        )));
         blended.scale = blended.scale.as_vec3().as_dvec3();
         blended
     }

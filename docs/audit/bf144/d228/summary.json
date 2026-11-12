@@ -1,0 +1,23 @@
+{
+  "result": "PASS_SEQUENCER_FRAME_DOMAIN",
+  "bound_sequences": 128,
+  "source_curves": 367,
+  "curve_values": {
+    "crouch-raw": 8,
+    "cubic": 8,
+    "cubic_ablation": 5,
+    "tick": 27,
+    "source_tick_ablation": 15,
+    "step_scalar_ablation": 15
+  },
+  "feet_crossing_witness": {
+    "time": 0.5302536487579346,
+    "source_frame": 15.907609462738037,
+    "value": 0.9076095819473267,
+    "legacy_seconds_value": 0.9076088070869446
+  },
+  "bone_values": {
+    "scalar_quaternion_ablation": 3,
+    "projected_bones_exact": 544
+  }
+}

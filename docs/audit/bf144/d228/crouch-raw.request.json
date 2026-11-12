@@ -1,0 +1,16 @@
+{
+  "mesh_asset": "/ALS/ALS/Character/SKM_Als.SKM_Als",
+  "animation_pose": true,
+  "raw_absolute_pose": true,
+  "capture_source_stages": true,
+  "times": [
+    0,
+    0.16666666666666666,
+    0.2,
+    0.5037120580673218,
+    0.5,
+    0.5302536487579346,
+    0.5333333333333333,
+    0.55
+  ]
+}

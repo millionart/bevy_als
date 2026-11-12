@@ -2412,12 +2412,11 @@ FEulerTransform ReadSequenceControlFrame(const FTransformParameterNameAndCurves&
         FVector(Read(Parameter.Scale[0], 1.f), Read(Parameter.Scale[1], 1.f), Read(Parameter.Scale[2], 1.f)));
 }
 
-TSharedPtr<FJsonObject> CaptureSequenceRawControls(const UAnimSequence& Sequence)
+const UMovieSceneControlRigParameterSection* FindActiveSequenceControlSection(UObject* Model)
 {
-    const auto Model = Sequence.GetDataModelInterface();
-    if (Model.GetObject() == nullptr || Model.GetInterface() == nullptr) { return nullptr; }
+    if (Model == nullptr) { return nullptr; }
     TArray<UObject*> Objects;
-    GetObjectsWithOuter(Model.GetObject(), Objects, EGetObjectsFlags::IncludeNestedObjects);
+    GetObjectsWithOuter(Model, Objects, EGetObjectsFlags::IncludeNestedObjects);
     const UMovieSceneControlRigParameterSection* Section = nullptr;
     for (UObject* Object : Objects)
     {
@@ -2428,6 +2427,14 @@ TSharedPtr<FJsonObject> CaptureSequenceRawControls(const UAnimSequence& Sequence
             Section = Candidate;
         }
     }
+    return Section;
+}
+
+TSharedPtr<FJsonObject> CaptureSequenceRawControls(const UAnimSequence& Sequence)
+{
+    const auto Model = Sequence.GetDataModelInterface();
+    if (Model.GetInterface() == nullptr) { return nullptr; }
+    const UMovieSceneControlRigParameterSection* Section = FindActiveSequenceControlSection(Model.GetObject());
     const UMovieScene* Scene = Section != nullptr ? Section->GetTypedOuter<UMovieScene>() : nullptr;
     if (Scene == nullptr) { return nullptr; }
     const FFrameRate Rate = Model->GetFrameRate();
@@ -2482,6 +2489,29 @@ TSharedPtr<FJsonObject> CaptureSequenceRawControls(const UAnimSequence& Sequence
     return Result;
 }
 
+TSharedRef<FJsonObject> CaptureMovieSceneFloatChannel(const FMovieSceneFloatChannel& Channel);
+
+TSharedPtr<FJsonObject> CaptureSequenceRawCurves(const UAnimSequence& Sequence)
+{
+    const auto Model = Sequence.GetDataModelInterface();
+    const UMovieSceneControlRigParameterSection* Section = FindActiveSequenceControlSection(Model.GetObject());
+    if (Model.GetInterface() == nullptr || Section == nullptr) { return nullptr; }
+    const FFrameRate Rate = Model->GetFrameRate();
+    TArray<TSharedPtr<FJsonValue>> Curves;
+    for (const FScalarParameterNameAndCurve& Parameter : Section->GetScalarParameterNamesAndCurves())
+    {
+        TSharedRef<FJsonObject> Curve = CaptureMovieSceneFloatChannel(Parameter.ParameterCurve);
+        const FName Target = UFKControlRig::GetControlTargetName(Parameter.ParameterName, ERigElementType::Curve);
+        Curve->SetStringField(TEXT("name"), Target.ToString());
+        Curves.Add(MakeShared<FJsonValueObject>(Curve));
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetNumberField(TEXT("rate_numerator"), Rate.Numerator);
+    Result->SetNumberField(TEXT("rate_denominator"), Rate.Denominator);
+    Result->SetArrayField(TEXT("curves"), Curves);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const FString& RequestPath)
 {
     USkeletalMesh* Mesh = Cast<USkeletalMesh>(Asset);
@@ -2501,6 +2531,10 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
     if (Request->HasField(TEXT("raw_controls")) &&
         (Request->TryGetField(TEXT("raw_controls"))->Type != EJson::Boolean ||
          !Request->TryGetBoolField(TEXT("raw_controls"), bCaptureRawControls))) { return nullptr; }
+    bool bCaptureRawCurves = false;
+    if (Request->HasField(TEXT("raw_curves")) &&
+        (Request->TryGetField(TEXT("raw_curves"))->Type != EJson::Boolean ||
+         !Request->TryGetBoolField(TEXT("raw_curves"), bCaptureRawCurves))) { return nullptr; }
     USkeleton* Skeleton = Mesh->GetSkeleton();
     const FReferenceSkeleton& Ref = Skeleton->GetReferenceSkeleton();
     TArray<FBoneIndexType> Indices;
@@ -2560,6 +2594,16 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
                 return nullptr;
             }
             Row->SetObjectField(TEXT("raw_controls"), Controls.ToSharedRef());
+        }
+        if (bCaptureRawCurves)
+        {
+            const TSharedPtr<FJsonObject> Curves = CaptureSequenceRawCurves(*Sequence);
+            if (!Curves.IsValid())
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Source raw curves are unavailable for %s."), *Path);
+                return nullptr;
+            }
+            Row->SetObjectField(TEXT("raw_curves"), Curves.ToSharedRef());
         }
         if (!bRaw)
         {

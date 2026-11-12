@@ -7630,7 +7630,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧导入与单轨oracle没有执行完整FK写回；只读取关键帧也可在这类骨骼上保留错误的参考假设。原生5次同点/端点/回返pose全等，排除当前夹具历史影响。证据`target/bf144/175/reference-counterexample-check.json`、`residual-history-check.json`及fresh参考网格/单轨/完整pose输出；只确认raw路径，压缩路径不套用此规则，尚未改生产或原始资产。
 
 
-- [ ] BF144-D228 / P3 — Sequence/曲线采样未保留源整数帧格点与规范化子帧。
+- [x] BF144-D228 / P3 — Sequence/曲线采样未保留源整数帧格点与规范化子帧。 开始：2026-11-12 13:33:11 +08:00；预估结束：2026-11-12 14:18:11 +08:00。
+  - 实际结束：2026-11-12 13:48:01 +08:00；偏差：−30分10秒；结果：静态Gate PASS。128序列367条原标量曲线按整数帧/自身tick转换，43原生值精确；FeetCrossing旧0.9076088070869446恢复为0.9076095819473267。未换tick、错用Step及去Cubic各留15/15/5反例。Raw普通控制和原生ARM旋转阶段544骨投影全等，标量写回历史留D229，Cargo统一后置。证据 `docs/audit/bf144/d228/summary.json`。
   - Source：fresh `AnimSequence.cpp:1858`以原DataModel FrameRate构造求值上下文；`FrameRate.h:240–257`把秒转换为整数帧加float子帧，`FrameTime.h:265–271`再执行+0.5f−0.5f及MaxSubframe夹取。8个当前原资产/活动MovieScene均30Hz。ScalarParameterCurve按原整数frame求值，`MovieSceneInterpolation.cpp:474–477`用double线性系数，最后输出float；原时钟/原键值并不等于以f32秒timestamp重新求比例。
   - Target：骨骼由glTF UnevenSampleAutoCurve在f32秒键格点采样；`als_curves.rs:296–310`同样从原曲线f32秒时间计算比例并逐步float求值，没有源帧域/规范化子帧。此处不同于D121六位小数记录舍入，也独立于D225四元数nlerp算法；原raw导出未修改。
   - 最小反例：实际30Hz crouch-directions第176帧player9、time=0.5302536488、FeetCrossing，fresh参数原帧为0/5/6/15/16，同5个值已分别与原生key读取逐值核对。源frame=15.907609462738、整数端点15/16输出0.9076095819473267；实际target及独立f32公式均0.9076088070869446，差7.748604e−7；保持原键值及当前时间只恢复源帧域即精确。1094个当前值的目标公式逐值校准；只提升秒域算术精度仍保留峰值，排除“全换double即可”的误判。

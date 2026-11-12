@@ -171,6 +171,8 @@ pub mod source_sequence_evaluator;
 pub(crate) mod source_compression;
 #[path = "animation_graph_ext/raw_sequence_sampling.rs"]
 pub(crate) mod raw_sequence_sampling;
+#[path = "animation_graph_ext/raw_curve_sampling.rs"]
+pub(crate) mod raw_curve_sampling;
 #[path = "animation_graph_ext/source_sequence_player.rs"]
 pub mod source_sequence_player;
 #[path = "animation_graph_ext/source_slot.rs"]

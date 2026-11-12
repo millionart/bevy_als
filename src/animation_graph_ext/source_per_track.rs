@@ -117,10 +117,10 @@ pub(super) fn has_clip(clip: &GraphClip) -> bool {
     clip_source_key(clip) == Some((PREPARED.gltf.as_path(), PREPARED.animation.as_str()))
 }
 
-pub(super) fn retain_raw_reference_pose(pose: &mut Pose, controls: &RawControlSample) {
+pub(super) fn write_raw_control_pose(pose: &mut Pose, controls: &RawControlSample) {
     for (index, control) in controls.bones() {
         let bone = &PREPARED.bones[index];
-        bone.reference.retain_raw_reference(
+        bone.reference.write_raw_control(
             pose,
             bone.id,
             control,

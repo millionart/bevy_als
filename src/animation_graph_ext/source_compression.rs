@@ -17,8 +17,9 @@ use bevy_animation_graph::core::{
 use serde::Deserialize;
 
 use crate::extensions::als_curves::{AlsPoseCurves, SourceCurveName, SourceCurveValues};
-use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize};
-use crate::extensions::raw_sequence_sampling::raw_control_sample;
+use crate::extensions::control_rig_hierarchy::RigTransform;
+use crate::extensions::raw_curve_sampling::sample_raw_curves;
+use crate::extensions::raw_sequence_sampling::{normalize_source_rotation, raw_control_sample};
 use crate::extensions::source_sequence_player::{SourceRootLock, source_root_lock_transform};
 
 #[path = "source_per_track.rs"]
@@ -117,7 +118,7 @@ struct PreparedBone {
 }
 
 impl PreparedBone {
-    fn retain_raw_reference(
+    fn write_raw_control(
         &self,
         pose: &mut Pose,
         id: BoneId,
@@ -128,17 +129,19 @@ impl PreparedBone {
             return;
         };
         let bone = &mut pose.bones[index];
-        if candidate.same(self.skeleton_pose.rig_transform(), f64::from(1e-4_f32)) {
-            let reference = self.mesh_pose.rig_transform();
-            bone.translation = Some(project_translation(
-                reference.translation.to_array(),
-                unit_scale,
-            ));
-            bone.rotation = Some(project_rotation(
-                rig_normalize(reference.rotation).to_array(),
-            ));
-            bone.scale = Some(project_scale(reference.scale.to_array()));
-        }
+        let value = if candidate.same(self.skeleton_pose.rig_transform(), f64::from(1e-4_f32)) {
+            self.mesh_pose.rig_transform()
+        } else {
+            candidate
+        };
+        bone.translation = Some(project_translation(
+            value.translation.to_array(),
+            unit_scale,
+        ));
+        bone.rotation = Some(project_rotation(
+            normalize_source_rotation(value.rotation).to_array(),
+        ));
+        bone.scale = Some(project_scale(value.scale.to_array()));
     }
 }
 
@@ -260,9 +263,38 @@ pub(crate) fn source_frame_time(time: f32, frame_rate: [u32; 2]) -> (f64, f32) {
     let frame = frame_time.floor();
     let subframe = (frame_time - frame) as f32;
     let carry = subframe.trunc();
+    (
+        frame + f64::from(carry),
+        normalize_source_subframe(subframe - carry),
+    )
+}
+
+fn normalize_source_subframe(fraction: f32) -> f32 {
     let max_subframe = f32::from_bits(1.0_f32.to_bits() - 1);
-    let fraction = ((subframe - carry).min(max_subframe) + 0.5 - 0.5).clamp(0.0, max_subframe);
-    (frame + f64::from(carry), fraction)
+    (fraction.min(max_subframe) + 0.5 - 0.5).clamp(0.0, max_subframe)
+}
+
+pub(crate) fn convert_source_frame_time(
+    time: (f64, f32),
+    source_rate: [u32; 2],
+    target_rate: [u32; 2],
+) -> (f64, f32) {
+    if source_rate == target_rate {
+        return time;
+    }
+    let [source_numerator, source_denominator] = source_rate.map(i64::from);
+    let [target_numerator, target_denominator] = target_rate.map(i64::from);
+    let numerator = target_numerator * source_denominator;
+    let denominator = target_denominator * source_numerator;
+    let (frame, fraction) = time;
+    let integer = ((frame as i64 * numerator) / denominator) as f64;
+    let integer_fraction = frame * numerator as f64 / denominator as f64 - integer;
+    let float_part = f64::from(fraction) * numerator as f64 / denominator as f64 + integer_fraction;
+    let carry = float_part.floor();
+    (
+        integer + carry,
+        normalize_source_subframe((float_part - carry) as f32),
+    )
 }
 
 fn project_translation([x, y, z]: [f64; 3], scale: f64) -> Vec3 {
@@ -489,14 +521,14 @@ pub(crate) fn has_prepared_pose(clip: &GraphClip) -> bool {
     PREPARED_ACL.sequence(clip).is_some() || per_track::has_clip(clip)
 }
 
-pub(crate) fn retain_raw_reference_pose(clip: &GraphClip, time: f32, pose: &mut Pose) {
+pub(crate) fn write_raw_control_pose(clip: &GraphClip, time: f32, pose: &mut Pose) {
     let Some(controls) = raw_control_sample(clip, time) else {
         return;
     };
     if PREPARED_ACL.sequence(clip).is_some() {
         let data = &*PREPARED_ACL;
         for (index, control) in controls.bones() {
-            data.bone_references[index].retain_raw_reference(
+            data.bone_references[index].write_raw_control(
                 pose,
                 data.bone_ids[index],
                 control,
@@ -504,7 +536,7 @@ pub(crate) fn retain_raw_reference_pose(clip: &GraphClip, time: f32, pose: &mut 
             );
         }
     } else if per_track::has_clip(clip) {
-        per_track::retain_raw_reference_pose(pose, &controls);
+        per_track::write_raw_control_pose(pose, &controls);
     }
 }
 
@@ -532,7 +564,8 @@ pub(crate) fn sample_source_curves(
     } else if clip.is_some_and(per_track::has_clip) {
         SourceCurveValues::default()
     } else {
-        raw.sample_all(time)
+        clip.and_then(|clip| sample_raw_curves(clip, time))
+            .unwrap_or_else(|| raw.sample_all(time))
     }
 }
 
@@ -678,11 +711,12 @@ mod tests {
         };
         let mut pose = Pose::default();
         pose.add_bone(BonePose::from_transform(sampled), bone);
-        retain_raw_reference_pose(&crouch, 0.53333336, &mut pose);
-        assert_eq!(pose.get_bone(bone).unwrap().to_transform(), sampled);
+        write_raw_control_pose(&crouch, 0.53333336, &mut pose);
+        let written = pose.get_bone(bone).unwrap().to_transform();
 
-        retain_raw_reference_pose(&crouch, 0.50371206, &mut pose);
+        write_raw_control_pose(&crouch, 0.50371206, &mut pose);
         let actual = pose.get_bone(bone).unwrap().to_transform();
+        assert_ne!(written.rotation, actual.rotation);
         assert_eq!(
             actual.translation,
             Vec3::new(-0.20476779, 7.781708e-9, -1.4251387e-8)

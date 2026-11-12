@@ -24,7 +24,7 @@ use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::global_f32_input::root_defaults_enabled;
 use crate::extensions::raw_sequence_sampling::{RawRotationInterval, raw_rotation_interval};
 use crate::extensions::source_compression::{
-    PreparedPoseKind, retain_raw_reference_pose, sample_prepared_pose, sample_prepared_root, sample_source_curves,
+    PreparedPoseKind, write_raw_control_pose, sample_prepared_pose, sample_prepared_root, sample_source_curves,
 };
 use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
@@ -180,7 +180,7 @@ fn sample_raw_source_clip_pose(
     let Some(GraphClipSource::GltfNamed { path, .. }) = &clip.source else {
         return Some(pose);
     };
-    retain_raw_reference_pose(clip, time, &mut pose);
+    write_raw_control_pose(clip, time, &mut pose);
     if !RAW_VIRTUAL_BONES
         .raw_gltf_paths
         .iter()
