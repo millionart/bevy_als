@@ -299,12 +299,18 @@ fn observe(
             else if moving { elapsed > 2.0 && footprint_pair && pipelines.positive_frame > probe.gpu_stage_frame } else { elapsed > 0.5 };
         *window = ManualAnimationWindowEvidence { label: Some(LABELS[stage]), index: Some(stage), settled: stable,
             source_node: Some(if stage == 5 { "AB_Als_Crouching/AnimGraph" } else { "AB_Als_Standing/AnimGraph" }),
-            source_state: actual.map(|state| if state == 1 { "Move" } else { "Idle" }),
+            source_state: Some(if moving { "Move" } else { "Idle" }),
             expected_runtime_state: Some(expected), observed_runtime_state: actual,
             capture_source_window: stable, capture_every_frame: true, requires_non_reference_root_pose: true,
-            requires_source_pose_chain: true, minimum_observation_seconds: 0.25,
-            source_pose_chain: vec![ManualAnimationPoseBoundary { label: "locomotion", graph: LOCOMOTION_ROOT,
-                node: "Output Pose\nAnimGraph", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 }], ..default() };
+            requires_source_pose_chain: moving, minimum_observation_seconds: 0.25,
+            source_pose_chain: if moving {
+                vec![ManualAnimationPoseBoundary { label: "locomotion", graph: LOCOMOTION_ROOT,
+                    node: "Output Pose\nAnimGraph", output: "Pose", minimum_translation_span: 0.0,
+                    minimum_rotation_span_radians: 0.0 }]
+            } else {
+                Vec::new()
+            },
+            ..default() };
     }
     report.direction_trace.push(serde_json::json!({"footprint_stage": probe.stage, "time": time.elapsed_secs_f64(), "alive": alive,
         "notifications":diagnostics.notifications,"spawned":diagnostics.spawned,"expired":diagnostics.expired,

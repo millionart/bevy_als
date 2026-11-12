@@ -1,0 +1,18 @@
+{
+  "pass": false,
+  "issues": [
+    "motion window source pose chain failed: footprint_cleanup: locomotion: static",
+    "motion window source pose chain failed: footprint_crouch_stop: locomotion: static",
+    "motion window source pose chain failed: footprint_prepare: locomotion: static",
+    "motion window source pose chain failed: rotating_base_step_left: standing_states_fsm: static",
+    "motion window source pose chain failed: rotating_base_step_right: standing_states_fsm: static"
+  ],
+  "images": [],
+  "validation_scope": "functional",
+  "full_pass": false,
+  "deferred_performance_issues": [
+    "performance budget exceeded: max_frame_p95_ms",
+    "performance budget exceeded: max_frame_ms",
+    "performance budget exceeded: max_eval_p95_ms"
+  ]
+}

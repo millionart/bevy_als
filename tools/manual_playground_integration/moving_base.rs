@@ -390,11 +390,10 @@ pub(super) fn observe(
         let side = usize::from(playback.index > 0.5);
         let ready = slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
         let completed = probe.steps[side] && step_replacement_allowed(playback);
-        let mut chain = generated_stop_quick_source_pose_chain(false);
-        chain.push(ManualAnimationPoseBoundary { label:"root_transition_slot",
+        let chain = vec![ManualAnimationPoseBoundary { label:"root_transition_slot",
             graph:"ALS/Character/AB_Als/AnimGraph.animgraph.ron",
             node:"Slot 'Transition'\nGroup 'Grounded'", output:"Pose",
-            minimum_translation_span:0.0, minimum_rotation_span_radians:0.05 });
+            minimum_translation_span:0.0, minimum_rotation_span_radians:0.05 }];
         *window = ManualAnimationWindowEvidence {
             label:Some(if side == 0 { "rotating_base_step_left" } else { "rotating_base_step_right" }),
             settled:ready || completed, capture_source_window:true, capture_every_frame:true,

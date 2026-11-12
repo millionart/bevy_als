@@ -1,0 +1,58 @@
+{
+  "windows": [
+    {
+      "label": "footprint_cleanup",
+      "source_state": "Idle",
+      "moving": false
+    },
+    {
+      "label": "footprint_crouch",
+      "source_state": "Move",
+      "moving": true
+    },
+    {
+      "label": "footprint_crouch_stop",
+      "source_state": "Idle",
+      "moving": false
+    },
+    {
+      "label": "footprint_prepare",
+      "source_state": "Idle",
+      "moving": false
+    },
+    {
+      "label": "footprint_run",
+      "source_state": "Move",
+      "moving": true
+    },
+    {
+      "label": "footprint_run_stop",
+      "source_state": "Idle",
+      "moving": false
+    },
+    {
+      "label": "footprint_walk",
+      "source_state": "Move",
+      "moving": true
+    },
+    {
+      "label": "footprint_walk_stop",
+      "source_state": "Idle",
+      "moving": false
+    },
+    {
+      "label": "rotating_base_step_left",
+      "slot_rotation_radians": 0.32244304
+    },
+    {
+      "label": "rotating_base_step_right",
+      "slot_rotation_radians": 0.3158318
+    }
+  ],
+  "gpu": {
+    "pass": true,
+    "issues": [],
+    "requests": 36,
+    "samples": 576
+  }
+}
