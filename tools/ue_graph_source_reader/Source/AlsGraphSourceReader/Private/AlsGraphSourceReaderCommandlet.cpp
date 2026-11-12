@@ -44,7 +44,9 @@
 #include "Animation/AnimBoneCompressionCodec.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "Animation/AnimSequenceDecompressionContext.h"
+#include "HAL/PlatformProperties.h"
 #include "Misc/Base64.h"
+#include "Misc/EngineVersion.h"
 #include "Animation/AnimData/IAnimationDataModel.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "MovieScene.h"
@@ -2354,6 +2356,114 @@ struct FSequencePoseAccess : UAnimSequence
     }
 };
 
+TSharedPtr<FJsonObject> CaptureSequenceCompression(const UAnimSequence& Sequence)
+{
+    const auto Scoped = Sequence.GetCompressedData(FAnimExtractContext(0.0, false));
+    const FCompressedAnimSequence& Data = Scoped.Get();
+    if (!Data.IsValid(&Sequence) || Data.CompressedDataStructure == nullptr || Data.BoneCompressionCodec == nullptr || Data.CurveCompressionCodec == nullptr) { return nullptr; }
+    TSharedRef<FJsonObject> Compression = MakeShared<FJsonObject>();
+    Compression->SetStringField(TEXT("bone_codec"), ObjectPath(Data.BoneCompressionCodec.Get()));
+    Compression->SetStringField(TEXT("curve_codec"), ObjectPath(Data.CurveCompressionCodec.Get()));
+    Compression->SetNumberField(TEXT("key_count"), Data.CompressedDataStructure->CompressedNumberOfKeys);
+    Compression->SetNumberField(TEXT("curve_bytes"), Data.CompressedCurveByteStream.Num());
+    TArray<TSharedPtr<FJsonValue>> CurveNames;
+    for (const FAnimCompressedCurveIndexedName& Name : Data.IndexedCurveNames)
+    {
+        TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();
+        Item->SetStringField(TEXT("name"), Name.CurveName.ToString());
+        Item->SetNumberField(TEXT("sorted_index"), Name.CurveIndex);
+        CurveNames.Add(MakeShared<FJsonValueObject>(Item));
+    }
+    Compression->SetArrayField(TEXT("indexed_curve_names"), CurveNames);
+    Compression->SetStringField(TEXT("bone_stream_base64"), FBase64::Encode(Data.CompressedByteStream));
+    Compression->SetStringField(TEXT("curve_stream_base64"), FBase64::Encode(Data.CompressedCurveByteStream));
+    Compression->SetNumberField(TEXT("sampling_rate_numerator"), Sequence.GetSamplingFrameRate().Numerator);
+    Compression->SetNumberField(TEXT("sampling_rate_denominator"), Sequence.GetSamplingFrameRate().Denominator);
+    TArray<TSharedPtr<FJsonValue>> Mapping;
+    for (const FTrackToSkeletonMap& Track : Data.CompressedTrackToSkeletonMapTable) { Mapping.Add(MakeShared<FJsonValueNumber>(Track.BoneTreeIndex)); }
+    Compression->SetArrayField(TEXT("track_to_skeleton"), Mapping);
+    return Compression;
+}
+
+TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const FString& RequestPath)
+{
+    USkeletalMesh* Mesh = Cast<USkeletalMesh>(Asset);
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Assets = nullptr;
+    if (Mesh == nullptr || Mesh->GetSkeleton() == nullptr ||
+        !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetArrayField(TEXT("assets"), Assets) || Assets->IsEmpty())
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence compression export needs a skeletal mesh and a nonempty sequence list."));
+        return nullptr;
+    }
+
+    USkeleton* Skeleton = Mesh->GetSkeleton();
+    const FReferenceSkeleton& Ref = Skeleton->GetReferenceSkeleton();
+    TArray<FBoneIndexType> Indices;
+    for (int32 Index = 0; Index < Mesh->GetRefSkeleton().GetNum(); ++Index) { Indices.Add(Index); }
+    FBoneContainer RequiredBones;
+    RequiredBones.InitializeTo(Indices, UE::Anim::FCurveFilterSettings(), *Mesh);
+    TArray<TSharedPtr<FJsonValue>> Bones;
+    for (int32 Index = 0; Index < Ref.GetNum(); ++Index)
+    {
+        const FCompactPoseBoneIndex CompactIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(Index));
+        if (CompactIndex.GetInt() == INDEX_NONE) { return nullptr; }
+        TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+        Bone->SetStringField(TEXT("name"), Ref.GetBoneName(Index).ToString());
+        Bone->SetNumberField(TEXT("parent_index"), Ref.GetParentIndex(Index));
+        Bone->SetObjectField(TEXT("skeleton_pose"), CaptureTransform(Ref.GetRefBonePose()[Index]));
+        Bone->SetObjectField(TEXT("mesh_pose"), CaptureTransform(RequiredBones.GetRefPoseTransform(CompactIndex)));
+        Bones.Add(MakeShared<FJsonValueObject>(Bone));
+    }
+
+    TSet<FString> Seen;
+    TArray<TSharedPtr<FJsonValue>> Sequences;
+    for (const TSharedPtr<FJsonValue>& Value : *Assets)
+    {
+        FString Path;
+        if (!Value->TryGetString(Path) || Path.IsEmpty() || Seen.Contains(Path)) { return nullptr; }
+        Seen.Add(Path);
+        UAnimSequence* Sequence = LoadObject<UAnimSequence>(nullptr, *Path);
+        if (Sequence == nullptr || Sequence->GetSkeleton() != Skeleton)
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence does not use the requested mesh skeleton: %s."), *Path);
+            return nullptr;
+        }
+        Sequence->CacheDerivedDataForCurrentPlatform();
+        const bool bRaw = FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, FAnimExtractContext(0.0, false));
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("asset"), ObjectPath(Sequence));
+        Row->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
+        Row->SetNumberField(TEXT("additive_type"), Sequence->IsValidAdditive() ? Sequence->GetAdditiveAnimType() : AAT_None);
+        Row->SetBoolField(TEXT("step"), Sequence->Interpolation == EAnimInterpolationType::Step);
+        Row->SetStringField(TEXT("pose_mode"), bRaw ? TEXT("raw_model") : TEXT("compressed"));
+        if (!bRaw)
+        {
+            const TSharedPtr<FJsonObject> Compression = CaptureSequenceCompression(*Sequence);
+            if (!Compression.IsValid())
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Current platform compression is unavailable for %s."), *Path);
+                return nullptr;
+            }
+            Row->SetObjectField(TEXT("compression"), Compression.ToSharedRef());
+        }
+        Sequences.Add(MakeShared<FJsonValueObject>(Row));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Captured sequence %d/%d: %s."), Sequences.Num(), Assets->Num(), *Path);
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("format"), TEXT("ue_sequence_compression_v1"));
+    Result->SetStringField(TEXT("engine_version"), FEngineVersion::Current().ToString());
+    Result->SetStringField(TEXT("platform"), FPlatformProperties::PlatformName());
+    Result->SetStringField(TEXT("mesh"), ObjectPath(Mesh));
+    Result->SetStringField(TEXT("skeleton"), ObjectPath(Skeleton));
+    Result->SetArrayField(TEXT("bones"), Bones);
+    Result->SetArrayField(TEXT("sequences"), Sequences);
+    return Result;
+}
+
 TSharedRef<FJsonObject> CaptureMovieSceneFloatChannel(const FMovieSceneFloatChannel& Channel)
 {
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
@@ -2738,30 +2848,8 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     TSharedPtr<FJsonObject> Compression;
     if (bCompressedTracks)
     {
-        const auto Scoped = Sequence->GetCompressedData(FAnimExtractContext(0.0, false));
-        const FCompressedAnimSequence& Data = Scoped.Get();
-        if (!Data.IsValid(Sequence) || Data.CompressedDataStructure == nullptr || Data.BoneCompressionCodec == nullptr || Data.CurveCompressionCodec == nullptr) { return nullptr; }
-        Compression = MakeShared<FJsonObject>();
-        Compression->SetStringField(TEXT("bone_codec"), ObjectPath(Data.BoneCompressionCodec.Get()));
-        Compression->SetStringField(TEXT("curve_codec"), ObjectPath(Data.CurveCompressionCodec.Get()));
-        Compression->SetNumberField(TEXT("key_count"), Data.CompressedDataStructure->CompressedNumberOfKeys);
-        Compression->SetNumberField(TEXT("curve_bytes"), Data.CompressedCurveByteStream.Num());
-        TArray<TSharedPtr<FJsonValue>> CurveNames;
-        for (const FAnimCompressedCurveIndexedName& Name : Data.IndexedCurveNames)
-        {
-            TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();
-            Item->SetStringField(TEXT("name"), Name.CurveName.ToString());
-            Item->SetNumberField(TEXT("sorted_index"), Name.CurveIndex);
-            CurveNames.Add(MakeShared<FJsonValueObject>(Item));
-        }
-        Compression->SetArrayField(TEXT("indexed_curve_names"), CurveNames);
-        Compression->SetStringField(TEXT("bone_stream_base64"), FBase64::Encode(Data.CompressedByteStream));
-        Compression->SetStringField(TEXT("curve_stream_base64"), FBase64::Encode(Data.CompressedCurveByteStream));
-        Compression->SetNumberField(TEXT("sampling_rate_numerator"), Sequence->GetSamplingFrameRate().Numerator);
-        Compression->SetNumberField(TEXT("sampling_rate_denominator"), Sequence->GetSamplingFrameRate().Denominator);
-        TArray<TSharedPtr<FJsonValue>> Mapping;
-        for (const FTrackToSkeletonMap& Track : Data.CompressedTrackToSkeletonMapTable) { Mapping.Add(MakeShared<FJsonValueNumber>(Track.BoneTreeIndex)); }
-        Compression->SetArrayField(TEXT("track_to_skeleton"), Mapping);
+        Compression = CaptureSequenceCompression(*Sequence);
+        if (!Compression.IsValid()) { return nullptr; }
     }
     if (bRootTrackOnly && bAnimationPose)
     {
@@ -7349,6 +7437,32 @@ TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
     return Result;
 }
 
+static int32 WriteReaderOutput(const TSharedRef<FJsonObject>& Root, const FString& OutputPath)
+{
+    FString Json;
+    const TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> Writer = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&Json);
+    if (!FJsonSerializer::Serialize(Root, Writer))
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to serialize graph export."));
+        return 4;
+    }
+
+    const FString Directory = FPaths::GetPath(OutputPath);
+    if (!IFileManager::Get().MakeDirectory(*Directory, true))
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to create output directory."));
+        return 5;
+    }
+
+    if (!FFileHelper::SaveStringToFile(Json, *OutputPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to write graph export."));
+        return 6;
+    }
+
+    return 0;
+}
+
 UAlsGraphSourceReaderCommandlet::UAlsGraphSourceReaderCommandlet()
 {
     IsClient = false;
@@ -7385,6 +7499,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     {
         UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to load asset %s."), *AssetPath);
         return 3;
+    }
+
+    FString SequenceCompressionExportPath;
+    if (FParse::Value(*Params, TEXT("SequenceCompressionExport="), SequenceCompressionExportPath))
+    {
+        const TSharedPtr<FJsonObject> Export = CaptureSequenceCompressionExport(Asset, SequenceCompressionExportPath);
+        return Export.IsValid() ? WriteReaderOutput(Export.ToSharedRef(), OutputPath) : 7;
     }
 
     UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
@@ -7891,26 +8012,8 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         Root->SetObjectField(TEXT("geometry_query_probe"), Probe.ToSharedRef());
     }
 
-    FString Json;
-    const TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> Writer = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&Json);
-    if (!FJsonSerializer::Serialize(Root, Writer))
-    {
-        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to serialize graph export."));
-        return 4;
-    }
-
-    const FString Directory = FPaths::GetPath(OutputPath);
-    if (!IFileManager::Get().MakeDirectory(*Directory, true))
-    {
-        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to create output directory."));
-        return 5;
-    }
-
-    if (!FFileHelper::SaveStringToFile(Json, *OutputPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
-    {
-        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to write graph export."));
-        return 6;
-    }
+    const int32 WriteResult = WriteReaderOutput(Root, OutputPath);
+    if (WriteResult != 0) { return WriteResult; }
 
     UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Exported %d graphs and %d asset objects to %s."), Graphs.Num(), AssetObjects.Num(), *OutputPath);
     return 0;

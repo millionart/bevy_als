@@ -3,6 +3,7 @@ param(
     [string]$Output,
     [string]$BlendSpaceProbe,
     [string]$SequencePoseProbe,
+    [string]$SequenceCompressionExport,
     [string]$SequenceClockProbe,
     [string]$SyncGroupClockProbe,
     [string]$MontageClockProbe,
@@ -348,6 +349,10 @@ if ($SyncGroupClockProbe) {
 if ($SequencePoseProbe) {
     $probePath = (Resolve-Path -LiteralPath $SequencePoseProbe -ErrorAction Stop).Path
     $arguments += "-SequencePoseProbe=$probePath"
+}
+if ($SequenceCompressionExport) {
+    $exportPath = (Resolve-Path -LiteralPath $SequenceCompressionExport -ErrorAction Stop).Path
+    $arguments += "-SequenceCompressionExport=$exportPath"
 }
 if ($MontageClockProbe) {
     $probePath = (Resolve-Path -LiteralPath $MontageClockProbe -ErrorAction Stop).Path

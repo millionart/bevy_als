@@ -7568,6 +7568,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
 
 - [ ] BF144-D224 / P3 — Sequence/BlendSpace未保留源平台压缩姿态及曲线数据路径。
+  - 2026-11-12 11:38 拆分摘要：.178/.179/.181 依次取证约70/26/18分钟，当前要从8或18个样本扩大到通知清单与安装目录相互覆盖的128个Sequence，补齐离线转换与正式调用。保留D224为整体验收，各子项分别提交。Cargo与可见Playground留到全批静态修复及依赖升级之后。
+  - [x] BF144-D224a — 从当前平台提取128个Sequence的压缩字节、播放模式和实际网格参考骨架。开始：2026-11-12 11:38:17 +08:00；预估结束：2026-11-12 12:13:17 +08:00。Gate：完整安装路径、实际prepared选择、原骨骼/曲线stream与当前索引及独立原生反例。
+    - 实际结束：2026-11-12 11:47:12 +08:00；偏差：−26分05秒；结果：静态Gate PASS。单Crouch新旧入口压缩stream、mapping和索引逐字节一致，两个网格全量128个序列、两类原生同输入反例、混网格失败及分开恢复均见 `docs/audit/bf144/d224a/summary.json`。索引/模式/骨骼三反例、gzip解压SHA、reader watchdog self-test通过。拆分Bow为D224e，下一步D224b离线ACL解码。
+  - [ ] BF144-D224b — 依赖D224a，使用本地ACL SDK离线生成解码前骨骼/曲线键、default/constant型位与真实时钟数据。计划开始：2026-11-12 12:13:17 +08:00；预估结束：2026-11-12 13:03:17 +08:00。Gate：全量键与型位、真实codec连续采样、端点与未归一化反例、确定性产物。
+  - [ ] BF144-D224c — 依赖D224b，将prepared曲线接入Sequence/BlendSpace及已取证的槽消费。计划开始：2026-11-12 13:03:17 +08:00；预估结束：2026-11-12 13:43:17 +08:00。Gate：同时间的FootPlanted/FootLock、空曲线与未绑定clip静态合同。
+  - [ ] BF144-D224d — 依赖D224b/D224c，将prepared ACL局部骨骼接入普通Sequence、BlendSpace子样本和已取证加性路径。计划开始：2026-11-12 13:43:17 +08:00；预估结束：2026-11-12 14:38:17 +08:00。Gate：真实SKM和普通/加性同输入、边界时钟、无scale/default及消费者静态合同。
+  - [ ] BF144-D224e — 依赖D224a/D224d，补齐Bow PerTrack格式的离线数据及Sequence Evaluator入口。计划开始：2026-11-12 14:38:17 +08:00；预估结束：2026-11-12 15:23:17 +08:00。Gate：实际24骨、原压缩轨型和时间、五个原生时点及Bow节点同输入。估时复用.179的单格式采样控制，另含PerTrack格式与轨时间取证。
+  - 2026-11-12 11:45 D224a source/static闭环：实际MacEditor 5.8.4为127角色ACL和1弓PerTrack，安装clip和通知清单一一对应；两个原生网格分别79/24骨。混合网格请求真实返回7。Bow当前平台时长1秒、无曲线，原通知清单时长0且无事件；raw/prepared在相同SKM_Als_Bow和5时点均有姿态差异，首spine_down_02位置分量差0.001198307cm。依同一D224数据差新增D224e；D224b–d以ACL为界。当前待校准原压缩单序列读取与完成可复跑封存。
   - BF144.450首Head/Root X消费补充：fresh correct SKM Forward0.5/raw additive deltaX0而prepared compressed .003921627998352051cm，首实际Look sample0/weight1/compressed与HeadAdditive一致。Target actual RefMeshDifference319及public全79骨精确；内存只改Forward原31 keys的key15 pelvis X并只路由sample0，184 half-phase输出及首RigSource/Root X恢复source3.921628012903966e−5m，HeadBase/其它输入和pose通道保持。删路由回原微量、once/bytes同target六库恢复与64Git证据见`docs/audit/bf144/450b/summary.json`；当前只闭该单值data-mode consumer，不归全部T/Q/曲线余差。
   - Source：fresh原资产BoneCompressionSettings/CurveCompressionSettings均为ACL；UE `AnimSequence.cpp:2481–2521,3677–3703,5377–5392`在model加载后准备当前platform数据，GetAnimationPose按真实platform缓存/GUID/RequiredBones选择raw或compressed；原始legacy IsCompressedDataValid=True不能代表当前platform已可用。等待公共CacheDerivedDataForCurrentPlatform完成后，本批15063次序列采样全部明确走compressed。ACL curve codec `AnimCurveCompressionCodec_ACL.cpp:141–193,356–377`将原curve按动画采样率烘焙为压缩轨道并解压采样，原生骨骼同样由平台压缩轨道解码。
   - Target：当前glTF骨骼键及ALS_float_curves保留raw数据；`source_sequence_player.rs:56–110,508`/`normalized_blendspace.rs:811–846`分别消费glTF采样和原始曲线键，没有源platform压缩数据分支。该差异是数据路径，不能仅由更新时钟/marker/同步权重恢复，也不能把raw/压缩oracle混用后的误差统称浮点误差。

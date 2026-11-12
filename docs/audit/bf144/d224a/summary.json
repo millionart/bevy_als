@@ -1,0 +1,81 @@
+{
+  "result": "PASS_PREPARED_PLATFORM_INVENTORY",
+  "captures": {
+    "character": {
+      "platform": "MacEditor",
+      "engine_version": "5.8.4-58902052+++UE5+Release-5.8",
+      "mesh": "/ALS/ALS/Character/SKM_Als.SKM_Als",
+      "skeleton": "/ALS/ALS/Character/SK_Als.SK_Als",
+      "bones": 79,
+      "installed_sequences": 127,
+      "pose_modes": {
+        "compressed": 127
+      },
+      "additive_types": {
+        "0": 85,
+        "2": 27,
+        "1": 15
+      },
+      "durations_from_platform": [],
+      "codec_pairs": [
+        {
+          "bone": "/ACLPlugin/ACLAnimBoneCompressionSettings.ACLAnimBoneCompressionSettings:AnimBoneCompressionCodec_ACL_0",
+          "curve": "/ACLPlugin/ACLAnimCurveCompressionSettings.ACLAnimCurveCompressionSettings:AnimCurveCompressionCodec_ACL_0",
+          "sequences": 127
+        }
+      ],
+      "bone_bytes": 1151070,
+      "curve_bytes": 13593
+    },
+    "bow": {
+      "platform": "MacEditor",
+      "engine_version": "5.8.4-58902052+++UE5+Release-5.8",
+      "mesh": "/ALS/ALS/OverlayObjects/Bow/SKM_Als_Bow.SKM_Als_Bow",
+      "skeleton": "/ALS/ALS/OverlayObjects/Bow/SK_Als_Bow.SK_Als_Bow",
+      "bones": 24,
+      "installed_sequences": 1,
+      "pose_modes": {
+        "compressed": 1
+      },
+      "additive_types": {
+        "0": 1
+      },
+      "durations_from_platform": [
+        {
+          "asset": "/ALS/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.A_Als_Bow_Draw",
+          "duration": 1
+        }
+      ],
+      "codec_pairs": [
+        {
+          "bone": "/Engine/Animation/DefaultAnimBoneCompressionSettings.DefaultAnimBoneCompressionSettings:AnimCompress_PerTrackCompression_3",
+          "curve": "/Engine/Animation/DefaultAnimCurveCompressionSettings.DefaultAnimCurveCompressionSettings:CurveCompressionCodec",
+          "sequences": 1
+        }
+      ],
+      "bone_bytes": 1644,
+      "curve_bytes": 0
+    }
+  },
+  "witness": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.A_Als_Crouch_Walk_Left_Backward",
+  "virtual_foot_rotation_delta": [
+    0.0016847945711835344,
+    0.0016824746367610777,
+    0.0007154205264313651,
+    0.0004641727907991333
+  ],
+  "bow_spine_down_02_translation_delta_cm": [
+    0.0011983069125567805,
+    0.0011983069125567891,
+    0.0011983069125567891,
+    0.0011983069125567891,
+    0.0011983069125567891
+  ],
+  "single_stream_matches_batch": true,
+  "mixed_mesh_native_rejected": true,
+  "static_rejections": [
+    "raw_mode_with_compression",
+    "bad_skeleton_index",
+    "bad_curve_permutation"
+  ]
+}
