@@ -5530,6 +5530,9 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 漏检/有限复开：.251撤销时只验证初始GFrameCounter=0；此值同时命中TickTaskManager visited/queued和mesh LastPoseTickFrame的零sentinel，首world物理/动画均空，不能代表正常出生帧。tick后递增顺序仍正确，不能由此推断首world应空。BF144.297补真实移动状态并核1/17后有限取消勾选复开.251，原撤销反例保留为特殊零域；早先case层错参控制已标INVALID、实际回显合同拒绝。消融/字节恢复与最终身份以.298完成摘要为准，生产未修；证据 `target/bf144/297/nonzero-check.json`、`frame1-check.json`、`target/bf144/298/delta-check.json`。
 
 - [x] BF144-D244 / P3 — 首次零步长动画求值延后到物理步后，丢失源注册阶段的出生状态与曲线种子。
+  - 2026-11-13 03:34 复开，预估04:02。真实角色等待未装载场景时，定向测试稳定在 pending 阶段读到 Air。fresh 原生非零帧17注册与首正常帧逐字段保持，出生阶段先做零步长Grounded姿态。目标 ground motor 仍能为待放行角色提交零位移，后续静止地板系统因此切Air。旧 Gate 已门控 CMC 正常事务，漏掉其前置地面马达。证据 `docs/audit/bf144/d244/runtime-recheck/`。
+  - 03:39 source/focused：源复采与原生角色 probe 逐字段相同。注册 pose 的 Grounded/Running/pending 与六曲线为1；BeginPlay后实际运动为 Falling，首普通世界步才消费。地面马达按既有 pending 过滤后，真实角色延迟装载、待放行时无地面计划、零步长姿态和首普通Air均通过。附带的首普通 Jump 仍停在控制器未接受阶段，归U07另追。下一步同实际入口 `animation_clock`。
+  - 2026-11-13 03:42 复验通过，03:34开始，预估04:02，提前20分钟。定向真实角色出生 Gate 通过，正式 AnimationClock 的暂停、单步、自定义倍率、恢复及角色运动均通过。原生资料、基线失败、恢复和正式入口报告在 `docs/audit/bf144/d244/runtime-recheck/`。首普通 Jump 的动作未接受仍留在U07。
   - 2026-11-08 11:29 开始：预估结束12:14 +08:00。依据.252已有出生种子因子和D243 fresh 11帧/source注册事实，当前需覆盖角色异步场景装配、实际输入提供和首物理步顺序，按45分钟先完成最小静态闭环；完整测试、消融与公共Gate待用户指定阶段。
   - 11:41 source/static闭环：fresh注册pose为Grounded、pending且六个站立/地面/双足曲线为1，首world才进入Fall；目标scene由PreUpdate异步准备、角色物理先创建，必须让该角色等待真实图与overlay依赖就绪。现已接入出生等待、真实出生输入和零delta初始化，成功后放行原首物理步及下一次普通图更新；等待期间阻止项目运动事务直接改写角色。正在检查完整依赖、focused fixture与卸载/错误边界；尚无执行验证。
   - 11:45 输入闭包补充：原生注册Gait为Running；目标刷新gait会在异步等待期间按静止速度改为Walking，aim/view也可能先改变输入。上述首次状态与视图更新现同样等待出生pose，测试代码固定Grounded/Running、原高度、零delta、六曲线和首普通Air步。RigidBodyDisabled仍允许碰撞检测/查询，等待期间其他物体互动及图错误报告须在统一runtime Gate验证，不声称已通过。
@@ -7400,6 +7403,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF134.01D 复开（2026-11-12 21:56，预估22:22）：源 EnhancedPlayerInput 将实际游戏 delta 除以配置的 dilation。Bevy 0.20 在已缩放 delta 上限处降低 effective_speed，当前 Look 除以该值使上限失效。旧测试向 Time<Virtual> 写未缩放上限，已核对源 IA_Als_Look 仍有 ScaleByDeltaTime。按新时钟语义重建反例，补齐实际输入和运行验收。
   - BF134.01D 真实 Gate 前（2026-11-12 22:03）：已重读源 Look 资产，Bevy 同输入时钟对照得到旧100ms、源50ms，键鼠、世界时钟和 UI 的52项通过。使用实际 `run_manual.ps1` 启动 `interface`，检验菜单、慢动作和输入消费阶段。
   - BF134.01D 复验通过（2026-11-12 22:08）：源50ms上限恢复，52项键鼠/暂停/世界时钟/UI回归通过，正式 Interface 功能通过。证据在 `docs/audit/bf144/u07/look-clock-bevy-0.20/` 与 `docs/audit/bf144/u07/bevy-0.20/interface-round-1/`。
+  - 跨日复盘（2026-11-13 03:33:40）：上轮21:41:50开始，首段预估22:31:50，复盘时点已晚5时1分50秒。上一轮完成Look时钟与Interface，保持真实布娃娃及起身通过。校正原始资产根的库测试复验2059过／81失败。D244独立复现证实等待中Grounded被改为Air，已定位地面马达计划与静止地板处理链，下一步读原生注册和首正常帧后修复。继续按可独立验收的两段工作复核。出生/首跳/地面时序 03:33:40开始、预估04:18:40，图/曲线/Rig原输入和渲染场景后续段预估04:18:40开始、04:48:40复盘。本轮保留81个失败及完整反馈数值的验证边界。
   - .265补充：真实Locomotion入口与独立同mesh Stand0全部790分量精确，五个相关mesh-space层化模板顺序重放消除245旋转分量供应差，再接原Additive/Head得到真实raw首Root790分量精确；初始化源骨姿态链已闭合，未关闭初始target组合差、曲线反馈或完整原warm→77历史。见 `target/bf144/265/summary.json`，不把源本来具有的层化运算误记成新差异；截图0、性能暂停。
   - .264补充：真实Head Base/Additive及实际alpha/空间模式已读，13次源合成10270分量精确；Additive独立采样匹配，初始Base的245个旋转分量与同mesh Stand0不等，残差供应边进一步缩至Layering→Locomotion→Standing。Head/Rig/Root观察与同输入Head算法不再是未知点；不以该局部闭环关闭初始化Base或完整warm反馈。见 `target/bf144/264/summary.json`，截图0、性能暂停。
   - .263补充：真实首Head→Rig与主图Root现已从原求值直接取得，初始化和12帧旧字段完全保持；首帧790分量/完整curve与Rig层级一致，后续七根腿/骨盆骨验证写回边界。273个double旋转/20个近零float的候选残差已在实际Head输出存在，下一只补Head实际Base/Additive输入，不复开Rig或下游Root算法；13份原始source Root可供后续反馈核验，完整warm→77仍未通过。见 `target/bf144/263/summary.json`，截图0、性能暂停。

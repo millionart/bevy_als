@@ -223,15 +223,17 @@ mod tests {
         }
         fn capture(
             mut output: ResMut<Capture>,
-            actors: Query<(&Transform, &LocomotionState, &Gait, Has<AlsBirthAnimationPending>, Has<RigidBodyDisabled>), With<AlsCharacter>>,
+            actors: Query<(&Transform, &LocomotionState, &Gait, Has<AlsBirthAnimationPending>,
+                Has<RigidBodyDisabled>, &crate::als::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
             avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
             players: Query<(&AnimationGraphPlayer, &AnimationPoseUpdateGate, Option<&InitialAnimation>)>,
             graphs: Res<Assets<AnimationGraph>>,
         ) {
             for (avatar, instance) in &avatars {
-                let Ok((transform, mode, gait, pending, disabled)) = actors.get(avatar.character) else { continue; };
+                let Ok((transform, mode, gait, pending, disabled, cmc)) = actors.get(avatar.character) else { continue; };
                 if pending {
                     assert!(disabled);
+                    assert!(cmc.grounded_movement_delta.is_none());
                     assert_eq!(*mode, LocomotionState::Grounded);
                     assert_eq!(*gait, Gait::Running);
                     assert!((transform.translation.y - 1.5).abs() < 1e-6);

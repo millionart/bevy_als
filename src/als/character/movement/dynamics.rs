@@ -499,7 +499,7 @@ pub fn grounded_dynamics_motor_system(
             &mut AlsCmcAdapterRuntime,
             Option<&mut AlsMovementBaseDynamicsState>,
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
     >,
     actions: Query<(Option<&AlsRollState>, Option<&AlsMantleState>), With<AlsCharacter>>,
     landing_braking: Query<&AlsLandingBrakingFriction, With<AlsCharacter>>,
