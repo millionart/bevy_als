@@ -547,6 +547,7 @@ impl NodeLike for SourceApplyAdditiveNode {
             let skeleton = ctx.graph_context.resources.skeleton_assets.get(&base.skeleton)
                 .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
             apply_local_space_additive(&mut base, &additive, alpha, skeleton);
+            normalize_source_pose_rotations(&mut base, 1);
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
@@ -684,6 +685,7 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
                 .get(&base.skeleton)
                 .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
             apply_mesh_space_additive(&mut base, &additive, alpha, skeleton);
+            normalize_source_pose_rotations(&mut base, 1);
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
@@ -960,21 +962,65 @@ impl SourceGameplayTagBlendNode {
 }
 
 pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {
-    blend_source_poses_with_weights(poses, poses.iter().map(|(_, weight)| *weight))
+    blend_source_poses_with_weights(
+        poses,
+        poses.iter().map(|(_, weight)| *weight),
+        |pose| pose.normalize_quat(),
+    )
+}
+
+pub(crate) fn accumulate_source_poses(poses: &[(Pose, f32)]) -> Pose {
+    blend_source_poses_with_weights(
+        poses,
+        poses.iter().map(|(_, weight)| *weight),
+        std::convert::identity,
+    )
 }
 
 fn blend_source_poses_with_weights(
     poses: &[(Pose, f32)],
     weights: impl IntoIterator<Item = f32>,
+    finalize_bones: impl FnOnce(Pose) -> Pose,
 ) -> Pose {
-    let mut output = poses.iter().zip(weights)
+    let pose = poses.iter().zip(weights)
         .map(|((pose, _), weight)| pose.scalar_mult(weight))
         .reduce(|accumulator, pose| accumulator.linear_add(&pose))
-        .unwrap_or_default().normalize_quat();
+        .unwrap_or_default();
+    let mut output = finalize_bones(pose);
     output.root_motion = crate::extensions::normalized_blendspace::blend_normalized_root_motion(
         &poses.iter().map(|(pose, weight)| (pose.root_motion.clone(), *weight)).collect::<Vec<_>>(),
     );
     output
+}
+
+pub(crate) fn normalize_source_pose_rotations(pose: &mut Pose, passes: usize) {
+    for bone in &mut pose.bones {
+        if let Some(rotation) = &mut bone.rotation {
+            let normalized = (0..passes).fold(rotation.as_dquat(), |value, _| {
+                crate::extensions::control_rig_hierarchy::rig_normalize(value)
+            });
+            *rotation = normalized.as_quat();
+        }
+    }
+}
+
+#[cfg(all(test, target_arch = "aarch64"))]
+#[test]
+fn source_pose_normalization_retains_the_second_double_pass() {
+    let bone = bevy_animation_graph::core::animation_clip::EntityPath::default().child("bone").id();
+    let mut one = Pose::default();
+    one.add_bone(
+        bevy_animation_graph::core::pose::BonePose {
+            rotation: Some(Quat::from_xyzw(0.055010028, 0.4557597, -0.50956815, 0.88170236)),
+            ..Default::default()
+        },
+        bone,
+    );
+    let mut two = one.clone();
+    normalize_source_pose_rotations(&mut one, 1);
+    normalize_source_pose_rotations(&mut two, 2);
+    assert_eq!(one.get_bone(bone).unwrap().rotation.unwrap().z, -0.45617288);
+    assert_eq!(two.get_bone(bone).unwrap().rotation.unwrap().z, -0.4561729);
 }
 
 pub(crate) fn blend_list_pose_and_context(
@@ -1010,7 +1056,7 @@ pub(crate) fn blend_list_pose_and_context(
                     (first_curves, a.curves_are_authoritative || b.curves_are_authoritative)
                 });
             }
-            blend_source_poses_with_weights(&poses, [*first, alpha])
+            blend_source_poses_with_weights(&poses, [*first, alpha], |pose| pose.normalize_quat())
         }
         _ => blend_source_poses(&poses),
     };

@@ -10,7 +10,9 @@ use bevy_animation_graph::core::{
 
 use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::extensions::global_f32_input::global_f32_or_root_default;
-use crate::extensions::source_pose_nodes::{blend_animation_contexts, blend_source_poses};
+use crate::extensions::source_pose_nodes::{
+    accumulate_source_poses, blend_animation_contexts, normalize_source_pose_rotations,
+};
 
 fn node_error(ctx: &NodeContext, message: String) -> GraphError {
     GraphError::UnknownErrorNode {
@@ -123,7 +125,9 @@ impl NodeLike for SourceMultiWayBlendNode {
             crate::extensions::mesh_space_additive::materialize_missing_reference_bones(&mut pose, skeleton);
             pose
         } else {
-            blend_source_poses(&poses)
+            let mut pose = accumulate_source_poses(&poses);
+            normalize_source_pose_rotations(&mut pose, 1 + usize::from(poses.len() > 1));
+            pose
         };
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd("Pose", output);

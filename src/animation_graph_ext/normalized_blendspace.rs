@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_pose, sample_source_curves};
+use crate::extensions::source_pose_nodes::{accumulate_source_poses, normalize_source_pose_rotations};
 use crate::extensions::sync_group_phase::{
     SourceBlendSpaceClock, SourceSyncPlayerBinding, SourceSyncPlayerTick, blend_space_nearly_zero_delta, resolved_source_sync_phase,
     resolved_source_sync_markers, marker_phase_sample_time_near, follower_sample_time_near,
@@ -982,18 +983,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 });
             }
         }
-        let root_motion = blend_normalized_root_motion(
-            &poses
-                .iter()
-                .map(|(pose, weight)| (pose.root_motion.clone(), *weight))
-                .collect::<Vec<_>>(),
-        );
-        let mut output = poses
-            .iter()
-            .map(|(pose, weight)| pose.scalar_mult(*weight))
-            .reduce(|accumulator, pose| accumulator.linear_add(&pose))
-            .unwrap_or_default()
-            .normalize_quat();
+        let mut output = accumulate_source_poses(&poses);
         if let Some(samples) = smoothed.as_ref() {
             let skeleton = ctx.graph_context.resources.skeleton_assets.get(&output.skeleton);
             for (bone, output_index) in &output.paths {
@@ -1004,11 +994,11 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 let blended = poses.iter().zip(&pose_indices).filter_map(|((pose, _), index)| {
                     let sample = samples.iter().find(|sample| sample.index == *index)?;
                     pose.get_bone(*bone).map(|bone| bone.scalar_mult(sample.bone_weights[profile_index]))
-                }).reduce(|left, right| left.linear_add(&right)).map(|bone| bone.normalize_quat());
+                }).reduce(|left, right| left.linear_add(&right));
                 if let Some(blended) = blended { output.bones[*output_index] = blended; }
             }
         }
-        output.root_motion = root_motion;
+        normalize_source_pose_rotations(&mut output, 1 + usize::from(poses.len() > 1 || smoothed.is_some()));
         output.timestamp = graph_time;
         ctx.set_time(graph_time);
         ctx.set_data_fwd(OUT_POSE, output);

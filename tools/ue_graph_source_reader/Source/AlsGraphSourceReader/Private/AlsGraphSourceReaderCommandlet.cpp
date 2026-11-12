@@ -6228,6 +6228,10 @@ TSharedPtr<FJsonObject> CaptureMeshAdditiveProbe(UObject* Asset, const FString& 
         !Request->TryGetStringField(TEXT("node_guid"), NodeGuidText) || !FGuid::Parse(NodeGuidText, NodeGuid) || !NodeGuid.IsValid() ||
         !Request->TryGetArrayField(TEXT("bone_names"), Names) || !Request->TryGetArrayField(TEXT("samples"), Samples) ||
         Samples->IsEmpty() || Samples->Num() > 256) { return nullptr; }
+    bool bCaptureApiPose = false;
+    if (Request->HasField(TEXT("capture_api_pose")) &&
+        (Request->TryGetField(TEXT("capture_api_pose"))->Type != EJson::Boolean ||
+         !Request->TryGetBoolField(TEXT("capture_api_pose"), bCaptureApiPose))) { return nullptr; }
     const int32* NodeIndex = Class->GetNodePropertyIndexFromGuid(NodeGuid);
     const TArray<FStructProperty*>& Properties = Interface->GetAnimNodeProperties();
     const int32 PropertyIndex = NodeIndex != nullptr ? Properties.Num() - 1 - *NodeIndex : INDEX_NONE;
@@ -6284,6 +6288,23 @@ TSharedPtr<FJsonObject> CaptureMeshAdditiveProbe(UObject* Asset, const FString& 
         Row->SetNumberField(TEXT("alpha"), Node.ActualAlpha);
         Row->SetBoolField(TEXT("root_space_additive"), Node.bRootSpaceAdditive);
         Row->SetObjectField(TEXT("pose"), Captured.ToSharedRef());
+        if (bCaptureApiPose)
+        {
+            FPoseContext ApiPose(&Proxy);
+            Base.Evaluate_AnyThread(ApiPose);
+            if (FAnimWeight::IsRelevant(Node.ActualAlpha))
+            {
+                FPoseContext DeltaPose(&Proxy);
+                Additive.Evaluate_AnyThread(DeltaPose);
+                FAnimationPoseData ApiData(ApiPose);
+                FAnimationPoseData DeltaData(DeltaPose);
+                if (Node.bRootSpaceAdditive) { FAnimationRuntime::AccumulateRootSpaceRotationAdditiveToLocalPose(ApiData, DeltaData, Node.ActualAlpha); }
+                else { FAnimationRuntime::AccumulateAdditivePose(ApiData, DeltaData, Node.ActualAlpha, AAT_RotationOffsetMeshSpace); }
+            }
+            const TSharedPtr<FJsonObject> BeforeOuter = CaptureCompactPose(ApiPose.Pose, ApiPose.Curve);
+            if (!BeforeOuter.IsValid()) { return nullptr; }
+            Row->SetObjectField(TEXT("api_pose"), BeforeOuter.ToSharedRef());
+        }
         Results.Add(MakeShared<FJsonValueObject>(Row));
         UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Mesh additive sample %d/%d captured."), Results.Num(), Samples->Num());
     }
