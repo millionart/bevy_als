@@ -19,7 +19,8 @@ use crate::extensions::{control_rig_hierarchy::RigTransform, control_rig_query::
 
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::actual_motion::AlsActualMotion;
-use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, AVATAR_CAPSULE_BOTTOM_OFFSET,
+    AVATAR_CAPSULE_BOTTOM_OFFSET_CM};
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
 
@@ -387,7 +388,7 @@ fn refresh_control_rig_input(
 pub(crate) fn publish_control_rig_inputs(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     characters: Query<(Entity, &AlsControlRigInput, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
-    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance, Option<&Transform>, Option<&ChildOf>)>,
     mut players: Query<&mut AnimationGraphPlayer>,
     transforms: TransformHelper,
     trees: Option<Res<ColliderTrees>>,
@@ -398,7 +399,7 @@ pub(crate) fn publish_control_rig_inputs(
     let mut world: Option<Arc<RigQueryWorld>> = None;
     for (entity, input, assembly) in &characters {
         let Some(assembly) = assembly else { continue; };
-        let Ok((avatar, owner, instance)) = avatars.get(assembly.avatar) else { continue; };
+        let Ok((avatar, owner, instance, mount, parent)) = avatars.get(assembly.avatar) else { continue; };
         if owner.character != entity { continue; }
         let root = instance.player_entity();
         let Ok(mut player) = players.get_mut(root) else { continue; };
@@ -442,8 +443,17 @@ pub(crate) fn publish_control_rig_inputs(
                     Arc::new(RigQueryWorld { colliders, mesh_ray_data })
                 }).clone();
                 let transform = transform.compute_transform();
+                let translation = if mount.is_some_and(|mount| mount.translation == Vec3::Y * AVATAR_CAPSULE_BOTTOM_OFFSET)
+                    && parent.is_some_and(|parent| parent.parent() == entity)
+                    && let Ok(actor) = transforms.compute_global_transform(entity)
+                {
+                    let vertical = Vec3::from(actor.affine().matrix3.y_axis).as_dvec3();
+                    (actor.translation().as_dvec3() * 100.0 + vertical * AVATAR_CAPSULE_BOTTOM_OFFSET_CM) * 0.01
+                } else {
+                    transform.translation.as_dvec3()
+                };
                 RigQueryContext { world, filter, channel: "ECC_Visibility".to_owned(),
-                    to_world: RigTransform { translation: transform.translation.as_dvec3(), rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
+                    to_world: RigTransform { translation, rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
             }))
         } else { None };
         source_inputs.get_mut(root).unwrap().set_rig_query_context(context);
@@ -582,6 +592,15 @@ mod tests {
             assert_eq!(app.world().get::<AlsControlRigInput>(actor).unwrap().use_foot_ik_bones, use_foot_ik_bones);
             assert_eq!(app.world().get::<AlsFootTargetSelection>(actor).unwrap().use_ik_bones, use_foot_ik_bones);
         }
+
+        let actor_transform = *app.world().get::<Transform>(actor).unwrap();
+        app.world_mut().entity_mut(actor).insert(Transform::from_xyz(-15.0, 0.919_999_96, -15.0));
+        app.world_mut().entity_mut(avatar).insert(crate::character_assembly::avatar_transform());
+        app.world_mut().run_schedule(PostUpdate);
+        let query = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().rig_query_context().unwrap();
+        assert_eq!(query.to_world.translation, bevy::math::DVec3::new(-15.0, -4.291_534_423_828_125e-8, -15.0));
+        app.world_mut().entity_mut(actor).insert(actor_transform);
+        app.world_mut().entity_mut(avatar).insert(avatar_transform);
 
         let initialized = app.world().get::<AlsControlRigInput>(unloaded).unwrap();
         assert!(!initialized.use_hand_ik_bones && !initialized.use_foot_ik_bones && !initialized.foot_transforms_valid);

@@ -1,0 +1,43 @@
+{
+  "source_files": {
+    "Source/ALS/Private/AlsCharacter.cpp": {
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+      "reference": "SetRelativeLocation_Direct"
+    },
+    "Source/ALS/Private/Nodes/AlsRigUnit_FootOffsetTrace.cpp": {
+      "sha256": "bbf32d04017c02acbd012a7d79f691c2d020fa4972d0a998705421b8714258f9",
+      "reference": "ToWorldSpace and ToVMSpace"
+    },
+    "Engine/Source/Runtime/Engine/Classes/Components/SceneComponent.h": {
+      "sha256": "3528125d7972959d161cca7b516a3f3b0d3a225521959e11ad22da1e138cfb6b",
+      "reference": "CalcNewComponentToWorld"
+    }
+  },
+  "captures": {
+    "red.stdout.log.gz": {
+      "bytes": 822,
+      "sha256": "fa32188fb8efffb74cdba4fafaa4d6770ea05cb64be4a25eb1a0f6ac2df57418",
+      "redacted": false
+    },
+    "red.stderr.log.gz": {
+      "bytes": 7722,
+      "sha256": "ac46c8b8463bb5c00ee2fc49c43908b29be6fd5959cc0bd3911844674f57b1db",
+      "redacted": true
+    },
+    "restored.stdout.log.gz": {
+      "bytes": 1353,
+      "sha256": "56d9a94d9972a1650579a0afde035791c91925ab896cc8d2fc576c4cbfb96d8f",
+      "redacted": false
+    },
+    "restored.stderr.log.gz": {
+      "bytes": 7680,
+      "sha256": "673f46eadc179abd956d997b1ca554d1412f9a57d6b6afaa73e0a8f817495b04",
+      "redacted": true
+    },
+    "root-history.json.gz": {
+      "bytes": 20260848,
+      "sha256": "48d0563027396d94444384dc9e40b6f4e6d4de5607f610ab14fd9b955d4a990c",
+      "redacted": false
+    }
+  }
+}

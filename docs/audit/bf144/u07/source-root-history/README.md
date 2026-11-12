@@ -6,7 +6,7 @@
 
 三份旧目标报告逐值核对了额外观察的被动性。`target-30hz` 记录基础阶段，`target-producers-30hz` 记录首八帧Rig外部量，`target-motion-plan-30hz` 在速度快照与转向之间读取计划。`observer.initial.rs`、`observer.producers.rs` 及 `observer.rs` 分别对应三次观察。`compare_target.py` 使用原生字段计算F32姿态投影、完整曲线和物理输入，保留冷段与活动段的各自首差。
 
-`target-clock-restored-30hz` 使用同一观察和已恢复的角色时钟。首移动速度和Speed逐值一致，实际终点相同。首活动帧LayerLegs恢复，FeetCrossing余1 ULP，RotationYawOffset方向差与冷Rig输入余差继续追踪。正式恢复启动报告见 `docs/audit/bf144/d254a/runtime-recheck/`。
+`target-clock-restored-30hz` 使用同一观察和已恢复的角色时钟。首移动速度和Speed逐值一致，实际终点相同。首活动帧LayerLegs恢复，FeetCrossing余1 ULP。按照 `tools/import/gen_standing_curves.py` 与压缩曲线数据的目标坐标约定投影两个偏航通道，RotationYawOffset余差约3.8e−7°。正式恢复启动报告见 `docs/audit/bf144/d254a/runtime-recheck/`。
 
 ```sh
 d=docs/audit/bf144/u07/source-root-history

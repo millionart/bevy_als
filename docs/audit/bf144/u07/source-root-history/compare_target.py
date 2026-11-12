@@ -70,6 +70,7 @@ def main():
     pairs = [('cold', i, a, b) for i,(a,b) in enumerate(zip(source[:source_cold],cold))]
     pairs += [('active', i, a, b) for i,(a,b) in enumerate(zip(source[source_cold:],active))]
     summary = {'source_cold':source_cold,'target_cold':len(cold),'target_active':len(active),'pairs':{}}
+    heading_curves = {'rotationyawoffset', 'rotationyawspeed'}
     for phase in ('cold','active'):
         stats = {'counts':Counter(), 'stages':{}}
         for _,index,a,b in (row for row in pairs if row[0] == phase):
@@ -104,7 +105,8 @@ def main():
                 stage['max_error'] = list(map(max,stage['max_error'],maximum))
                 if stage['first'] is None and (first is not None or missing or extra):
                     stage['first'] = {'index':index,'arena':b['arena'],'first_numeric':first,'missing':missing,'extra':extra}
-            left = {key.casefold():f32(value) for key,value in pose['root_result']['pose']['curves'].items()}
+            left = {key.casefold(): f32(-value if key.casefold() in heading_curves else value)
+                for key,value in pose['root_result']['pose']['curves'].items()}
             right = {key.casefold():f32(value) for key,value in (b['curves'] or {}).items()}
             stats['counts']['exact_root_curves'] += left == right
             if left != right and 'first_curve_difference' not in stats:
