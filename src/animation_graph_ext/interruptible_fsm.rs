@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use bevy::prelude::*;
@@ -29,13 +29,14 @@ use bevy_animation_graph::core::{
 
 use crate::extensions::animation_context::{
     AnimationContextState, SourceRelevantAsset, capture_context_curve, graph_output_context_state,
-    merge_missing_context_curves,
+    merge_missing_context_curves, merge_sync_players,
 };
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::inertialization::InertializationNode;
 use crate::extensions::profile_blend::{AlphaBlendMode, ProfiledBlendNode, advance_alpha_blend, transition_alpha};
 use crate::extensions::source_pose_passthrough::SourcePosePassthroughNode;
 use crate::extensions::state_label_event::state_label_index;
+use crate::extensions::sync_group_phase::SourceSyncPlayerTick;
 
 static NOTIFICATION_GENERATION: AtomicU64 = AtomicU64::new(0);
 
@@ -1020,6 +1021,7 @@ impl InterruptibleFsmNode {
             state_pose_output: self.state_pose_output.clone(),
             state_pose_outputs: self.state_pose_outputs.clone(),
             update_weights: None,
+            sync_players: None,
         };
         let context_state =
             Self::source_condition_context_state(context_state).ok_or_else(|| {
@@ -1368,7 +1370,7 @@ impl InterruptibleFsmNode {
             .collect::<Vec<_>>();
         Self::prewarm_active_state_caches(machine, &cache_states, ctx, &update_weights)?;
 
-        let mut tail_players = Vec::new();
+        let sync_players = RefCell::new(Vec::new());
         let mut tail_samples = Vec::new();
         for tail in &tail_states {
             let (state_data, graph) = Self::active_graph(machine, tail, ctx)?;
@@ -1389,16 +1391,14 @@ impl InterruptibleFsmNode {
                 state_pose_output: self.state_pose_output.clone(),
                 state_pose_outputs: self.state_pose_outputs.clone(),
                 update_weights: Some(&update_weights),
+                sync_players: Some(&sync_players),
             };
             let sub_ctx = state_graph_context(ctx, state_data, graph, 0).with_io(&io);
             let output = self.state_pose_output_for(tail);
             let weight = Self::local_state_weight(&update_weights, tail);
             with_machine_weight(weight, || graph.get_data(TargetPin::OutputData(output.to_owned()), sub_ctx.clone()))?;
             if let Some(context) = graph_output_context_state(graph, &sub_ctx, output) {
-                tail_players.extend(context.sync_players.into_iter().map(|mut player| {
-                    player.weight *= weight;
-                    player
-                }));
+                merge_sync_players(&mut sync_players.borrow_mut(), &context.sync_players, weight);
                 crate::extensions::animation_context::merge_asset_samples(&mut tail_samples, &context.asset_samples, weight);
             }
         }
@@ -1440,6 +1440,7 @@ impl InterruptibleFsmNode {
                 state_pose_output: self.state_pose_output.clone(),
                 state_pose_outputs: self.state_pose_outputs.clone(),
                 update_weights: Some(&update_weights),
+                sync_players: Some(&sync_players),
             };
             let sub_ctx = state_graph_context(ctx, source_data, source_graph, source.context_slot)
                 .with_io(&io);
@@ -1452,10 +1453,12 @@ impl InterruptibleFsmNode {
             let pose = source_graph
                 .get_data(TargetPin::OutputData(output.clone()), sub_ctx.clone())?
                 .into_pose()?;
-            source_pose = Some((
-                pose,
-                graph_output_context_state(source_graph, &sub_ctx, &output).unwrap_or_default(),
-            ));
+            let context = graph_output_context_state(source_graph, &sub_ctx, &output).unwrap_or_default();
+            if matches!(source.state, LowLevelStateId::HlState(_)) {
+                merge_sync_players(&mut sync_players.borrow_mut(), &context.sync_players,
+                    Self::local_state_weight(&update_weights, &source.state));
+            }
+            source_pose = Some((pose, context));
         }
         state.source_pose = source_pose;
         state.state_update_weight = Self::source_condition_state(machine, &state.state)
@@ -1481,6 +1484,7 @@ impl InterruptibleFsmNode {
             state_pose_output: self.state_pose_output.clone(),
             state_pose_outputs: self.state_pose_outputs.clone(),
             update_weights: Some(&update_weights),
+            sync_players: Some(&sync_players),
         };
         let mut sub_ctx = state_graph_context(ctx, state_data, graph, state.context_slot).with_io(&io);
         let mut global_inputs = std::borrow::Cow::Borrowed(sub_ctx.global_input_data);
@@ -1531,15 +1535,23 @@ impl InterruptibleFsmNode {
             let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
             ctx.state_mut_or_else(|| snapshot)?.last_pose = Some(pose);
         }
-        crate::extensions::animation_context::merge_sync_players(&mut context_state.sync_players, &tail_players, 1.0);
         context_state.asset_samples = tail_samples;
         if let Some(output) = pose_output
             && let Some(mut context) = graph_output_context_state(graph, &sub_ctx, &output)
         {
-            context.sync_players.retain(|player| !tail_players.iter().any(|tail| tail.identity == player.identity));
+            if matches!(state.state, LowLevelStateId::HlState(_)) {
+                merge_sync_players(&mut sync_players.borrow_mut(), &context.sync_players, state.state_update_weight);
+            }
             context.asset_samples.retain(|sample| !context_state.asset_samples.iter().any(|tail| tail.identity == sample.identity));
             merge_missing_context_curves(&mut context_state, &context);
         }
+        let mut updated_players = std::mem::take(&mut *sync_players.borrow_mut());
+        for player in context_state.sync_players.drain(..) {
+            if !updated_players.iter().any(|updated| updated.identity == player.identity) {
+                updated_players.push(player);
+            }
+        }
+        context_state.sync_players = updated_players;
         crate::extensions::animation_context::merge_inertialization_request(
             &mut context_state.inertialization_request, state.context.inertialization_request.as_ref());
         crate::extensions::animation_context::merge_inertialization_request(
@@ -1864,6 +1876,7 @@ struct InterruptibleFsmIo<'a> {
     state_pose_output: String,
     state_pose_outputs: Vec<StatePoseOutput>,
     update_weights: Option<&'a [SourceFsmStateWeight]>,
+    sync_players: Option<&'a RefCell<Vec<SourceSyncPlayerTick>>>,
 }
 
 impl<'a> InterruptibleFsmIo<'a> {
@@ -1977,6 +1990,7 @@ impl<'a> InterruptibleFsmIo<'a> {
             state_pose_output: self.state_pose_output.clone(),
             state_pose_outputs: self.state_pose_outputs.clone(),
             update_weights: self.update_weights,
+            sync_players: self.sync_players,
         };
         let _ = ctx;
         Ok((graph, io))
@@ -2018,10 +2032,14 @@ impl<'a> InterruptibleFsmIo<'a> {
         with_machine_weight(weight, || {
             let result = graph.get_data(TargetPin::OutputData(pin.clone()), sub_ctx.clone());
             if matches!(&result, Ok(DataValue::Pose(_))) {
+                let context = graph_output_context_state(graph, &sub_ctx, &pin).unwrap_or_default();
+                if let Some(sync_players) = self.sync_players {
+                    merge_sync_players(&mut sync_players.borrow_mut(), &context.sync_players, weight);
+                }
                 crate::extensions::animation_context::write_linked_input_context(
                     &mut ctx.clone(),
                     input,
-                    graph_output_context_state(graph, &sub_ctx, &pin).unwrap_or_default(),
+                    context,
                 )?;
             }
             let Err(error) = result else {
@@ -2102,6 +2120,7 @@ impl<'a> InterruptibleFsmIo<'a> {
             state_pose_output: self.state_pose_output.clone(),
             state_pose_outputs: self.state_pose_outputs.clone(),
             update_weights: self.update_weights,
+            sync_players: self.sync_players,
         };
         let state_data = self.machine.states.get(&frame.state)
             .ok_or(GraphError::FSMCurrentStateMissing)?;
@@ -3209,7 +3228,8 @@ mod tests {
                 parent_time_update: TimeUpdate::Delta(0.4),
                 state: LowLevelStateId::HlTransition(transition), state_entered_time: 0.0, previous_state: None,
                 context_slot: 0, blend_duration: None, source_pose: None, role: FsmRole::Root,
-                stack: VecDeque::new(), state_pose_output: "Pose".to_owned(), state_pose_outputs: Vec::new(), update_weights: None,
+                stack: VecDeque::new(), state_pose_output: "Pose".to_owned(), state_pose_outputs: Vec::new(),
+                update_weights: None, sync_players: None,
             };
             io.state_data(
                 "Pose".into(), LowLevelStateId::HlState(target), FsmRole::Target,
@@ -6686,6 +6706,124 @@ mod tests {
         assert_eq!(weights.len(), 2);
         assert!((weights[0].value - 0.75).abs() < f32::EPSILON);
         assert!((weights[1].value - 0.25).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn interrupted_state_sync_records_use_native_accumulated_update_weights() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::extensions::source_sequence_player::SourceSequenceSynchronization;
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            alphas: [f32; 2],
+            weights: [f32; 2],
+            path_max: f32,
+        }
+        #[derive(serde::Deserialize)]
+        struct Reference {
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d220/weights.replay.json"
+        )).unwrap();
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut clips = Assets::<GraphClip>::default();
+        let clip = clips.add(GraphClip { duration: 1.0, ..default() });
+        let states = [1_u128, 2].map(|index| StateId::from(bevy::asset::uuid::Uuid::from_u128(index)));
+        let mut machine = LowLevelStateMachine::default();
+        let leaves = states.map(|state| {
+            let player = AnimationNode::new("Sequence", crate::extensions::SourceSequencePlayerNode {
+                clip: clip.clone(), expose_play_rate_pin: false, expose_start_position_pin: false,
+                synchronization: Some(SourceSequenceSynchronization {
+                    key: "Movement".into(), delta_seconds_key: "delta".into(), ..default()
+                }), ..default()
+            });
+            let mut graph = AnimationGraph::new();
+            graph.add_node(player.clone());
+            graph.add_output_data("pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(player.id, "Pose", "pose");
+            machine.add_state(LowLevelState { id: LowLevelStateId::HlState(state), graph: graphs.add(graph), hl_transition: None });
+            player.id
+        });
+        let blend = AnimationNode::new("Blend", ProfiledBlendNode::default());
+        let mut graph = AnimationGraph::new();
+        graph.add_node(blend.clone());
+        for (pin, input, spec) in [
+            ("factor", GraphInputPin::FsmBuiltin(FsmBuiltinPin::PercentThroughDuration), DataSpec::F32),
+            ("pose_a", GraphInputPin::FromFsmSource("pose".into()), DataSpec::Pose),
+            ("pose_b", GraphInputPin::FromFsmTarget("pose".into()), DataSpec::Pose),
+        ] {
+            graph.add_input_data(input.clone(), spec);
+            graph.add_input_data_edge(input, blend.id, pin);
+        }
+        for (pin, input) in [
+            ("time_a", GraphInputPin::FromFsmSource("time".into())),
+            ("time_b", GraphInputPin::FromFsmTarget("time".into())),
+        ] {
+            graph.add_input_time(input.clone());
+            graph.add_input_time_edge(input, blend.id, pin);
+        }
+        graph.add_output_time();
+        graph.add_output_pose_edge(blend.id);
+        graph.add_output_data("pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(blend.id, "pose", "pose");
+        let graph = graphs.add(graph);
+        let transitions = [0, 1].map(|index| {
+            let id = TransitionId::Direct(serde_json::from_value(serde_json::Value::String(
+                format!("20000000-0000-4000-8000-{index:012}")
+            )).unwrap());
+            let state = LowLevelStateId::HlTransition(id);
+            machine.add_state(LowLevelState {
+                id: state.clone(), graph: graph.clone(),
+                hl_transition: Some(LlTransitionData {
+                    source: states[index], target: states[1 - index], hl_transition_id: id, timed: Some(1.0),
+                }),
+            });
+            state
+        });
+        let mut root = AnimationGraph::new();
+        let node = AnimationNode::new("FSM", InterruptibleFsmNode::default());
+        let node_id = node.id;
+        root.add_node(node);
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(clips);
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        world.run_system_once(move |resources: SystemResources| {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let node = graph.nodes[&node_id].try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap();
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::from([("delta".into(), DataValue::F32(0.0))]);
+            let mut gizmos = DeferredGizmos::default();
+            for case in &reference.cases {
+                let mut arena = GraphContextArena::new(root.id());
+                arena.get_toplevel_mut().query_output_time = QueryOutputTime::Forced(TimeUpdate::Delta(0.0));
+                let mut ctx = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs).create_node_context(node_id);
+                let mut state = InterruptibleFsmNode::initial_state(transitions[1].clone(), 0.0, 0);
+                state.previous_state = Some(states[1]);
+                state.transition_elapsed_time = case.alphas[1];
+                state.blend_alpha = case.alphas[1];
+                state.blend_duration = Some(1.0);
+                state.interrupted_sources.push(InterruptibleFsmSource {
+                    state: transitions[0].clone(), state_entered_time: 0.0, previous_state: Some(states[0]),
+                    elapsed_time: case.alphas[0], blend_alpha: case.alphas[0], blend_remaining: 1.0 - case.alphas[0],
+                    context_slot: 0, blend_duration: Some(1.0),
+                });
+                ctx.state_mut_or_else(|| state).unwrap();
+                node.evaluate_active_state(&machine, TimeUpdate::Delta(0.0), false, &mut ctx).unwrap();
+                let state = ctx.state::<InterruptibleFsmState>().unwrap();
+                assert_eq!(state.context.sync_players.len(), 2, "{}", case.name);
+                let weights = leaves.map(|id| state.context.sync_players.iter().find(|tick| tick.identity.1 == id).unwrap().weight);
+                assert_eq!(weights, case.weights, "{}", case.name);
+                assert_ne!(weights[0], case.path_max, "{}", case.name);
+            }
+        }).unwrap();
     }
 
     #[test]
