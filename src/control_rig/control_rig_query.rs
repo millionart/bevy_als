@@ -142,6 +142,17 @@ impl RigQueryContext {
         channel: &str,
         complex: bool,
     ) -> Result<Option<(DVec3, DVec3)>, String> {
+        self.trace_in_units(start, end, channel, complex, 1.0)
+    }
+
+    pub(crate) fn trace_in_units(
+        &self,
+        start: DVec3,
+        end: DVec3,
+        channel: &str,
+        complex: bool,
+        meters_per_unit: f64,
+    ) -> Result<Option<(DVec3, DVec3)>, String> {
         if channel != self.channel || !complex {
             return Err("rig collision query mode is unsupported".to_owned());
         }
@@ -149,11 +160,14 @@ impl RigQueryContext {
         if !delta.is_finite() || delta == DVec3::ZERO {
             return Ok(None);
         }
-        let delta_f32 = delta.as_vec3();
+        let delta_meters = delta * meters_per_unit;
+        let start_meters = start * meters_per_unit;
+        let delta_f32 = delta_meters.as_vec3();
         let fallback = Dir3::new(delta_f32).ok().map(|direction| (direction, delta_f32.length()));
-        let origin = start.as_vec3();
-        let start_cm = start * 100.0;
-        let delta_cm = end * 100.0 - start_cm;
+        let origin = start_meters.as_vec3();
+        let centimeters_per_unit = meters_per_unit * 100.0;
+        let start_cm = start * centimeters_per_unit;
+        let delta_cm = end * centimeters_per_unit - start_cm;
         let length_cm = f64::from(mesh_vector_length(delta_cm) as f32);
         let mut nearest = 1.0;
         let mut hit = None;
@@ -170,14 +184,14 @@ impl RigQueryContext {
                 let scale = collider.scale();
                 let scale = source_mesh_has_scale(scale).then_some(scale);
                 mesh.geometry.trace(start, direction, length_cm * nearest, scale, mesh.cull_back_faces).map(|impact| {
-                    let point = (position_cm + source_rotate_vector(rotation_f64, impact.point_cm)) * 0.01;
+                    let point = (position_cm + source_rotate_vector(rotation_f64, impact.point_cm)) * (0.01 / meters_per_unit);
                     let normal = mesh_safe_normal(source_rotate_vector(rotation_f64, impact.normal));
                     (impact.time_cm / length_cm, point, normal)
                 })
             } else {
                 let local = Ray::new(
-                    source_rotate_vector(rotation_f64.conjugate(), start - position.0.as_dvec3()),
-                    source_rotate_vector(rotation_f64.conjugate(), delta),
+                    source_rotate_vector(rotation_f64.conjugate(), start_meters - position.0.as_dvec3()),
+                    source_rotate_vector(rotation_f64.conjugate(), delta_meters),
                 );
                 match trace_precise_shape(
                     &**collider.shape_scaled(), &**collider.shape(), collider.scale(), &local, nearest,
@@ -187,7 +201,7 @@ impl RigQueryContext {
                     Err(()) => fallback.and_then(|(direction, distance)|
                         collider.cast_ray(position.0, *rotation, origin, direction.as_vec3(), distance, true)
                             .map(|(length, normal)| (f64::from(length) / f64::from(distance),
-                                (origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()))),
+                                (origin + direction.as_vec3() * length).as_dvec3() / meters_per_unit, normal.as_dvec3()))),
                 }
             };
             let Some((fraction, point, normal)) = candidate else {
@@ -299,6 +313,7 @@ mod tests {
         };
         let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
         let geometry = RigGeometry {
+            meters_per_unit: 1.0,
             near_zero: 1e-6, normalize_squared: 1e-12, minimum_length: 1e-10, solve_near_zero: 1e-6,
             basis: [DVec3::X, DVec3::Z, DVec3::Y],
         };
@@ -323,6 +338,7 @@ mod tests {
         let floor = entities.spawn_empty().id();
         let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
         let geometry = RigGeometry {
+            meters_per_unit: 1.0,
             near_zero: 1e-6, normalize_squared: 1e-12, minimum_length: 1e-10, solve_near_zero: 1e-6,
             basis: [DVec3::X, DVec3::Z, DVec3::Y],
         };
@@ -605,6 +621,7 @@ mod tests {
         );
         let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
         let geometry = RigGeometry {
+            meters_per_unit: 1.0,
             near_zero: 1e-6,
             normalize_squared: 1e-12,
             minimum_length: 1e-10,

@@ -1,0 +1,24 @@
+{
+  "result": "PASS_SOURCE_RIG_LOCAL_TRANSFER",
+  "transfer_bones": 474,
+  "rounded_transfer_bones": 391,
+  "local_and_global_bones": 1659,
+  "early_meters_double": 126,
+  "early_meters_f32": 83,
+  "history_frames": 21,
+  "witness": {
+    "case": "actual319-reference-0",
+    "frame": "actual-query-001",
+    "bone": "calf_l",
+    "early": [
+      -0.42572036743164066,
+      -8.326672684688674e-17,
+      3.823080740872342e-11
+    ],
+    "late": [
+      -0.42572036743164066,
+      -7.105427357601002e-17,
+      3.823082295184577e-11
+    ]
+  }
+}

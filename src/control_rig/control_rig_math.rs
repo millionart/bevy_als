@@ -188,6 +188,10 @@ pub enum RigMathOp {
 
 impl RigMathOp {
     pub fn evaluate(self, inputs: &[RigValue]) -> Result<RigValue, String> {
+        self.evaluate_in_units(inputs, 1.0)
+    }
+
+    pub(crate) fn evaluate_in_units(self, inputs: &[RigValue], meters_per_unit: f64) -> Result<RigValue, String> {
         use RigValue::*;
         Ok(match (self, inputs) {
             (Self::F32Add, [F32(a), F32(b)]) => F32(a + b),
@@ -217,7 +221,7 @@ impl RigMathOp {
             (Self::VectorAdd, [Vector(a), Vector(b)]) => Vector(*a + *b),
             (Self::VectorScale, [Vector(value), F32(factor)]) => Vector(*value * *factor as f64),
             (Self::VectorScale, [Vector(value), Centimeters(factor)]) => {
-                Vector(*value * (f64::from(*factor) * 0.01))
+                Vector(*value * (f64::from(*factor) * (0.01 / meters_per_unit)))
             }
             (Self::QuaternionFromEulerYzx, [EulerDegrees(value)]) => {
                 Quaternion(rig_quaternion(*value))

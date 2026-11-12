@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use bevy::math::DVec3;
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
@@ -14,7 +17,7 @@ use crate::extensions::animation_context::{
 };
 use crate::extensions::{
     control_rig_hierarchy::{RigHierarchy, RigSpace, RigTransform},
-    control_rig_math::RigValue,
+    control_rig_math::{RigValue, rotation_basis},
     control_rig_program::{RigDefinition, RigValueRef},
     control_rig_units::RigUnitContext,
     source_instance::source_input_data,
@@ -79,6 +82,10 @@ impl ControlRigNodeState {
     pub fn snapshot_hierarchy(&self) -> Option<RigHierarchy> {
         self.runtime.as_ref().map(|runtime| runtime.hierarchy.clone())
     }
+
+    pub fn meters_per_unit(&self) -> f64 {
+        self.runtime.as_ref().map_or(1.0, |runtime| runtime.definition.geometry.meters_per_unit)
+    }
 }
 
 pub fn current_control_rig<'a>(
@@ -116,11 +123,21 @@ fn rig_transform(transform: Transform) -> RigTransform {
     }
 }
 
-fn input_value(value: DataValue) -> Result<RigValue, String> {
+fn pose_rig_transform(transform: RigTransform, length_scale: f64) -> RigTransform {
+    let [x, y, z] = transform.translation.to_array();
+    let [sx, sy, sz] = transform.scale.to_array();
+    RigTransform {
+        translation: DVec3::new(x, z, y) * length_scale,
+        rotation: rotation_basis(transform.rotation),
+        scale: DVec3::new(sx, sz, sy),
+    }
+}
+
+fn input_value(value: DataValue, meters_per_unit: f64) -> Result<RigValue, String> {
     match value {
         DataValue::F32(value) => Ok(RigValue::F32(value)),
         DataValue::Bool(value) => Ok(RigValue::Bool(value)),
-        DataValue::Vec3(value) => Ok(RigValue::Vector(value.as_dvec3())),
+        DataValue::Vec3(value) => Ok(RigValue::Vector(value.as_dvec3() * meters_per_unit.recip())),
         DataValue::Quat(value) => Ok(RigValue::Quaternion(value.as_dquat())),
         _ => Err("rig external input type is unsupported".to_owned()),
     }
@@ -217,6 +234,9 @@ impl ControlRigBoundaryNode {
         state.to_world = to_world;
         state.calls.clear();
         state.traces.clear();
+        let meters_per_unit = definition.geometry.meters_per_unit;
+        let mut rig_to_world = to_world;
+        rig_to_world.translation *= meters_per_unit.recip();
         let rebuild = state.runtime.as_ref().is_none_or(|runtime| runtime.definition != *definition);
         if rebuild {
             state.runtime = Some(ControlRigRuntime {
@@ -235,10 +255,11 @@ impl ControlRigBoundaryNode {
         }
         let runtime = state.runtime.as_mut().unwrap();
         for (binding, value) in inputs {
-            binding.write(
+            binding.write_in_units(
                 &mut runtime.values,
                 definition.program.literal_count,
                 value.clone(),
+                meters_per_unit,
             )?;
         }
         let calls = &mut state.calls;
@@ -249,9 +270,12 @@ impl ControlRigBoundaryNode {
             let mut trace = |start, end, channel: &str, complex| {
                 let hit = query
                     .ok_or_else(|| "rig line trace is unavailable".to_owned())?
-                    .trace(start, end, channel, complex)?;
+                    .trace_in_units(start, end, channel, complex, meters_per_unit)?;
                 if capture {
-                    traces.push(RigTraceSample { instruction: instruction.get(), start, end, hit });
+                    traces.push(RigTraceSample {
+                        instruction: instruction.get(), start: start * meters_per_unit, end: end * meters_per_unit,
+                        hit: hit.map(|(point, normal)| (point * meters_per_unit, normal)),
+                    });
                 }
                 Ok(hit)
             };
@@ -262,13 +286,13 @@ impl ControlRigBoundaryNode {
                 construction: false,
                 delta_seconds,
                 geometry: &definition.geometry,
-                to_world,
+                to_world: rig_to_world,
                 line_trace: query
                     .map(|_| &mut trace as &mut crate::extensions::control_rig_units::RigLineTrace<'_>),
             };
             definition
                 .program
-                .execute(entry, &mut runtime.values, |pc, name, args| {
+                .execute_in_units(entry, &mut runtime.values, meters_per_unit, |pc, name, args| {
                     let bones_before = if capture {
                         instruction.set(pc);
                         let indices = args.iter().filter_map(|value| context.hierarchy.item_index(value).ok().flatten()).collect::<Vec<_>>();
@@ -317,6 +341,10 @@ impl ControlRigBoundaryNode {
             }
             mapping.push(matched);
         }
+        let mut source_pose = state.context.source_pose.take().map(Arc::unwrap_or_clone);
+        let source_indices: bevy::platform::collections::HashMap<_, _> = source_pose.iter()
+            .flat_map(|pose| pose.bones.iter().enumerate().map(|(index, (bone, _))| (*bone, index)))
+            .collect();
         if self.transfer_input_pose {
             let mut local = Vec::with_capacity(mapping.len());
             for (index, &id) in mapping.iter().enumerate() {
@@ -332,13 +360,21 @@ impl ControlRigBoundaryNode {
                         definition.bones[index].name
                     ));
                 }
+                if let Some(source) = &source_pose
+                    && let Some(&index) = source_indices.get(&id)
+                {
+                    local.push(pose_rig_transform(source.bones[index].1, source.length_scale / meters_per_unit));
+                    continue;
+                }
                 let defaults = skeleton
                     .default_transforms(id)
                     .ok_or("rig skeleton reference is missing")?;
                 let transform = pose.get_bone(id).map_or(defaults.local, |bone| {
                     bone.to_transform_with_base(defaults.local)
                 });
-                local.push(rig_transform(transform));
+                let mut transform = rig_transform(transform);
+                transform.translation *= meters_per_unit.recip();
+                local.push(transform);
             }
             runtime.hierarchy.set_input_pose(&local)?;
         }
@@ -361,9 +397,14 @@ impl ControlRigBoundaryNode {
                 continue;
             };
             let transform = runtime.hierarchy.transform(index, RigSpace::Local, false)?;
+            if let Some(source) = &mut source_pose
+                && let Some(&index) = source_indices.get(&id)
+            {
+                source.bones[index].1 = pose_rig_transform(transform, meters_per_unit / source.length_scale);
+            }
             let mut output = BonePose::from_transform(Transform {
                 rotation: transform.rotation.as_quat(),
-                translation: transform.translation.as_vec3(),
+                translation: (transform.translation * meters_per_unit).as_vec3(),
                 scale: transform.scale.as_vec3(),
             });
             if let Some(&index) = pose.paths.get(&id) {
@@ -373,6 +414,7 @@ impl ControlRigBoundaryNode {
                 pose.add_bone(output, id);
             }
         }
+        state.context.source_pose = source_pose.filter(|source| source.matches_projection(pose)).map(Arc::new);
         Ok(())
     }
 }
@@ -403,6 +445,10 @@ impl NodeLike for ControlRigBoundaryNode {
             .definition
             .as_ref()
             .ok_or_else(|| failure("target program is missing".to_owned()))?;
+        let meters_per_unit = definition.geometry.meters_per_unit;
+        if !meters_per_unit.is_finite() || meters_per_unit <= 0.0 {
+            return Err(failure("rig length unit is invalid".to_owned()));
+        }
         let inputs = self
             .input_bindings
             .iter()
@@ -420,7 +466,7 @@ impl NodeLike for ControlRigBoundaryNode {
                 target.path.extend_from_slice(&binding.path);
                 let value = source_input_data(&ctx, &binding.property)
                     .ok_or_else(|| GraphError::GlobalInputDataMissing(binding.property.clone()))?;
-                Ok((target, input_value(value).map_err(&failure)?))
+                Ok((target, input_value(value, meters_per_unit).map_err(&failure)?))
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
         let game_world = match source_input_data(&ctx, RIG_GAME_WORLD_KEY) {
@@ -476,10 +522,9 @@ impl NodeLike for ControlRigBoundaryNode {
                 ctx.set_data_fwd(curve.clone(), value);
             }
         }
-        merge_upstream_pose_context(
-            &mut state,
-            pose_input_context_state(&ctx, &self.pose_input),
-        );
+        let upstream = pose_input_context_state(&ctx, &self.pose_input);
+        state.source_pose = upstream.as_ref().and_then(|context| context.source_pose_for(&pose)).cloned();
+        merge_upstream_pose_context(&mut state, upstream);
         let resources = ctx.graph_context.resources;
         let skeleton = resources
             .skeleton_assets
@@ -564,9 +609,40 @@ mod tests {
         let (_, node, _) = current_control_rig(player, graphs).unwrap();
         let node = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap();
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/ALS/Character/CR_Als.program.json"
+            "../../docs/audit/bf144/d232e/rig.centimeters.json"
         )).unwrap();
         assert_eq!(node.definition.as_ref().unwrap().bones, definition.bones);
+    }
+
+    #[test]
+    fn control_rig_local_transfer_retains_source_centimeters_until_output() {
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+        use crate::extensions::{control_rig_hierarchy::RigBone, source_pose::SourcePose};
+
+        let mut definition = hot_swap_definition();
+        definition.geometry.meters_per_unit = 0.01;
+        definition.bones.push(RigBone {
+            name: "root".into(), parent: None, initial_local: default(), initial_global: default(),
+        });
+        let path = EntityPath::default().child("root");
+        let root = path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.set_root(root);
+        let transform = RigTransform {
+            translation: DVec3::new(0.1352923745746292, -3.420399962835745, 94.18533515463514),
+            ..default()
+        };
+        let source = Arc::new(SourcePose { bones: vec![(root, transform)], length_scale: 0.01 });
+        let mut pose = Pose::default();
+        source.project_into(&mut pose);
+        let mut state = ControlRigNodeState::default();
+        state.context.source_pose = Some(source);
+        ControlRigBoundaryNode::default().solve(&definition, &mut state, &mut pose, &skeleton, &[],
+            false, 0.0, RigTransform::default(), None, false).unwrap();
+        let actual = state.snapshot_hierarchy().unwrap().transform(0, RigSpace::Local, false).unwrap();
+        assert_eq!(actual, pose_rig_transform(transform, 1.0));
+        assert_eq!(state.context.source_pose_for(&pose).unwrap().bones[0].1, transform);
     }
 
     #[test]
@@ -1159,14 +1235,20 @@ mod tests {
         let graph: bevy_animation_graph::core::animation_graph::serial::AnimationGraphDeserializer =
             ron::from_str(include_str!("../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron")).unwrap();
         let generated = graph.nodes.iter().find(|node| node.inner.get_ron().contains("als_ext::ControlRigBoundaryNode")).unwrap();
-        for (source, encoded) in [encoded.as_str(), generated.inner.get_ron()].into_iter().enumerate() {
+        let centimeters: RigDefinition = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d232e/rig.centimeters.json"
+        )).unwrap();
+        let cases = [
+            (encoded.as_str(), node.definition.as_ref().unwrap()),
+            (generated.inner.get_ron(), &centimeters),
+        ];
+        for (source, (encoded, expected)) in cases.into_iter().enumerate() {
             let mut deserializer = ron::de::Deserializer::from_str(encoded).unwrap();
             let reflected = ReflectDeserializer::new(&registry)
                 .deserialize(&mut deserializer)
                 .unwrap_or_else(|error| panic!("{}", deserializer.span_error(error)));
             let decoded = ControlRigBoundaryNode::from_reflect(reflected.as_partial_reflect()).unwrap();
             let actual = decoded.definition.expect("generated rig definition is missing");
-            let expected = node.definition.as_ref().unwrap();
             assert_eq!(actual.bones.len(), expected.bones.len());
             for (actual, expected) in actual.bones.iter().zip(&expected.bones) {
                 assert_eq!(serde_json::to_value(actual).unwrap(), serde_json::to_value(expected).unwrap(), "source {source}, bone {}", actual.name);

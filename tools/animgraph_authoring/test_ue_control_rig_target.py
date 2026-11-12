@@ -23,10 +23,11 @@ def validate(contract, result):
     assert len(program["instructions"]) == 165
     assert len(result["bones"]) == 79 and len(result["curves"]) == 43
     assert all(value is None for value in result["curves"].values())
+    assert result["geometry"]["meters_per_unit"] == 0.01
     for native, target in zip(contract["rig_hierarchy"]["bones"], result["bones"]):
         for key in ("initial_local", "initial_global"):
             location = native[key + "_transform"]["translation"]
-            assert target[key]["translation"] == [location["x"] * 0.01, location["z"] * 0.01, location["y"] * 0.01]
+            assert target[key]["translation"] == [location["x"], location["z"], location["y"]]
     assert program["entries"] == {"Forwards Solve": 0, "Construction": 150}
     for pc in (31, 40):
         trace = program["instructions"][pc]["Call"]

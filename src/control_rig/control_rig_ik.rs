@@ -9,11 +9,18 @@ use crate::extensions::control_rig_math::rig_quat_product;
 
 #[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RigGeometry {
+    #[serde(default = "default_meters_per_unit")]
+    #[reflect(default = "default_meters_per_unit")]
+    pub meters_per_unit: f64,
     pub near_zero: f64,
     pub normalize_squared: f64,
     pub minimum_length: f32,
     pub solve_near_zero: f64,
     pub basis: [DVec3; 3],
+}
+
+fn default_meters_per_unit() -> f64 {
+    1.0
 }
 
 pub(crate) fn source_vector_dot(a: DVec3, b: DVec3) -> f64 {
@@ -86,14 +93,15 @@ impl RigGeometry {
     ) -> (DVec3, DVec3) {
         let delta = effector - root;
         let mut distance = source_vector_dot(delta, delta).sqrt();
-        let delta_cm = effector * 100.0 - root * 100.0;
-        let source_distance = source_vector_dot(delta_cm, delta_cm).sqrt() * 0.01;
+        let centimeters_per_unit = self.meters_per_unit * 100.0;
+        let delta_cm = effector * centimeters_per_unit - root * centimeters_per_unit;
+        let source_distance = source_vector_dot(delta_cm, delta_cm).sqrt() * (0.01 / self.meters_per_unit);
         let direction = if source_distance < self.solve_near_zero {
             distance = self.solve_near_zero;
             self.basis[0]
         } else if distance < self.solve_near_zero {
             distance = source_distance;
-            safe_normal(delta_cm, self.normalize_squared / 0.0001)
+            safe_normal(delta_cm, self.normalize_squared / (0.01 / self.meters_per_unit).powi(2))
         } else {
             safe_normal(delta, self.normalize_squared)
         };

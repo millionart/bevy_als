@@ -264,6 +264,7 @@ mod tests {
         let entity = World::new().spawn_empty().id();
         let mut hierarchy = RigHierarchy::new(Vec::new(), 1e-6).unwrap();
         let geometry = RigGeometry {
+            meters_per_unit: 1.0,
             near_zero: 1e-6,
             normalize_squared: 1e-12,
             minimum_length: 1e-10,

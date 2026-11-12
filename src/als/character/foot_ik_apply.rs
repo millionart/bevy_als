@@ -244,19 +244,26 @@ fn rig_foot_result(
     let call = state.calls.iter().rev().find(|call| rig_call_is(definition, call, "FRigUnit_TwoBoneIKSimplePerItem::Execute")
         && call.arguments.get(2).and_then(rig_bone).is_some_and(|name| name.eq_ignore_ascii_case(foot_name)))?;
     let mut hierarchy = state.snapshot_hierarchy()?;
+    let meters_per_unit = state.meters_per_unit();
     let indices = [0, 1, 2].map(|index| hierarchy.item_index(call.arguments.get(index)?).ok().flatten());
     let [Some(hip), Some(knee), Some(foot)] = indices else { return None; };
     let mut before = Vec::new();
     let mut expected = Vec::new();
     for index in [hip, knee, foot] {
         before.push(call.bones_before.iter().find(|(bone, _)| *bone == index)?.1);
-        expected.push(to_world.transform_point(hierarchy.transform(index, RigSpace::Global, false).ok()?.translation).as_vec3());
+        expected.push(to_world.transform_point(hierarchy.transform(index, RigSpace::Global, false).ok()?.translation * meters_per_unit).as_vec3());
     }
     if actual.iter().chain(&expected).any(|value| !value.is_finite()) { return None; }
-    let target = RigTransform::from_value(call.arguments.get(3)?).ok()?;
-    let pole = rig_vector(call.arguments.get(7)?)?;
+    let mut target = RigTransform::from_value(call.arguments.get(3)?).ok()?;
+    let pole = rig_vector(call.arguments.get(7)?)? * meters_per_unit;
     if call.arguments.get(8)? != &RigValue::Name("Location".into()) || hierarchy.item_index(call.arguments.get(9)?).ok().flatten().is_some() {
         return None;
+    }
+    let target_parent_local = (before[1].inverse_transform_point(target.translation) * meters_per_unit).as_vec3();
+    let target_bone_local = (before[2].inverse_transform_point(target.translation) * meters_per_unit).as_vec3();
+    target.translation *= meters_per_unit;
+    for transform in &mut before {
+        transform.translation *= meters_per_unit;
     }
     let target_world = to_world.transform_point(target.translation).as_vec3();
     let pole_world = to_world.transform_point(pole).as_vec3();
@@ -272,8 +279,8 @@ fn rig_foot_result(
     if trace_call.arguments.get(6)? == &RigValue::Bool(true) && trace.is_none() { return None; }
     let reference_call = state.calls.iter().rev().find(|sample| rig_call_is(definition, sample, "FAlsRigUnit_ApplyFootOffsetLocation::Execute")
         && sample.arguments.get(1).and_then(rig_bone).is_some_and(|name| name.eq_ignore_ascii_case(&definition.bones[hip].name)))?;
-    let reference = rig_vector(reference_call.arguments.get(2)?)?;
-    let trace_target = rig_vector(trace_call.arguments.first()?)?;
+    let reference = rig_vector(reference_call.arguments.get(2)?)? * meters_per_unit;
+    let trace_target = rig_vector(trace_call.arguments.first()?)? * meters_per_unit;
     let normal = rig_vector(trace_call.arguments.get(9)?)?;
     let hit = trace.and_then(|trace| trace.hit);
     let normal_world = hit.map_or(to_world.rotation * (to_world.scale * normal), |(_, normal)| normal).as_vec3();
@@ -283,7 +290,6 @@ fn rig_foot_result(
     let pole_sign = (knee_delta - axis * knee_delta.dot(axis)).dot(pole_delta - axis * pole_delta.dot(axis));
     let errors = std::array::from_fn::<_, 3, _>(|index| actual[index].distance(expected[index]));
     let trs = |value: RigTransform| (value.translation.as_vec3().to_array(), value.rotation.as_quat().to_array(), value.scale.as_vec3().to_array());
-    let target_parent_local = before[1].inverse_transform_point(target.translation).as_vec3();
     let telemetry = AlsFootIkTelemetrySide { valid: true, target_world, target_armature_local: target.translation.as_vec3(),
         target_parent_local, reference_chain_error: errors.into_iter().fold(0.0, f32::max), pole_sign, ik_weight: weight, pin_weight: lock_amount };
     let space = AlsFootIkSpaceSide { valid: true, has_ground_hit: hit.is_some(),
@@ -291,7 +297,7 @@ fn rig_foot_result(
         solver_reference_world: to_world.transform_point(reference).as_vec3(), solver_reference_armature_local: reference.as_vec3(),
         target_world, resolved_target_world: expected[2], resolved_knee_world: expected[1], pole_location_world: pole_world,
         target_armature_local: target.translation.as_vec3(), target_parent_local,
-        target_bone_local: before[2].inverse_transform_point(target.translation).as_vec3(), normal_world, normal_armature_local: normal.as_vec3(),
+        target_bone_local, normal_world, normal_armature_local: normal.as_vec3(),
         raw_offset: rig_scalar(trace_call.arguments.get(8)?)?,
         solve_input: Some(FootIkSolveInput { armature_world_trs: trs(to_world), thigh_world_trs: trs(before[0].global(to_world)),
             calf_world_trs: trs(before[1].global(to_world)), foot_world_trs: trs(before[2].global(to_world)),
@@ -1080,7 +1086,7 @@ mod tests {
         let binding = node.input_bindings.iter().find(|binding| binding.property == "control_rig_input.foot_left_location").unwrap();
         let mut input = node.definition.as_ref().unwrap().externals[&binding.external].clone();
         input.path.extend_from_slice(&binding.path);
-        let actual = rig.to_world.transform_point(rig_vector(&rig.value(&input).unwrap()).unwrap()).as_vec3();
+        let actual = rig.to_world.transform_point(rig_vector(&rig.value(&input).unwrap()).unwrap() * rig.meters_per_unit()).as_vec3();
         assert!(actual.abs_diff_eq(expected, 1e-4), "Rig lost the retained lock: actual={actual:?}, expected={expected:?}");
     }
 
@@ -1119,7 +1125,7 @@ mod tests {
             let binding = node.input_bindings.iter().find(|binding| binding.property == "control_rig_input.foot_left_location").unwrap();
             let mut input = node.definition.as_ref().unwrap().externals[&binding.external].clone();
             input.path.extend_from_slice(&binding.path);
-            let actual = rig_vector(&rig.value(&input).unwrap()).unwrap();
+            let actual = rig_vector(&rig.value(&input).unwrap()).unwrap() * rig.meters_per_unit();
             let component = rig.to_world;
             let offset = state.left.target_location.as_dvec3() - component.translation;
             let expected = component.rotation.conjugate() * (offset / component.scale);

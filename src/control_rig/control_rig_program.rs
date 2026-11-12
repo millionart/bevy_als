@@ -30,7 +30,9 @@ fn read_field(value: &RigValue, path: &[usize]) -> Result<RigValue, String> {
     }
 }
 
-fn write_field(target: &mut RigValue, path: &[usize], value: RigValue) -> Result<(), String> {
+fn write_field(target: &mut RigValue, path: &[usize], value: RigValue, meters_per_unit: f64) -> Result<(), String> {
+    let from_centimeters = 0.01 / meters_per_unit;
+    let to_centimeters = 100.0 * meters_per_unit;
     if let Some((&index, rest)) = path.split_first() {
         match target {
             RigValue::List(values) => {
@@ -38,6 +40,7 @@ fn write_field(target: &mut RigValue, path: &[usize], value: RigValue) -> Result
                     values.get_mut(index).ok_or("rig list index is invalid")?,
                     rest,
                     value,
+                    meters_per_unit,
                 );
             }
             RigValue::Vector(target) | RigValue::EulerDegrees(target)
@@ -46,8 +49,8 @@ fn write_field(target: &mut RigValue, path: &[usize], value: RigValue) -> Result
                 target[index] = match value {
                     RigValue::F64(value) => value,
                     RigValue::F32(value) => value as f64,
-                    RigValue::Centimeters(value) => f64::from(value) * 0.01,
-                    RigValue::Centimeters64(value) => value * 0.01,
+                    RigValue::Centimeters(value) => f64::from(value) * from_centimeters,
+                    RigValue::Centimeters64(value) => value * from_centimeters,
                     _ => return Err("rig vector component type is invalid".to_owned()),
                 };
                 return Ok(());
@@ -58,10 +61,10 @@ fn write_field(target: &mut RigValue, path: &[usize], value: RigValue) -> Result
     match (&mut *target, value) {
         (RigValue::F32(target), RigValue::F64(value)) => *target = value as f32,
         (RigValue::F64(target), RigValue::F32(value)) => *target = value as f64,
-        (RigValue::Centimeters(target), RigValue::F64(value)) => *target = (value * 100.0) as f32,
-        (RigValue::F64(target), RigValue::Centimeters(value)) => *target = f64::from(value) * 0.01,
-        (RigValue::Centimeters64(target), RigValue::F64(value)) => *target = value * 100.0,
-        (RigValue::F64(target), RigValue::Centimeters64(value)) => *target = value * 0.01,
+        (RigValue::Centimeters(target), RigValue::F64(value)) => *target = (value * to_centimeters) as f32,
+        (RigValue::F64(target), RigValue::Centimeters(value)) => *target = f64::from(value) * from_centimeters,
+        (RigValue::Centimeters64(target), RigValue::F64(value)) => *target = value * to_centimeters,
+        (RigValue::F64(target), RigValue::Centimeters64(value)) => *target = value * from_centimeters,
         (RigValue::Centimeters64(target), RigValue::Centimeters(value)) => *target = f64::from(value),
         (RigValue::Centimeters(target), RigValue::Centimeters64(value)) => *target = value as f32,
         (target, value) if std::mem::discriminant(target) == std::mem::discriminant(&value) => {
@@ -86,6 +89,16 @@ impl RigValueRef {
         literal_count: usize,
         value: RigValue,
     ) -> Result<(), String> {
+        self.write_in_units(values, literal_count, value, 1.0)
+    }
+
+    pub(crate) fn write_in_units(
+        &self,
+        values: &mut [RigValue],
+        literal_count: usize,
+        value: RigValue,
+        meters_per_unit: f64,
+    ) -> Result<(), String> {
         if self.register < literal_count {
             return Err("rig literal memory is immutable".to_owned());
         }
@@ -95,6 +108,7 @@ impl RigValueRef {
                 .ok_or("rig register is invalid")?,
             &self.path,
             value,
+            meters_per_unit,
         )
     }
 }
@@ -177,6 +191,16 @@ impl RigProgram {
         &self,
         entry: &str,
         values: &mut [RigValue],
+        call_unit: impl FnMut(usize, &str, &mut [RigValue]) -> Result<(), String>,
+    ) -> Result<usize, RigExecutionError> {
+        self.execute_in_units(entry, values, 1.0, call_unit)
+    }
+
+    pub(crate) fn execute_in_units(
+        &self,
+        entry: &str,
+        values: &mut [RigValue],
+        meters_per_unit: f64,
         mut call_unit: impl FnMut(usize, &str, &mut [RigValue]) -> Result<(), String>,
     ) -> Result<usize, RigExecutionError> {
         let failure = |instruction, executed_steps, reason| RigExecutionError {
@@ -211,7 +235,7 @@ impl RigProgram {
                             .iter()
                             .map(|input| input.read(values))
                             .collect::<Result<Vec<_>, _>>()?;
-                        output.write(values, self.literal_count, operation.evaluate(&inputs)?)?;
+                        output.write_in_units(values, self.literal_count, operation.evaluate_in_units(&inputs, meters_per_unit)?, meters_per_unit)?;
                     }
                     RigInstruction::Call {
                         function,
@@ -226,15 +250,16 @@ impl RigProgram {
                         for &output in outputs {
                             let binding =
                                 arguments.get(output).ok_or("rig call output is invalid")?;
-                            binding.write(
+                            binding.write_in_units(
                                 values,
                                 self.literal_count,
                                 arguments_values[output].clone(),
+                                meters_per_unit,
                             )?;
                         }
                     }
                     RigInstruction::Copy { input, output } => {
-                        output.write(values, self.literal_count, input.read(values)?)?
+                        output.write_in_units(values, self.literal_count, input.read(values)?, meters_per_unit)?
                     }
                     RigInstruction::Zero { output } => {
                         let value = match output.read(values)? {
@@ -242,7 +267,7 @@ impl RigProgram {
                             RigValue::Name(_) => RigValue::Name(String::new()),
                             _ => return Err("rig zero requires a name or int32".to_owned()),
                         };
-                        output.write(values, self.literal_count, value)?;
+                        output.write_in_units(values, self.literal_count, value, meters_per_unit)?;
                     }
                     RigInstruction::Jump { instruction } => next = *instruction,
                     RigInstruction::Branch { selector, branches } => {
@@ -276,6 +301,20 @@ mod tests {
             register,
             path: vec![],
         }
+    }
+
+    #[test]
+    fn source_length_values_stay_in_centimeters_inside_the_program() {
+        let mut values = [Vector(DVec3::ZERO), Centimeters64(0.0)];
+        let component = RigValueRef { register: 0, path: vec![1] };
+        component.write_in_units(&mut values, 0, Centimeters64(13.500000000000002), 0.01).unwrap();
+        let height = component.read(&values).unwrap();
+        assert_eq!(height, F64(13.500000000000002));
+        slot(1).write_in_units(&mut values, 0, height, 0.01).unwrap();
+        assert_eq!(values[1], Centimeters64(13.500000000000002));
+        assert_eq!(RigMathOp::VectorScale.evaluate_in_units(
+            &[Vector(DVec3::Y), Centimeters(40.0)], 0.01,
+        ).unwrap(), Vector(DVec3::Y * 40.0));
     }
 
     fn branch(_instruction: usize, function: &str, arguments: &mut [RigValue]) -> Result<(), String> {

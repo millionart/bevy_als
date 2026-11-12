@@ -10,7 +10,7 @@ from ue_control_rig_contract import ControlRigContractError, MATH_OPERATIONS
 from ue_exported_text import parse_bool, parse_list, parse_number, parse_quoted, parse_struct
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "import"))
-from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE, source_direction_to_runtime, source_point_to_runtime, source_rotation_to_runtime
+from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE, source_direction_to_runtime, source_rotation_to_runtime
 
 
 LENGTH = SOURCE_LENGTH_TO_RUNTIME_SCALE
@@ -152,9 +152,12 @@ class Value:
         if self.kind in {"float", "double"}:
             if self.factor is None:
                 raise ControlRigContractError("target numeric units are unresolved: " + self.label)
-            if not vector_component and math.isclose(self.factor, LENGTH, rel_tol=1e-12):
-                return {"Centimeters" if self.kind == "float" else "Centimeters64": self.data}
-            value = self.data * self.factor
+            if math.isclose(self.factor, LENGTH, rel_tol=1e-12):
+                if not vector_component:
+                    return {"Centimeters" if self.kind == "float" else "Centimeters64": self.data}
+                value = self.data
+            else:
+                value = self.data * self.factor
             return {"F32" if self.kind == "float" else "F64": f32(value) if self.kind == "float" else value}
         if self.kind == "bool":
             return {"Bool": self.data}
@@ -367,7 +370,7 @@ def compile_target(contract):
         raise ControlRigContractError("target bone inventory does not match")
 
     def transform(value):
-        return {"translation": source_point_to_runtime([value["translation"][key] for key in "xyz"]),
+        return {"translation": source_direction_to_runtime([value["translation"][key] for key in "xyz"]),
             "rotation": source_rotation_to_runtime([value["rotation"][key] for key in "xyzw"]),
             "scale": source_direction_to_runtime([value["scale"][key] for key in "xyz"])}
 
@@ -378,9 +381,9 @@ def compile_target(contract):
     curves = {value["name"]: f32(value["value"]) if value["value_set"] else None for value in elements if value["type"] == "Curve"}
     return {"format": "control_rig_target_v1", "program": {"initial_values": initial_values, "literal_count": literal_count,
         "entries": program["entries"], "instructions": instructions}, "externals": externals, "bones": bones, "curves": curves,
-        "translation_tolerance": f32(1e-4) * LENGTH, "geometry": {"near_zero": f32(1e-4) * LENGTH,
-            "normalize_squared": f32(1e-8) * LENGTH * LENGTH, "minimum_length": f32(f32(1e-8) * LENGTH),
-            "solve_near_zero": 1e-4 * LENGTH, "basis": [source_direction_to_runtime(value) for value in ([1, 0, 0], [0, 1, 0], [0, 0, 1])]}}
+        "translation_tolerance": f32(1e-4), "geometry": {"meters_per_unit": LENGTH,
+            "near_zero": f32(1e-4), "normalize_squared": f32(1e-8), "minimum_length": f32(1e-8),
+            "solve_near_zero": 1e-4, "basis": [source_direction_to_runtime(value) for value in ([1, 0, 0], [0, 1, 0], [0, 0, 1])]}}
 
 
 def definition_ron(target):

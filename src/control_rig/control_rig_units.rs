@@ -47,17 +47,17 @@ fn constrained_angle(current: f64, target: f64, interval: &[RigValue]) -> Result
     ) as f64)
 }
 
-fn length_slot(value: &mut RigValue) -> Result<(&mut f32, f64), String> {
+fn length_slot(value: &mut RigValue, meters_per_unit: f64) -> Result<(&mut f32, f64), String> {
     match value {
         RigValue::F32(value) => Ok((value, 1.0)),
-        RigValue::Centimeters(value) => Ok((value, 100.0)),
+        RigValue::Centimeters(value) => Ok((value, 100.0 * meters_per_unit)),
         _ => Err("rig length type is invalid".to_owned()),
     }
 }
 
-fn length_in_meters(value: &mut RigValue) -> Result<f64, String> {
-    let (length, units_per_meter) = length_slot(value)?;
-    Ok(f64::from(*length) * (1.0 / units_per_meter))
+fn length_in_units(value: &mut RigValue, meters_per_unit: f64) -> Result<f64, String> {
+    let (length, factor) = length_slot(value, meters_per_unit)?;
+    Ok(f64::from(*length) * (1.0 / factor))
 }
 
 impl RigUnitContext<'_> {
@@ -66,7 +66,7 @@ impl RigUnitContext<'_> {
         ancestor: usize,
         descendant: usize,
         initial: bool,
-        units_per_meter: f64,
+        length_factor: f64,
     ) -> Result<Option<f32>, String> {
         if ancestor == descendant {
             return Ok(Some(0.0));
@@ -74,7 +74,7 @@ impl RigUnitContext<'_> {
         let Some(parent) = self.hierarchy.parent(descendant) else {
             return Ok(None);
         };
-        let Some(length) = self.chain_length(ancestor, parent, initial, units_per_meter)? else {
+        let Some(length) = self.chain_length(ancestor, parent, initial, length_factor)? else {
             return Ok(None);
         };
         let a = self
@@ -85,13 +85,14 @@ impl RigUnitContext<'_> {
             .hierarchy
             .transform(descendant, RigSpace::Global, initial)?
             .translation;
-        let delta = b * units_per_meter - a * units_per_meter;
+        let delta = b * length_factor - a * length_factor;
         let segment_length = source_vector_dot(delta, delta).sqrt();
         Ok(Some((f64::from(length) + segment_length) as f32))
     }
 
     pub fn call(&mut self, function: &str, arguments: &mut [RigValue]) -> Result<(), String> {
         use RigValue::*;
+        let meters_per_unit = self.geometry.meters_per_unit;
         match (function, arguments) {
             (
                 "FAlsRigUnit_FootOffsetTrace::Execute",
@@ -109,9 +110,9 @@ impl RigUnitContext<'_> {
                 ],
             ) => {
                 let up = self.geometry.basis[2];
-                let upward = length_in_meters(upward)?;
-                let downward = length_in_meters(downward)?;
-                let (offset, units_per_meter) = length_slot(offset)?;
+                let upward = length_in_units(upward, meters_per_unit)?;
+                let downward = length_in_units(downward, meters_per_unit)?;
+                let (offset, length_factor) = length_slot(offset, meters_per_unit)?;
                 let hit = if *enabled {
                     let horizontal = *foot - up * foot.dot(up);
                     let start = self
@@ -147,7 +148,7 @@ impl RigUnitContext<'_> {
                 } else {
                     0.0
                 };
-                *offset = (point.dot(up) * units_per_meter + f64::from(correction)) as f32;
+                *offset = (point.dot(up) * length_factor + f64::from(correction)) as f32;
                 *normal = hit_normal;
             }
             (
@@ -181,18 +182,18 @@ impl RigUnitContext<'_> {
                 let [F32(velocity) | Centimeters(velocity), F32(previous) | Centimeters(previous), Bool(valid)] = state.as_mut_slice() else {
                     return Err("rig offset spring state layout is invalid".to_owned());
                 };
-                let (offset, units_per_meter) = length_slot(offset)?;
+                let (offset, length_factor) = length_slot(offset, meters_per_unit)?;
                 let up = self.geometry.basis[2];
                 let pelvis = (self
                     .hierarchy
                     .transform(pelvis, RigSpace::Global, false)?
                     .translation
-                    .dot(up) * units_per_meter) as f32;
+                    .dot(up) * length_factor) as f32;
                 let thigh = self
                     .hierarchy
                     .transform(thigh, RigSpace::Global, false)?
-                    .translation * units_per_meter;
-                let target = *target * units_per_meter;
+                    .translation * length_factor;
+                let target = *target * length_factor;
                 let maximum = pelvis - *pelvis_distance - target.dot(up) as f32;
                 let target_offset = foot_offset.min(maximum).max(*pelvis_offset);
                 if !*initialized {
@@ -228,7 +229,7 @@ impl RigUnitContext<'_> {
                 }
                 let leg = target + up * f64::from(*offset) - thigh;
                 let maximum = (*length * *stretch) as f64;
-                let leg = if maximum < self.geometry.near_zero * units_per_meter {
+                let leg = if maximum < self.geometry.near_zero * length_factor {
                     DVec3::ZERO
                 } else {
                     let squared = source_vector_dot(leg, leg);
@@ -238,7 +239,7 @@ impl RigUnitContext<'_> {
                         leg
                     }
                 };
-                *location = (thigh + leg) * (1.0 / units_per_meter);
+                *location = (thigh + leg) * (1.0 / length_factor);
             }
             (
                 "FAlsRigUnit_ApplyFootOffsetRotation::Execute",
@@ -404,7 +405,8 @@ impl RigUnitContext<'_> {
                     RigTransform::from_value(effector)?,
                 ];
                 let minimum_length = f64::from(self.geometry.minimum_length);
-                let mut lengths = [length_in_meters(length_a)?, length_in_meters(length_b)?];
+                let mut lengths = [length_in_units(length_a, meters_per_unit)?, length_in_units(length_b, meters_per_unit)?];
+                let centimeters_per_unit = 100.0 * meters_per_unit;
                 for (index, (parent, child)) in [(a, Some(b)), (b, end)].into_iter().enumerate() {
                     if lengths[index] < minimum_length
                         && let Some(child) = child
@@ -416,9 +418,9 @@ impl RigUnitContext<'_> {
                             bevy::math::DVec3::ONE
                         };
                         let child = self.hierarchy.transform(child, RigSpace::Global, true)?;
-                        let delta_cm = (initial.translation * 100.0 - child.translation * 100.0) * scale;
+                        let delta_cm = (initial.translation * centimeters_per_unit - child.translation * centimeters_per_unit) * scale;
                         let length_cm = source_vector_dot(delta_cm, delta_cm).sqrt() as f32;
-                        lengths[index] = f64::from(length_cm) * 0.01;
+                        lengths[index] = f64::from(length_cm) * (0.01 / meters_per_unit);
                     }
                 }
                 if lengths
@@ -591,12 +593,12 @@ impl RigUnitContext<'_> {
                 if let Some(ancestor) = self.hierarchy.item_index(ancestor)?
                     && let Some(descendant) = self.hierarchy.item_index(descendant)?
                 {
-                    let (output, units_per_meter) = length_slot(output)?;
+                    let (output, length_factor) = length_slot(output, meters_per_unit)?;
                     *output =
-                        if let Some(length) = self.chain_length(ancestor, descendant, *initial, units_per_meter)? {
+                        if let Some(length) = self.chain_length(ancestor, descendant, *initial, length_factor)? {
                             length
                         } else {
-                            self.chain_length(descendant, ancestor, *initial, units_per_meter)?
+                            self.chain_length(descendant, ancestor, *initial, length_factor)?
                                 .unwrap_or(0.0)
                         };
                 }
@@ -653,6 +655,7 @@ mod tests {
 
     fn geometry() -> RigGeometry {
         RigGeometry {
+            meters_per_unit: 1.0,
             near_zero: 1e-4_f32 as f64 * 0.01,
             normalize_squared: 1e-8_f32 as f64 * 0.0001,
             minimum_length: 1e-8_f32 * 0.01,
