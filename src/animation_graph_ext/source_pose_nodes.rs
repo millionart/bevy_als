@@ -2324,6 +2324,91 @@ mod tests {
     }
 
     #[test]
+    fn source_gameplay_tag_blend_updates_only_native_relevant_children() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::AnimationGraph, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext, node_states::StateKey,
+                system_resources::SystemResources},
+            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{GlobalPoseInputNode, SourceAnimationInputs, SourceCachedPoseSaveNode, SourceCachedPoseUseNode};
+
+        #[derive(Deserialize)]
+        struct Frame {
+            active: usize,
+            delta: f32,
+            updated: [bool; 2],
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d215/relevancy.replay.json"
+        )).unwrap();
+        let mut graph = AnimationGraph::new();
+        let base = AnimationNode::new("Base leaf", GlobalPoseInputNode { key: "pose".into(), output: "Pose".into() });
+        let sprint = AnimationNode::new("Sprint leaf", GlobalPoseInputNode { key: "pose".into(), output: "Pose".into() });
+        let save = AnimationNode::new("Base cache", SourceCachedPoseSaveNode::default());
+        let use_cache = AnimationNode::new("Use Base", SourceCachedPoseUseNode { cache_node: save.name.clone() });
+        let blend = AnimationNode::new("Gait", SourceGameplayTagBlendNode {
+            active_key: "gait".into(), tags: vec!["Als.Gait.Sprinting".into()],
+            blend_times: vec![0.3, 0.2], source_blend_times: vec![0.1, 0.1],
+            blend_mode: GameplayTagBlendMode::Cubic,
+            pose_pin_names: vec!["BlendPose_0".into(), "BlendPose_1".into()],
+            blend_time_pin_names: vec!["BlendTime_0".into(), "BlendTime_1".into()],
+            ..default()
+        });
+        for node in [&base, &sprint, &save, &use_cache, &blend] {
+            graph.add_node(node.clone());
+        }
+        graph.add_node_parameter_edge(base.id, "Pose", save.id, "Pose");
+        graph.add_node_parameter_edge(use_cache.id, "Pose", blend.id, "BlendPose_0");
+        graph.add_node_parameter_edge(sprint.id, "Pose", blend.id, "BlendPose_1");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(blend.id, "Pose", "Pose");
+        let leaves = [base.id, sprint.id];
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        world.run_system_once(move |resources: SystemResources| {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            let entity = Entity::PLACEHOLDER;
+            let inputs = HashMap::from([("pose".to_owned(), DataValue::Pose(Pose::default()))]);
+            let mut source_inputs = SourceAnimationInputs::default();
+            for case in &reference.cases {
+                let mut arena = GraphContextArena::new(handle.id());
+                for (index, frame) in case.frames.iter().enumerate() {
+                    let tag = ["Als.Gait.Running", "Als.Gait.Sprinting"][frame.active];
+                    source_inputs.set_gameplay_tag_input("gait", bevy_gameplay_tag::GameplayTag::new(tag));
+                    source_inputs.evaluate(entity, || graph.query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(frame.delta)),
+                        GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, entity, &entities, &mut gizmos, &inputs),
+                    )).unwrap();
+                    let observed = leaves.map(|id| arena.get_toplevel().node_caches.is_updated(id, StateKey::Default));
+                    assert_eq!(observed, frame.updated, "{} at frame {index}", case.name);
+                }
+            }
+        }).unwrap();
+    }
+
+    #[test]
     fn source_gameplay_tag_blend_weights_missing_child_curves_as_zero() {
         let input = AnimationContextState {
             curves: [("FootLeftIk".into(), 1.0)].into_iter().collect(),

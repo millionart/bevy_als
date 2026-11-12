@@ -1,0 +1,354 @@
+{
+  "cases": [
+    {
+      "name": "one_us",
+      "frames": [
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 1,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            true
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.029999999329447746,
+          "updated": [
+            true,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "name": "low",
+      "frames": [
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 1,
+          "delta": 0.0001500000071246177,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.029999999329447746,
+          "updated": [
+            true,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "name": "subthreshold",
+      "frames": [
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 1,
+          "delta": 0.0003000000142492354,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.029999999329447746,
+          "updated": [
+            true,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "name": "above",
+      "frames": [
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 1,
+          "delta": 0.00039999998989515007,
+          "updated": [
+            true,
+            true
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            true
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.029999999329447746,
+          "updated": [
+            true,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "name": "normal",
+      "frames": [
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            false
+          ]
+        },
+        {
+          "active": 1,
+          "delta": 0.01666666753590107,
+          "updated": [
+            true,
+            true
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.0,
+          "updated": [
+            true,
+            true
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            true
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            true
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 9.999999974752427e-07,
+          "updated": [
+            true,
+            true
+          ]
+        },
+        {
+          "active": 0,
+          "delta": 0.029999999329447746,
+          "updated": [
+            true,
+            false
+          ]
+        }
+      ]
+    }
+  ],
+  "native_frames": 35,
+  "old_threshold_extra_updates": [
+    [
+      "low",
+      1,
+      1,
+      1.6866563328221673e-06
+    ],
+    [
+      "low",
+      2,
+      1,
+      1.6866563328221673e-06
+    ],
+    [
+      "subthreshold",
+      1,
+      1,
+      6.743250651197741e-06
+    ],
+    [
+      "subthreshold",
+      2,
+      1,
+      6.743250651197741e-06
+    ],
+    [
+      "subthreshold",
+      3,
+      1,
+      3.4231784411531407e-06
+    ],
+    [
+      "above",
+      3,
+      1,
+      9.717128705233335e-06
+    ],
+    [
+      "above",
+      4,
+      1,
+      4.9814207159215584e-06
+    ]
+  ]
+}

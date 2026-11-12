@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::extensions::source_gameplay_tag_input::active_gameplay_tag_input;
 use crate::extensions::profile_blend::{AlphaBlendMode, advance_alpha_blend, transition_alpha};
 
-pub(crate) const WEIGHT_THRESHOLD: f32 = 1e-6;
+pub(crate) const WEIGHT_THRESHOLD: f32 = 1e-5;
 
 pub const UPSTREAM_TIME: &str = "upstream_time";
 
@@ -60,7 +60,7 @@ impl GameplayTagBlendState {
     pub(crate) fn should_reset_child(&self, child_count: usize, active_index: usize) -> bool {
         let initialized = self.initialized && self.weights.len() == child_count;
         let weight = if initialized { self.weights[active_index] } else { f32::from(active_index == 0) };
-        (!initialized || self.last_active_index != active_index as i32) && weight <= 0.00001
+        (!initialized || self.last_active_index != active_index as i32) && weight <= WEIGHT_THRESHOLD
     }
 
     pub(crate) fn instant_transition_source(&self, active_index: usize, blend_time: f32) -> Option<usize> {
@@ -155,7 +155,7 @@ pub(crate) fn advance_blend_list_weights(
         *weight = clock.value;
     }
     let sum = state.weights.iter().sum::<f32>();
-    if sum > 1e-5 && (sum - 1.0).abs() > 1e-5 {
+    if sum > WEIGHT_THRESHOLD && (sum - 1.0).abs() > WEIGHT_THRESHOLD {
         let reciprocal = 1.0 / sum;
         for weight in &mut state.weights {
             *weight *= reciprocal;

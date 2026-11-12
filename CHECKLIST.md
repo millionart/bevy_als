@@ -7473,7 +7473,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.158交接补充：1171次Forward缓存输入接native父混合后，当前gait系数独立改变161条源更新权重，最大约2.38e−7；本批源/目标本地更新集合一致，不扩展D215。完整跨站姿同步消费尚待核对；证据`target/bf144/158/forward.native.json`、`weight-controls.json`。
 
-- [ ] BF144-D215 / P3 — GameplayTags混合的相关性阈值偏小，多更新原本不相关的Sprint子图。
+- [x] BF144-D215 / P3 — GameplayTags混合的相关性阈值偏小，多更新原本不相关的Sprint子图。
+  - 2026-11-12 09:58 +0800 实际结束，较10:24预估提前26分钟，未拆分。fresh gait 35帧源权重、子调用与Base缓存静态闭环，旧阈值7次额外Sprint更新。证据及实际BlendList夹具见 `docs/audit/bf144/d215/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 09:54 +08:00，预估结束2026-11-12 10:24 +08:00。重采原gait分支阈值及缓存调用，统一BlendList的源相关性边界。
   - Source：fresh `AnimNode_BlendListBase.cpp:247–263,301–312`仅在weight>1e−5时Update/Evaluate子项，当前节点使用默认ChildUpdateMode且不强制更新所有子项。
   - Target：`source_pose_nodes.rs:1017–1028`使用`gameplay_tag_blend::WEIGHT_THRESHOLD=1e−6`决定读子图；同一子图因此提前更新和采样。
   - 反例/控制：0.3ms切入Sprint、随后零delta返回及1µs推进，以及0.4ms返回路径，共4帧native Sprint权重为3.4231784e−6至9.7171287e−6且无Update，原gait节点仍读取Sprint。仅保留原权重并把子有效性恢复至1e−5，4帧额外调用全部消失；共享Forward Base仍每帧仅更新一次，普通权重控制保持。
