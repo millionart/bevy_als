@@ -8108,7 +8108,7 @@ fn observe_manual_integration(
                     source_completed,
                     source_stationary_precondition && standing_turn_rotation_settled(
                         if validation.is_left() { 4 } else { 5 },
-                        crate::turn_layer::character_turn_angle_degrees(view_yaw.0.to_degrees(), world_forward_to_yaw(*transform.forward()).to_degrees()),
+                        crate::turn_layer::character_turn_angle_from_radians(view_yaw.0, world_forward_to_yaw(*transform.forward()).to_degrees()),
                         rotation_animation.map_or(0.0, |value| value.yaw_speed_degrees),
                         turn_drive.is_some_and(|value| value.rotate_active),
                     ),
@@ -8802,7 +8802,7 @@ fn observe_manual_integration(
             let epoch = turn_drive.map_or(0.0, |drive| drive.inertialization_request_epoch);
             let mode_matches = motion_probe.rotation_mode.get(character).is_ok_and(|mode| *mode == if rotating { RotationMode::Aiming } else { RotationMode::ViewDirection });
             let rotation_settled = standing_turn_rotation_settled(index,
-                crate::turn_layer::character_turn_angle_degrees(view_yaw.0.to_degrees(), world_forward_to_yaw(*transform.forward()).to_degrees()),
+                crate::turn_layer::character_turn_angle_from_radians(view_yaw.0, world_forward_to_yaw(*transform.forward()).to_degrees()),
                 rotation_animation.map_or(f32::NAN, |animation| animation.yaw_speed_degrees),
                 turn_drive.is_none_or(|drive| drive.rotate_active));
             if state.turn_probe.started_at.is_none() {

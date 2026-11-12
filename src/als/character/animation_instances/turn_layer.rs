@@ -1,6 +1,6 @@
 use crate::als::rotate_in_place::RotateInPlaceState;
 use crate::als::state::Stance;
-use crate::als::turn_in_place::{TurnInPlaceConfig, TurnVariant, wrap_angle_degrees};
+use crate::als::turn_in_place::{TurnInPlaceConfig, TurnVariant};
 use crate::extensions::source_slot::{MONTAGE_EVALUATION_WEIGHT_THRESHOLD, montage_evaluation_denominator};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -365,8 +365,18 @@ pub(crate) fn source_turn_sequence(crouching: bool, is_180: bool, lr: f32) -> &'
     }
 }
 
-pub(crate) fn character_turn_angle_degrees(view_yaw_degrees: f32, body_yaw_degrees: f32) -> f32 {
-    crate::als::head::unwind_degrees(wrap_angle_degrees(-view_yaw_degrees) + body_yaw_degrees)
+pub(crate) fn character_turn_angle_from_radians(view_yaw_radians: f32, body_yaw_degrees: f32) -> f32 {
+    let mut view = if view_yaw_radians.abs() == std::f32::consts::PI {
+        180.0
+    } else {
+        -f64::from(view_yaw_radians).to_degrees() % 360.0
+    };
+    if view > 180.0 {
+        view -= 360.0;
+    } else if view <= -180.0 {
+        view += 360.0;
+    }
+    crate::als::head::unwind_degrees((view + f64::from(body_yaw_degrees)) as f32)
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
@@ -1327,13 +1337,14 @@ mod tests {
         use crate::als::head::{AlsHeadSettings, AlsHeadState, AlsHeadUpdateInput, update_head_state};
 
         for (view, body, expected) in [
-            (180.0, 0.0, 180.0), (-180.0, 0.0, 180.0),
+            (180.0_f32, 0.0, 180.0), (-180.0, 0.0, 180.0),
             (170.0, 0.0, -170.0), (-170.0, 0.0, 170.0),
             (-90.0, 90.0, 180.0), (90.0, -90.0, -180.0),
             (180.0, 10.0, -170.0), (-180.0, -10.0, 170.0),
         ] {
-            assert_eq!(character_turn_angle_degrees(view, body), expected);
+            assert_eq!(character_turn_angle_from_radians(view.to_radians(), body), expected);
         }
+        assert_eq!(character_turn_angle_from_radians(-1.5707963705062866, -45.000003814697266), 45.0);
         let mut head = AlsHeadState { initialization_required: false, ..default() };
         update_head_state(&mut head, AlsHeadUpdateInput {
             delta_seconds: 1.0 / 60.0,
@@ -1345,7 +1356,7 @@ mod tests {
             target_yaw_world: 0.0,
             body_yaw_world: 0.0,
             body_yaw_velocity_world: 0.0,
-            view_yaw_angle: character_turn_angle_degrees(180.0, 0.0),
+            view_yaw_angle: character_turn_angle_from_radians(std::f32::consts::PI, 0.0),
             view_pitch_angle: 0.0,
             movement_base_relative_yaw: 0.0,
         }, AlsHeadSettings::default());
@@ -1354,8 +1365,8 @@ mod tests {
 
     #[test]
     fn target_yaw_basis_selects_the_source_left_and_right_turn_variants() {
-        let left_angle = character_turn_angle_degrees(90.0, 0.0);
-        let right_angle = character_turn_angle_degrees(-90.0, 0.0);
+        let left_angle = character_turn_angle_from_radians(std::f32::consts::FRAC_PI_2, 0.0);
+        let right_angle = character_turn_angle_from_radians(-std::f32::consts::FRAC_PI_2, 0.0);
         assert_eq!(left_angle, -90.0);
         assert_eq!(right_angle, 90.0);
         let mut left_rotate = RotateInPlaceState::default();

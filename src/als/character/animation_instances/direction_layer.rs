@@ -21,22 +21,15 @@ pub fn velocity_yaw_deg(vel: Vec3) -> f32 {
 }
 
 pub fn view_space_direction_angle(velocity_yaw: f32, view_yaw: f32) -> f32 {
-    let d = view_yaw - velocity_yaw;
-    let mut a = d;
-    while a > 180.0 {
-        a -= 360.0;
-    }
-    while a < -180.0 {
-        a += 360.0;
-    }
-    a
+    crate::als::head::unwind_degrees(view_yaw - velocity_yaw)
 }
 
 pub fn view_space_direction_angle_from_radians(
     velocity_yaw_degrees: f32,
     view_yaw_radians: f32,
 ) -> f32 {
-    view_space_direction_angle(velocity_yaw_degrees, view_yaw_radians.to_degrees())
+    let relative = f64::from(view_yaw_radians).to_degrees() - f64::from(velocity_yaw_degrees);
+    crate::als::head::unwind_degrees(relative as f32)
 }
 
 fn graph_direction_angle(raw: f32) -> f32 {

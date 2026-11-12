@@ -304,7 +304,7 @@ fn ab_als_input_writer(
             if !action_active {
                 player.set_global_input_data(
                     "view_state.yaw_angle",
-                    crate::turn_layer::character_turn_angle_degrees(view_degrees, body_degrees),
+                    crate::turn_layer::character_turn_angle_from_radians(view_yaw.0, body_degrees),
                 );
             }
             player.set_global_input_data(
@@ -1141,6 +1141,22 @@ mod tests {
             source_pose_curve_inputs(None, None).map(|(_, value)| value),
             [0.0; 9]
         );
+    }
+
+    #[test]
+    fn source_movement_direction_keeps_the_native_view_boundaries() {
+        let view = 120.0_f32.to_radians();
+        for (velocity, view, expected_angle, direction) in [
+            (45.0, view, 75.0, (true, false, false, false)),
+            (5.0, view, 115.0, (false, false, false, true)),
+            (-45.0, -view, -75.0, (true, false, false, false)),
+            (-5.0, -view, -115.0, (false, false, true, false)),
+        ] {
+            let motion = AlsActualMotion { velocity_yaw_degrees: velocity, ..default() };
+            let angle = source_velocity_yaw_angle_view_space(&motion, view);
+            assert_eq!(angle, expected_angle);
+            assert_eq!(source_direction_inputs(RotationMode::ViewDirection, Gait::Running, angle), direction);
+        }
     }
 
     #[test]

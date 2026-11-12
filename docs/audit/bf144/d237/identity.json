@@ -1,0 +1,30 @@
+[
+  {
+    "path": "docs/audit/bf144/447d/request.json",
+    "sha256": "a41a678c9cbd947023f217a205ea6268dc655552525209e70507af03805c70da"
+  },
+  {
+    "path": "docs/audit/bf144/d237/replay_view_yaw.py",
+    "sha256": "d94aa894d5ce0322773472f4f3b030a9ef0934f2b785e139d873f38599db2ebe"
+  },
+  {
+    "path": "docs/audit/bf144/d237/yaw.request.json",
+    "sha256": "6d49364bfff457b84be06dac74ef01cf492027500819007f4825434ea103c1f7"
+  },
+  {
+    "path": "src/als/character/animation_instances/ab_als_provider.rs",
+    "sha256": "05b6d1899f564b1c116afbfc38c8b6a2601dd5bc17bfd762a61bed64a5cb132d"
+  },
+  {
+    "path": "src/als/character/animation_instances/direction_layer.rs",
+    "sha256": "fd81d0b67017e5c1883f456137903af43e66983116fe231408d8bda02695266c"
+  },
+  {
+    "path": "src/als/character/animation_instances/turn_layer.rs",
+    "sha256": "1c11086ab96bb48105eb1c292febec355fac8305910784704677c2401e95f8d9"
+  },
+  {
+    "path": "tools/manual_playground_integration/mod.rs",
+    "sha256": "3d2cd7e92e4a618cb9785d8bbb5191a88dffbfc7d7cce1d94621e3608aff3d16"
+  }
+]

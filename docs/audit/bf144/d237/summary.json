@@ -1,0 +1,43 @@
+{
+  "result": "PASS_VIEW_YAW_LATE_CAST",
+  "native_cases": 323,
+  "early_cast_differences": {
+    "head": 319,
+    "movement": 4
+  },
+  "witnesses": [
+    {
+      "case": "actual-target-query-79",
+      "angle": 45.0,
+      "old_angle": 44.999996185302734
+    },
+    {
+      "case": "movement_0",
+      "angle": 75.0,
+      "old_angle": 75.00000762939453,
+      "direction": "Forward",
+      "old_direction": "Right"
+    },
+    {
+      "case": "movement_1",
+      "angle": 115.0,
+      "old_angle": 115.00000762939453,
+      "direction": "Right",
+      "old_direction": "Backward"
+    },
+    {
+      "case": "movement_2",
+      "angle": -75.0,
+      "old_angle": -75.00000762939453,
+      "direction": "Forward",
+      "old_direction": "Left"
+    },
+    {
+      "case": "movement_3",
+      "angle": -115.0,
+      "old_angle": -115.00000762939453,
+      "direction": "Left",
+      "old_direction": "Backward"
+    }
+  ]
+}
