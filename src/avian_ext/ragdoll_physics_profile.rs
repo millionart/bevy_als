@@ -698,7 +698,7 @@ impl RagdollSpatialQuery<'_, '_> {
             return self.spatial.cast_shape_predicate(shape, origin, rotation, direction, config, filter,
                 &|entity| self.queryable(entity) && predicate(entity));
         };
-        use avian3d::parry::{math::Pose3, query::{cast_shapes, ShapeCastOptions}};
+        use avian3d::parry::{math::Pose3, query::{cast_shapes, contact, ShapeCastOptions}};
         use crate::extensions::source_capsule_sweep::{capsule_cuboid_sweep, CapsuleSweepResult};
 
         let swept_pose = Pose3::from_parts(origin, rotation);
@@ -715,8 +715,15 @@ impl RagdollSpatialQuery<'_, '_> {
                 let Ok((position, obstacle_rotation, collider)) = self.colliders.get(entity) else { return f32::MAX };
                 let fixed_pose = Pose3::from_parts(position.0, obstacle_rotation.0);
                 let fixed_shape = collider.shape_scaled();
-                let result = fixed_shape.as_cuboid().map(|cuboid| capsule_cuboid_sweep(capsule, origin, rotation,
+                let mut result = fixed_shape.as_cuboid().map(|cuboid| capsule_cuboid_sweep(capsule, origin, rotation,
                     cuboid, position.0, obstacle_rotation.0, *direction, config.max_distance));
+                if matches!(result, Some(CapsuleSweepResult::DeepOverlap))
+                    && let Ok(Some(contact)) = contact(&fixed_pose, fixed_shape.as_ref(), &swept_pose, scaled.as_ref(), 0.0)
+                    && contact.dist < 0.0 {
+                    result = Some(CapsuleSweepResult::InitialOverlap {
+                        depth: -contact.dist, point: contact.point1, normal: contact.normal1,
+                    });
+                }
                 let fallback = || {
                     let options = ShapeCastOptions { max_time_of_impact: config.max_distance,
                         target_distance: config.target_distance, stop_at_penetration: !config.ignore_origin_penetration,
@@ -4552,9 +4559,11 @@ mod tests {
         app.cleanup();
         let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 0.2, 100.0),
             Position(Vec3::new(0.0, -0.1, 0.0)))).id();
+        let deep_floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(100.0, 1.0, 100.0),
+            Position(Vec3::new(200.0, -0.5, 0.0)))).id();
         app.update();
         app.update();
-        let (hit, outward) = app.world_mut().run_system_once(move |spatial: RagdollSpatialQuery| {
+        let (hit, outward, deep) = app.world_mut().run_system_once(move |spatial: RagdollSpatialQuery| {
             let capsule = Collider::capsule(0.3, 1.2);
             let origin = Vec3::Y * 0.89;
             let config = ShapeCastConfig::from_max_distance(0.5);
@@ -4562,12 +4571,19 @@ mod tests {
                 &config, &SpatialQueryFilter::default());
             let outward = spatial.cast_shape(&capsule, origin, Quat::IDENTITY, Dir3::Y,
                 &ShapeCastConfig { ignore_origin_penetration: true, ..config }, &SpatialQueryFilter::default());
-            (hit, outward)
+            let deep = spatial.cast_shape(&Collider::capsule(0.3, 1.08), Vec3::new(200.0, -0.2, 0.0),
+                Quat::IDENTITY, Dir3::NEG_Y, &ShapeCastConfig::from_max_distance(0.534001),
+                &SpatialQueryFilter::default());
+            (hit, outward, deep)
         }).unwrap();
         let hit = hit.unwrap();
         assert_eq!(hit.entity, floor);
         assert_eq!(hit.distance, 0.0);
         assert!(((hit.point1 - hit.point2).dot(hit.normal1) - 0.01).abs() <= 1e-6);
         assert!(outward.is_none());
+        let deep = deep.unwrap();
+        assert_eq!(deep.entity, deep_floor);
+        assert_eq!(deep.distance, 0.0);
+        assert!(((deep.point1 - deep.point2).dot(deep.normal1) - 1.04).abs() <= 1e-6);
     }
 }

@@ -1,0 +1,38 @@
+{
+  "samples": [
+    {
+      "name": "inside-rounded",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          -20.000000298023224
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30.000001192092896,
+        "half_height_cm": 84.00000333786011,
+        "length_cm": 53.40009927749634
+      }
+    }
+  ]
+}
