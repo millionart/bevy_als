@@ -611,21 +611,28 @@ impl NodeLike for InertializationPassthroughNode {
                             .any(|(difference, _)| difference.abs() > f32::EPSILON);
                     }
                 }
-                let output = if state.active {
-                    source_context.source_pose = None;
+                if state.active {
                     state.elapsed += delta;
                     state.deficit = if state.elapsed >= state.duration {
                         0.0
                     } else {
                         (state.deficit - delta).max(0.0)
                     };
+                    if state.elapsed >= state.max_duration {
+                        state.active = false;
+                        state.elapsed = 0.0;
+                        state.duration = 0.0;
+                        state.max_duration = 0.0;
+                        state.bones.clear();
+                        state.curve_differences.clear();
+                    }
+                }
+                let output = if state.active {
+                    source_context.source_pose = None;
                     let output = apply_source_inertialization(&source_pose, state);
                     for (name, (difference, derivative)) in &state.curve_differences {
                         *source_context.curves.entry(name.clone()).or_default() +=
                             source_inertial_float(*difference, *derivative, state.elapsed, state.duration);
-                    }
-                    if state.elapsed >= state.max_duration {
-                        state.active = false;
                     }
                     output
                 } else {
@@ -1231,11 +1238,17 @@ mod tests {
             );
             for case in reference["cases"].as_array().unwrap() {
                 let mut arena = GraphContextArena::new(handle.id());
+                let mut elapsed = 0.0;
                 for frame in case["frames"].as_array().unwrap() {
                     let scalar = |key: &str| frame[key].as_f64().unwrap() as f32;
                     let parts = frame["request_durations"].as_array().unwrap().iter()
                         .map(|duration| SourceInertializationPart { duration: duration.as_f64().unwrap() as f32, ..default() })
                         .collect::<Vec<_>>();
+                    if !parts.is_empty() {
+                        elapsed = 0.0;
+                    }
+                    let delta = scalar("delta_seconds");
+                    elapsed += delta;
                     let request = parts.iter().map(|part| part.duration).reduce(f32::min).map(|duration| {
                         SourceInertializationRequest {
                             frame: arena.frame_index().wrapping_add(1), duration, parts, ..default()
@@ -1251,16 +1264,28 @@ mod tests {
                     }
                     let mut input = Pose::default();
                     if bone_pose {
-                        input.add_bone(BonePose::from_transform(Transform::from_translation(Vec3::X * scalar("input_m"))), bone);
+                        let mut transform = Transform::from_translation(Vec3::X * scalar("input_m"));
+                        if !frame["input_rotation"].is_null() {
+                            let rotation: [f32; 4] = serde_json::from_value(frame["input_rotation"].clone()).unwrap();
+                            transform.rotation = Quat::from_array(rotation);
+                        }
+                        input.add_bone(BonePose::from_transform(transform), bone);
                     }
+                    let expected_copy = frame["copy_input_pose"].as_bool().unwrap_or(false).then(|| input.clone());
                     let inputs = HashMap::from([("input".into(), DataValue::Pose(input))]);
-                    let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(scalar("delta_seconds"))),
+                    let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
                         GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
                             &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs))
                         .unwrap()["Pose"].clone().into_pose().unwrap();
                     let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(node_id, StateKey::Default).unwrap();
-                    assert_eq!(state.duration, scalar("expected_duration_seconds"), "{}", case["name"]);
+                    let duration = scalar("expected_duration_seconds");
+                    assert_eq!(state.duration, if elapsed >= duration { 0.0 } else { duration }, "{}", case["name"]);
                     assert_eq!(state.deficit, scalar("expected_deficit_seconds"), "{}", case["name"]);
+                    if let Some(expected) = expected_copy {
+                        assert!(!state.active && state.bones.is_empty() && state.curve_differences.is_empty());
+                        assert_eq!(output, expected);
+                        assert_eq!(state.context.curves.get(&curve).copied(), frame["input_curve"].as_f64().map(|value| value as f32));
+                    }
                     if bone_pose {
                         let actual = output.get_bone(bone).unwrap().translation.unwrap().x;
                         assert!((actual - scalar("native_m")).abs() < 8e-8, "{}: {actual}", case["name"]);
@@ -1292,6 +1317,13 @@ mod tests {
     fn first_inertial_curve_history_supplies_both_snapshots() {
         assert_native_inertialization_replay(
             include_str!("../../docs/audit/bf144/d196/curve-history.replay.json"), true,
+        );
+    }
+
+    #[test]
+    fn expired_inertialization_copies_pose_and_curve_presence() {
+        assert_native_inertialization_replay(
+            include_str!("../../docs/audit/bf144/d240/terminal.replay.json"), true,
         );
     }
 

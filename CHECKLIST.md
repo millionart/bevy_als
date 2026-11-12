@@ -7785,7 +7785,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 最小反例：实际Stop历史warm graph frame1，A=Fall_Fast、B=Fall，两个实际子pose/目标运算保持；生产blend_source_poses逐骨重放79骨骼精确，只换native alpha改变34骨骼。例如VB foot_r runtime y由0.24996262788772583变0.24996264278888702；zero及source-unit恢复标量控制通过。首次错置A/B的控制重放失败，已按真实边纠正，未计作证据。
   - 漏检/边界：旧父映射验证多在runtime单位或远离阈值处对公式，未核源cm float与runtime meter输入的舍入次序。当前完整warm34次映射模型前5次有小量差，所需末2帧已会合；仅登记当前实际alpha/pose后果，不称一般可见故障、分支资格翻转或全部暖历史差均由该项造成。证据`target/bf144/222/range-check.json`、`range.native.json`、`range-consumer-correct-inputs.json`；生产、转换器及原始资产未改。
 
-- [ ] BF144-D240 / P3 — 惯性化到期帧先求值再停用，继续单位化姿态并补零曲线。
+- [x] BF144-D240 / P3 — 惯性化到期帧先求值再停用，继续单位化姿态并补零曲线。 开始：2026-11-12 16:59:19 +08:00；预估结束：2026-11-12 17:24:19 +08:00。
+  - 实际结束：2026-11-12 17:04:52 +08:00；偏差：−19分27秒；结果：静态Gate PASS。等于及大于最大时长均先清理再透传；两个终止边界、无请求原生对照及旧顺序消融通过。保留原始pose和曲线缺项并记录该帧作为历史，Rust fixture编译与真实场景后置。证据 `docs/audit/bf144/d240/terminal.replay.json`。
+  - 当前静态闭环：fresh源码确认先推进elapsed/deficit、达逐骨最大时长后清理活动数据再决定求值。实际主图惯性节点的79骨原生对照覆盖恰达、越过和无请求三组；1185骨输入原样保留，恢复旧到期求值会把根quat的w改成1并插入PoseInAir=0。补实际Rust节点的姿态/曲线存在性fixture，编译随统一验证。
   - Source：fresh `AnimNode_Inertialization.cpp:569–585`先累加elapsed，达到MaxDuration立即Deactivate，后续才按状态决定是否施加惯性；公共原节点在相同target输入80步控制的prefix1严格复制输入的79骨骼与curve集合。
   - Target：`inertialization_passthrough.rs:557–565`先apply_source_inertialization/累加曲线，然后检查到期并把active清零。即使残余函数已为0，apply末尾仍normalize_quat，历史curve键也会被entry.or_default插入。
   - 实际反例：warm Land0.1秒请求后的prefix1，elapsed0.10000000894069672≥max0.10000000149011612，当前节点末态虽inactive，输出仍改变27份rotation，并把原输入缺失的PoseInAir加入为0；native同输入在这一步骨骼和curve存在性全等于输入。独立原source数据80步也只在warm首Land/prefix0修正，不延续到prefix1。
