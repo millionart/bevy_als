@@ -2535,6 +2535,10 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
     if (Request->HasField(TEXT("raw_curves")) &&
         (Request->TryGetField(TEXT("raw_curves"))->Type != EJson::Boolean ||
          !Request->TryGetBoolField(TEXT("raw_curves"), bCaptureRawCurves))) { return nullptr; }
+    bool bCaptureRelativeRetarget = false;
+    if (Request->HasField(TEXT("relative_retarget")) &&
+        (Request->TryGetField(TEXT("relative_retarget"))->Type != EJson::Boolean ||
+         !Request->TryGetBoolField(TEXT("relative_retarget"), bCaptureRelativeRetarget))) { return nullptr; }
     USkeleton* Skeleton = Mesh->GetSkeleton();
     const FReferenceSkeleton& Ref = Skeleton->GetReferenceSkeleton();
     TArray<FBoneIndexType> Indices;
@@ -2542,6 +2546,7 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
     FBoneContainer RequiredBones;
     RequiredBones.InitializeTo(Indices, UE::Anim::FCurveFilterSettings(), *Mesh);
     TArray<TSharedPtr<FJsonValue>> Bones;
+    TArray<int32> RelativeBones;
     for (int32 Index = 0; Index < Ref.GetNum(); ++Index)
     {
         const FCompactPoseBoneIndex CompactIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(Index));
@@ -2551,6 +2556,12 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
         Bone->SetNumberField(TEXT("parent_index"), Ref.GetParentIndex(Index));
         Bone->SetObjectField(TEXT("skeleton_pose"), CaptureTransform(Ref.GetRefBonePose()[Index]));
         Bone->SetObjectField(TEXT("mesh_pose"), CaptureTransform(RequiredBones.GetRefPoseTransform(CompactIndex)));
+        if (bCaptureRelativeRetarget)
+        {
+            const auto Mode = Skeleton->GetBoneTranslationRetargetingMode(Index);
+            Bone->SetNumberField(TEXT("retarget_mode"), Mode);
+            if (Mode == EBoneTranslationRetargetingMode::AnimationRelative) { RelativeBones.Add(Index); }
+        }
         Bones.Add(MakeShared<FJsonValueObject>(Bone));
     }
 
@@ -2604,6 +2615,20 @@ TSharedPtr<FJsonObject> CaptureSequenceCompressionExport(UObject* Asset, const F
                 return nullptr;
             }
             Row->SetObjectField(TEXT("raw_curves"), Curves.ToSharedRef());
+        }
+        if (bCaptureRelativeRetarget)
+        {
+            const TArray<FTransform>& Authored = Sequence->GetRetargetTransforms();
+            TArray<TSharedPtr<FJsonValue>> References;
+            for (int32 Bone : RelativeBones)
+            {
+                if (!Authored.IsValidIndex(Bone)) { continue; }
+                TSharedRef<FJsonObject> Reference = MakeShared<FJsonObject>();
+                Reference->SetNumberField(TEXT("bone"), Bone);
+                Reference->SetObjectField(TEXT("authored_pose"), CaptureTransform(Authored[Bone]));
+                References.Add(MakeShared<FJsonValueObject>(Reference));
+            }
+            Row->SetArrayField(TEXT("animation_relative"), References);
         }
         if (!bRaw)
         {

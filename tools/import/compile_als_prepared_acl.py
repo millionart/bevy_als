@@ -179,14 +179,21 @@ def compile_assets(capture, sequences, assets, sdk, output, work):
 
     if len(skeletons) != 1:
         raise ValueError("A prepared ACL corpus requires one installed skeleton")
+    relative_bones = [index for index, bone in enumerate(capture["bones"]) if bone["retarget_mode"] == 3]
+    authored = [{"bone": index, "authored_pose": capture["bones"][index]["skeleton_pose"]}
+                for index in relative_bones]
+    if any(row["animation_relative"] != authored for row in capture["sequences"]):
+        raise ValueError("Sequence authored relative poses differ from the shared skeleton")
+    bones = [{key: value for key, value in bone.items() if key != "retarget_mode"} for bone in capture["bones"]]
     metadata = {
         "format": "als_prepared_acl_v1",
         "platform": capture["platform"],
         "sdk_architecture": platform.machine(),
         "source_length_to_runtime_scale": SOURCE_LENGTH_TO_RUNTIME_SCALE,
         "curve_value_scales": {"RotationYawSpeed": source_heading_yaw_degrees_to_runtime(1.0)},
-        "bones": capture["bones"],
-        "bone_paths": runtime_bone_paths(assets, skeletons.pop(), capture["bones"]),
+        "bones": bones,
+        "bone_paths": runtime_bone_paths(assets, skeletons.pop(), bones),
+        "animation_relative_bones": relative_bones,
         "sequences": records,
     }
     header = json.dumps(metadata, separators=(",", ":")).encode()
@@ -211,7 +218,7 @@ def compile_assets(capture, sequences, assets, sdk, output, work):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ue-root", type=Path, required=True)
-    parser.add_argument("--capture", type=Path, default=ROOT / "docs/audit/bf144/d224d/character.native.json.gz")
+    parser.add_argument("--capture", type=Path, default=ROOT / "docs/audit/bf144/d230/character.native.json.gz")
     parser.add_argument("--assets", type=Path, default=ROOT / "assets")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)

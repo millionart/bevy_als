@@ -7647,7 +7647,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 边界：只确认raw模型及当前小量变化，不声明可见故障或compressed曲线采用同规则；完整初始化/跨实例重置与其他曲线历史仍在后续边界中核对。证据`target/bf144/175/curve-history-check.json`与`curve-history.native.json`；未修生产，未以门槛充当验收容差。
 
 
-- [ ] BF144-D230 / P3 — Sequence采样遗漏AnimationRelative的末尾旋转参考运算与归一化。
+- [x] BF144-D230 / P3 — Sequence采样遗漏AnimationRelative的末尾旋转参考运算与归一化。 开始：2026-11-12 13:55:07 +08:00；预估结束：2026-11-12 14:35:07 +08:00。
+  - 实际结束：2026-11-12 14:03:02 +08:00；偏差：−32分05秒；结果：静态Gate PASS。fresh三个IK BoneTree mode和127共享原参考，Bow无相对模式。3871 prepared骨f64全等，撤尾留26个f32反例，948烘焙加性保持；340 raw投影精确，源尾运算改变8个f64值，三骨与raw虚骨祖先闭包无交集。Cargo/Playground统一后置，见 `docs/audit/bf144/d230/summary.json`。
   - Source：fresh SK_Als BoneTree将ik_foot_root/ik_foot_l/ik_foot_r设为AnimationRelative；`AnimSequenceHelpers.cpp:309–337`的FRetargetingScope在活动模型完整pose生成后析构，`AnimationRuntime.cpp:2987–3014`执行当前旋转×源参考逆×目标参考，并再次NormalizeRotation。即使使用同一Skeleton/参考姿态，有限精度运算仍不能省略该实际阶段。
   - Target：`source_sequence_player.rs:90–110,112–140`直接消费glTF pose，只另处理additive/root lock；同链未读取BoneTree模式或执行AnimationRelative末尾阶段。仅恢复D225–D228的时间/nlerp/Euler/参考保持仍会留下该差异；不以D124虚拟骨骼或D224压缩数据根因代替。
   - 最小反例：实际30Hz crouch-directions第132帧、player9、time=0.4568613768、ik_foot_r。在相同原native bone_local/RequiredBones/源及目标参考输入下，末尾retarget前投影的runtime分量为0.8452874422073364，源最终为0.8452873826026917，相差一个f32 ULP（5.960464e−8）。只调用真实UE RetargetBoneTransform后，68骨骼全部f64精确；0.5/0秒普通控制保持。全批6资产14个独立时点（原16次更新，含重复）的952个普通骨骼重算均精确，16个f32变化反例全部恢复。

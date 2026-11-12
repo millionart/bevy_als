@@ -115,9 +115,28 @@ impl SourceTransform {
 struct PreparedBone {
     skeleton_pose: SourceTransform,
     mesh_pose: SourceTransform,
+    #[serde(skip)]
+    animation_relative: bool,
 }
 
 impl PreparedBone {
+    fn retarget_relative(&self, value: &mut RigTransform) {
+        let authored = self.skeleton_pose.rig_transform();
+        let reference = self.mesh_pose.rig_transform();
+        let rotation = source_quaternion_product(value.rotation, authored.rotation.conjugate());
+        value.rotation =
+            normalize_source_rotation(source_quaternion_product(rotation, reference.rotation));
+        value.translation += reference.translation - authored.translation;
+        let reciprocal = authored.scale.to_array().map(|component| {
+            if component.abs() <= f64::from(1e-8_f32) {
+                0.0
+            } else {
+                component.recip()
+            }
+        });
+        value.scale *= reference.scale * DVec3::from_array(reciprocal);
+    }
+
     fn write_raw_control(
         &self,
         pose: &mut Pose,
@@ -129,19 +148,17 @@ impl PreparedBone {
             return;
         };
         let bone = &mut pose.bones[index];
-        let value = if candidate.same(self.skeleton_pose.rig_transform(), f64::from(1e-4_f32)) {
+        let retained = candidate.same(self.skeleton_pose.rig_transform(), f64::from(1e-4_f32));
+        let mut value = if retained {
             self.mesh_pose.rig_transform()
         } else {
             candidate
         };
-        bone.translation = Some(project_translation(
-            value.translation.to_array(),
-            unit_scale,
-        ));
-        bone.rotation = Some(project_rotation(
-            normalize_source_rotation(value.rotation).to_array(),
-        ));
-        bone.scale = Some(project_scale(value.scale.to_array()));
+        value.rotation = normalize_source_rotation(value.rotation);
+        if self.animation_relative && !retained {
+            self.retarget_relative(&mut value);
+        }
+        project_bone_transform(bone, value, unit_scale);
     }
 }
 
@@ -200,6 +217,7 @@ struct PreparedMetadata {
     source_length_to_runtime_scale: f64,
     bones: Vec<PreparedBone>,
     bone_paths: Vec<Vec<String>>,
+    animation_relative_bones: Vec<usize>,
     sequences: Vec<PreparedSequence>,
 }
 
@@ -221,11 +239,15 @@ static PREPARED_ACL: LazyLock<PreparedAcl> = LazyLock::new(|| {
         format,
         curve_value_scales,
         source_length_to_runtime_scale,
-        bones,
+        mut bones,
         bone_paths,
+        animation_relative_bones,
         mut sequences,
     } = serde_json::from_slice(metadata).expect("Generated ACL metadata");
     assert_eq!(format, "als_prepared_acl_v1");
+    for index in animation_relative_bones {
+        bones[index].animation_relative = true;
+    }
     sequences.sort_unstable_by(|left, right| left.key().cmp(&right.key()));
     let bone_ids = bone_paths.into_iter().map(bone_id).collect::<Vec<_>>();
     assert_eq!(bone_ids.len(), bones.len());
@@ -307,6 +329,24 @@ fn project_rotation([x, y, z, w]: [f64; 4]) -> Quat {
 
 fn project_scale([x, y, z]: [f64; 3]) -> Vec3 {
     Vec3::new(x as f32, z as f32, y as f32)
+}
+
+fn project_bone_transform(bone: &mut BonePose, source: RigTransform, unit_scale: f64) {
+    bone.translation = Some(project_translation(
+        source.translation.to_array(),
+        unit_scale,
+    ));
+    bone.rotation = Some(project_rotation(source.rotation.to_array()));
+    bone.scale = Some(project_scale(source.scale.to_array()));
+}
+
+fn source_quaternion_product(a: DQuat, b: DQuat) -> DQuat {
+    DQuat::from_xyzw(
+        a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+        a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+        a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+        a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+    )
 }
 
 fn acl_lerp<const N: usize>(start: [f32; N], end: [f32; N], alpha: f32) -> [f32; N] {
@@ -454,28 +494,33 @@ impl PreparedAcl {
         } else {
             reference.translation.values().map(|value| value as f32)
         };
-        local.rotation = Some(project_rotation(
-            self.channels(rotation, samples, rotation_default, |start, end, alpha| {
-                acl_rotation(start, end, alpha, single_root)
-            })
-            .map(f64::from),
-        ));
-        local.translation = Some(project_translation(
-            self.channels(translation, samples, translation_default, acl_lerp)
-                .map(f64::from),
-            self.source_length_to_runtime_scale,
-        ));
-        if sequence.bone.has_scale {
+        let rotation = self.channels(rotation, samples, rotation_default, |start, end, alpha| {
+            acl_rotation(start, end, alpha, single_root)
+        });
+        let translation = self.channels(translation, samples, translation_default, acl_lerp);
+        let scale = if sequence.bone.has_scale {
             let scale_default = if additive {
                 [0.0; 3]
             } else {
                 reference.scale.values().map(|value| value as f32)
             };
-            local.scale = Some(project_scale(
-                self.channels(scaling, samples, scale_default, acl_lerp)
-                    .map(f64::from),
-            ));
+            self.channels(scaling, samples, scale_default, acl_lerp)
+                .map(f64::from)
+        } else if additive {
+            [0.0; 3]
+        } else {
+            self.bone_references[index].mesh_pose.scale.values()
+        };
+        let mut value = RigTransform {
+            rotation: DQuat::from_array(rotation.map(f64::from)),
+            translation: DVec3::from_array(translation.map(f64::from)),
+            scale: DVec3::from_array(scale),
+        };
+        let reference = &self.bone_references[index];
+        if reference.animation_relative && !additive {
+            reference.retarget_relative(&mut value);
         }
+        project_bone_transform(local, value, self.source_length_to_runtime_scale);
     }
 
     fn curves(&self, prepared: &PreparedSequence, time: f32) -> SourceCurveValues {
@@ -725,6 +770,27 @@ mod tests {
         assert_eq!(
             actual.rotation,
             Quat::from_xyzw(-0.0028089457, 0.0076127234, -0.001933307, -0.9999652)
+        );
+    }
+
+    #[test]
+    fn prepared_relative_foot_is_retargeted_before_projection() {
+        let crouch = clip(
+            "ALSRUNTIME/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf",
+            "A_Als_Crouch_Walk_Left_Backward_0",
+        );
+        let foot =
+            EntityPath::from_slashed_string("GltfNode0/root/ik_foot_root/ik_foot_r".to_owned())
+                .id();
+        let (pose, _) = sample_prepared_pose(&crouch, 0.0).unwrap();
+        assert_eq!(
+            pose.get_bone(foot).unwrap().rotation,
+            Some(Quat::from_xyzw(
+                -0.5124624,
+                0.6854021,
+                -0.43448853,
+                0.2807597
+            ))
         );
     }
 }

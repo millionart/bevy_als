@@ -111,6 +111,7 @@ def replay():
     size, = struct.unpack_from("<I", old)
     scales = metadata.pop("curve_value_scales")
     metadata.pop("bone_paths", None)
+    metadata.pop("animation_relative_bones", None)
     assert scales == {"RotationYawSpeed": -1.0}
     for clip in metadata["sequences"]:
         clip.pop("frame_rate", None)
