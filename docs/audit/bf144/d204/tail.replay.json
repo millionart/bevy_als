@@ -1,0 +1,282 @@
+{
+  "cases": [
+    {
+      "name": "inertial_0",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.0,
+          "inertial": true
+        }
+      ],
+      "updates": [
+        0.95703125,
+        0.04296875,
+        1
+      ]
+    },
+    {
+      "name": "inertial_0.025",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.05000000074505806,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.0,
+          "inertial": true
+        }
+      ],
+      "updates": [
+        0.84375,
+        0.15625,
+        1
+      ]
+    },
+    {
+      "name": "inertial_0.15",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.17500001192092896,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.0,
+          "inertial": true
+        }
+      ],
+      "updates": [
+        0.042968690395355225,
+        0.9570313096046448,
+        1
+      ]
+    },
+    {
+      "name": "inertial_0.2",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.22500000894069672,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.0,
+          "inertial": true
+        }
+      ],
+      "updates": [
+        null,
+        null,
+        1
+      ]
+    },
+    {
+      "name": "ordinary_0.025",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.05000000074505806,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.010416626930236816,
+          "inertial": false
+        }
+      ],
+      "updates": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "ordinary_0.15",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.17500001192092896,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.010416626930236816,
+          "inertial": false
+        }
+      ],
+      "updates": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "ordinary_0.2",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.22500000894069672,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.010416626930236816,
+          "inertial": false
+        }
+      ],
+      "updates": [
+        null,
+        null,
+        1
+      ]
+    },
+    {
+      "name": "reentry_0.025",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.07500000298023224,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.05000000074505806,
+          "duration": 0.10000000149011612,
+          "inertial": false
+        },
+        {
+          "source": 2,
+          "target": 0,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.0,
+          "inertial": true
+        }
+      ],
+      "updates": [
+        0.341796875,
+        0.158203125,
+        0.5
+      ]
+    },
+    {
+      "name": "reentry_0.075",
+      "entries": [
+        {
+          "source": 0,
+          "target": 1,
+          "elapsed": 0.125,
+          "duration": 0.20000000298023224,
+          "inertial": false
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.05000000074505806,
+          "duration": 0.10000000149011612,
+          "inertial": false
+        },
+        {
+          "source": 2,
+          "target": 0,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.0,
+          "inertial": true
+        }
+      ],
+      "updates": [
+        0.158203125,
+        0.341796875,
+        0.5
+      ]
+    },
+    {
+      "name": "reentry_0.2",
+      "entries": [
+        {
+          "source": 1,
+          "target": 2,
+          "elapsed": 0.05000000074505806,
+          "duration": 0.10000000149011612,
+          "inertial": false
+        },
+        {
+          "source": 2,
+          "target": 0,
+          "elapsed": 0.02500000037252903,
+          "duration": 0.0,
+          "inertial": true
+        }
+      ],
+      "updates": [
+        1,
+        0.5,
+        0.5
+      ]
+    }
+  ],
+  "early_cleanup_ablation": [
+    "inertial_0",
+    "inertial_0.025",
+    "inertial_0.15",
+    "ordinary_0.025",
+    "ordinary_0.15",
+    "reentry_0.025",
+    "reentry_0.075",
+    "reentry_0.2"
+  ],
+  "returned_land_clock": {
+    "inertial_0": [
+      0.17500001192092896,
+      0.02500000037252903
+    ],
+    "inertial_0.025": [
+      0.20000001788139343,
+      0.02500000037252903
+    ],
+    "inertial_0.15": [
+      0.33125001192092896,
+      0.02500000037252903
+    ]
+  }
+}

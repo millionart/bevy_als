@@ -1,0 +1,488 @@
+{
+  "machine_index": 1,
+  "samples": [
+    {
+      "name": "reentry_0.025",
+      "steps": [
+        {
+          "delta_seconds": 0,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": [
+            {
+              "node_index": 119,
+              "position": 1.0,
+              "weight": 1.0
+            }
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        }
+      ]
+    },
+    {
+      "name": "reentry_0.075",
+      "steps": [
+        {
+          "delta_seconds": 0,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.075,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": [
+            {
+              "node_index": 119,
+              "position": 1.0,
+              "weight": 1.0
+            }
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        }
+      ]
+    },
+    {
+      "name": "reentry_0.2",
+      "steps": [
+        {
+          "delta_seconds": 0,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.2,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": [
+            {
+              "node_index": 119,
+              "position": 1.0,
+              "weight": 1.0
+            }
+          ]
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        },
+        {
+          "delta_seconds": 0.025,
+          "state_entries": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "transition_rules": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "asset_players": []
+        }
+      ]
+    }
+  ]
+}
