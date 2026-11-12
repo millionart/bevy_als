@@ -7550,7 +7550,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.158层级分组补充：已恢复当前分支/gait/max路径选择后，按源上下文方向折叠仍与字面目标meta合成留下1439条舍入残差，最大约1.19e−7。把同一原始f32输入解释为精确有理数，坍缩路径式与逐级展开式1920帧全等；浮点负控制在frame90失败，源码按字节恢复的精确比较全过，无容差放宽。证据`target/bf144/158/exact-algebra.json`、`weight-controls.json`及负控制report。
 
-- [ ] BF144-D222 / P2 — 初次入口Conduit不计入每帧转换额度，额外执行普通转场。
+- [x] BF144-D222 / P2 — 初次入口Conduit不计入每帧转换额度，额外执行普通转场。
+  - 2026-11-12 11:24 +0800 实际结束，较11:59预估提前35分钟，未拆分。fresh Grounded双向8条24帧，实际额度1首帧保留入口，额度2复现同帧额外转换。证据及实际FSM夹具见 `docs/audit/bf144/d222/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 11:21 +08:00，预估结束2026-11-12 11:59 +08:00。重采Grounded双向入口和额度1/2，入口选择在同一帧扣减额度。
   - Source：fresh Grounded初始状态为Entry Conduit，MaxTransitionsPerFrame=1。入口按上一姿态PoseStanding/PoseCrouching选择普通状态；UE `AnimNode_StateMachine.cpp` 的Update循环把该入口边计入TransitionCountThisFrame，达到上限即停止。skip-first随后清除转场数据，不会补执行下一条普通边。
   - Target：`animation_graph_ext/interruptible_fsm.rs`的source_entry_state先选普通入口，再把remaining_transitions重设为完整max_transitions_per_frame；入口消耗没有计入。
   - 反例：真实角色加载前史中Grounded未被更新，上一帧PoseStanding=1，首个移动输入为Crouching；target首帧即Crouching全权重。相同源条件的原生limit=1首帧仍Standing、下一帧才开始0.5秒CF；limit=2则复现target同帧Crouching。反向入口和同姿态控制共8组24帧核对，根因独立于D206曲线舍入和D207别名源姿态。

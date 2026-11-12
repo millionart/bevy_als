@@ -1592,6 +1592,7 @@ impl NodeLike for InterruptibleFsmNode {
             error: format!("source entry initialization {phase}: {error}"),
         };
         let initial_state = Self::initial_state(start_state, time, frame);
+        let mut remaining_transitions = self.max_transitions_per_frame;
         let select_entry = {
             let state = ctx
                 .state_mut_or_else(|| initial_state.clone())
@@ -1615,6 +1616,7 @@ impl NodeLike for InterruptibleFsmNode {
                 .source_entry_state(machine, &state, update.clone(), &mut ctx)
                 .map_err(|error| entry_error("condition evaluation", error))?
             {
+                remaining_transitions = remaining_transitions.saturating_sub(1);
                 *ctx.state_mut_or_else(|| initial_state.clone())
                     .map_err(|error| entry_error("state replacement", error))? =
                     Self::initial_state(LowLevelStateId::HlState(entry), time, frame);
@@ -1637,7 +1639,6 @@ impl NodeLike for InterruptibleFsmNode {
         let external_events = self
             .driver_events(&mut ctx)
             .map_err(|error| entry_error("external event collection", error))?;
-        let mut remaining_transitions = self.max_transitions_per_frame;
         let previous_target = Self::source_condition_state(machine, &ctx.state::<InterruptibleFsmState>()?.state);
         self.process_events(
             machine,
@@ -5737,6 +5738,108 @@ mod tests {
                         assert_eq!(pose.bones[0].translation, Some(Vec3::X * frame.weights[1]), "{}", case.name);
                     }
                     arena.next_frame();
+                }
+            }
+        }).unwrap();
+    }
+
+    #[test]
+    fn source_entry_selection_consumes_the_current_frame_transition_budget() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            origin: String,
+            budget: usize,
+            allowed: bool,
+            states: Vec<String>,
+            entry: bool,
+        }
+        #[derive(serde::Deserialize)]
+        struct Reference {
+            cases: Vec<Case>,
+        }
+
+        let mut reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d222/budget.replay.json"
+        )).unwrap();
+        reference.cases.push(Case {
+            name: "ordinary_initial_state".into(), origin: "Standing".into(), budget: 1,
+            allowed: true, states: vec!["Crouching".into(); 3], entry: false,
+        });
+        let states = [1_u128, 2].map(|index| StateId::from(bevy::asset::uuid::Uuid::from_u128(index)));
+        let labels = ["Standing", "Crouching"];
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut machines = Assets::<StateMachine>::default();
+        let pose_node = AnimationNode::new("Pose", GlobalPoseInputNode { key: "pose".into(), output: "Pose".into() });
+        let mut pose = AnimationGraph::new();
+        pose.add_node(pose_node.clone());
+        pose.add_output_data("pose".into(), DataSpec::Pose);
+        pose.add_output_data_edge(pose_node.id, "Pose", "pose");
+        let pose = graphs.add(pose);
+        let condition_node = AnimationNode::new("Switch", GlobalBoolInputNode { key: "switch".into() });
+        let mut condition = AnimationGraph::new();
+        condition.add_node(condition_node.clone());
+        condition.add_output_data("allowed".into(), DataSpec::Bool);
+        condition.add_output_data_edge(condition_node.id, "switch", "allowed");
+        let condition = graphs.add(condition);
+        let transition: DirectTransitionId = serde_json::from_str("\"20000000-0000-4000-8000-000000000001\"").unwrap();
+        let fixtures = reference.cases.into_iter().map(|case| {
+            let origin_index = labels.iter().position(|label| *label == case.origin.as_str()).unwrap();
+            let origin = states[origin_index];
+            let target = states[1 - origin_index];
+            let mut machine = StateMachine::default();
+            machine.start_state = if case.entry { target } else { origin };
+            machine.node_spec.add_output_data("pose".into(), DataSpec::Pose);
+            for (state, label) in states.into_iter().zip(labels) {
+                machine.add_state(State { id: state, label: label.into(), graph: pose.clone(), ..default() });
+            }
+            machine.add_transition_unchecked(DirectTransition { id: transition, source: origin, target, data: default() });
+            machine.update_low_level_fsm();
+            let fsm = AnimationNode::new("FSM", InterruptibleFsmNode {
+                fsm: machines.add(machine),
+                source_entry_conditions: case.entry.then(|| SourceEntryCondition {
+                    target_state_id: origin.uuid().to_string(), ..default()
+                }).into_iter().collect(),
+                source_transition_conditions: vec![SourceTransitionCondition {
+                    transition_id: transition.uuid().to_string(), source_state_id: origin.uuid().to_string(),
+                    condition: condition.clone(), output: "allowed".into(), context_state: origin, ..default()
+                }],
+                skip_first_update_transition: true, max_transitions_per_frame: case.budget, internal_time_key: "delta".into(),
+                ..default()
+            });
+            let mut root = AnimationGraph::new();
+            root.add_node(fsm.clone());
+            root.add_output_data("pose".into(), DataSpec::Pose);
+            root.add_output_data_edge(fsm.id, "pose", "pose");
+            (graphs.add(root), fsm.id, case)
+        }).collect::<Vec<_>>();
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(machines);
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.run_system_once(move |resources: SystemResources| {
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            for (handle, node, case) in &fixtures {
+                let graph = resources.animation_graph_assets.get(handle).unwrap();
+                let mut arena = GraphContextArena::new(handle.id());
+                for (index, expected) in case.states.iter().enumerate() {
+                    let delta = if index == 0 { 0.0 } else { 1.0 / 60.0 };
+                    let inputs = HashMap::from([
+                        ("delta".into(), DataValue::F32(delta)),
+                        ("switch".into(), DataValue::Bool(case.allowed)),
+                        ("pose".into(), DataValue::Pose(Pose::default())),
+                    ]);
+                    graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
+                        GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                    let actual = &arena.get_toplevel().node_states.get::<InterruptibleFsmState>(*node, StateKey::Default).unwrap().state;
+                    let expected_id = states[labels.iter().position(|label| *label == expected.as_str()).unwrap()];
+                    assert_eq!(actual, &LowLevelStateId::HlState(expected_id), "{} frame {index}", case.name);
                 }
             }
         }).unwrap();
