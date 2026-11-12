@@ -470,10 +470,26 @@ mod tests {
         let custom = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
             runtime, base, CustomPositionIntegration, SourceCharacterFullFrame::default())).id();
         solver_body_fixture::insert(app.world_mut(), custom, body.clone(), SolverBodyInertia::DUMMY);
+        let native_velocity = Vec3::X * 0.7;
+        let native_delta = native_velocity * dt;
+        let native_step = duration.div_f64(6.0).as_secs_f32();
+        let mut native_body = SolverBody {
+            linear_velocity: native_velocity,
+            delta_position: Vec3::Y,
+            ..SolverBody::DUMMY
+        };
+        for _ in 0..6 { native_body.delta_position += native_velocity * native_step; }
+        assert_ne!(native_body.delta_position.x, native_delta.x);
+        let runtime = crate::als::character::AlsCmcAdapterRuntime {
+            grounded_movement_delta: Some(native_delta), ..runtime
+        };
+        let base = crate::als::dynamics::AlsMovementBaseDynamicsState {
+            pre_collision_velocity: Some(native_velocity), ..base
+        };
         let ordinary = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
             runtime, base)).id();
-        solver_body_fixture::insert(app.world_mut(), ordinary, body.clone(), SolverBodyInertia::DUMMY);
-        let mut blocked_body = body.clone();
+        solver_body_fixture::insert(app.world_mut(), ordinary, native_body.clone(), SolverBodyInertia::DUMMY);
+        let mut blocked_body = native_body.clone();
         blocked_body.delta_position.x *= 0.5;
         let blocked = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
             runtime, base)).id();
@@ -482,36 +498,37 @@ mod tests {
             runtime, crate::als::dynamics::AlsMovementBaseDynamicsState {
                 entity: Some(Entity::PLACEHOLDER), support_velocity: Vec3::X, ..base
             })).id();
-        solver_body_fixture::insert(app.world_mut(), moving, body.clone(), SolverBodyInertia::DUMMY);
+        solver_body_fixture::insert(app.world_mut(), moving, native_body.clone(), SolverBodyInertia::DUMMY);
         let other_custom = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
             runtime, base, CustomPositionIntegration)).id();
-        solver_body_fixture::insert(app.world_mut(), other_custom, body.clone(), SolverBodyInertia::DUMMY);
+        solver_body_fixture::insert(app.world_mut(), other_custom, native_body.clone(), SolverBodyInertia::DUMMY);
         let touching = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
             runtime, base)).id();
-        solver_body_fixture::insert(app.world_mut(), touching, body.clone(), SolverBodyInertia::DUMMY);
+        solver_body_fixture::insert(app.world_mut(), touching, native_body.clone(), SolverBodyInertia::DUMMY);
         let obstacle = app.world_mut().spawn_empty().id();
         app.world_mut().resource_mut::<ContactGraph>().add_edge_with(ContactEdge::new(touching, obstacle),
             |pair| pair.flags.insert(ContactPairFlags::TOUCHING | ContactPairFlags::GENERATE_CONSTRAINTS)).unwrap();
         let sensor_touching = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
             runtime, base)).id();
-        solver_body_fixture::insert(app.world_mut(), sensor_touching, body.clone(), SolverBodyInertia::DUMMY);
+        solver_body_fixture::insert(app.world_mut(), sensor_touching, native_body.clone(), SolverBodyInertia::DUMMY);
         let sensor = app.world_mut().spawn_empty().id();
         app.world_mut().resource_mut::<ContactGraph>().add_edge_with(ContactEdge::new(sensor_touching, sensor),
             |pair| pair.flags.insert(ContactPairFlags::TOUCHING)).unwrap();
-        let mut rotated_body = body.clone();
+        let mut rotated_body = native_body.clone();
         rotated_body.delta_rotation = Quat::from_rotation_y(0.1);
         let rotated = app.world_mut().spawn((AlsCharacter, RigidBody::Dynamic, LocomotionState::Grounded,
             runtime, base)).id();
         solver_body_fixture::insert(app.world_mut(), rotated, rotated_body, SolverBodyInertia::DUMMY);
         app.world_mut().run_system_once(preserve_unobstructed_grounded_displacement).unwrap();
-        for actor in [custom, ordinary, sensor_touching] {
-            assert_eq!(solver_body_fixture::get(app.world(), actor).unwrap().delta_position, delta + Vec3::Y);
+        assert_eq!(solver_body_fixture::get(app.world(), custom).unwrap().delta_position, delta + Vec3::Y);
+        for actor in [ordinary, sensor_touching] {
+            assert_eq!(solver_body_fixture::get(app.world(), actor).unwrap().delta_position, native_delta + Vec3::Y);
         }
         assert_eq!(solver_body_fixture::get(app.world(), blocked).unwrap().delta_position, blocked_body.delta_position);
-        assert_eq!(solver_body_fixture::get(app.world(), moving).unwrap().delta_position, body.delta_position);
-        assert_eq!(solver_body_fixture::get(app.world(), other_custom).unwrap().delta_position, body.delta_position);
-        assert_eq!(solver_body_fixture::get(app.world(), touching).unwrap().delta_position, body.delta_position);
-        assert_eq!(solver_body_fixture::get(app.world(), rotated).unwrap().delta_position, body.delta_position);
+        assert_eq!(solver_body_fixture::get(app.world(), moving).unwrap().delta_position, native_body.delta_position);
+        assert_eq!(solver_body_fixture::get(app.world(), other_custom).unwrap().delta_position, native_body.delta_position);
+        assert_eq!(solver_body_fixture::get(app.world(), touching).unwrap().delta_position, native_body.delta_position);
+        assert_eq!(solver_body_fixture::get(app.world(), rotated).unwrap().delta_position, native_body.delta_position);
     }
 
     #[test]
