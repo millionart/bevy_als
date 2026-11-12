@@ -163,6 +163,9 @@ impl NodeLike for SourcePosePassthroughNode {
                     player.selected_leader = global_inputs.contains_key(&format!("{key}.selected"));
                     if player.selected_leader {
                         player.marker_advance = crate::extensions::sync_group_phase::resolved_source_marker_advance(&source_ctx, &player.key)?;
+                        player.resolved_length_ratio = crate::extensions::sync_group_phase::resolved_source_sync_length_ratios(
+                            &source_ctx, &player.key,
+                        )?.map(|ratios| ratios.y);
                     }
                     if global_inputs.contains_key(&source_sync_excluded_key(player.identity)) {
                         continue;

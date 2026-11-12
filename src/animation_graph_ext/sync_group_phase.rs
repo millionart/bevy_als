@@ -104,6 +104,7 @@ pub struct SourceSyncPlayerTick {
     pub requested_inertialization: bool,
     pub selected_leader: bool,
     pub ticked_as_leader: bool,
+    pub resolved_length_ratio: Option<f32>,
     pub phase: f32,
     pub previous_phase: f32,
     pub previous_marker_record: Option<SourceMarkerRecord>,
@@ -422,8 +423,9 @@ pub fn resolve_source_sync_phases(
                         role: prior.role, blend_weight: prior.weight, source_order: 0,
                     }) >= source_sync_group_leader_score(SourceSyncGroupCandidate {
                         role: leader.role, blend_weight: leader.weight, source_order: 0,
-                    })).map(|prior| marker_phase_sample_time(prior.phase, prior.phase_duration,
-                        &prior.phase_markers, prior.duration, &prior.markers, prior.looped) / prior.duration.max(EPSILON))
+                    })).map(|prior| prior.resolved_length_ratio.unwrap_or_else(||
+                        marker_phase_sample_time(prior.phase, prior.phase_duration,
+                            &prior.phase_markers, prior.duration, &prior.markers, prior.looped) / prior.duration.max(EPSILON)))
             } else if common.is_empty() {
                 None
             } else if leader.override_position_when_joining_sync_group_as_leader && joined {
@@ -443,7 +445,10 @@ pub fn resolve_source_sync_phases(
                         .map(|time| time_to_phase(time, grouped.phase_duration, grouped.looped))
                 })
             };
-            let step = if let Some(phase) = prior_phase {
+            let step = if let Some(ratio) = prior_phase.filter(|_| length_resync) {
+                grouped.previous_marker_record = None;
+                grouped.advance_from_time(ratio * grouped.duration)
+            } else if let Some(phase) = prior_phase {
                 let continuing = common == previous_common && previous_players.iter().any(|prior|
                     prior.identity == leader.identity && prior.source_asset == leader.source_asset
                         && (prior.duration - leader.duration).abs() <= EPSILON);
@@ -1551,6 +1556,7 @@ mod tests {
             requested_inertialization: false,
             selected_leader: false,
             ticked_as_leader: false,
+            resolved_length_ratio: None,
         };
         let old = tick(old_id, old_clip.clone(), 0.8, false);
         let mut joining = tick(new_id, new_clip.clone(), 0.2, true);
@@ -1771,6 +1777,68 @@ mod tests {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn length_resync_uses_the_published_ratio_after_a_local_reset() {
+        use bevy_animation_graph::core::animation_clip::GraphClip;
+
+        #[derive(Deserialize)]
+        struct Player {
+            asset: String,
+            duration: f32,
+            rate: f32,
+            looped: bool,
+        }
+        #[derive(Deserialize)]
+        struct Frame {
+            player: usize,
+            weight: f32,
+            delta: f32,
+            inertial: bool,
+            clock: [f32; 2],
+            ratio: f32,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            players: Vec<Player>,
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d205/resync.replay.json"
+        )).unwrap();
+        let mut assets = Assets::<GraphClip>::default();
+        let mut clips = HashMap::new();
+        for player in &reference.players {
+            clips.entry(player.asset.as_str()).or_insert_with(|| assets.add(GraphClip::default()));
+        }
+        for case in reference.cases {
+            let mut previous = None;
+            for frame in case.frames {
+                let player = &reference.players[frame.player];
+                let tick = SourceSyncPlayerTick {
+                    identity: (GraphContextId::default(), bevy::asset::uuid::Uuid::from_u128(frame.player as u128 + 1).into()),
+                    key: "Land".into(), source_asset: Some(clips[player.asset.as_str()].clone()),
+                    weight: frame.weight, duration: player.duration, phase_duration: player.duration,
+                    delta_seconds: frame.delta, play_rate: player.rate, looped: player.looped,
+                    requested_inertialization: frame.inertial, sample_time_hint: Some(0.0), ..default()
+                };
+                let resolution = resolve_source_sync_phases(std::slice::from_ref(&tick), previous.as_slice()).remove(0);
+                let step = &resolution.leader_samples[0].1;
+                let ratio = resolution.length_ratios.unwrap().y;
+                assert_eq!([step.previous_time, step.time], frame.clock, "{}", case.name);
+                assert_eq!(ratio, frame.ratio, "{}", case.name);
+                previous = Some(SourceSyncPlayerTick {
+                    selected_leader: true, phase: step.phase, resolved_length_ratio: Some(ratio), ..tick
+                });
             }
         }
     }

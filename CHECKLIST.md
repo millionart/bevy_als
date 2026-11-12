@@ -7264,7 +7264,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.163普通完成帧扩展已于BF144.166撤回：20个0权重旧状态tick由“转场消失”推导，未检查原生Transition.bActive。40帧native完成测试与实际285更新证明普通完成帧不再调用旧状态；64条变化/4 leader标志/8.33ms只是人工多加成员的反事实结果，不是源移植差异。D204原有中断栈零更新证据保持；证据`target/bf144/166/ordinary-check.json`、`bf163-correction.json`。
 
-- [ ] BF144-D205 / P2 — 已请求长度重同步时，同身份播放器的本地起点覆盖源组相位。
+- [x] BF144-D205 / P2 — 已请求长度重同步时，同身份播放器的本地起点覆盖源组相位。
+  - 2026-11-12 08:29 +0800 实际结束，较08:56预估提前27分钟，未拆分。fresh Land 8条15帧原生previous、position与ratio静态闭环；同身份重置3条失败，精确循环末点独立证明必须保存发布ratio。证据与实际resolver夹具见 `docs/audit/bf144/d205/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 08:25 +08:00，预估结束2026-11-12 08:56 +08:00。重采Land同身份重置及强弱分数控制，长度重同步直接采用前组发布ratio。
   - Source：fresh `AnimSync.cpp:195–217`在惯性请求且前leader分数不低于新leader时设置长度重同步；`AnimSequenceBase.cpp:505–509`先将CurrentTime设为group ratio×长度，再推进。此规则不因player身份、资产和长度保持不变而改用本地初始化起点。
   - Target：`sync_group_phase.rs:444–460`虽已取得prior_phase，却在同身份/资产/长度且markers集合相同时走continuing分支，优先使用sample_time_hint。节点重置后的hint=0覆盖了必须采用的历史相位。
   - 反例/恢复：在D204源组历史恢复后，2条同一Land Light节点重新初始化的路径仍从0.025秒起播，source为0.175/0.2秒；在满足源重同步条件时排除本地hint后，所有返回播放器position/previous逐值匹配原生组，真实节点采样姿态恢复到共同源时钟。不同身份、较强新leader、无旧历史的控制保持。旧长度重同步单测使用不同old/new clip，漏掉同身份重新初始化。
