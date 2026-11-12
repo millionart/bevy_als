@@ -1,0 +1,70 @@
+[
+  {
+    "path": "assets/ALSRuntime/Animations/als_prepared_acl.bin",
+    "sha256": "b8881ce91e4660831eb750c7bc25b1f4e2572e72679c329070a6247113d08cf3"
+  },
+  {
+    "path": "docs/audit/bf144/d224c/replay_curve_consumers.py",
+    "sha256": "eab876918f57c1f3498218c37b9ac0dc315f2ee377e296a466050cc08e24d033"
+  },
+  {
+    "path": "docs/audit/bf144/d224c/summary.json",
+    "sha256": "c31ea4108d5c14210f0466b0b53454fe745d00b4357a8338fbacc0a4c3c136b6"
+  },
+  {
+    "path": "docs/audit/bf144/d224c/transition-prepared.native.json.gz",
+    "sha256": "98c4539b52309c6dd78c5759434d41bbdee0cb7008f6f560b0edd576a98c1418"
+  },
+  {
+    "path": "docs/audit/bf144/d224c/transition-raw.native.json.gz",
+    "sha256": "e5a3dceb67838f6beac1188cb6b09f5d81d23b52225723ebbc687bc79d900780"
+  },
+  {
+    "path": "docs/audit/bf144/d224c/turn-prepared.native.json.gz",
+    "sha256": "5eb5256e61b867571cafd01cb9a7ce001c45fc783810e63e0e3c48574e8ec5d9"
+  },
+  {
+    "path": "src/als/character/actions/get_up.rs",
+    "sha256": "10a483ef2f56594a1d5e43dd3923139d43c1b85b34e4821214493e0c95845a48"
+  },
+  {
+    "path": "src/als/character/actions/roll_drive.rs",
+    "sha256": "286b0e23f1a38d53a61c8cb2890c77e7756d089658937a890396ff779b74b81a"
+  },
+  {
+    "path": "src/als/character/actions/stop_link.rs",
+    "sha256": "6ffd69879e06f2210430a1d81ed9f8d2dcf9515e0b57ea5601b2404e8d8edd03"
+  },
+  {
+    "path": "src/als/character/animation_instances/standing_source.rs",
+    "sha256": "fb1b49ce5c7240cc0873b453287f57f9f41c47becc7799130db434bb06d81706"
+  },
+  {
+    "path": "src/als/root_motion_sources/mantle_drive.rs",
+    "sha256": "74e60ef55a8ac83ef9564e4f653f003d0d1603bf352b2a2a305623a2b04807bf"
+  },
+  {
+    "path": "src/animation_graph_ext/normalized_blendspace.rs",
+    "sha256": "ff31ba5684dcd5525197bc3d7b3b70962a4c5c0cdd2b7717328419acf843ed0d"
+  },
+  {
+    "path": "src/animation_graph_ext/source_compression.rs",
+    "sha256": "7439a3924c6c28505ce469b6c53ab274ea91549037b0772019e13f22afc49765"
+  },
+  {
+    "path": "src/animation_graph_ext/source_sequence_evaluator.rs",
+    "sha256": "f224e281a38995fe7a56e7f2bb1b658818a0967ca488f64a190c97529928c95e"
+  },
+  {
+    "path": "src/animation_graph_ext/source_sequence_player.rs",
+    "sha256": "d51dbdef8fa02a8ecb16a48a2f38e601befd96b4509837cbe2f19a5aa3774699"
+  },
+  {
+    "path": "src/extensions.rs",
+    "sha256": "dd38d58f3342ee771e92deae4643b39c9bdf11608f444d34a83b14d079b9fcd6"
+  },
+  {
+    "path": "tools/import/compile_als_prepared_acl.py",
+    "sha256": "aac49c0e4edd65f3996470b3b207a5eb2b2ec57d8fae4bbb2fa9e1f393368579"
+  }
+]

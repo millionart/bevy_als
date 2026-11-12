@@ -63,7 +63,8 @@ pub(crate) fn sample_source_montage(
     let settings = MONTAGES.get(name)?;
     let (clip, reference) = assets.0.get(name)?;
     let time = time.min(settings.duration);
-    let mut pose = crate::extensions::source_sequence_player::sample_pose(clips.get(clip)?, time);
+    let sequence = clips.get(clip)?;
+    let mut pose = crate::extensions::source_sequence_player::sample_pose(sequence, time);
     if let Some(reference) = reference {
         let reference = crate::extensions::source_sequence_player::sample_pose(clips.get(reference)?, 0.0);
         pose = crate::extensions::mesh_space_difference::make_mesh_space_difference(
@@ -73,7 +74,7 @@ pub(crate) fn sample_source_montage(
         );
         pose.timestamp = time;
     }
-    let mut context = crate::get_up::sampled_curve_context(&settings.curves, time);
+    let mut context = crate::get_up::sampled_curve_context(Some(sequence), &settings.curves, time);
     context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
         identity: name.to_owned(), clip: clip.clone(), montage: true,
         clock: crate::extensions::SourceRelevantAsset { duration: settings.duration, position: time, weight: 1.0, ..default() },

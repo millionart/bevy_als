@@ -11,6 +11,7 @@ use bevy_animation_graph::core::{
 use serde::{Deserialize, Serialize};
 
 use crate::extensions::global_f32_input::global_f32_or_root_default;
+use crate::extensions::source_compression::sample_source_curves;
 use crate::extensions::sync_group_phase::{
     SourceBlendSpaceClock, SourceSyncPlayerBinding, SourceSyncPlayerTick, blend_space_nearly_zero_delta, resolved_source_sync_phase,
     resolved_source_sync_markers, marker_phase_sample_time_near, follower_sample_time_near,
@@ -885,7 +886,9 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 weight,
             ));
             pose_indices.push(index);
-            for (name, value) in point.curves.sample_all(time) {
+            let clip = sample_clips[index].as_ref()
+                .and_then(|handle| ctx.graph_context.resources.graph_clip_assets.get(handle));
+            for (name, value) in sample_source_curves(clip, &point.curves, time) {
                 *curves.entry(name).or_insert(0.0) += value * weight;
             }
         }

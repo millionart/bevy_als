@@ -22,6 +22,7 @@ use serde::Deserialize;
 
 use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::global_f32_input::root_defaults_enabled;
+use crate::extensions::source_compression::sample_source_curves;
 use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
     resolved_source_sync_phase, source_sync_delta_seconds,
@@ -616,7 +617,7 @@ impl NodeLike for SourceSequencePlayerNode {
             weight: 1.0,
         };
         state.context = AnimationContextState {
-            curves: self.curves.sample_all(position),
+            curves: sample_source_curves(Some(clip), &self.curves, position),
             relevant_asset: (!self.ignore_for_relevancy_test).then_some(clock.clone()),
             curves_are_authoritative: true,
             sync_players,

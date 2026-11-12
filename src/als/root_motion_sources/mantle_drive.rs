@@ -179,7 +179,7 @@ fn sample_mantle_pose(
         crate::extensions::source_sequence_player::SourceRootLock::RefPose,
         false,
     )?;
-    let mut context = crate::get_up::sampled_curve_context(&settings.sequence_curves, time);
+    let mut context = crate::get_up::sampled_curve_context(Some(clip), &settings.sequence_curves, time);
     context.curves.extend(
         settings
             .montage_curves

@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from capture_als_sequence_compression import mesh_inventory, read_capture, validate_capture
-from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE
+from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE, source_heading_yaw_degrees_to_runtime
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -149,6 +149,7 @@ def compile_assets(capture, sequences, assets, sdk, output, work):
         "platform": capture["platform"],
         "sdk_architecture": platform.machine(),
         "source_length_to_runtime_scale": SOURCE_LENGTH_TO_RUNTIME_SCALE,
+        "curve_value_scales": {"RotationYawSpeed": source_heading_yaw_degrees_to_runtime(1.0)},
         "bones": capture["bones"],
         "sequences": records,
     }

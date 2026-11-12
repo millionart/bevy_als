@@ -14,6 +14,7 @@ use avian3d::prelude::{LinearVelocity, Rotation};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+use bevy_animation_graph::core::animation_clip::GraphClip;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
@@ -2366,7 +2367,7 @@ pub(crate) struct RollAnimationLocomotion {
 }
 
 #[derive(Resource)]
-struct RollSlotCurveHandle(Handle<AlsAnimCurves>, Handle<bevy_animation_graph::core::animation_clip::GraphClip>);
+struct RollSlotCurveHandle(Handle<AlsAnimCurves>, Handle<GraphClip>);
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRollBlendOut {
@@ -2609,6 +2610,7 @@ fn bridge_roll_slot_samples(
         Option<&crate::als_camera::AlsCameraCustomTimeDilation>)>,
     curve_handle: Res<RollSlotCurveHandle>,
     curves: Res<Assets<AlsAnimCurves>>,
+    clips: Res<Assets<GraphClip>>,
     mut samplers: Query<(Entity, &mut AlsRollSlotSampler, &AnimationGraphPlayer, &RootMotionOutput, Option<&AlsRollTail>)>,
     mut target_players: Query<&mut AnimationGraphPlayer, Without<AlsRollSlotSampler>>,
     mut commands: Commands,
@@ -2636,7 +2638,8 @@ fn bridge_roll_slot_samples(
             if tail.is_some() { pose.root_motion = None; }
             sampler.reported_unready = false;
             let mut context = curves.get(&curve_handle.0).and_then(AlsAnimCurves::first)
-                .map(|curves| crate::get_up::sampled_curve_context(curves, clip_time)).unwrap_or_default();
+                .map(|curves| crate::get_up::sampled_curve_context(clips.get(&curve_handle.1), curves, clip_time))
+                .unwrap_or_default();
             let previous_position = roll.filter(|_| tail.is_none()).map_or(clip_time, AlsRollState::previous_clip_time);
             context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
                 identity: format!("roll:{}", entity.to_bits()), clip: curve_handle.1.clone(), montage: true,

@@ -1502,7 +1502,8 @@ mod tests {
             let sample = actual.asset_samples.iter().find(|sample| sample.identity == format!("transition:{}", entry.instance_id)).unwrap();
             assert_eq!(sample.interrupted, entry.instance_id == previous.instance_id);
             let settings = &crate::standing_source::MONTAGES[source_transition_sequence(entry).unwrap()];
-            for (name, value) in crate::get_up::sampled_curve_context(&settings.curves, entry.clip_time).curves {
+            let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
+            for (name, value) in crate::get_up::sampled_curve_context(clips.get(&sample.clip), &settings.curves, entry.clip_time).curves {
                 *expected.entry(name).or_default() += value * entry.weight / total;
             }
         }

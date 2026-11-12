@@ -167,6 +167,8 @@ pub mod source_pose_passthrough;
 pub mod source_scalar_expression;
 #[path = "animation_graph_ext/source_sequence_evaluator.rs"]
 pub mod source_sequence_evaluator;
+#[path = "animation_graph_ext/source_compression.rs"]
+pub(crate) mod source_compression;
 #[path = "animation_graph_ext/source_sequence_player.rs"]
 pub mod source_sequence_player;
 #[path = "animation_graph_ext/source_slot.rs"]

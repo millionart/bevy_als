@@ -8,6 +8,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::global_f32_input::root_defaults_enabled;
+use crate::extensions::source_compression::sample_source_curves;
 use crate::extensions::source_instance::source_input_data;
 use crate::extensions::source_sequence_player::sample_source_pose;
 
@@ -103,7 +104,7 @@ impl NodeLike for SourceSequenceEvaluatorNode {
         pose.timestamp = time;
         *ctx.state_mut_or_else(crate::extensions::AnimationContextState::default)? =
             crate::extensions::AnimationContextState {
-                curves: self.curves.sample_all(time),
+                curves: sample_source_curves(Some(clip), &self.curves, time),
                 curves_are_authoritative: true,
                 ..default()
             };

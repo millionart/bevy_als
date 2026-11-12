@@ -220,11 +220,12 @@ fn discard_get_up_target(
 }
 
 pub(crate) fn sampled_curve_context(
+    clip: Option<&GraphClip>,
     curves: &crate::extensions::AlsPoseCurves,
     time: f32,
 ) -> AnimationContextState {
     AnimationContextState {
-        curves: curves.sample_all(time),
+        curves: crate::extensions::source_compression::sample_source_curves(clip, curves, time),
         relevant_asset: None,
         curves_are_authoritative: true,
         ..default()
@@ -293,7 +294,7 @@ fn update_get_up_pose(
             state.pose_ready = false;
             continue;
         };
-        let mut context = sampled_curve_context(curves, state.clip_time);
+        let mut context = sampled_curve_context(Some(clip), curves, state.clip_time);
         context.curves.extend(settings.montage_curves.sample_all(state.clip_time));
         context.relevant_asset = Some(SourceRelevantAsset {
             duration: clip.duration,
@@ -600,7 +601,7 @@ mod tests {
                 .unwrap()
                 .first()
                 .unwrap();
-            let context = sampled_curve_context(curves, 0.25);
+            let context = sampled_curve_context(Some(clip), curves, 0.25);
             assert!(context.curves_are_authoritative && !context.curves.is_empty());
             let roll = AlsRollState {
                 active: true,
@@ -858,7 +859,8 @@ mod tests {
                 let assets = app.world().resource::<GetUpAssets>();
                 let sequence = app.world().resource::<Assets<AlsAnimCurves>>()
                     .get(&assets.curves[usize::from(facing_up)]).unwrap().first().unwrap();
-                for (name, value) in sequence.sample_all(time) {
+                let clip = app.world().resource::<Assets<GraphClip>>().get(&assets.clips[usize::from(facing_up)]);
+                for (name, value) in sampled_curve_context(clip, sequence, time).curves {
                     assert_eq!(context.curves[&name], value);
                 }
             }
