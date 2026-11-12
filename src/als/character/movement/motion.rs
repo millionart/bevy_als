@@ -9596,7 +9596,7 @@ mod tests {
                 assert_eq!(actual, velocity);
             }).unwrap();
         }
-        app.world_mut().entity_mut(floor).insert(LinearVelocity(Vec3::X));
+        app.world_mut().entity_mut(floor).insert((RigidBody::Kinematic, LinearVelocity(Vec3::X)));
         app.world_mut().run_system_once(move |spatial: SpatialQuery,
             candidates: Query<CharacterCollisionCandidates>,
             permissions: Query<&AlsMantleTargetPermission>,
@@ -9606,6 +9606,10 @@ mod tests {
             let velocity = Vec3::new(6.499_999_5, 0.0, 0.001_433_724_1);
             let delta = 0.019_570_196;
             let capsule = als_character_capsule(0.9, 0.3);
+            let (_, support) = crate::als::dynamics::support_velocity_from_base(
+                Some(floor), start - Vec3::Y * 0.9, &bases, &owners,
+            );
+            assert_eq!(support, Vec3::X);
             let dynamics = crate::als::params::GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
             let (_, actual, _, _, _, _, _, _) = walking_movement_transaction(&spatial, &capsule,
                 Transform::from_translation(start), 0.9, 0.3, velocity, Vec3::ZERO, 6.5, dynamics,
