@@ -7288,7 +7288,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.432 stride消费者补充：相同精确source键/相同cm float时点，`als_curves.rs:314–349`展开Hermite与fresh源逐层Lerp比较，76原生点中15不等，源顺序76全精确；用源实际106回调speed/gait时，stride仅21/121两帧由0.9927310347557068恢复0.9927310943603516，rate106本来即相等。这里固定精确source键，不是.155相同runtime舍入键/输入的零信号消融域；不将两次输入域混为相同反例。物理删除源算序后15点/两帧失败恢复，源码bytes恢复、同target重编后全部182包精确。仍只证明曲线及stride消费者，未证明当前自然target rate/clock/姿态因该项改变或可见故障，实际速度producer尚后继；证据`target/bf144/432/stride-values.native.json`、`curve-check.json`、`controls-check.json`，合并既有求值顺序根因、无新编号。
 
-- [ ] BF144-D207 / P2 — 别名转场在旧混合结束后丢失具体前态，剩余混合直接采用目标姿态。
+- [x] BF144-D207 / P2 — 别名转场在旧混合结束后丢失具体前态，剩余混合直接采用目标姿态。
+  - 2026-11-12 08:59 +0800 实际结束，较09:36预估提前37分钟，未拆分。fresh Grounded双向222帧；旧栈清理后110个活动帧在别名回退下丢失实际前态，最大约0.9956371。实际前态贯通缓存、权重、尾更新和姿态；原生请求、回放及骨架夹具见 `docs/audit/bf144/d207/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 08:50 +08:00，预估结束2026-11-12 09:36 +08:00。重采Grounded双向普通返回的具体前态、权重和栈清理；缓存实际前态并贯通姿态和权重。
   - Source：fresh原生Grounded编译退出规则将Standing/Crouching作为具体PreviousState；`AnimNode_StateMachine::TransitionToState`保存当前实际状态，旧混合被移除后剩余混合仍从该具体前态取pose和权重。
   - Target：当前两条边的source仍为synthetic alias。`interruptible_fsm::evaluate_active_state`裁掉完成的旧栈后，`state_weight_values`与`InterruptibleFsmIo::source_state`回退到别名ID/图；该图的LocalRefPose实际返回空pose，`ProfiledBlendNode::blend_pose`对缺失源骨骼直接复制目标骨骼。
   - 反例/恢复：两方向的60Hz普通返回路径共54帧丢失前态权重，最大丢失约0.99524；当目标状态权重仅约0.00476时，实际已经输出整份目标pose。仅在受控FSM数据中把这两条边及条件的source恢复为原生具体前态，54个权重/pose错误全部消失；曲线完成差异及D204的Reset历史差异仍独立保留。
