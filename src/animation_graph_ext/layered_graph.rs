@@ -454,6 +454,7 @@ impl NodeLike for LayeredGraphNode {
                 && let Some(output_context) = graph_output_context_state(graph, &sub_ctx, &output)
             {
                 merge_missing_context_curves(&mut context_state, &output_context);
+                context_state.source_pose = output_context.source_pose;
             }
             self.merge_input_pose_contexts(graph, &ctx, &mut context_state);
             self.capture_global_curves(&ctx, &mut context_state)?;

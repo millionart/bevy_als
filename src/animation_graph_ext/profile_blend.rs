@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -7,12 +7,13 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
-    pose::{BonePose, Pose},
+    pose::{BoneId, BonePose, Pose},
     skeleton::Skeleton,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::extensions::{RichCurveKey, sample_rich_curve};
+use crate::extensions::source_pose::SourcePose;
 
 const WEIGHT_THRESHOLD: f32 = 1e-5;
 
@@ -249,44 +250,54 @@ impl ProfiledBlendNode {
         factor: f32,
         skeleton: Option<&Skeleton>,
         accumulate_rotations: bool,
-    ) -> f32 {
+        precise: Option<(&SourcePose, &SourcePose)>,
+    ) -> (f32, Option<Arc<SourcePose>>) {
         let alpha = transition_alpha(factor, self.alpha_blend_mode, &self.custom_curve);
         let scales: HashMap<_, _> = self
             .bone_scales
             .iter()
             .map(|scale| (scale.bone.as_str(), scale.scale))
             .collect();
-        for (bone, target_index) in &target.paths {
+        let weights = |bone: BoneId| {
             let scale = skeleton
                 .filter(|_| !scales.is_empty())
-                .and_then(|skeleton| skeleton.id_to_path(*bone))
+                .and_then(|skeleton| skeleton.id_to_path(bone))
                 .and_then(|path| {
                     path.parts
                         .last()
                         .and_then(|name| scales.get(name.as_str()).copied())
                 });
-            let (source_weight, target_weight) =
-                scale.map_or((1.0 - alpha, alpha), |scale| self.bone_weights(factor, alpha, scale));
+            scale.map_or((1.0 - alpha, alpha), |scale| self.bone_weights(factor, alpha, scale))
+        };
+        let precise = precise.and_then(|(source, target)| source.blend_pair(target, &weights));
+        for (bone, target_index) in &target.paths {
             if let Some(source_index) = source.paths.get(bone) {
                 let source = &mut source.bones[*source_index];
                 let target = &target.bones[*target_index];
-                let weighted_vector = |a: Option<Vec3>, b: Option<Vec3>| match (a, b) {
-                    (Some(a), Some(b)) => Some(a * source_weight + b * target_weight),
-                    (a, b) => a.or(b),
-                };
-                source.translation = weighted_vector(source.translation, target.translation);
-                source.scale = weighted_vector(source.scale, target.scale);
-                source.rotation = if let (Some(a), Some(b)) = (source.rotation, target.rotation) {
-                    let a = a * source_weight;
-                    let b = b * target_weight;
-                    let rotation = if a.dot(b) < 0.0 { a - b } else { a + b };
-                    Some(if accumulate_rotations { rotation } else {
-                        crate::extensions::mesh_space_additive::normalize_pose_rotation(rotation)
-                    })
-                } else {
-                    source.rotation.or(target.rotation)
-                };
-                if source.weights.is_some() || target.weights.is_some() {
+                let morphs = source.weights.is_some() || target.weights.is_some();
+                if precise.is_some() && !morphs {
+                    continue;
+                }
+                let (source_weight, target_weight) = weights(*bone);
+                if precise.is_none() {
+                    let weighted_vector = |a: Option<Vec3>, b: Option<Vec3>| match (a, b) {
+                        (Some(a), Some(b)) => Some(a * source_weight + b * target_weight),
+                        (a, b) => a.or(b),
+                    };
+                    source.translation = weighted_vector(source.translation, target.translation);
+                    source.scale = weighted_vector(source.scale, target.scale);
+                    source.rotation = if let (Some(a), Some(b)) = (source.rotation, target.rotation) {
+                        let a = a * source_weight;
+                        let b = b * target_weight;
+                        let rotation = if a.dot(b) < 0.0 { a - b } else { a + b };
+                        Some(if accumulate_rotations { rotation } else {
+                            crate::extensions::mesh_space_additive::normalize_pose_rotation(rotation)
+                        })
+                    } else {
+                        source.rotation.or(target.rotation)
+                    };
+                }
+                if morphs {
                     let mut weights = BonePose { weights: source.weights.take(), ..default() };
                     let target = BonePose { weights: target.weights.clone(), ..default() };
                     weights.linear_blend_mut(&target, target_weight);
@@ -302,7 +313,12 @@ impl ProfiledBlendNode {
             (None, Some(b)) => Some(b.scale(alpha)),
             (None, None) => None,
         };
-        alpha
+        let precise = precise.map(|mut exact| {
+            exact.normalize_rotations(usize::from(!accumulate_rotations));
+            exact.project_into(source);
+            Arc::new(exact)
+        });
+        (alpha, precise)
     }
 }
 
@@ -338,11 +354,15 @@ impl NodeLike for ProfiledBlendNode {
             .resources
             .skeleton_assets
             .get(&source.skeleton);
-        let alpha = self.blend_pose(&mut source, &target, factor, skeleton, in_fsm);
+        let precise = source_context.source_pose_for(&source)
+            .zip(target_context.source_pose_for(&target))
+            .map(|(source, target)| (source.as_ref(), target.as_ref()));
+        let (alpha, source_pose) = self.blend_pose(&mut source, &target, factor, skeleton, in_fsm, precise);
         let mut context = crate::extensions::source_pose_nodes::blend_contexts_with_curve_accumulation([
             (source_context, 1.0 - alpha),
             (target_context, alpha),
         ]);
+        context.source_pose = source_pose;
         for curve in &self.curve_names {
             let source_value = ctx.data_back(curve_a_input(curve))?.as_f32()?;
             let target_value = ctx.data_back(curve_b_input(curve))?.as_f32()?;
@@ -609,7 +629,7 @@ mod tests {
                 scale: 5.0,
             }],
             ..default()
-        }.blend_pose(&mut source, &target, 0.1, Some(&skeleton), false);
+        }.blend_pose(&mut source, &target, 0.1, Some(&skeleton), false, None);
         let value = source.get_bone(foot).unwrap().translation.unwrap().x;
         assert!((value - 0.7352941).abs() < 1e-6);
     }
@@ -647,7 +667,7 @@ mod tests {
             for (accumulate, expected) in [(true, case.raw_rotation), (false, case.rotation)] {
                 let mut base = pose(case.base);
                 let target = pose(case.target);
-                ProfiledBlendNode::default().blend_pose(&mut base, &target, case.weights[1], None, accumulate);
+                ProfiledBlendNode::default().blend_pose(&mut base, &target, case.weights[1], None, accumulate, None);
                 let actual = base.get_bone(bone).unwrap().rotation.unwrap();
                 assert!((actual - Quat::from_array(expected)).length() < 3e-7,
                     "{} {} accumulate={accumulate}: {actual:?}", case.stance, case.bone);
@@ -690,7 +710,7 @@ mod tests {
                 source.add_bone(BonePose::from_transform(transform(&case["source"])), bone);
                 let mut target = Pose::default();
                 target.add_bone(BonePose::from_transform(transform(&case["target"])), bone);
-                node.blend_pose(&mut source, &target, factor, Some(&skeleton), accumulate);
+                node.blend_pose(&mut source, &target, factor, Some(&skeleton), accumulate, None);
                 let expected = transform(&case["expected"]);
                 let actual = source.get_bone(bone).unwrap();
                 assert!(actual.translation.unwrap().abs_diff_eq(expected.translation, 3e-8), "{}", case["name"]);
@@ -715,7 +735,7 @@ mod tests {
         let mut target = Pose::default();
         target.add_bone(BonePose { scale: Some(Vec3::Y), weights: Some(vec![0.8, 0.5]), ..default() }, foot);
         let factor = 0.33333;
-        node.blend_pose(&mut source, &target, factor, Some(&skeleton), true);
+        node.blend_pose(&mut source, &target, factor, Some(&skeleton), true, None);
         let actual = source.get_bone(foot).unwrap();
         assert_eq!(actual.translation, Some(Vec3::X));
         assert_eq!(actual.scale, Some(Vec3::Y));

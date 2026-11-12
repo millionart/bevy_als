@@ -104,12 +104,13 @@ impl NodeLike for SourceSequenceEvaluatorNode {
         } else {
             time
         };
-        let mut pose = sample_source_pose(&ctx, clip, sample_time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
+        let (mut pose, source_pose) = sample_source_pose(&ctx, clip, sample_time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
         pose.timestamp = time;
         *ctx.state_mut_or_else(crate::extensions::AnimationContextState::default)? =
             crate::extensions::AnimationContextState {
                 curves: sample_source_curves(Some(clip), &self.curves, time),
                 curves_are_authoritative: true,
+                source_pose,
                 ..default()
             };
         ctx.set_time(time);

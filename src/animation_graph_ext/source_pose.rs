@@ -40,6 +40,34 @@ impl SourcePose {
                 })
             })
     }
+
+    pub(crate) fn normalize_rotations(&mut self, passes: usize) {
+        for (_, value) in &mut self.bones {
+            for _ in 0..passes {
+                value.rotation = normalize_source_rotation(value.rotation);
+            }
+        }
+    }
+
+    pub(crate) fn blend_pair(
+        &self,
+        target: &Self,
+        weights: impl Fn(BoneId) -> (f32, f32),
+    ) -> Option<Self> {
+        if self.length_scale != target.length_scale || self.bones.len() != target.bones.len() {
+            return None;
+        }
+        let mut output = self.clone();
+        for ((id, value), &(target_id, target)) in output.bones.iter_mut().zip(&target.bones) {
+            if *id != target_id {
+                return None;
+            }
+            let (a, b) = weights(*id);
+            scale_pose(value, f64::from(a));
+            accumulate(value, target, f64::from(b));
+        }
+        Some(output)
+    }
 }
 
 fn scale_pose(value: &mut RigTransform, weight: f64) {
@@ -91,11 +119,7 @@ pub(crate) fn blend_source_poses<'a>(
             accumulate(value, transform, f64::from(weight));
         }
     }
-    for (_, value) in &mut output.bones {
-        value.rotation = (0..normalization_passes).fold(value.rotation, |rotation, _| {
-            normalize_source_rotation(rotation)
-        });
-    }
+    output.normalize_rotations(normalization_passes);
     Some(output)
 }
 

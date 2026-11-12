@@ -10,6 +10,7 @@ use bevy_animation_graph::core::{
     duration_data::DurationData,
     edge_data::{DataSpec, DataValue},
     errors::GraphError,
+    pose::Pose,
 };
 
 use crate::extensions::inertialization_passthrough::SourceInertializationState;
@@ -86,7 +87,7 @@ pub struct SourceCachedPoseRequestOrigin {
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
-#[reflect(Default)]
+#[reflect(Default, Clone)]
 pub struct AnimationContextState {
     pub curves: crate::extensions::SourceCurveValues,
     pub relevant_asset: Option<SourceRelevantAsset>,
@@ -99,6 +100,15 @@ pub struct AnimationContextState {
     pub(crate) cached_pose_request_route: Option<SourceCachedPoseRequestRoute>,
     #[reflect(ignore)]
     pub(crate) source_pose: Option<std::sync::Arc<crate::extensions::source_pose::SourcePose>>,
+}
+
+impl AnimationContextState {
+    pub(crate) fn source_pose_for(
+        &self,
+        pose: &Pose,
+    ) -> Option<&std::sync::Arc<crate::extensions::source_pose::SourcePose>> {
+        self.source_pose.as_ref().filter(|source| source.matches_projection(pose))
+    }
 }
 
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq)]

@@ -77,6 +77,17 @@ impl NodeLike for SourceLinkedInputPoseNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extensions::{
+        SourceCachedPoseSaveNode, SourceScopedCachedPoseUseNode,
+        control_rig_hierarchy::RigTransform, source_pose::SourcePose,
+    };
+    use bevy::math::DVec3;
+    use bevy_animation_graph::core::{animation_clip::EntityPath, pose::Pose};
+    use std::sync::Arc;
+
+    fn translation(value: f32) -> f64 {
+        1.0 + f64::from(value) * 1e-10
+    }
 
     #[derive(Reflect, Clone, Debug)]
     #[reflect(NodeLike)]
@@ -86,10 +97,20 @@ mod tests {
 
     impl NodeLike for ContextPose {
         fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-            ctx.set_data_fwd("Pose", bevy_animation_graph::core::pose::Pose::default());
+            let source_pose = Arc::new(SourcePose {
+                bones: vec![(EntityPath::from_slashed_string("root".to_owned()).id(), RigTransform {
+                    translation: DVec3::X * translation(self.value),
+                    ..default()
+                })],
+                length_scale: 0.01,
+            });
+            let mut pose = Pose::default();
+            source_pose.project_into(&mut pose);
+            ctx.set_data_fwd("Pose", pose);
             *ctx.state_mut_or_else(AnimationContextState::default)? = AnimationContextState {
                 curves: [("Selected".into(), self.value)].into_iter().collect(),
                 curves_are_authoritative: true,
+                source_pose: Some(source_pose),
                 sync_players: vec![crate::extensions::sync_group_phase::SourceSyncPlayerTick {
                     identity: (ctx.graph_context.context_id, ctx.node_id),
                     key: "Movement".into(),
@@ -130,7 +151,7 @@ mod tests {
         fn query(
             In(root): In<Handle<AnimationGraph>>,
             resources: SystemResources,
-        ) -> Vec<(f32, f32)> {
+        ) -> Vec<(f32, f32, f64)> {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arena = GraphContextArena::new(root.id());
             let mut gizmos = DeferredGizmos::default();
@@ -151,7 +172,7 @@ mod tests {
                         &mut gizmos,
                         &inputs,
                     );
-                    graph
+                    let output = graph
                         .query_with_context(
                             QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
                             context.clone(),
@@ -161,7 +182,13 @@ mod tests {
                         graph, &context, "Pose",
                     )
                     .unwrap();
-                    (state.curves[&crate::extensions::SourceCurveName::from("Selected")], state.sync_players[0].phase)
+                    let pose = output["Pose"].clone().into_pose().unwrap();
+                    let exact = state.source_pose_for(&pose).unwrap();
+                    let snapshot = state.reflect_clone().unwrap().take::<AnimationContextState>().unwrap();
+                    assert!(Arc::ptr_eq(exact, snapshot.source_pose_for(&pose).unwrap()));
+                    assert_eq!(pose.bones[0].translation.unwrap().x, 0.01);
+                    (state.curves[&crate::extensions::SourceCurveName::from("Selected")],
+                        state.sync_players[0].phase, exact.bones[0].1.translation.x)
                 })
                 .collect()
         }
@@ -202,8 +229,16 @@ mod tests {
         parent.add_node(link.clone());
         for (input, value) in [("A", 0.25), ("B", 0.75)] {
             let node = AnimationNode::new(input, ContextPose { value });
-            parent.add_node(node.clone());
-            parent.add_node_parameter_edge(node.id, "Pose", link.id, input);
+            let save = AnimationNode::new(format!("Save {input}"), SourceCachedPoseSaveNode::default());
+            let cached = AnimationNode::new(format!("Use {input}"), SourceScopedCachedPoseUseNode {
+                cache_node: save.name.clone(),
+                ..default()
+            });
+            for node in [&node, &save, &cached] {
+                parent.add_node(node.clone());
+            }
+            parent.add_node_parameter_edge(node.id, "Pose", save.id, "Pose");
+            parent.add_node_parameter_edge(cached.id, "Pose", link.id, input);
         }
         parent.add_output_data("Pose".into(), DataSpec::Pose);
         parent.add_output_data_edge(link.id, "Pose", "Pose");
@@ -216,11 +251,11 @@ mod tests {
         assert_eq!(
             world.run_system_cached_with(query, root).unwrap(),
             vec![
-                (0.75, 0.75),
-                (0.25, 0.25),
-                (0.5, 0.25),
-                (0.75, 0.75),
-                (0.25, 0.25)
+                (0.75, 0.75, translation(0.75)),
+                (0.25, 0.25, translation(0.25)),
+                (0.5, 0.25, translation(0.75).mul_add(0.5, translation(0.25) * 0.5)),
+                (0.75, 0.75, translation(0.75)),
+                (0.25, 0.25, translation(0.25))
             ]
         );
     }

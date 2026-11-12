@@ -1511,11 +1511,20 @@ impl InterruptibleFsmNode {
                 let outer_output = self.outer_output(&state.state, id);
                 if outer_output == self.outer_pose_output {
                     if let DataValue::Pose(pose) = &mut value {
+                        let mut source_pose = graph_output_context_state(graph, &sub_ctx, id)
+                            .and_then(|context| context.source_pose_for(pose).cloned());
                         if normalize_rotations {
-                            for bone in &mut pose.bones {
-                                bone.rotation = bone.rotation.map(Quat::normalize);
+                            if let Some(source) = &mut source_pose {
+                                let source = std::sync::Arc::make_mut(source);
+                                source.normalize_rotations(1);
+                                source.project_into(pose);
+                            } else {
+                                for bone in &mut pose.bones {
+                                    bone.rotation = bone.rotation.map(Quat::normalize);
+                                }
                             }
                         }
+                        context_state.source_pose = source_pose;
                         latest_pose = Some(pose.clone());
                         pose_output = Some(id.clone());
                     }

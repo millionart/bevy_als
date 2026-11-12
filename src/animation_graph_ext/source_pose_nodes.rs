@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
@@ -6,7 +8,7 @@ use bevy_animation_graph::core::{
         graph_context::{GraphState, QueryOutputTime}, graph_context_arena::GraphContextId},
     edge_data::DataSpec,
     errors::GraphError,
-    pose::Pose,
+    pose::{Pose, RootMotionDelta},
 };
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +20,7 @@ use crate::extensions::global_f32_input::{global_f32_or_root_default, global_f32
 use crate::extensions::mesh_space_additive::{apply_local_space_additive, apply_mesh_space_additive, materialize_missing_reference_bones};
 use crate::extensions::mesh_space_difference::make_mesh_space_difference;
 use crate::extensions::reference_local_difference::make_local_difference;
+use crate::extensions::source_pose::{SourcePose, blend_source_poses as blend_double_poses};
 use crate::extensions::{
     context_time_update, f_interp_to,
     gameplay_tag_blend::{
@@ -415,7 +418,7 @@ impl NodeLike for SourceTwoWayBlendNode {
             ("A".into(), if a_is_relevant { if b_is_relevant { 1.0 - alpha } else { 1.0 } } else { 0.0 }),
             ("B".into(), if b_is_relevant { if a_is_relevant { alpha } else { 1.0 } } else { 0.0 }),
         ])?;
-        let (mut base, context_a) = if a_is_relevant {
+        let (base, context_a) = if a_is_relevant {
             crate::extensions::interruptible_fsm::with_machine_weight(if b_is_relevant { 1.0 - alpha } else { 1.0 }, ||
                 read_blend_list_child(&ctx, "A", 0, self.reset_child_on_activation, reset_a, &mut child_contexts))?
         } else {
@@ -427,14 +430,7 @@ impl NodeLike for SourceTwoWayBlendNode {
         } else {
             (Pose::default(), None)
         };
-        if !a_is_relevant {
-            base = overlay;
-        } else if b_is_relevant {
-            base = blend_source_poses(&[(base, 1.0 - alpha), (overlay, alpha)]);
-        }
-        ctx.set_time(base.timestamp);
-        ctx.set_data_fwd("Pose", base);
-        let context = blend_animation_contexts([
+        let contexts = [
             (
                 context_a.unwrap_or_default(),
                 if b_is_relevant { 1.0 - alpha } else { 1.0 },
@@ -443,7 +439,24 @@ impl NodeLike for SourceTwoWayBlendNode {
                 context_b.unwrap_or_default(),
                 if a_is_relevant { alpha } else { 1.0 },
             ),
-        ]);
+        ];
+        let (pose, source_pose) = if !a_is_relevant {
+            let source = contexts[1].0.source_pose_for(&overlay).cloned();
+            (overlay, source)
+        } else if !b_is_relevant {
+            let source = contexts[0].0.source_pose_for(&base).cloned();
+            (base, source)
+        } else {
+            let weights = [1.0 - alpha, alpha];
+            let poses = [(base, weights[0]), (overlay, weights[1])];
+            blend_precise_poses(&poses, &contexts, weights.into_iter(), 1)
+                .map(|(pose, source)| (pose, Some(source)))
+                .unwrap_or_else(|| (blend_source_poses(&poses), None))
+        };
+        ctx.set_time(pose.timestamp);
+        ctx.set_data_fwd("Pose", pose);
+        let mut context = blend_animation_contexts(contexts);
+        context.source_pose = source_pose;
         let state = ctx.state_mut::<SourceTwoWayBlendState>()?;
         state.context = context;
         state.child_contexts = child_contexts;
@@ -987,10 +1000,47 @@ fn blend_source_poses_with_weights(
         .reduce(|accumulator, pose| accumulator.linear_add(&pose))
         .unwrap_or_default();
     let mut output = finalize_bones(pose);
-    output.root_motion = crate::extensions::normalized_blendspace::blend_normalized_root_motion(
-        &poses.iter().map(|(pose, weight)| (pose.root_motion.clone(), *weight)).collect::<Vec<_>>(),
-    );
+    output.root_motion = blended_root_motion(poses);
     output
+}
+
+fn blended_root_motion(poses: &[(Pose, f32)]) -> Option<RootMotionDelta> {
+    crate::extensions::normalized_blendspace::blend_normalized_root_motion(
+        &poses.iter().map(|(pose, weight)| (pose.root_motion.clone(), *weight)).collect::<Vec<_>>(),
+    )
+}
+
+pub(crate) fn blend_precise_poses(
+    poses: &[(Pose, f32)],
+    contexts: &[(AnimationContextState, f32)],
+    weights: impl Iterator<Item = f32> + Clone,
+    normalization_passes: usize,
+) -> Option<(Pose, Arc<SourcePose>)> {
+    if poses.len() != contexts.len() {
+        return None;
+    }
+    let first = &poses.first()?.0;
+    let inputs = poses.iter().zip(contexts).zip(weights.clone())
+        .map(|(((pose, _), (context, _)), weight)| {
+            Some((context.source_pose_for(pose)?.as_ref(), weight))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    if inputs.len() != poses.len() {
+        return None;
+    }
+    let source = Arc::new(blend_double_poses(inputs, normalization_passes)?);
+    let mut output = if poses.iter().any(|(pose, _)| pose.bones.iter().any(|bone| bone.weights.is_some())) {
+        blend_source_poses_with_weights(poses, weights, std::convert::identity)
+    } else {
+        Pose {
+            timestamp: first.timestamp,
+            skeleton: first.skeleton.clone(),
+            root_motion: blended_root_motion(poses),
+            ..Pose::default()
+        }
+    };
+    source.project_into(&mut output);
+    Some((output, source))
 }
 
 pub(crate) fn normalize_source_pose_rotations(pose: &mut Pose, passes: usize) {
@@ -1030,11 +1080,14 @@ pub(crate) fn blend_list_pose_and_context(
     use crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD;
 
     let mut curves = None;
-    let pose = match poses.as_slice() {
-        [(_, weight)] if *weight >= 1.0 - WEIGHT_THRESHOLD => {
+    let (pose, source_pose) = match poses.as_slice() {
+        [(pose, weight)] if *weight >= 1.0 - WEIGHT_THRESHOLD => {
+            let source = contexts.first()
+                .and_then(|(context, _)| context.source_pose_for(pose))
+                .cloned();
             curves = contexts.first_mut().map(|(context, _)|
                 (std::mem::take(&mut context.curves), context.curves_are_authoritative));
-            poses.pop().unwrap().0
+            (poses.pop().unwrap().0, source)
         }
         [(_, first), (_, second)] if (first + second - 1.0).abs() <= 1e-8 => {
             let alpha = 1.0 - first;
@@ -1056,11 +1109,21 @@ pub(crate) fn blend_list_pose_and_context(
                     (first_curves, a.curves_are_authoritative || b.curves_are_authoritative)
                 });
             }
-            blend_source_poses_with_weights(&poses, [*first, alpha], |pose| pose.normalize_quat())
+            let weights = [*first, alpha];
+            blend_precise_poses(&poses, &contexts, weights.into_iter(), 1)
+                .map(|(pose, source)| (pose, Some(source)))
+                .unwrap_or_else(|| {
+                    (blend_source_poses_with_weights(&poses, weights, |pose| pose.normalize_quat()), None)
+                })
         }
-        _ => blend_source_poses(&poses),
+        _ => {
+            blend_precise_poses(&poses, &contexts, poses.iter().map(|(_, weight)| *weight), usize::from(poses.len() > 1))
+                .map(|(pose, source)| (pose, Some(source)))
+                .unwrap_or_else(|| (blend_source_poses(&poses), None))
+        }
     };
     let mut context = blend_animation_contexts(contexts);
+    context.source_pose = source_pose;
     if let Some((curves, authoritative)) = curves {
         context.curves = curves;
         context.curves_are_authoritative = authoritative;

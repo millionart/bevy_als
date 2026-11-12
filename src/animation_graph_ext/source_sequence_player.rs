@@ -1,4 +1,4 @@
-use std::{any::TypeId, path::Path, sync::LazyLock};
+use std::{any::TypeId, path::Path, sync::{Arc, LazyLock}};
 
 use bevy::{
     animation::animation_curves::WeightsCurveSample,
@@ -24,8 +24,10 @@ use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::global_f32_input::root_defaults_enabled;
 use crate::extensions::raw_sequence_sampling::{RawRotationInterval, raw_rotation_interval};
 use crate::extensions::source_compression::{
-    PreparedPoseKind, write_raw_control_pose, sample_prepared_pose, sample_prepared_root, sample_source_curves,
+    PreparedPoseKind, write_raw_control_pose, sample_prepared_pose, sample_prepared_root, sample_prepared_source_pose,
+    sample_source_curves,
 };
+use crate::extensions::source_pose::SourcePose;
 use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
     resolved_source_sync_phase, source_sync_delta_seconds,
@@ -243,14 +245,19 @@ pub(crate) fn sample_source_pose(
     reference_position: f32,
     mesh_space: bool,
     root_lock: Option<SourceRootLock>,
-) -> Result<Pose, GraphError> {
+) -> Result<(Pose, Option<Arc<SourcePose>>), GraphError> {
     let skeletons = &ctx.graph_context.resources.skeleton_assets;
-    let (target, baked_additive) = match sample_prepared_pose(clip, time) {
-        Some((pose, kind)) => (pose, kind != PreparedPoseKind::Absolute),
+    let (target, baked_additive, mut source_pose) = match sample_prepared_source_pose(clip, time) {
+        Some((source, kind)) => {
+            let mut pose = Pose { skeleton: clip.skeleton.clone(), ..Default::default() };
+            source.project_into(&mut pose);
+            (pose, kind != PreparedPoseKind::Absolute, Some(source))
+        }
         None => (sample_raw_source_clip_pose(clip, time, skeletons)
-            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?, false),
+            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?, false, None),
     };
     let mut pose = if let Some(reference_handle) = additive_reference.filter(|_| !baked_additive) {
+        source_pose = None;
         let reference_clip = ctx.graph_context.resources.graph_clip_assets.get(reference_handle)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         let reference = sample_raw_source_clip_pose(reference_clip, reference_position.max(0.0), skeletons)
@@ -267,8 +274,9 @@ pub(crate) fn sample_source_pose(
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
         apply_source_root_lock(&mut pose, clip, skeleton, mode, baked_additive || additive_reference.is_some())
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        source_pose = source_pose.filter(|source| source.matches_projection(&pose));
     }
-    Ok(pose)
+    Ok((pose, source_pose.map(Arc::new)))
 }
 
 pub(crate) fn bound_source_sample_time(position: f32, duration: f32, looped: bool) -> f32 {
@@ -673,7 +681,8 @@ impl NodeLike for SourceSequencePlayerNode {
                 slot_key: String::new(),
             });
         }
-        let pose = sample_source_pose(&ctx, clip, position, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
+        let (pose, source_pose) = sample_source_pose(&ctx, clip, position, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
+        ctx.state_mut::<SourceSequencePlayerState>()?.context.source_pose = source_pose;
         ctx.set_time(position);
         ctx.set_data_fwd("Pose", pose);
         Ok(())

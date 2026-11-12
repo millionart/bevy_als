@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
@@ -10,8 +12,9 @@ use bevy_animation_graph::core::{
 
 use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::extensions::global_f32_input::global_f32_or_root_default;
+use crate::extensions::source_compression::prepared_reference_pose;
 use crate::extensions::source_pose_nodes::{
-    accumulate_source_poses, blend_animation_contexts, normalize_source_pose_rotations,
+    accumulate_source_poses, blend_animation_contexts, blend_precise_poses, normalize_source_pose_rotations,
 };
 
 fn node_error(ctx: &NodeContext, message: String) -> GraphError {
@@ -112,28 +115,39 @@ impl NodeLike for SourceMultiWayBlendNode {
         for (index, weight) in active {
             let pose = crate::extensions::interruptible_fsm::with_machine_weight(weight,
                 || ctx.data_back(self.pose_input(index)))?.into_pose()?;
-            if let Some(context) = pose_input_context_state(&ctx, &self.pose_input(index)) {
-                contexts.push((context, weight));
-            }
+            let context = pose_input_context_state(&ctx, &self.pose_input(index)).unwrap_or_default();
+            contexts.push((context, weight));
             poses.push((pose, weight));
         }
-        let output = if poses.is_empty() {
+        let (output, context) = if poses.is_empty() {
             let skeleton = ctx.graph_context.resources.skeleton_assets.get(&self.reference_skeleton)
                 .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
             let timestamp = crate::extensions::context_time_update(&ctx)?.partial_update_basic(ctx.prev_time()).unwrap_or_else(|| ctx.prev_time());
             let mut pose = Pose { skeleton: self.reference_skeleton.clone(), timestamp, ..default() };
-            crate::extensions::mesh_space_additive::materialize_missing_reference_bones(&mut pose, skeleton);
-            pose
+            let source_pose = prepared_reference_pose(&self.reference_skeleton).map(Arc::new);
+            if let Some(source) = &source_pose {
+                source.project_into(&mut pose);
+            } else {
+                crate::extensions::mesh_space_additive::materialize_missing_reference_bones(&mut pose, skeleton);
+            }
+            (pose, AnimationContextState { curves_are_authoritative: true, source_pose, ..default() })
         } else {
-            let mut pose = accumulate_source_poses(&poses);
-            normalize_source_pose_rotations(&mut pose, 1 + usize::from(poses.len() > 1));
-            pose
+            let passes = 1 + usize::from(poses.len() > 1);
+            let precise = blend_precise_poses(&poses, &contexts, poses.iter().map(|(_, weight)| *weight), passes);
+            let mut context = blend_animation_contexts(contexts);
+            let pose = if let Some((pose, source)) = precise {
+                context.source_pose = Some(source);
+                pose
+            } else {
+                let mut pose = accumulate_source_poses(&poses);
+                normalize_source_pose_rotations(&mut pose, passes);
+                pose
+            };
+            (pose, context)
         };
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd("Pose", output);
-        *ctx.state_mut_or_else(AnimationContextState::default)? = if poses.is_empty() {
-            AnimationContextState { curves_are_authoritative: true, ..default() }
-        } else { blend_animation_contexts(contexts) };
+        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         Ok(())
     }
 

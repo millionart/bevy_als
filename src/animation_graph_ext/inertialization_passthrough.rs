@@ -612,6 +612,7 @@ impl NodeLike for InertializationPassthroughNode {
                     }
                 }
                 let output = if state.active {
+                    source_context.source_pose = None;
                     state.elapsed += delta;
                     state.deficit = if state.elapsed >= state.duration {
                         0.0

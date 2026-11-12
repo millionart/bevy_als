@@ -7,12 +7,13 @@ use std::{
 
 use bevy::{
     math::{DQuat, DVec3},
-    prelude::{Name, Quat, Transform, Vec3},
+    prelude::{Handle, Name, Quat, Transform, Vec3},
 };
 use bevy_animation_graph::core::{
     animation_clip::{EntityPath, GraphClip, loader::GraphClipSource},
     id::BoneId,
     pose::{BonePose, Pose},
+    skeleton::Skeleton,
 };
 use serde::Deserialize;
 
@@ -408,17 +409,21 @@ impl PreparedAcl {
         }
     }
 
+    fn reference_pose(&self, additive: bool) -> SourcePose {
+        SourcePose {
+            bones: self.bone_references.iter().zip(&self.bone_ids)
+                .map(|(bone, &id)| (id, Self::initial_transform(bone, additive)))
+                .collect(),
+            length_scale: self.source_length_to_runtime_scale,
+        }
+    }
+
     fn source_pose(&self, sequence: &PreparedSequence, time: f32) -> SourcePose {
         let additive = sequence.pose_kind() != PreparedPoseKind::Absolute;
-        let mut bones: Vec<_> = self
-            .bone_references
-            .iter()
-            .zip(&self.bone_ids)
-            .map(|(bone, &id)| (id, Self::initial_transform(bone, additive)))
-            .collect();
+        let mut pose = self.reference_pose(additive);
         let samples = sequence.pose_samples(time);
         for track in &sequence.bone.tracks {
-            bones[track.0].1 = self.sample_transform(track, samples, sequence, additive);
+            pose.bones[track.0].1 = self.sample_transform(track, samples, sequence, additive);
         }
         if let Some(lock) = sequence.forced_root_lock {
             let mut root = match lock {
@@ -429,12 +434,9 @@ impl PreparedAcl {
             if additive && lock != SourceRootLock::AnimFirstFrame {
                 root.scale -= DVec3::ONE;
             }
-            bones[0].1 = root;
+            pose.bones[0].1 = root;
         }
-        SourcePose {
-            bones,
-            length_scale: self.source_length_to_runtime_scale,
-        }
+        pose
     }
 
     fn root_track(&self, sequence: &PreparedSequence, time: f32) -> RigTransform {
@@ -533,6 +535,12 @@ impl PreparedAcl {
             })
             .collect()
     }
+}
+
+pub(crate) fn prepared_reference_pose(skeleton: &Handle<Skeleton>) -> Option<SourcePose> {
+    skeleton.path()
+        .filter(|path| path.path() == Path::new("ALS/Character/SKM_Als.skn.ron"))
+        .map(|_| PREPARED_ACL.reference_pose(false))
 }
 
 pub(crate) fn sample_prepared_source_pose(
