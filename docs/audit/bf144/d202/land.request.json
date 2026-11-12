@@ -1,0 +1,623 @@
+{
+  "players": [
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light",
+      "start": 0.0,
+      "rate": 1.0,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy.A_Als_Land_Heavy",
+      "start": 0.0,
+      "rate": 1.0,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive",
+      "start": 0.0,
+      "rate": 1.75,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.A_Als_Land_Heavy_Additive",
+      "start": 0.0,
+      "rate": 1.5,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light",
+      "start": 0.0,
+      "rate": 1.0,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy.A_Als_Land_Heavy",
+      "start": 0.0,
+      "rate": 1.0,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive",
+      "start": 0.0,
+      "rate": 1.75,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.A_Als_Land_Heavy_Additive",
+      "start": 0.0,
+      "rate": 1.5,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light",
+      "start": 0.0,
+      "rate": 1.0,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy.A_Als_Land_Heavy",
+      "start": 0.0,
+      "rate": 1.0,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive",
+      "start": 0.0,
+      "rate": 1.75,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.A_Als_Land_Heavy_Additive",
+      "start": 0.0,
+      "rate": 1.5,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light",
+      "start": 0.0,
+      "rate": 1.0,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy.A_Als_Land_Heavy",
+      "start": 0.0,
+      "rate": 1.0,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive",
+      "start": 0.0,
+      "rate": 1.75,
+      "looping": false
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.A_Als_Land_Heavy_Additive",
+      "start": 0.0,
+      "rate": 1.5,
+      "looping": false
+    }
+  ],
+  "samples": [
+    {
+      "name": "land_handoff",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.75,
+            null,
+            0.25,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            null,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.25,
+            null,
+            0.75,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "additive_tie",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            null,
+            null,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            null,
+            null,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            null,
+            null,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ranked",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.25,
+            0.75,
+            0.75,
+            0.25,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.25,
+            0.25,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sparse",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            null,
+            0.5,
+            null,
+            0.5,
+            null,
+            0.5,
+            null,
+            0.5,
+            null,
+            0.5,
+            null,
+            0.5,
+            null,
+            0.5,
+            null,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal_1",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal_2",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal_3",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal_4",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal_8",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal_9",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal_12",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal_16",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mixed_9",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.25,
+            0.75,
+            0.5,
+            0.75,
+            0.25,
+            0.75,
+            0.5,
+            0.75,
+            0.25,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mixed_12",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.25,
+            0.75,
+            0.5,
+            0.75,
+            0.25,
+            0.75,
+            0.5,
+            0.75,
+            0.25,
+            0.75,
+            0.5,
+            0.75,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mixed_16",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.25,
+            0.75,
+            0.5,
+            0.75,
+            0.25,
+            0.75,
+            0.5,
+            0.75,
+            0.25,
+            0.75,
+            0.5,
+            0.75,
+            0.25,
+            0.75,
+            0.5,
+            0.75
+          ]
+        }
+      ]
+    },
+    {
+      "name": "partition_depth",
+      "steps": [
+        {
+          "delta_seconds": 0.016666666666666666,
+          "weights": [
+            0.9375,
+            0.25,
+            0.8125,
+            0.125,
+            0.5,
+            0.25,
+            0.5,
+            0.125,
+            1.0,
+            0.875,
+            0.75,
+            0.125,
+            0.5,
+            0.25,
+            0.5,
+            0.125
+          ]
+        }
+      ]
+    }
+  ]
+}

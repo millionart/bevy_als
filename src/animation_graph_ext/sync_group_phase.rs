@@ -563,35 +563,84 @@ pub fn source_sync_group_leader_score(candidate: SourceSyncGroupCandidate) -> f3
     }
 }
 
-fn source_sync_group_tie_prefers_last(candidate: SourceSyncGroupCandidate) -> bool {
-    matches!(
-        candidate.role,
-        SourceSyncGroupRole::AlwaysLeader | SourceSyncGroupRole::ExclusiveAlwaysLeader
-    )
-}
-
 fn ordered_source_sync_candidates(candidates: &[SourceSyncGroupCandidate]) -> Vec<usize> {
     let mut ordered: Vec<usize> = (0..candidates.len()).collect();
-    ordered.sort_by(|left, right| {
-        let left_candidate = candidates[*left];
-        let right_candidate = candidates[*right];
-        let score = source_sync_group_leader_score(right_candidate)
-            .total_cmp(&source_sync_group_leader_score(left_candidate));
-        if !score.is_eq() {
-            return score;
-        }
-        if source_sync_group_tie_prefers_last(left_candidate)
-            && source_sync_group_tie_prefers_last(right_candidate)
-        {
-            return right_candidate
-                .source_order
-                .cmp(&left_candidate.source_order);
-        }
-        left_candidate
-            .source_order
-            .cmp(&right_candidate.source_order)
+    let depth = ((ordered.len() as f32).ln() * 2.0) as u32;
+    sort_source_sync_candidates(&mut ordered, depth, &|left, right| {
+        source_sync_group_leader_score(candidates[left])
+            > source_sync_group_leader_score(candidates[right])
     });
     ordered
+}
+
+fn sort_source_sync_candidates(
+    ordered: &mut [usize],
+    depth: u32,
+    precedes: &impl Fn(usize, usize) -> bool,
+) {
+    if ordered.len() < 2 {
+        return;
+    }
+    if depth == 0 {
+        let sift_down = |heap: &mut [usize], mut root: usize| {
+            while root < heap.len() / 2 {
+                let left = 2 * root + 1;
+                let right = left + 1;
+                let child = if right < heap.len() && !precedes(heap[right], heap[left]) {
+                    right
+                } else {
+                    left
+                };
+                if !precedes(heap[root], heap[child]) {
+                    break;
+                }
+                heap.swap(root, child);
+                root = child;
+            }
+        };
+        for root in (0..ordered.len() / 2).rev() {
+            sift_down(ordered, root);
+        }
+        for end in (1..ordered.len()).rev() {
+            ordered.swap(0, end);
+            sift_down(&mut ordered[..end], 0);
+        }
+        return;
+    }
+    if ordered.len() <= 8 {
+        for end in (1..ordered.len()).rev() {
+            let mut last = 0;
+            for index in 1..=end {
+                if precedes(ordered[last], ordered[index]) {
+                    last = index;
+                }
+            }
+            ordered.swap(last, end);
+        }
+        return;
+    }
+
+    ordered.swap(0, ordered.len() / 2);
+    let pivot = ordered[0];
+    let mut lower = 0;
+    let mut upper = ordered.len();
+    loop {
+        lower += 1;
+        while lower < ordered.len() && !precedes(pivot, ordered[lower]) {
+            lower += 1;
+        }
+        upper -= 1;
+        while upper > 0 && !precedes(ordered[upper], pivot) {
+            upper -= 1;
+        }
+        if lower > upper {
+            break;
+        }
+        ordered.swap(lower, upper);
+    }
+    ordered.swap(0, upper);
+    sort_source_sync_candidates(&mut ordered[..upper], depth - 1, precedes);
+    sort_source_sync_candidates(&mut ordered[lower..], depth - 1, precedes);
 }
 
 #[derive(Resource, Default)]
@@ -2143,7 +2192,7 @@ mod tests {
     }
 
     #[test]
-    fn source_group_leader_ties_follow_ue_role_ordering() {
+    fn source_group_two_way_ties_swap_for_each_role() {
         let normal = [
             SourceSyncGroupCandidate {
                 role: SourceSyncGroupRole::CanBeLeader,
@@ -2168,8 +2217,92 @@ mod tests {
                 source_order: 1,
             },
         ];
-        assert_eq!(ordered_source_sync_candidates(&normal)[0], 0);
-        assert_eq!(ordered_source_sync_candidates(&always)[0], 1);
+        assert_eq!(ordered_source_sync_candidates(&normal), [1, 0]);
+        assert_eq!(ordered_source_sync_candidates(&always), [1, 0]);
+    }
+
+    #[test]
+    fn source_group_order_and_clock_match_native_land_handoffs() {
+        #[derive(serde::Deserialize)]
+        struct Frame {
+            delta: f32,
+            weights: Vec<Option<f32>>,
+            order: Vec<usize>,
+            ratios: [f32; 2],
+            leader_clock: [f32; 2],
+            positions: Vec<f32>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Reference {
+            players: Vec<[f32; 2]>,
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d202/order.replay.json"
+        ))
+        .unwrap();
+        let ids: Vec<NodeId> = (0..reference.players.len())
+            .map(|index| {
+                serde_json::from_value(serde_json::Value::String(format!(
+                    "10000000-0000-4000-8000-{index:012}"
+                )))
+                .unwrap()
+            })
+            .collect();
+        for case in reference.cases {
+            let mut positions = vec![0.0; reference.players.len()];
+            let mut previous = Vec::new();
+            for frame in case.frames {
+                let mut ticks: Vec<_> = frame
+                    .weights
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(index, weight)| {
+                        let [duration, play_rate] = reference.players[index];
+                        Some(SourceSyncPlayerTick {
+                            identity: (GraphContextId::default(), ids[index]),
+                            key: "Land".into(),
+                            weight: weight?,
+                            duration,
+                            phase_duration: duration,
+                            play_rate,
+                            sample_time_hint: Some(positions[index]),
+                            delta_seconds: frame.delta,
+                            ..default()
+                        })
+                    })
+                    .collect();
+                let ordered_ids: Vec<_> = ordered_group_players(&ticks.iter().collect::<Vec<_>>())
+                    .into_iter()
+                    .map(|tick| tick.identity.1)
+                    .collect();
+                let expected_ids: Vec<_> = frame.order.iter().map(|index| ids[*index]).collect();
+                assert_eq!(ordered_ids, expected_ids, "{}", case.name);
+                let group = resolve_source_sync_phases(&ticks, &previous).remove(0);
+                let (identity, step) = &group.leader_samples[0];
+                assert_eq!(identity.1, expected_ids[0], "{}", case.name);
+                assert_eq!([step.previous_time, step.time], frame.leader_clock, "{}", case.name);
+                let ratios = group.length_ratios.unwrap().to_array();
+                assert_eq!(ratios, frame.ratios, "{}", case.name);
+                for tick in &mut ticks {
+                    let index = ids.iter().position(|id| *id == tick.identity.1).unwrap();
+                    tick.selected_leader = tick.identity == *identity;
+                    positions[index] = if tick.selected_leader {
+                        step.time
+                    } else {
+                        ratios[1] * tick.duration
+                    };
+                }
+                assert_eq!(positions, frame.positions, "{}", case.name);
+                previous = ticks;
+            }
+        }
     }
 
     #[test]

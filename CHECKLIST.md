@@ -7202,7 +7202,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.344完整当前Overlay Idle补充：扩为暖11+当前240的251步，根唯一成员.75/rate1/同mesh，.75与1控制全部clock/pose精确；245步时点不等，首index6与旧88一致，source循环81/161/241均覆盖。公共tick精确重放target251，direct source秒累加精确匹配native251，去控制首index6失败并源码字节恢复同target重编恢复；无新编号或可见故障升级，证据`target/bf144/344/clock-check.json`、`clock-restoration-check.json`及`idle-source.json`。
 
-- [ ] BF144-D202 / P2 — 同步组使用稳定同分排序，改变不同速率播放器的leader、播放时钟和自动退出时点。
+- [x] BF144-D202 / P2 — 同步组使用稳定同分排序，改变不同速率播放器的leader、播放时钟和自动退出时点。
+  - 2026-11-12 08:04 +0800 实际结束，较08:34预估提前30分钟，未拆分。fresh Land 16条21帧的原生候选顺序、leader与全部时钟静态闭环；旧稳定排序18帧失配，仅选择排序7帧失配，去堆分支2帧失配。当前及上一帧共用排序；原生请求、回放和实际resolver夹具见 `docs/audit/bf144/d202/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 07:59 +08:00，预估结束2026-11-12 08:34 +08:00。重采Land组排序、时钟和大组分支，保持当前及上一帧采用同一原生排序合同。
   - Source：fresh `AnimationAsset.cpp:121–124`按FAnimTickRecord的LeaderScore调用原生Sort；`IntroSort.h:60–82`的小集合选择排序不保留同分输入顺序。当前4个Land组播放器均CanBeLeader，普通Land速率1，Light/Heavy Additive分别1.75/1.5；同分排序会改变实际推进速率及新加入leader的初始时间。
   - Target：`sync_group_phase.rs:573–594`在CanBeLeader同分时按source_order升序固定先到者，与本批原生2–4成员排序不同。actual main同步出口使用这一顺序选择leader，其他播放器随后按其长度比例取时。
   - 反例：原Land→Land Movement的T1条件、0.2秒普通转场、实际4播放器及同步出口，45路径426帧中94处leader不同；首次更新刚好半权重时，新旧状态同分，当前选择旧Land而source可选择新Additive，最大时钟差约0.675秒。进入仅两个同分Additive的阶段，source与target还会分别采用1.5/1.75的leader速率。

@@ -1,0 +1,54 @@
+{
+  "cases": 16,
+  "frames": 21,
+  "ablations": {
+    "stable": [
+      "land_handoff:1",
+      "additive_tie:0",
+      "additive_tie:1",
+      "additive_tie:2",
+      "ranked:0",
+      "ranked:1",
+      "sparse:0",
+      "equal_2:0",
+      "equal_3:0",
+      "equal_4:0",
+      "equal_8:0",
+      "equal_9:0",
+      "equal_12:0",
+      "equal_16:0",
+      "mixed_9:0",
+      "mixed_12:0",
+      "mixed_16:0",
+      "partition_depth:0"
+    ],
+    "stable_leader": [
+      "land_handoff:1",
+      "additive_tie:0",
+      "additive_tie:1",
+      "additive_tie:2",
+      "sparse:0",
+      "equal_2:0",
+      "equal_3:0",
+      "equal_4:0",
+      "equal_8:0",
+      "equal_9:0",
+      "equal_12:0",
+      "equal_16:0",
+      "mixed_16:0"
+    ],
+    "selection_only": [
+      "equal_9:0",
+      "equal_12:0",
+      "equal_16:0",
+      "mixed_9:0",
+      "mixed_12:0",
+      "mixed_16:0",
+      "partition_depth:0"
+    ],
+    "no_heap": [
+      "mixed_16:0",
+      "partition_depth:0"
+    ]
+  }
+}
