@@ -7,6 +7,7 @@ from pathlib import Path
 
 PROFILES = ('normal', 'responsive', 'sluggish')
 CHANNELS = ('acceleration', 'braking_deceleration', 'ground_friction')
+INTERPOLATIONS = {0: 'Linear', 2: 'Cubic'}
 
 
 def f32(value):
@@ -31,9 +32,12 @@ def curve_references(value):
 def convert_keys(keys, scale):
     if len(keys) < 2 or any(key['weight_mode'] != 0 for key in keys):
         raise ValueError('unsupported weighted or empty curve')
+    if any(key['interp_mode'] not in INTERPOLATIONS for key in keys[:-1]):
+        raise ValueError('unsupported curve interpolation')
     output = [{'time': f32(key['time']), 'value': key['value'] * scale,
                'arrive_tangent': key['arrive_tangent'] * scale,
-               'leave_tangent': key['leave_tangent'] * scale} for key in keys]
+               'leave_tangent': key['leave_tangent'] * scale,
+               'interpolation': INTERPOLATIONS.get(key['interp_mode'], 'Cubic')} for key in keys]
     for index, (start, end) in enumerate(zip(keys, keys[1:])):
         duration = f32(end['time'] - start['time'])
         if duration <= 0.0:
@@ -42,8 +46,6 @@ def convert_keys(keys, scale):
             slope = f32(f32(end['value'] - start['value']) / duration)
             output[index]['leave_tangent'] = slope * scale
             output[index + 1]['arrive_tangent'] = slope * scale
-        elif start['interp_mode'] != 2:
-            raise ValueError('unsupported curve interpolation')
     return {'keys': output}
 
 

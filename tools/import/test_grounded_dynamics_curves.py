@@ -22,6 +22,8 @@ class GroundedDynamicsCurveTests(unittest.TestCase):
             self.assertEqual(f32(curves['normal']['acceleration']['keys'][2]['leave_tangent']), -36.42372131347656)
             self.assertEqual(f32(curves['responsive']['braking_deceleration']['keys'][2]['leave_tangent']), -27.156404495239258)
             self.assertEqual(curves['normal']['braking_deceleration']['keys'][1]['leave_tangent'], -2.5)
+            self.assertEqual(curves['normal']['braking_deceleration']['keys'][1]['interpolation'], 'Linear')
+            self.assertEqual(curves['normal']['acceleration']['keys'][2]['interpolation'], 'Cubic')
             self.assertEqual(f32(curves['sluggish']['acceleration']['keys'][2]['leave_tangent'] * 100.0), -843.4028930664062)
             changed = {(row['profile'], row['channel'], row['key'], row['field']) for row in report['changed_fields']}
             self.assertEqual(changed, {

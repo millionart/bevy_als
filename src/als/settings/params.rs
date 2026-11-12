@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::state::{Gait, RotationMode, Stance};
+use crate::extensions::rich_curve::{RichCurveInterpolation, unweighted_cubic};
 
 pub const UE_CM_TO_M: f32 = 0.01;
 static SOURCE_UNCONFIGURED_GAIT_SPEEDS: std::sync::LazyLock<StanceGaitSpeeds> = std::sync::LazyLock::new(StanceGaitSpeeds::default);
@@ -399,6 +400,12 @@ pub struct HermiteKey {
     pub value: f64,
     pub arrive_tangent: f64,
     pub leave_tangent: f64,
+    #[serde(default = "default_hermite_interpolation")]
+    pub interpolation: RichCurveInterpolation,
+}
+
+fn default_hermite_interpolation() -> RichCurveInterpolation {
+    RichCurveInterpolation::Cubic
 }
 
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -428,17 +435,17 @@ impl HermiteCurve {
         let start = self.keys[upper - 1];
         let end = self.keys[upper];
         let duration = (end.time - start.time).max(f32::EPSILON);
-        let normalized = ((time - start.time) / duration).clamp(0.0, 1.0);
-        let normalized_squared = normalized * normalized;
-        let normalized_cubed = normalized_squared * normalized;
-        let h00 = 2.0 * normalized_cubed - 3.0 * normalized_squared + 1.0;
-        let h10 = normalized_cubed - 2.0 * normalized_squared + normalized;
-        let h01 = -2.0 * normalized_cubed + 3.0 * normalized_squared;
-        let h11 = normalized_cubed - normalized_squared;
-        h00 * (start.value * scale) as f32
-            + h10 * duration * (start.leave_tangent * scale) as f32
-            + h01 * (end.value * scale) as f32
-            + h11 * duration * (end.arrive_tangent * scale) as f32
+        let alpha = ((time - start.time) / duration).clamp(0.0, 1.0);
+        let first = (start.value * scale) as f32;
+        let last = (end.value * scale) as f32;
+        match start.interpolation {
+            RichCurveInterpolation::Constant => first,
+            RichCurveInterpolation::Linear => first + (last - first) * alpha,
+            RichCurveInterpolation::Cubic => unweighted_cubic(
+                first, last, (start.leave_tangent * scale) as f32, (end.arrive_tangent * scale) as f32,
+                duration, alpha,
+            ),
+        }
     }
 }
 
@@ -1203,8 +1210,14 @@ mod tests {
         let curves = GroundedDynamicsCurves::default();
         assert_eq!(curves.normal.acceleration.keys[2].leave_tangent as f32, -36.42372131347656);
         assert_eq!(curves.responsive.braking_deceleration.keys[2].leave_tangent as f32, -27.156404495239258);
-        assert_eq!(curves.normal.acceleration.sample(2.125), 15.97702693939209);
+        assert_eq!(curves.normal.acceleration.sample(2.125), 15.977027893066406);
         assert_eq!(curves.normal.braking_deceleration.keys[1].leave_tangent, -2.5);
+
+        let legacy: HermiteCurve = serde_json::from_str(r#"{"keys":[
+            {"time":0,"value":0,"arrive_tangent":0,"leave_tangent":0},
+            {"time":1,"value":1,"arrive_tangent":0,"leave_tangent":0}
+        ]}"#).unwrap();
+        assert_eq!(legacy.sample(0.25), 0.15625);
     }
 
     #[test]

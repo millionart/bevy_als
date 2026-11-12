@@ -7272,7 +7272,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例/恢复：在D204源组历史恢复后，2条同一Land Light节点重新初始化的路径仍从0.025秒起播，source为0.175/0.2秒；在满足源重同步条件时排除本地hint后，所有返回播放器position/previous逐值匹配原生组，真实节点采样姿态恢复到共同源时钟。不同身份、较强新leader、无旧历史的控制保持。旧长度重同步单测使用不同old/new clip，漏掉同身份重新初始化。
   - 边界：与D204有遮蔽关系，以上通过只恢复已证实的前置组历史分离根因；不把单独改D205称作能修复当前所有4条路径。证据`target/bf144/119/analysis.json`及reset/inertial原生自测；未修生产，其他角色/marker同步不在本项结论内。
 
-- [ ] BF144-D206 / P3 — Custom曲线的浮点求值顺序使活动混合提前完成。
+- [x] BF144-D206 / P3 — Custom曲线的浮点求值顺序使活动混合提前完成。
+  - 2026-11-12 08:50 +0800 实际结束，较09:26预估提前36分钟，未拆分。fresh 978个原生样点和44帧完成轨迹匹配，旧Custom提前约5微秒。地面动力目标仅增加原生插值模式；15个AnimBP根全量转换后374产物字节一致。回放、全量diff及fixture见 `docs/audit/bf144/d206/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 08:30 +08:00，预估结束2026-11-12 09:26 +08:00。重采站蹲Custom完成、stride及三套地面动力曲线，复用源Lerp/Bezier算序并全量核对转换产物。
+  - 08:40 source/static 闭环：978个原生曲线样点、44帧Custom完成与实际目标图键值通过；逐层Lerp、乘倒数和显式Linear各自有消融信号。地面动力9轴仅增加插值模式，旧序列化配置默认Cubic；全量AnimBP转换与完整diff运行中。
   - BF144.441c地面参数消费者：同精确SI键/同gait，当前Hermite与source Linear/RichCurve算序在实际角色第124帧使friction由4.541649341583252变4.541648864746094；同一公开运动核计划侧向由−2.0840954562117986e−7变−2.0840953141032514e−7，主轴保持。此cohort单位阶段固定，D267原键控制在Running240均0信号，未把单位求值D268混入。原场景全部240的实际plan先对public核逐份精确；移除source算序丢该帧信号、native单位端点保持，bytes恢复同target重编后完整240/控制输出byte精确。证据`docs/audit/bf144/441c/kernel-check.json`与`controls-check.json`；当前只证明计划消费者，不称连续Root、最终世界轨迹或可见恢复。
   - Source：fresh `CurveEvaluation.cpp:205–229`按`Tangent * Diff * (1/3)`构造控制点，`CurveEvaluation.h:26–35`逐层Lerp求Bezier值；`AlphaBlend.cpp:314–323`以混合值等于末端值判断完成。CF_Als_StanceChange的3键及原生float切线由读取器直接取值。
   - Target：`animation_graph_ext/rich_curve.rs:54–61,211–214`使用展开多项式及除以3的控制点计算；`interruptible_fsm::accumulated_transition_finished`消费该结果。Custom时间范围映射本身一致；六位小数切线差属于D121同类数据边界，单独恢复精确键值不能消除这里的完成差异。

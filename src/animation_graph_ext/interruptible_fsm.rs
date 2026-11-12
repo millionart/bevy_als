@@ -6070,6 +6070,92 @@ mod tests {
     }
 
     #[test]
+    fn native_curve_order_preserves_stance_completion_stride_and_dynamics() {
+        use crate::als::params::{GroundedDynamicsCurves, GroundedDynamicsProfile};
+        use crate::extensions::als_curves::{AlsFloatCurve, AlsKeyInterp};
+        use crate::extensions::{RichCurveInterpolation, RichCurveKey};
+
+        #[derive(serde::Deserialize)]
+        struct Key {
+            time: f32,
+            value: f32,
+            arrive_tangent: f32,
+            leave_tangent: f32,
+            interp_mode: u8,
+        }
+        #[derive(serde::Deserialize)]
+        struct Stride {
+            name: String,
+            keys: Vec<Key>,
+            samples: Vec<[f32; 2]>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Dynamics {
+            profile: String,
+            axis: usize,
+            samples: Vec<[f32; 2]>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Reference {
+            stance_keys: Vec<Key>,
+            finish: Vec<(f32, f32, bool)>,
+            stride: Vec<Stride>,
+            dynamics: Vec<Dynamics>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d206/curve.replay.json"
+        )).unwrap();
+        let custom_curve: Vec<_> = reference.stance_keys.iter().map(|key| RichCurveKey {
+            interpolation: if key.interp_mode == 2 { RichCurveInterpolation::Cubic } else { RichCurveInterpolation::Linear },
+            t: key.time, v: key.value, arrive_tangent: key.arrive_tangent, leave_tangent: key.leave_tangent,
+            ..default()
+        }).collect();
+        let mut graph = AnimationGraph::new();
+        graph.add_node(AnimationNode::new("Stance", ProfiledBlendNode {
+            alpha_blend_mode: AlphaBlendMode::Custom, custom_curve: custom_curve.clone(), ..default()
+        }));
+        let (mut elapsed, mut alpha, mut remaining) = (0.0, 0.0, 0.5);
+        for (delta, expected, complete) in reference.finish {
+            elapsed += delta;
+            if !accumulated_transition_finished(alpha, &graph) {
+                advance_transition_blend(&mut alpha, &mut remaining, delta);
+            }
+            assert_eq!(transition_alpha(elapsed / 0.5, AlphaBlendMode::Custom, &custom_curve), expected);
+            assert_eq!(accumulated_transition_finished(alpha, &graph), complete, "elapsed {elapsed}");
+        }
+        for stride in reference.stride {
+            let curve = AlsFloatCurve {
+                times: stride.keys.iter().map(|key| key.time).collect(),
+                values: stride.keys.iter().map(|key| key.value).collect(),
+                interps: stride.keys.iter().map(|key| {
+                    if key.interp_mode == 2 { AlsKeyInterp::Cubic } else { AlsKeyInterp::Linear }
+                }).collect(),
+                arrive_tangents: stride.keys.iter().map(|key| key.arrive_tangent).collect(),
+                leave_tangents: stride.keys.iter().map(|key| key.leave_tangent).collect(),
+                ..default()
+            };
+            for [time, expected] in stride.samples {
+                assert_eq!(curve.sample(time), expected, "{} at {time}", stride.name);
+            }
+        }
+        let curves = GroundedDynamicsCurves::default();
+        for axis in reference.dynamics {
+            let profile = match axis.profile.as_str() {
+                "normal" => GroundedDynamicsProfile::Normal,
+                "responsive" => GroundedDynamicsProfile::Responsive,
+                "sluggish" => GroundedDynamicsProfile::Sluggish,
+                _ => panic!("Unexpected grounded dynamics profile"),
+            };
+            for [time, expected] in axis.samples {
+                let values = curves.sample(profile, time);
+                let actual = [values.acceleration, values.braking_deceleration, values.ground_friction];
+                assert_eq!(actual[axis.axis], expected, "{} axis {} at {time}", axis.profile, axis.axis);
+            }
+        }
+    }
+
+    #[test]
     fn custom_transition_finishes_when_blend_reaches_its_terminal_value() {
         use bevy_animation_graph::core::animation_node::AnimationNode;
         let graph = |values: [f32; 3], mode| {

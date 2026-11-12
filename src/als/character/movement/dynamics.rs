@@ -925,7 +925,9 @@ mod tests {
             settings.cmc.max_simulation_time_step = max_step;
             settings.cmc.max_simulation_iterations = iterations;
             let constant = |value| crate::als::params::HermiteCurve { keys: vec![crate::als::params::HermiteKey {
-                time: 0.0, value, arrive_tangent: 0.0, leave_tangent: 0.0 }] };
+                time: 0.0, value, arrive_tangent: 0.0, leave_tangent: 0.0,
+                interpolation: crate::extensions::RichCurveInterpolation::Constant,
+            }] };
             settings.acceleration.grounded.normal.acceleration = constant(20.0);
             settings.acceleration.grounded.normal.braking_deceleration = constant(12.5);
             settings.acceleration.grounded.normal.ground_friction = constant(5.0);
@@ -1503,7 +1505,10 @@ mod tests {
             assert_eq!(app.world().get::<crate::als::motion::AlsCrouchTransaction>(character).unwrap().collider_half_height, capsule);
             let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
             let mut source_settings = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().clone();
-            source_settings.acceleration.grounded.normal.braking_deceleration.keys = vec![crate::als::params::HermiteKey { time: 0.0, value: 2.0, arrive_tangent: 0.0, leave_tangent: 0.0 }];
+            source_settings.acceleration.grounded.normal.braking_deceleration.keys = vec![crate::als::params::HermiteKey {
+                time: 0.0, value: 2.0, arrive_tangent: 0.0, leave_tangent: 0.0,
+                interpolation: crate::extensions::RichCurveInterpolation::Constant,
+            }];
             source_settings.acceleration.grounded.responsive.braking_deceleration = source_settings.acceleration.grounded.normal.braking_deceleration.clone();
             let replacement = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(source_settings);
             app.world_mut().entity_mut(character).insert((AlsMovementParamsHandle(replacement), LinearVelocity(Vec3::X * 3.75)));

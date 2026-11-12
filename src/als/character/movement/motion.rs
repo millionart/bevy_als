@@ -12603,6 +12603,7 @@ mod tests {
                 params.cmc.max_simulation_iterations = max_iterations;
                 params.acceleration.grounded.normal.acceleration.keys = vec![crate::als::params::HermiteKey {
                     time: 0.0, value: fresh, arrive_tangent: 0.0, leave_tangent: 0.0,
+                    interpolation: crate::extensions::RichCurveInterpolation::Constant,
                 }];
                 let mut seed = 123;
                 falling_movement_transaction(&spatial, &als_character_capsule(0.9, 0.3),
@@ -12636,6 +12637,7 @@ mod tests {
             params.cmc.max_simulation_iterations = iterations;
             params.acceleration.grounded.normal.acceleration.keys = vec![crate::als::params::HermiteKey {
                 time: 0.0, value: 7.5, arrive_tangent: 0.0, leave_tangent: 0.0,
+                interpolation: crate::extensions::RichCurveInterpolation::Constant,
             }];
             let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params);
             let start = Vec3::new(0.0, 1.0, 0.0);

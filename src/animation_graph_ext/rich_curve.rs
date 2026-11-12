@@ -51,13 +51,26 @@ pub struct RichCurveKey {
     pub leave_weight: f32,
 }
 
-fn cubic_bezier(p0: f32, p1: f32, p2: f32, p3: f32, t: f64) -> f32 {
-    let t = t as f32;
-    let inverse = 1.0 - t;
-    inverse * inverse * inverse * p0
-        + 3.0 * inverse * inverse * t * p1
-        + 3.0 * inverse * t * t * p2
-        + t * t * t * p3
+pub(crate) fn cubic_bezier(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
+    let lerp = |left: f32, right: f32| left + (right - left) * t;
+    let p01 = lerp(p0, p1);
+    let p12 = lerp(p1, p2);
+    let p23 = lerp(p2, p3);
+    lerp(lerp(p01, p12), lerp(p12, p23))
+}
+
+pub(crate) fn unweighted_cubic(
+    start: f32,
+    end: f32,
+    leave_tangent: f32,
+    arrive_tangent: f32,
+    span: f32,
+    alpha: f32,
+) -> f32 {
+    let one_third = 1.0 / 3.0;
+    let first_control = start + leave_tangent * span * one_third;
+    let second_control = end - arrive_tangent * span * one_third;
+    cubic_bezier(start, first_control, second_control, end, alpha)
 }
 
 fn cubic_roots(coefficients: [f64; 4]) -> Vec<f64> {
@@ -178,7 +191,7 @@ fn weighted_cubic(left: RichCurveKey, right: RichCurveKey, time: f32) -> f32 {
             _ => Some(root),
         })
         .unwrap_or(0.0);
-    cubic_bezier(left.v, first_y, second_y, right.v, interpolation)
+    cubic_bezier(left.v, first_y, second_y, right.v, interpolation as f32)
 }
 
 pub fn sample_rich_curve(keys: &[RichCurveKey], time: f32) -> f32 {
@@ -208,11 +221,9 @@ pub fn sample_rich_curve(keys: &[RichCurveKey], time: f32) -> f32 {
         RichCurveInterpolation::Cubic if uses_weighted_tangents(left, right) => {
             weighted_cubic(left, right, time)
         }
-        RichCurveInterpolation::Cubic => {
-            let first_control = left.v + left.leave_tangent * span / 3.0;
-            let second_control = right.v - right.arrive_tangent * span / 3.0;
-            cubic_bezier(left.v, first_control, second_control, right.v, alpha as f64)
-        }
+        RichCurveInterpolation::Cubic => unweighted_cubic(
+            left.v, right.v, left.leave_tangent, right.arrive_tangent, span, alpha,
+        ),
     }
 }
 

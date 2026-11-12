@@ -8,6 +8,8 @@ use bevy_gltf::extensions::{
 use bevy_gltf::gltf::Animation;
 use serde::{Deserialize, Serialize};
 
+use crate::extensions::rich_curve::{cubic_bezier, unweighted_cubic};
+
 pub const ALS_CURVES_EXTENSION: &str = "ALS_float_curves";
 pub const ALS_CURVES_LABEL: &str = "AlsCurves";
 
@@ -329,13 +331,8 @@ impl AlsFloatCurve {
         let leave_weighted = self.weight_modes.get(lo).copied().unwrap_or(0) & 2 != 0;
         let arrive_weighted = self.weight_modes.get(hi).copied().unwrap_or(0) & 1 != 0;
         if !leave_weighted && !arrive_weighted {
-            let x = ((t - t0) / duration).clamp(0.0, 1.0);
-            let x2 = x * x;
-            let x3 = x2 * x;
-            return (2.0 * x3 - 3.0 * x2 + 1.0) * v0
-                + (x3 - 2.0 * x2 + x) * duration * self.leave_tangent(lo)
-                + (-2.0 * x3 + 3.0 * x2) * v1
-                + (x3 - x2) * duration * self.arrive_tangent(hi);
+            let alpha = ((t - t0) / duration).clamp(0.0, 1.0);
+            return unweighted_cubic(v0, v1, self.leave_tangent(lo), self.arrive_tangent(hi), duration, alpha);
         }
         let leave_tangent = self.leave_tangent(lo);
         let arrive_tangent = self.arrive_tangent(hi);
@@ -389,14 +386,6 @@ impl AlsFloatCurve {
         let slope = (vn - self.values[n - 2]) / (tn - tp);
         vn + slope * (t - tn)
     }
-}
-
-fn cubic_bezier(a: f32, b: f32, c: f32, d: f32, parameter: f32) -> f32 {
-    let inverse = 1.0 - parameter;
-    inverse * inverse * inverse * a
-        + 3.0 * inverse * inverse * parameter * b
-        + 3.0 * inverse * parameter * parameter * c
-        + parameter * parameter * parameter * d
 }
 
 fn tangent_weight(duration: f32, tangent: f32) -> f32 {
