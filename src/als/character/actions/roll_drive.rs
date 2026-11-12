@@ -6,7 +6,7 @@ use crate::als::roll::{
     damper_exact_angle, select_roll_direction,
 };
 #[cfg(test)]
-use crate::als::roll::ROLL_PLAY_RATE;
+use crate::als::roll::{ROLL_PLAY_RATE, ROLL_WEIGHT_IN_SECS};
 use crate::extensions::profile_blend::{AlphaBlendMode, MontageBlend};
 use crate::als::state::{LocomotionState, Stance};
 use crate::extensions::AlsAnimCurves;
@@ -414,8 +414,8 @@ pub(crate) mod tests {
             world.run_system_once(advance_rolls).unwrap();
             let expected = 0.3 + 0.05 * scale;
             let current = world.get::<AlsRollState>(actor).unwrap().time;
-            let tail_time = world.get::<AlsRollTail>(tail).unwrap().time;
-            if (current - expected).abs() > 1e-6 || (tail_time - expected).abs() > 1e-6 {
+            let tail_time = world.get::<AlsRollTail>(tail).unwrap().clip_time;
+            if (current - expected).abs() > 1e-6 || (tail_time - expected * ROLL_PLAY_RATE).abs() > 1e-6 {
                 failures.push((scale, expected, current, tail_time));
             }
         }
@@ -2569,7 +2569,7 @@ fn end_roll_instance(roll: &mut AlsRollState, runtime: Option<Mut<AlsRollSlotRun
 }
 
 fn discard_roll_target(
-    event: On<Discard, AnimationGraphPlayer>,
+    event: On<Discard<AnimationGraphPlayer>>,
     samplers: Query<(Entity, &AlsRollSlotSampler, Option<&AlsRollTail>)>,
     mut states: Query<(&mut AlsRollState, Option<&mut AlsRollSlotRuntime>, Option<&mut AlsNotifyLocomotionAction>)>,
     mut commands: Commands,

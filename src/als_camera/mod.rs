@@ -516,7 +516,7 @@ fn resolve_camera_socket_locations(
         locations.root = if parents.get(mesh_entity).is_err()
             && definition.pivot_sockets[0].eq_ignore_ascii_case("root")
         {
-            let bounds = collider.aabb(actor.translation(), actor.rotation());
+            let bounds = collider.aabb(actor.translation(), actor.rotation(), 0.0);
             actor.translation() - Vec3::Y * (bounds.max.y - bounds.min.y) * 0.5
         } else {
             location(&definition.pivot_sockets[0])
@@ -671,8 +671,8 @@ fn start_penetration_adjustment(
             .and_then(|(position, rotation, collider)| {
                 avian3d::collision::collider::contact_query::contact(
                     collider,
-                    *position,
-                    *rotation,
+                    position.0,
+                    rotation.0,
                     shape,
                     start,
                     Quat::IDENTITY,
@@ -680,7 +680,7 @@ fn start_penetration_adjustment(
                 )
                 .ok()
                 .flatten()
-                .map(|contact| (contact.global_normal1(rotation), contact.penetration))
+                .map(|contact| (contact.global_normal1(rotation.0), contact.penetration))
             });
         let Some((direction, distance)) = contact else {
             valid = false;
@@ -1747,7 +1747,7 @@ mod tests {
             asset.colliders.retain(|id, _| *id == collider_id);
             let collider = asset.colliders.get_mut(&collider_id).unwrap();
             collider.local_offset = bevy::math::Isometry3d::IDENTITY;
-            collider.shape = ColliderShape::Cuboid(bevy::math::primitives::Cuboid::new(0.1, 0.6, 0.6));
+            collider.shape = ColliderShape::Cuboid(bevy::shape::Cuboid::new(0.1, 0.6, 0.6));
             let spawned = app.world_mut().run_system_once(move |mut commands: Commands| {
                 spawn_ragdoll_avian(player, &asset, bevy::math::Isometry3d::from_translation(point), None, &mut commands)
             }).unwrap();

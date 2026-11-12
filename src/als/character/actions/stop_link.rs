@@ -599,7 +599,7 @@ fn clear_transition_slot(player: &mut AnimationGraphPlayer, inputs: Option<Mut<c
 }
 
 fn discard_transition_target(
-    event: On<Discard, AnimationGraphPlayer>,
+    event: On<Discard<AnimationGraphPlayer>>,
     samplers: Query<(Entity, &AlsRootTransitionSlotSampler)>,
     mut states: Query<(Option<&mut AlsTransitionMontageStack>, Option<&mut AlsRootTransitionSlotRuntime>)>,
     mut commands: Commands,

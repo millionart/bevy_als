@@ -1,3 +1,4 @@
+use avian3d::dynamics::solver::solver_body::{SolverBodies, SolverBodyIndex};
 use avian3d::prelude::{AngularVelocity, ColliderOf, LinearVelocity, Position, RigidBody};
 use bevy::prelude::*;
 use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
@@ -647,20 +648,22 @@ pub(crate) fn limit_falling_velocity(
     time: Res<Time>,
     gravity: Res<avian3d::prelude::Gravity>,
     default_volume: Res<AlsDefaultPhysicsVolume>,
-    mut characters: Query<(
-        &LocomotionState, &RigidBody, &mut avian3d::dynamics::solver::solver_body::SolverBody,
+    mut solver_bodies: ResMut<SolverBodies>,
+    characters: Query<(
+        &LocomotionState, &RigidBody, &SolverBodyIndex,
         Option<&AlsPhysicsVolume>, Option<&avian3d::prelude::GravityScale>, Option<&bevy_tnua::TnuaGravity>,
         Option<&AlsRollState>, Option<&AlsMantleState>,
     ), With<AlsCharacter>>,
 ) {
     if time.delta().is_zero() { return; }
-    for (mode, body, mut velocity, volume, scale, tnua_gravity, roll, mantle) in &mut characters {
+    for (mode, body, index, volume, scale, tnua_gravity, roll, mantle) in &characters {
         if *mode != LocomotionState::Air || *body != RigidBody::Dynamic
             || roll.is_some_and(AlsRollState::root_motion_active)
             || mantle.is_some_and(|state| state.active) { continue; }
         let gravity = crate::als::motion::effective_tnua_gravity(gravity.0,
             scale.map_or(1.0, |scale| scale.0), tnua_gravity.map(|gravity| gravity.0));
         let limit = volume.unwrap_or(&default_volume.0).terminal_velocity.abs();
+        let Some(velocity) = solver_bodies.get_mut(*index) else { continue; };
         velocity.linear_velocity = clamp_falling_velocity(velocity.linear_velocity, gravity, limit);
     }
 }

@@ -9899,7 +9899,7 @@ fn observe_manual_integration(
         state.ragdoll_frames = state.ragdoll_frames.saturating_add(1);
         if let Ok((sockets, actor, collider)) = ragdoll_probe.camera_sockets.get(character) {
             use avian3d::prelude::SimpleCollider;
-            let bounds = collider.aabb(actor.translation(), actor.rotation());
+            let bounds = collider.aabb(actor.translation(), actor.rotation(), 0.0);
             let bottom = actor.translation() - Vec3::Y * bounds.size().y * 0.5;
             state.coverage.ragdoll_camera_pivot |= sockets.valid
                 && sockets.root.distance(bottom) < 1e-4
@@ -12073,7 +12073,7 @@ mod tests {
             }).unwrap();
             let mut query = world.query::<(&Name, &Collider, &Transform)>();
             let (_, collider, transform) = query.iter(&world).find(|(name, _, _)| name.as_str() == "manual_integration_mantle_ledge").unwrap();
-            let top = collider.aabb(transform.translation, transform.rotation).max.y;
+            let top = collider.aabb(transform.translation, transform.rotation, 0.0).max.y;
             assert_eq!(top > 1.25, scenario == IntegrationScenario::BowOverlay);
             assert!((top - if scenario == IntegrationScenario::BowOverlay { 1.6 } else { 0.8 }).abs() < 1e-5);
         }
@@ -12091,7 +12091,7 @@ mod tests {
         }).unwrap();
         let entity = world.entity(world.resource::<ManualIntegrationFixture>().platform);
         let transform = entity.get::<Transform>().unwrap();
-        let aabb = entity.get::<Collider>().unwrap().aabb(transform.translation, transform.rotation);
+        let aabb = entity.get::<Collider>().unwrap().aabb(transform.translation, transform.rotation, 0.0);
         let meshes = world.resource::<Assets<Mesh>>();
         let points = meshes.get(&entity.get::<Mesh3d>().unwrap().0).unwrap().attribute(Mesh::ATTRIBUTE_POSITION).unwrap().as_float3().unwrap();
         let (min, max) = points.iter().map(|point| transform.transform_point(Vec3::from(*point))).fold((Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)), |(min, max), point| (min.min(point), max.max(point)));

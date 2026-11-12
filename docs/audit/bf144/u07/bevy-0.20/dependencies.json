@@ -1,0 +1,161 @@
+{
+  "migration_guide": "https://bevy.org/learn/migration-guides/0-19-to-0-20/",
+  "published": {
+    "graph": {
+      "commit": "6d706f61c35a6cf7b1c96430a56ae46241b4d51f",
+      "ref": "refs/heads/codex/bevy-0.20"
+    },
+    "tags": {
+      "commit": "30a41183ac0705e6b7b483d0a72f0ca70510327e",
+      "ref": "refs/heads/codex/bevy-0.20"
+    },
+    "tnua": {
+      "commit": "e7639530e98c1c67da1e6b66eeee7da0bcac2351",
+      "ref": "refs/heads/codex/bevy-0.20"
+    }
+  },
+  "locked_packages": {
+    "bevy": {
+      "version": "0.20.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    "bevy_gltf": {
+      "version": "0.20.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    "avian3d": {
+      "version": "0.8.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    "bevy_enhanced_input": {
+      "version": "0.27.2",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    "bevy_animation_graph": {
+      "version": "0.11.0",
+      "source": "git+https://github.com/millionart/bevy_animation_graph?rev=6d706f61c35a6cf7b1c96430a56ae46241b4d51f#6d706f61c35a6cf7b1c96430a56ae46241b4d51f"
+    },
+    "bevy_animation_graph_editor": {
+      "version": "0.11.0",
+      "source": "git+https://github.com/millionart/bevy_animation_graph?rev=6d706f61c35a6cf7b1c96430a56ae46241b4d51f#6d706f61c35a6cf7b1c96430a56ae46241b4d51f"
+    },
+    "bevy_gameplay_tag": {
+      "version": "0.3.0",
+      "source": "git+https://github.com/millionart/bevy_gameplay_tag?rev=30a41183ac0705e6b7b483d0a72f0ca70510327e#30a41183ac0705e6b7b483d0a72f0ca70510327e"
+    },
+    "bevy-tnua": {
+      "version": "0.33.2",
+      "source": "git+https://github.com/millionart/bevy-tnua?rev=e7639530e98c1c67da1e6b66eeee7da0bcac2351#e7639530e98c1c67da1e6b66eeee7da0bcac2351"
+    },
+    "bevy-tnua-avian3d": {
+      "version": "0.13.1",
+      "source": "git+https://github.com/millionart/bevy-tnua?rev=e7639530e98c1c67da1e6b66eeee7da0bcac2351#e7639530e98c1c67da1e6b66eeee7da0bcac2351"
+    }
+  },
+  "checks": {
+    "graph-all-targets-final": {
+      "elapsed_seconds": 1.007,
+      "exit_reason": "completed",
+      "last_progress": "stderr.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 0,
+      "source": "graph-all-targets-final",
+      "success": true,
+      "timeout_seconds": 3600
+    },
+    "tags-all-targets": {
+      "elapsed_seconds": 56.339,
+      "exit_reason": "completed",
+      "last_progress": "stderr.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 0,
+      "source": "tags-all-targets",
+      "success": true,
+      "timeout_seconds": 3600
+    },
+    "tnua-motors-baseline": {
+      "elapsed_seconds": 90.443,
+      "exit_reason": "process_failed",
+      "last_progress": "stderr.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 101,
+      "source": "tnua-motors-baseline",
+      "success": false,
+      "timeout_seconds": 3600
+    },
+    "tnua-motors-fixed": {
+      "elapsed_seconds": 2.011,
+      "exit_reason": "completed",
+      "last_progress": "stdout.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 0,
+      "source": "tnua-motors-fixed",
+      "success": true,
+      "timeout_seconds": 3600
+    },
+    "visual-validator-self-test": {
+      "elapsed_seconds": 1.007,
+      "exit_reason": "completed",
+      "last_progress": "stdout.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 0,
+      "source": "visual-validator-self-test",
+      "success": true,
+      "timeout_seconds": 3600
+    },
+    "decal-validator-self-test": {
+      "elapsed_seconds": 1.007,
+      "exit_reason": "completed",
+      "last_progress": "stdout.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 0,
+      "source": "decal-validator-self-test",
+      "success": true,
+      "timeout_seconds": 3600
+    },
+    "project-all-targets-final": {
+      "elapsed_seconds": 1.012,
+      "exit_reason": "completed",
+      "last_progress": "stderr.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 0,
+      "source": "project-all-targets-final",
+      "success": true,
+      "timeout_seconds": 3600
+    },
+    "playground-build": {
+      "elapsed_seconds": 752.038,
+      "exit_reason": "completed",
+      "last_progress": "stderr.log",
+      "no_progress_limit_seconds": 240,
+      "no_progress_seconds": 0.0,
+      "process_exit_code": 0,
+      "source": "playground-build",
+      "success": true,
+      "timeout_seconds": 3600
+    }
+  },
+  "manual_playground": {
+    "profile": "play",
+    "target_directory": "target_game",
+    "path": "target_game/play/examples/manual_playground",
+    "sha256": "82ea16f1fca742d09efff9303ce5521d4b8f6e30fa9d8b12436f6bb1644e1616"
+  },
+  "tnua_stdout": {
+    "tnua-motors-baseline.txt.gz": {
+      "bytes": 904,
+      "sha256": "3b0f037c06ce734667df92ea8e5ccdb7b96e2c1a154a890c1f09e88516d4975d"
+    },
+    "tnua-motors-fixed.txt.gz": {
+      "bytes": 200,
+      "sha256": "a0cf6aaed2241ec18f0927b8625b7dc6e572f1f7c8f0ff0aeced1ac2c14e73e9"
+    }
+  }
+}

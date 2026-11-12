@@ -301,11 +301,13 @@ fn menu_ellipsis_system(
                     std::iter::once((
                         entity,
                         0,
-                        value,
-                        font,
-                        COLOR_MENU_TEXT,
-                        *line_height,
-                        *spacing,
+                        bevy::text::TextElement::Text {
+                            text: value,
+                            font,
+                            color: COLOR_MENU_TEXT,
+                            line_height: *line_height,
+                            letter_spacing: *spacing,
+                        },
                     )),
                     1.0,
                     &TextLayout::no_wrap(),
@@ -313,7 +315,7 @@ fn menu_ellipsis_system(
                     &mut font_cx,
                     &mut layout_cx,
                     Vec2::ZERO,
-                    rem.0,
+                    *rem,
                 )
                 .map(|_| computed.buffer().full_width())
         });
@@ -796,7 +798,7 @@ pub(crate) mod tests {
                 .world()
                 .get::<CalculatedClip>(children[0])
                 .expect("The source text uses on-demand clipping");
-            assert!(clip.clip.width() <= 192.0);
+            assert!(clip.rects().unwrap().iter().any(|rect| rect.rect.width() <= 192.0));
         }
         assert!(found);
     }

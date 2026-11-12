@@ -115,11 +115,13 @@ impl TextMeasure<'_> {
                 std::iter::once((
                     Entity::PLACEHOLDER,
                     0,
-                    text,
-                    &font,
-                    Color::WHITE,
-                    bevy::text::LineHeight::default(),
-                    bevy::text::LetterSpacing::default(),
+                    bevy::text::TextElement::Text {
+                        text,
+                        font: &font,
+                        color: Color::WHITE,
+                        line_height: default(),
+                        letter_spacing: default(),
+                    },
                 )),
                 1.0,
                 &TextLayout::no_wrap(),
@@ -127,7 +129,7 @@ impl TextMeasure<'_> {
                 self.font_cx.as_mut()?,
                 self.layout_cx.as_mut()?,
                 Vec2::ZERO,
-                self.rem.as_ref()?.0,
+                **self.rem.as_ref()?,
             )
             .ok()?;
         Some(Vec2::new(

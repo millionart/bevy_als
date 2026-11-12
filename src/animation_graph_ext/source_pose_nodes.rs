@@ -2655,7 +2655,7 @@ mod tests {
             let entities = HashMap::new();
             let mut gizmos = DeferredGizmos::default();
             let entity = Entity::PLACEHOLDER;
-            let inputs = HashMap::from([("pose".to_owned(), DataValue::Pose(Pose::default()))]);
+            let inputs = HashMap::from([("pose".to_owned(), Pose::default().into())]);
             let mut source_inputs = SourceAnimationInputs::default();
             for case in &reference.cases {
                 let mut arena = GraphContextArena::new(handle.id());

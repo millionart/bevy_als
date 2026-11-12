@@ -1,4 +1,4 @@
-use bevy_als::extensions::parse_curves;
+use bevy_als::extensions::{SourceCurveName, parse_curves};
 use std::collections::BTreeMap;
 use std::fs;
 
@@ -47,7 +47,7 @@ fn rotate_90_left_yaw_speed_integrates_to_minus_90_degrees() {
     let curves = parse_curves(value).expect("parses");
     let curve = curves
         .0
-        .get("RotationYawSpeed")
+        .get(&SourceCurveName::from("RotationYawSpeed"))
         .expect("RotationYawSpeed present");
     assert!(curve.times.len() >= 20, "dense keys expected");
 
@@ -69,7 +69,7 @@ fn curve_integral(path: &str, name: &str) -> f32 {
     let curves = parse_curves(value).expect("parses");
     let curve = curves
         .0
-        .get(name)
+        .get(&SourceCurveName::from(name))
         .unwrap_or_else(|| panic!("{name} is missing"));
     curve
         .times
@@ -127,10 +127,10 @@ fn crouch_target_yaw_speed_curves_preserve_the_source_cubic_shape_between_keys()
         let ext = read_extension(path);
         let (_, value) = ext.iter().next().expect("one animation entry");
         let curves = parse_curves(value).expect("parses");
-        let source = curves.0.get("RotationYawSpeed").expect("source curve");
+        let source = curves.0.get(&SourceCurveName::from("RotationYawSpeed")).expect("source curve");
         let target = curves
             .0
-            .get("RotationYawSpeedTarget")
+            .get(&SourceCurveName::from("RotationYawSpeedTarget"))
             .expect("target curve");
         for times in source.times.windows(2) {
             let time = (times[0] + times[1]) * 0.5;
@@ -149,7 +149,7 @@ fn walk_forward_foot_planted_stays_in_expected_range() {
     let ext = read_extension(WALK_FORWARD);
     let (_, value) = ext.iter().next().unwrap();
     let curves = parse_curves(value).unwrap();
-    let foot = curves.0.get("FootPlanted").expect("FootPlanted present");
+    let foot = curves.0.get(&SourceCurveName::from("FootPlanted")).expect("FootPlanted present");
     let min_v = foot.values.iter().cloned().fold(f32::INFINITY, f32::min);
     let max_v = foot
         .values
@@ -170,7 +170,7 @@ fn torch_poses_exposes_layer_groups_for_dynamic_masks() {
     for name in ["LayerArmRight", "LayerSpineAdditive", "LayerHeadAdditive"] {
         let c = curves
             .0
-            .get(name)
+            .get(&SourceCurveName::from(name))
             .unwrap_or_else(|| panic!("missing curve {name}"));
         assert!(!c.times.is_empty(), "{name} has no keys");
     }

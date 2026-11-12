@@ -13,6 +13,7 @@ use bevy::render::{RenderApp, RenderStartup};
 use serde::Deserialize;
 
 #[derive(Component, Clone, Deserialize, ExtractComponent)]
+#[extract_app(RenderApp)]
 #[require(bevy::camera::Hdr)]
 pub struct SourceGaussianBloom {
     pub intensity: f32,
@@ -26,6 +27,7 @@ pub struct SourceGaussianBloom {
 }
 
 #[derive(Component, Clone, ExtractComponent)]
+#[extract_app(RenderApp)]
 pub struct SourceBloomProbes(pub Vec<(Handle<Image>, Handle<Image>)>);
 
 pub fn gaussian_kernel(radius: f32, settings: &SourceGaussianBloom) -> Vec<Vec2> {
@@ -53,7 +55,7 @@ pub struct SourceGaussianBloomPlugin;
 
 impl Plugin for SourceGaussianBloomPlugin {
     fn build(&self, app: &mut App) {
-        embedded_asset!(app, "source_gaussian_bloom.wgsl");
+        embedded_asset!(app, "source_gaussian_bloom.wesl");
         app.add_plugins((ExtractComponentPlugin::<SourceGaussianBloom>::default(),
             ExtractComponentPlugin::<SourceBloomProbes>::default()));
         if let Some(render) = app.get_sub_app_mut(RenderApp) {
@@ -94,7 +96,7 @@ fn initialize_pipeline(mut commands: Commands, device: Res<RenderDevice>, cache:
     let pipeline = cache.queue_render_pipeline(RenderPipelineDescriptor {
         label: Some("source_gaussian_bloom".into()), layout: vec![layout.clone()],
         vertex: fullscreen.to_vertex_state(),
-        fragment: Some(FragmentState { shader: load_embedded_asset!(assets.as_ref(), "source_gaussian_bloom.wgsl"),
+        fragment: Some(FragmentState { shader: load_embedded_asset!(assets.as_ref(), "source_gaussian_bloom.wesl"),
             entry_point: Some("fragment".into()),
             targets: vec![Some(ColorTargetState { format: TextureFormat::Rgba16Float, blend: None, write_mask: ColorWrites::ALL })],
             ..default() }), ..default()

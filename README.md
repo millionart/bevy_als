@@ -18,13 +18,14 @@
 
 ### 依赖指向（M0.2）
 
-本仓库以 **git 依赖**指向公开 fork（配置在根 `Cargo.toml` 的 `[dependencies]`）：
+项目使用 Bevy 0.20.1、Avian 0.8 和 Enhanced Input 0.27。以下 fork 在根 `Cargo.toml` 中锁定到提交。
 
 | crate（版本） | fork git 地址 |
 |---|---|
-| bevy_animation_graph 0.11.0 | `https://github.com/millionart/bevy_animation_graph`（codex/bevy-als-support） |
-| bevy-tnua 0.32.0 | `https://github.com/millionart/bevy-tnua`（main） |
-| bevy-tnua-avian3d 0.12.1 | `https://github.com/millionart/bevy-tnua`（main） |
+| bevy_animation_graph 0.11.0 | `https://github.com/millionart/bevy_animation_graph`（codex/bevy-0.20） |
+| bevy_gameplay_tag 0.3.0 | `https://github.com/millionart/bevy_gameplay_tag`（codex/bevy-0.20） |
+| bevy-tnua 0.33.2 | `https://github.com/millionart/bevy-tnua`（codex/bevy-0.20） |
+| bevy-tnua-avian3d 0.13.1 | `https://github.com/millionart/bevy-tnua`（codex/bevy-0.20） |
 
 - fork 改动必须独立小步提交并可回馈 upstream（agents.md 规则 4）；任何时候禁止 vendor 拷贝插件源码。
 - 本地源码调试时可用 `[patch.crates-io]`/path 覆盖，但路径只经 gitignored 本地配置或环境变量注入，禁止提交进仓库（agents.md 规则 7）。
@@ -39,7 +40,7 @@ ALS-Refactored 使用 UE Chaos。本项目使用 Avian 的原生碰撞与接触�
 
 布娃娃仍须正常倒下、与场景碰撞并起身。碰撞体、关节和必要的碰撞过滤继续提供这些行为。行走、上下台阶、攀爬、脚部 IK 及其他普通角色移动和动画功能继续按 ALS 的既定目标验证。这项豁免仅适用于布娃娃碰撞的引擎差异。
 
-每个刚体的 CCD 开关映射到 Avian `SweptCcd`。Avian 0.7 的扫掠 CCD 作用于刚体根实体上的碰撞体。当前 `PA_Als` 的 21 个刚体均关闭 CCD。
+每个刚体的 CCD 开关映射到 Avian `SweptCcd`。Avian 0.8 根据刚体和碰撞体的配置执行扫掠 CCD。当前 `PA_Als` 的 21 个刚体均关闭 CCD。
 
 ## 快速上手
 

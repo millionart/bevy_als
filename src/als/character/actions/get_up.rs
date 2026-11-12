@@ -210,7 +210,7 @@ fn end_get_up_instance(commands: &mut Commands, character: Entity, action: Optio
 }
 
 fn discard_get_up_target(
-    event: On<Discard, AnimationGraphPlayer>,
+    event: On<Discard<AnimationGraphPlayer>>,
     states: Query<(Entity, &AlsGetUpState, Option<&AlsNotifyLocomotionAction>)>,
     mut commands: Commands,
 ) {

@@ -323,6 +323,7 @@ fn root_motion_clip_forwards_graph_clip_events() {
                 clip: handle.clone(),
                 root_motion_mode: RootMotionMode::Disabled,
                 root_motion_bone: None,
+                loop_animation: false,
             },
         ),
         handle,

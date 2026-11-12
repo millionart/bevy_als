@@ -22,21 +22,21 @@ incremental = false
 default = []
 
 [dependencies]
-bevy = { version = "0.19", features = ["file_watcher", "tga", "pbr_clustered_decals"] }
-bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", branch = "codex/bevy-als-support", features = ["physics_avian"] }
-bevy_enhanced_input = "0.26"
-bevy_gameplay_tag = { git = "https://github.com/SuitedRioter/bevy_gameplay_tag", rev = "1ed503fdd60de3456a96ecce7ade33f0a06bfde1" }
-avian3d = { version = "0.7", default-features = false, features = ["3d", "debug-plugin", "parallel"] }
-parry3d-f64 = { version = "0.27", default-features = false, features = ["alloc", "std", "required-features"] }
-bevy-tnua = { git = "https://github.com/millionart/bevy-tnua", branch = "main" }
-bevy-tnua-avian3d = { git = "https://github.com/millionart/bevy-tnua", branch = "main" }
+bevy = { version = "0.20.1", features = ["file_watcher", "tga", "pbr_clustered_decals"] }
+bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", rev = "6d706f61c35a6cf7b1c96430a56ae46241b4d51f", features = ["physics_avian"] }
+bevy_enhanced_input = "0.27"
+bevy_gameplay_tag = { git = "https://github.com/millionart/bevy_gameplay_tag", rev = "30a41183ac0705e6b7b483d0a72f0ca70510327e" }
+avian3d = { version = "0.8", default-features = false, features = ["3d", "debug-plugin", "parallel"] }
+parry3d-f64 = { version = "0.31", default-features = false, features = ["alloc", "std", "required-features"] }
+bevy-tnua = { version = "0.33.2", git = "https://github.com/millionart/bevy-tnua", rev = "e7639530e98c1c67da1e6b66eeee7da0bcac2351" }
+bevy-tnua-avian3d = { version = "0.13.1", git = "https://github.com/millionart/bevy-tnua", rev = "e7639530e98c1c67da1e6b66eeee7da0bcac2351" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
 ron = "0.10"
-bevy_gltf = "0.19"
+bevy_gltf = "0.20.1"
 
 [dev-dependencies]
-bevy_animation_graph_editor = { git = "https://github.com/millionart/bevy_animation_graph", branch = "codex/bevy-als-support" }
+bevy_animation_graph_editor = { git = "https://github.com/millionart/bevy_animation_graph", rev = "6d706f61c35a6cf7b1c96430a56ae46241b4d51f" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 
 [[bin]]

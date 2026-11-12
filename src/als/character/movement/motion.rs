@@ -1,6 +1,7 @@
+use avian3d::dynamics::solver::solver_body::{SolverBodies, SolverBodyIndex};
 use avian3d::prelude::{
     AngularVelocity, Collider, ColliderOf, CollisionLayers, CollisionStart, Collisions, ComputedCenterOfMass, ComputedMass, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSchedule, PhysicsStepSystems, PhysicsSystems, Position, Rotation,
-    Forces, RigidBody, RigidBodyDisabled, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter, SpeculativeMargin,
+    Forces, RigidBody, RigidBodyDisabled, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter, SpeculativeCcd,
     ReadRigidBodyForces, WriteRigidBodyForces,
 };
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
@@ -3134,14 +3135,14 @@ fn release_custom_movement_physics(
 
 fn custom_movement_velocity_system(
     time: Res<Time<avian3d::prelude::Physics>>,
-    mut characters: Query<(&LocomotionState, Option<&AlsMantleState>,
-        Has<AlsCustomMovementPhysicsFrame>,
-        &mut avian3d::dynamics::solver::solver_body::SolverBody), With<AlsCharacter>>,
+    mut solver_bodies: ResMut<SolverBodies>,
+    characters: Query<(&LocomotionState, Option<&AlsMantleState>,
+        Has<AlsCustomMovementPhysicsFrame>, &SolverBodyIndex), With<AlsCharacter>>,
 ) {
     if time.delta_secs() < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { return; }
-    for (mode, mantle, root_frame, mut body) in &mut characters {
+    for (mode, mantle, root_frame, index) in &characters {
         if *mode == LocomotionState::Custom && mantle.is_none_or(|state| !state.active && !state.root_motion_ready)
-            && !root_frame {
+            && !root_frame && let Some(body) = solver_bodies.get_mut(*index) {
             body.linear_velocity = Vec3::ZERO;
         }
     }
@@ -4999,7 +5000,7 @@ pub(crate) fn cmc_movement_transaction_system(
             &Collider,
             &LinearVelocity,
             &mut TnuaMotor,
-            &mut SpeculativeMargin,
+            &mut SpeculativeCcd,
             &mut AlsCmcAdapterRuntime,
             &AlsEffectiveGravity,
             &mut LocomotionState,
@@ -5045,7 +5046,7 @@ pub(crate) fn cmc_movement_transaction_system(
             roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)
                 || mantle.is_some_and(|state| state.active));
         let delta_seconds = time.delta_secs() * custom_dilations.get(entity).map_or(1.0, |value| value.0);
-        *margin = SpeculativeMargin::MAX;
+        *margin = SpeculativeCcd::MAX;
         runtime.grounded_move_start = None;
         if *loco == LocomotionState::Air
             && let Ok((RigidBody::Dynamic, volume, false)) = physics_modes.get(entity)
@@ -5080,7 +5081,7 @@ pub(crate) fn cmc_movement_transaction_system(
             motor.lin.boost = -velocity.0;
             motor.lin.acceleration = -gravity.value;
             if mode == LocomotionState::None { *motor = default(); }
-            *margin = SpeculativeMargin::ZERO;
+            *margin = SpeculativeCcd::ZERO;
             drop(transform);
             drop(transform_query);
             if mode == LocomotionState::Grounded && let Ok(mut binding) = movement_bases.get_mut(entity) {
@@ -5103,7 +5104,7 @@ pub(crate) fn cmc_movement_transaction_system(
             if delta.length_squared() <= f32::EPSILON {
                 motor.lin.boost = -velocity.0;
                 motor.lin.acceleration = -gravity.value;
-                *margin = SpeculativeMargin::ZERO;
+                *margin = SpeculativeCcd::ZERO;
                 continue;
             }
         }
@@ -5182,7 +5183,7 @@ pub(crate) fn cmc_movement_transaction_system(
             motor.lin.boost.y = -velocity.y;
             motor.lin.acceleration.y = -gravity.value.y;
             if *loco == LocomotionState::None { *motor = default(); }
-            *margin = SpeculativeMargin::ZERO;
+            *margin = SpeculativeCcd::ZERO;
             drop(transform);
             drop(transform_query);
             if *loco == LocomotionState::Grounded && let Ok(mut binding) = movement_bases.get_mut(entity) {
@@ -5274,7 +5275,7 @@ pub(crate) fn cmc_movement_transaction_system(
                     motor.lin.boost = -velocity.0;
                     motor.lin.acceleration = -gravity.value;
                     if mode == LocomotionState::None { *motor = default(); }
-                    *margin = SpeculativeMargin::ZERO;
+                    *margin = SpeculativeCcd::ZERO;
                     drop(transform);
                     drop(transform_query);
                     if mode == LocomotionState::Grounded && let Ok(mut binding) = movement_bases.get_mut(entity) {
@@ -5286,7 +5287,7 @@ pub(crate) fn cmc_movement_transaction_system(
         };
         motor.lin.boost.y = -velocity.y;
         motor.lin.acceleration.y = -gravity.value.y;
-        *margin = SpeculativeMargin::ZERO;
+        *margin = SpeculativeCcd::ZERO;
         let destination = if stepped_up { advanced.with_y(next_y) }
             else { (advanced + remaining.unwrap_or(delta)).with_y(next_y) };
         let floor = find_ground_floor(&spatial_query, destination, half, radius, &params.cmc, *loco,
@@ -5610,7 +5611,7 @@ fn resolve_stationary_floor_state(
     params_assets: Res<Assets<AlsMovementParams>>,
     mut characters: Query<(Entity, &Position, &Transform, Option<&ChildOf>, &Collider, &mut LocomotionState,
         &Stance, &AlsMovementParamsHandle, &LinearVelocity, &AlsEffectiveGravity,
-        &mut TnuaMotor, &mut SpeculativeMargin, &mut AlsCmcAdapterRuntime,
+        &mut TnuaMotor, &mut SpeculativeCcd, &mut AlsCmcAdapterRuntime,
         (Option<&mut crate::als::dynamics::AlsMovementBase>, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>),
         Option<&crate::als_camera::AlsCameraCustomTimeDilation>), With<AlsCharacter>>,
 ) {
@@ -5657,7 +5658,7 @@ fn resolve_stationary_floor_state(
         runtime.post_collision_mode = Some(*mode);
         motor.lin.boost.y = -velocity.y;
         motor.lin.acceleration.y = -gravity.value.y;
-        *margin = SpeculativeMargin::ZERO;
+        *margin = SpeculativeCcd::ZERO;
     }
 }
 
@@ -7960,7 +7961,7 @@ mod tests {
         let points: Vec<_> = [-0.5, 0.5].into_iter().flat_map(|x| {
             [-0.5, 0.5].into_iter().flat_map(move |y| [-0.5, 0.5].map(move |z| Vec3::new(x, y, z)))
         }).collect();
-        let convex = Collider::convex_hull(points).unwrap();
+        let convex = Collider::convex_hull(&points).unwrap();
         let mesh = Collider::trimesh(vec![
             Vec3::new(-0.5, -0.5, -0.5), Vec3::new(-0.5, -0.5, 0.5),
             Vec3::new(-0.5, 0.5, 0.5), Vec3::new(-0.5, 0.5, -0.5), Vec3::new(0.5, 0.5, 0.5),
@@ -7997,7 +7998,7 @@ mod tests {
                 points.extend([Vec3::new(-1.0, 0.08 - slope, z), Vec3::new(0.0, 0.08, z),
                     Vec3::new(-1.0, -3.0, z), Vec3::new(0.0, -3.0, z)]);
             }
-            app.world_mut().spawn((RigidBody::Static, Collider::convex_hull(points).unwrap(), Transform::IDENTITY));
+            app.world_mut().spawn((RigidBody::Static, Collider::convex_hull(&points).unwrap(), Transform::IDENTITY));
             let actor = app.world_mut().spawn_empty().id();
             app.update();
             app.update();

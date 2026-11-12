@@ -45,7 +45,7 @@ pub struct PlaygroundSkySettings {
 }
 
 impl Material for PlaygroundSkyMaterial {
-    fn fragment_shader() -> ShaderRef { "ALSExtras/Environment/Sky/playground_sky.wgsl".into() }
+    fn fragment_shader() -> ShaderRef { "ALSExtras/Environment/Sky/playground_sky.wesl".into() }
 }
 
 pub struct PlaygroundSkyPlugin;

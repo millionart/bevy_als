@@ -350,7 +350,7 @@ mod tests {
             points.extend([Vec3::new(-1.0, 0.08 - slope, z), Vec3::new(0.0, 0.08, z),
                 Vec3::new(-1.0, -3.0, z), Vec3::new(0.0, -3.0, z)]);
         }
-        Collider::convex_hull(points).unwrap()
+        Collider::convex_hull(&points).unwrap()
     }
 
     #[test]

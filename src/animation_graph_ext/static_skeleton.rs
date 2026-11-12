@@ -63,7 +63,7 @@ fn build_skeleton(world: &World, root_name: &str) -> Result<Skeleton, Error> {
         return Err(invalid());
     }
     let mut skeleton = Skeleton::default();
-    skeleton.set_root(EntityPath::default().child(root_name).id());
+    skeleton.set_root(EntityPath::default().child(root_name.to_owned()).id());
     let mut pending = vec![(root, EntityPath::default(), Transform::IDENTITY)];
     while let Some((entity, parent, parent_transform)) = pending.pop() {
         let name = world.get::<Name>(entity).ok_or_else(invalid)?;

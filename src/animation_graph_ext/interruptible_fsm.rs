@@ -6995,6 +6995,7 @@ mod tests {
                     &env,
                     Entity::PLACEHOLDER,
                     &entities,
+                    &mut gizmos,
                     &inputs,
                 );
                 let mut context = context.create_node_context(node_id);

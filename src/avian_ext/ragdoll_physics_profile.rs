@@ -8,7 +8,7 @@ use avian3d::prelude::{
     Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SphericalJoint, Substeps,
 };
 use avian3d::dynamics::integrator::{IntegrationSystems, VelocityIntegrationData, pre_process_velocity_increments};
-use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
+use avian3d::dynamics::solver::solver_body::{SolverBodies, SolverBodyFlags, SolverBodyIndex, SolverBodyInertia};
 use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
 use avian3d::collider_tree::{ColliderTreeProxyKey, ColliderTrees, MovedProxies};
 use avian3d::schedule::LastPhysicsTick;
@@ -702,7 +702,7 @@ impl RagdollSpatialQuery<'_, '_> {
         use crate::extensions::source_capsule_sweep::{capsule_cuboid_sweep, CapsuleSweepResult};
 
         let swept_pose = Pose3::from_parts(origin, rotation);
-        let bounds = shape.aabb(origin, rotation);
+        let bounds = shape.aabb(origin, rotation, 0.0);
         let mut best_rank = config.max_distance;
         let mut closest = None;
         for tree in self.trees.iter_trees() {
@@ -942,14 +942,16 @@ fn enable_source_ragdoll_rotation(
 pub(crate) fn integrate_source_ragdoll_rotation(
     frame: Res<Time<Physics>>,
     step: Res<Time>,
-    mut bodies: Query<(&mut SolverBody, &mut SourceRagdollFrameRotation)>,
+    mut solver_bodies: ResMut<SolverBodies>,
+    mut bodies: Query<(&SolverBodyIndex, &mut SourceRagdollFrameRotation)>,
 ) {
-    for (mut body, mut state) in &mut bodies {
+    for (index, mut state) in &mut bodies {
+        let Some(body) = solver_bodies.get_mut(*index) else { continue; };
         let velocity = body.linear_velocity;
         body.delta_position += velocity * step.delta_secs();
         if !state.integrated {
             let angular = body.angular_velocity * (0.5 * frame.delta_secs());
-            body.delta_rotation.0 = (Quat::from_xyzw(angular.x, angular.y, angular.z, 1.0) * body.delta_rotation.0).normalize();
+            body.delta_rotation = (Quat::from_xyzw(angular.x, angular.y, angular.z, 1.0) * body.delta_rotation).normalize();
             state.integrated = true;
         }
     }
@@ -979,7 +981,8 @@ fn update_profile_sleep(
     islands: Res<PhysicsIslands>,
     time: Res<Time>,
     time_to_sleep: Res<avian3d::prelude::TimeToSleep>,
-    mut bodies: Query<(&BodyIslandNode, &RigidBody, &SolverBody, &Rotation, &ComputedCenterOfMass, &mut SourceBodySleep,
+    solver_bodies: Res<SolverBodies>,
+    mut bodies: Query<(&BodyIslandNode, &RigidBody, &SolverBodyIndex, &Rotation, &ComputedCenterOfMass, &mut SourceBodySleep,
         Has<avian3d::prelude::SleepingDisabled>, Has<avian3d::prelude::Sleeping>)>,
     other_bodies: Query<(&BodyIslandNode, &avian3d::prelude::SleepTimer,
         Has<avian3d::prelude::SleepingDisabled>), Without<SourceBodySleep>>,
@@ -991,7 +994,8 @@ fn update_profile_sleep(
         previous_connected.get(&entity).copied().unwrap_or(false).then_some(node.island_id().0)
     }).collect::<bevy::platform::collections::HashSet<_>>();
     let mut groups = bevy::platform::collections::HashMap::<u32, (i32, i32, bool, bool)>::default();
-    for (node, mode, solver, rotation, center, mut sleep, disabled, sleeping) in &mut bodies {
+    for (node, mode, index, rotation, center, mut sleep, disabled, sleeping) in &mut bodies {
+        let Some(solver) = solver_bodies.get(*index) else { continue; };
         if !mode.is_dynamic() {
             sleep.counter = 0;
             sleep.smooth_linear = solver.linear_velocity;
@@ -1007,9 +1011,9 @@ fn update_profile_sleep(
                 sleep.smooth_angular = solver.angular_velocity;
             } else {
                 let world_center = rotation.0 * center.0;
-                let origin_delta = solver.delta_position + (solver.delta_rotation.0.conjugate() * world_center - world_center);
+                let origin_delta = solver.delta_position + (solver.delta_rotation.conjugate() * world_center - world_center);
                 sleep.smooth_linear = sleep.smooth_linear.lerp(origin_delta / time.delta_secs(), smooth_rate);
-                let delta = solver.delta_rotation.0;
+                let delta = solver.delta_rotation;
                 let delta = if delta.w < 0.0 { -delta } else { delta };
                 let angular = Vec3::new(delta.x, delta.y, delta.z) * (2.0 / time.delta_secs());
                 sleep.smooth_angular = sleep.smooth_angular.lerp(angular, smooth_rate);
@@ -1064,21 +1068,25 @@ fn initialize_profile_dof(mut bodies: Query<(&RigidBody, &Position, &Rotation, &
 
 #[allow(clippy::type_complexity)]
 fn condition_profile_solver_inertia(
-    mut bodies: Query<(Entity, &RigidBody, &Rotation, &avian3d::prelude::ComputedMass,
+    mut solver_bodies: ResMut<SolverBodies>,
+    bodies: Query<(Entity, &RigidBody, &Rotation, &avian3d::prelude::ComputedMass,
         &avian3d::prelude::ComputedAngularInertia, &avian3d::prelude::ComputedCenterOfMass,
-        &SourceInertiaConditioningSettings, Option<&SourceBodyDof>, &SolverBody, &mut avian3d::dynamics::solver::solver_body::SolverBodyInertia)>,
+        &SourceInertiaConditioningSettings, Option<&SourceBodyDof>, &SolverBodyIndex)>,
     colliders: Query<(&Collider, &avian3d::prelude::ColliderOf, &avian3d::prelude::ColliderTransform)>,
     joints: Query<&SourcePhysicsJoint, Without<JointDisabled>>,
 ) {
-    for (entity, mode, rotation, mass, angular, com, settings, dof, body, mut solver) in &mut bodies {
+    for (entity, mode, rotation, mass, angular, com, settings, dof, index) in &bodies {
         if !mode.is_dynamic() { continue; }
+        let Some(body) = solver_bodies.get(*index) else { continue; };
+        let delta_rotation = body.delta_rotation;
+        let Some(solver) = solver_bodies.get_inertia_mut(*index) else { continue; };
         let principal = AngularInertia::from_tensor(angular.inverse());
         let local_basis = Mat3::from_quat(principal.local_frame.conjugate());
         let mut min = Vec3::splat(f32::INFINITY);
         let mut max = Vec3::splat(f32::NEG_INFINITY);
         for (shape, owner, transform) in &colliders {
             if owner.body != entity { continue; }
-            let pose = avian3d::parry::math::Pose3::from_parts(transform.translation, transform.rotation.0);
+            let pose = avian3d::parry::math::Pose3::from_parts(transform.translation, transform.rotation);
             let bounds = shape.shape_scaled().compute_aabb(&pose);
             min = min.min(bounds.mins);max = max.max(bounds.maxs);
         }
@@ -1094,42 +1102,45 @@ fn condition_profile_solver_inertia(
             extents = extents.max((local_basis * -com.0).abs());
         }
         let scale = settings.inverse_scale(mass.inverse(), principal.principal, extents);
-        let basis = Mat3::from_quat(body.delta_rotation.0 * rotation.0 * principal.local_frame);
-        let inverse = avian3d::math::SymmetricMatrix::from_mat3_unchecked(
+        let basis = Mat3::from_quat(delta_rotation * rotation.0 * principal.local_frame);
+        let inverse = avian3d::math::SymmetricTensor::from_mat3_unchecked(
             basis * Mat3::from_diagonal(principal.principal * scale) * basis.transpose());
-        *solver = avian3d::dynamics::solver::solver_body::SolverBodyInertia::new(mass.inverse(), inverse,
+        *solver = SolverBodyInertia::new(mass.inverse(), inverse,
             solver.flags().locked_axes(), solver.dominance() as i8, true);
     }
 }
 
 fn solve_profile_dof(
-    mut bodies: Query<(&RigidBody, &Position, &Rotation, &avian3d::prelude::ComputedCenterOfMass,
-        &SourceBodyDof, &avian3d::dynamics::solver::solver_body::SolverBodyInertia, &mut SolverBody),
+    mut solver_bodies: ResMut<SolverBodies>,
+    bodies: Query<(&RigidBody, &Position, &Rotation, &avian3d::prelude::ComputedCenterOfMass,
+        &SourceBodyDof, &SolverBodyIndex),
         Without<avian3d::prelude::RigidBodyDisabled>>,
 ) {
-    for (mode, position, rotation, com, dof, inertia, mut body) in &mut bodies {
+    for (mode, position, rotation, com, dof, index) in &bodies {
         let Some(anchor) = dof.anchor.filter(|_| mode.is_dynamic()) else { continue; };
+        let Some(inertia) = solver_bodies.get_inertia(*index) else { continue; };
         let translation_locked = [dof.axes.is_translation_x_locked(), dof.axes.is_translation_y_locked(), dof.axes.is_translation_z_locked()];
         let rotation_locked = [dof.axes.is_rotation_x_locked(), dof.axes.is_rotation_y_locked(), dof.axes.is_rotation_z_locked()];
         let inverse_mass = inertia.effective_inv_mass();
         let inverse_angular = inertia.effective_inv_angular_inertia();
+        let Some(body) = solver_bodies.get_mut(*index) else { continue; };
         for _ in 0..dof.settings.position_iterations {
             for index in 0..3 {
                 if !rotation_locked[index] { continue; }
-                let mut relative = (body.delta_rotation.0 * rotation.0 * anchor.rotation.conjugate()).normalize();
+                let mut relative = (body.delta_rotation * rotation.0 * anchor.rotation.conjugate()).normalize();
                 if relative.w < 0.0 { relative = -relative; }
                 let vector = Vec3::new(relative.x, relative.y, relative.z);
                 let axis = 0.5 * (Vec3::AXES[index] * relative.w + vector.cross(Vec3::AXES[index]));
                 let response = inverse_angular * axis;
                 let denominator = axis.dot(response);
                 if denominator > f32::EPSILON {
-                    body.delta_rotation.0 = (Quat::from_scaled_axis(-response * vector[index] / denominator) * body.delta_rotation.0).normalize();
+                    body.delta_rotation = (Quat::from_scaled_axis(-response * vector[index] / denominator) * body.delta_rotation).normalize();
                 }
             }
             for index in 0..3 {
                 if !translation_locked[index] { continue; }
                 let axis = Vec3::AXES[index];
-                let arm = -(body.delta_rotation.0 * rotation.0 * com.0);
+                let arm = -(body.delta_rotation * rotation.0 * com.0);
                 let angular_axis = arm.cross(axis);
                 let response = inverse_angular * angular_axis;
                 let denominator = inverse_mass[index] + angular_axis.dot(response);
@@ -1137,14 +1148,14 @@ fn solve_profile_dof(
                 if denominator > f32::EPSILON {
                     let lambda = (origin[index] - anchor.translation[index]) / denominator;
                     body.delta_position -= inverse_mass * axis * lambda;
-                    body.delta_rotation.0 = (Quat::from_scaled_axis(-response * lambda) * body.delta_rotation.0).normalize();
+                    body.delta_rotation = (Quat::from_scaled_axis(-response * lambda) * body.delta_rotation).normalize();
                 }
             }
         }
         for _ in 0..dof.settings.velocity_iterations {
             for index in 0..3 {
                 if rotation_locked[index] {
-                    let relative = (body.delta_rotation.0 * rotation.0 * anchor.rotation.conjugate()).normalize();
+                    let relative = (body.delta_rotation * rotation.0 * anchor.rotation.conjugate()).normalize();
                     let vector = Vec3::new(relative.x, relative.y, relative.z);
                     let axis = 0.5 * (Vec3::AXES[index] * relative.w + vector.cross(Vec3::AXES[index]));
                     let response = inverse_angular * axis;
@@ -1155,7 +1166,7 @@ fn solve_profile_dof(
                     }
                 }
                 if translation_locked[index] {
-                    let arm = -(body.delta_rotation.0 * rotation.0 * com.0);
+                    let arm = -(body.delta_rotation * rotation.0 * com.0);
                     let angular_axis = arm.cross(Vec3::AXES[index]);
                     let response = inverse_angular * angular_axis;
                     let denominator = inverse_mass[index] + angular_axis.dot(response);
@@ -1194,10 +1205,13 @@ fn set_joint_collision_disabled(world: &mut World, joint: Entity, colliders: &[E
 }
 
 fn disable_ragdoll_gyroscopic_torque(
-    mut bodies: Query<&mut SolverBody, With<RagdollGyroscopicTorqueDisabled>>,
+    mut solver_bodies: ResMut<SolverBodies>,
+    bodies: Query<&SolverBodyIndex, With<RagdollGyroscopicTorqueDisabled>>,
 ) {
-    for mut body in &mut bodies {
-        body.flags.remove(SolverBodyFlags::GYROSCOPIC_MOTION);
+    for index in &bodies {
+        if let Some(body) = solver_bodies.get_mut(*index) {
+            body.flags.remove(SolverBodyFlags::GYROSCOPIC_MOTION);
+        }
     }
 }
 
@@ -1466,7 +1480,10 @@ fn apply_profile_to_spawned_ragdoll(
             }
         });
         if body.ccd_enabled {
-            commands.entity(*body_entity).insert(avian3d::prelude::SweptCcd::LINEAR);
+            use avian3d::dynamics::ccd::{CcdFilter, SweepMode, SweptCcd};
+            commands.entity(*body_entity).insert(
+                SweptCcd::new().with_mode(SweepMode::Linear).with_filter(CcdFilter::ALL).with_threshold(0.0),
+            );
         } else {
             commands.entity(*body_entity).remove::<avian3d::prelude::SweptCcd>();
         }
@@ -1788,6 +1805,7 @@ fn joint_anchor_distance(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extensions::source_physics_joint::solver_body_fixture;
 
     #[test]
     fn source_ragdoll_shape_restitution_tracks_body_material() {
@@ -2473,8 +2491,8 @@ mod tests {
                         ConstantLocalAngularAcceleration(local_angular)));
                 }
                 app.update();
-                let solver = app.world().get::<SolverBody>(first).unwrap();
-                let delta = solver.delta_rotation.0;
+                let solver = solver_body_fixture::get(app.world(), first).unwrap();
+                let delta = solver.delta_rotation;
                 let angular_step = Vec3::new(delta.x, delta.y, delta.z) * (2.0 / dt);
                 let expected_linear = ((world_linear + local_linear) * (0.3 / 30.0)).lerp(solver.delta_position / dt, 0.3);
                 let expected_angular = ((world_angular + local_angular) * (0.3 / 30.0)).lerp(angular_step, 0.3);
@@ -2679,10 +2697,10 @@ mod tests {
         sleep.counter = 3;
         sleep.smooth_linear = Vec3::X * 0.02;
         sleep.smooth_angular = Vec3::Y * 0.1;
-        let mut solver = app.world_mut().get_mut::<SolverBody>(first).unwrap();
+        let solver = solver_body_fixture::get_mut(app.world_mut(), first).unwrap();
         solver.linear_velocity = Vec3::ZERO; solver.angular_velocity = Vec3::ZERO;
         solver.delta_position = Vec3::X * 0.01;
-        solver.delta_rotation.0 = Quat::from_rotation_y(0.8);
+        solver.delta_rotation = Quat::from_rotation_y(0.8);
         app.world_mut().run_system_once(update_profile_sleep).unwrap();
         let sleep = app.world().get::<SourceBodySleep>(first).unwrap();
         assert!((sleep.smooth_linear.x - 0.044).abs() < 1e-6, "Source sleep smoothing uses projected position delta");
@@ -2720,11 +2738,11 @@ mod tests {
         let (mut app, body) = source_sleep_fixture(0.1, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
         for _ in 0..2 { app.update(); }
         assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 2);
-        app.world_mut().get_mut::<SolverBody>(body).unwrap().linear_velocity = Vec3::X * 0.03;
+        solver_body_fixture::get_mut(app.world_mut(), body).unwrap().linear_velocity = Vec3::X * 0.03;
         app.world_mut().run_system_once(update_profile_sleep).unwrap();
         assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 2,
             "Source isolated velocity rejection retains the existing counter");
-        app.world_mut().get_mut::<SolverBody>(body).unwrap().linear_velocity = Vec3::ZERO;
+        solver_body_fixture::get_mut(app.world_mut(), body).unwrap().linear_velocity = Vec3::ZERO;
         for step in 1..=3 {
             app.world_mut().run_system_once(update_profile_sleep).unwrap();
             assert_eq!(app.world().get::<Sleeping>(body).is_some(), step == 3,
@@ -2791,9 +2809,9 @@ mod tests {
         }
         for step in 1..=8 {
             app.world_mut().get_mut::<Rotation>(first).unwrap().0 = Quat::from_rotation_y(step as f32 * 0.004);
-            let mut solver = app.world_mut().get_mut::<SolverBody>(first).unwrap();
+            let solver = solver_body_fixture::get_mut(app.world_mut(), first).unwrap();
             solver.linear_velocity = Vec3::ZERO; solver.angular_velocity = Vec3::Y * 0.04;
-            solver.delta_position = Vec3::ZERO; solver.delta_rotation.0 = Quat::from_rotation_y(0.004);
+            solver.delta_position = Vec3::ZERO; solver.delta_rotation = Quat::from_rotation_y(0.004);
             app.world_mut().run_system_once(update_profile_sleep).unwrap();
             let sleep = app.world().get::<SourceBodySleep>(first).unwrap();
             if step >= 3 {
@@ -3414,8 +3432,8 @@ mod tests {
         assert!((disabled_velocity - initial).length() < 1e-4, "{disabled_velocity:?}");
         assert!((enabled_velocity - initial).length() > 1e-3, "{enabled_velocity:?}");
         assert!((app.world().get::<AngularVelocity>(isotropic).unwrap().0 - initial).length() < 1e-4);
-        assert!(!app.world().get::<SolverBody>(disabled).unwrap().is_gyroscopic());
-        assert!(app.world().get::<SolverBody>(enabled).unwrap().is_gyroscopic());
+        assert!(!solver_body_fixture::get(app.world(), disabled).unwrap().is_gyroscopic());
+        assert!(solver_body_fixture::get(app.world(), enabled).unwrap().is_gyroscopic());
         app.world_mut().entity_mut(disabled).remove::<RagdollGyroscopicTorqueDisabled>();
         app.world_mut().entity_mut(disabled).insert(AngularVelocity(initial));
         app.update();
@@ -3425,12 +3443,12 @@ mod tests {
         assert!((app.world().get::<AngularVelocity>(disabled).unwrap().0 - initial).length() < 1e-4);
         app.world_mut().entity_mut(disabled).insert(Sleeping);
         app.update();
-        assert!(app.world().get::<SolverBody>(disabled).is_none());
+        assert!(solver_body_fixture::get(app.world(), disabled).is_none());
         app.world_mut().entity_mut(disabled).remove::<Sleeping>();
         app.world_mut().entity_mut(disabled).insert(AngularVelocity(initial));
         app.update();
         assert!((app.world().get::<AngularVelocity>(disabled).unwrap().0 - initial).length() < 1e-4);
-        assert!(!app.world().get::<SolverBody>(disabled).unwrap().is_gyroscopic());
+        assert!(!solver_body_fixture::get(app.world(), disabled).unwrap().is_gyroscopic());
         let rebuilt = spawn(app.world_mut(), 15.0, anisotropic);
         app.world_mut().entity_mut(rebuilt).insert(RagdollGyroscopicTorqueDisabled);
         app.update();
@@ -3520,7 +3538,7 @@ mod tests {
 
     #[test]
     fn joint_and_asset_collision_switches_reach_joint_graph_and_broad_phase() {
-        use avian3d::{dynamics::solver::joint_graph::JointGraph, prelude::{Collisions, GravityScale, RigidBody}};
+        use avian3d::{dynamics::joints::joint_graph::JointGraph, prelude::{Collisions, GravityScale, RigidBody}};
         use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
         use std::time::Duration;
 
@@ -3844,7 +3862,6 @@ mod tests {
     #[test]
     fn source_body_inertia_conditioning_changes_solver_without_changing_mass() {
         use avian3d::prelude::{ComputedAngularInertia, ComputedMass, Gravity, PhysicsPlugins};
-        use avian3d::dynamics::solver::solver_body::SolverBodyInertia;
         use bevy::reflect::{PartialReflect, ReflectMut};
         use bevy_animation_graph::core::ragdoll::definition::Body;
         for enabled in [false, true] {
@@ -3874,12 +3891,12 @@ mod tests {
             app.update();app.update();
             assert_eq!(app.world().get::<ComputedMass>(body).unwrap().value(), 1.0);
             assert!((app.world().get::<ComputedAngularInertia>(body).unwrap().inverse() * Vec3::X).abs_diff_eq(Vec3::X * 600.0, 1e-3));
-            let inverse = app.world().get::<SolverBodyInertia>(body).unwrap().effective_inv_angular_inertia() * Vec3::X;
+            let inverse = solver_body_fixture::inertia(app.world(), body).unwrap().effective_inv_angular_inertia() * Vec3::X;
             let expected = if enabled { 250.0 } else { 600.0 };
             assert!(inverse.abs_diff_eq(Vec3::X * expected, 1e-3), "Body conditioning must only change solver inertia: enabled={enabled}, inverse={inverse:?}");
             if !enabled { continue; }
             let assert_inverse = |app: &App, expected: Vec3| {
-                let actual = app.world().get::<SolverBodyInertia>(body).unwrap().effective_inv_angular_inertia();
+                let actual = solver_body_fixture::inertia(app.world(), body).unwrap().effective_inv_angular_inertia();
                 for index in 0..3 {
                     assert!((actual * Vec3::AXES[index]).abs_diff_eq(Vec3::AXES[index] * expected[index], 1e-3), "conditioned inertia expected={expected:?}, axis={index}: {:?}", actual * Vec3::AXES[index]);
                 }
@@ -3951,14 +3968,14 @@ mod tests {
                 2.5 / extents.x.powi(2).max(extents.z.powi(2)), 2.5 / extents.x.powi(2).max(extents.y.powi(2)));
             let world_basis = Mat3::from_quat(body_rotation * mass_rotation);
             let expected = world_basis * Mat3::from_diagonal(diagonal) * world_basis.transpose();
-            let actual = app.world().get::<SolverBodyInertia>(body).unwrap().effective_inv_angular_inertia();
+            let actual = solver_body_fixture::inertia(app.world(), body).unwrap().effective_inv_angular_inertia();
             for axis in Vec3::AXES { assert!((actual * axis).abs_diff_eq(expected * axis, 1e-3), "actor AABB then principal frame must match the source: {:?} != {:?}", actual * axis, expected * axis); }
             assert!((app.world().get::<ComputedAngularInertia>(body).unwrap().value() * Vec3::X).abs_diff_eq(physical * Vec3::X, 1e-6));
             app.world_mut().entity_mut(body).insert(avian3d::prelude::AngularVelocity(Vec3::new(0.2, 0.4, 0.6)));
             app.update();
             let current_basis = Mat3::from_quat(app.world().get::<Rotation>(body).unwrap().0 * mass_rotation);
             let expected = current_basis * Mat3::from_diagonal(diagonal) * current_basis.transpose();
-            let actual = app.world().get::<SolverBodyInertia>(body).unwrap().effective_inv_angular_inertia();
+            let actual = solver_body_fixture::inertia(app.world(), body).unwrap().effective_inv_angular_inertia();
             for axis in Vec3::AXES { assert!((actual * axis).abs_diff_eq(expected * axis, 1e-3), "solver inertia must use the integrated pose: {:?} != {:?}", actual * axis, expected * axis); }
             app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies[0].mass_properties = Some(RagdollMassProperties {
                 mass_kg: 1.0, unclamped_mass_kg: 1.0, scale_exponent: 0.0, update_with_scale: false,
@@ -3973,7 +3990,7 @@ mod tests {
             app.update();
             assert!(app.world().get_entity(root).is_err() && app.world().get_entity(body).is_err());
             assert!(app.world().entity(fresh_body).contains::<SourceInertiaConditioningSettings>());
-            assert!((app.world().get::<SolverBodyInertia>(fresh_body).unwrap().effective_inv_angular_inertia() * Vec3::X).abs_diff_eq(Vec3::X * 250.0, 1e-3));
+            assert!((solver_body_fixture::inertia(app.world(), fresh_body).unwrap().effective_inv_angular_inertia() * Vec3::X).abs_diff_eq(Vec3::X * 250.0, 1e-3));
         }
     }
 

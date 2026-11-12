@@ -385,7 +385,7 @@ fn prepare_player_starts(
         .with_mask(crate::als::character::AlsCollisionLayer::Default);
     for (entity, player_start, start, probe, ready) in &mut starts {
         let mut start = *start;
-        for parent in transforms.iter_many(parents.iter_ancestors(entity)) {
+        for parent in transforms.iter_many(parents.iter_ancestors(entity)).filter_map(Result::ok) {
             start.translation = parent.transform_point(start.translation);
             start.rotation = parent.rotation * start.rotation;
         }

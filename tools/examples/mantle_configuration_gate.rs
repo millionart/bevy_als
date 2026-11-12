@@ -111,7 +111,7 @@ fn verify(
     mut state: ResMut<GateState>,
     spatial: SpatialQuery,
     velocities: Query<(Option<&RigidBody>, Option<&LinearVelocity>, Option<&bevy_als::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
-    permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
+    permissions: Query<Option<&AlsMantleTargetPermission>>,
     colliders: Query<&ColliderOf>,
     mut exit: MessageWriter<AppExit>,
 ) {

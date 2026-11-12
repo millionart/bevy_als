@@ -7,7 +7,7 @@ use crate::als::motion::AlsCharacterDebug;
 use avian3d::prelude::{Collider, ColliderAabb, PhysicsGizmos, PhysicsGizmoExt, SimpleCollider};
 use crate::als::{control_scheme::{AlsControlScheme, AlsControlSchemeConfig}, state::Stance};
 use bevy_tnua::TnuaConfig;
-use bevy::math::primitives::Cuboid;
+use bevy::shape::Cuboid;
 use bevy::prelude::*;
 use bevy::gizmos::{AppGizmoBuilder, config::{GizmoConfig, GizmoConfigGroup, GizmoConfigStore, GizmoLineConfig}};
 
@@ -917,7 +917,7 @@ fn draw_bounds_box_system(
         return;
     };
     let mut bounds = (action != Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling))
-        .then(|| collider.aabb(transform.translation(), transform.rotation()));
+        .then(|| collider.aabb(transform.translation(), transform.rotation(), 0.0));
     if let Some(assembly) = assembly
         && let Ok((owner, instance)) = avatars.get(assembly.avatar)
         && owner.character == character
@@ -947,7 +947,7 @@ fn mesh_debug_bounds(
     spawned.colliders.values().filter_map(|entity| {
         let (transform, collider, label) = colliders.get(*entity).ok()?;
         profile.colliders.iter().any(|entry| entry.label == label.0 && entry.consider_for_bounds)
-            .then(|| collider.aabb(transform.translation(), transform.rotation()))
+            .then(|| collider.aabb(transform.translation(), transform.rotation(), 0.0))
     }).reduce(ColliderAabb::merged)
 }
 

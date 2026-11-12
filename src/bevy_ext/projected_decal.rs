@@ -2,7 +2,7 @@ use bevy::{
     light::ClusteredDecal,
     pbr::{ExtendedMaterial, MaterialExtension, MaterialExtensionKey, MaterialExtensionPipeline},
     prelude::*,
-    render::{render_resource::{AsBindGroup, RenderPipelineDescriptor, ShaderType, SpecializedMeshPipelineError}, storage::ShaderBuffer},
+    render::{RenderApp, render_resource::{AsBindGroup, RenderPipelineDescriptor, SpecializedMeshPipelineError}, storage::ShaderBuffer},
     mesh::MeshVertexBufferLayoutRef,
     shader::ShaderRef,
 };
@@ -82,14 +82,10 @@ pub struct PackedDecalMaterial {
 #[require(Transform, Visibility, ClusteredDecal)]
 pub struct PackedDecal(pub Handle<PackedDecalMaterial>);
 
-#[derive(Clone, Default, ShaderType)]
-pub struct PackedDecalData {
-    pub local_from_world: Mat4,
-    pub color: Vec4,
-    pub material: Vec4,
-}
+type PackedDecalData = [Vec4; 6];
 
 #[derive(Resource, Clone, Default, bevy::render::extract_resource::ExtractResource)]
+#[extract_app(RenderApp)]
 pub struct PackedDecalBuffers {
     pub materials: Handle<ShaderBuffer>,
     pub probe: Handle<ShaderBuffer>,
@@ -116,7 +112,9 @@ fn probe_words(enabled: bool, request: &DecalProbeRequest) -> Vec<u32> {
 
 fn prepare_probe_request(request: Res<DecalProbeRequest>, handles: Res<PackedDecalBuffers>, mut buffers: ResMut<Assets<ShaderBuffer>>) {
     if request.is_changed() && handles.probe_enabled {
-        buffers.get_mut(&handles.probe).unwrap().set_data(probe_words(true, &request));
+        let mut probe = buffers.get_mut(&handles.probe).unwrap();
+        probe.clear();
+        probe.extend_from_slice(&probe_words(true, &request));
     }
 }
 
@@ -152,8 +150,8 @@ pub struct PackedDecalReceiverExtension {
 }
 
 impl MaterialExtension for PackedDecalReceiverExtension {
-    fn fragment_shader() -> ShaderRef { "ALS/Material/Footprint/packed_decal_receiver.wgsl".into() }
-    fn deferred_fragment_shader() -> ShaderRef { "ALS/Material/Footprint/packed_decal_receiver.wgsl".into() }
+    fn fragment_shader() -> ShaderRef { "ALS/Material/Footprint/packed_decal_receiver.wesl".into() }
+    fn deferred_fragment_shader() -> ShaderRef { "ALS/Material/Footprint/packed_decal_receiver.wesl".into() }
     fn specialize(_: &MaterialExtensionPipeline, descriptor: &mut RenderPipelineDescriptor, _: &MeshVertexBufferLayoutRef, _: MaterialExtensionKey<Self>) -> Result<(), SpecializedMeshPipelineError> {
         descriptor.label = Some(format!("als_packed_receiver_{}", descriptor.label.as_deref().unwrap_or_default()).into());
         Ok(())
@@ -263,14 +261,23 @@ fn prepare_decals(
         decal.normal_map_texture = None;
         decal.emissive_texture = None;
         decal.metallic_roughness_texture = Some(material.texture.clone());
-        values.push(PackedDecalData { local_from_world: transform.affine().inverse().into(), color: material.color,
-            material: Vec4::new(material.roughness_scale, material.metallic, material.specular, 0.0) });
+        let local_from_world = Mat4::from(transform.affine().inverse());
+        values.push([
+            local_from_world.x_axis,
+            local_from_world.y_axis,
+            local_from_world.z_axis,
+            local_from_world.w_axis,
+            material.color,
+            Vec4::new(material.roughness_scale, material.metallic, material.specular, 0.0),
+        ]);
     }
     let required = values.len().max(1);
     if required > handles.capacity { handles.capacity = required.next_power_of_two(); }
     values.resize(handles.capacity, default());
-    if handles.probe_enabled { for value in &mut values { value.material.w = frame.0 as f32; } }
-    buffers.get_mut(&handles.materials).unwrap().set_data(values);
+    if handles.probe_enabled { for value in &mut values { value[5].w = frame.0 as f32; } }
+    let mut materials = buffers.get_mut(&handles.materials).unwrap();
+    materials.clear();
+    materials.extend_from_slice(&values);
 }
 
 fn prepare_receivers(
@@ -317,8 +324,8 @@ fn capture_decal_pipelines(
     decals: Res<bevy::pbr::decal::clustered::RenderClusteredDecals>,
     buffers: Res<PackedDecalBuffers>,
     gpu_buffers: Res<bevy::render::render_asset::RenderAssets<bevy::render::storage::GpuShaderBuffer>>,
-    material_bindings: Res<bevy::pbr::RenderMaterialBindings>,
-    allocators: Res<bevy::pbr::MaterialBindGroupAllocators>,
+    material_bindings: Res<bevy::render::material_bind_groups::RenderMaterialBindings>,
+    allocators: Res<bevy::render::material_bind_groups::MaterialBindGroupAllocators>,
     frame: Res<bevy::diagnostic::FrameCount>,
 ) {
     use bevy::render::render_resource::{CachedPipelineState, PipelineDescriptor};
@@ -353,7 +360,7 @@ fn capture_decal_pipelines(
         }
         groups.sort_unstable();
         let snapshot = DecalBindingSnapshot { frame: frame.0, logical_buffer: format!("{:?}", buffers.materials.id()),
-            gpu_buffer: format!("{:?}", gpu.buffer.id()), bytes: gpu.buffer_descriptor.size, receiver_bind_groups: groups };
+            gpu_buffer: format!("{:?}", gpu.buffer.id()), bytes: gpu.buffer.size(), receiver_bind_groups: groups };
         if current.bindings.last().is_none_or(|last| last.gpu_buffer != snapshot.gpu_buffer || last.receiver_bind_groups != snapshot.receiver_bind_groups) {
             current.bindings.push(snapshot);
         }
@@ -418,7 +425,7 @@ mod tests {
         let mut standard_events = app.world().resource::<Messages<AssetEvent<PackedDecalReceiverMaterial>>>().get_cursor_current();
         let mut tile_events = app.world().resource::<Messages<AssetEvent<PlaygroundTilesMaterial>>>().get_cursor_current();
         let mut alive = Vec::new();
-        let element_size = app.world().resource::<Assets<ShaderBuffer>>().get(&handles.materials).unwrap().data.as_ref().unwrap().len();
+        let element_size = app.world().resource::<Assets<ShaderBuffer>>().get(&handles.materials).unwrap().buffer_size();
         let mut previous_size = element_size;
         let mut failures = Vec::new();
         for count in [1, 2, 3, 2, 1, 0, 17, 33, 257, 0] {
@@ -426,8 +433,8 @@ mod tests {
             while alive.len() > count { app.world_mut().despawn(alive.pop().unwrap()); }
             app.update();
             assert_eq!(app.world().resource::<PackedDecalBuffers>().materials, handles.materials);
-            let size = app.world().resource::<Assets<ShaderBuffer>>().get(&handles.materials).unwrap().data.as_ref().unwrap().len();
-            assert!(size >= element_size * count.max(1), "Live decals were truncated");
+            let size = app.world().resource::<Assets<ShaderBuffer>>().get(&handles.materials).unwrap().buffer_size();
+            assert!(size >= element_size * count.max(1) as u64, "Live decals were truncated");
             let standard_changed = standard_events.read(app.world().resource::<Messages<AssetEvent<PackedDecalReceiverMaterial>>>()).any(|event|
                 matches!(event, AssetEvent::Modified { id } if *id == receiver.id()));
             let tile_changed = tile_events.read(app.world().resource::<Messages<AssetEvent<PlaygroundTilesMaterial>>>()).any(|event|
@@ -593,9 +600,9 @@ mod tests {
 
     #[test]
     fn packed_decals_modify_surface_properties_before_lighting() {
-        let decal = include_str!("../../assets/ALS/Material/Footprint/packed_decal.wgsl");
+        let decal = include_str!("../../assets/ALS/Material/Footprint/packed_decal.wesl");
         assert!(!decal.contains("apply_pbr_lighting("), "Decal still computes independent lighting before alpha blending");
-        let receiver = include_str!("../../assets/ALSExtras/Environment/Materials/playground_tiles.wgsl");
+        let receiver = include_str!("../../assets/ALSExtras/Environment/Materials/playground_tiles.wesl");
         let blend = receiver.find("apply_packed_decals(&pbr_input,").expect("Receiving material does not consume packed decals");
         let lighting = receiver.find("apply_pbr_lighting(pbr_input)").unwrap();
         assert!(blend < lighting, "Decal material properties were blended after lighting");

@@ -442,9 +442,9 @@ mod tests {
         let entity = entities.spawn_empty().id();
         let points = [-0.5, 0.5].into_iter().flat_map(|x|
             [-0.5, 0.5].into_iter().flat_map(move |y|
-                [-0.5, 0.5].into_iter().map(move |z| Vec3::new(x, y, z)))).collect();
+                [-0.5, 0.5].into_iter().map(move |z| Vec3::new(x, y, z)))).collect::<Vec<_>>();
         let collider = Collider::compound(vec![
-            (Vec3::Y * 0.5, Quat::IDENTITY, Collider::convex_hull(points).unwrap()),
+            (Vec3::Y * 0.5, Quat::IDENTITY, Collider::convex_hull(&points).unwrap()),
             (Vec3::NEG_Y, Quat::IDENTITY, Collider::sphere(0.25)),
         ]);
         let query = RigQueryContext {

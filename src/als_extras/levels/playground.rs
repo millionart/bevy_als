@@ -1215,7 +1215,7 @@ fn playground_camera_exposure_system(
         tone_luts.tony_mc_mapface = images.add(lut);
         let [minimum, maximum] = exposure.histogram_log_luminance_range;
         let compensation_curve = curves.add(AutoExposureCompensationCurve::from_curve(
-            bevy::math::cubic_splines::LinearSpline::new([
+            bevy::curve::cubic_splines::LinearSpline::new([
                 Vec2::new(minimum, exposure.compensation_ev),
                 Vec2::new(maximum, exposure.compensation_ev),
             ])).expect("Source exposure compensation must be continuous"));
@@ -1732,7 +1732,7 @@ fn world_text_mesh_system(
         let mut batches: HashMap<AssetId<Image>, WorldTextMeshBatch> = HashMap::new();
         let mut geometry_min = Vec2::splat(f32::INFINITY);
         let mut geometry_max = Vec2::splat(f32::NEG_INFINITY);
-        let mut line_rights: Vec<(usize, f32)> = Vec::new();
+        let mut line_rights: Vec<(u32, f32)> = Vec::new();
         let mut layout_characters = text
             .0
             .chars()

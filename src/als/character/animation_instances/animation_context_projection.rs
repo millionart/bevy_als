@@ -47,7 +47,7 @@ impl Plugin for AlsRootAnimationContextPlugin {
             PostUpdate,
             project_root_animation_context.in_set(AlsRootAnimationContextSet),
         )
-        .add_observer(|event: On<Discard, AnimationGraphPlayer>, mut contexts: Query<&mut AlsRootAnimationContext>| {
+        .add_observer(|event: On<Discard<AnimationGraphPlayer>>, mut contexts: Query<&mut AlsRootAnimationContext>| {
             if let Ok(mut context) = contexts.get_mut(event.entity) {
                 context.curves.clear();
             }

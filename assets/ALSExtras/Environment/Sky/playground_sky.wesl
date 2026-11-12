@@ -1,4 +1,4 @@
-#import bevy_pbr::{forward_io::{VertexOutput, FragmentOutput}, mesh_view_bindings::view}
+import bevy_pbr::render::{forward_io::{VertexOutput, FragmentOutput}, mesh_view_bindings::view};
 
 struct PlaygroundSkySettings {
     zenith: vec4<f32>, horizon: vec4<f32>, cloud: vec4<f32>, overall: vec4<f32>,
@@ -6,13 +6,13 @@ struct PlaygroundSkySettings {
     origin: vec4<f32>, constants: vec4<f32>, texture_settings: vec4<f32>, intensity: vec4<f32>,
 }
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> sky: PlaygroundSkySettings;
-@group(#{MATERIAL_BIND_GROUP}) @binding(1) var sky_clouds: texture_2d<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(2) var sky_clouds_sampler: sampler;
-@group(#{MATERIAL_BIND_GROUP}) @binding(3) var sky_blue: texture_2d<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(4) var sky_blue_sampler: sampler;
-@group(#{MATERIAL_BIND_GROUP}) @binding(5) var sky_stars: texture_2d<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(6) var sky_stars_sampler: sampler;
+@group(constants::MATERIAL_BIND_GROUP) @binding(0) var<uniform> sky: PlaygroundSkySettings;
+@group(constants::MATERIAL_BIND_GROUP) @binding(1) var sky_clouds: texture_2d<f32>;
+@group(constants::MATERIAL_BIND_GROUP) @binding(2) var sky_clouds_sampler: sampler;
+@group(constants::MATERIAL_BIND_GROUP) @binding(3) var sky_blue: texture_2d<f32>;
+@group(constants::MATERIAL_BIND_GROUP) @binding(4) var sky_blue_sampler: sampler;
+@group(constants::MATERIAL_BIND_GROUP) @binding(5) var sky_stars: texture_2d<f32>;
+@group(constants::MATERIAL_BIND_GROUP) @binding(6) var sky_stars_sampler: sampler;
 
 fn source_power(base: f32, exponent: f32) -> f32 {
     return select(pow(max(base, 0.00000002980233), exponent), 0.0, base <= 0.00000002980233);

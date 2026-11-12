@@ -413,82 +413,82 @@ pub fn als_input_bridge_system(
         cmd.aim_held = saved_aim;
         cmd.sprint_held = saved_sprint;
 
-        if let Some(mv) = moves.iter_many(actions).next() {
+        if let Some(mv) = moves.iter_many(actions).find_map(Result::ok) {
             cmd.move_dir = **mv;
         }
 
-        if let Some(mouse) = mouse_looks.iter_many(actions).next() {
+        if let Some(mouse) = mouse_looks.iter_many(actions).find_map(Result::ok) {
             cmd.look_delta = **mouse;
         }
 
-        if let Some(lk) = looks.iter_many(actions).next() {
+        if let Some(lk) = looks.iter_many(actions).find_map(Result::ok) {
             cmd.look_rate = **lk;
         }
 
-        if let Some((value, events)) = jumps.iter_many(actions).next() {
+        if let Some((value, events)) = jumps.iter_many(actions).find_map(Result::ok) {
             cmd.jump_held = **value;
             cmd.jump_pressed = **value && events.intersects(ActionEvents::FIRE | ActionEvents::CANCEL);
         }
 
-        if let Some((value, events)) = sprints.iter_many(actions).next() {
+        if let Some((value, events)) = sprints.iter_many(actions).find_map(Result::ok) {
             if events.intersects(ActionEvents::FIRE | ActionEvents::CANCEL) {
                 cmd.sprint_held = **value;
             }
         }
 
-        if let Some((value, events)) = aims.iter_many(actions).next() {
+        if let Some((value, events)) = aims.iter_many(actions).find_map(Result::ok) {
             if events.intersects(ActionEvents::FIRE | ActionEvents::CANCEL) {
                 cmd.aim_held = **value;
             }
         }
 
-        if let Some(events) = crouches.iter_many(actions).next() {
+        if let Some(events) = crouches.iter_many(actions).find_map(Result::ok) {
             cmd.crouch_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
-        if let Some(events) = rolls.iter_many(actions).next() {
+        if let Some(events) = rolls.iter_many(actions).find_map(Result::ok) {
             cmd.roll_pressed = roll_pressed_from_events(*events);
         }
 
-        if let Some(events) = walks.iter_many(actions).next() {
+        if let Some(events) = walks.iter_many(actions).find_map(Result::ok) {
             cmd.walk_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
-        if let Some(events) = ragdolls.iter_many(actions).next() {
+        if let Some(events) = ragdolls.iter_many(actions).find_map(Result::ok) {
             cmd.ragdoll_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
-        if let Some(events) = rotation_modes.iter_many(actions).next() {
+        if let Some(events) = rotation_modes.iter_many(actions).find_map(Result::ok) {
             cmd.rotation_mode_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
-        if let Some(events) = view_modes.iter_many(actions).next() {
+        if let Some(events) = view_modes.iter_many(actions).find_map(Result::ok) {
             cmd.view_mode_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
-        if let Some(events) = switch_shoulders.iter_many(actions).next() {
+        if let Some(events) = switch_shoulders.iter_many(actions).find_map(Result::ok) {
             cmd.switch_shoulder_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
         let (overlay_menus, next_overlays, previous_overlays, slomos, toggle_uis) = &mut ui_actions;
 
-        if let Some((state, _)) = overlay_menus.iter_many(actions).next() {
+        if let Some((state, _)) = overlay_menus.iter_many(actions).find_map(Result::ok) {
             cmd.overlay_menu_held = !virtual_time.is_paused() && *state == TriggerState::Fired;
         }
 
-        if let Some(state) = next_overlays.iter_many(actions).next() {
+        if let Some(state) = next_overlays.iter_many(actions).find_map(Result::ok) {
             cmd.next_overlay_mode_pressed = !virtual_time.is_paused() && *state == TriggerState::Fired;
         }
 
-        if let Some(state) = previous_overlays.iter_many(actions).next() {
+        if let Some(state) = previous_overlays.iter_many(actions).find_map(Result::ok) {
             cmd.previous_overlay_mode_pressed = !virtual_time.is_paused() && *state == TriggerState::Fired;
         }
 
-        if let Some(events) = slomos.iter_many(actions).next() {
+        if let Some(events) = slomos.iter_many(actions).find_map(Result::ok) {
             cmd.slomo_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
-        if let Some(events) = toggle_uis.iter_many(actions).next() {
+        if let Some(events) = toggle_uis.iter_many(actions).find_map(Result::ok) {
             cmd.toggle_ui_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
@@ -504,7 +504,7 @@ impl Plugin for AlsInputPlugin {
             .add_input_modifier::<StickValue>()
             .add_input_condition::<GamePauseBlocker>()
             .add_systems(PreUpdate, sync_game_pause_blockers.before(EnhancedInputSystems::Update))
-            .add_observer(|gamepad: On<Add, Gamepad>, mut settings: Query<&mut GamepadSettings>| {
+            .add_observer(|gamepad: On<Add<Gamepad>>, mut settings: Query<&mut GamepadSettings>| {
                 let mut settings = settings.get_mut(gamepad.entity).unwrap();
                 for axis in [GamepadAxis::LeftStickX, GamepadAxis::LeftStickY,
                     GamepadAxis::RightStickX, GamepadAxis::RightStickY] {

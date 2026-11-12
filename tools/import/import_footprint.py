@@ -259,7 +259,7 @@ def main():
             shutil.copyfile(raw, saved)
         assert saved.read_bytes() == raw.read_bytes()
         image = Image.open(saved)
-        shader = (args.asset_root / 'ALS/Material/Footprint/packed_decal.wgsl').read_text(encoding='utf-8')
+        shader = (args.asset_root / 'ALS/Material/Footprint/packed_decal.wesl').read_text(encoding='utf-8')
         audit_channels(named(sources, 'M_Als_Footprint_Decal'), texture, image, Image.open(raw), shader, 'mesh_view_bindings::clustered_decal_textures')
         if args.self_test:
             channel_self_test(named(sources, 'M_Als_Footprint_Decal'), texture, image, shader, 'mesh_view_bindings::clustered_decal_textures')

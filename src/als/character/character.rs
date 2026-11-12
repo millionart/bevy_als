@@ -1,7 +1,7 @@
 use avian3d::prelude::{
     SimpleCollider, Collider, ColliderDensity, ColliderMassProperties, CollisionLayers, ComputeMassProperties3d, ContactGraph, Sensor, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
     PhysicsStepSystems, PhysicsSystems, Position, RigidBody,
-    SpeculativeMargin,
+    SpeculativeCcd,
 };
 use bevy::asset::Handle;
 use bevy::prelude::*;
@@ -320,7 +320,7 @@ fn sync_child_collider_poses(
     for (local, owner, mut position, mut rotation) in &mut colliders {
         let Ok((body_position, body_rotation)) = bodies.get(owner.body) else { continue; };
         position.0 = body_position.0 + body_rotation.0 * local.translation;
-        rotation.0 = (body_rotation.0 * local.rotation.0).normalize();
+        rotation.0 = (body_rotation.0 * local.rotation).normalize();
     }
 }
 
@@ -445,7 +445,7 @@ pub struct AlsCharacterBundle {
     pub collider: Collider,
     pub sensor_shape: TnuaAvian3dSensorShape,
     pub locked_axes: LockedAxes,
-    pub speculative_margin: SpeculativeMargin,
+    pub speculative_margin: SpeculativeCcd,
     pub controller: TnuaController<AlsControlScheme>,
     pub tnua_config: TnuaConfig<AlsControlScheme>,
     pub params: AlsMovementParamsHandle,
@@ -480,7 +480,7 @@ impl AlsCharacterBundle {
             ),
             sensor_shape: als_character_ground_sensor(ALS_CHARACTER_CAPSULE_RADIUS, 0.15, 0.0),
             locked_axes: LockedAxes::ROTATION_LOCKED,
-            speculative_margin: SpeculativeMargin::MAX,
+            speculative_margin: SpeculativeCcd::MAX,
             controller: TnuaController::default(),
             tnua_config: TnuaConfig(tnua_config),
             params: AlsMovementParamsHandle(params),

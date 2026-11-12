@@ -29,7 +29,7 @@ impl Plugin for AlsAnimationVisibilityPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(PostUpdate, AlsAnimationVisibilitySet.before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics))
             .add_systems(PostUpdate, refresh_mesh_animation_visibility.in_set(AlsAnimationVisibilitySet))
-            .add_observer(|event: On<Discard, AnimationGraphPlayer>, mut commands: Commands| {
+            .add_observer(|event: On<Discard<AnimationGraphPlayer>>, mut commands: Commands| {
                 commands.entity(event.entity).try_remove::<AnimationPoseUpdateGate>();
             });
     }

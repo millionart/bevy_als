@@ -89,7 +89,7 @@ pub struct SourceAnimationInputsPlugin;
 impl Plugin for SourceAnimationInputsPlugin {
     fn build(&self, app: &mut App) {
         app.register_required_components::<AnimationGraphPlayer, SourceAnimationInputs>()
-            .add_observer(|event: On<Discard, AnimationGraphPlayer>, mut inputs: Query<&mut SourceAnimationInputs>| {
+            .add_observer(|event: On<Discard<AnimationGraphPlayer>>, mut inputs: Query<&mut SourceAnimationInputs>| {
                 if let Ok(mut inputs) = inputs.get_mut(event.entity) { *inputs = default(); }
             });
     }

@@ -34,8 +34,8 @@ pub struct PlaygroundTilesSettings {
 }
 
 impl MaterialExtension for PlaygroundTilesExtension {
-    fn fragment_shader() -> ShaderRef { "ALSExtras/Environment/Materials/playground_tiles.wgsl".into() }
-    fn deferred_fragment_shader() -> ShaderRef { "ALSExtras/Environment/Materials/playground_tiles.wgsl".into() }
+    fn fragment_shader() -> ShaderRef { "ALSExtras/Environment/Materials/playground_tiles.wesl".into() }
+    fn deferred_fragment_shader() -> ShaderRef { "ALSExtras/Environment/Materials/playground_tiles.wesl".into() }
     fn specialize(_: &bevy::pbr::MaterialExtensionPipeline, descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
         _: &bevy::mesh::MeshVertexBufferLayoutRef, _: bevy::pbr::MaterialExtensionKey<Self>) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
         descriptor.label = Some(format!("als_playground_receiver_{}", descriptor.label.as_deref().unwrap_or_default()).into());

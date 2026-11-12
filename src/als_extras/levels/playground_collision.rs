@@ -262,7 +262,7 @@ fn build_mesh_collider_template(
             Collider::compound(hulls.iter().map(|points| (
                 Vec3::ZERO,
                 Quat::IDENTITY,
-                Collider::convex_hull(points.iter().copied().map(Vec3::from_array).collect())
+                Collider::convex_hull(&points.iter().copied().map(Vec3::from_array).collect::<Vec<_>>())
                     .expect("Authored static convex hull is invalid"),
             )).collect())
         }
@@ -421,7 +421,7 @@ mod tests {
                 app.finish();
                 app.update();
                 let shape = match kind {
-                    1 => Collider::convex_hull([-4.0,4.0].into_iter().flat_map(|x| [-0.5,0.5].into_iter().flat_map(move |y| [-4.0,4.0].into_iter().map(move |z| Vec3::new(x,y,z)))).collect()).unwrap(),
+                    1 => Collider::convex_hull(&[-4.0,4.0].into_iter().flat_map(|x| [-0.5,0.5].into_iter().flat_map(move |y| [-4.0,4.0].into_iter().map(move |z| Vec3::new(x,y,z)))).collect::<Vec<_>>()).unwrap(),
                     2 | 4 => Collider::trimesh(vec![Vec3::new(-4.0,0.5,-4.0),Vec3::new(4.0,0.5,-4.0),Vec3::new(4.0,0.5,4.0),Vec3::new(-4.0,0.5,4.0)],vec![[0,2,1],[0,3,2]]),
                     _ => Collider::cuboid(8.0,1.0,8.0),
                 };
@@ -485,8 +485,8 @@ mod tests {
         let actual=app.world().get::<Collider>(root).unwrap();
         let fixture:serde_json::Value=serde_json::from_str(include_str!("../../../tools/fixtures/arch_source_simple_collision.json")).unwrap();
         let source=Collider::compound(fixture["convexes"].as_array().unwrap().iter().map(|hull|{
-            let points=hull.as_array().unwrap().iter().map(|p|Vec3::new(p[0].as_f64().unwrap() as f32,p[1].as_f64().unwrap() as f32,p[2].as_f64().unwrap() as f32)).collect();
-            (Vec3::ZERO,Quat::IDENTITY,Collider::convex_hull(points).unwrap())
+            let points=hull.as_array().unwrap().iter().map(|p|Vec3::new(p[0].as_f64().unwrap() as f32,p[1].as_f64().unwrap() as f32,p[2].as_f64().unwrap() as f32)).collect::<Vec<_>>();
+            (Vec3::ZERO,Quat::IDENTITY,Collider::convex_hull(&points).unwrap())
         }).collect());
         let capsule=Collider::capsule(0.3,1.2);
         let options=ShapeCastOptions { max_time_of_impact:3.0, ..default() };
@@ -525,7 +525,7 @@ mod tests {
                 _=>panic!("Unsupported source mesh index type"),
             };
             let complex=Collider::try_trimesh(positions.iter().copied().map(Vec3::from_array).collect(),indices.chunks_exact(3).map(|p|[p[0],p[1],p[2]]).collect()).unwrap();
-            let bounds=complex.aabb(Vec3::ZERO,Quat::IDENTITY);
+            let bounds=complex.aabb(Vec3::ZERO,Quat::IDENTITY,0.0);
             let mut mesh=Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList,default());
             mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION,positions);
             mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));

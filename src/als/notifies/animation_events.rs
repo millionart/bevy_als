@@ -1106,7 +1106,7 @@ fn dispatch_animation_events<const QUEUED: bool>(
         let current_states = runtime.sources.values()
             .flat_map(|source| source.lifecycle.active_state_ids())
             .collect::<HashSet<_>>();
-        let mut dispatched = HashSet::default();
+        let mut dispatched = HashSet::new();
         for event in queued_scales {
             match event.phase {
                 EventPhase::Begin if previous_states.contains(&event.event_id) => continue,
@@ -1550,7 +1550,7 @@ pub(crate) mod tests {
             .load::<AnimationGraph>("ALS/Character/AB_Als/AnimGraph.animgraph.ron");
         {
             let mut graphs = app.world_mut().resource_mut::<Assets<AnimationGraph>>();
-            let graph = graphs.get_mut(&graph).unwrap();
+            let mut graph = graphs.get_mut(&graph).unwrap();
             let (id, mut slot, name) = graph.nodes.values().find_map(|node| {
                 let slot = node.try_inner_downcast_ref::<SourceSlotNode>()?;
                 (slot.slot_name == "PostLocomotion").then(|| (node.id, slot.clone(), node.name.clone()))
@@ -1821,7 +1821,7 @@ pub(crate) mod tests {
         let character = app.world_mut().spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries }, AlsGroundedEntryMode::FromRoll)).id();
         app.world_mut().run_system_once(ensure_animation_event_components).unwrap();
         let mut dispatch = Schedule::default();
-        dispatch.add_systems((dispatch_animation_events, apply_grounded_entry_point_notifications).chain());
+        dispatch.add_systems((dispatch_animation_events::<false>, apply_grounded_entry_point_notifications).chain());
         dispatch.run(app.world_mut());
         for (index, tag) in tags.into_iter().enumerate() {
             app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(character).unwrap().entries[0].time = 0.2 + index as f32 * 0.2;
