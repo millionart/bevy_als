@@ -1221,6 +1221,8 @@ mod tests {
         let right = "dc05dc35-4a57-916b-bb5f-4daba6b11c61";
         for valid in [false, true] {
             for history in [-0.8_f32, 0.8] {
+                let retained_crossing = history.max(0.0);
+                let current_crossing = (-history).max(0.0);
                 let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
                 app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
                 for _ in 0..5 { app.update(); }
@@ -1239,10 +1241,10 @@ mod tests {
                     let mut feet = app.world_mut().get_mut::<AlsFootLockState>(actor).unwrap();
                     feet.valid = valid;
                     feet.foot_planted_amount = history;
-                    feet.feet_crossing_amount = 0.2;
+                    feet.feet_crossing_amount = retained_crossing;
                     let mut context = app.world_mut().get_mut::<AlsRootAnimationContext>(entity).unwrap();
                     context.curves.insert("FootPlanted".into(), -history);
-                    context.curves.insert("FeetCrossing".into(), 0.7);
+                    context.curves.insert("FeetCrossing".into(), current_crossing);
                 }
                 app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().jump_pressed = true;
                 app.update();
@@ -1253,7 +1255,7 @@ mod tests {
                 let scalar = |key| player.get_global_input_data(key).unwrap().as_f32().unwrap();
                 let planted = if valid { -history } else { history };
                 assert_eq!(scalar("feet_state.foot_planted_amount"), planted);
-                assert_eq!(scalar("feet_state.feet_crossing_amount"), if valid { 0.7 } else { 0.2 });
+                assert_eq!(scalar("feet_state.feet_crossing_amount"), if valid { current_crossing } else { retained_crossing });
                 let arena = player.get_context_arena().unwrap();
                 let graphs = app.world().resource::<Assets<AnimationGraph>>();
                 let jump = arena.iter_context_ids().find_map(|id| {

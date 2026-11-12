@@ -7750,7 +7750,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.422自然FootTarget/Feet消费者扩展：新actual HeadBase/LocomotionInput各240被动pose证据证明首marker位置变化由Head输入delta产生，原Rig到Root的marker传递及quat归一规则逐值核验。固定本自然240 actual HeadBase/公共mesh Apply/skeleton/Forward time.5，原delta精确重放全部Head输出；仅换已证Stand raw0参考输入，下一帧原实际478脚target基线matrix精确，参考因素使60 target位置/464旋转、27 Final位置/204 Final旋转及对应27/204 actual RigInput字段改变。source compressed delta组合控制让480 marker平移保持Base，与源Head无marker位移合同一致，但该组合不全归单一D224或宣称整个Root恢复。强制撤参考因素而保留算子/consumer调用回actual original，源码字节恢复同target重编全输出恢复；证据`target/bf144/422/head-check.json`及恢复报告。这里仅扩本项实际消费者，不新增编号，局部pose前驱数据/clock/state和世界物理余差仍开。
 
 
-- [ ] BF144-D236 / P3 — Feet无效时仍刷新FeetCrossing，丢失源保留值并改变Movement规则。
+- [x] BF144-D236 / P3 — Feet无效时仍刷新FeetCrossing，丢失源保留值并改变Movement规则。 开始：2026-11-12 15:49:43 +08:00；预估结束：2026-11-12 16:09:43 +08:00。
+  - 实际结束：2026-11-12 15:52:50 +08:00；偏差：−16分53秒；结果：静态Gate PASS。D157的185401dc已修同一provider和有效性状态；fresh原生T16、目标规则与12步保留历史核对通过，撤回保留有两次翻转。扩展真实加载角色fixture覆盖0/.8双向并留到统一验证。证据 `docs/audit/bf144/d236/summary.json`。
   - Source：fresh `AlsAnimationInstance.cpp:1251–1268`在pending update将FeetState.bValid清为false；`1297–1305`的RefreshFeet先检查bValid，无效直接return，因此FeetCrossingAmount保留上次有效值。原Standing Movement T16规则同时检查HipsDirectionLockAmount≤−.5与FeetCrossingAmount≤0，已从fresh图及真实条件图核对。
   - Target：`ab_als_provider.rs:138–149,422–426`的source_pose_curve_inputs无条件把当前投影FeetCrossing clamp[0,1]并发布，不读取实际AlsFootLockState.valid/pending。图规则读取该公开字段，不能从后续foot IK是否运行补回源保留语义。
   - 最小反例：真实加载角色先在valid帧发布crossing=.8，下一受控pending帧实际Feet.valid=false、当前反馈曲线为0、hips=−1。source应保留0.800000011920929并使原T16=False，实际provider发布0、原规则求值True；反向0→.8也使应True变False。12步有效→无效→恢复矩阵中仅这2份实际invalid/pending反例失败，其余10控制一致；只恢复该字段为源保留值，全部规则结果恢复。非pending时被真实脚部系统重建为valid的请求不计作反例。
