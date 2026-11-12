@@ -122,7 +122,7 @@ impl Plugin for AlsHudPlugin {
                 (
                     sync_ui_scale,
                     toggle_ui_system,
-                    slomo_system,
+                    slomo_system.after(crate::als::view::AlsViewInputSet),
                     refresh_colors_system
                         .after(slomo_system)
                         .after(toggle_ui_system)

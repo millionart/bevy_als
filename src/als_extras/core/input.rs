@@ -1591,11 +1591,15 @@ mod tests {
             assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 + 28.0_f32.to_radians()).abs() < 1e-6, "Source view Delta for speed={speed}");
             assert!((app.world().get::<AlsViewPitch>(character).unwrap().0 - 2.0_f32.to_radians()).abs() < 1e-6);
         }
-        app.world_mut().resource_mut::<Time<Virtual>>().set_max_delta(std::time::Duration::from_secs_f32(0.05));
-        app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(0.15);
+        {
+            let mut clock = app.world_mut().resource_mut::<Time<Virtual>>();
+            clock.set_relative_speed(0.15);
+            clock.set_max_delta(std::time::Duration::from_micros(7500));
+        }
         app.world_mut().entity_mut(character).insert((AlsViewYaw(0.0), AlsViewPitch(0.0)));
         app.world_mut().write_message(MouseMotion { delta: Vec2::new(4.0, -2.0) });
         app.update();
+        assert_eq!(app.world().resource::<Time<Virtual>>().delta(), std::time::Duration::from_micros(7500));
         assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 + 16.0_f32.to_radians()).abs() < 1e-6, "Source nondilated input must preserve the effective frame clamp");
         app.world_mut().resource_mut::<Time<Virtual>>().pause();
         app.world_mut().entity_mut(character).insert((AlsViewYaw(0.0), AlsViewPitch(0.0)));

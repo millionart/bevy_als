@@ -55,10 +55,11 @@ pub fn apply_view_input_system(
     >,
 ) {
     if virtual_time.is_paused() { return; }
-    let delta_seconds = if virtual_time.effective_speed() == 0.0 {
+    let dilation = virtual_time.relative_speed();
+    let delta_seconds = if dilation == 0.0 {
         time.delta_secs()
     } else {
-        virtual_time.delta_secs() / virtual_time.effective_speed()
+        virtual_time.delta_secs() / dilation
     };
     for (mut yaw, mut pitch, command, override_command) in &mut characters {
         let effective = override_command

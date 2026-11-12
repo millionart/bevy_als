@@ -88,7 +88,11 @@ impl Plugin for OverlayModeMenuPlugin {
         app.init_resource::<AlsHudState>()
             .init_resource::<OverlayMenuState>()
             .add_systems(Startup, initialize_menu)
-            .add_systems(Update, (menu_control_system, menu_highlight_system).chain())
+            .add_systems(
+                Update,
+                (menu_control_system.after(crate::als::view::AlsViewInputSet), menu_highlight_system)
+                    .chain(),
+            )
             .add_systems(
                 PostUpdate,
                 menu_ellipsis_system

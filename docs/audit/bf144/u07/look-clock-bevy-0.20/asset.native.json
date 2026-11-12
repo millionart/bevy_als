@@ -1,0 +1,247 @@
+{
+	"format": "ue_asset_source_v1",
+	"asset_path": "/ALS/ALS/Data/Input/IA_Als_Look.IA_Als_Look",
+	"asset_class": "/Script/EnhancedInput.InputAction",
+	"asset_properties": [
+		{
+			"name": "ActionDescription",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "TextProperty",
+			"cpp_type": "FText",
+			"flags": "0x10000000000015",
+			"exported_text": "NSLOCTEXT(\"[33D840C54F30DE468AF1999493E763F8]\", \"69A6B14945EF72C6C9CC33AA18F4FA45\", \"Look\")"
+		},
+		{
+			"name": "bTriggerWhenPaused",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000215",
+			"exported_text": "False"
+		},
+		{
+			"name": "bConsumeInput",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000205",
+			"exported_text": "True"
+		},
+		{
+			"name": "bConsumesActionAndAxisMappings",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000205",
+			"exported_text": "False"
+		},
+		{
+			"name": "bReserveAllMappings",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "BoolProperty",
+			"cpp_type": "bool",
+			"flags": "0x18001040000215",
+			"exported_text": "False"
+		},
+		{
+			"name": "TriggerEventsThatConsumeLegacyKeys",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "IntProperty",
+			"cpp_type": "int32",
+			"flags": "0x18001040000205",
+			"exported_text": "0"
+		},
+		{
+			"name": "ValueType",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "EnumProperty",
+			"cpp_type": "EInputActionValueType",
+			"flags": "0x18011040000215",
+			"exported_text": "Axis2D",
+			"enum_underlying_value": "2",
+			"enum_value_name": "Axis2D"
+		},
+		{
+			"name": "AccumulationBehavior",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "EnumProperty",
+			"cpp_type": "EInputActionAccumulationBehavior",
+			"flags": "0x18041040000215",
+			"exported_text": "TakeHighestAbsoluteValue",
+			"enum_underlying_value": "0",
+			"enum_value_name": "TakeHighestAbsoluteValue"
+		},
+		{
+			"name": "Triggers",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x11400800000020D",
+			"exported_text": ""
+		},
+		{
+			"name": "Modifiers",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ArrayProperty",
+			"cpp_type": "TArray",
+			"flags": "0x11400800000020D",
+			"exported_text": "(\"/Script/EnhancedInput.InputModifierScaleByDeltaTime'/ALS/ALS/Data/Input/IA_Als_Look.IA_Als_Look:InputModifierScaleByDeltaTime_0'\")"
+		},
+		{
+			"name": "PlayerMappableKeySettings",
+			"array_index": 0,
+			"array_dim": 1,
+			"property_class": "ObjectProperty",
+			"cpp_type": "TObjectPtr<UPlayerMappableKeySettings>",
+			"flags": "0x12E08100008020D",
+			"exported_text": "None"
+		}
+	],
+	"engine_debug_fonts":
+	{
+		"tiny":
+		{
+			"size_points": 8,
+			"max_char_height": 13,
+			"style": "Light"
+		},
+		"medium":
+		{
+			"size_points": 10,
+			"max_char_height": 15,
+			"style": "Regular"
+		}
+	},
+	"blueprint_cdo_path": "None",
+	"blueprint_cdo_properties": [],
+	"blueprint_cdo_subobjects": [],
+	"asset_objects": [
+		{
+			"index": 0,
+			"object_path": "/ALS/ALS/Data/Input/IA_Als_Look.IA_Als_Look",
+			"class_path": "/Script/EnhancedInput.InputAction",
+			"properties": [
+				{
+					"name": "ActionDescription",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "TextProperty",
+					"cpp_type": "FText",
+					"flags": "0x10000000000015",
+					"exported_text": "NSLOCTEXT(\"[33D840C54F30DE468AF1999493E763F8]\", \"69A6B14945EF72C6C9CC33AA18F4FA45\", \"Look\")"
+				},
+				{
+					"name": "bTriggerWhenPaused",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000215",
+					"exported_text": "False"
+				},
+				{
+					"name": "bConsumeInput",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000205",
+					"exported_text": "True"
+				},
+				{
+					"name": "bConsumesActionAndAxisMappings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000205",
+					"exported_text": "False"
+				},
+				{
+					"name": "bReserveAllMappings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "BoolProperty",
+					"cpp_type": "bool",
+					"flags": "0x18001040000215",
+					"exported_text": "False"
+				},
+				{
+					"name": "TriggerEventsThatConsumeLegacyKeys",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "IntProperty",
+					"cpp_type": "int32",
+					"flags": "0x18001040000205",
+					"exported_text": "0"
+				},
+				{
+					"name": "ValueType",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EInputActionValueType",
+					"flags": "0x18011040000215",
+					"exported_text": "Axis2D",
+					"enum_underlying_value": "2",
+					"enum_value_name": "Axis2D"
+				},
+				{
+					"name": "AccumulationBehavior",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "EnumProperty",
+					"cpp_type": "EInputActionAccumulationBehavior",
+					"flags": "0x18041040000215",
+					"exported_text": "TakeHighestAbsoluteValue",
+					"enum_underlying_value": "0",
+					"enum_value_name": "TakeHighestAbsoluteValue"
+				},
+				{
+					"name": "Triggers",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x11400800000020D",
+					"exported_text": ""
+				},
+				{
+					"name": "Modifiers",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ArrayProperty",
+					"cpp_type": "TArray",
+					"flags": "0x11400800000020D",
+					"exported_text": "(\"/Script/EnhancedInput.InputModifierScaleByDeltaTime'/ALS/ALS/Data/Input/IA_Als_Look.IA_Als_Look:InputModifierScaleByDeltaTime_0'\")"
+				},
+				{
+					"name": "PlayerMappableKeySettings",
+					"array_index": 0,
+					"array_dim": 1,
+					"property_class": "ObjectProperty",
+					"cpp_type": "TObjectPtr<UPlayerMappableKeySettings>",
+					"flags": "0x12E08100008020D",
+					"exported_text": "None"
+				}
+			]
+		},
+		{
+			"index": 1,
+			"object_path": "/ALS/ALS/Data/Input/IA_Als_Look.IA_Als_Look:InputModifierScaleByDeltaTime_0",
+			"class_path": "/Script/EnhancedInput.InputModifierScaleByDeltaTime",
+			"properties": []
+		}
+	],
+	"graphs": []
+}
