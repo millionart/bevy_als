@@ -960,8 +960,15 @@ impl SourceGameplayTagBlendNode {
 }
 
 pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {
-    let mut output = poses.iter()
-        .map(|(pose, weight)| pose.scalar_mult(*weight))
+    blend_source_poses_with_weights(poses, poses.iter().map(|(_, weight)| *weight))
+}
+
+fn blend_source_poses_with_weights(
+    poses: &[(Pose, f32)],
+    weights: impl IntoIterator<Item = f32>,
+) -> Pose {
+    let mut output = poses.iter().zip(weights)
+        .map(|((pose, _), weight)| pose.scalar_mult(weight))
         .reduce(|accumulator, pose| accumulator.linear_add(&pose))
         .unwrap_or_default().normalize_quat();
     output.root_motion = crate::extensions::normalized_blendspace::blend_normalized_root_motion(
@@ -970,12 +977,49 @@ pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {
     output
 }
 
-pub(crate) fn blend_list_poses(mut poses: Vec<(Pose, f32)>) -> (Pose, bool) {
-    if let Some(index) = poses.iter().position(|(_, weight)| *weight >= 1.0 - 1e-5)
-        && poses.iter().enumerate().all(|(other, (_, weight))| other == index || *weight <= 1e-5) {
-        return (poses.swap_remove(index).0, true);
+pub(crate) fn blend_list_pose_and_context(
+    mut poses: Vec<(Pose, f32)>,
+    mut contexts: Vec<(AnimationContextState, f32)>,
+) -> (Pose, AnimationContextState) {
+    use crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD;
+
+    let mut curves = None;
+    let pose = match poses.as_slice() {
+        [(_, weight)] if *weight >= 1.0 - WEIGHT_THRESHOLD => {
+            curves = contexts.first_mut().map(|(context, _)|
+                (std::mem::take(&mut context.curves), context.curves_are_authoritative));
+            poses.pop().unwrap().0
+        }
+        [(_, first), (_, second)] if (first + second - 1.0).abs() <= 1e-8 => {
+            let alpha = 1.0 - first;
+            if let [(a, _), (b, _)] = contexts.as_mut_slice() {
+                let mut first_curves = std::mem::take(&mut a.curves);
+                let second_curves = std::mem::take(&mut b.curves);
+                curves = Some(if alpha.abs() <= WEIGHT_THRESHOLD {
+                    (first_curves, a.curves_are_authoritative)
+                } else if (alpha - 1.0).abs() <= WEIGHT_THRESHOLD {
+                    (second_curves, b.curves_are_authoritative)
+                } else {
+                    let lerp = |left: f32, right: f32| left + (right - left) * alpha;
+                    for (key, value) in &mut first_curves {
+                        *value = lerp(*value, second_curves.get(key).copied().unwrap_or_default());
+                    }
+                    for (key, value) in second_curves {
+                        first_curves.entry(key).or_insert_with(|| lerp(0.0, value));
+                    }
+                    (first_curves, a.curves_are_authoritative || b.curves_are_authoritative)
+                });
+            }
+            blend_source_poses_with_weights(&poses, [*first, alpha])
+        }
+        _ => blend_source_poses(&poses),
+    };
+    let mut context = blend_animation_contexts(contexts);
+    if let Some((curves, authoritative)) = curves {
+        context.curves = curves;
+        context.curves_are_authoritative = authoritative;
     }
-    (blend_source_poses(&poses), false)
+    (pose, context)
 }
 
 pub fn blend_animation_contexts(
@@ -1012,17 +1056,6 @@ pub(crate) fn blend_contexts_with_curve_accumulation(
     }))
 }
 
-pub(crate) fn blend_list_contexts(contexts: Vec<(AnimationContextState, f32)>, pass_through: bool) -> AnimationContextState {
-    let direct_curves = pass_through.then(|| contexts.iter().find(|(_, weight)| *weight >= 1.0 - 1e-5)
-        .map(|(context, _)| (context.curves.clone(), context.curves_are_authoritative)).unwrap_or_default());
-    let mut output = blend_animation_contexts(contexts);
-    if let Some((curves, authoritative)) = direct_curves {
-        output.curves = curves;
-        output.curves_are_authoritative = authoritative;
-    }
-    output
-}
-
 impl NodeLike for SourceGameplayTagBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         self.validate(&ctx)?;
@@ -1057,17 +1090,15 @@ impl NodeLike for SourceGameplayTagBlendNode {
             let (pose, context) = crate::extensions::interruptible_fsm::with_machine_weight(weight, ||
                 read_blend_list_child(&ctx, &self.pose_pin_names[index], index,
                     self.reset_child_on_activation, reset && index == active_index, &mut child_contexts))?;
-            if let Some(context) = context {
-                contexts.push((context, weight));
-            }
+            contexts.push((context.unwrap_or_default(), weight));
             poses.push((pose, weight));
         }
-        let (output, pass_through) = blend_list_poses(poses);
+        let (output, context) = blend_list_pose_and_context(poses, contexts);
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), output);
         let state = ctx.state_mut::<SourceGameplayTagBlendState>()?;
         state.child_contexts = child_contexts;
-        state.context = blend_list_contexts(contexts, pass_through);
+        state.context = context;
         Ok(())
     }
 
@@ -1180,15 +1211,12 @@ impl NodeLike for SourceBoolBlendNode {
                 read_blend_list_child(&ctx, &pin, child_index, self.reset_child_on_activation,
                     reset && child_index == index, &mut child_contexts))?;
             poses.push((pose, weight));
-            if let Some(context) = context {
-                contexts.push((context, weight));
-            }
+            contexts.push((context.unwrap_or_default(), weight));
         }
-        let (pose, pass_through) = blend_list_poses(poses);
+        let (pose, context) = blend_list_pose_and_context(poses, contexts);
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
-        ctx.state_mut::<SourceGameplayTagBlendState>()?.context =
-            blend_list_contexts(contexts, pass_through);
+        ctx.state_mut::<SourceGameplayTagBlendState>()?.context = context;
         ctx.state_mut::<SourceGameplayTagBlendState>()?.child_contexts = child_contexts;
         Ok(())
     }
@@ -1588,21 +1616,96 @@ mod tests {
         let mut other = pose.clone();
         other.bones[0].translation = Some(Vec3::Y);
         assert_ne!(blend_source_poses(&[(pose.clone(), 1.0)]).bones[0].rotation, Some(rotation));
-        assert_eq!(blend_list_poses(vec![(pose.clone(), 1.0)]), (pose.clone(), true));
-        assert_eq!(blend_list_poses(vec![(other.clone(), 0.000_005), (pose.clone(), 0.999_995)]), (pose.clone(), true));
+        assert_eq!(blend_list_pose_and_context(vec![(pose.clone(), 1.0)], Vec::new()).0, pose);
+        assert_eq!(blend_list_pose_and_context(vec![(pose.clone(), 0.999_995)], Vec::new()).0, pose);
         let inputs = vec![(pose.clone(), 0.25), (other.clone(), 0.75)];
-        assert_eq!(blend_list_poses(inputs.clone()), (blend_source_poses(&inputs), false));
-        assert_eq!(blend_list_poses(vec![(other.clone(), 1.0)]), (other, true));
+        assert_eq!(blend_list_pose_and_context(inputs.clone(), Vec::new()).0, blend_source_poses(&inputs));
+        assert_eq!(blend_list_pose_and_context(vec![(other.clone(), 1.0)], Vec::new()).0, other);
 
         let key = crate::extensions::SourceCurveName::from("Curve");
         let mut active = AnimationContextState::default();
         active.curves.insert(key.clone(), 0.75);
         active.curves_are_authoritative = true;
-        let mut inactive = AnimationContextState::default();
-        inactive.curves.insert(key.clone(), 0.25);
-        let merged = blend_list_contexts(vec![(inactive, 0.000_005), (active, 0.999_995)], true);
+        let (_, merged) = blend_list_pose_and_context(vec![(pose, 0.999_995)], vec![(active, 0.999_995)]);
         assert_eq!(merged.curves[&key], 0.75);
         assert!(merged.curves_are_authoritative);
+    }
+
+    #[test]
+    fn blend_list_pose_branches_match_native_transforms_and_curves() {
+        use bevy_animation_graph::core::context::graph_context_arena::GraphContextId;
+        use bevy_animation_graph::core::pose::{BonePose, RootMotionDelta};
+        use crate::extensions::{SourceCurveName, sync_group_phase::SourceSyncPlayerTick};
+
+        #[derive(Deserialize)]
+        struct Frame {
+            weights: Vec<f32>,
+            branch: String,
+            position: [f32; 3],
+            scale: [f32; 3],
+            curves: std::collections::HashMap<String, f32>,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            cases: Vec<Case>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d216/pose.replay.json"
+        )).unwrap();
+        let inputs = [
+            (Vec3::Y, Vec3::new(2.0, 1.0, 4.0), [("Shared", 0.2), ("BaseOnly", 0.25)]),
+            (Vec3::X, Vec3::new(1.0, 4.0, 2.0), [("Shared", 0.8), ("SprintOnly", 0.125)]),
+            (Vec3::Z, Vec3::new(4.0, 2.0, 1.0), [("Shared", 0.35), ("ThirdOnly", 0.5)]),
+        ].into_iter().enumerate().map(|(index, (translation, scale, curves))| {
+            let mut pose = Pose {
+                root_motion: Some(RootMotionDelta { translation, ..default() }), ..default()
+            };
+            pose.add_bone(BonePose { translation: Some(translation), scale: Some(scale),
+                rotation: Some(Quat::IDENTITY), ..default() }, default());
+            let context = AnimationContextState {
+                curves: curves.into_iter().map(|(key, value)| (SourceCurveName::from(key), value)).collect(),
+                curves_are_authoritative: true,
+                sync_players: vec![SourceSyncPlayerTick {
+                    identity: (GraphContextId::default(), bevy::asset::uuid::Uuid::from_u128(index as u128 + 1).into()),
+                    weight: 1.0, ..default()
+                }],
+                ..default()
+            };
+            (pose, context)
+        }).collect::<Vec<_>>();
+        for case in reference.cases {
+            for frame in case.frames {
+                let relevant = frame.weights.into_iter().enumerate()
+                    .filter(|(_, weight)| *weight > crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD)
+                    .collect::<Vec<_>>();
+                let poses = relevant.iter().map(|&(index, weight)| (inputs[index].0.clone(), weight)).collect::<Vec<_>>();
+                let contexts = relevant.iter().map(|&(index, weight)| (inputs[index].1.clone(), weight)).collect();
+                let root_motion = blend_source_poses(&poses).root_motion;
+                let (pose, context) = blend_list_pose_and_context(poses, contexts);
+                assert_eq!(pose.bones[0].translation, Some(Vec3::from_array(frame.position)), "{}", case.name);
+                let scale = pose.bones[0].scale.unwrap();
+                let expected = Vec3::from_array(frame.scale);
+                if frame.branch == "weighted" {
+                    assert!(scale.abs_diff_eq(expected, 1e-6), "{}", case.name);
+                } else {
+                    assert_eq!(scale, expected, "{}", case.name);
+                }
+                let curves: crate::extensions::SourceCurveValues = frame.curves.into_iter()
+                    .map(|(key, value)| (SourceCurveName::from(key), value)).collect();
+                assert_eq!(context.curves, curves, "{}", case.name);
+                assert_eq!(context.sync_players.iter().map(|player| player.weight).collect::<Vec<_>>(),
+                    relevant.iter().map(|(_, weight)| *weight).collect::<Vec<_>>(), "{}", case.name);
+                if frame.branch == "two" {
+                    assert_eq!(pose.root_motion, root_motion, "{}", case.name);
+                }
+            }
+        }
     }
 
     #[test]

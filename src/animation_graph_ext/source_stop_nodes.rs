@@ -3,7 +3,7 @@ use crate::extensions::animation_context::{
     pose_input_context_state,
 };
 use crate::extensions::gameplay_tag_blend::{GameplayTagBlendMode, advance_gameplay_tag_weights};
-use crate::extensions::source_pose_nodes::{blend_list_contexts, blend_list_poses, read_blend_list_child};
+use crate::extensions::source_pose_nodes::{blend_list_pose_and_context, read_blend_list_child};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
@@ -136,14 +136,11 @@ impl NodeLike for SourceEnumPoseBlendNode {
             let (pose, context) = read_blend_list_child(&ctx, pin, index, self.reset_child_on_activation,
                 reset && index == selected as usize, &mut child_contexts)?;
             poses.push((pose, weight));
-            if let Some(context) = context {
-                contexts.push((context, weight));
-            }
+            contexts.push((context.unwrap_or_default(), weight));
         }
-        let (output, pass_through) = blend_list_poses(poses);
+        let (output, context) = blend_list_pose_and_context(poses, contexts);
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), output);
-        let context = blend_list_contexts(contexts, pass_through);
         ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?
             .context = context;
         ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?.child_contexts = child_contexts;

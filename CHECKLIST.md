@@ -7481,7 +7481,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例/控制：0.3ms切入Sprint、随后零delta返回及1µs推进，以及0.4ms返回路径，共4帧native Sprint权重为3.4231784e−6至9.7171287e−6且无Update，原gait节点仍读取Sprint。仅保留原权重并把子有效性恢复至1e−5，4帧额外调用全部消失；共享Forward Base仍每帧仅更新一次，普通权重控制保持。
   - 漏检/边界：旧图合同验证分支连线和常规权重，未覆盖(1e−6,1e−5]资格区间。该项是BlendList子图资格，不与D168的Montage实例资格合并；证据`target/bf144/133/threshold-analysis.json`、`consumer_details.json`。末端使用有完整骨架的受控姿态，未宣称默认场景自然触发；生产未改。
 
-- [ ] BF144-D216 / P3 — GameplayTags姿态混合遗漏原生单姿态直通与双姿态权重补数分支。
+- [x] BF144-D216 / P3 — GameplayTags姿态混合遗漏原生单姿态直通与双姿态权重补数分支。
+  - 2026-11-12 10:06 +0800 实际结束，较10:43预估提前37分钟，未拆分。fresh 26帧单/双/多姿态根位置、scale和曲线闭环；分别消融4/7/1帧。实际双姿态采用补数与曲线Lerp，原Update权重保留；证据及Rust夹具见 `docs/audit/bf144/d216/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 09:58 +08:00，预估结束2026-11-12 10:43 +08:00。重采BlendList实际姿态、曲线与原更新权重，补齐双姿态补数及原生曲线Lerp。
   - Source：fresh `AnimNode_BlendListBase.cpp:314–337`在唯一相关姿态达到full-weight时直接输出；两个相关姿态且float权重和距1≤1e−8、无Profile时调用`BlendTwoPosesTogetherInPlace`。`AnimationRuntime.cpp:527–542`令第二权重为1−第一权重；其余路径保留原权重。当前gait无Profile。
   - Target：`source_pose_nodes.rs:956–965,1031`统一将每个姿态乘原权重后相加；既对唯一近满权重姿态缩放，也保留双姿态第二项原值。
   - 反例/控制：先恢复原生权重和1e−5资格，原SprintBlock/两个Forward Base缓存消费仍有54帧根平移与16帧scale不同，合计60帧；完整骨架受控两姿态的最大根平移差1.1920929e−7、scale差9.7155571e−6。仅恢复源分支后883帧所有位置、scale、调用数及上游权重对照通过；移除分支稳定恢复60帧失败。首帧双姿态权重[0.9803240895,0.0196759291]的第二项应以0.0196759105参与姿态。
