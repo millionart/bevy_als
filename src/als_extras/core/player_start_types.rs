@@ -191,9 +191,34 @@ fn shape_intersections(
     spatial: &SpatialQuery,
     shape: &avian3d::prelude::Collider,
     transform: &Transform,
+    colliders: &Query<(&Collider, &GlobalTransform)>,
     filter: &SpatialQueryFilter,
 ) -> Vec<Entity> {
-    spatial.shape_intersections(shape, transform.translation, transform.rotation, filter)
+    spatial
+        .shape_intersections(shape, transform.translation, transform.rotation, filter)
+        .into_iter()
+        .filter(|entity| {
+            let Ok((collider, obstacle)) = colliders.get(*entity) else {
+                return true;
+            };
+            if collider.shape_scaled().as_cuboid().is_none() {
+                return true;
+            }
+            let obstacle = obstacle.compute_transform();
+            avian3d::collision::collider::contact_query::contact(
+                shape,
+                transform.translation,
+                transform.rotation,
+                collider,
+                obstacle.translation,
+                obstacle.rotation,
+                0.0,
+            )
+            .map_or(true, |contact| {
+                contact.is_some_and(|contact| contact.penetration > 0.0)
+            })
+        })
+        .collect()
 }
 
 fn proposed_overlap_adjustment(
@@ -233,7 +258,7 @@ pub fn find_teleport_spot(
     let full_shape = spawn_shape(capsule_half_height, capsule_radius);
     let shrink = crate::als::movement_constants::SPAWN_ENCROACH_EPSILON;
     let shape = spawn_shape(capsule_half_height - shrink, capsule_radius - shrink);
-    let intersections = shape_intersections(spatial, &shape, &transform, filter);
+    let intersections = shape_intersections(spatial, &shape, &transform, colliders, filter);
     if intersections.is_empty() {
         return Some((transform, Vec3::ZERO));
     }
@@ -246,7 +271,7 @@ pub fn find_teleport_spot(
     if adjustment.y.abs() > f32::EPSILON {
         let mut candidate = transform;
         candidate.translation.y += adjustment.y;
-        if shape_intersections(spatial, &shape, &candidate, filter).is_empty() {
+        if shape_intersections(spatial, &shape, &candidate, colliders, filter).is_empty() {
             return Some((candidate, Vec3::Y * adjustment.y));
         }
     }
@@ -255,7 +280,7 @@ pub fn find_teleport_spot(
         let mut candidate = transform;
         candidate.translation.x += xy.x;
         candidate.translation.z += xy.y;
-        if shape_intersections(spatial, &shape, &candidate, filter).is_empty() {
+        if shape_intersections(spatial, &shape, &candidate, colliders, filter).is_empty() {
             return Some((candidate, Vec3::new(xy.x, 0.0, xy.y)));
         }
     }
@@ -265,7 +290,7 @@ pub fn find_teleport_spot(
             candidate.translation.x += xy.x;
             candidate.translation.y += adjustment.y;
             candidate.translation.z += xy.y;
-            if shape_intersections(spatial, &shape, &candidate, filter).is_empty() {
+            if shape_intersections(spatial, &shape, &candidate, colliders, filter).is_empty() {
                 return Some((candidate, Vec3::new(xy.x, adjustment.y, xy.y)));
             }
         }
@@ -286,7 +311,7 @@ pub fn fit_player_start(
     base.translation.y = player_start_grounded_height(ground_y, capsule_half_height);
     let shrink = crate::als::movement_constants::SPAWN_ENCROACH_EPSILON;
     let shape = spawn_shape(capsule_half_height - shrink, capsule_radius - shrink);
-    if shape_intersections(spatial, &shape, &base, filter).is_empty() {
+    if shape_intersections(spatial, &shape, &base, colliders, filter).is_empty() {
         return Some(AlsPlayerSpawnFit {
             transform: base,
             ground_y,
@@ -314,7 +339,7 @@ pub fn fit_player_start(
     for vertical_adjustment in PLAYER_START_VERTICAL_ADJUSTMENTS.into_iter().skip(1) {
         let mut candidate = base;
         candidate.translation.y += vertical_adjustment;
-        if shape_intersections(spatial, &shape, &candidate, filter).is_empty() {
+        if shape_intersections(spatial, &shape, &candidate, colliders, filter).is_empty() {
             return Some(AlsPlayerSpawnFit {
                 transform: candidate,
                 ground_y,
