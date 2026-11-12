@@ -1,0 +1,38 @@
+[
+  {
+    "path": "docs/audit/bf144/d231/blend.native.json.gz",
+    "sha256": "77aab1b6aa0a7c47bf889b109148460a41843fccf38a829781d91fb2ff97153d"
+  },
+  {
+    "path": "docs/audit/bf144/d232a/replay_source_blend.py",
+    "sha256": "333d97c600d19fb581ebb82dee2997c4ef212c3b2d0cf165e7724a3738763d18"
+  },
+  {
+    "path": "docs/audit/bf144/d232a/summary.json",
+    "sha256": "6222cd9ff21b582f7dc16e3faa9db7f58940aaec1fe494e2ca060b2f0e4fb6a0"
+  },
+  {
+    "path": "src/animation_graph_ext/animation_context.rs",
+    "sha256": "20c541ca3aaa63837c3d703621f4dfda6e29e253877d421aac185a1dc24e27d0"
+  },
+  {
+    "path": "src/animation_graph_ext/normalized_blendspace.rs",
+    "sha256": "86abd3a8547d7d67a0e1a561ff85b6ccb4ce5e8a096eea28a94ea602fb1435ce"
+  },
+  {
+    "path": "src/animation_graph_ext/source_compression.rs",
+    "sha256": "b7e977d0ad3374875a0e132efa62210a0a65e314f724123e974dd103471d09f1"
+  },
+  {
+    "path": "src/animation_graph_ext/source_per_track.rs",
+    "sha256": "f6102348274badb15e17e6ba3aa627ede5b4d1ff305ff2adfd99b7df0f12a92e"
+  },
+  {
+    "path": "src/animation_graph_ext/source_pose.rs",
+    "sha256": "33fea1edf02b5c4c0131438fe89abbf82542d5270452ccc21f7e659e0a09f569"
+  },
+  {
+    "path": "src/extensions.rs",
+    "sha256": "0c7b8c7f4f8a9d115a5508c60597eb55df4cc110f9f9157d8531d733af4ac965"
+  }
+]

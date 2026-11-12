@@ -20,7 +20,8 @@ use crate::extensions::als_curves::{AlsPoseCurves, SourceCurveName, SourceCurveV
 use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::raw_curve_sampling::evaluate_raw_curves;
 use crate::extensions::raw_sequence_sampling::{normalize_source_rotation, raw_control_sample};
-use crate::extensions::source_sequence_player::{SourceRootLock, source_root_lock_transform};
+use crate::extensions::source_pose::SourcePose;
+use crate::extensions::source_sequence_player::SourceRootLock;
 
 #[path = "source_per_track.rs"]
 mod per_track;
@@ -331,7 +332,7 @@ fn project_scale([x, y, z]: [f64; 3]) -> Vec3 {
     Vec3::new(x as f32, z as f32, y as f32)
 }
 
-fn project_bone_transform(bone: &mut BonePose, source: RigTransform, unit_scale: f64) {
+pub(crate) fn project_bone_transform(bone: &mut BonePose, source: RigTransform, unit_scale: f64) {
     bone.translation = Some(project_translation(
         source.translation.to_array(),
         unit_scale,
@@ -407,81 +408,67 @@ impl PreparedAcl {
         }
     }
 
-    fn pose(&self, clip: &GraphClip, sequence: &PreparedSequence, time: f32) -> Pose {
-        let mut pose = Pose {
-            timestamp: time,
-            skeleton: clip.skeleton.clone(),
-            ..Pose::default()
-        };
+    fn source_pose(&self, sequence: &PreparedSequence, time: f32) -> SourcePose {
         let additive = sequence.pose_kind() != PreparedPoseKind::Absolute;
-        for (bone, id) in self.bone_references.iter().zip(&self.bone_ids) {
-            pose.add_bone(self.initial_bone(bone, additive), *id);
-        }
+        let mut bones: Vec<_> = self
+            .bone_references
+            .iter()
+            .zip(&self.bone_ids)
+            .map(|(bone, &id)| (id, Self::initial_transform(bone, additive)))
+            .collect();
         let samples = sequence.pose_samples(time);
         for track in &sequence.bone.tracks {
-            self.write_bone(&mut pose.bones[track.0], track, samples, sequence, additive);
+            bones[track.0].1 = self.sample_transform(track, samples, sequence, additive);
         }
         if let Some(lock) = sequence.forced_root_lock {
-            let reference = self
-                .initial_bone(&self.bone_references[0], false)
-                .to_transform_with_base(Transform::IDENTITY);
-            let root = source_root_lock_transform(lock, reference, additive, || {
-                Some(
-                    self.root_track(sequence, 0.0)
-                        .to_transform_with_base(Transform::IDENTITY),
-                )
-            })
-            .expect("Generated ACL root transform");
-            pose.bones[0] = BonePose::from_transform(root);
+            let mut root = match lock {
+                SourceRootLock::RefPose => self.bone_references[0].mesh_pose.rig_transform(),
+                SourceRootLock::AnimFirstFrame => self.root_track(sequence, 0.0),
+                SourceRootLock::Zero => RigTransform::default(),
+            };
+            if additive && lock != SourceRootLock::AnimFirstFrame {
+                root.scale -= DVec3::ONE;
+            }
+            bones[0].1 = root;
         }
-        pose
+        SourcePose {
+            bones,
+            length_scale: self.source_length_to_runtime_scale,
+        }
     }
 
-    fn root_track(&self, sequence: &PreparedSequence, time: f32) -> BonePose {
+    fn root_track(&self, sequence: &PreparedSequence, time: f32) -> RigTransform {
         let additive = sequence.pose_kind() != PreparedPoseKind::Absolute;
-        let mut root = self.initial_bone(&self.bone_references[0], additive);
         if sequence.single_root {
-            self.write_bone(
-                &mut root,
+            self.sample_transform(
                 &sequence.bone.tracks[0],
                 sequence.pose_samples(time),
                 sequence,
                 additive,
-            );
-        }
-        root
-    }
-
-    fn initial_bone(&self, bone: &PreparedBone, additive: bool) -> BonePose {
-        let (translation, rotation, scale) = if additive {
-            (Vec3::ZERO, Quat::IDENTITY, Vec3::ZERO)
-        } else {
-            let reference = &bone.mesh_pose;
-            (
-                project_translation(
-                    reference.translation.values(),
-                    self.source_length_to_runtime_scale,
-                ),
-                project_rotation(reference.rotation.values()),
-                project_scale(reference.scale.values()),
             )
-        };
-        BonePose {
-            translation: Some(translation),
-            rotation: Some(rotation),
-            scale: Some(scale),
-            ..BonePose::default()
+        } else {
+            Self::initial_transform(&self.bone_references[0], additive)
         }
     }
 
-    fn write_bone(
+    fn initial_transform(bone: &PreparedBone, additive: bool) -> RigTransform {
+        if additive {
+            RigTransform {
+                scale: DVec3::ZERO,
+                ..RigTransform::default()
+            }
+        } else {
+            bone.mesh_pose.rig_transform()
+        }
+    }
+
+    fn sample_transform(
         &self,
-        local: &mut BonePose,
         &PreparedBoneTrack(index, rotation, translation, scaling): &PreparedBoneTrack,
         samples: (usize, usize, f32),
         sequence: &PreparedSequence,
         additive: bool,
-    ) {
+    ) -> RigTransform {
         let reference = &self.bone_references[index].skeleton_pose;
         let single_root = sequence.single_root && index == 0;
         let rotation_default = if additive {
@@ -520,7 +507,7 @@ impl PreparedAcl {
         if reference.animation_relative && !additive {
             reference.retarget_relative(&mut value);
         }
-        project_bone_transform(local, value, self.source_length_to_runtime_scale);
+        value
     }
 
     fn curves(&self, prepared: &PreparedSequence, time: f32) -> SourceCurveValues {
@@ -548,18 +535,32 @@ impl PreparedAcl {
     }
 }
 
+pub(crate) fn sample_prepared_source_pose(
+    clip: &GraphClip,
+    time: f32,
+) -> Option<(SourcePose, PreparedPoseKind)> {
+    if let Some(sequence) = PREPARED_ACL.sequence(clip) {
+        Some((
+            PREPARED_ACL.source_pose(sequence, time),
+            sequence.pose_kind(),
+        ))
+    } else {
+        per_track::sample_source_pose(clip, time).map(|pose| (pose, PreparedPoseKind::Absolute))
+    }
+}
+
 pub(crate) fn sample_prepared_pose(
     clip: &GraphClip,
     time: f32,
 ) -> Option<(Pose, PreparedPoseKind)> {
-    if let Some(sequence) = PREPARED_ACL.sequence(clip) {
-        Some((
-            PREPARED_ACL.pose(clip, sequence, time),
-            sequence.pose_kind(),
-        ))
-    } else {
-        per_track::sample_pose(clip, time).map(|pose| (pose, PreparedPoseKind::Absolute))
-    }
+    let (source, kind) = sample_prepared_source_pose(clip, time)?;
+    let mut pose = Pose {
+        timestamp: time,
+        skeleton: clip.skeleton.clone(),
+        ..Pose::default()
+    };
+    source.project_into(&mut pose);
+    Some((pose, kind))
 }
 
 pub(crate) fn has_prepared_pose(clip: &GraphClip) -> bool {
@@ -591,12 +592,13 @@ pub(crate) fn sample_prepared_root(clip: &GraphClip, root: BoneId, time: f32) ->
     if root != *data.bone_ids.first()? || !sequence.single_root {
         return None;
     }
-    let bone = data.root_track(sequence, time);
-    Some(Transform {
-        translation: bone.translation?,
-        rotation: bone.rotation?,
-        scale: bone.scale?,
-    })
+    let mut root = BonePose::default();
+    project_bone_transform(
+        &mut root,
+        data.root_track(sequence, time),
+        data.source_length_to_runtime_scale,
+    );
+    Some(root.to_transform())
 }
 
 pub(crate) fn sample_source_curves(

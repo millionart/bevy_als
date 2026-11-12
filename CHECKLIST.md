@@ -7676,6 +7676,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.304非零Head最终Apply：源实际HeadBase/additive/alpha=1到rig-source28帧2212骨double精确，只物理移除node外层一次末normalize，1559 double旋转行变化、4行改变f32（含非零head旋转），其他输入与T/S保持；source外normalize仍属于本项同一阶段合同，target公共helper原缓存全2212骨精确。单因素不与D241/full-delta因素加总，恢复以.304摘要为准，未称完整source-target Head/Root已等价；证据 `target/bf144/304/factors-check.json`。
 
 - [ ] BF144-D232 / P3 — 姿态未保持源厘米double数值阶段，提前换米或降f32后求值。
+  - 拆分摘要：.180同输入合成约44分钟、.182父链和.190加性各独立验收、.452b/.453/.475/.482覆盖不同局部算术边界。当前涉及精确数据、传播和不同算子，分五项各自提交。
+  - [x] BF144-D232a — 保留播放器的源厘米/double骨骼数据并接入BlendSpace累积。Gate：WalkRun原生child、权重、合成前后TQS和提前投影反例。 开始：2026-11-12 14:19:51 +08:00；预估结束：2026-11-12 15:09:51 +08:00。
+    - 实际结束：2026-11-12 14:27:18 +08:00；偏差：−42分33秒；结果：静态Gate PASS。140真实BlendSpace读回的20540个源child骨与11060个合成骨f64全部精确，提前投影改变3424T/79Q/420S；输出保留同一源TQS并在投影后可验证关联。现行生成BlendSpace均无逐骨滤波，外部回退保持现有路径。Cargo统一后置，证据 `docs/audit/bf144/d232a/summary.json`。
+  - [ ] BF144-D232b — 依赖D232a，将精确姿态穿过实际缓存、链接与MultiWay/TwoWay/BlendList/FSM。Gate：原权重与各阶段source数值，缓存重放及来源绑定。 计划开始：2026-11-12 15:09:51 +08:00；预估结束：2026-11-12 16:04:51 +08:00。
+  - [ ] BF144-D232c — 依赖D232b，恢复普通层化、mesh-space层化及部分权重的源double运算。Gate：实际BoneMask/Layered消费者和各阶段T/Q/S。 计划开始：2026-11-12 16:04:51 +08:00；预估结束：2026-11-12 16:54:51 +08:00。
+  - [ ] BF144-D232d — 依赖D232b/D232c，恢复Local/Mesh加性、差分和已证实的槽消费精度。Gate：原alpha与局部/组件旋转阶段、加性T/S及节点末尾归一化。 计划开始：2026-11-12 16:54:51 +08:00；预估结束：2026-11-12 17:49:51 +08:00。
+  - [ ] BF144-D232e — 依赖D232c/D232d，将精确姿态传入实际Rig与足部层级，完成最终local延迟投影。Gate：源厘米输入、足部父空间与local/global原对照。 计划开始：2026-11-12 17:49:51 +08:00；预估结束：2026-11-12 18:39:51 +08:00。
   - BF144.482 最终 local 单位阶段。固定源 post-setter 缓存和目标公开算术，厘米中求值后投米与提前投米的对照出现 4416 个 local double 平移差，2654 个进入 F32 投影，集中在两侧 calf、foot。最大分量差 2.7755575615628914e-16 m。42591 个 global double 平移差的 F32 投影均一致。见 docs/audit/bf144/482/comparison.json。
   - BF144.475归属与足部local独立控制：回读453原源码确认early-unit在加性运算前换米、仍为F64，SC已有36条F32位置变化，早F32投影子项与该单位phase一直分别保存。本项fresh source GetRelativeTransform<double>与target public relative，Q/S/算法完全固定，直接以同一foot/parent物理输入在cm/m分别调用公开方法，696共同current有694 double/692 F32位置不同，峰2.7755575615628914e−16m；完整source SIMD同控制693 double/691 F32，source cm全匹配native。把现有D232标题明确为数值空间/精度阶段，旧早F32、次数与样本边界不变；这是既有单位phase的新层级消费者，不并入D165 float状态或D275导出系数，不新增编号。1272实际public cm/m当前方法全精确，原/trace域unit-only改变635/636条位置投影却各0整向量恢复/0退化，仍各636不同；只能证明独立数值阶段，不能称上游IK或真实pose恢复/可见问题。证据docs/audit/bf144/475/analysis.json、classification.json与source-facts.json；消融/bytes恢复及封存以475完成Gate为准。
 

@@ -1,19 +1,15 @@
 use std::{path::PathBuf, sync::LazyLock};
 
-use bevy::{math::DQuat, prelude::Transform};
-use bevy_animation_graph::core::{
-    animation_clip::GraphClip,
-    id::BoneId,
-    pose::{BonePose, Pose},
-};
+use bevy::math::{DQuat, DVec3};
+use bevy_animation_graph::core::{animation_clip::GraphClip, id::BoneId, pose::Pose};
 use serde::{Deserialize, Deserializer};
 
-use crate::extensions::raw_sequence_sampling::RawControlSample;
-
-use super::{
-    PreparedBone, bone_id, clip_source_key, project_rotation, project_scale, project_translation,
-    source_frame_time,
+use crate::extensions::{
+    control_rig_hierarchy::RigTransform, raw_sequence_sampling::RawControlSample,
+    source_pose::SourcePose,
 };
+
+use super::{PreparedBone, bone_id, clip_source_key, source_frame_time};
 
 #[derive(Deserialize)]
 struct Track<T> {
@@ -129,7 +125,7 @@ pub(super) fn write_raw_control_pose(pose: &mut Pose, controls: &RawControlSampl
     }
 }
 
-pub(super) fn sample_pose(clip: &GraphClip, time: f32) -> Option<Pose> {
+pub(super) fn sample_source_pose(clip: &GraphClip, time: f32) -> Option<SourcePose> {
     if !has_clip(clip) {
         return None;
     }
@@ -137,35 +133,32 @@ pub(super) fn sample_pose(clip: &GraphClip, time: f32) -> Option<Pose> {
     let last_frame = data.frame_count - 1;
     let (frame, fraction) = source_frame_time(time.max(0.0).min(data.duration), data.frame_rate);
     let position = ((frame + f64::from(fraction)) / last_frame as f64).min(1.0) as f32;
-    let mut pose = Pose {
-        timestamp: time,
-        skeleton: clip.skeleton.clone(),
-        ..Pose::default()
-    };
-    for bone in &data.bones {
-        let rotation = bone
-            .rotation
-            .sample(position, last_frame, data.step, rotation_lerp);
-        let rotation = DQuat::from_array(rotation.map(f64::from))
-            .normalize()
-            .to_array();
-        let translation = bone
-            .translation
-            .sample(position, last_frame, data.step, vector_lerp);
-        let scale = bone
-            .scale
-            .sample(position, last_frame, data.step, vector_lerp);
-        pose.add_bone(
-            BonePose::from_transform(Transform {
-                rotation: project_rotation(rotation),
-                translation: project_translation(
-                    translation.map(f64::from),
-                    data.source_length_to_runtime_scale,
-                ),
-                scale: project_scale(scale.map(f64::from)),
-            }),
-            bone.id,
-        );
-    }
-    Some(pose)
+    let bones = data
+        .bones
+        .iter()
+        .map(|bone| {
+            let rotation = bone
+                .rotation
+                .sample(position, last_frame, data.step, rotation_lerp);
+            let rotation = DQuat::from_array(rotation.map(f64::from)).normalize();
+            let translation = bone
+                .translation
+                .sample(position, last_frame, data.step, vector_lerp);
+            let scale = bone
+                .scale
+                .sample(position, last_frame, data.step, vector_lerp);
+            (
+                bone.id,
+                RigTransform {
+                    rotation,
+                    translation: DVec3::from_array(translation.map(f64::from)),
+                    scale: DVec3::from_array(scale.map(f64::from)),
+                },
+            )
+        })
+        .collect();
+    Some(SourcePose {
+        bones,
+        length_scale: data.source_length_to_runtime_scale,
+    })
 }

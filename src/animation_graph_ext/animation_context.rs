@@ -97,6 +97,8 @@ pub struct AnimationContextState {
     pub skipped_cached_pose_request: Option<SourceInertializationRequest>,
     pub(crate) slot_has_multiple_montages: bool,
     pub(crate) cached_pose_request_route: Option<SourceCachedPoseRequestRoute>,
+    #[reflect(ignore)]
+    pub(crate) source_pose: Option<std::sync::Arc<crate::extensions::source_pose::SourcePose>>,
 }
 
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq)]

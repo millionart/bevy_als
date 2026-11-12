@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 use bevy_animation_graph::builtin_nodes::clip_node::ClipNode;
 use bevy_animation_graph::core::{
@@ -13,7 +15,8 @@ use bevy_animation_graph::core::{
 use serde::{Deserialize, Serialize};
 
 use crate::extensions::global_f32_input::global_f32_or_root_default;
-use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_pose, sample_source_curves};
+use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_source_pose, sample_source_curves};
+use crate::extensions::source_pose::blend_source_poses;
 use crate::extensions::source_pose_nodes::{accumulate_source_poses, normalize_source_pose_rotations};
 use crate::extensions::sync_group_phase::{
     SourceBlendSpaceClock, SourceSyncPlayerBinding, SourceSyncPlayerTick, blend_space_nearly_zero_delta, resolved_source_sync_phase,
@@ -869,6 +872,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         };
         let output_time = if self.teleport_to_normalized_time && leader.asset_rate_scale < 0.0 { leader_duration - leader_time } else { leader_time };
         let mut poses = Vec::with_capacity(weights.len());
+        let mut source_poses = Vec::with_capacity(weights.len());
         let mut pose_indices = Vec::with_capacity(weights.len());
         let mut curves = bevy::platform::collections::HashMap::new();
         for (index, weight) in weights {
@@ -921,14 +925,25 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 .filter(|(_, eligible, _)| *eligible)
                 .and_then(|(handle, _, expected)| {
                     let clip = ctx.graph_context.resources.graph_clip_assets.get(handle)?;
-                    let (pose, actual) = sample_prepared_pose(clip, time)?;
-                    expected.is_none_or(|expected| expected == actual).then_some(pose)
+                    let (pose, actual) = sample_prepared_source_pose(clip, time)?;
+                    expected.is_none_or(|expected| expected == actual).then_some((pose, clip.skeleton.clone()))
                 });
-            let pose = match prepared {
-                Some(pose) => pose,
-                None => ctx.data_back(Self::pose_pin(&point.id))?.into_pose()?,
+            let (pose, source) = match prepared {
+                Some((source, skeleton)) => (
+                    Pose { timestamp: time, skeleton, ..Pose::default() },
+                    Some(Arc::new(source)),
+                ),
+                None => {
+                    let pin = Self::pose_pin(&point.id);
+                    let pose = ctx.data_back(&pin)?.into_pose()?;
+                    let source = crate::extensions::animation_context::pose_input_context_state(&ctx, &pin)
+                        .and_then(|state| state.source_pose)
+                        .filter(|source| source.matches_projection(&pose));
+                    (pose, source)
+                }
             };
             poses.push((pose, weight));
+            source_poses.push(source);
             pose_indices.push(index);
             let clip = sample_clips[index].as_ref()
                 .and_then(|handle| ctx.graph_context.resources.graph_clip_assets.get(handle));
@@ -983,22 +998,52 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 });
             }
         }
-        let mut output = accumulate_source_poses(&poses);
-        if let Some(samples) = smoothed.as_ref() {
-            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&output.skeleton);
-            for (bone, output_index) in &output.paths {
-                let Some(profile_index) = skeleton.and_then(|skeleton| skeleton.id_to_path(*bone))
-                    .and_then(|path| path.parts.iter().rev().find_map(|part|
-                        self.per_bone_interpolation.iter().position(|entry| entry.bone.eq_ignore_ascii_case(part.as_str()))))
-                else { continue; };
-                let blended = poses.iter().zip(&pose_indices).filter_map(|((pose, _), index)| {
-                    let sample = samples.iter().find(|sample| sample.index == *index)?;
-                    pose.get_bone(*bone).map(|bone| bone.scalar_mult(sample.bone_weights[profile_index]))
-                }).reduce(|left, right| left.linear_add(&right));
-                if let Some(blended) = blended { output.bones[*output_index] = blended; }
+        let passes = 1 + usize::from(poses.len() > 1 || smoothed.is_some());
+        let source_output = if smoothed.is_none() {
+            source_poses.iter().zip(&poses)
+                .map(|(source, (_, weight))| source.as_deref().map(|pose| (pose, *weight)))
+                .collect::<Option<Vec<_>>>()
+                .and_then(|inputs| blend_source_poses(inputs, passes))
+                .map(Arc::new)
+        } else {
+            None
+        };
+        context.source_pose = source_output.clone();
+        let mut output = if let Some(source) = source_output {
+            let root_motion = blend_normalized_root_motion(&poses.iter()
+                .map(|(pose, weight)| (pose.root_motion.clone(), *weight))
+                .collect::<Vec<_>>());
+            let mut output = Pose {
+                skeleton: poses.first().map(|(pose, _)| pose.skeleton.clone()).unwrap_or_default(),
+                root_motion,
+                ..Pose::default()
+            };
+            source.project_into(&mut output);
+            output
+        } else {
+            for (source, (pose, _)) in source_poses.iter().zip(&mut poses) {
+                if let Some(source) = source {
+                    source.project_into(pose);
+                }
             }
-        }
-        normalize_source_pose_rotations(&mut output, 1 + usize::from(poses.len() > 1 || smoothed.is_some()));
+            let mut output = accumulate_source_poses(&poses);
+            if let Some(samples) = smoothed.as_ref() {
+                let skeleton = ctx.graph_context.resources.skeleton_assets.get(&output.skeleton);
+                for (bone, output_index) in &output.paths {
+                    let Some(profile_index) = skeleton.and_then(|skeleton| skeleton.id_to_path(*bone))
+                        .and_then(|path| path.parts.iter().rev().find_map(|part|
+                            self.per_bone_interpolation.iter().position(|entry| entry.bone.eq_ignore_ascii_case(part.as_str()))))
+                    else { continue; };
+                    let blended = poses.iter().zip(&pose_indices).filter_map(|((pose, _), index)| {
+                        let sample = samples.iter().find(|sample| sample.index == *index)?;
+                        pose.get_bone(*bone).map(|bone| bone.scalar_mult(sample.bone_weights[profile_index]))
+                    }).reduce(|left, right| left.linear_add(&right));
+                    if let Some(blended) = blended { output.bones[*output_index] = blended; }
+                }
+            }
+            normalize_source_pose_rotations(&mut output, passes);
+            output
+        };
         output.timestamp = graph_time;
         ctx.set_time(graph_time);
         ctx.set_data_fwd(OUT_POSE, output);

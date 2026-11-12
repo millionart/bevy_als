@@ -157,6 +157,8 @@ pub mod source_native_refresh;
 pub mod source_physics_joint;
 #[path = "animation_graph_ext/source_pose_nodes.rs"]
 pub mod source_pose_nodes;
+#[path = "animation_graph_ext/source_pose.rs"]
+pub(crate) mod source_pose;
 #[path = "animation_graph_ext/static_skeleton.rs"]
 pub mod static_skeleton;
 #[path = "animation_graph_ext/static_animated_scene.rs"]
