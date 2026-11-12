@@ -5731,6 +5731,7 @@ mod tests {
                 }
                 InterruptibleFsmNode::activate_transition(&machine, &mut runtime, &starts[case.target], 0.0, Some(case.duration));
                 let mut arena = GraphContextArena::new(root.id());
+                arena.get_toplevel_mut().query_output_time = QueryOutputTime::Forced(TimeUpdate::Delta(0.0));
                 for frame in &case.frames {
                     {
                         let mut ctx = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
@@ -6986,6 +6987,7 @@ mod tests {
             let env = TestIoEnv::default();
             for (first_slot, second_slot) in [(0, 0), (1, 2)] {
                 let mut arena = GraphContextArena::new(root.id());
+                arena.get_toplevel_mut().query_output_time = QueryOutputTime::Forced(TimeUpdate::Delta(0.0));
                 let mut gizmos = DeferredGizmos::default();
                 let context = GraphContext::new(
                     arena.get_toplevel_id(),
