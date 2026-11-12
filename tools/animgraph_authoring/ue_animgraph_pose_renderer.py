@@ -1972,7 +1972,7 @@ def run_self_test():
     unit_blend["alpha_mapping"] = dict(unit_blend["alpha_mapping"], map_range=True, input_min=-500.0, input_max=-3000.0)
     raw_unit_ir = copy.deepcopy(unit_ir)
     unit_text = render(unit_contract, unit_ir, unit_assets)
-    assert "input_min: -5.0, input_max: -30.0" in unit_text
+    assert "input_min: -500.0, input_max: -3000.0" in unit_text
     assert unit_ir == raw_unit_ir
     assert "input_min: -500.0, input_max: -3000.0" in mapping_ron(unit_blend["alpha_mapping"])
     assert "scale: 100.0" in mapping_ron(dict(unit_blend["alpha_mapping"], map_range=False), "locomotion_state.speed")

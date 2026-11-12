@@ -1,0 +1,201 @@
+{
+  "result": "PASS_FALL_SOURCE_UNIT_ALPHA",
+  "native_frames": 13,
+  "old_alpha_mismatches": 6,
+  "frames": [
+    {
+      "case": "first_fall",
+      "mps": -0.3269999623298645,
+      "cmps": -32.69999694824219,
+      "alpha": 0.03269999846816063,
+      "old_alpha": 0.03269999474287033
+    },
+    {
+      "case": "zero",
+      "mps": 0.0,
+      "cmps": 0.0,
+      "alpha": -0.0,
+      "old_alpha": -0.0
+    },
+    {
+      "case": "faster_than_range",
+      "mps": -14.0,
+      "cmps": -1400.0,
+      "alpha": 1.0,
+      "old_alpha": 1.0
+    },
+    {
+      "case": "warm_fall",
+      "mps": -0.3269999623298645,
+      "cmps": -32.69999694824219,
+      "alpha": 0.03269999846816063,
+      "old_alpha": 0.03269999474287033
+    },
+    {
+      "case": "warm_fall",
+      "mps": -0.6540000438690186,
+      "cmps": -65.4000015258789,
+      "alpha": 0.03814999759197235,
+      "old_alpha": 0.03814999759197235
+    },
+    {
+      "case": "warm_fall",
+      "mps": -0.9810000061988831,
+      "cmps": -98.0999984741211,
+      "alpha": 0.04814166575670242,
+      "old_alpha": 0.04814166575670242
+    },
+    {
+      "case": "warm_fall",
+      "mps": -1.308000087738037,
+      "cmps": -130.8000030517578,
+      "alpha": 0.06191805750131607,
+      "old_alpha": 0.06191805750131607
+    },
+    {
+      "case": "warm_fall",
+      "mps": -1.6349999904632568,
+      "cmps": -163.5,
+      "alpha": 0.07884837687015533,
+      "old_alpha": 0.07884837687015533
+    },
+    {
+      "case": "warm_fall",
+      "mps": -1.9619998931884766,
+      "cmps": -196.19998168945312,
+      "alpha": 0.09840697795152664,
+      "old_alpha": 0.09840697795152664
+    },
+    {
+      "case": "warm_fall",
+      "mps": -2.2890000343322754,
+      "cmps": -228.90000915527344,
+      "alpha": 0.12015581876039505,
+      "old_alpha": 0.12015581130981445
+    },
+    {
+      "case": "warm_fall",
+      "mps": -0.6000000238418579,
+      "cmps": -60.000003814697266,
+      "alpha": 0.11012984812259674,
+      "old_alpha": 0.11012984067201614
+    },
+    {
+      "case": "warm_fall",
+      "mps": 0.0,
+      "cmps": 0.0,
+      "alpha": 0.09177487343549728,
+      "old_alpha": 0.09177486598491669
+    },
+    {
+      "case": "complement_fall",
+      "mps": -0.16349999606609344,
+      "cmps": -16.350000381469727,
+      "alpha": 0.016350001096725464,
+      "old_alpha": 0.016349999234080315
+    }
+  ],
+  "pose": {
+    "bones": 79,
+    "evaluation_weights": [
+      0.9836499691009521,
+      0.01635003089904785
+    ],
+    "old_evaluation_weights": [
+      0.9836500287055969,
+      0.016349971294403076
+    ],
+    "old_double_mismatches": 70,
+    "old_f32_mismatches": 29,
+    "witness": {
+      "bone": "pelvis",
+      "source": [
+        [
+          0.023058896884322166,
+          -0.023058896884322166,
+          0.7067309617996216,
+          0.7067304253578186
+        ],
+        [
+          -2.052236595773138e-06,
+          1.0032625198364258,
+          -0.11763865500688553
+        ],
+        [
+          1.0,
+          1.0,
+          1.0
+        ]
+      ],
+      "old": [
+        [
+          0.023058896884322166,
+          -0.023058896884322166,
+          0.7067309617996216,
+          0.7067304253578186
+        ],
+        [
+          -2.052236595773138e-06,
+          1.0032625198364258,
+          -0.11763864755630493
+        ],
+        [
+          1.0,
+          1.0,
+          1.0
+        ]
+      ]
+    }
+  },
+  "installed_ranges": {
+    "e4c8873d-4f22-f13d-e7f6-0f957ed9e2fe": {
+      "state": "S1_Fall.animgraph.ron",
+      "source_range_cmps": [
+        -500,
+        -3000
+      ]
+    },
+    "361c3e78-4e3d-a5aa-4491-c0ae06f6c670": {
+      "state": "S1_Fall.animgraph.ron",
+      "source_range_cmps": [
+        0,
+        -1000
+      ]
+    },
+    "10be798e-43e2-1f53-a3b6-6aaf258498ff": {
+      "state": "S1_Fall.animgraph.ron",
+      "source_range_cmps": [
+        -1000,
+        -500
+      ]
+    },
+    "6df19b3b-4c55-7ff2-0baa-f69ab1a07123": {
+      "state": "S2_Jump.animgraph.ron",
+      "source_range_cmps": [
+        -1000,
+        -500
+      ]
+    },
+    "be0a083e-4b01-2e80-a622-8cbd910fe14e": {
+      "state": "S4_Land_Movement.animgraph.ron",
+      "source_range_cmps": [
+        -750,
+        -1500
+      ]
+    },
+    "2bffd40c-4642-bddd-cdba-969f1bc71c68": {
+      "state": "S4_Land_Movement.animgraph.ron",
+      "source_range_cmps": [
+        0,
+        -200
+      ]
+    },
+    "9da73476-42d4-1aaf-bffc-6e8be841e606": {
+      "state": "S5_Land.animgraph.ron",
+      "source_range_cmps": [
+        -500,
+        -1000
+      ]
+    }
+  }
+}

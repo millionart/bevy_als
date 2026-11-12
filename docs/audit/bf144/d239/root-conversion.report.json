@@ -1,0 +1,109 @@
+{
+  "format": "ue_animgraph_conversion_report_v1",
+  "source": {
+    "uasset_name": "AB_Als.uasset",
+    "package_path": "/ALS/ALS/Character/AB_Als.AB_Als",
+    "asset": "/ALS/ALS/Character/AB_Als.AB_Als"
+  },
+  "function_dependencies": [],
+  "unsupported": [],
+  "pass": true,
+  "linked_sources": [
+    {
+      "source_asset": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default",
+      "root_graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron",
+      "links": [
+        {
+          "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_LinkedAnimLayer_1",
+          "kind": "linked_anim_layer",
+          "source_asset": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default"
+        }
+      ]
+    },
+    {
+      "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+      "root_graph": "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+      "links": [
+        {
+          "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_LinkedAnimGraph_7",
+          "kind": "linked_anim_graph",
+          "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing"
+        }
+      ]
+    },
+    {
+      "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching",
+      "root_graph": "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+      "links": [
+        {
+          "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_LinkedAnimGraph_2",
+          "kind": "linked_anim_graph",
+          "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching"
+        }
+      ]
+    },
+    {
+      "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded",
+      "root_graph": "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
+      "links": [
+        {
+          "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_LinkedAnimGraph_6",
+          "kind": "linked_anim_graph",
+          "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded"
+        }
+      ]
+    },
+    {
+      "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
+      "root_graph": "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron",
+      "links": [
+        {
+          "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_LinkedAnimGraph_5",
+          "kind": "linked_anim_graph",
+          "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion"
+        }
+      ]
+    },
+    {
+      "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering",
+      "root_graph": "ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron",
+      "links": [
+        {
+          "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_LinkedAnimGraph_0",
+          "kind": "linked_anim_graph",
+          "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering"
+        }
+      ]
+    },
+    {
+      "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head",
+      "root_graph": "ALS/Character/AnimationInstances/AB_Als_Head/AnimGraph.animgraph.ron",
+      "links": [
+        {
+          "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_LinkedAnimGraph_1",
+          "kind": "linked_anim_graph",
+          "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head"
+        }
+      ]
+    },
+    {
+      "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Ragdolling.AB_Als_Ragdolling",
+      "root_graph": "ALS/Character/AnimationInstances/AB_Als_Ragdolling/AnimGraph.animgraph.ron",
+      "links": [
+        {
+          "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_LinkedAnimGraph_4",
+          "kind": "linked_anim_graph",
+          "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Ragdolling.AB_Als_Ragdolling"
+        }
+      ]
+    }
+  ],
+  "additive_reference_deltas": {
+    "additive_clip_uses": 23,
+    "additive_sequence_player_uses": 19,
+    "additive_sequence_evaluator_uses": 0,
+    "converted_inputs": 42,
+    "unit_raw_scale_inputs": 42,
+    "single_pose_consumers": 23
+  }
+}

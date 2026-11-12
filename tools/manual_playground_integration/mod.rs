@@ -1728,7 +1728,7 @@ fn locomotion_actions_should_timeout(probe: &LocomotionActionProbe, elapsed: f32
 fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -> LocomotionGraphSample {
     let scalar = |key| locomotion_source_scalar(player, key);
     let mut output = LocomotionGraphSample {
-        vertical: scalar("in_air_state.vertical_velocity_world_space"),
+        vertical: scalar("in_air_state.vertical_velocity_world_space").map(|value| (f64::from(value) * 0.01) as f32),
         foot_planted: scalar("feet_state.foot_planted_amount"),
         prediction: scalar("in_air_state.ground_prediction_amount"),
         ..default()
@@ -1777,7 +1777,7 @@ fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -
                 }
                 if path.path() == std::path::Path::new(LOCOMOTION_FALL) {
                     if blend.alpha_key == "in_air_state.ground_prediction_amount" { prediction_alpha = Some(state.blend_alpha); }
-                    if blend.alpha_key == "in_air_state.vertical_velocity_world_space" && blend.mapping.input_min == -5.0 && blend.mapping.input_max == -30.0 { flail_alpha = Some(state.blend_alpha); }
+                    if blend.alpha_key == "in_air_state.vertical_velocity_world_space" && blend.mapping.input_min == -500.0 && blend.mapping.input_max == -3000.0 { flail_alpha = Some(state.blend_alpha); }
                 }
             }
             if node.name.ends_with("Sequence Evaluator (by frame)") && node.name.starts_with("A_Als_Land_") {

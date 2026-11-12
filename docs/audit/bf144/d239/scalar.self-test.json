@@ -1,0 +1,11 @@
+{
+  "transition_scalar_node_generation": "PASS",
+  "source_pin_default_and_type_mapping": "PASS",
+  "source_link_and_root_output_mapping": "PASS",
+  "property_access_path_becomes_target_key": "PASS",
+  "bound_transition_result_root_is_preserved": "PASS",
+  "animation_state_getter_target_is_materialized": "PASS",
+  "gameplay_tag_and_boolean_function_operations_mapped": "PASS",
+  "gameplay_tag_adapter_reads_real_tag_provider": "PASS",
+  "scalar_node_inner_is_reusable": "PASS"
+}

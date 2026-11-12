@@ -1,0 +1,92 @@
+{
+  "mode": "Linear",
+  "blend_times": [
+    0.0
+  ],
+  "two_way": {
+    "property": "AnimGraphNode_TwoWayBlend_1",
+    "child": 0
+  },
+  "samples": [
+    {
+      "name": "first_fall",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -32.69999694824219
+        }
+      ]
+    },
+    {
+      "name": "zero",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": 0.0
+        }
+      ]
+    },
+    {
+      "name": "faster_than_range",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -1400.0
+        }
+      ]
+    },
+    {
+      "name": "warm_fall",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -32.69999694824219
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -65.4000015258789
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -98.0999984741211
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -130.8000030517578
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -163.5
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -196.19998168945312
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -228.90000915527344
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": -60.000003814697266
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.03333333507180214,
+          "two_way_alpha": 0.0
+        }
+      ]
+    }
+  ]
+}

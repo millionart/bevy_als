@@ -111,7 +111,8 @@ impl AlsSourceRefreshNode {
         }
         let velocity = source_input_data(ctx, "locomotion_state.velocity_world_space")
             .map_or(Ok(Vec3::ZERO), |value| value.as_vec3())?;
-        set_source_property(ctx, "in_air_state.vertical_velocity_world_space", velocity.y)?;
+        let vertical_centimeters = (f64::from(velocity.y) * 100.0) as f32;
+        set_source_property(ctx, "in_air_state.vertical_velocity_world_space", vertical_centimeters)?;
         set_source_property(ctx, "in_air_state.ground_prediction_amount", scalar("in_air_source.ground_prediction_amount", 0.0)?)?;
         let target = source_input_data(ctx, "in_air_source.lean_target")
             .map_or(Ok(Vec2::ZERO), |value| value.as_vec2())?;
@@ -689,13 +690,14 @@ mod tests {
                     6 => Vec2::new(0.2, 0.3),
                     _ => Vec2::ZERO,
                 };
+                let vertical_velocity = if frame == 0 { -0.32699996 } else { -((frame + 1) as f32) };
                 let inputs = HashMap::from([
                     ("fixture".to_owned(), DataValue::Pose(default())),
                     ("active".to_owned(), DataValue::F32(if matches!(frame, 2 | 3) { 0.0 } else { 1.0 })),
                     ("animation.delta_seconds".to_owned(), DataValue::F32(0.2)),
                     ("animation.pending_update".to_owned(), DataValue::Bool(frame == 0 || frame == 6)),
                     ("source_frame_input.in_air_state.b_jumped".to_owned(), DataValue::Bool(matches!(frame, 1 | 3 | 4))),
-                    ("locomotion_state.velocity_world_space".to_owned(), DataValue::Vec3(Vec3::NEG_Y * (frame + 1) as f32)),
+                    ("locomotion_state.velocity_world_space".to_owned(), DataValue::Vec3(Vec3::Y * vertical_velocity)),
                     ("in_air_source.ground_prediction_amount".to_owned(), DataValue::F32(frame as f32 * 0.1)),
                     ("in_air_source.jump_play_rate".to_owned(), DataValue::F32(if frame == 4 { 1.5 } else { 1.35 })),
                     ("in_air_source.lean_target".to_owned(), DataValue::Vec2(target)),
@@ -716,13 +718,13 @@ mod tests {
         }
         let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * 0.2);
         let expected = [
-            [1.0, -1.0, 0.0, 1.0, 2.0],
-            [1.35, -2.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
-            [1.35, -2.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
-            [1.35, -2.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
-            [1.5, -5.0, 0.4, -alpha, 0.5 * alpha],
-            [1.5, -6.0, 0.5, 0.5, 0.0],
-            [1.5, -7.0, 0.6, 0.2, 0.3],
+            [1.0, -32.699997, 0.0, 1.0, 2.0],
+            [1.35, -200.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
+            [1.35, -200.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
+            [1.35, -200.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
+            [1.5, -500.0, 0.4, -alpha, 0.5 * alpha],
+            [1.5, -600.0, 0.5, 0.5, 0.0],
+            [1.5, -700.0, 0.6, 0.2, 0.3],
         ];
         for (execute, initialize_enabled) in [(true, true), (false, true), (true, false)] {
             let mut graph = AnimationGraph::new();
@@ -760,6 +762,7 @@ mod tests {
             let actual = world.run_system_cached_with(query, root).unwrap();
             if execute && initialize_enabled {
                 for (frame, (actual, expected)) in actual.iter().zip(expected).enumerate() {
+                    assert_eq!(actual[1], expected[1]);
                     for (field, (actual, expected)) in actual.iter().zip(expected).enumerate() {
                         assert!((actual - expected).abs() < 1e-5, "frame {frame}, field {field}: {actual} != {expected}");
                     }

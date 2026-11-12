@@ -378,10 +378,7 @@ def property_access_key(node):
 
 
 def source_property_runtime_scale(key):
-    if key and source_property_key(key) in {
-        "locomotion_state.speed",
-        "in_air_state.vertical_velocity_world_space",
-    }:
+    if key and source_property_key(key) == "locomotion_state.speed":
         return SOURCE_LENGTH_TO_RUNTIME_SCALE
     return 1.0
 

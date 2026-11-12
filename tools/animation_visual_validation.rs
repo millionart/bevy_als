@@ -1486,13 +1486,13 @@ fn capture_animation_visual_pre_rig_pose(
             let mapping = &blend.mapping;
             if blend.alpha_key != "in_air_state.vertical_velocity_world_space"
                 || !mapping.source_semantics || !mapping.map_range || mapping.interpolate_result
-                || mapping.input_min != -10.0 || mapping.input_max != -5.0
+                || mapping.input_min != -1000.0 || mapping.input_max != -500.0
                 || mapping.output_min != 0.0 || mapping.output_max != 1.0
                 || mapping.scale != 1.0 || mapping.bias != 0.0 || mapping.clamp_result
                 || blend.alpha_scale != 1.0 || blend.alpha_bias != 0.0
             { continue; }
             let Ok(state) = context.node_states.get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) else { continue; };
-            pre_rig.landing_selector = Some([state.input_alpha, state.blend_alpha]);
+            pre_rig.landing_selector = Some([(f64::from(state.input_alpha) * 0.01) as f32, state.blend_alpha]);
         }
     }
     pre_rig.physics_readback_active = player.get_outputs().get("ragdoll_config")
