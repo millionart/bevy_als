@@ -34,7 +34,7 @@ fn sample_root(curves: &[VariableCurve], t: f32) -> (Vec3, Quat) {
     let mut tr = Vec3::ZERO;
     let mut rot = Quat::IDENTITY;
     for curve in curves {
-        match sample_curve(curve, t) {
+        match sample_curve(curve, t, None) {
             Some(CurveSample::Translation(v)) => tr = v,
             Some(CurveSample::Rotation(v)) => rot = v,
             _ => {}

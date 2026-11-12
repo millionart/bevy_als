@@ -202,7 +202,7 @@ fn bone_id(parts: Vec<String>) -> BoneId {
     .id()
 }
 
-fn clip_source_key(clip: &GraphClip) -> Option<(&Path, &str)> {
+pub(crate) fn clip_source_key(clip: &GraphClip) -> Option<(&Path, &str)> {
     let GraphClipSource::GltfNamed {
         path,
         animation_name,

@@ -22,6 +22,7 @@ use serde::Deserialize;
 
 use crate::extensions::control_rig_hierarchy::RigTransform;
 use crate::extensions::global_f32_input::root_defaults_enabled;
+use crate::extensions::raw_sequence_sampling::{RawRotationInterval, raw_rotation_interval};
 use crate::extensions::source_compression::{
     PreparedPoseKind, sample_prepared_pose, sample_prepared_root, sample_source_curves,
 };
@@ -58,7 +59,11 @@ pub(crate) enum CurveSample {
     BoneWeights(Vec<f32>),
 }
 
-pub(crate) fn sample_curve(curve: &VariableCurve, time: f32) -> Option<CurveSample> {
+pub(crate) fn sample_curve(
+    curve: &VariableCurve,
+    time: f32,
+    rotation_interval: Option<RawRotationInterval>,
+) -> Option<CurveSample> {
     let evaluator_id = curve.0.evaluator_id();
     let translation_id = Hashed::new((TypeId::of::<Transform>(), 0));
     let rotation_id = Hashed::new((TypeId::of::<Transform>(), 1));
@@ -70,6 +75,9 @@ pub(crate) fn sample_curve(curve: &VariableCurve, time: f32) -> Option<CurveSamp
                     *curve.0.sample_clamped(time).downcast_ref()?,
                 ))
             } else if id == &rotation_id {
+                if let Some(interval) = rotation_interval {
+                    return interval.sample(curve).map(CurveSample::Rotation);
+                }
                 Some(CurveSample::Rotation(
                     *curve.0.sample_clamped(time).downcast_ref()?,
                 ))
@@ -98,10 +106,11 @@ pub fn sample_pose(clip: &GraphClip, time: f32) -> Pose {
         skeleton: clip.skeleton.clone(),
         ..Pose::default()
     };
+    let rotation_interval = raw_rotation_interval(clip, time);
     for (bone_id, curves) in &clip.curves {
         let mut bone_pose = BonePose::default();
         for curve in curves {
-            match sample_curve(curve, time) {
+            match sample_curve(curve, time, rotation_interval) {
                 Some(CurveSample::Translation(value)) => bone_pose.translation = Some(value),
                 Some(CurveSample::Rotation(value)) => bone_pose.rotation = Some(value),
                 Some(CurveSample::Scale(value)) => bone_pose.scale = Some(value),

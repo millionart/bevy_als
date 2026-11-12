@@ -7605,7 +7605,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.303 Head非零消费者：Forward/Down/Up三原资产在真实SKM_Als容器、0.5秒均明确compressed mesh additive/Stand0参考；三native sample加实际28帧weights经source cm/double/FMA/NEON阶段复现Head additive2212骨TQS全部double精确。当前实际ReferenceMeshDifference叶和Look由公共算子逐值重放；只换原生compressed delta叶、其余runtime算子保持，T/R/S残差由1956/2100/448变50/1499/0；物理撤回数据替换又逐值回到原残差。属于同一platform additive数据路径边界，参考差与数值管线分别控制，不把全部差归压缩或称整体Head/Root恢复；证据 `target/bf144/303/leaf-comparison.json`、`data-factor-check.json`、`source-blend.json`，恢复/身份以.303摘要为准。
 
-- [ ] BF144-D225 / P3 — Sequence骨骼旋转的时间插值使用slerp，偏离源nlerp。
+- [x] BF144-D225 / P3 — Sequence骨骼旋转的时间插值使用slerp，偏离源nlerp。 开始：2026-11-12 13:01:39 +08:00；预估结束：2026-11-12 13:36:39 +08:00。
+  - 实际结束：2026-11-12 13:06:52 +08:00；偏差：−29分47秒；结果：静态Gate PASS。fresh Sprint raw ik_hand_l五时点、端点/反号控制及109 LINEAR/19 STEP实际绑定均通过；0.3595596254秒旧slerp差0.00105766，nlerp余差5.81e−8。以原VariableCurve两端键接入正常raw采样，Rust语法与生成字节复跑通过，Cargo/Playground统一后置。证据 `docs/audit/bf144/d225/summary.json`。
   - Source：fresh `AnimSequencerDataModel.cpp:546–565`用相邻帧的FTransform::Blend；`TransformVectorized.h:427–460`按最短弧VectorLerpQuat后归一化。当前ACL `animated_track_cache.transform.h:1736–1745`的压缩帧间插值也使用quat_lerp，不是slerp。
   - Target：`source_sequence_player.rs:56–110`直接采样glTF曲线；Bevy `animation_curves.rs:718–744`调用Animatable::interpolate，`animatable.rs:172–178`的Quat实现为slerp。这是单Sequence内部的时间插值，不同于D177的Turn/Profile跨pose混合，修复后者的BonePose::linear_blend_mut不能覆盖此路径。
   - 最小反例：实际30Hz stance-sprint第211帧、SprintAcceleration、ik_hand_l、time=0.3595596254，原生明确raw_model，排除平台压缩及跨pose混合。相邻glTF键在0.3333333433/0.3666666746秒，与原生端点最大分量差1.76e−8/1.81e−8；实际节点输出与独立slerp结果差7.94e−8，与native差0.001057646。仅将同键插值换为源nlerp降为6.39e−8，使用native端点重算亦过；端点、q/−q最短弧和单位长度控制通过。

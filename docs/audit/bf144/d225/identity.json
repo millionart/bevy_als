@@ -1,0 +1,42 @@
+[
+  {
+    "path": "assets/ALSRuntime/Animations/als_raw_rotation_timelines.json",
+    "sha256": "c8256fe69e094bdcb6782f6353166bacd4c8d6422d88831e627ad0865da88197"
+  },
+  {
+    "path": "docs/audit/bf144/d225/replay_raw_rotation.py",
+    "sha256": "d3316ccec18b0934a868ded4ffdcd58320265d415595f9096ca3d642f60caa63"
+  },
+  {
+    "path": "docs/audit/bf144/d225/sprint-raw.native.json.gz",
+    "sha256": "86074d5e12ebd7bc84b4c31855eed95434f0c51d6402dc11ea93c77086053de8"
+  },
+  {
+    "path": "docs/audit/bf144/d225/summary.json",
+    "sha256": "4f261fc3dd7ad7acd4cb3f90576ec6fc6410cf546fe189c5239277871330b47f"
+  },
+  {
+    "path": "src/animation_graph_ext/raw_sequence_sampling.rs",
+    "sha256": "86befe5699a39ce07a5d83ffa991cecc2d074572e92e4757cf3011519c722386"
+  },
+  {
+    "path": "src/animation_graph_ext/root_motion_clip.rs",
+    "sha256": "c142bcdd8ac00db33dc1b54fe23c1647be6f1298d942a9c9129dba7b57e3d911"
+  },
+  {
+    "path": "src/animation_graph_ext/source_compression.rs",
+    "sha256": "e59f3d1b2a713700b870d8dee6c20e44dfe3264a887533191c3e87fb88390506"
+  },
+  {
+    "path": "src/animation_graph_ext/source_sequence_player.rs",
+    "sha256": "7d8ddc03351b8a57b7c974bf352b4301705bf85f0af72cced6731ae07672c902"
+  },
+  {
+    "path": "src/extensions.rs",
+    "sha256": "b5b84cf383c2eaedd40936176ade24c38b6c222b039fc0dbb2e2d2eebb9a2647"
+  },
+  {
+    "path": "tools/import/compile_als_raw_rotation_timelines.py",
+    "sha256": "87dad0120a79a9ab991b80c51d1dba89409ba8797f51ca421ce81ee6f807d38b"
+  }
+]

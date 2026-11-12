@@ -1,0 +1,38 @@
+{
+  "result": "PASS_RAW_SEQUENCE_NLERP",
+  "linear_timelines": 109,
+  "step_sequences": 19,
+  "bone": "ik_hand_l",
+  "raw_native_comparison": [
+    {
+      "time": 0.3333333432674408,
+      "alpha": 0.0,
+      "nlerp_error": 1.76134714591214e-08,
+      "slerp_error": 1.76134714591214e-08
+    },
+    {
+      "time": 0.34200000762939453,
+      "alpha": 0.25999996066093445,
+      "nlerp_error": 1.536622895592643e-08,
+      "slerp_error": 0.001016609844544783
+    },
+    {
+      "time": 0.3500000238418579,
+      "alpha": 0.5000004768371582,
+      "nlerp_error": 7.764058814613284e-08,
+      "slerp_error": 8.009146954673918e-08
+    },
+    {
+      "time": 0.3595596253871918,
+      "alpha": 0.7867885231971741,
+      "nlerp_error": 5.807326373952204e-08,
+      "slerp_error": 0.0010576557383016327
+    },
+    {
+      "time": 0.36666667461395264,
+      "alpha": 0.0,
+      "nlerp_error": 1.8115636213345e-08,
+      "slerp_error": 1.8115636213345e-08
+    }
+  ]
+}
