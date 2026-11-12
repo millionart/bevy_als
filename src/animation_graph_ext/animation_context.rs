@@ -400,12 +400,16 @@ pub fn merge_sync_players(
     weight: f32,
 ) {
     for player in source {
-        let weight = player.weight * weight.max(0.0);
+        let weight = if player.weight_is_absolute { player.weight } else { player.weight * weight.max(0.0) };
         if let Some(existing) = target
             .iter_mut()
             .find(|existing| existing.identity == player.identity)
         {
-            existing.weight = existing.weight.max(weight);
+            let maximum = existing.weight.max(weight);
+            if maximum != existing.weight {
+                existing.weight = maximum;
+                existing.weight_is_absolute = player.weight_is_absolute;
+            }
             existing.has_been_full_weight |= player.has_been_full_weight;
             existing.requested_inertialization |= player.requested_inertialization;
         } else {

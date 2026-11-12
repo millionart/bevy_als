@@ -87,7 +87,7 @@ fn collect_cached_requests<'a>(
 
 fn update_cached_requests(requests: Vec<CachedUpdateRequest>) -> Result<(), GraphError> {
     for request in requests {
-        crate::extensions::interruptible_fsm::with_machine_weight(request.weight, || {
+        crate::extensions::interruptible_fsm::with_absolute_machine_weight(request.weight, || {
             let mut ctx = request.ctx;
             let state_key = if request.scoped { StateKey::Default } else { ctx.graph_context.state_key };
             let started = ctx.graph_context.context_arena.get_ref().get_context(request.owner.0)
@@ -114,7 +114,8 @@ pub(crate) fn prewarm_linked_pose_caches(ctx: &NodeContext, input: &str, order: 
         return Ok(());
     };
     let mut requests = Vec::new();
-    collect_cached_requests(ctx, source, 1.0, false, &mut requests, &mut default())?;
+    collect_cached_requests(ctx, source, crate::extensions::interruptible_fsm::current_machine_weight(),
+        false, &mut requests, &mut default())?;
     let mut linked = Vec::new();
     for key in order {
         let Some(index) = requests.iter().position(|request| {
@@ -144,10 +145,11 @@ pub(crate) fn prewarm_input_cached_poses(ctx: &NodeContext, inputs: impl IntoIte
     if !ctx.graph_context.graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceScopedCachedPoseUseNode>().is_some()
         || node.try_inner_downcast_ref::<SourceCachedPoseUseNode>().is_some()) { return Ok(()); }
     let mut requests = Vec::new();
+    let parent_weight = crate::extensions::interruptible_fsm::current_machine_weight();
     for (pin, weight) in inputs {
         if weight <= 1e-5 { continue; }
         if let Some(source) = ctx.graph_context.graph.edges_inverted.get(&TargetPin::NodeData(ctx.node_id, pin)) {
-            collect_cached_requests(ctx, source, weight, false, &mut requests, &mut default())?;
+            collect_cached_requests(ctx, source, parent_weight * weight, false, &mut requests, &mut default())?;
         }
     }
     update_cached_requests(requests)
@@ -155,13 +157,14 @@ pub(crate) fn prewarm_input_cached_poses(ctx: &NodeContext, inputs: impl IntoIte
 
 pub(crate) fn prewarm_graph_cached_poses<'a>(contexts: impl IntoIterator<Item = (NodeContext<'a>, f32)>) -> Result<(), GraphError> {
     let mut requests = Vec::new();
+    let parent_weight = crate::extensions::interruptible_fsm::current_machine_weight();
     for (ctx, weight) in contexts {
         if !ctx.graph_context.graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceScopedCachedPoseUseNode>().is_some()
             || node.try_inner_downcast_ref::<SourceCachedPoseUseNode>().is_some()) { continue; }
         for (pin, kind) in ctx.graph_context.graph.io_spec.iter_output_data() {
             if *kind != DataSpec::Pose { continue; }
             if let Some(source) = ctx.graph_context.graph.edges_inverted.get(&TargetPin::OutputData(pin.clone())) {
-                collect_cached_requests(&ctx, source, weight, false, &mut requests, &mut default())?;
+                collect_cached_requests(&ctx, source, parent_weight * weight, false, &mut requests, &mut default())?;
             }
         }
     }

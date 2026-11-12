@@ -1070,7 +1070,9 @@ impl NodeLike for SourceGameplayTagBlendNode {
         let previous = ctx.state_mut::<SourceGameplayTagBlendState>()?.blend
             .instant_transition_source(active_index, blend_time);
         if let Some(previous) = previous {
-            read_blend_list_child(&ctx, &self.pose_pin_names[previous], previous, self.reset_child_on_activation, false, &mut child_contexts)?;
+            crate::extensions::interruptible_fsm::with_machine_weight(0.0, ||
+                read_blend_list_child(&ctx, &self.pose_pin_names[previous], previous,
+                    self.reset_child_on_activation, false, &mut child_contexts))?;
         }
         let weights = advance_gameplay_tag_weights(
             &mut ctx.state_mut::<SourceGameplayTagBlendState>()?.blend,
@@ -1186,7 +1188,9 @@ impl NodeLike for SourceBoolBlendNode {
             .blend.should_reset_child(2, index);
         let mut child_contexts = std::mem::take(&mut ctx.state_mut::<SourceGameplayTagBlendState>()?.child_contexts);
         if let Some(previous) = previous {
-            read_blend_list_child(&ctx, &format!("BlendPose_{previous}"), previous, self.reset_child_on_activation, false, &mut child_contexts)?;
+            crate::extensions::interruptible_fsm::with_machine_weight(0.0, ||
+                read_blend_list_child(&ctx, &format!("BlendPose_{previous}"), previous,
+                    self.reset_child_on_activation, false, &mut child_contexts))?;
         }
         let delta = delta_seconds(&ctx)?;
         let weights = crate::extensions::gameplay_tag_blend::advance_blend_list_weights(

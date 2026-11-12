@@ -7538,7 +7538,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.158站蹲组合补充：10229次FSM贡献观察中27次累计权重与最大路径不同；同时覆盖方向和站蹲/main祖先后，独立max路径控制改变106条记录，最大约0.274306。当前字面pose-meta合成公式与1920帧全部匹配，源条件更新公式采用累计状态贡献后再对不同缓存请求取max，不把所有请求改为sum。证据`target/bf144/158/trace-check.json`、`weight-controls.json`、`source-weight-check.json`；最终时钟/姿态影响仍待下一闭包。
 
-- [ ] BF144-D221 / P3 — 同步权重从叶子向根相乘，改变源上下文的float舍入。
+- [x] BF144-D221 / P3 — 同步权重从叶子向根相乘，改变源上下文的float舍入。
+  - 2026-11-12 11:21 +0800 实际结束，较12:02预估提前41分钟，未拆分。fresh 32帧原生Context及缓存请求闭环，反向结合改变22条终端权重；播放器提交绝对更新权重并按父到子缓存请求推进。证据及实际同步出口夹具见 `docs/audit/bf144/d221/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 11:12 +08:00，预估结束2026-11-12 12:02 +08:00。重采三层源Context及缓存最大请求，用实际父到子更新权重提交同步记录。
   - Source：fresh `AnimNodeBase.h:281–286`的FractionalWeight按父CurrentWeight×子倍率逐层下传；`AnimNode_StateMachine.cpp`、`AnimNode_MultiWayBlend.cpp`、`AnimNode_TwoWayBlend.cpp`依此创建更新上下文，SaveCachedPose以这些最终权重取max。原生父权重/共享缓存探针确认真实上下文结果。
   - Target：`animation_context.rs:396–417`在pose元数据向上合并时计算player.weight×父权重；多层相乘的结合顺序与源相反。即使成员、缓存max和状态累计贡献已恢复，仍有46帧权重不同，最大约5.96e−8；不是D220的max替代sum，也不是导出精度变化。
   - 反例：Root=0.0740740821、Details=0.9259259105、SprintBlock=0.8613940477时，源得到0.0590805262，实际生产合并为0.0590805337。第二条真实记录为源0.8571614027、目标0.8571613431。固定生产函数复现两条差异，按源上下文次序合成后与原生逐值一致。

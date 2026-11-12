@@ -318,24 +318,27 @@ impl NodeLike for ProfiledBlendNode {
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let update = ctx.time_update_fwd()?;
+        let factor = ctx.data_back(Self::FACTOR)?.as_f32()?;
+        let in_fsm = crate::extensions::interruptible_fsm::in_interruptible_transition_graph(&ctx);
+        let alpha = (!in_fsm).then(|| transition_alpha(factor, self.alpha_blend_mode, &self.custom_curve));
         ctx.set_time_update_back(Self::IN_TIME_A, update.clone());
-        let mut source = ctx.data_back(Self::IN_POSE_A)?.into_pose()?;
+        let mut source = crate::extensions::interruptible_fsm::with_machine_weight(alpha.map_or(1.0, |alpha| 1.0 - alpha),
+            || ctx.data_back(Self::IN_POSE_A))?.into_pose()?;
         ctx.set_time_update_back(Self::IN_TIME_B, TimeUpdate::Absolute(source.timestamp));
-        let target = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
+        let target = crate::extensions::interruptible_fsm::with_machine_weight(alpha.unwrap_or(1.0),
+            || ctx.data_back(Self::IN_POSE_B))?.into_pose()?;
         let source_context =
             crate::extensions::animation_context::pose_input_context_state(&ctx, Self::IN_POSE_A)
                 .unwrap_or_default();
         let target_context =
             crate::extensions::animation_context::pose_input_context_state(&ctx, Self::IN_POSE_B)
                 .unwrap_or_default();
-        let factor = ctx.data_back(Self::FACTOR)?.as_f32()?;
         let skeleton = ctx
             .graph_context
             .resources
             .skeleton_assets
             .get(&source.skeleton);
-        let alpha = self.blend_pose(&mut source, &target, factor, skeleton,
-            crate::extensions::interruptible_fsm::in_interruptible_transition_graph(&ctx));
+        let alpha = self.blend_pose(&mut source, &target, factor, skeleton, in_fsm);
         let mut context = crate::extensions::source_pose_nodes::blend_contexts_with_curve_accumulation([
             (source_context, 1.0 - alpha),
             (target_context, alpha),

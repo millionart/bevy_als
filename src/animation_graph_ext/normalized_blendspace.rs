@@ -757,6 +757,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
             let mut tick =
                 self.player_tick(playback, leader_index, previous.map(|tick| tick.phase), delta_seconds, play_rate,
                     &phase_markers, &leader_markers);
+            tick.weight = crate::extensions::interruptible_fsm::current_machine_weight();
+            tick.weight_is_absolute = true;
             tick.length_play_rate = Some(play_rate * leader_duration * normalized_speed);
             tick.blend_space_clock = previous_normalized_time.map(|normalized_time| SourceBlendSpaceClock {
                 normalized_time, instance_markers_valid,

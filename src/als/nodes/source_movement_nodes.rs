@@ -108,7 +108,8 @@ impl NodeLike for SourceMultiWayBlendNode {
         let mut poses = Vec::with_capacity(active.len());
         let mut contexts = Vec::new();
         for (index, weight) in active {
-            let pose = ctx.data_back(self.pose_input(index))?.into_pose()?;
+            let pose = crate::extensions::interruptible_fsm::with_machine_weight(weight,
+                || ctx.data_back(self.pose_input(index)))?.into_pose()?;
             if let Some(context) = pose_input_context_state(&ctx, &self.pose_input(index)) {
                 contexts.push((context, weight));
             }

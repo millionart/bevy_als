@@ -115,8 +115,9 @@ impl NodeLike for SourceEnumPoseBlendNode {
             .blend.should_reset_child(2, selected as usize);
         let mut child_contexts = std::mem::take(&mut ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?.child_contexts);
         if let Some(previous) = previous {
-            read_blend_list_child(&ctx, if previous == 0 { &self.default_pose_pin } else { &self.selected_pose_pin },
-                previous, self.reset_child_on_activation, false, &mut child_contexts)?;
+            crate::extensions::interruptible_fsm::with_machine_weight(0.0, ||
+                read_blend_list_child(&ctx, if previous == 0 { &self.default_pose_pin } else { &self.selected_pose_pin },
+                    previous, self.reset_child_on_activation, false, &mut child_contexts))?;
         }
         let alpha = source_enum_alpha(
             ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?,
@@ -133,8 +134,9 @@ impl NodeLike for SourceEnumPoseBlendNode {
             if weight <= crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD {
                 continue;
             }
-            let (pose, context) = read_blend_list_child(&ctx, pin, index, self.reset_child_on_activation,
-                reset && index == selected as usize, &mut child_contexts)?;
+            let (pose, context) = crate::extensions::interruptible_fsm::with_machine_weight(weight, ||
+                read_blend_list_child(&ctx, pin, index, self.reset_child_on_activation,
+                    reset && index == selected as usize, &mut child_contexts))?;
             poses.push((pose, weight));
             contexts.push((context.unwrap_or_default(), weight));
         }
@@ -310,7 +312,8 @@ impl NodeLike for SourceLayeredBoneBlendNode {
         if !self.update_base_pose_first {
             for (index, weight) in weights.iter().enumerate() {
                 if *weight > 1e-5 {
-                    ctx.data_back(self.layer_pin(index).to_owned())?;
+                    crate::extensions::interruptible_fsm::with_machine_weight(*weight,
+                        || ctx.data_back(self.layer_pin(index).to_owned()))?;
                 }
             }
         }
@@ -322,9 +325,8 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                 overlays.push(None);
                 continue;
             }
-            let overlay = ctx
-                .data_back(self.layer_pin(index).to_owned())?
-                .into_pose()?;
+            let overlay = crate::extensions::interruptible_fsm::with_machine_weight(weight,
+                || ctx.data_back(self.layer_pin(index).to_owned()))?.into_pose()?;
             if let Some(overlay_context) = pose_input_context_state(&ctx, self.layer_pin(index)) {
                 merge_sync_players(
                     &mut context.sync_players,

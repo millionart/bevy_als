@@ -767,6 +767,119 @@ mod tests {
     }
 
     #[test]
+    fn sync_exit_preserves_native_parent_products_and_absolute_cache_requests() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
+            context::{graph_context::QueryOutputTime, new_context::GraphContext, node_states::StateKey,
+                system_resources::SystemResources},
+            pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{
+            GlobalPoseInputNode, SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceMultiWayBlendNode,
+            SourceSequencePlayerNode, SourceTwoWayBlendNode, interruptible_fsm::with_machine_weight,
+            source_sequence_player::SourceSequenceSynchronization,
+        };
+
+        #[derive(serde::Deserialize)]
+        struct Frame {
+            name: String,
+            root: f32,
+            outer: f32,
+            inner: f32,
+            leaf: f32,
+            cached: f32,
+        }
+        #[derive(serde::Deserialize)]
+        struct Reference {
+            frames: Vec<Frame>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d221/weights.replay.json"
+        )).unwrap();
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let clip = world.resource_mut::<Assets<GraphClip>>().add(GraphClip { duration: 1.0, ..default() });
+        let fixtures = [(false, false), (true, false), (false, true)].map(|(cached, multi_way)| {
+            let mut graph = AnimationGraph::new();
+            let leaf = AnimationNode::new("Sequence", SourceSequencePlayerNode {
+                clip: clip.clone(), loop_animation: true,
+                expose_play_rate_pin: false, expose_start_position_pin: false,
+                synchronization: Some(SourceSequenceSynchronization {
+                    key: "Movement".into(), delta_seconds_key: "delta".into(), ..default()
+                }), ..default()
+            });
+            let empty = AnimationNode::new("Empty", GlobalPoseInputNode { key: "pose".into(), output: "Pose".into() });
+            let inner = AnimationNode::new("Inner", SourceTwoWayBlendNode {
+                expose_alpha_pin: false, alpha_key: "inner".into(), ..default()
+            });
+            let outer = if multi_way {
+                AnimationNode::new("Outer", SourceMultiWayBlendNode {
+                    desired_alpha_keys: vec!["details".into(), "outer".into()],
+                    desired_alpha_defaults: vec![0.0; 2], normalize_alpha: false, ..default()
+                })
+            } else {
+                AnimationNode::new("Outer", SourceTwoWayBlendNode {
+                    expose_alpha_pin: false, alpha_key: "outer".into(), ..default()
+                })
+            };
+            let sync = AnimationNode::new("Sync", SourcePosePassthroughNode { synchronize_groups: true, output_time: false, ..default() });
+            for node in [&leaf, &empty, &inner, &outer, &sync] {
+                graph.add_node(node.clone());
+            }
+            let cache_use = cached.then(|| {
+                let save = AnimationNode::new("Cache", SourceCachedPoseSaveNode::default());
+                let use_cache = AnimationNode::new("Use", SourceCachedPoseUseNode { cache_node: save.name.clone() });
+                graph.add_node(save.clone());
+                graph.add_node(use_cache.clone());
+                graph.add_node_parameter_edge(leaf.id, "Pose", save.id, "Pose");
+                use_cache.id
+            });
+            graph.add_node_parameter_edge(empty.id, "Pose", inner.id, "A");
+            graph.add_node_parameter_edge(cache_use.unwrap_or(leaf.id), "Pose", inner.id, "B");
+            let pins = if multi_way { ["Poses 0", "Poses 1"] } else { ["A", "B"] };
+            graph.add_node_parameter_edge(inner.id, "Pose", outer.id, pins[0]);
+            graph.add_node_parameter_edge(cache_use.unwrap_or(empty.id), "Pose", outer.id, pins[1]);
+            graph.add_node_parameter_edge(outer.id, "Pose", sync.id, "Source");
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(sync.id, "Pose", "Pose");
+            (world.resource_mut::<Assets<AnimationGraph>>().add(graph), sync.id, cached)
+        });
+        world.run_system_once(move |resources: SystemResources| {
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            for (handle, sync_id, cached) in &fixtures {
+                let graph = resources.animation_graph_assets.get(handle).unwrap();
+                for frame in &reference.frames {
+                    let mut arena = GraphContextArena::new(handle.id());
+                    let delta = 1.0 / 60.0;
+                    let inputs = HashMap::from([
+                        ("outer".to_owned(), DataValue::F32(frame.outer)),
+                        ("details".to_owned(), DataValue::F32(1.0 - frame.outer)),
+                        ("inner".to_owned(), DataValue::F32(frame.inner)),
+                        ("delta".to_owned(), DataValue::F32(delta)),
+                        ("pose".to_owned(), DataValue::Pose(Pose::default())),
+                    ]);
+                    with_machine_weight(frame.root, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
+                        GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs))).unwrap();
+                    let context = arena.get_toplevel().node_states.get::<AnimationContextState>(*sync_id, StateKey::Default).unwrap();
+                    assert_eq!(context.sync_players.len(), 1, "{}", frame.name);
+                    let tick = &context.sync_players[0];
+                    assert!(tick.weight_is_absolute, "{}", frame.name);
+                    assert_eq!(tick.weight, if *cached { frame.cached } else { frame.leaf }, "{}", frame.name);
+                }
+            }
+        }).unwrap();
+    }
+
+    #[test]
     fn sync_scope_uses_current_weights_cache_maximum_and_marker_continuity() {
         use crate::extensions::sync_group_phase::SourceSyncPlayerBinding;
         use crate::extensions::{

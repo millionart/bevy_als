@@ -44,22 +44,22 @@ thread_local! {
     static SOURCE_MACHINE_WEIGHT: Cell<f32> = const { Cell::new(1.0) };
 }
 
-fn current_machine_weight() -> f32 {
+pub(crate) fn current_machine_weight() -> f32 {
     SOURCE_MACHINE_WEIGHT.with(Cell::get)
 }
 
 pub(crate) fn with_machine_weight<T>(factor: f32, evaluate: impl FnOnce() -> T) -> T {
+    with_absolute_machine_weight(current_machine_weight() * factor, evaluate)
+}
+
+pub(crate) fn with_absolute_machine_weight<T>(weight: f32, evaluate: impl FnOnce() -> T) -> T {
     struct Restore(f32);
     impl Drop for Restore {
         fn drop(&mut self) {
             SOURCE_MACHINE_WEIGHT.with(|weight| weight.set(self.0));
         }
     }
-    let previous = SOURCE_MACHINE_WEIGHT.with(|weight| {
-        let previous = weight.get();
-        weight.set(previous * factor);
-        previous
-    });
+    let previous = SOURCE_MACHINE_WEIGHT.with(|current| current.replace(weight));
     let _restore = Restore(previous);
     evaluate()
 }

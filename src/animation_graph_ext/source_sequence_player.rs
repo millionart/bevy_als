@@ -541,7 +541,8 @@ impl NodeLike for SourceSequencePlayerNode {
                 role: sync.role,
                 source_asset: Some(self.clip.clone()),
                 override_position_when_joining_sync_group_as_leader: self.override_position_when_joining_sync_group_as_leader,
-                weight: 1.0,
+                weight: crate::extensions::interruptible_fsm::current_machine_weight(),
+                weight_is_absolute: true,
                 has_been_full_weight: state.context.sync_players.first().is_some_and(|tick| tick.has_been_full_weight)
                     || reached_full_weight,
                 requested_inertialization,
