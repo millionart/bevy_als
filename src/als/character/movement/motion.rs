@@ -1260,9 +1260,14 @@ mod rotation_cap_tests {
         app.add_plugins(MinimalPlugins)
             .init_resource::<Time<avian3d::prelude::Physics>>()
             .add_systems(FixedPostUpdate, snapshot_actual_velocity_system);
+        let frame_delta = std::time::Duration::from_secs_f32(1.0 / 30.0);
+        let physics_delta = crate::source_physics_timing::source_physics_delta(frame_delta);
+        app.world_mut().resource_mut::<Time<Virtual>>().advance_by(frame_delta);
         app.world_mut().resource_mut::<Time<avian3d::prelude::Physics>>()
-            .advance_by(std::time::Duration::from_secs_f32(1.0 / 30.0));
-        let dt = app.world().resource::<Time<avian3d::prelude::Physics>>().delta_secs();
+            .advance_by(physics_delta);
+        let dt = frame_delta.as_secs_f32();
+        let physics_dt = physics_delta.as_secs_f32();
+        assert_ne!(dt, physics_dt);
         let planned = Vec3::X * 0.666_666_7;
         let delta = Vec3::X * 0.022_222_225;
         let mut actors = Vec::new();
@@ -1302,7 +1307,7 @@ mod rotation_cap_tests {
             crate::als::dynamics::AlsMovementBaseDynamicsState { pre_collision_velocity: Some(planned), ..default() },
         )).id();
         let support = Vec3::X * 1.25;
-        let moving_position = start + delta + support * dt;
+        let moving_position = start + delta + support * physics_dt;
         let moving = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded,
             Position(moving_position), LinearVelocity(planned + support),
             AlsCmcAdapterRuntime { simulation_substeps: 1, simulation_delta_seconds: dt,
@@ -1322,7 +1327,7 @@ mod rotation_cap_tests {
         assert_eq!(app.world().get::<AlsActualVelocity>(slow).unwrap().world_velocity.x,
             (slow_position.x - start.x) / slow_dt);
         assert_eq!(app.world().get::<LinearVelocity>(moving).unwrap().x,
-            (moving_position.x - start.x - support.x * dt) / dt + support.x);
+            (moving_position.x - start.x - support.x * physics_dt) / dt + support.x);
     }
 
     #[test]
@@ -3186,7 +3191,8 @@ fn accepted_jump_state_system(
 }
 
 fn snapshot_actual_velocity_system(
-    time: Res<Time<avian3d::prelude::Physics>>,
+    frame_time: Res<Time<Virtual>>,
+    physics_time: Res<Time<avian3d::prelude::Physics>>,
     mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &mut AlsCmcAdapterRuntime,
         &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
 ) {
@@ -3198,11 +3204,11 @@ fn snapshot_actual_velocity_system(
             && runtime.simulation_delta_seconds > 0.0 {
             let support = base.as_deref().filter(|base| base.entity.is_some())
                 .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));
-            let relative = (position.0 - start - support * time.delta_secs()) / runtime.simulation_delta_seconds;
+            let relative = (position.0 - start - support * physics_time.delta_secs()) / runtime.simulation_delta_seconds;
             let planned = base.as_deref().filter(|base| base.support_velocity == Vec3::ZERO)
                 .and_then(|base| base.pre_collision_velocity)
                 .filter(|planned| *locomotion == LocomotionState::Grounded
-                    && runtime.simulation_substeps == 1 && runtime.simulation_delta_seconds == time.delta_secs()
+                    && runtime.simulation_substeps == 1 && runtime.simulation_delta_seconds == frame_time.delta_secs()
                     && runtime.grounded_movement_delta.is_some_and(|delta| {
                         let expected = start + delta;
                         delta.with_y(0.0) == (*planned * runtime.simulation_delta_seconds).with_y(0.0)

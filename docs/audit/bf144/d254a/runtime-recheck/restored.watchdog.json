@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 149.409,
+  "exit_reason": "completed",
+  "last_progress": "stdout.log",
+  "no_progress_limit_seconds": 420,
+  "no_progress_seconds": 0.0,
+  "process_exit_code": 0,
+  "source": "d254a-independent-clock-restored",
+  "success": true,
+  "timeout_seconds": 3600
+}

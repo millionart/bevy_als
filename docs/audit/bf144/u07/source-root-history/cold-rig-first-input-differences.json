@@ -1,0 +1,49 @@
+{
+  "query_index": 2,
+  "source_actor_y_cm": 91.99999570846558,
+  "source_authored_mesh_offset_y_cm": -92,
+  "source_mesh_y_cm": -4.291534423828125e-06,
+  "target_mesh_y_cm": -5.9604644775390625e-06,
+  "target_offset_y_m_as_f32": -0.9200000166893005,
+  "offsets": {
+    "FootLeftOffsetLocationZ": {
+      "source_cm": 4.291534423828125e-06,
+      "target": 5.9604644775390625e-06
+    },
+    "FootRightOffsetLocationZ": {
+      "source_cm": 4.291534423828125e-06,
+      "target": 5.9604644775390625e-06
+    },
+    "PelvisOffset": {
+      "source_cm": 2.8540353014250286e-07,
+      "target": 3.9639326132601127e-07
+    }
+  },
+  "rig_input_locations": {
+    "FootLeftLocation": {
+      "source_cm_in_runtime_basis": [
+        17.07630157470703,
+        13.465350151062012,
+        -5.072169780731201
+      ],
+      "target_cm": [
+        17.076288163661957,
+        13.465350866317749,
+        -5.072188004851341
+      ]
+    },
+    "FootRightLocation": {
+      "source_cm_in_runtime_basis": [
+        -17.07631492614746,
+        13.465192794799805,
+        -5.072188854217529
+      ],
+      "target_cm": [
+        -17.076288163661957,
+        13.465195894241333,
+        -5.072189494967461
+      ]
+    }
+  },
+  "scope": "First cold frame with valid foot transforms"
+}

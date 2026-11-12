@@ -1,0 +1,21 @@
+diff --git a/src/als_extras/levels/manual_playground.rs b/src/als_extras/levels/manual_playground.rs
+index f2af7576..81c50b21 100644
+--- a/src/als_extras/levels/manual_playground.rs
++++ b/src/als_extras/levels/manual_playground.rs
+@@ -165,6 +165,9 @@ fn main() {
+         info!("[JUMP-GRAVITY-VARIANT] gravity_y={gravity_y:.3} -> PASS");
+     }
+ 
++    if let Some(output) = std::env::var_os("ALS_U07_ROOT_HISTORY_OUTPUT") {
++        u07_root_history_observer::install(&mut app, output.into());
++    }
+     if let AppExit::Error(code) = app.run() {
+         std::process::exit(i32::from(code.get()));
+     }
+@@ -1421,3 +1424,6 @@ fn platform_physics_probe(
+     }
+     probe.0 = true;
+ }
++#[path = "../../../target/bevy020-gates/u07-root-history/observer.rs"]
++mod u07_root_history_observer;
++

@@ -1,0 +1,33 @@
+{
+  "source": {
+    "path": "Source/ALS/Private/AlsCharacterMovementComponent.cpp",
+    "function": "UAlsCharacterMovementComponent::PhysWalking",
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "reference": [
+      "timeTick from character movement delta",
+      "velocity from world displacement divided by timeTick"
+    ]
+  },
+  "captures": {
+    "red.stdout.log.gz": {
+      "bytes": 781,
+      "sha256": "82b81c73a3619bdd99ec42ce4aec8c1e5d8c6db579dbf1a2f601c88cb3a9e78f",
+      "redacted": false
+    },
+    "red.stderr.log.gz": {
+      "bytes": 7722,
+      "sha256": "ac46c8b8463bb5c00ee2fc49c43908b29be6fd5959cc0bd3911844674f57b1db",
+      "redacted": true
+    },
+    "restored.stdout.log.gz": {
+      "bytes": 515,
+      "sha256": "45072cdb4217ce01d828d484c919ee9d8ca5dab9c19c5663f8b14051ea0240fa",
+      "redacted": false
+    },
+    "restored.stderr.log.gz": {
+      "bytes": 7680,
+      "sha256": "100d208220ecb4e33e951ae0bf76af951833766d7d4da81630fb1888972d9bef",
+      "redacted": true
+    }
+  }
+}
