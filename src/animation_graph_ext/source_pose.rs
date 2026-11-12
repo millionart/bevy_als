@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn prepared_walk_run_blend_projects_only_after_source_accumulation() {
         let walk = source(
-            "ALSRUNTIME/Animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf",
+            "ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf",
             "A_Als_Walk_Forward_0",
             0.24333334,
         );

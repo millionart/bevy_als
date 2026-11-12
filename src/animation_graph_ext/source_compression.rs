@@ -741,7 +741,7 @@ mod tests {
             "A_Als_Look_Forward_0",
         );
         let stand = clip(
-            "ALSRUNTIME/Animations/Base/A_Als_Stand_Pose.gltf",
+            "ALSRuntime/Animations/Base/A_Als_Stand_Pose.gltf",
             "A_Als_Stand_Pose_0",
         );
         let (look, kind) = sample_prepared_pose(&look, 0.5).unwrap();
@@ -798,7 +798,7 @@ mod tests {
     #[test]
     fn raw_reference_retention_uses_the_fk_control_before_gltf_writeback() {
         let crouch = clip(
-            "ALSRUNTIME/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf",
+            "ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf",
             "A_Als_Crouch_Walk_Forward_0",
         );
         let bone = EntityPath::from_slashed_string(
@@ -832,7 +832,7 @@ mod tests {
     #[test]
     fn prepared_relative_foot_is_retargeted_before_projection() {
         let crouch = clip(
-            "ALSRUNTIME/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf",
+            "ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf",
             "A_Als_Crouch_Walk_Left_Backward_0",
         );
         let foot =

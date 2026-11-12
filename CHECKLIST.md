@@ -7430,6 +7430,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF132.R5E-11 复开（2026-11-13 05:15，预估05:36）：fresh 原生单/双壁MTD为10/20cm，收缩胶囊应用位移后两壁均不重叠。Avian 0.8 候选采用箱体在前的布尔查询，实际清空的x壁仍判重叠，z壁候选有负穿透。原Gate未覆盖新引擎该查询顺序，当前在PlayerStart的箱体候选处以实际接触深度复核。证据 `docs/audit/bf144/u07/player-start-overlap-bevy-0.20/`。
   - BF132.R5E-11 真实入口前（2026-11-13 05:21）：同target未复核箱体深度时单/双壁均失败，恢复深度复核后20项出生/场景/准入通过。用正式 `startup` 验证原场景准入、实际角色图与关卡启动。
   - BF132.R5E-11 复验通过（2026-11-13 05:24）：正式 `startup` 及渲染功能通过，同target定向20项通过。源、反例、恢复结果见 `docs/audit/bf144/u07/player-start-overlap-bevy-0.20/`，启动报告见 `docs/audit/bf144/u07/bevy-0.20/startup-player-start-round-1/`。
+  - U07 资产键夹具（2026-11-13 05:31，预估05:50）：fresh 原生重采7个序列及 Crouch raw 时点，现行 `.anim.ron` 与压缩/FK/raw 曲线数据键拼写为 `ALSRuntime`。定向原版五个测试都因 `ALSRUNTIME` 逐字匹配失败。先恢复测试身份，再验证原数值断言；生产加载路径已使用正确键。
+  - U07 资产键夹具恢复（2026-11-13 05:38，提前12分钟）：原键在同target复现5个失败。使用已安装描述符的原键后，原数值断言及同模块共11项通过。改动限测试键；原生、描述符、两端日志及身份见 `docs/audit/bf144/u07/sequence-asset-key/`，无需拆分。
   - .265补充：真实Locomotion入口与独立同mesh Stand0全部790分量精确，五个相关mesh-space层化模板顺序重放消除245旋转分量供应差，再接原Additive/Head得到真实raw首Root790分量精确；初始化源骨姿态链已闭合，未关闭初始target组合差、曲线反馈或完整原warm→77历史。见 `target/bf144/265/summary.json`，不把源本来具有的层化运算误记成新差异；截图0、性能暂停。
   - .264补充：真实Head Base/Additive及实际alpha/空间模式已读，13次源合成10270分量精确；Additive独立采样匹配，初始Base的245个旋转分量与同mesh Stand0不等，残差供应边进一步缩至Layering→Locomotion→Standing。Head/Rig/Root观察与同输入Head算法不再是未知点；不以该局部闭环关闭初始化Base或完整warm反馈。见 `target/bf144/264/summary.json`，截图0、性能暂停。
   - .263补充：真实首Head→Rig与主图Root现已从原求值直接取得，初始化和12帧旧字段完全保持；首帧790分量/完整curve与Rig层级一致，后续七根腿/骨盆骨验证写回边界。273个double旋转/20个近零float的候选残差已在实际Head输出存在，下一只补Head实际Base/Additive输入，不复开Rig或下游Root算法；13份原始source Root可供后续反馈核验，完整warm→77仍未通过。见 `target/bf144/263/summary.json`，截图0、性能暂停。

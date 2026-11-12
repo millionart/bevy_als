@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn raw_writeback_is_shared_by_source_and_prepared_reads_leave_it_alone() {
         let clip = clip(
-            "ALSRUNTIME/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.gltf",
+            "ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.gltf",
             "A_Als_Crouch_Walk_Right_Backward_0",
         );
         let alias = clip.clone();
