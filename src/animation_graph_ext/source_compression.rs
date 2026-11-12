@@ -16,6 +16,9 @@ use serde::Deserialize;
 use crate::extensions::als_curves::{AlsPoseCurves, SourceCurveName, SourceCurveValues};
 use crate::extensions::source_sequence_player::{SourceRootLock, source_root_lock_transform};
 
+#[path = "source_per_track.rs"]
+mod per_track;
+
 #[derive(Deserialize)]
 struct SampleClock {
     sample_count: usize,
@@ -130,15 +133,8 @@ impl PreparedSequence {
 
     fn pose_samples(&self, time: f32) -> (usize, usize, f32) {
         let [numerator, denominator] = self.frame_rate.map(f64::from);
-        let frame_time = f64::from(self.clip_time(time)) * numerator / denominator;
-        let frame = frame_time.floor();
-        let subframe = (frame_time - frame) as f32;
-        let carry = subframe.trunc();
-        let max_subframe = f32::from_bits(1.0_f32.to_bits() - 1);
-        let fraction = ((subframe - carry).min(max_subframe) + 0.5 - 0.5).clamp(0.0, max_subframe);
-        let evaluation_time = ((frame + f64::from(carry)) * denominator
-            + f64::from(fraction) * denominator)
-            / numerator;
+        let (frame, fraction) = source_frame_time(self.clip_time(time), self.frame_rate);
+        let evaluation_time = (frame * denominator + f64::from(fraction) * denominator) / numerator;
         let (first, second, alpha) = self.bone.clock.samples(evaluation_time as f32);
         (first, second, if self.step { 0.0 } else { alpha })
     }
@@ -187,15 +183,7 @@ static PREPARED_ACL: LazyLock<PreparedAcl> = LazyLock::new(|| {
     } = serde_json::from_slice(metadata).expect("Generated ACL metadata");
     assert_eq!(format, "als_prepared_acl_v1");
     sequences.sort_unstable_by(|left, right| left.key().cmp(&right.key()));
-    let bone_ids = bone_paths
-        .into_iter()
-        .map(|parts| {
-            EntityPath {
-                parts: parts.into_iter().map(Name::new).collect(),
-            }
-            .id()
-        })
-        .collect::<Vec<_>>();
+    let bone_ids = bone_paths.into_iter().map(bone_id).collect::<Vec<_>>();
     assert_eq!(bone_ids.len(), bones.len());
     PreparedAcl {
         keys,
@@ -206,6 +194,35 @@ static PREPARED_ACL: LazyLock<PreparedAcl> = LazyLock::new(|| {
         sequences,
     }
 });
+
+fn bone_id(parts: Vec<String>) -> BoneId {
+    EntityPath {
+        parts: parts.into_iter().map(Name::new).collect(),
+    }
+    .id()
+}
+
+fn clip_source_key(clip: &GraphClip) -> Option<(&Path, &str)> {
+    let GraphClipSource::GltfNamed {
+        path,
+        animation_name,
+    } = clip.source.as_ref()?;
+    path.source()
+        .as_str()
+        .is_none()
+        .then_some((path.path(), animation_name.as_str()))
+}
+
+fn source_frame_time(time: f32, frame_rate: [u32; 2]) -> (f64, f32) {
+    let [numerator, denominator] = frame_rate.map(f64::from);
+    let frame_time = f64::from(time) * numerator / denominator;
+    let frame = frame_time.floor();
+    let subframe = (frame_time - frame) as f32;
+    let carry = subframe.trunc();
+    let max_subframe = f32::from_bits(1.0_f32.to_bits() - 1);
+    let fraction = ((subframe - carry).min(max_subframe) + 0.5 - 0.5).clamp(0.0, max_subframe);
+    (frame + f64::from(carry), fraction)
+}
 
 fn project_translation([x, y, z]: [f64; 3], scale: f64) -> Vec3 {
     Vec3::new((x * scale) as f32, (z * scale) as f32, (y * scale) as f32)
@@ -244,14 +261,7 @@ fn acl_rotation(start: [f32; 4], end: [f32; 4], alpha: f32, single_root: bool) -
 
 impl PreparedAcl {
     fn sequence(&self, clip: &GraphClip) -> Option<&PreparedSequence> {
-        let GraphClipSource::GltfNamed {
-            path,
-            animation_name,
-        } = clip.source.as_ref()?;
-        if path.source().as_str().is_some() {
-            return None;
-        }
-        let key = (path.path(), animation_name.as_str());
+        let key = clip_source_key(clip)?;
         let index = self
             .sequences
             .binary_search_by(|sequence| sequence.key().cmp(&key))
@@ -424,15 +434,18 @@ pub(crate) fn sample_prepared_pose(
     clip: &GraphClip,
     time: f32,
 ) -> Option<(Pose, PreparedPoseKind)> {
-    let sequence = PREPARED_ACL.sequence(clip)?;
-    Some((
-        PREPARED_ACL.pose(clip, sequence, time),
-        sequence.pose_kind(),
-    ))
+    if let Some(sequence) = PREPARED_ACL.sequence(clip) {
+        Some((
+            PREPARED_ACL.pose(clip, sequence, time),
+            sequence.pose_kind(),
+        ))
+    } else {
+        per_track::sample_pose(clip, time).map(|pose| (pose, PreparedPoseKind::Absolute))
+    }
 }
 
 pub(crate) fn has_prepared_pose(clip: &GraphClip) -> bool {
-    PREPARED_ACL.sequence(clip).is_some()
+    PREPARED_ACL.sequence(clip).is_some() || per_track::has_clip(clip)
 }
 
 pub(crate) fn sample_prepared_root(clip: &GraphClip, root: BoneId, time: f32) -> Option<Transform> {
@@ -454,11 +467,13 @@ pub(crate) fn sample_source_curves(
     raw: &AlsPoseCurves,
     time: f32,
 ) -> SourceCurveValues {
-    clip.and_then(|clip| PREPARED_ACL.sequence(clip))
-        .map_or_else(
-            || raw.sample_all(time),
-            |prepared| PREPARED_ACL.curves(prepared, time),
-        )
+    if let Some(prepared) = clip.and_then(|clip| PREPARED_ACL.sequence(clip)) {
+        PREPARED_ACL.curves(prepared, time)
+    } else if clip.is_some_and(per_track::has_clip) {
+        SourceCurveValues::default()
+    } else {
+        raw.sample_all(time)
+    }
 }
 
 #[cfg(test)]
@@ -566,5 +581,23 @@ mod tests {
         let (pose, _) = sample_prepared_pose(&roll, 0.1).unwrap();
         assert_eq!(single.translation.z, 0.0719982767);
         assert_eq!(pose.get_bone(root).unwrap().translation, Some(Vec3::ZERO));
+    }
+
+    #[test]
+    fn prepared_bow_uses_the_per_track_frame_table() {
+        let bow = clip(
+            "ALS/OverlayObjects/Bow/A_Als_Bow_Draw.gltf",
+            "A_Als_Bow_Draw_0",
+        );
+        let (pose, kind) = sample_prepared_pose(&bow, 0.505).unwrap();
+        let bone = EntityPath::from_slashed_string("GltfNode0/root/spine_down_01".to_owned()).id();
+        let rotation = pose.get_bone(bone).unwrap().rotation.unwrap();
+        assert!(kind == PreparedPoseKind::Absolute);
+        assert_eq!(pose.bones.len(), 24);
+        assert_eq!(
+            rotation,
+            Quat::from_xyzw(0.0, 0.026351282, -0.99965274, 2.3107445e-5)
+        );
+        assert!(sample_source_curves(Some(&bow), &AlsPoseCurves::default(), 0.505).is_empty());
     }
 }

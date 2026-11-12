@@ -498,7 +498,7 @@ pub(crate) mod tests {
 
     #[test]
     fn bow_object_scene_loads_and_samples_the_generated_draw_graph() {
-        use bevy_animation_graph::core::animation_clip::GraphClip;
+        use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
         let (mut app, _, player) = loaded_bow_scene();
         let clip = app.world().resource::<AssetServer>().load::<GraphClip>("ALS/OverlayObjects/Bow/A_Als_Bow_Draw.anim.ron");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -514,7 +514,10 @@ pub(crate) mod tests {
             let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
             assert!(player.get_error().is_none(), "{:?}", player.get_error());
             let pose = player.get_default_output_pose().expect("Bow must output its evaluated pose");
-            let expected = crate::extensions::source_sequence_player::sample_pose(app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap(), amount);
+            let expected = crate::extensions::source_sequence_player::sample_source_clip_pose(
+                app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap(), amount,
+                app.world().resource::<Assets<Skeleton>>(),
+            ).unwrap();
             assert_eq!(pose.bones.len(), 24);
             for (id, index) in &expected.paths {
                 let actual = pose.get_bone(*id).unwrap();

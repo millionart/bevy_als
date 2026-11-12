@@ -42,6 +42,7 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "Animation/AnimBoneCompressionCodec.h"
+#include "Animation/AnimCompress_PerTrackCompression.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "Animation/AnimSequenceDecompressionContext.h"
 #include "HAL/PlatformProperties.h"
@@ -2382,6 +2383,17 @@ TSharedPtr<FJsonObject> CaptureSequenceCompression(const UAnimSequence& Sequence
     TArray<TSharedPtr<FJsonValue>> Mapping;
     for (const FTrackToSkeletonMap& Track : Data.CompressedTrackToSkeletonMapTable) { Mapping.Add(MakeShared<FJsonValueNumber>(Track.BoneTreeIndex)); }
     Compression->SetArrayField(TEXT("track_to_skeleton"), Mapping);
+    if (Data.BoneCompressionCodec->IsA<UAnimCompress_PerTrackCompression>())
+    {
+        const FUECompressedAnimData& PerTrack = static_cast<const FUECompressedAnimData&>(*Data.CompressedDataStructure);
+        TSharedRef<FJsonObject> Layout = MakeShared<FJsonObject>();
+        Layout->SetNumberField(TEXT("key_encoding"), PerTrack.KeyEncodingFormat);
+        Layout->SetNumberField(TEXT("track_offsets"), PerTrack.CompressedTrackOffsets.Num());
+        Layout->SetNumberField(TEXT("scale_offsets"), PerTrack.CompressedScaleOffsets.OffsetData.Num());
+        Layout->SetNumberField(TEXT("scale_strip_size"), PerTrack.CompressedScaleOffsets.StripSize);
+        Layout->SetNumberField(TEXT("key_bytes"), PerTrack.CompressedByteStream.Num());
+        Compression->SetObjectField(TEXT("per_track"), Layout);
+    }
     return Compression;
 }
 
