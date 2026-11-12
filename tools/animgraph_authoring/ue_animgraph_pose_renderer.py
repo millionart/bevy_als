@@ -541,7 +541,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
     if renderer == "gameplay_tag_blend":
         active_key = value.get("active_key")
         blend_type = value.get("blend_type")
-        mode = {"Linear": "Linear", "Cubic": "HermiteCubic", "HermiteCubic": "HermiteCubic"}.get(blend_type)
+        mode = blend_type if blend_type in {"Linear", "Cubic", "HermiteCubic"} else None
         fields = (
             "active_key",
             "tags",
@@ -2265,7 +2265,7 @@ def run_self_test():
         )
         assert tag_type == "als_ext::SourceGameplayTagBlendNode"
         assert 'active_key: "gait"' in tag_inner
-        assert "blend_mode: HermiteCubic" in tag_inner
+        assert f"blend_mode: {blend_type}" in tag_inner
     bool_type, bool_inner = rendered_inner(graph_contract, {}, {
         "renderer": "bool_blend", "semantic": {
             "active_key": "b_use_alternate", "active_value": False,

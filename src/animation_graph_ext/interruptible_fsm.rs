@@ -33,7 +33,7 @@ use crate::extensions::animation_context::{
 };
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::inertialization::InertializationNode;
-use crate::extensions::profile_blend::{AlphaBlendMode, ProfiledBlendNode, transition_alpha};
+use crate::extensions::profile_blend::{AlphaBlendMode, ProfiledBlendNode, advance_alpha_blend, transition_alpha};
 use crate::extensions::source_pose_passthrough::SourcePosePassthroughNode;
 use crate::extensions::state_label_event::state_label_index;
 
@@ -181,18 +181,6 @@ fn timed_transition_progress(elapsed: f32, duration: Option<f32>) -> Option<f32>
             (elapsed / duration).clamp(0.0, 1.0)
         }
     })
-}
-
-fn advance_transition_blend(alpha: &mut f32, remaining: &mut f32, delta: f32) {
-    if *remaining > delta {
-        let blend_delta = 1.0 - *alpha;
-        *alpha += (blend_delta / *remaining) * delta;
-        *remaining -= delta;
-        *alpha = alpha.clamp(0.0, 1.0);
-    } else {
-        *remaining = 0.0;
-        *alpha = 1.0;
-    }
 }
 
 fn accumulated_transition_finished(alpha: f32, graph: &AnimationGraph) -> bool {
@@ -1701,7 +1689,7 @@ impl NodeLike for InterruptibleFsmNode {
                     && let Some(graph) = resources.animation_graph_assets.get(&state_data.graph)
                     && !accumulated_transition_finished(state.blend_alpha, graph)
                 {
-                    advance_transition_blend(&mut state.blend_alpha, &mut state.blend_remaining, elapsed_delta);
+                    advance_alpha_blend(&mut state.blend_alpha, &mut state.blend_remaining, elapsed_delta);
                 }
                 for source in &mut state.interrupted_sources {
                     source.elapsed_time += elapsed_delta;
@@ -1709,7 +1697,7 @@ impl NodeLike for InterruptibleFsmNode {
                         && let Some(graph) = resources.animation_graph_assets.get(&state_data.graph)
                         && !accumulated_transition_finished(source.blend_alpha, graph)
                     {
-                        advance_transition_blend(&mut source.blend_alpha, &mut source.blend_remaining, elapsed_delta);
+                        advance_alpha_blend(&mut source.blend_alpha, &mut source.blend_remaining, elapsed_delta);
                     }
                 }
             }
@@ -6229,13 +6217,13 @@ mod tests {
             let mut remaining=0.1;
             for _ in 0..frame {
                 if !accumulated_transition_finished(alpha,&graph) {
-                    advance_transition_blend(&mut alpha,&mut remaining,delta);
+                    advance_alpha_blend(&mut alpha,&mut remaining,delta);
                 }
             }
             assert_eq!(alpha,expected_alpha);
             assert_eq!(accumulated_transition_finished(alpha,&graph),expected_complete);
             let before=(alpha,remaining);
-            advance_transition_blend(&mut alpha,&mut remaining,0.0);
+            advance_alpha_blend(&mut alpha,&mut remaining,0.0);
             assert_eq!((alpha,remaining),before);
         }
     }
@@ -6290,7 +6278,7 @@ mod tests {
         for (delta, expected, complete) in reference.finish {
             elapsed += delta;
             if !accumulated_transition_finished(alpha, &graph) {
-                advance_transition_blend(&mut alpha, &mut remaining, delta);
+                advance_alpha_blend(&mut alpha, &mut remaining, delta);
             }
             assert_eq!(transition_alpha(elapsed / 0.5, AlphaBlendMode::Custom, &custom_curve), expected);
             assert_eq!(accumulated_transition_finished(alpha, &graph), complete, "elapsed {elapsed}");

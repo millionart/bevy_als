@@ -10,6 +10,7 @@ use bevy_gameplay_tag::GameplayTag;
 use serde::{Deserialize, Serialize};
 
 use crate::extensions::source_gameplay_tag_input::active_gameplay_tag_input;
+use crate::extensions::profile_blend::{AlphaBlendMode, advance_alpha_blend, transition_alpha};
 
 pub(crate) const WEIGHT_THRESHOLD: f32 = 1e-6;
 
@@ -24,27 +25,35 @@ pub fn weight_output(index: usize) -> String {
 pub enum GameplayTagBlendMode {
     #[default]
     Linear,
+    Cubic,
     HermiteCubic,
 }
 
 impl GameplayTagBlendMode {
     fn apply(self, alpha: f32) -> f32 {
-        let alpha = alpha.clamp(0.0, 1.0);
-        match self {
-            Self::Linear => alpha,
-            Self::HermiteCubic => alpha * alpha * (3.0 - 2.0 * alpha),
-        }
+        let mode = match self {
+            Self::Linear => AlphaBlendMode::Linear,
+            Self::Cubic => AlphaBlendMode::Cubic,
+            Self::HermiteCubic => AlphaBlendMode::HermiteCubic,
+        };
+        transition_alpha(alpha, mode, &[])
     }
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+struct BlendListChildState {
+    begin: f32,
+    alpha: f32,
+    remaining: f32,
+    value: f32,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct GameplayTagBlendState {
     initialized: bool,
     last_active_index: i32,
-    start_weights: Vec<f32>,
+    clocks: Vec<BlendListChildState>,
     weights: Vec<f32>,
-    elapsed: f32,
-    duration: f32,
 }
 
 impl GameplayTagBlendState {
@@ -108,41 +117,48 @@ pub(crate) fn advance_blend_list_weights(
     if !state.initialized || state.weights.len() != child_count {
         state.initialized = true;
         state.last_active_index = -1;
-        state.start_weights = vec![0.0; child_count];
+        state.clocks = vec![BlendListChildState::default(); child_count];
+        state.clocks[0].value = 1.0;
         state.weights = vec![0.0; child_count];
         state.weights[0] = 1.0;
-        state.start_weights.clone_from(&state.weights);
-        state.elapsed = 0.0;
-        state.duration = 0.0;
     }
 
     if state.last_active_index != active_index as i32 {
         let current_weight = state.weights[active_index];
-        state.start_weights.clone_from(&state.weights);
-        state.elapsed = 0.0;
-        state.duration = if state.last_active_index < 0 {
+        let duration = if state.last_active_index < 0 {
             0.0
         } else {
-            blend_time * (1.0 - current_weight).abs().clamp(0.0, 1.0)
+            blend_time.max(0.0) * (1.0 - current_weight).abs().clamp(0.0, 1.0)
         };
+        for (index, (clock, weight)) in state.clocks.iter_mut().zip(&state.weights).enumerate() {
+            clock.begin = *weight;
+            let target = f32::from(index == active_index);
+            clock.alpha = if duration <= 0.0 || clock.begin == target {
+                1.0
+            } else {
+                ((clock.value - clock.begin) / (target - clock.begin)).clamp(0.0, 1.0)
+            };
+            clock.remaining = duration * (1.0 - clock.alpha);
+            clock.value = clock.begin + (target - clock.begin) * blend_alpha(clock.alpha);
+        }
         state.last_active_index = active_index as i32;
     }
 
-    if state.duration <= WEIGHT_THRESHOLD {
-        state.weights.fill(0.0);
-        state.weights[active_index] = 1.0;
-    } else {
-        state.elapsed = (state.elapsed + delta_seconds.max(0.0)).min(state.duration);
-        let alpha = blend_alpha(state.elapsed / state.duration);
-        for (index, weight) in state.weights.iter_mut().enumerate() {
-            let target = if index == active_index { 1.0 } else { 0.0 };
-            *weight = state.start_weights[index] + (target - state.start_weights[index]) * alpha;
+    let terminal_alpha = blend_alpha(1.0);
+    let delta = delta_seconds.max(0.0);
+    for (index, (clock, weight)) in state.clocks.iter_mut().zip(&mut state.weights).enumerate() {
+        let range = f32::from(index == active_index) - clock.begin;
+        if clock.value != clock.begin + range * terminal_alpha {
+            advance_alpha_blend(&mut clock.alpha, &mut clock.remaining, delta);
+            clock.value = clock.begin + range * blend_alpha(clock.alpha);
         }
-        let sum = state.weights.iter().sum::<f32>();
-        if sum > WEIGHT_THRESHOLD && (sum - 1.0).abs() > WEIGHT_THRESHOLD {
-            for weight in &mut state.weights {
-                *weight /= sum;
-            }
+        *weight = clock.value;
+    }
+    let sum = state.weights.iter().sum::<f32>();
+    if sum > 1e-5 && (sum - 1.0).abs() > 1e-5 {
+        let reciprocal = 1.0 / sum;
+        for weight in &mut state.weights {
+            *weight *= reciprocal;
         }
     }
 
@@ -272,6 +288,53 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn blend_list_weights_match_native_cubic_reversals_and_hermite_children() {
+        #[derive(Deserialize)]
+        struct Frame {
+            duration: f32,
+            weights: Vec<f32>,
+            active: usize,
+            delta: f32,
+        }
+        #[derive(Deserialize)]
+        struct Case {
+            name: String,
+            frames: Vec<Frame>,
+        }
+        #[derive(Deserialize)]
+        struct Probe {
+            mode: GameplayTagBlendMode,
+            times: Vec<f32>,
+            cases: Vec<Case>,
+        }
+        #[derive(Deserialize)]
+        struct Reference {
+            probes: Vec<Probe>,
+        }
+
+        let reference: Reference = serde_json::from_str(include_str!(
+            "../../docs/audit/bf144/d214/weights.replay.json"
+        )).unwrap();
+        for probe in reference.probes {
+            for case in probe.cases {
+                let mut state = GameplayTagBlendState::default();
+                for (index, frame) in case.frames.into_iter().enumerate() {
+                    let changed = !state.initialized || state.last_active_index != frame.active as i32;
+                    let weights = advance_gameplay_tag_weights(
+                        &mut state, probe.times.len(), frame.active, probe.times[frame.active],
+                        probe.mode, frame.delta,
+                    );
+                    assert_eq!(weights, frame.weights, "{} at frame {index}", case.name);
+                    let active = &state.clocks[frame.active];
+                    if changed && frame.delta == 0.0 && active.alpha == 0.0 {
+                        assert_eq!(active.remaining, frame.duration, "{} at frame {index}", case.name);
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn child_reset_matches_source_active_index_and_weight_boundary() {

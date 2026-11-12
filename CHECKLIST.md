@@ -7458,7 +7458,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
 - [x] BF144-U04 — 惯性曲线显式零键与缺失键的剩余消费者。BF144.103的24帧只差键存在性，当前Layering Accumulate/Override和实际ALS输入getter均未产生数值差；缺失读取为0。原生在更早历史参与Union及结束阶段保留/移除键的时点与目标不同，不能据局部数值相等宣布键集合等价。后续沿当次主图曲线输出链检查是否存在影响运动的存在性判定、不同缺省或其他合成行为；未验证消费者不计为无差异。 BF144.104于19:47补齐Head、槽、Ragdolling、Rig输入/输出与最终getter：曲线值路径264组一致，源与已安装Rig的11次曲线读取均不含这两个名称；12个默认外部输入控制的79骨骼/405寄存器一致，真实读取曲线有效性和非零值负控制均可失败。两种源输入路径先清空有效值，排除其他旧曲线残留。关闭仅表示当前运动消费者不受这24处数据表示差影响，未修改原始容器，也不泛化到其他名称或新增消费者。
 
-- [ ] BF144-D214 / P3 — GameplayTags BlendList用elapsed比例近似原生FAlphaBlend，改变反转权重与时长。
+- [x] BF144-D214 / P3 — GameplayTags BlendList用elapsed比例近似原生FAlphaBlend，改变反转权重与时长。
+  - 2026-11-12 09:54 +0800 实际结束，较10:27预估提前33分钟，未拆分。855个原生权重/duration帧逐值通过，约18ns正时长独立覆盖；全量15个根374产物核对并迁移Standing/Camera五图11个节点与Standing验收图，安装产物逐字节匹配。证据与Rust fixture见 `docs/audit/bf144/d214/`，Cargo/Playground待统一验证。
+  - 本轮开始2026-11-12 09:35 +08:00，预估结束2026-11-12 10:27 +08:00。重采实际gait Cubic与多子Hermite权重，复用FAlphaBlend逐子时钟并全量迁移生成模式。
+  - 09:42 source/static 闭环：fresh 855帧权重及duration逐值匹配；elapsed、曲线模式和极短正时长分别有消融信号。姿态转换器self-test通过，已安装AnimBP的全量重新转换运行中。
   - Source：fresh `AnimNode_BlendListBase.cpp:167–244`逐子设置缩短后的blend时间和值域，并调用FAlphaBlend；`AlphaBlend.cpp:194–244`使用AlphaLerp/剩余时间递推及原生CubicInterp，只有非正时长立即完成。当前gait的暴露引脚为0.3/0.2秒，模式Cubic；结构默认0.1/0.1不参与该实例。
   - Target：`gameplay_tag_blend.rs:30–34,120–146`用elapsed/duration重算alpha、因式分解HermiteCubic，并把≤1e−6秒的正时长当作瞬时完成；`SourceGameplayTagBlendNode`直接消费这组权重。该差异不是参数文本精度，也不是D206的Custom RichCurve。
   - 反例/控制：20条883帧组合路径中871帧实际更新gait，274帧权重、128帧反转时长不同，最大权重差2.3841858e−7。独立float复算完整复现native与target各自输出；源模型只替换时钟/Cubic/时长门控分别有239/189/1帧差，全部恢复为0。极短反转时长1.7881394e−8秒、零delta时源保留权重[0.99999994,2.9997995e−8]，目标直接[1,0]；此例只有更新权重差，未声称当前帧姿态可见。原外层节点和缓存消费及后续姿态控制见D216。

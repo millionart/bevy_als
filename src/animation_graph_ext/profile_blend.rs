@@ -139,6 +139,18 @@ pub fn transition_alpha(
     value.clamp(0.0, 1.0)
 }
 
+pub(crate) fn advance_alpha_blend(alpha: &mut f32, remaining: &mut f32, delta: f32) {
+    if *remaining > delta {
+        let blend_delta = 1.0 - *alpha;
+        *alpha += (blend_delta / *remaining) * delta;
+        *remaining -= delta;
+        *alpha = alpha.clamp(0.0, 1.0);
+    } else {
+        *remaining = 0.0;
+        *alpha = 1.0;
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct MontageBlend {
     pub(crate) duration: f32,

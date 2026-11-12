@@ -1,0 +1,110 @@
+[
+  {
+    "path": "CHECKLIST.md",
+    "sha256": "10df55c32e105f51a4615fc09c4d497971a9406f5384d0e05502a9d9309691d9"
+  },
+  {
+    "path": "assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+    "sha256": "a204d1f45f2edc9bd43a141cabb2041d1d3bba0b05d54cc69bad3302599f8b66"
+  },
+  {
+    "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph.animgraph.ron",
+    "sha256": "b50f532ea38022bd6645cea3d8b08bdf01abf2e6923ebc8d0f2b6294c4838b2a"
+  },
+  {
+    "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S0_Velocity_Direction.animgraph.ron",
+    "sha256": "3bdff63babb8a2396946a953a3830b006953a57772bc5540ccb987589ec2e0b5"
+  },
+  {
+    "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S1_View_Direction.animgraph.ron",
+    "sha256": "3822ec8c1b51258dd41e2267893d39b476fbe705dabd0950586551dd6d3f4bc2"
+  },
+  {
+    "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S2_Aiming.animgraph.ron",
+    "sha256": "d3c2325f4c1d2100801b910215cfbf4ea4c5784d07e2bdf8e70df56d07dde377"
+  },
+  {
+    "path": "assets/Validation/Graphs/ab_als/stances/standing.animgraph.ron",
+    "sha256": "7184d37e85121189ba4be58dc1c274de25123ad231c7786a81c275a4683b289a"
+  },
+  {
+    "path": "docs/audit/bf144/d214/README.md",
+    "sha256": "61e80abe813c6cae7181041d508844f1d206118ea72ec1a8b282e883862905bf"
+  },
+  {
+    "path": "docs/audit/bf144/d214/corpus-diff.json",
+    "sha256": "191173712501c45b33715e09b2ff2b01ac13751080ede9fb2092ed74cd8a0b33"
+  },
+  {
+    "path": "docs/audit/bf144/d214/corpus-progress.json",
+    "sha256": "d5746ae2b516a2e6eae4b99c41ba1ded819999c407981a93e2d3123138ca2feb"
+  },
+  {
+    "path": "docs/audit/bf144/d214/full_diff.patch.gz",
+    "sha256": "f36ac3bfc7d89df6982ff2fcd74e24a019322cd9f350a4a38801dde56b10ab98"
+  },
+  {
+    "path": "docs/audit/bf144/d214/full_diff.sha256",
+    "sha256": "2b1381c387b4fce2e1943ce370a77d92e0dc5f325266136b637285aedb6d32b6"
+  },
+  {
+    "path": "docs/audit/bf144/d214/gait.native.json.gz",
+    "sha256": "822752e1aa89a1df13c90515a2aa109389a2612f73921d460e25f4d3e63164b6"
+  },
+  {
+    "path": "docs/audit/bf144/d214/gait.native.json.reader.report.json",
+    "sha256": "908209fceebf6194174525e77c558c4ae8569a11853df3e5df01b3b2c6e0954f"
+  },
+  {
+    "path": "docs/audit/bf144/d214/gait.native.sha256",
+    "sha256": "e7c6862e347b91a6b5c15f07f4af4207c80983f72a17fe7c328d7001a97d25f8"
+  },
+  {
+    "path": "docs/audit/bf144/d214/gait.request.json",
+    "sha256": "ee381800f06a8fc9342876ec3ef2c23258db8264ab0ce76fe9130efe0f27f1a7"
+  },
+  {
+    "path": "docs/audit/bf144/d214/hermite.native.json.gz",
+    "sha256": "b72e2d564031410669fef0af2413d190941eeeaece7bce5fe54eeab252513fe3"
+  },
+  {
+    "path": "docs/audit/bf144/d214/hermite.native.json.reader.report.json",
+    "sha256": "25a128e6b91be1eb46d1a7ec2165c1820f21f3d55199263bd9b6380109013395"
+  },
+  {
+    "path": "docs/audit/bf144/d214/hermite.native.sha256",
+    "sha256": "3f2cdea38944e12378319188feb338169f4ebbfeea898a0da4e3391dc5368eaa"
+  },
+  {
+    "path": "docs/audit/bf144/d214/hermite.request.json",
+    "sha256": "578c95be9cd1e2ecc4c8161ba85114e51f68dcd471a9dc9f9ad0885af760db39"
+  },
+  {
+    "path": "docs/audit/bf144/d214/migration.json",
+    "sha256": "d55a32cbf12841b59817330be48095ec835e89297a9f44795c45e8b6bdc6e3d9"
+  },
+  {
+    "path": "docs/audit/bf144/d214/replay_blend_list_clock.py",
+    "sha256": "b8defb24165348137b87e8d9ea960608f765516053a4a3e8d30a6f72c390308f"
+  },
+  {
+    "path": "docs/audit/bf144/d214/weights.replay.json",
+    "sha256": "affd5ee374872233738baef19e094fa568c37fe9c40b0ce45f3799ab9846305c"
+  },
+  {
+    "path": "src/animation_graph_ext/gameplay_tag_blend.rs",
+    "sha256": "ef23e0e5b135d9bd0fd97a4d17b2a4e71aca880167fd486f2792bb2860e0901d"
+  },
+  {
+    "path": "src/animation_graph_ext/interruptible_fsm.rs",
+    "sha256": "9b63c32f870378ed2cc5716558a8a43de5afb5036272d66ede47002655e09baf"
+  },
+  {
+    "path": "src/animation_graph_ext/profile_blend.rs",
+    "sha256": "481590e709265d89531a933d757d6e8ad73bd6f3466ec6bd0a10a4f98cccad2d"
+  },
+  {
+    "path": "tools/animgraph_authoring/ue_animgraph_pose_renderer.py",
+    "sha256": "c6a5bf4338f8ee9ae27795223b21a61d914f881d0d8dd81dbb3f72c295d457e6"
+  }
+]
