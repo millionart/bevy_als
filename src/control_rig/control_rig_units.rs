@@ -4,13 +4,14 @@ use bevy::{
 
 use crate::extensions::{
     control_rig_hierarchy::{
-        RigHierarchy, RigSpace, RigTransform, rig_normalize, rig_quat_near, rig_slerp, source_rotate_vector,
+        RigHierarchy, RigSpace, RigTransform, rig_normalize, rig_quat_near, rig_slerp,
     },
     control_rig_ik::{RigGeometry, source_vector_dot},
     control_rig_math::{
         RigValue, rig_clamp01, rig_damper_alpha, rig_euler, rig_quat_product, rig_quaternion,
         rig_spring_damper,
     },
+    source_math::source_rotate_vector,
 };
 
 pub type RigLineTrace<'a> =

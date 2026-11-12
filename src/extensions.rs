@@ -14,6 +14,8 @@ pub mod curve;
 pub mod curve_bundle;
 #[path = "animation_graph_ext/curve_weighted_samples.rs"]
 pub mod curve_weighted_samples;
+#[path = "bevy_ext/source_math.rs"]
+pub(crate) mod source_math;
 #[path = "control_rig/control_rig_math.rs"]
 pub mod control_rig_math;
 #[path = "control_rig/control_rig_program.rs"]

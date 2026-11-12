@@ -10,7 +10,7 @@ use parry3d_f64::{
     shape::{Ball, Capsule, Cuboid, Cylinder, SupportMap, Triangle},
 };
 
-use crate::extensions::control_rig_hierarchy::{RigTransform, source_rotate_vector};
+use crate::extensions::{control_rig_hierarchy::RigTransform, source_math::source_rotate_vector};
 use crate::extensions::control_rig_mesh_ray::{CookedMeshRay, mesh_safe_normal, mesh_vector_length};
 
 #[derive(Clone, Component)]

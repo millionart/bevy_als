@@ -4,7 +4,7 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize, source_rotate_vector};
+use crate::extensions::{control_rig_hierarchy::{RigTransform, rig_normalize}, source_math::source_rotate_vector};
 use crate::extensions::control_rig_math::rig_quat_product;
 
 #[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]

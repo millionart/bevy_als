@@ -2,6 +2,8 @@ use avian3d::parry::shape::{Capsule, Cuboid};
 use bevy::math::{DQuat, DVec3};
 use bevy::prelude::{Quat, Vec3};
 
+use crate::extensions::source_math::source_rotate_vector;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum CapsuleSweepResult {
     Miss,
@@ -187,7 +189,7 @@ pub(crate) fn capsule_cuboid_sweep(
     let start = (origin.as_dvec3() - center.as_dvec3()) * 100.0
         + capsule_rotation * (segment_center.as_dvec3() * 100.0
             - segment_axis.as_dvec3() * half_segment as f64);
-    let local_start = box_inverse * start;
+    let local_start = source_rotate_vector(box_inverse, start);
     let local_axis = box_inverse * (capsule_rotation * segment_axis.as_dvec3());
     let a = axes(local_start).as_vec3();
     let b = axes(local_start + local_axis * (2.0 * half_segment) as f64).as_vec3();
