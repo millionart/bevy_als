@@ -1,0 +1,14 @@
+{
+  "native_sha256": "e4c55da186ac32adaa0709d4f19230db028b829b582f6c2a158068a7790050ca",
+  "bytes": 172518,
+  "logs": {
+    "tests.stdout.log.gz": {
+      "bytes": 678,
+      "sha256": "f78022dc9ebf8b2cedbdfbc3fa046fb14a413a5cb564ffc819532806d64d2f51"
+    },
+    "tests.stderr.log.gz": {
+      "bytes": 7691,
+      "sha256": "b023f634ad67a76d38fd0d0bfa58bb89d6e0929cc149bf5da1585004e365850d"
+    }
+  }
+}

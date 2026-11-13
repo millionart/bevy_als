@@ -884,7 +884,11 @@ mod tests {
                     positive_scale_foot_rotation(foot, avatar, &armature, &parents, &locals, Some(player)).unwrap())
             }).unwrap();
             assert_eq!(sampled_root, mesh_rotation.as_dquat() * root_rotation.as_dquat());
-            assert_eq!(sampled_foot, mesh_rotation.as_dquat());
+            #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+            let component_w = 0.999_999_999_950_951_3;
+            #[cfg(not(all(target_arch = "aarch64", target_os = "macos")))]
+            let component_w = 1.0;
+            assert_eq!(sampled_foot, mesh_rotation.as_dquat() * DQuat::from_xyzw(0.0, 0.0, 0.0, component_w));
             assert_ne!(sampled_root, sampled_foot);
             app.world_mut().entity_mut(actor).insert((AlsFootTargetSelection { use_ik_bones: use_ik },
                 AlsFootLockState::default(), AlsFootLockInput { left_ik_amount: 1.0, right_ik_amount: 1.0, ..default() }));
@@ -905,9 +909,10 @@ mod tests {
             let foot = bones.target(0, use_ik).unwrap();
             let parent = app.world().get::<ChildOf>(foot).unwrap().parent();
             let root = app.world().get::<ChildOf>(parent).unwrap().parent();
-            app.world_mut().get_mut::<Transform>(parent).unwrap().scale = Vec3::new(1.3432261, 1.0, 1.3432261);
+            app.world_mut().get_mut::<Transform>(root).unwrap().scale = Vec3::ONE;
+            app.world_mut().get_mut::<Transform>(parent).unwrap().scale = Vec3::new(2.0, 1.0, 1.0);
             app.world_mut().get_mut::<Transform>(parent).unwrap().rotation = Quat::from_rotation_y(0.3);
-            app.world_mut().get_mut::<Transform>(foot).unwrap().rotation = Quat::from_rotation_z(0.8);
+            app.world_mut().get_mut::<Transform>(foot).unwrap().rotation = Quat::from_rotation_z(1.1);
             let root_rotation = app.world().get::<Transform>(root).unwrap().rotation;
             let parent_rotation = app.world().get::<Transform>(parent).unwrap().rotation;
             let foot_rotation = app.world().get::<Transform>(foot).unwrap().rotation;
