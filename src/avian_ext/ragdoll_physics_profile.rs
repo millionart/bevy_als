@@ -1523,14 +1523,13 @@ fn apply_profile_to_spawned_ragdoll(
                 entity.insert(SourceBodyDof { axes: avian3d::prelude::LockedAxes::from_bits(bits), anchor: None, settings });
             }
         });
-        if body.ccd_enabled {
-            use avian3d::dynamics::ccd::{CcdFilter, SweepMode, SweptCcd};
-            commands.entity(*body_entity).insert(
-                SweptCcd::new().with_mode(SweepMode::Linear).with_filter(CcdFilter::ALL).with_threshold(0.0),
-            );
+        use avian3d::dynamics::ccd::{CcdFilter, SweepMode, SweptCcd};
+        let ccd = if body.ccd_enabled {
+            SweptCcd::new().with_mode(SweepMode::Linear).with_filter(CcdFilter::ALL).with_threshold(0.0)
         } else {
-            commands.entity(*body_entity).remove::<avian3d::prelude::SweptCcd>();
-        }
+            SweptCcd::new().with_filter(CcdFilter::NONE)
+        };
+        commands.entity(*body_entity).insert(ccd);
         let mass = body.mass_properties.map(|mass| (mass,
             scaled_ragdoll_mass_properties(profile, body, mass, scale, initial_shape)));
         commands.entity(*body_entity).queue(move |mut entity: EntityWorldMut| {
@@ -3785,7 +3784,7 @@ mod tests {
                             app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(scale);
                             app.update();
                             check(app.world(), body, input, if update { scale } else { initial });
-                            assert_eq!(app.world().get::<avian3d::prelude::SweptCcd>(body).is_some(), update);
+                            assert_eq!(!app.world().get::<avian3d::prelude::SweptCcd>(body).unwrap().filter.is_empty(), update);
                         }
                         let mut changed = input;
                         changed.unclamped_mass_kg += 2.0;
@@ -3794,12 +3793,12 @@ mod tests {
                         app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies[0].ccd_enabled = !update;
                         app.update();
                         check(app.world(), body, changed, initial * 0.5);
-                        assert_eq!(app.world().get::<avian3d::prelude::SweptCcd>(body).is_some(), !update);
+                        assert_eq!(!app.world().get::<avian3d::prelude::SweptCcd>(body).unwrap().filter.is_empty(), !update);
                         let (new_root, new_body) = attach(app.world_mut(), player);
                         app.update();
                         assert!(app.world().get_entity(old_root).is_err() && app.world().get_entity(new_root).is_ok());
                         check(app.world(), new_body, changed, initial * 0.5);
-                        assert_eq!(app.world().get::<avian3d::prelude::SweptCcd>(new_body).is_some(), !update);
+                        assert_eq!(!app.world().get::<avian3d::prelude::SweptCcd>(new_body).unwrap().filter.is_empty(), !update);
                         app.update();
                         check(app.world(), new_body, changed, initial * 0.5);
                     }
@@ -3846,7 +3845,11 @@ mod tests {
             *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
             app.update();
 
-            assert_eq!(app.world().get::<SweptCcd>(body).map(|ccd| ccd.mode), enabled.then_some(SweepMode::Linear));
+            let ccd = app.world().get::<SweptCcd>(body).unwrap();
+            assert_eq!(!ccd.filter.is_empty(), enabled);
+            if enabled {
+                assert_eq!(ccd.mode, SweepMode::Linear);
+            }
         }
     }
 

@@ -1,0 +1,96 @@
+{
+  "avian": {
+    "version": "0.8.0",
+    "source": "src/dynamics/ccd/mod.rs",
+    "sha256": "cb46d4ecf724e111659e87489251bdfc6dc3324e86109a05bb0e287082619dee",
+    "default_without_component": true,
+    "explicit_disabled_filter": "NONE"
+  },
+  "source_physics_asset": "docs/audit/bf144/u07/ragdoll-live-scale/live.native.json.gz",
+  "source_bodies": [
+    {
+      "bone": "pelvis",
+      "bUseCCD": false
+    },
+    {
+      "bone": "spine_01",
+      "bUseCCD": false
+    },
+    {
+      "bone": "spine_02",
+      "bUseCCD": false
+    },
+    {
+      "bone": "spine_03",
+      "bUseCCD": false
+    },
+    {
+      "bone": "neck_01",
+      "bUseCCD": false
+    },
+    {
+      "bone": "head",
+      "bUseCCD": false
+    },
+    {
+      "bone": "thigh_l",
+      "bUseCCD": false
+    },
+    {
+      "bone": "thigh_r",
+      "bUseCCD": false
+    },
+    {
+      "bone": "calf_l",
+      "bUseCCD": false
+    },
+    {
+      "bone": "calf_r",
+      "bUseCCD": false
+    },
+    {
+      "bone": "clavicle_l",
+      "bUseCCD": false
+    },
+    {
+      "bone": "clavicle_r",
+      "bUseCCD": false
+    },
+    {
+      "bone": "upperarm_l",
+      "bUseCCD": false
+    },
+    {
+      "bone": "upperarm_r",
+      "bUseCCD": false
+    },
+    {
+      "bone": "lowerarm_l",
+      "bUseCCD": false
+    },
+    {
+      "bone": "lowerarm_r",
+      "bUseCCD": false
+    },
+    {
+      "bone": "hand_l",
+      "bUseCCD": false
+    },
+    {
+      "bone": "hand_r",
+      "bUseCCD": false
+    },
+    {
+      "bone": "root",
+      "bUseCCD": false
+    },
+    {
+      "bone": "foot_l",
+      "bUseCCD": false
+    },
+    {
+      "bone": "foot_r",
+      "bUseCCD": false
+    }
+  ]
+}

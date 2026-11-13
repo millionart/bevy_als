@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 141.695,
+  "exit_reason": "process_failed",
+  "last_progress": "stderr.log",
+  "no_progress_limit_seconds": 600,
+  "no_progress_seconds": 0.0,
+  "process_exit_code": 101,
+  "source": "d84-ragdoll-rotation-writers-ordered",
+  "success": false,
+  "timeout_seconds": 3600
+}
