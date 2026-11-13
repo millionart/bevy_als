@@ -3088,7 +3088,12 @@ impl Plugin for AlsMotionPlugin {
             )
             .add_systems(
                 PostUpdate,
-                ((|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system), locomotion_state_sync_system, snapshot_actual_velocity_system)
+                (
+                    (|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system),
+                    release_custom_movement_physics,
+                    locomotion_state_sync_system,
+                    snapshot_actual_velocity_system,
+                )
                     .chain().in_set(AlsActualVelocitySet),
             )
             .add_systems(PostUpdate, apply_character_overlap_impulses
@@ -3098,15 +3103,10 @@ impl Plugin for AlsMotionPlugin {
                 .after(crate::als::character::character_contact_friction_system)
                 .before(PhysicsStepSystems::Solver)
                 .before(crate::extensions::ragdoll_physics_profile::capture_source_sleep_wakes))
-            .add_systems(PostUpdate, (
-                prepare_subminimum_custom_physics
-                    .after(crate::roll_drive::AlsRollDriveSet)
-                    .after(crate::mantle_drive::AlsMantleDriveSet)
-                    .before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp),
-                release_custom_movement_physics
-                    .after(PhysicsSystems::Last)
-                    .before(AlsActualVelocitySet),
-            ))
+            .add_systems(PostUpdate, prepare_subminimum_custom_physics
+                .after(crate::roll_drive::AlsRollDriveSet)
+                .after(crate::mantle_drive::AlsMantleDriveSet)
+                .before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp))
             .add_systems(
                 PostUpdate,
                 (

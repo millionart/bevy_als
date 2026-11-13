@@ -1,0 +1,14 @@
+{
+  "focused.stdout.log.gz": {
+    "bytes": 2523,
+    "sha256": "50b0d2c2eca7ba2b3a2ef618ac6dafd34022a01f871c7a2866a143c6b595e566"
+  },
+  "focused.stderr.log.gz": {
+    "bytes": 8211,
+    "sha256": "b9eb613d1a74469a1aff6fe1dac01b4f9e3796539f5727bb28511ab952b8784e"
+  },
+  "focused.watchdog.json": {
+    "bytes": 284,
+    "sha256": "eb6e6c41509a0a8fde6f74aa023cecaa40e87be81a776d03eb03fdb91e8d1afb"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "path": "Engine/Source/Runtime/Engine/Private/Components/CharacterMovementComponent.cpp",
+  "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+  "excerpts": [
+    {
+      "first_line": 2476,
+      "lines": [
+        "void UCharacterMovementComponent::MaybeUpdateBasedMovement(float DeltaSeconds)",
+        "{",
+        "\tbDeferUpdateBasedMovement = false;",
+        "",
+        "\tFMovementBaseInterfaceData* MovementBaseInterfaceData = GetMovementBaseInterfaceData_Mutable();",
+        "\tif (MovementBaseUtility::UseRelativeLocation(MovementBaseInterfaceData))",
+        "\t{",
+        "\t\t// Need to see if anything we're on is simulating physics or has a parent that is.\t\t",
+        "\t\tif (!MovementBaseUtility::IsSimulatedBase(MovementBaseInterfaceData))",
+        "\t\t{",
+        "\t\t\tbDeferUpdateBasedMovement = false;",
+        "\t\t\tUpdateBasedMovement(DeltaSeconds);",
+        "\t\t\t// If previously simulated, go back to using normal tick dependencies.",
+        "\t\t\tif (PostPhysicsTickFunction.IsTickFunctionEnabled())",
+        "\t\t\t{",
+        "\t\t\t\tPostPhysicsTickFunction.SetTickFunctionEnable(false);",
+        "\t\t\t\tMovementBaseUtility::AddTickDependency(PrimaryComponentTick, MovementBaseInterfaceData);",
+        "\t\t\t}"
+      ]
+    },
+    {
+      "first_line": 2617,
+      "lines": [
+        "\t\tif (HasCustomGravity())",
+        "\t\t{",
+        "\t\t\tconst FVector RotationRadius = UpdatedComponent->GetComponentLocation() - NewBaseLocation;",
+        "\t\t\tconst FVector RotationDelta = DeltaQuat.RotateVector(RotationRadius) - RotationRadius;",
+        "\t\t\tconst FVector LinearDelta = NewBaseLocation - OldBaseLocation;",
+        "\t\t\tNewWorldPos = ConstrainLocationToPlane(UpdatedComponent->GetComponentLocation() + RotationDelta + LinearDelta);",
+        "\t\t}",
+        "\t\telse",
+        "\t\t{",
+        "\t\t\t// We need to offset the base of the character here, not its origin, so offset by half height",
+        "\t\t\tfloat HalfHeight, Radius;",
+        "\t\t\tCharacterOwner->GetCapsuleComponent()->GetScaledCapsuleSize(Radius, HalfHeight);",
+        "",
+        "\t\t\tFVector const BaseOffset = FVector(0.0f, 0.0f, HalfHeight);",
+        "\t\t\tFVector const LocalBasePos = OldLocalToWorld.InverseTransformPosition(UpdatedComponent->GetComponentLocation() - BaseOffset);",
+        "\t\t\tNewWorldPos = ConstrainLocationToPlane(NewLocalToWorld.TransformPosition(LocalBasePos) + BaseOffset);",
+        "\t\t}",
+        "\t\t",
+        "\t\tDeltaPosition = ConstrainDirectionToPlane(NewWorldPos - UpdatedComponent->GetComponentLocation());",
+        "",
+        "\t\t// move attached actor",
+        "\t\tif (bFastAttachedMove)",
+        "\t\t{"
+      ]
+    },
+    {
+      "first_line": 2836,
+      "lines": [
+        "\t// Scoped updates can improve performance of multiple MoveComponent calls.",
+        "\t{",
+        "\t\tFScopedCapsuleMovementUpdate ScopedMovementUpdate(UpdatedComponent, bEnableScopedMovementUpdates);",
+        "",
+        "\t\tMaybeUpdateBasedMovement(DeltaSeconds);",
+        "",
+        "\t\t// Clean up invalid RootMotion Sources."
+      ]
+    },
+    {
+      "first_line": 3531,
+      "lines": [
+        "void UCharacterMovementComponent::StartNewPhysics(float deltaTime, int32 Iterations)",
+        "{",
+        "\tif ((deltaTime < MIN_TICK_TIME) || (Iterations >= MaxSimulationIterations) || !HasValidData())",
+        "\t{",
+        "\t\treturn;",
+        "\t}",
+        ""
+      ]
+    },
+    {
+      "first_line": 12027,
+      "lines": [
+        "void UCharacterMovementComponent::TickCharacterPose(float DeltaTime)",
+        "{",
+        "\tif (DeltaTime < UCharacterMovementComponent::MIN_TICK_TIME)",
+        "\t{",
+        "\t\treturn;",
+        "\t}",
+        "",
+        "\tcheck(CharacterOwner && CharacterOwner->GetMesh());"
+      ]
+    }
+  ]
+}

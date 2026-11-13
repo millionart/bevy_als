@@ -1,0 +1,157 @@
+{
+  "samples": [
+    {
+      "name": "12-runtime",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          53.33333611488342,
+          2.3312741959102823e-06,
+          0.0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "12-source",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          53.33333690960956,
+          2.3312712676812047e-06,
+          0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "13-runtime",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          120.00000476837158,
+          5.245366807571372e-06,
+          0.0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "13-source",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          120,
+          5.245367173492618e-06,
+          0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "17-runtime",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          120.00000476837158,
+          5.245366807571372e-06,
+          0.0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "17-source",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          120,
+          5.245367173492618e-06,
+          0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "12-runtime-rounded",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          53.33333611488342,
+          2.3312741959102823e-06,
+          0.0
+        ],
+        "view_yaw_degrees": 2.5044781672654152e-06
+      }
+    },
+    {
+      "name": "13-runtime-rounded",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          120.00000476837158,
+          5.245366807571372e-06,
+          0.0
+        ],
+        "view_yaw_degrees": 2.5044781672654152e-06
+      }
+    },
+    {
+      "name": "17-runtime-rounded",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          120.00000476837158,
+          5.245366807571372e-06,
+          0.0
+        ],
+        "view_yaw_degrees": 2.5044781672654152e-06
+      }
+    }
+  ]
+}
