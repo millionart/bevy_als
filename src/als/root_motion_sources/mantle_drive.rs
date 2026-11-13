@@ -4,7 +4,7 @@ use crate::als::character::AlsCollisionLayerOwnership;
 use crate::als::control_scheme::AlsControlScheme;
 use crate::als::mantle::{AlsMantleState, AlsMantleTargetBase, MantleKind};
 use crate::als::state::LocomotionState;
-use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
+use crate::als::transition::{StateTransitionEvent, commit_state};
 use crate::extensions::{
     animation_context::SourceRelevantAsset,
     profile_blend::transition_alpha,
@@ -281,7 +281,7 @@ fn prepare_mantle_montages(
         With<AlsCharacter>,
     >,
 ) {
-    for (character, mut mantle, mut current, mut locomotion, roll, mut get_up, action) in
+    for (character, mut mantle, mut current, locomotion, roll, mut get_up, action) in
         &mut characters
     {
         let delta = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
@@ -303,15 +303,7 @@ fn prepare_mantle_montages(
         let mut added = AlsMantleMontages::default();
         let montages = current.as_deref_mut().unwrap_or(&mut added);
         if starting {
-            if *locomotion != LocomotionState::Custom {
-                transitions.write(StateTransitionEvent {
-                    entity: character,
-                    dimension: Dimension::LocomotionState,
-                    from: StateValue::LocomotionState(*locomotion),
-                    to: StateValue::LocomotionState(LocomotionState::Custom),
-                });
-                *locomotion = LocomotionState::Custom;
-            }
+            commit_state(character, locomotion, LocomotionState::Custom, &mut transitions);
             montages.begin(&mantle);
             let duration = mantle.kind.action_settings().blend_in_seconds;
             if let Some(roll) = roll.filter(|roll| roll.active) {
@@ -619,22 +611,10 @@ fn mantle_pose_system(
                 if *locomotion == LocomotionState::Custom && !start_ragdoll
                     && let Some(mut runtime) = runtime { runtime.mantle_exit_grounded = true; }
                 vel.y = 0.0;
-                transitions.write(StateTransitionEvent {
-                    entity,
-                    dimension: Dimension::LocomotionState,
-                    from: StateValue::LocomotionState(*locomotion),
-                    to: StateValue::LocomotionState(LocomotionState::Grounded),
-                });
-                *locomotion = LocomotionState::Grounded;
+                commit_state(entity, locomotion.reborrow(), LocomotionState::Grounded, &mut transitions);
             }
             if start_ragdoll {
-                transitions.write(StateTransitionEvent {
-                    entity,
-                    dimension: Dimension::LocomotionState,
-                    from: StateValue::LocomotionState(LocomotionState::Grounded),
-                    to: StateValue::LocomotionState(LocomotionState::None),
-                });
-                *locomotion = LocomotionState::None;
+                commit_state(entity, locomotion, LocomotionState::None, &mut transitions);
                 commands
                     .entity(entity)
                     .insert(AlsNotifyLocomotionAction::Ragdolling);
@@ -1922,6 +1902,7 @@ pub(crate) mod tests {
 
     #[test]
     fn destroyed_mantle_target_requires_ragdoll_bodies() {
+        use crate::als::transition::Dimension;
         for missing in [None, Some("pelvis")] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (_, bodies) = crate::ragdoll_link::tests::loaded_ragdoll_bodies(&mut app, avatar);
@@ -1937,11 +1918,20 @@ pub(crate) mod tests {
                 AlsNotifyLocomotionAction::Mantling, Position(start), Transform::from_translation(start),
                 LinearVelocity(Vec3::new(1.0, 2.0, 0.0)), crate::als::character::AlsCmcAdapterRuntime::default()));
             app.world_mut().despawn(target);
+            app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().clear();
             app.world_mut().run_system_once(mantle_pose_system).unwrap();
             let expected = if missing.is_none() { LocomotionState::None } else { LocomotionState::Grounded };
             assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), expected, "missing={missing:?}");
             assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor) == Some(&AlsNotifyLocomotionAction::Ragdolling),
                 missing.is_none());
+            let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
+                .filter(|event| event.entity == actor && event.dimension == Dimension::LocomotionState)
+                .map(|event| (event.from, event.to)).collect();
+            let mut expected = vec![(LocomotionState::Custom.into(), LocomotionState::Grounded.into())];
+            if missing.is_none() {
+                expected.push((LocomotionState::Grounded.into(), LocomotionState::None.into()));
+            }
+            assert_eq!(events, expected);
             if missing.is_some() {
                 app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
                 assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);

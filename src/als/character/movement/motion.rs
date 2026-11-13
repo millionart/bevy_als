@@ -42,7 +42,7 @@ use crate::als::params::AlsMovementParams;
 use crate::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use crate::als::transition::{
     AlsDesiredStance, AlsPhysicalStanceOverride, AlsStateRequest, Dimension, StateTransitionEvent,
-    StateValue,
+    StateValue, commit_state,
 };
 
 const WALK_CLING_DISTANCE: f32 = ALS_CHARACTER_TNUA_FLOAT_EPSILON;
@@ -3168,7 +3168,7 @@ fn accepted_jump_state_system(
         &mut crate::als::dynamics::AlsMovementBase, &AlsMovementParamsHandle, &mut bevy_tnua::TnuaMotor),
         (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>)>,
 ) {
-    for (entity, controller, mut mode, mut base, handle, mut motor) in &mut characters {
+    for (entity, controller, mode, mut base, handle, mut motor) in &mut characters {
         if *mode != LocomotionState::Grounded || controller.action_flow_status().just_starting()
             != Some(AlsControlSchemeActionDiscriminant::Jump) { continue; }
         if let Some(params) = params_assets.get(handle.id())
@@ -3178,9 +3178,7 @@ fn accepted_jump_state_system(
                 - TnuaBuiltinWalk::vertical_velocity(&basis).max(0.0);
             motor.lin.boost.y = params.jump.jump_z_velocity.max(relative) - relative;
         }
-        transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
-            from: StateValue::LocomotionState(*mode), to: StateValue::LocomotionState(LocomotionState::Air) });
-        *mode = LocomotionState::Air;
+        commit_state(entity, mode, LocomotionState::Air, &mut transitions);
         base.entity = None;
     }
 }
@@ -11370,12 +11368,18 @@ mod tests {
             app.world_mut().entity_mut(platform).insert((Position(target), Transform::from_translation(target), LinearVelocity::ZERO));
             app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(owner_dilation));
             app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = jump;
+            app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().clear();
             app.update();
             let actual = app.world().get::<Position>(character).unwrap().0;
             let expected_x = start.x + if jump { 0.0 } else { shift };
             assert!((actual.x - expected_x).abs() < 1e-4,
                 "owner={owner_dilation} jump={jump} shift={shift} actual={actual:?} expected_x={expected_x}");
             if jump { assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air); }
+            let transitions: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
+                .filter(|event| event.entity == character && event.dimension == Dimension::LocomotionState)
+                .map(|event| (event.from, event.to)).collect();
+            let expected = jump.then_some((LocomotionState::Grounded.into(), LocomotionState::Air.into()));
+            assert_eq!(transitions, expected.into_iter().collect::<Vec<_>>());
         }
     }
 

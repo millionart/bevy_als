@@ -1,0 +1,108 @@
+{
+  "tests": [
+    [
+      "als::transition::tests::gair_requests_queue_while_crouched_gait_passes_through",
+      "ok"
+    ],
+    [
+      "als::transition::tests::locomotion_transitions_match_als_matrix",
+      "ok"
+    ],
+    [
+      "als::transition::tests::same_value_request_is_idempotent_accept",
+      "ok"
+    ],
+    [
+      "als::transition::tests::overlay_and_rotation_mode_are_always_legal",
+      "ok"
+    ],
+    [
+      "als::transition::tests::air_crouch_updates_desired_stance_regardless_of_request_policy",
+      "ok"
+    ],
+    [
+      "als::transition::tests::stance_requests_remain_legal_after_landing",
+      "ok"
+    ],
+    [
+      "als::transition::tests::state_value_reports_own_dimension",
+      "ok"
+    ],
+    [
+      "mantle_drive::tests::mantle_custom_mode_uses_source_stop_priority",
+      "ok"
+    ],
+    [
+      "als::transition::tests::unlocked_none_to_air_transitions_end_to_end",
+      "ok"
+    ],
+    [
+      "als::transition::tests::airborne_crouch_updates_desired_stance_without_writing_actual_stance",
+      "ok"
+    ],
+    [
+      "als::transition::tests::ground_to_air_transition_fires_event_and_noop_request_fires_none",
+      "ok"
+    ],
+    [
+      "als::transition::tests::airborne_crouch_uses_desired_stance_with_reject_policy_too",
+      "ok"
+    ],
+    [
+      "als::transition::tests::state_change_ticks_follow_accepted_value_changes",
+      "ok"
+    ],
+    [
+      "als::transition::tests::active_mantle_locks_ordinary_requests_and_keeps_desired_stance",
+      "ok"
+    ],
+    [
+      "als::transition::tests::named_locomotion_requests_keep_identity_and_emit_only_changes",
+      "ok"
+    ],
+    [
+      "als::transition::tests::ragdoll_request_separates_action_from_locked_movement_mode",
+      "ok"
+    ],
+    [
+      "roll_drive::tests::landing_event_starts_roll_even_when_the_frame_ends_airborne",
+      "ok"
+    ],
+    [
+      "als::motion::tests::accepted_jump_does_not_follow_the_old_base_transform",
+      "ok"
+    ],
+    [
+      "mantle_drive::tests::destroyed_mantle_target_requires_ragdoll_bodies",
+      "ok"
+    ],
+    [
+      "ragdoll_link::tests::ragdoll_exit_inputs_start_get_up_in_the_same_frame",
+      "ok"
+    ],
+    [
+      "mantle_drive::tests::loaded_auto_mantle_starts_after_movement_and_defers_root_time",
+      "ok"
+    ],
+    [
+      "ragdoll_link::tests::source_ragdoll_exit_loaded_support_lifecycle",
+      "ok"
+    ]
+  ],
+  "target_directory": "target_game",
+  "profile": "play",
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": true,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T16:09:02.0301240Z",
+    "last_progress_at_utc": "2026-11-13T16:12:42.8775347Z",
+    "last_progress_source": "restored-actions.stdout",
+    "finished_at_utc": "2026-11-13T16:12:42.9889690Z",
+    "elapsed_seconds": 220.959,
+    "no_progress_seconds": 0.111,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 720,
+    "process_exit_code": 0
+  }
+}

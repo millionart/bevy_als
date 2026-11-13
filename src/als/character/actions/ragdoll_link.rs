@@ -7,7 +7,7 @@ use crate::als::mantle::scaled_mantle_capsule_dimensions;
 use crate::als::motion::AlsRagdollAirExit;
 use crate::als::params::AlsMovementParams;
 use crate::als::state::{AlsNotifyLocomotionAction, LocomotionState, Stance};
-use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
+use crate::als::transition::{StateTransitionEvent, commit_state};
 use crate::extensions::ragdoll_angular_drive::{
     RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDriveSet,
 };
@@ -828,7 +828,7 @@ pub fn ragdoll_exit_route_system(
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, action, mut locomotion, mut request, follow, velocity, position, stance, desired_stance, crouch, params_handle, ownership, assembly) in &mut characters {
+    for (entity, action, locomotion, mut request, follow, velocity, position, stance, desired_stance, crouch, params_handle, ownership, assembly) in &mut characters {
         if !request.ragdoll_exit {
             continue;
         }
@@ -879,15 +879,7 @@ pub fn ragdoll_exit_route_system(
         }
         *action.unwrap() = AlsNotifyLocomotionAction::None;
         request.locomotion_state = None;
-        if *locomotion != state {
-            transitions.write(StateTransitionEvent {
-                entity,
-                dimension: Dimension::LocomotionState,
-                from: StateValue::LocomotionState(*locomotion),
-                to: StateValue::LocomotionState(state),
-            });
-            *locomotion = state;
-        }
+        commit_state(entity, locomotion, state, &mut transitions);
         if state == LocomotionState::Air {
             commands.entity(entity).insert(AlsRagdollAirExit);
         } else {
@@ -1870,6 +1862,7 @@ pub(crate) mod tests {
 
     #[test]
     fn ragdoll_exit_inputs_start_get_up_in_the_same_frame() {
+        use crate::als::transition::Dimension;
         for input in ["request", "ragdoll", "jump"] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
             let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
@@ -1895,8 +1888,13 @@ pub(crate) mod tests {
                 command.ragdoll_pressed = input == "ragdoll";
                 command.jump_pressed = input == "jump";
             }
+            app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().clear();
             app.update();
             assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::GettingUp), "input={input}");
+            let transitions: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
+                .filter(|event| event.entity == actor && event.dimension == Dimension::LocomotionState)
+                .map(|event| (event.from, event.to)).collect();
+            assert_eq!(transitions, [(LocomotionState::None.into(), LocomotionState::Grounded.into())]);
             assert!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(actor).is_some(), "input={input}");
             assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit);
             assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_error().is_none());

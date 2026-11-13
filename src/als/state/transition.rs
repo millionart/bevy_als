@@ -229,6 +229,23 @@ pub struct StateTransitionEvent {
     pub to: StateValue,
 }
 
+pub(crate) fn commit_state<T: Copy + PartialEq + Into<StateValue>>(
+    entity: Entity,
+    mut current: Mut<T>,
+    next: T,
+    transitions: &mut MessageWriter<StateTransitionEvent>,
+) {
+    if let Some(previous) = current.replace_if_neq(next) {
+        let to = next.into();
+        transitions.write(StateTransitionEvent {
+            entity,
+            dimension: to.dimension(),
+            from: previous.into(),
+            to,
+        });
+    }
+}
+
 #[derive(Message, Debug, Clone, Copy, PartialEq)]
 pub struct StateTransitionRejectedEvent {
     pub entity: Entity,
@@ -237,38 +254,27 @@ pub struct StateTransitionRejectedEvent {
     pub reason: RejectReason,
 }
 
-#[allow(clippy::too_many_arguments)]
-fn process_dimension<T: Copy + PartialEq>(
+fn process_dimension<T: Copy + PartialEq + Into<StateValue>>(
     entity: Entity,
-    dimension: Dimension,
     mut request_slot: Mut<Option<T>>,
-    mut current: Mut<T>,
+    current: Mut<T>,
     verdict: Option<Verdict>,
-    to_value: impl Fn(T) -> StateValue,
     transitions: &mut MessageWriter<StateTransitionEvent>,
     rejections: &mut MessageWriter<StateTransitionRejectedEvent>,
 ) {
-    let (Some(verdict), Some(requested)) = (verdict, *request_slot) else {
-        return;
-    };
+    let (Some(verdict), Some(requested)) = (verdict, *request_slot) else { return; };
     match verdict {
         Verdict::Accept => {
             *request_slot = None;
-            if let Some(from) = current.replace_if_neq(requested) {
-                transitions.write(StateTransitionEvent {
-                    entity,
-                    dimension,
-                    from: to_value(from),
-                    to: to_value(requested),
-                });
-            }
+            commit_state(entity, current, requested, transitions);
         }
         Verdict::Reject(reason) => {
             *request_slot = None;
+            let requested = requested.into();
             rejections.write(StateTransitionRejectedEvent {
                 entity,
-                dimension,
-                requested: to_value(requested),
+                dimension: requested.dimension(),
+                requested,
                 reason,
             });
         }
@@ -279,7 +285,7 @@ fn process_dimension<T: Copy + PartialEq>(
 fn process_stance_dimension(
     entity: Entity,
     mut request_slot: Mut<Option<Stance>>,
-    mut current: Mut<Stance>,
+    current: Mut<Stance>,
     desired: Option<Mut<AlsDesiredStance>>,
     verdict: Option<Verdict>,
     transitions: &mut MessageWriter<StateTransitionEvent>,
@@ -293,13 +299,8 @@ fn process_stance_dimension(
             *request_slot = None;
             if let Some(mut desired) = desired {
                 desired.set_if_neq(AlsDesiredStance(requested));
-            } else if let Some(from) = current.replace_if_neq(requested) {
-                transitions.write(StateTransitionEvent {
-                    entity,
-                    dimension: Dimension::Stance,
-                    from: StateValue::Stance(from),
-                    to: StateValue::Stance(requested),
-                });
+            } else {
+                commit_state(entity, current, requested, transitions);
             }
         }
         Verdict::Reject(reason) => {
@@ -388,11 +389,9 @@ pub fn state_transition_system(
 
         process_dimension(
             entity,
-            Dimension::LocomotionState,
             req.reborrow().map_unchanged(|request| &mut request.locomotion_state),
             loco,
             verdicts.locomotion_state,
-            StateValue::LocomotionState,
             &mut transitions,
             &mut rejections,
         );
@@ -407,31 +406,25 @@ pub fn state_transition_system(
         );
         process_dimension(
             entity,
-            Dimension::Gait,
             req.reborrow().map_unchanged(|request| &mut request.gait),
             gait,
             verdicts.gait,
-            StateValue::Gait,
             &mut transitions,
             &mut rejections,
         );
         process_dimension(
             entity,
-            Dimension::RotationMode,
             req.reborrow().map_unchanged(|request| &mut request.rotation_mode),
             rotation,
             verdicts.rotation_mode,
-            StateValue::RotationMode,
             &mut transitions,
             &mut rejections,
         );
         process_dimension(
             entity,
-            Dimension::OverlayState,
             req.map_unchanged(|request| &mut request.overlay_state),
             overlay,
             verdicts.overlay_state,
-            StateValue::OverlayState,
             &mut transitions,
             &mut rejections,
         );
