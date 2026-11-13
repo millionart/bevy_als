@@ -1,0 +1,30 @@
+{
+  "roll-root.request.json": {
+    "bytes": 2169,
+    "sha256": "5ea3d61a254db05e8a2087fed94246bcd246792ffcd4b0a331efda138bb7d32f"
+  },
+  "roll-root.native.json.gz": {
+    "bytes": 1191058,
+    "sha256": "d6a7fb3f835810cc99aca40b591babeacebbcc38cbe023462fc79657f15a5b13"
+  },
+  "roll-root.reader.report.json": {
+    "bytes": 437,
+    "sha256": "cf96fd7abb8726d3070498d8ab90774364c3f9926a477250e54a3725f1892cfb"
+  },
+  "previous_fixture": {
+    "bytes": 6925,
+    "sha256": "97da9102c3f2dc41e755e57a32f1b9442816569dfbc7b3a3039e1d87ec99cd83"
+  },
+  "focused.stdout.log.gz": {
+    "bytes": 312,
+    "sha256": "46a47f1589f8bd1afd604dd140a3e6deb8745d0cc1f6be36526e806d44f18670"
+  },
+  "focused.watchdog.json": {
+    "bytes": 269,
+    "sha256": "28e5f842a6ee3749a37c09e05e72c293f8fcf2958592950faa8324c7a257d3a7"
+  },
+  "notify": {
+    "path": "docs/audit/bf144/d183/bevy-0.20/notify/validation.json",
+    "sha256": "417eda3fd2c6e1d1473da2e04f85bea20978a34d0fc3abe0eb6606ec97eb2202"
+  }
+}

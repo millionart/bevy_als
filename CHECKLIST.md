@@ -7869,6 +7869,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - [x] BF144-D224c — 依赖D224b，将prepared曲线接入Sequence/BlendSpace及已取证的槽消费。开始：2026-11-12 12:12:48 +08:00；预估结束：2026-11-12 12:52:48 +08:00。Gate：同时间的FootPlanted/FootLock、空曲线与未绑定clip静态合同。
     - 实际结束：2026-11-12 12:20:19 +08:00；偏差：−32分29秒；结果：静态Gate PASS。实际原生Run/Transition/Turn共53曲线值精确，FootLock同权重反例与yaw投影反例通过。345图内213个Sequence、24个直连BlendSpace样本进入prepared，23个包装样本两侧皆空；GetUp/Mantle/Rotate/Turn/Roll槽取样共享同一查找并按原时间保留Montage曲线合并。原D224b键字节一致、Rust语法和安装绑定通过，Cargo回归按用户要求后置。见 `docs/audit/bf144/d224c/summary.json`。
   - [x] BF144-D224d — 依赖D224b/D224c，将prepared ACL局部骨骼接入普通Sequence、BlendSpace子样本和已取证加性路径。开始：2026-11-12 12:25:55 +08:00；预估结束：2026-11-12 13:20:55 +08:00。Gate：真实SKM和普通/加性同输入、边界时钟、无scale/default及消费者静态合同。
+    - 2026-11-13 17:38复开，预估17:57。升级后Roll采样夹具仍引用旧原始轨道，当前消费已改为原生压缩。对原91个时点重读同序列prepared根轨；0.5→0.516667s旧期望与原生压缩的区间差约10.72µm，超过现有10µm门槛。保留原时点和精度门槛，核实际安装压缩采样及根锁。
+    - 17:46正式前：原91点区间和独立prepared未锁轨与已锁姿态均通过。复用正式notify中的自然Roll和动作图消费，截图0。
+    - 2026-11-13 17:49复验完成。17:38开始、17:57预估，提前8分钟。91点实际采样及根锁两项定向、正式Notify自然Roll通过。证据 `docs/audit/bf144/d224d/bevy-0.20/`，未拆分。
     - 实际结束：2026-11-12 12:48:10 +08:00；偏差：−32分45秒；结果：静态Gate PASS。44真实SKM姿态3380骨逐值精确（其中948加性骨），剩余96仅AnimationRelative三骨、21个投影差属D230。127原压缩数据重读取精确，确认16强制RefPose根锁；Roll/Mantle八个未锁root时点精确。3476骨覆盖、64帧域反例、47实际BlendSpace子样本与Rust语法均通过，Cargo及Playground后置。证据 `docs/audit/bf144/d224d/summary.json`。
     - 2026-11-12 12:43 source/static闭环：真实79骨按目标glTF skin路径绑定；24普通、20局部加性、3网格加性BlendSpace样本均核对原边与clip身份。Crouch/Run任意子帧差异由骨骼DecompContext的FFrameTime往返精确解释，撤去后64骨不等，曲线仍走直接float时钟。普通pose仅剩D230三根AnimationRelative骨；Lean/Look/Transition加性逐骨精确。Roll/Mantle压缩root各4时点精确，原glTF控制留约1.38e−5m/1.31e−5m。Turn生产槽证实需从Sequence取实际强制root lock，重新读取整批模式并继续收口。
   - [x] BF144-D224e — 依赖D224a/D224d，补齐Bow PerTrack格式的离线数据及Sequence Evaluator入口。开始：2026-11-12 12:51:15 +08:00；预估结束：2026-11-12 13:36:15 +08:00。Gate：实际24骨、原压缩轨型和时间、五个原生时点及Bow节点同输入。估时复用.179的单格式采样控制，另含PerTrack格式与轨时间取证。
