@@ -7093,10 +7093,10 @@ fn grounded_roll_exit_transition_matches_source(
         })
         && slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 1e-4)
         && grounded.is_some_and(|grounded| {
-            (matches!(grounded.actual_state, Some(1 | 2))
-                || (stance == Stance::Crouching && grounded.actual_state == Some(4)))
-                && grounded.transition_active == Some(false)
-                && grounded.pose_ready == Some(true)
+            grounded.pose_ready == Some(true)
+                && (grounded.transition_active == Some(true)
+                    || matches!(grounded.actual_state, Some(1 | 2))
+                    || (stance == Stance::Crouching && grounded.actual_state == Some(4)))
         })
 }
 
@@ -7502,39 +7502,43 @@ fn observe_manual_integration(
             notify.is_some_and(|value| value.stop_animations_count > 0);
         if state.phase == IntegrationPhase::Roll {
             let requested_stance = notify.and_then(|value| value.roll_to_grounded_stance);
+            let playback = match state.grounded_roll_playback {
+                Some(recorded) => transition_stack.and_then(|stack| {
+                    stack.entries.iter().find(|entry| entry.instance_id == recorded.instance_id)
+                }),
+                None => transition_playback,
+            };
             let active = grounded_roll_exit_transition_matches_source(
                 state.phase,
                 requested_stance,
                 roll,
-                transition_playback,
+                playback,
                 root_transition_slot,
                 grounded_graph,
             );
             if active {
-                state.grounded_roll_playback = transition_playback.copied();
+                state.grounded_roll_playback = playback.copied();
             }
+            let terminal_stance = desired_stance.map_or(*stance, |value| value.0);
+            let terminal_state = if terminal_stance == Stance::Crouching { 2 } else { 1 };
             let completed = state.grounded_roll_playback.is_some()
                 && roll.is_some_and(|value| !value.active)
-                && transition_playback.is_some_and(|value| !value.active)
-                && matches!(actual_state, Some(1 | 2))
+                && playback.is_none_or(|value| !value.active)
+                && root_transition_slot.is_some_and(|slot| !slot.active)
+                && actual_state == Some(terminal_state)
                 && transition_active == Some(false);
             state.coverage.grounded_roll_completed |= completed;
-        if state.scenario == IntegrationScenario::Grounded
-            && grounded_roll_exit_timed_out(state.phase_elapsed(), state.coverage.grounded_roll_completed) {
-            gate_report.direction_trace.push(serde_json::json!({"watchdog": {
-                "exit_reason": "source_transition_completion_timeout", "last_progress": "Roll exit",
-                "waited_game_seconds": state.phase_elapsed(), "no_progress_limit_seconds": 20.0,
-                "current_conditions": state.grounded_roll_exit_diagnostic
-            }}));
-            state.timed_out = true;
-            begin_phase(state, IntegrationPhase::Finish);
-        }
+            if state.scenario == IntegrationScenario::Grounded
+                && grounded_roll_exit_timed_out(state.phase_elapsed(), state.coverage.grounded_roll_completed) {
+                gate_report.direction_trace.push(serde_json::json!({"watchdog": {
+                    "exit_reason": "source_transition_completion_timeout", "last_progress": "Roll exit",
+                    "waited_game_seconds": state.phase_elapsed(), "no_progress_limit_seconds": 20.0,
+                    "current_conditions": state.grounded_roll_exit_diagnostic
+                }}));
+                state.timed_out = true;
+                begin_phase(state, IntegrationPhase::Finish);
+            }
             if let Some(recorded) = state.grounded_roll_playback {
-                let terminal_stance = desired_stance.map_or(*stance, |value| value.0);
-                let mut chain = grounded_joint_source_chain();
-                for boundary in &mut chain {
-                    boundary.minimum_rotation_span_radians = 0.0;
-                }
                 **animation_window = ManualAnimationWindowEvidence {
                     label: Some("grounded_roll_exit"),
                     settled: true,
@@ -7546,15 +7550,21 @@ fn observe_manual_integration(
                     requires_source_pose_chain: true,
                     source_node: Some("AB_Als_Grounded/PlayRollToGroundedTransitionAnimation"),
                     source_state: Some("Roll exit"),
-                    source_pose_chain: chain,
+                    source_pose_chain: vec![ManualAnimationPoseBoundary {
+                        label: "root_transition_slot",
+                        graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+                        node: "Slot 'Transition'\nGroup 'Grounded'",
+                        output: "Pose",
+                        minimum_translation_span: 0.0,
+                        minimum_rotation_span_radians: 0.0,
+                    }],
                     expected_animation_variant: crate::stop_link::source_transition_sequence(
                         &recorded,
                     ),
-                    observed_animation_variant: transition_playback
-                        .and_then(crate::stop_link::source_transition_sequence),
-                    observed_animation_clip_time: transition_playback.map(|value| value.clip_time),
-                    observed_animation_weight: transition_playback.map(|value| value.weight),
-                    observed_animation_play_rate: transition_playback.map(|value| value.play_rate),
+                    observed_animation_variant: playback.and_then(crate::stop_link::source_transition_sequence),
+                    observed_animation_clip_time: playback.filter(|_| active).map(|value| value.clip_time),
+                    observed_animation_weight: playback.map(|value| value.weight),
+                    observed_animation_play_rate: playback.map(|value| value.play_rate),
                     expected_lifecycle_stages: &["playing", "completed", "settled"],
                     observed_lifecycle_stages: if completed {
                         &["completed", "settled"]
@@ -7563,11 +7573,11 @@ fn observe_manual_integration(
                     } else {
                         &[]
                     },
-                    expected_terminal_parent_runtime_state: Some(if terminal_stance == Stance::Crouching { 2 } else { 1 }),
+                    expected_terminal_parent_runtime_state: Some(terminal_state),
                     expected_terminal_parent_transition_active: Some(false),
                     observed_parent_runtime_state: actual_state,
                     observed_parent_transition_active: transition_active,
-                    canonical_clip_time: Some(if requested_stance == Some(Stance::Crouching) {
+                    canonical_clip_time: Some(if recorded.is_crouching() {
                         recorded.start_time + recorded.play_rate * recorded.blend_out
                     } else {
                         0.8
@@ -12656,6 +12666,19 @@ mod tests {
             Some(&playback),
             Some(&slot),
             Some(&grounded),
+        ));
+        let blending = AlsGroundedGraphTelemetry {
+            actual_state: None,
+            transition_active: Some(true),
+            ..grounded
+        };
+        assert!(grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            Some(Stance::Standing),
+            Some(&roll),
+            Some(&playback),
+            Some(&slot),
+            Some(&blending),
         ));
         let crouching = AlsTransitionPlayback::roll_to_grounded_right(true);
         let grounded = AlsGroundedGraphTelemetry {

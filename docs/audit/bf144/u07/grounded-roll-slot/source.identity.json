@@ -1,0 +1,18 @@
+{
+  "grounded.native.json.gz": {
+    "bytes": 34726411,
+    "sha256": "bf27e30d2597ccf88d8a725510875430a548f0efea207562faabef5f0563fc93"
+  },
+  "grounded.native.json.reader.report.json": {
+    "bytes": 441,
+    "sha256": "bf5d80eab6110a120a5fe2ce80f6c7a84115084f8d363247fd0dff118140e4f1"
+  },
+  "root.native.json.gz": {
+    "bytes": 2527369,
+    "sha256": "d576e19b295f4588575c117b8f840bfaa0fa931d8723cd01e8679154e54fb91a"
+  },
+  "root.native.json.reader.report.json": {
+    "bytes": 436,
+    "sha256": "281446c40aaef0342c789e82ebf3db3ac85eecb9ed86ba158c5bc4ae64fc4b36"
+  }
+}
