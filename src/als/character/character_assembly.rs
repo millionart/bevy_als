@@ -262,7 +262,11 @@ fn spawn_als_character_internal(
     let fwd = bundle.transform.forward();
     let yaw = world_forward_to_yaw(*fwd);
     let character = commands
-        .spawn(bundle)
+        .spawn((
+            bundle,
+            avian3d::prelude::Position(blueprint.transform.translation),
+            avian3d::prelude::Rotation(blueprint.transform.rotation),
+        ))
         .insert((
             AlsViewYaw(yaw),
             AlsViewPitch(fwd.y.atan2(Vec2::new(fwd.x, fwd.z).length())),
@@ -420,7 +424,7 @@ mod tests {
     #[test]
     fn pitched_spawn_initializes_the_actual_source_camera_view_direction() {
         use bevy::ecs::system::RunSystemOnce;
-        for (yaw, pitch) in [(0.7, 0.35), (-2.0, -0.35), (0.0, 0.0)] {
+        for (yaw, pitch) in [(0.7, 0.35), (-2.0, -0.35), (0.0, 0.0), (-std::f32::consts::FRAC_PI_2, 0.0)] {
         let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
         let rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
         let character = app.world_mut().run_system_once(move |mut commands: Commands,
@@ -430,6 +434,8 @@ mod tests {
                 AlsCharacterBlueprint { spawn_input: false, spawn_camera: true,
                     ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 1.5, 0.0).with_rotation(rotation)) })
         }).unwrap();
+        assert_eq!(app.world().get::<Transform>(character).unwrap().rotation, rotation);
+        assert_eq!(app.world().get::<avian3d::prelude::Rotation>(character).unwrap().0, rotation);
         let expected = rotation * Vec3::NEG_Z;
         let motion = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
         let response = app.world().get::<crate::als::motion::AlsRotationResponseState>(character).unwrap();

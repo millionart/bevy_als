@@ -1,0 +1,98 @@
+{
+  "change": "Action and animation clock fixtures with the actor orientation candidate",
+  "result": {
+    "passed": 2124,
+    "failed": 25
+  },
+  "failures": [
+    "ab_als_provider::tests::high_mantle_grounded_lean_uses_custom_braking_limit",
+    "als::dynamics::tests::actual_landing_callback_retains_source_input_and_publishes_friction",
+    "als::dynamics::tests::actual_shortened_walking_step_refunds_time_to_falling",
+    "als::dynamics::tests::actual_walking_collision_velocity_uses_the_final_source_substep",
+    "als::dynamics::tests::roll_blend_out_restores_the_grounded_velocity_motor",
+    "als::motion::tests::line_floor_keeps_the_wide_hit_and_does_not_publish_a_wall_landing",
+    "als::motion::tests::moving_support_keeps_an_idle_character_on_root_and_child_colliders",
+    "als::motion::tests::partial_forward_step_keeps_progress_before_a_blocking_wall",
+    "als::motion::tests::physical_locomotion_matches_the_current_controller_before_animation",
+    "als::motion::tests::single_walking_step_returns_blocked_distance_to_falling",
+    "als::motion::tests::stair_contact_reproduces_the_terminal_low_input_boundary",
+    "als::motion::tests::steep_contact_does_not_pass_capsule_landing_validation",
+    "als::motion::tests::walking_off_inherits_vertical_base_velocity_before_falling",
+    "als_camera::tests::zero_joint_ragdoll_completion_excludes_self_from_camera_queries",
+    "extensions::control_rig_units::tests::control_rig_bone_units_preserve_chain_rounding_and_ordered_global_rotation",
+    "extensions::control_rig_units::tests::control_rig_foot_rotation_preserves_initial_space_animation_limits_and_normal_state",
+    "extensions::control_rig_units::tests::control_rig_ik_units_preserve_pole_history_and_solve_current_hierarchy",
+    "mantle_drive::tests::mantle_completion_keeps_the_current_moving_support",
+    "manual_playground_integration::stairs::tests::stairs_route_ends_on_a_supported_tread_before_the_original_terminal_wall",
+    "manual_playground_integration::tests::standing_dynamic_input_reaches_both_actual_transition_branches",
+    "roll_drive::tests::loaded_roll_input_uses_pre_movement_grounding",
+    "roll_drive::tests::loaded_roll_landing_adjusts_floor_before_remaining_walking",
+    "roll_drive::tests::loaded_roll_source_velocity_preserves_owner_clock_displacement_base_and_handoff",
+    "source_physics_timing::tests::swept_landing_ignores_nonblocking_floor_candidates",
+    "standing_layer::tests::visibility_initializes_a_new_hidden_instance_before_applying_tick_policy"
+  ],
+  "new": [
+    "als_camera::tests::zero_joint_ragdoll_completion_excludes_self_from_camera_queries"
+  ],
+  "restored": [
+    "ab_als_provider::tests::roll_branching_action_end_keeps_the_native_trigger_offset",
+    "als::motion::tests::mantle_moving_base_writes_the_current_actor_parent_space",
+    "als::motion::tests::mantle_targets_resolve_motion_and_permissions_from_compound_bodies",
+    "animation_events::tests::hidden_roll_slot_states_follow_the_native_minimum_pose_tick_delta",
+    "mantle_drive::tests::loaded_mantle_reapplies_rotation_while_owner_time_is_zero",
+    "mantle_drive::tests::mantle_reuses_the_last_rotation_delta_at_a_tiny_owner_delta",
+    "roll_drive::tests::get_up_input_block_prevents_an_automatic_landing_roll",
+    "roll_drive::tests::installed_roll_sampler_matches_the_fresh_source_root_track",
+    "roll_drive::tests::loaded_mantle_override_updates_velocity_below_minimum_without_moving",
+    "turn_layer::tests::live_turn_curve_survives_switch_to_velocity_direction"
+  ],
+  "watchdog": {
+    "elapsed_seconds": 170.474,
+    "exit_reason": "process_failed",
+    "last_progress": "stdout.log",
+    "no_progress_limit_seconds": 240,
+    "no_progress_seconds": 0.0,
+    "process_exit_code": 101,
+    "source": "bevy020-library-round30-current",
+    "success": false,
+    "timeout_seconds": 3600
+  },
+  "logs": {
+    "stdout.log.gz": {
+      "bytes": 225499,
+      "sha256": "0e81029d647871362e188efbd86ba5abf80969e299aefb5e05f1e0678b27baaf"
+    },
+    "stderr.log.gz": {
+      "bytes": 389253,
+      "sha256": "18c732eb2620655291f6996b137b0041fb43da814d025bcb94d7175952f2f384"
+    },
+    "watchdog.json": {
+      "bytes": 289,
+      "sha256": "dc5aa1c191ea0004eced862b2ba6423aa3cf5879865e9c9d44628a7f59050f73"
+    },
+    "camera-single.stdout.log.gz": {
+      "bytes": 210,
+      "sha256": "7c6246494f4e065e29deef81c8ebca49727ef4fd6f0b3ab2aa6af74c872a422c"
+    },
+    "camera-single.stderr.log.gz": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "camera-single.watchdog.json": {
+      "bytes": 282,
+      "sha256": "b86a5a4cbd365f7314b380ad6924d96f073af725f25bda33337feac2f5878e91"
+    },
+    "camera-module.stdout.log.gz": {
+      "bytes": 2599,
+      "sha256": "821152316e4a92b4ea6dbbd4563b44e233f5ee89e457dbf58ae6f454625dbc67"
+    },
+    "camera-module.stderr.log.gz": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "camera-module.watchdog.json": {
+      "bytes": 273,
+      "sha256": "54a25e17840f258949743c4e59e4566e9e793b112933326acd6bd3d0051997a4"
+    }
+  }
+}

@@ -223,7 +223,7 @@ fn ab_als_input_writer(
             Option<&AlsFirstPersonView>,
             Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
             Option<&AlsFootLockState>,
-            (&AlsMovementParamsHandle, Option<&AlsGroundedDynamics>, Option<&LocomotionState>,
+            (&Transform, &AlsMovementParamsHandle, Option<&AlsGroundedDynamics>, Option<&LocomotionState>,
                 Option<&crate::roll_drive::AlsRollSlotRuntime>),
         ),
         With<AlsCharacter>,
@@ -247,7 +247,7 @@ fn ab_als_input_writer(
         first_person,
         custom_dilation,
         feet,
-        (params_handle, dynamics, locomotion, roll),
+        (local, params_handle, dynamics, locomotion, roll),
     ) in &characters
     {
         let Some(params) = params_assets.get(&params_handle.0) else {
@@ -321,7 +321,7 @@ fn ab_als_input_writer(
             );
             player.set_global_input_data(
                 "locomotion_state.rotation_quaternion_world_space",
-                transform.rotation(),
+                if attach_parent.is_some() { transform.rotation() } else { local.rotation },
             );
             player.set_global_input_data(
                 "locomotion_state.acceleration_world_space",
@@ -527,9 +527,15 @@ mod tests {
     fn provider_reads_current_actor_world_rotation() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let heading = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2);
+        app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = heading;
+        app.world_mut().run_system_once(ab_als_input_writer).unwrap();
+        let actual = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
+            .get_global_input_data("locomotion_state.rotation_quaternion_world_space").unwrap().as_quat().unwrap();
+        assert_eq!(actual, heading);
         let parent = app.world_mut().spawn(Transform::IDENTITY).id();
         app.world_mut().entity_mut(actor).insert((ChildOf(parent), Transform::IDENTITY));
-        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
         for yaw in [90.0_f32, -45.0] {
             let rotation = Quat::from_rotation_y(yaw.to_radians());
             *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(4.0, 2.0, -1.0)

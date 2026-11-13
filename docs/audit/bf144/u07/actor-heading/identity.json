@@ -1,0 +1,74 @@
+{
+  "before-history.json.gz": {
+    "bytes": 6419106,
+    "sha256": "634c8b4663a8ccf2a366069380efe5fd6db40f8dd36d629990ade4b996579eb1"
+  },
+  "before-visual.json.gz": {
+    "bytes": 3337603,
+    "sha256": "d88b9f5ac3bdc40da59ec3848f3adce8d5dc1150ad9cf450bec994a5b2fc611e"
+  },
+  "before-process.report.json": {
+    "bytes": 408,
+    "sha256": "1dd9c431e84ce4e5ec8194a04fc72745215a87fe067b3c3844531a6072a70112"
+  },
+  "before-validation.json": {
+    "bytes": 253,
+    "sha256": "c28ff04daafe5db76a3784d81333a1db0a3c478d95d29ea9ef00b544bb9c6e62"
+  },
+  "observer.rs": {
+    "bytes": 17862,
+    "sha256": "7aabf87736dfea7945ca7150e14359463aaaabd230f7e7d6a04361d82ff621df"
+  },
+  "observer-hook.patch.gz": {
+    "bytes": 799,
+    "sha256": "38d0907f6a268b6bce88f0b76402f169c10aed1a010fe6d3e90d374f6024e6f6"
+  },
+  "round-trip.rs": {
+    "bytes": 1064,
+    "sha256": "7a1b64e85e767b7da7e4ca8be52ee2888fea03a0cf28a522b90ba5c08b7668a1"
+  },
+  "focused-before.stdout.log.gz": {
+    "bytes": 504,
+    "sha256": "74fb17fcd1a29c0f9dc69f126a47e202632610d6dce0b361f5f817520ff1bdc6"
+  },
+  "focused-before.stderr.log.gz": {
+    "bytes": 8476,
+    "sha256": "c4aa600dd8d80baddf1cc48395b235719f44fd19962907a65567505e43e5b169"
+  },
+  "focused-before.watchdog.json": {
+    "bytes": 282,
+    "sha256": "c31463ef01848b6cc1376f2c7293d749e2644d48599dc3f19d8050b93e2a0b8f"
+  },
+  "restored-history.json.gz": {
+    "bytes": 5724738,
+    "sha256": "3f0c4dd2e9a36bf497c260620f946146ce2d1c552a5a79af86551e3cfa879434"
+  },
+  "restored-visual.json.gz": {
+    "bytes": 3329965,
+    "sha256": "92980c84d8cd977b69d011936a5ba472a2589532fbc9287c46cd75ca3bfcf251"
+  },
+  "restored-process.report.json": {
+    "bytes": 408,
+    "sha256": "131b24f813087ffa9cd52e9c956f81155b31276209e61f9f520bde3051e87d30"
+  },
+  "restored-validation.json": {
+    "bytes": 253,
+    "sha256": "c28ff04daafe5db76a3784d81333a1db0a3c478d95d29ea9ef00b544bb9c6e62"
+  },
+  "focused-restored.stdout.log.gz": {
+    "bytes": 406,
+    "sha256": "eed6abe0d93831397c7dc4318b13f695f8e8e7416e6f67088d1dce6bcd4f5cad"
+  },
+  "focused-restored.watchdog.json": {
+    "bytes": 274,
+    "sha256": "4c3f6766e495add98855fcc79c3ffaefab874352dcc39879fef7ee78f1d99bf8"
+  },
+  "build-lock.watchdog.json": {
+    "bytes": 293,
+    "sha256": "2c72197537fbeca067478eb701f92c110bef630f25ec3c88f694dd97493c149c"
+  },
+  "restored_entry": {
+    "path": "src/als_extras/levels/manual_playground.rs",
+    "sha256": "eb5eb981d991a929a347d9cdcae82abbc16cd932a2fe39dfbdc6835b1cdf954b"
+  }
+}
