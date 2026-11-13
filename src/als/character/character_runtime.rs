@@ -159,7 +159,7 @@ fn release_birth_animation_players(
         commands.entity(avatar.character).remove::<(
             crate::als::character::AlsBirthAnimationPending,
             avian3d::prelude::RigidBodyDisabled,
-        )>();
+        )>().insert(avian3d::dynamics::integrator::VelocityIntegrationData::default());
         if toggle == Some(&bevy_tnua::TnuaToggle::SenseOnly) {
             commands.entity(avatar.character).remove::<bevy_tnua::TnuaToggle>();
         }
@@ -300,7 +300,7 @@ mod tests {
         assert_eq!(curves, [1.0; 6]);
         assert_eq!(deltas, [0.0; 3]);
         let (position, mode, frame) = output.ordinary.unwrap();
-        assert!(position.y < 1.5);
+        assert_eq!(position.y, 1.494_55);
         assert_eq!(mode, LocomotionState::Air);
         assert_eq!(frame, 2);
     }

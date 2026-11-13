@@ -1,0 +1,30 @@
+{
+  "birth.native.json.gz": {
+    "bytes": 12630800,
+    "sha256": "02a005700b05acb4e4c6c90d22999825383603e3d55b223c9778615eb2c506b9"
+  },
+  "birth.reader.report.json": {
+    "bytes": 447,
+    "sha256": "05588dc2f3e06ad1e1ef2a838f99a7a9c4ba0611c31cc3cef52a5534d149acfe"
+  },
+  "baseline.stdout.log.gz": {
+    "bytes": 723,
+    "sha256": "80d456c115361e28db369ccab6f4344b8f10771afb07f3508effe6ff90c4816b"
+  },
+  "baseline.watchdog.json": {
+    "bytes": 295,
+    "sha256": "9d7fe4f4c43446a4a3f9a3d5752847dcb3693bca9ea3f90881ed5d9ecfedcbe1"
+  },
+  "restored.stdout.log.gz": {
+    "bytes": 429,
+    "sha256": "f5529f026f17ec93d027f95b449326dda1bb79d75dfcfebb796670731ae3f278"
+  },
+  "restored.watchdog.json": {
+    "bytes": 287,
+    "sha256": "9c009c1f994a0090b48e7513fdf0e38aaded580d1b6abd9c71d32e6bd808d767"
+  },
+  "playground/root-history.json.gz": {
+    "bytes": 6389716,
+    "sha256": "c488d44d98c1f9b72595056ad82d07b0b37c9260b9d5ac32562fa8a75b1ac5ab"
+  }
+}

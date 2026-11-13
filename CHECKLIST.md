@@ -5445,6 +5445,9 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 09:32实现摘要：角色专属末端处理只在已证自由单步且速度、位移、时钟及累计均匹配时保留计划水平位移，阻挡接触、移动支撑、旋转及其他自定义积分不触发，传感器不作为阻挡。已写两种积分路径与边界用例；.441c实际计划和.501源记录及六步模型封存，旧.307/.434原报缺失。实现结束09:32、偏差−41分钟；测试、消融、图审计和公共Gate待全部静态修复及Bevy/依赖迁移后执行。
 
 - [x] BF144-D252 / P3 — 出生时未按支撑选择实际运动mode，首个无支撑物理步仍走Grounded积分。
+  - 2026-11-13 15:25复开，预估15:43。原88实际地面射线为0，旧fixture用fit高度0.001m；另有独立首步偏差。实际首步已是Air，CMC先下移5.45001mm并输出正确−0.32700002m/s；从马达后至求解前速度为0，求解仍多下移0.181675mm并出现−0.01089999m/s。Avian 0.8在PreSubstep转换加速度，但其清零只处理有SolverBodyIndex的实体；出生期间该角色禁用刚体。补现有完整角色出生fixture的原生首步数值断言，验证放行前是否残留速度增量。
+  - 15:32正式前：fresh原生在150cm出生首步为149.454999943cm，支撑对照保持92.15cm。目标定向旧1.4943621m，放行时清理禁用期间残留的求解增量后精确为1.49455m，三项定向通过。原88用同一实际出生和地形，借射线对齐150cm起点，正式重验首普通帧及后续88步，截图0。
+  - 2026-11-13 15:36正式后：原场景功能通过，起点1.5m、首步位置1.4945499897m和竖速−0.3270000219m/s与原生F32逐值相同，求解器不再附加位移。原88全部高度最大余差0.1193µm，首Air左足IK恢复原生1.3283731937。15:25开始、15:43预估、15:36实际，提前7分钟，未拆分。方向混合的同输入余差归U07。证据 `docs/audit/bf144/d252/bevy-0.20/`。
   - Source：fresh非零engine frame17的原生角色在92.15cm有地面出生时为MOVE_Walking/有效floor，在150cm无支撑出生时已为MOVE_Falling/无floor，均发生在首world tick前。`Character.cpp:141–170`在无Controller且允许物理时调用SetDefaultMovementMode；`CharacterMovementComponent.cpp:1319–1338,1443–1454`先进入Walking并FindFloor/AdjustFloorHeight/SetBase，base无效则恢复竖速并切Falling。原生CDO Controller=None、bRunPhysicsWithNoController=True/DefaultLandModeWalking已核，不以AnimInstance的初始Grounded种子代替真实角色mode。
   - Target：`character.rs:408`构造固定Grounded；`motion.rs:3506–3513`在零horizontal位移提前退出地面事务，首物理前无对应初始floor/base选择，`locomotion_state_sync_system`到physics Last后才切Air。真实150cm出生的六子步全程Grounded，项目CustomPositionIntegration仍用末速度积分，绕开`falling_movement_transaction`的midpoint。
   - 最小反例：相同150cm起点、vy0、空输入、30Hz、平地与已接受的Bevy9.81重力，source首实际物理步投影f32应y=1.4945499897003174m、vy=−0.3270000219345093m/s；原公开target为1.4936416149139404、−0.3269999623298645。仅在fixture把初始mode设为Air，两值均逐值恢复source；未补D243 delta、未改physics参数/形体/位置/velocity或graph。源有地面出生4步mode/位置稳定，目标同高度4步分类保持Grounded；已知D31弹簧位置漂移不再另计。
