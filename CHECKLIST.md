@@ -6804,6 +6804,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：无montage隐藏期间把全局倍率从1变为0.25，恢复帧scaled dt=0.004166667秒。源保留旧倍率1，未缩放dt仍为0.004166667；目标却使用隐藏期间写入的0.25，得到0.016666668。实际Head pitch为30.767°、源应为11.286°；只恢复历史倍率即通过。6组5PASS/1FAIL，持续可见与第三人称控制通过；和D146的montage重激活条件分离，见`65/checked_initial/`。
 
 - [x] BF144-D148 / P3 — 替换动画实例后保留旧曲线投影，改变新实例的首帧姿态。
+  - 2026-11-13 18:01复开，预估18:24。fresh UE SetAnimInstanceClass调用InitAnim(true)，注册零步强制刷新姿态；仍隐藏、无活动Montage时，常规ShouldTickPose随后拒绝。目标把零步刷新条件与普通图资格合并，未同步Sequence的新播放器在同帧额外推进0.1s，完整图elapsed恰为0掩盖。分离普通图资格，保留零步首姿态及可见和活动Montage控制。
+  - 18:05正式前：8项定向通过，含隐藏替换、未同步序列零步、活动Montage及普通时钟。走正式Visibility确认隐藏、恢复、通知与渲染，截图0。
+  - 2026-11-13 18:08复验完成。18:01开始、18:24预估，提前16分钟。隐藏替换的未同步序列首帧精确0，8项定向和正式Visibility十项均通过。证据 `docs/audit/bf144/d148/bevy-0.20/`，未拆分。
   - 2026-11-12 00:20 +0800 实际结束早于00:50预估，未拆分。fresh原生AB_Als_Head绑定与全部曲线清空链见 `docs/audit/bf144/d148/`。通过播放器Discard同步清空整个曲线投影，十二组静态重放通过，保留旧曲线的消融在两条瞄准替换路径退回alpha 0.005088。旧66运行原始报告未随当前Git保留，已加入实际Rifle换实例首帧反例，Rust、运行时消融和Playground Gate待统一验证。
   - 本轮开始2026-11-12 00:17 +08:00，预估结束2026-11-12 00:50 +08:00。核对完整曲线容器的实例所有权，覆盖直接覆写、移除重插与实际Head首帧。
   - Source：fresh `AnimInstance.cpp:363–369,446–455`在Initialize前执行Uninitialize；`AnimInstanceProxy.cpp:455–466`清空全部AnimationCurves。`AlsAnimationInstance.cpp:400–405`以新实例的空曲线计算HeadBlendAmount=1；原生Head Additive节点绑定GetParent.ViewState.HeadBlendAmount。

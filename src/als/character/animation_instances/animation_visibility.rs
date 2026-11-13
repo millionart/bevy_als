@@ -61,7 +61,7 @@ fn refresh_mesh_animation_visibility(
         let option = option.copied().unwrap_or(crate::ab_als_provider::ANIMATION_COMPONENT.visibility_tick_option);
         let Ok((mut player, gate)) = players.get_mut(instance.player_entity()) else { continue; };
         let initialize = player.get_animation_source().is_graph() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);
-        let mut update_graph = initialize || recent || option != AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered;
+        let mut update_graph = recent || option != AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered;
         let refresh_bones = initialize || recent || option == AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones;
         if !update_graph {
             let montage_present = turns.is_some_and(AlsTurnMontageStack::has_montage_at_pose_tick)
@@ -75,7 +75,7 @@ fn refresh_mesh_animation_visibility(
             if montage_present {
                 let delta = time.delta_secs() * custom_dilations.get(owner.character).map_or(1.0, |value| value.0);
                 update_graph = delta == 0.0 && !virtual_time.is_paused();
-                if !update_graph {
+                if !update_graph && !initialize {
                     crate::extensions::source_instance::reset_source_call_relevancy(&mut player);
                 }
             }

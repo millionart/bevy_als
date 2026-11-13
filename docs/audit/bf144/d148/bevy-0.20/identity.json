@@ -1,0 +1,18 @@
+{
+  "head.native.json.gz": {
+    "bytes": 1746716,
+    "sha256": "4a3e623cbfd0a41a1ede844b0a399d9af9291f39612d21f5fd819a4bd4227d40"
+  },
+  "head.reader.report.json": {
+    "bytes": 436,
+    "sha256": "dbcec285c544d91950db5728a57bcf94bb149da0cfaf61b4b20bdb56f42f497e"
+  },
+  "focused.stdout.log.gz": {
+    "bytes": 926,
+    "sha256": "7ba5e50f48151051c6fb2eaab7128adc81903e3e5feca24b871bc892bb7e2166"
+  },
+  "focused.watchdog.json": {
+    "bytes": 265,
+    "sha256": "7932eb0867f0fdb2ae573cb05502abd35d48a997286fb1d90d5c1fb51d9a6f61"
+  }
+}
