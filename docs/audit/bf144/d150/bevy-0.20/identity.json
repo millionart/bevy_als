@@ -1,0 +1,18 @@
+{
+  "high.native.json.gz": {
+    "bytes": 707995,
+    "sha256": "1adddb5f25595ff7900062dce75e4c7cf59197b32139d2f6edbb66c8d67f5efb"
+  },
+  "high.reader.report.json": {
+    "bytes": 436,
+    "sha256": "e3054bbd9c6ce18e005c519ed869ee8b5715dc36c0f7020d64ad2a3568a56e68"
+  },
+  "focused.stdout.log.gz": {
+    "bytes": 203,
+    "sha256": "0e536c4fbeb418b12ffb30dfcaef01d728a41fc12940ef30dbc1ddf01dada9e9"
+  },
+  "focused.watchdog.json": {
+    "bytes": 275,
+    "sha256": "79673b822f31ee738024be0173455331b330f5a6c58619a5aad919b3a0716a24"
+  }
+}

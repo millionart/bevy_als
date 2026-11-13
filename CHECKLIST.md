@@ -6824,6 +6824,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧启动检查验证零delta和非空pose，却未区分注册过程初始化与第一个普通更新的pending寿命。fresh原生T19条件确为InAir且bJumped，Jump/Fall状态身份取自原生节点；不是只核对请求或标签。仅登记，未修复。
 
 - [x] BF144-D150 / P3 — 动画输入在Custom模式仍使用Walking制动参数，改变Mantle混入时的地面姿态。
+  - 2026-11-13 17:48复开，预估18:06。fresh High原生仍为0.2秒HermiteCubic，Custom制动0。旧加载夹具在出生落地后固定6帧就发Mantle，未确认Grounded实际在求值。沿已有lean定向同一初始化路径，先连续观测实际写帧，再逐组核正/负点积与部分槽。
+  - 17:54正式前：等实际Grounded lean写帧后，原先固定6帧的红测恢复，正负点积都在实际Custom部分槽内通过。运行当前源码的正式Bow并核High Mantle，截图0。
+  - 2026-11-13 17:55复验完成。17:48开始、18:06预估，提前11分钟。部分槽正负点积、正式Bow高翻越及渲染均通过。旧红测见U07第30轮，源采样和恢复见 `docs/audit/bf144/d150/bevy-0.20/`，未拆分。
   - 2026-11-12 00:29 +0800 实际结束早于01:04预估，未拆分。fresh Custom getter、原生High Montage权重和Standing Lean绑定见 `docs/audit/bf144/d150/`。provider只在Custom发布0制动。四组静态重放中，恢复Walking制动只改变负点积组。旧68原始运行报告未随当前Git保留，实际角色部分权重反例、Rust消融恢复与Playground待统一验证。
   - 本轮开始2026-11-12 00:25 +08:00，预估结束2026-11-12 01:04 +08:00。限定源已证实的Custom制动边界，核对High Mantle部分权重与仍在更新的Standing Lean。
   - Source：fresh `CharacterMovementComponent.cpp:4351–4368`对MOVE_Custom返回最大制动0；`AlsCharacter_Actions.cpp:496–497`在Mantle播放前切到并锁定Custom。`AlsAnimationInstance.cpp:708–710,829–847,903–918`读取该模式值，dot(Acceleration,Velocity)<0时以其计算lean，最大值为0时目标lean为0。

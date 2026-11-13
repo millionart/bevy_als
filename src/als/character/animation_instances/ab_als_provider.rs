@@ -654,7 +654,18 @@ mod tests {
             motion.world_velocity = Vec3::NEG_Z;
             motion.world_acceleration = acceleration.0;
         }).after(AlsActualMotionSet).before(AbAlsProviderSet));
-        for _ in 0..6 { app.update(); }
+        let mut grounded_ready = false;
+        for _ in 0..120 {
+            app.update();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let arena = player.get_context_arena().unwrap();
+            let properties = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+            if properties.write_frames.get(lean) == Some(&arena.frame_index()) {
+                grounded_ready = true;
+                break;
+            }
+        }
+        assert!(grounded_ready, "Grounded lean must be evaluated before High Mantle begins");
         let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
         let walking_braking = scalar(player, "locomotion_state.max_braking_deceleration");
         assert!(walking_braking > 0.0);
