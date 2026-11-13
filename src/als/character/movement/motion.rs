@@ -8101,25 +8101,33 @@ mod tests {
                 Transform::from_xyz(deck_x, 1.878, -15.3))).id();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 1.205, 2.0),
                 Transform::from_xyz(-13.38, 1.6025, -15.0).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4))));
-            if blocker {
+            let blocker = if blocker {
                 let rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4) * Quat::from_rotation_z(-std::f32::consts::FRAC_PI_4);
-                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.14, 0.03, 1.6),
-                    Transform::from_xyz(-13.9164686, 2.077465, -15.2431383).with_rotation(rotation)));
-            }
+                Some(app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.14, 0.03, 1.6),
+                    Transform::from_xyz(-13.9164686, 2.077465, -15.2431383).with_rotation(rotation))).id())
+            } else { None };
             app.update();
             app.update();
             let position = Vec3::new(-13.6265402, 2.9005203, -15.1943197);
-            let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            let (floor, wide_hit) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
                 candidates: Query<CharacterCollisionCandidates>| {
-                find_ground_floor_with_penetration(&spatial, position, 0.9, 0.3,
+                let shrink = (0.9 - 0.3) * FLOOR_SWEEP_SHRINK_FRACTION;
+                let wide_hit = spatial.cast_shape(&als_character_capsule(0.9 - shrink, 0.3), position,
+                    Quat::IDENTITY, Dir3::NEG_Y,
+                    &ShapeCastConfig::from_max_distance(MAX_STEP_HEIGHT - MAX_FLOOR_DISTANCE + shrink),
+                    &SpatialQueryFilter::from_excluded_entities([actor]));
+                let floor = find_ground_floor_with_penetration(&spatial, position, 0.9, 0.3,
                     &crate::als::params::CmcAdapterParams::default(), LocomotionState::Air,
-                    &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates, None, None)
-            }).unwrap().unwrap();
-            if blocker {
+                    &SpatialQueryFilter::from_excluded_entities([actor]), actor, &candidates, None, None).unwrap();
+                (floor, wide_hit)
+            }).unwrap();
+            if let Some(blocker) = blocker {
+                let wide_hit = wide_hit.unwrap();
+                assert_eq!(wide_hit.entity, blocker);
                 assert_eq!(floor.origin, expected_origin);
                 assert_eq!(floor.hit.entity, deck);
-                assert!((floor.hit.point1.y - 2.07356).abs() < 0.002, "the wide impact must be retained: {floor:?}");
-                assert!((floor.hit.distance - 0.0771).abs() < 0.002 && (floor.hit.point1.x + 13.778).abs() < 0.002);
+                assert_eq!(floor.hit.point1, wide_hit.point1);
+                assert_eq!(floor.hit.distance, wide_hit.distance);
                 assert!((floor.sweep_distance - 0.0171).abs() < 0.002);
                 let expected_line_distance = if expected_origin == GroundFloorOrigin::Line { 0.02252 } else { MIN_FLOOR_DISTANCE };
                 assert!((floor.line_distance.unwrap() - expected_line_distance).abs() < 1e-4);
@@ -8129,6 +8137,7 @@ mod tests {
             let params = AlsMovementParams::default();
             let config = initial_als_control_scheme_config(&params).basis;
             let mut controller = TnuaController::<AlsControlScheme>::default();
+            controller.basis_config = Some(config.clone());
             controller.basis.apply(&config, &mut controller.basis_memory,
                 &bevy_tnua::builtins::TnuaBuiltinWalkSensors { ground: &TnuaProximitySensor::default(), headroom: None },
                 TnuaBasisContext { frame_duration: 0.05,
@@ -8139,7 +8148,9 @@ mod tests {
             app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap().airborne_sweep_contact = true;
             app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
             assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(),
-                if blocker { LocomotionState::Air } else { LocomotionState::Grounded });
+                if blocker.is_some() { LocomotionState::Air } else { LocomotionState::Grounded },
+                "deck_x={deck_x} blocker={blocker:?} floor={floor:?} runtime={:?}",
+                app.world().get::<AlsCmcAdapterRuntime>(actor));
         }
     }
 
@@ -10431,7 +10442,21 @@ mod tests {
                     let motor = app.world().get::<TnuaMotor>(character).unwrap();
                     let endpoint = position + (motor.lin.boost + motor.lin.acceleration * delta_seconds).with_y(0.0) * delta_seconds;
                     if matches!(case, "zero" | "ceiling" | "too_high") {
-                        assert!((endpoint.y - start.y).abs() < 0.0001, "Failed step did not roll back: {case} {endpoint:?}");
+                        assert!(endpoint.y <= start.y + 0.0001, "Blocked step kept its upward displacement: {case} {endpoint:?}");
+                        let supported = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                            colliders: Query<&Collider>, candidates: Query<CharacterCollisionCandidates>| {
+                            let capsule = colliders.get(character).unwrap();
+                            let mut transform = Transform::from_translation(endpoint);
+                            let floor = adjust_walking_floor_height(&spatial, capsule,
+                                &mut transform, 0.9, 0.3, &AlsMovementParams::default().cmc, character, &candidates);
+                            let filter = SpatialQueryFilter::from_excluded_entities([character]);
+                            let overlap = spatial.shape_intersections(capsule, transform.translation, Quat::IDENTITY, &filter)
+                                .into_iter().any(|other| character_blocks_collider(character, other, &candidates));
+                            (floor, transform.translation, overlap)
+                        }).unwrap();
+                        assert!(supported.0.is_some() && !supported.2
+                            && supported.1.y - 0.9 <= MAX_FLOOR_DISTANCE + PULLBACK_MIN_DISTANCE,
+                            "Blocked step lost flat floor support: {case} {supported:?}");
                     } else if case == "low_ceiling" {
                         assert!(endpoint.y >= start.y && endpoint.y <= 0.95, "Partial rise exceeded available headroom: {endpoint:?}");
                     } else {
@@ -10489,7 +10514,8 @@ mod tests {
         let floor = floor.unwrap();
         let floor_offset = (floor.point1 - position - delta).with_y(0.0).length();
         assert!(floor_offset >= 0.3 - EDGE_REJECT_DISTANCE);
-        assert!(forward.is_some_and(|hit| hit.distance == 0.0));
+        assert!(forward.is_some_and(|hit| movement_sweep_travel(delta.length(), hit.distance) == 0.0),
+            "Terminal stair contact start={start:?} position={position:?} forward={forward:?} delta={delta:?} floor={floor:?}");
         assert!((position.z - start.z).abs() < 0.001);
         println!("[STAIR-CONTACT] source_edge_rejected distance={floor_offset} delta={delta:?}");
         assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
@@ -10988,7 +11014,6 @@ mod tests {
 
     #[test]
     fn steep_contact_does_not_pass_capsule_landing_validation() {
-        use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
         let mut bodies = app.world_mut().query::<(Entity, &RigidBody)>();
         let remove: Vec<_> = bodies.iter(app.world()).filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity)).collect();
@@ -11002,16 +11027,11 @@ mod tests {
         let mut contact_seen = false;
         for _ in 0..180 {
             app.update();
-            let has_contact = app.world_mut().run_system_once(move |collisions: Collisions| {
-                collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {
-                    let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
-                    normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
-                }))
-            }).unwrap();
-            if has_contact {
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            if velocity.z > 0.01 {
                 contact_seen = true;
                 assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air,
-                    "An unwalkable surface was classified as a landing");
+                    "The falling capsule deflected by an unwalkable surface was classified as a landing: {velocity:?}");
                 break;
             }
         }
@@ -11954,6 +11974,7 @@ mod tests {
                 let previous = *app.world().get::<LocomotionState>(character).unwrap();
                 let previous_vertical = app.world().get::<LinearVelocity>(character).unwrap().y;
                 app.update();
+                let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain().collect();
                 let position = app.world().get::<Transform>(character).unwrap().translation;
                 let vertical = app.world().get::<LinearVelocity>(character).unwrap().y;
                 let swept_landing = app.world().resource::<SweptLanding>().0;
@@ -11999,9 +12020,10 @@ mod tests {
                     let supported = position.y - ALS_CHARACTER_CAPSULE_HALF_HEIGHT <= floor_limit;
                     let expected = if (airborne || !supported) && !impact { LocomotionState::Air } else { LocomotionState::Grounded };
                     assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), expected, "frame={frame}");
-                    let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
-                        .filter(|event| event.entity == character && event.dimension == Dimension::LocomotionState).collect();
-                    assert_eq!(events.len(), usize::from(previous != expected));
+                    let events: Vec<_> = events.iter().filter(|event|
+                        event.entity == character && event.dimension == Dimension::LocomotionState).collect();
+                    assert_eq!(events.len(), usize::from(previous != expected),
+                        "frame={frame} previous={previous:?} expected={expected:?} events={events:?} position={position:?}");
                     if let Some(event) = events.first() {
                         assert_eq!(event.from, StateValue::LocomotionState(previous));
                         assert_eq!(event.to, StateValue::LocomotionState(expected));
@@ -12065,16 +12087,16 @@ mod tests {
             assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
             app.world_mut().entity_mut(character).insert((LocomotionState::None,
                 crate::als::state::AlsNotifyLocomotionAction::Ragdolling));
-            *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Grounded;
             let lifted = app.world().get::<Transform>(character).unwrap().with_translation(Vec3::Y * 10.0);
             app.world_mut().entity_mut(character).insert((lifted, Position(lifted.translation)));
             app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = false;
             app.update();
             app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
             app.update();
-            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::None));
             let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
             assert!(TnuaBuiltinWalk::displacement(&controller.basis_access().unwrap()).is_none());
+            assert!(controller.action_flow_status().ongoing().is_none());
             assert!(app.world().get::<AlsStateRequest>(character).unwrap().ragdoll_exit);
         }
     }

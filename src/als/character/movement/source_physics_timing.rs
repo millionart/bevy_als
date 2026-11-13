@@ -1300,7 +1300,7 @@ mod tests {
                     _ => blocking,
                 };
                 let auxiliary = app.world_mut().spawn((Collider::cuboid(10.0, 0.02, 10.0), layers,
-                    Transform::from_xyz(0.0, if case == "attached" { -0.911 } else { 1.053723 }, 0.0))).id();
+                    Transform::from_xyz(0.0, if case == "attached" { -0.911 } else { 1.07 }, 0.0))).id();
                 if case == "attached" {
                     app.world_mut().entity_mut(character).add_child(auxiliary);
                 } else {

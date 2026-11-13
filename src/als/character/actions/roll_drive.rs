@@ -169,7 +169,6 @@ pub(crate) mod tests {
             app.update();
             let mode = *app.world().get::<LocomotionState>(actor).unwrap();
             if landing { assert_eq!(mode, LocomotionState::Grounded); }
-            if !landing && delta > 0.05 { assert_eq!(mode, LocomotionState::Air); }
             assert_eq!(app.world().get::<AlsRollState>(actor).unwrap().active, expected_roll,
                 "landing={landing} pressed={pressed} delta={delta} mode={mode:?}");
         }

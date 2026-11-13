@@ -1386,7 +1386,8 @@ mod tests {
         for _ in 0..60 { app.update(); }
         assert_eq!(app.world().get::<AlsMovementBaseDynamicsState>(character).unwrap().entity, Some(platform));
         let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 0.1),
-            Transform::from_xyz(0.0, 3.0, -0.52))).id();
+            Transform::from_xyz(0.0, 3.0, -0.52),
+            crate::als::mantle::AlsMantleTargetPermission { allows_step_up: false })).id();
         app.update();
         let origin = app.world().get::<Position>(character).unwrap().0;
         let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
@@ -1420,7 +1421,8 @@ mod tests {
         app.update();
         let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
         let gravity = app.world().get::<crate::als::character::AlsEffectiveGravity>(character).unwrap().value.y;
-        let source_first_velocity = source_input.lock().unwrap().expect("The source walking step must publish its input before the Air snapshot clears based state");
+        let source_first_velocity = source_input.lock().unwrap()
+            .expect("The source walking step must publish its input before the Air snapshot clears based state");
         assert!((source_first_velocity.z + 6.25).abs() < 1e-4,
             "The real first walking source input must match the measured0.3125m sweep: planned={source_first_velocity:?}");
         let source_remaining = 0.05 + 0.05 * (1.0 - applied_distance / source_distance);
