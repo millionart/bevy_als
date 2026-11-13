@@ -19,7 +19,7 @@ use crate::extensions::{control_rig_hierarchy::RigTransform, control_rig_query::
 
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::actual_motion::AlsActualMotion;
-use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, authored_avatar_translation};
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, authored_avatar_translation, character_mesh_entity};
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
 
@@ -394,6 +394,7 @@ pub(crate) fn publish_control_rig_inputs(
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance, Option<&Transform>, Option<&ChildOf>)>,
     mut players: Query<&mut AnimationGraphPlayer>,
     transforms: TransformHelper,
+    parents: Query<&ChildOf>,
     trees: Option<Res<ColliderTrees>>,
     colliders: Query<(Entity, &Position, &Rotation, &Collider, Option<&CollisionLayers>,
         Option<&crate::extensions::ComplexCollider>, Option<&RagdollShapeCollisionMode>, Option<&RigCookedMeshRay>)>,
@@ -431,8 +432,9 @@ pub(crate) fn publish_control_rig_inputs(
         }
         set_source_frame_input(&mut player, crate::extensions::root_graph_boundaries::RIG_GAME_WORLD_KEY, true);
         set_source_frame_input(&mut player, crate::extensions::root_graph_boundaries::RIG_CAPTURE_KEY, capture.as_ref().is_some_and(|capture| capture.0));
+        let mesh = character_mesh_entity(avatar, root, &parents);
         let context = if input.foot_transforms_valid {
-            trees.as_ref().and_then(|_| transforms.compute_global_transform(avatar).ok().map(|transform| {
+            trees.as_ref().and_then(|_| transforms.compute_global_transform(mesh).ok().map(|transform| {
                 let world = world.get_or_insert_with(|| {
                     let mut mesh_ray_data = bevy::platform::collections::HashMap::default();
                     let colliders = colliders.iter()
@@ -446,9 +448,15 @@ pub(crate) fn publish_control_rig_inputs(
                     Arc::new(RigQueryWorld { colliders, mesh_ray_data })
                 }).clone();
                 let transform = transform.compute_transform();
+                let translation = transform.translation.as_dvec3();
                 let translation = mount.filter(|_| parent.is_some_and(|parent| parent.parent() == entity))
-                    .and_then(|mount| authored_avatar_translation(transforms.compute_global_transform(entity).ok()?, mount))
-                    .unwrap_or_else(|| transform.translation.as_dvec3());
+                    .filter(|_| mesh == avatar || parents.iter_ancestors(mesh).any(|parent| parent == avatar))
+                    .and_then(|mount| {
+                        let exact = authored_avatar_translation(transforms.compute_global_transform(entity).ok()?, mount)?;
+                        if mesh == avatar { return Some(exact); }
+                        let rounded = transforms.compute_global_transform(avatar).ok()?.translation().as_dvec3();
+                        Some(translation + (exact - rounded))
+                    }).unwrap_or(translation);
                 RigQueryContext { world, filter, channel: "ECC_Visibility".to_owned(),
                     to_world: RigTransform { translation, rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
             }))

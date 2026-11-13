@@ -3168,6 +3168,8 @@ struct IntegrationCoverage {
     get_up_back: bool,
     get_up_input_locked: [bool; 2],
     get_up_input_released: [bool; 2],
+    get_up_airborne: bool,
+    get_up_rig_space_mismatch: bool,
     get_up_native_jump_rejected_during_action: bool,
     camera_rig: bool,
     camera_collision: bool,
@@ -10000,6 +10002,11 @@ fn observe_manual_integration(
                 && graph_global_f32(player, "post_locomotion.weight")
                     .is_some_and(|weight| weight > 0.0);
             if active {
+                state.coverage.get_up_airborne |= notify_action == Some(&AlsNotifyLocomotionAction::GettingUp)
+                    && *locomotion != LocomotionState::Grounded;
+                state.coverage.get_up_rig_space_mismatch |= crate::extensions::root_graph_boundaries::current_control_rig(player, &motion_probe.graphs)
+                    .zip(motion_probe.transforms.compute_global_transform(instance.player_entity()).ok())
+                    .is_none_or(|((_, _, rig), mesh)| !rig.to_world.translation.as_vec3().abs_diff_eq(mesh.translation(), 1e-5));
                 state.coverage.get_up_front |= !get_up.facing_up;
                 state.coverage.get_up_back |= get_up.facing_up;
                 state.coverage.get_up_input_locked[usize::from(get_up.facing_up)] |=
@@ -10753,6 +10760,8 @@ fn observe_manual_integration(
                 ("ragdoll_scaled", coverage.ragdoll_scaled),
                 ("ragdoll_joint_drive", coverage.ragdoll_joint_drive),
                 ("ragdoll_recover", coverage.ragdoll_recovered),
+                ("get_up_grounded", !coverage.get_up_airborne && (coverage.get_up_front || coverage.get_up_back)),
+                ("get_up_rig_space", !coverage.get_up_rig_space_mismatch && (coverage.get_up_front || coverage.get_up_back)),
                 ("ragdoll_camera_pivot", coverage.ragdoll_camera_pivot),
                 (
                     "get_up_input_locked",
@@ -10771,6 +10780,7 @@ fn observe_manual_integration(
                 ("animation_graph", coverage.graph),
                 ("ragdoll_pa_profile", coverage.ragdoll_pa_profile),
                 ("ragdoll_recover", coverage.ragdoll_recovered),
+                ("get_up_grounded", !coverage.get_up_airborne && coverage.get_up_front && coverage.get_up_back),
                 ("ragdoll_camera_pivot", coverage.ragdoll_camera_pivot),
                 ("get_up_front", coverage.get_up_front),
                 ("get_up_back", coverage.get_up_back),

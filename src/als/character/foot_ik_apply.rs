@@ -21,7 +21,7 @@ use crate::extensions::{control_rig_hierarchy::{RigSpace, RigTransform, rig_norm
     control_rig_program::{RigDefinition, RigInstruction}, root_graph_boundaries::{ControlRigBoundaryNode, ControlRigNodeState, RigCallSample, current_control_rig}};
 
 use crate::animation_context_projection::AlsRootAnimationContextSet;
-use crate::character_assembly::{AlsCharacterAssembly, authored_avatar_translation};
+use crate::character_assembly::{AlsCharacterAssembly, authored_avatar_translation, character_mesh_entity};
 use crate::extensions::post_physics_animation::PublishedSourceBone;
 use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigFootLocationsCm, AlsControlRigInput,
     CrAlsRuntimeProfileTemplate};
@@ -321,6 +321,7 @@ fn observe_rig_results(
     graphs: Option<Res<Assets<AnimationGraph>>>,
     names: Query<&Name>,
     transforms: TransformHelper,
+    parents: Query<&ChildOf>,
 ) {
     for (entity, assembly, bones, lock, previous, previous_execution) in &characters {
         let mut execution = AlsControlRigExecution::default();
@@ -337,7 +338,8 @@ fn observe_rig_results(
             execution = AlsControlRigExecution { initialization_count: state.initialization_count, executed_steps: state.executed_steps,
                 frame: player.get_context_arena().unwrap().frame_index(), elapsed_seconds: state.elapsed_seconds,
                 foot_height_m: value("FootHeight").unwrap_or(0.0), leg_length_m: value("LegLength").unwrap_or(0.0) };
-            if let Some(bones) = bones && let Ok(world) = transforms.compute_global_transform(assembly.avatar) {
+            let mesh = character_mesh_entity(assembly.avatar, instance.player_entity(), &parents);
+            if let Some(bones) = bones && let Ok(world) = transforms.compute_global_transform(mesh) {
                 let world = world.compute_transform();
                 let to_world = RigTransform { translation: world.translation.as_dvec3(), rotation: world.rotation.as_dquat(), scale: world.scale.as_dvec3() };
                 for side in 0..2 {
@@ -678,15 +680,24 @@ fn refresh_foot_lock_inputs(
             commands.entity(entity).remove::<AlsControlRigFootLocationsCm>();
             if gate.is_some_and(|gate| !gate.update_graph) { continue; }
         }
-        let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
+        let mesh = instance.map_or(assembly.avatar, |instance| {
+            character_mesh_entity(assembly.avatar, instance.player_entity(), &parents)
+        });
+        let Ok(armature) = transforms.compute_global_transform(mesh) else { continue };
+        let Ok(mount_world) = transforms.compute_global_transform(assembly.avatar) else { continue };
         let player = instance.and_then(|instance| players.get(instance.player_entity()).ok());
         let mut component = foot_component_transform(&armature);
         if let Ok((mount, _)) = local_transforms.get(assembly.avatar)
             && parents.get(assembly.avatar).is_ok_and(|parent| parent.parent() == entity)
             && let Ok(actor) = transforms.compute_global_transform(entity)
             && let Some(translation) = authored_avatar_translation(actor, mount) {
-            component.translation = translation;
-            if parents.get(entity).is_err() && let Ok((actor, _)) = local_transforms.get(entity)
+            if mesh == assembly.avatar {
+                component.translation = translation;
+            } else if parents.iter_ancestors(mesh).any(|parent| parent == assembly.avatar) {
+                component.translation += translation - mount_world.translation().as_dvec3();
+            }
+            if armature.affine().matrix3 == mount_world.affine().matrix3
+                && parents.get(entity).is_err() && let Ok((actor, _)) = local_transforms.get(entity)
                 && actor.scale.min_element() >= 0.0 && mount.scale.min_element() >= 0.0 {
                 component.rotation = crate::extensions::control_rig_math::rig_quat_product(
                     rig_normalize(actor.rotation.as_dquat()), rig_normalize(mount.rotation.as_dquat()),
@@ -721,9 +732,9 @@ fn refresh_foot_lock_inputs(
             let entity = bones.target(side, use_ik_bones).unwrap_or(assembly.avatar);
             let target = transforms.compute_global_transform(entity).ok()?;
             let rotation = positive_scale_foot_rotation(
-                entity, assembly.avatar, &armature, &parents, &local_transforms, player,
+                entity, mesh, &armature, &parents, &local_transforms, player,
             ).unwrap_or_else(|| target.rotation().as_dquat());
-            let location = published_foot_world_location(entity, assembly.avatar, component, &parents,
+            let location = published_foot_world_location(entity, mesh, component, &parents,
                 &local_transforms, &published_bones).unwrap_or_else(|| target.translation().as_dvec3());
             Some((location, rotation))
         });

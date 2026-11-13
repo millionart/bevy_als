@@ -1,0 +1,811 @@
+{
+  "source": [
+    {
+      "case": "scale-1-height-991",
+      "get_up_frames": 45,
+      "modes": [
+        "MOVE_Walking"
+      ],
+      "mesh_height_cm": [
+        -0.10000013460364698
+      ]
+    },
+    {
+      "case": "scale-2-height-990",
+      "get_up_frames": 57,
+      "modes": [
+        "MOVE_Walking"
+      ],
+      "mesh_height_cm": [
+        89.90000026884519
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "report": "ragdoll-native-bounds/ragdoll-restored",
+      "rows": [
+        {
+          "time": 0.060000002,
+          "mode": "Air",
+          "mesh_y_m": 0.8935499,
+          "rig_y_m": -0.026450157,
+          "right_ik_effector_error_m": 0.6582216,
+          "local_rotation_error_degrees": {
+            "thigh_l": 15.788941413651255,
+            "calf_l": 3.250804939369464,
+            "foot_l": 33.30735101020012,
+            "thigh_r": 40.50962474746285,
+            "calf_r": 1.81770721742883,
+            "foot_r": 49.85876592196229
+          }
+        },
+        {
+          "time": 0.14000002,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.44138354,
+          "local_rotation_error_degrees": {
+            "thigh_l": 24.449129480153722,
+            "calf_l": 10.042855203179752,
+            "foot_l": 33.14628468721997,
+            "thigh_r": 32.76512710267825,
+            "calf_r": 1.4831619830079283,
+            "foot_r": 40.382266848584536
+          }
+        },
+        {
+          "time": 0.22,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.28560388,
+          "local_rotation_error_degrees": {
+            "thigh_l": 59.07288091039919,
+            "calf_l": 17.178720615210715,
+            "foot_l": 61.372005050507795,
+            "thigh_r": 25.048461294960383,
+            "calf_r": 1.1285187399489836,
+            "foot_r": 30.82040293102156
+          }
+        },
+        {
+          "time": 0.3,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.34549448,
+          "local_rotation_error_degrees": {
+            "thigh_l": 89.5326324253953,
+            "calf_l": 24.368020739577855,
+            "foot_l": 87.12289174841669,
+            "thigh_r": 17.328609109542818,
+            "calf_r": 0.7711649140869915,
+            "foot_r": 21.247622936295834
+          }
+        },
+        {
+          "time": 0.38000005,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.56812376,
+          "local_rotation_error_degrees": {
+            "thigh_l": 40.14199208490378,
+            "calf_l": 34.36106734344136,
+            "foot_l": 74.46805522698132,
+            "thigh_r": 9.471888206605723,
+            "calf_r": 0.41738964031985815,
+            "foot_r": 11.704767753563662
+          }
+        },
+        {
+          "time": 0.4600001,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.84512544,
+          "local_rotation_error_degrees": {
+            "thigh_l": 49.80678349901236,
+            "calf_l": 33.6393297388695,
+            "foot_l": 81.78019384091748,
+            "thigh_r": 1.825652540990759,
+            "calf_r": 0.07789893746511896,
+            "foot_r": 2.2933424128713638
+          }
+        },
+        {
+          "time": 0.56000006,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.9200002,
+          "local_rotation_error_degrees": {
+            "thigh_l": 50.838205385341546,
+            "calf_l": 21.02743343511566,
+            "foot_l": 70.47767067683402,
+            "thigh_r": 1.2074182697257337e-05,
+            "calf_r": 1.4183953086968139e-05,
+            "foot_r": 1.01019860158646e-05
+          }
+        },
+        {
+          "time": 0.65999997,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.9200001,
+          "local_rotation_error_degrees": {
+            "thigh_l": 52.00742276372293,
+            "calf_l": 4.764063348457703,
+            "foot_l": 56.635218710404345,
+            "thigh_r": 0.5617728297921167,
+            "calf_r": 0.3025371227380782,
+            "foot_r": 0.7017706329822602
+          }
+        },
+        {
+          "time": 0.7399999,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.9200002,
+          "local_rotation_error_degrees": {
+            "thigh_l": 50.55184398456379,
+            "calf_l": 5.776610011004106,
+            "foot_l": 44.79128386717526,
+            "thigh_r": 9.767534147820157,
+            "calf_r": 2.118049886247838,
+            "foot_r": 10.487188225529003
+          }
+        },
+        {
+          "time": 0.8199998,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.9200002,
+          "local_rotation_error_degrees": {
+            "thigh_l": 49.538229241842544,
+            "calf_l": 14.113073944124261,
+            "foot_l": 35.42826876108648,
+            "thigh_r": 31.58216552670598,
+            "calf_r": 2.524878114130153,
+            "foot_r": 31.869431724726887
+          }
+        },
+        {
+          "time": 0.89999974,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.9200001,
+          "local_rotation_error_degrees": {
+            "thigh_l": 49.14992097182608,
+            "calf_l": 19.64800373501823,
+            "foot_l": 29.527018644153426,
+            "thigh_r": 82.34831446128747,
+            "calf_r": 4.534191756330973,
+            "foot_r": 82.00381397030401
+          }
+        },
+        {
+          "time": 0.97999966,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.91999996,
+          "local_rotation_error_degrees": {
+            "thigh_l": 48.23045911189603,
+            "calf_l": 19.276404354776233,
+            "foot_l": 28.9552881536368,
+            "thigh_r": 156.56736958964993,
+            "calf_r": 13.837587262128217,
+            "foot_r": 156.16528069693695
+          }
+        },
+        {
+          "time": 1.0599996,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.91999996,
+          "local_rotation_error_degrees": {
+            "thigh_l": 47.08266880989092,
+            "calf_l": 15.42429547826773,
+            "foot_l": 31.708239631347993,
+            "thigh_r": 168.610197113806,
+            "calf_r": 12.876343034774852,
+            "foot_r": 168.0026429673913
+          }
+        },
+        {
+          "time": 1.1399995,
+          "mode": "Grounded",
+          "mesh_y_m": 0.90149987,
+          "rig_y_m": -0.018500209,
+          "right_ik_effector_error_m": 0.9200001,
+          "local_rotation_error_degrees": {
+            "thigh_l": 47.11244249760056,
+            "calf_l": 11.017507162996807,
+            "foot_l": 36.275465335745785,
+            "thigh_r": 161.4127658838112,
+            "calf_r": 11.75008120227296,
+            "foot_r": 160.22300482522465
+          }
+        }
+      ]
+    },
+    {
+      "report": "scaled-get-up/ragdoll",
+      "rows": [
+        {
+          "time": 0.040000003,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.4386268,
+          "local_rotation_error_degrees": {
+            "thigh_l": 16.22905079929647,
+            "calf_l": 2.835820530787215,
+            "foot_l": 34.78382818238361,
+            "thigh_r": 42.41640450929357,
+            "calf_r": 1.895033744347675,
+            "foot_r": 52.19919979579131
+          }
+        },
+        {
+          "time": 0.14000002,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1512747,
+          "local_rotation_error_degrees": {
+            "thigh_l": 12.255303401344829,
+            "calf_l": 3.1735104037933852,
+            "foot_l": 25.481361530822177,
+            "thigh_r": 32.76512710267825,
+            "calf_r": 1.4831619830079283,
+            "foot_r": 40.382266848584536
+          }
+        },
+        {
+          "time": 0.24,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.8328691,
+          "local_rotation_error_degrees": {
+            "thigh_l": 13.654173328725772,
+            "calf_l": 4.524430520293189,
+            "foot_l": 15.698142818308604,
+            "thigh_r": 23.128079004234355,
+            "calf_r": 1.0390828003154935,
+            "foot_r": 28.426499100282538
+          }
+        },
+        {
+          "time": 0.34000003,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.50019914,
+          "local_rotation_error_degrees": {
+            "thigh_l": 4.7825727256267525,
+            "calf_l": 1.0458099290673826,
+            "foot_l": 4.6361953056264325,
+            "thigh_r": 13.407845181704804,
+            "calf_r": 0.5935938274352762,
+            "foot_r": 16.469395298069628
+          }
+        },
+        {
+          "time": 0.4400001,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.15062717,
+          "local_rotation_error_degrees": {
+            "thigh_l": 1.5521096556315706,
+            "calf_l": 1.0055857956140062,
+            "foot_l": 1.1808824656044186,
+            "thigh_r": 3.695277720793023,
+            "calf_r": 0.15923827188019854,
+            "foot_r": 4.6152010099286
+          }
+        },
+        {
+          "time": 0.5400001,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 9.61096e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.0005075352213235264,
+            "calf_l": 1.9090959104164248e-05,
+            "foot_l": 0.0005030487648062723,
+            "thigh_r": 9.035490975690204e-06,
+            "calf_r": 4.829673078902933e-06,
+            "foot_r": 5.399738656763832e-06
+          }
+        },
+        {
+          "time": 0.64,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1920929e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.0001434542990739674,
+            "calf_l": 1.546249837520016e-05,
+            "foot_l": 0.00013551084985395138,
+            "thigh_r": 4.182619578303746e-06,
+            "calf_r": 1.5177012312529194e-05,
+            "foot_r": 7.0403978477281e-06
+          }
+        },
+        {
+          "time": 0.7599999,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 9.536743e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 8.00910673140078e-06,
+            "calf_l": 2.4979263396122898e-05,
+            "foot_l": 2.721382571521845e-05,
+            "thigh_r": 1.85487114168054e-05,
+            "calf_r": 4.182619578303746e-06,
+            "foot_r": 1.3872179782028058e-05
+          }
+        },
+        {
+          "time": 0.8599998,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.0,
+          "local_rotation_error_degrees": {
+            "thigh_l": 1.366037834002551e-05,
+            "calf_l": 2.3536915126363644e-05,
+            "foot_l": 1.4886052178675776e-05,
+            "thigh_r": 1.3004292747236516e-05,
+            "calf_r": 1.0799477313527668e-05,
+            "foot_r": 1.3004292747236516e-05
+          }
+        },
+        {
+          "time": 0.9599997,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.0,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.023412499535533527,
+            "calf_l": 0.03602126200460051,
+            "foot_l": 0.012663802062324824,
+            "thigh_r": 0.013747763472186675,
+            "calf_r": 0.026410041125043627,
+            "foot_r": 0.03970115963506293
+          }
+        },
+        {
+          "time": 1.0599996,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.0,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.2418571360601418,
+            "calf_l": 0.35757483050394195,
+            "foot_l": 0.11798138783851883,
+            "thigh_r": 0.34373110600022344,
+            "calf_r": 0.1182116274892335,
+            "foot_r": 0.44602364500816305
+          }
+        }
+      ]
+    },
+    {
+      "report": "scaled-get-up/ragdoll-verified",
+      "rows": [
+        {
+          "time": 0.040000003,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.4386268,
+          "local_rotation_error_degrees": {
+            "thigh_l": 16.22905079929647,
+            "calf_l": 2.835820530787215,
+            "foot_l": 34.78382818238361,
+            "thigh_r": 42.41640450929357,
+            "calf_r": 1.895033744347675,
+            "foot_r": 52.19919979579131
+          }
+        },
+        {
+          "time": 0.14000002,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1512747,
+          "local_rotation_error_degrees": {
+            "thigh_l": 12.255303401344829,
+            "calf_l": 3.1735104037933852,
+            "foot_l": 25.481361530822177,
+            "thigh_r": 32.76512710267825,
+            "calf_r": 1.4831619830079283,
+            "foot_r": 40.382266848584536
+          }
+        },
+        {
+          "time": 0.24,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.8328691,
+          "local_rotation_error_degrees": {
+            "thigh_l": 13.654173328725772,
+            "calf_l": 4.524430520293189,
+            "foot_l": 15.698142818308604,
+            "thigh_r": 23.128079004234355,
+            "calf_r": 1.0390828003154935,
+            "foot_r": 28.426499100282538
+          }
+        },
+        {
+          "time": 0.34000003,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.50019914,
+          "local_rotation_error_degrees": {
+            "thigh_l": 4.7825727256267525,
+            "calf_l": 1.0458099290673826,
+            "foot_l": 4.6361953056264325,
+            "thigh_r": 13.407845181704804,
+            "calf_r": 0.5935938274352762,
+            "foot_r": 16.469395298069628
+          }
+        },
+        {
+          "time": 0.4400001,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.15062717,
+          "local_rotation_error_degrees": {
+            "thigh_l": 1.5521096556315706,
+            "calf_l": 1.0055857956140062,
+            "foot_l": 1.1808824656044186,
+            "thigh_r": 3.695277720793023,
+            "calf_r": 0.15923827188019854,
+            "foot_r": 4.6152010099286
+          }
+        },
+        {
+          "time": 0.5400001,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 9.61096e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.0005075352213235264,
+            "calf_l": 1.9090959104164248e-05,
+            "foot_l": 0.0005030487648062723,
+            "thigh_r": 9.035490975690204e-06,
+            "calf_r": 4.829673078902933e-06,
+            "foot_r": 5.399738656763832e-06
+          }
+        },
+        {
+          "time": 0.64,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1920929e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.0001434542990739674,
+            "calf_l": 1.546249837520016e-05,
+            "foot_l": 0.00013551084985395138,
+            "thigh_r": 4.182619578303746e-06,
+            "calf_r": 1.5177012312529194e-05,
+            "foot_r": 7.0403978477281e-06
+          }
+        },
+        {
+          "time": 0.7399999,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1920929e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 1.976628896181796e-05,
+            "calf_l": 3.148561635232658e-05,
+            "foot_l": 3.0354024625058453e-05,
+            "thigh_r": 1.2547858734911242e-05,
+            "calf_r": 0.0,
+            "foot_r": 1.9014441926092303e-05
+          }
+        },
+        {
+          "time": 0.8399998,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1920929e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 1.4886052178675776e-05,
+            "calf_l": 2.3598773091450764e-05,
+            "foot_l": 2.1121193543184324e-05,
+            "thigh_r": 1.5835142153691186e-05,
+            "calf_r": 6.389056940260397e-06,
+            "foot_r": 1.6730478313214994e-05
+          }
+        },
+        {
+          "time": 0.9399997,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.0,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.005912528164650242,
+            "calf_l": 0.00910788823298727,
+            "foot_l": 0.0032056807261192986,
+            "thigh_r": 0.0004545284340159261,
+            "calf_r": 0.00836196003911991,
+            "foot_r": 0.008661915161035472
+          }
+        },
+        {
+          "time": 1.0399996,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 9.61096e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.18649384804678673,
+            "calf_l": 0.2795964740609836,
+            "foot_l": 0.09451373800499051,
+            "thigh_r": 0.26089601220896835,
+            "calf_r": 0.09227464813269047,
+            "foot_r": 0.3410755641894706
+          }
+        },
+        {
+          "time": 1.1399995,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.0,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.48268976938863,
+            "calf_l": 0.6733003305231874,
+            "foot_l": 0.2001442612115337,
+            "thigh_r": 0.7152215833749412,
+            "calf_r": 0.2474661944841581,
+            "foot_r": 0.9273132644770614
+          }
+        }
+      ]
+    },
+    {
+      "report": "scaled-get-up/ragdoll-support-band",
+      "rows": [
+        {
+          "time": 0.040000003,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.4386268,
+          "local_rotation_error_degrees": {
+            "thigh_l": 16.22905079929647,
+            "calf_l": 2.835820530787215,
+            "foot_l": 34.78382818238361,
+            "thigh_r": 42.41640450929357,
+            "calf_r": 1.895033744347675,
+            "foot_r": 52.19919979579131
+          }
+        },
+        {
+          "time": 0.12000001,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.2119219,
+          "local_rotation_error_degrees": {
+            "thigh_l": 13.074499300974907,
+            "calf_l": 2.880460337359413,
+            "foot_l": 27.61854982941207,
+            "thigh_r": 34.70818548549436,
+            "calf_r": 1.5697105477442106,
+            "foot_r": 42.763946164942766
+          }
+        },
+        {
+          "time": 0.2,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.9625872,
+          "local_rotation_error_degrees": {
+            "thigh_l": 11.981599845993905,
+            "calf_l": 4.989699345486519,
+            "foot_l": 18.63053502912726,
+            "thigh_r": 26.96931540882858,
+            "calf_r": 1.2177997625832075,
+            "foot_r": 33.213593387887585
+          }
+        },
+        {
+          "time": 0.28,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.7011241,
+          "local_rotation_error_degrees": {
+            "thigh_l": 9.225088014734732,
+            "calf_l": 2.0358418712423423,
+            "foot_l": 9.968667096532036,
+            "thigh_r": 19.271530142578357,
+            "calf_r": 0.8603711893203779,
+            "foot_r": 23.639569949121814
+          }
+        },
+        {
+          "time": 0.38000005,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.36356083,
+          "local_rotation_error_degrees": {
+            "thigh_l": 3.3167157046809765,
+            "calf_l": 1.178013554735336,
+            "foot_l": 3.0741026842573222,
+            "thigh_r": 9.471888206605723,
+            "calf_r": 0.41738964031985815,
+            "foot_r": 11.704767753563662
+          }
+        },
+        {
+          "time": 0.4600001,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.076383956,
+          "local_rotation_error_degrees": {
+            "thigh_l": 1.1065217631177793,
+            "calf_l": 0.7729882835125275,
+            "foot_l": 0.4284168267019392,
+            "thigh_r": 1.825652540990759,
+            "calf_r": 0.07789893746511896,
+            "foot_r": 2.2933424128713638
+          }
+        },
+        {
+          "time": 0.5400001,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 9.61096e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.0005075352213235264,
+            "calf_l": 1.9090959104164248e-05,
+            "foot_l": 0.0005030487648062723,
+            "thigh_r": 9.035490975690204e-06,
+            "calf_r": 4.829673078902933e-06,
+            "foot_r": 5.399738656763832e-06
+          }
+        },
+        {
+          "time": 0.62,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1920929e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.00019548247213475213,
+            "calf_l": 1.707547292503189e-05,
+            "foot_l": 0.00019584011684077574,
+            "thigh_r": 6.389056940260397e-06,
+            "calf_r": 9.352621701108683e-06,
+            "foot_r": 9.195423586105976e-06
+          }
+        },
+        {
+          "time": 0.6999999,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1920929e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 5.162330897092325e-05,
+            "calf_l": 6.389056940260397e-06,
+            "foot_l": 4.5563044700372294e-05,
+            "thigh_r": 2.7953753927588597e-05,
+            "calf_r": 1.27781138805208e-05,
+            "foot_r": 8.00910673140078e-06
+          }
+        },
+        {
+          "time": 0.77999985,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.0,
+          "local_rotation_error_degrees": {
+            "thigh_l": 9.659346157805868e-06,
+            "calf_l": 1.790890709046331e-05,
+            "foot_l": 1.322660445345283e-05,
+            "thigh_r": 1.9014441926092303e-05,
+            "calf_r": 4.829673078902933e-06,
+            "foot_r": 1.4688877218970407e-05
+          }
+        },
+        {
+          "time": 0.8599998,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.0,
+          "local_rotation_error_degrees": {
+            "thigh_l": 1.366037834002551e-05,
+            "calf_l": 2.3536915126363644e-05,
+            "foot_l": 1.4886052178675776e-05,
+            "thigh_r": 1.3004292747236516e-05,
+            "calf_r": 1.0799477313527668e-05,
+            "foot_r": 1.3004292747236516e-05
+          }
+        },
+        {
+          "time": 0.9399997,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 0.0,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.005912528164650242,
+            "calf_l": 0.00910788823298727,
+            "foot_l": 0.0032056807261192986,
+            "thigh_r": 0.0004545284340159261,
+            "calf_r": 0.00836196003911991,
+            "foot_r": 0.008661915161035472
+          }
+        },
+        {
+          "time": 1.0199996,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1920929e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.13460087397133494,
+            "calf_l": 0.20366184122454206,
+            "foot_l": 0.06987742381845652,
+            "thigh_r": 0.18571368554551992,
+            "calf_r": 0.07047252998148082,
+            "foot_r": 0.24758753218568785
+          }
+        },
+        {
+          "time": 1.1199995,
+          "mode": "Grounded",
+          "mesh_y_m": 0.8989998,
+          "rig_y_m": 0.8989998,
+          "right_ik_effector_error_m": 1.1920929e-07,
+          "local_rotation_error_degrees": {
+            "thigh_l": 0.42307748282659474,
+            "calf_l": 0.5981894346493061,
+            "foot_l": 0.18212852274262928,
+            "thigh_r": 0.6207107679764895,
+            "calf_r": 0.21774017645964283,
+            "foot_r": 0.8081477747373774
+          }
+        }
+      ]
+    }
+  ]
+}

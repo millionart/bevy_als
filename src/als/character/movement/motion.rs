@@ -5939,7 +5939,10 @@ pub(crate) fn locomotion_state_sync_system(
                 floor_entity = Some(floor);
             }
         }
-        let airborne = TnuaBuiltinWalk::displacement(&basis).is_none()
+        let recovering_on_floor = *current == LocomotionState::Grounded
+            && action == Some(&crate::als::state::AlsNotifyLocomotionAction::GettingUp)
+            && floor_result.is_some_and(|floor| (position.y - floor.center_y).abs() <= MAX_FLOOR_DISTANCE);
+        let airborne = (!recovering_on_floor && TnuaBuiltinWalk::displacement(&basis).is_none())
             || jumping || validated_floor.is_none();
         let landed_on_contact = airborne && validated_floor.is_some() && collisions.collisions_with(entity)
             .any(|contact| resolved_walkable_contact(contact, entity));

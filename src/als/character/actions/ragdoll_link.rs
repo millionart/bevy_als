@@ -2015,6 +2015,49 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_scaled_ragdoll_get_up_keeps_walking_on_the_exit_frame() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let (player, _) = loaded_ragdoll_bodies(&mut app, avatar);
+        let start = Vec3::Y * 9.9;
+        app.world_mut().entity_mut(actor).insert((Position(start),
+            Transform::from_translation(start).with_scale(Vec3::splat(2.0)), LinearVelocity::ZERO));
+        for _ in 0..120 {
+            app.update();
+        }
+        assert!(app.world().get::<AlsRagdollGroundFollow>(actor).is_some_and(|follow| follow.grounded));
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+        for frame in 0..6 {
+            app.update();
+            let world = app.world();
+            let mode = *world.get::<LocomotionState>(actor).unwrap();
+            let position = world.get::<Position>(actor).unwrap().0;
+            let velocity = world.get::<LinearVelocity>(actor).unwrap().0;
+            let action = world.get::<AlsNotifyLocomotionAction>(actor);
+            assert_eq!(action, Some(&AlsNotifyLocomotionAction::GettingUp), "frame={frame}");
+            assert_eq!(mode, LocomotionState::Grounded, "frame={frame} position={position:?} velocity={velocity:?}");
+        }
+        let (mesh, mount) = app.world_mut().run_system_once(move |transforms: TransformHelper| {
+            (transforms.compute_global_transform(player).unwrap(), transforms.compute_global_transform(avatar).unwrap())
+        }).unwrap();
+        assert!((mesh.translation().y - mount.translation().y - 0.92).abs() < 1e-5);
+        let world = app.world();
+        let graph = world.get::<AnimationGraphPlayer>(player).unwrap();
+        let (_, _, rig) = crate::extensions::root_graph_boundaries::current_control_rig(
+            graph, world.resource::<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>(),
+        ).unwrap();
+        assert!(rig.to_world.translation.as_vec3().abs_diff_eq(mesh.translation(), 1e-5),
+            "Rig queried from {:?}, while the restored mesh is at {:?}", rig.to_world.translation, mesh.translation());
+        let supports: Vec<_> = app.world_mut().query::<(Entity, &RigidBody)>().iter(app.world())
+            .filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity)).collect();
+        assert_eq!(supports.len(), 1);
+        app.world_mut().despawn(supports[0]);
+        for _ in 0..3 { app.update(); }
+        assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Air));
+    }
+
+    #[test]
     fn browser_review_parent_ragdoll_follow_and_exit_write_world_positions() {
         use bevy::ecs::system::RunSystemOnce;
         for exiting in [false, true] {

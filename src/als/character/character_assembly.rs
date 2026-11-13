@@ -79,6 +79,14 @@ pub(crate) fn sync_avatar_stance_offset(
     }
 }
 
+pub(crate) fn character_mesh_entity(avatar: Entity, player: Entity, parents: &Query<&ChildOf>) -> Entity {
+    if parents.get(player).is_err() || parents.iter_ancestors(player).any(|parent| parent == avatar) {
+        player
+    } else {
+        avatar
+    }
+}
+
 pub fn attach_avatar(
     commands: &mut Commands,
     assets: &AssetServer,
