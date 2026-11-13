@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 192.868,
+  "exit_reason": "completed",
+  "last_progress": "stdout.log",
+  "no_progress_limit_seconds": 600,
+  "no_progress_seconds": 0.0,
+  "process_exit_code": 0,
+  "source": "ragdoll-near-zero-readback-resource-query",
+  "success": true,
+  "timeout_seconds": 3600
+}

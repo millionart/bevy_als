@@ -6548,6 +6548,11 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：既有`scaled_readback_preserves_physics_world_transforms_across_animated_gaps`只枚举uniform 2/0.5/1，覆盖分支之外的非均匀scale未进入合同。仅登记，不改变回读插件或归一化实现。
 
 - [x] BF144-D116 / P3 — mesh从近零缩放恢复时未重建物理状态，保留旧刚体速度。 静态实现完成，统一验证待执行。
+  - 2026-11-13 11:33复验，预估12:00。原始加载D116/D117复现Avian Position NaN。fresh UE从近零恢复通过RecreatePhysicsState取当前骨骼。目标暂停时图不刷新，旧readback配置仍可进入零尺度父矩阵逆变换并污染下一次重建使用的骨骼。先在现有实际readback边界验证零尺度停用的单因，保留缩放阈值、重建次数、线/角速度及正常非均匀控制。
+  - 11:50同target消融已复现Avian非有限Position，源码按字节恢复后正在重编。实际回读复用图依赖的原生混合、既有系统资源和骨骼表，在零尺度不执行世界逆变换。定向5项首次已通过。正式入口继续按原Ragdoll、GetUp及新88步验证，避免相邻缩放行为失去验收。
+  - 11:55实际复验前：字节恢复后5项定向通过，含D116恢复及D117直接/恢复网格空间，近零守卫消融稳定失败。共同1.2m/s入口的89目标图步（含初始化）正式功能通过。下一正常时钟GetUp和固定60Hz高落地，保持Ragdoll连续运动与已接受碰撞边界。
+  - 11:59真实GetUp通过。第19轮库2098过／49失败，D18、正缩放和两个近零加载反例已恢复，新增0。下一个正式高落地60Hz确认活动readback保持真实碰撞及视觉。
+  - 12:00完成。11:33开始、12:00预估，按时结束，无拆分。两加载缩放、零尺度停止及两回读旋转定向共5过，移除零尺度守卫重现非有限Position。真实普通GetUp及60Hz Ragdoll均通过。第19轮49个库失败且0新增，证据 `docs/audit/bf144/u07/ragdoll-zero-readback/`、`docs/audit/bf144/u07/bevy-0.20/tests-round-19-lib/`。
   - 20:24 source/static 闭环：用既有 scale state 识别均匀近零恢复，刷新当前网格骨骼后通过依赖的反射字段清除旧 rig 引用。原 spawner 生成新体、profile 旧 root 归档逻辑负责销毁，handoff 重设动态体 owner V 与零 W，恢复同一碰撞过滤。已写暂停四个临界输入、新/旧身份、一次执行、21/22/20数量、非零 owner V 及旧速度控制。源与目标身份 `docs/audit/bf144/d116/`。编译、测试、消融和真实入口待统一 Gate。开始20:15，预估21:10，实际结束2026-11-11 20:24 +08:00，偏差−46分钟。结果：静态实现完成。
   - 本轮开始2026-11-11 20:15 +08:00，预估结束21:10 +08:00。依据：fresh UE 销毁/重建与初始速度链、当前 scope 的近零 state 已定位。复用图依赖生成和 profile 旧 root 清理，保留 player/动画状态，验证一次重建、尺寸/关节、速度及临界控制。
   - Source：fresh `SkeletalMeshComponentPhysics.cpp:3533–3550`以uniform relative scale的IsNearlyZero（每轴<=1e−4）识别恢复并RecreatePhysicsState；`ActorComponent.cpp:2594–2604`销毁/重建，`TermArticulated:1195–1242`删除body和constraint，`InitDynamicProperties_AssumesLocked:4690–4708`取actor速度，`ParticleHandle.h:99–103`初始化角速度0。ALS此前SetSimulatePhysics(True)的component级旗标保留，恢复为20个Dynamic+1个Kinematic。

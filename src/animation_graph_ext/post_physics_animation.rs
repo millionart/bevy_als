@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use crate::source_physics_timing::source_physics_delta;
 use avian3d::prelude::{PhysicsSystems, Position, Rotation};
 use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, math::{Affine3A, Isometry3d}, prelude::*, transform::TransformSystems};
+use bevy::reflect::ReflectRef;
 use bevy_animation_graph::core::{
     animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance},
     animation_graph::{AnimationGraph, DEFAULT_OUTPUT_RAGDOLL_CONFIG},
@@ -105,7 +106,7 @@ impl Plugin for PostPhysicsAnimationPlugin {
             .in_set(AnimationGraphSet::PrePhysics).run_if(|time: Res<Time>| !time.delta().is_zero()));
         app.add_systems(PostUpdate, apply_animation_to_visible_targets.in_set(AnimationGraphSet::Final));
         app.add_systems(PostUpdate,
-            (read_back_poses_avian, normalize_scaled_readback_pose, apply_readback_pose)
+            (read_back_ragdoll_poses, normalize_scaled_readback_pose, apply_readback_pose)
                 .chain().in_set(PostPhysicsAnimationSet::Readback),
         );
     }
@@ -148,6 +149,39 @@ fn has_physics_readback(player: &AnimationGraphPlayer) -> bool {
     player.get_spawned_ragdoll().is_some() && player.get_outputs().get(DEFAULT_OUTPUT_RAGDOLL_CONFIG)
         .and_then(|value| value.as_ragdoll_config().ok())
         .is_none_or(|config| config.default_readback.unwrap_or(true) || config.readback_overrides.values().any(|enabled| *enabled))
+}
+
+fn read_back_ragdoll_poses(
+    mut players: Query<(Entity, &mut AnimationGraphPlayer)>,
+    maps: Res<Assets<RagdollBoneMap>>,
+    bodies: Query<(&Position, &Rotation)>,
+    resources: SystemResources,
+) {
+    for (entity, mut player) in &mut players {
+        if resources.transform_query.get(entity)
+            .is_ok_and(|(transform, _)| transform.scale.abs().max_element() <= 1e-4)
+            || !has_physics_readback(&player) {
+            continue;
+        }
+        let ReflectRef::Struct(fields) = player.reflect_ref() else { continue; };
+        let Some(map) = fields.field("ragdoll_bone_map")
+            .and_then(|field| field.try_downcast_ref::<Option<Handle<RagdollBoneMap>>>())
+            .and_then(|handle| handle.as_ref())
+            .and_then(|handle| maps.get(handle)) else { continue; };
+        let Some(spawned) = player.get_spawned_ragdoll() else { continue; };
+        let Some(pose) = player.get_default_output_pose() else { continue; };
+        let Some(skeleton) = resources.skeleton_assets.get(&pose.skeleton) else { continue; };
+        let config = player.get_outputs().get(DEFAULT_OUTPUT_RAGDOLL_CONFIG)
+            .and_then(|value| value.as_ragdoll_config().ok()).cloned().unwrap_or_default();
+        let entities = skeleton.iter_bones()
+            .filter_map(|bone| player.bone_entity(bone).map(|entity| (bone, entity))).collect();
+        let fallback = PoseFallbackContext {
+            entity_map: &entities, resources: &resources, fallback_to_identity: true,
+        };
+        let updated = bevy_animation_graph::core::ragdoll::read_pose_avian::read_pose(
+            spawned, map, skeleton, &bodies, fallback, pose, &config);
+        player.set_default_output_pose(updated);
+    }
 }
 
 fn successful_readback_bones(
