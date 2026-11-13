@@ -626,16 +626,20 @@ fn rotation_response_system(
             constraint.active_limit_degrees = 180.0;
             constraint.applied_last_frame = false;
         }
-        let (_, pitch, world_roll) = actor_world.rotation().to_euler(EulerRot::YXZ);
-        let next_rotation = Quat::from_euler(EulerRot::YXZ, next_yaw, pitch, world_roll);
-        let parent_world = if let Ok(parent) = parents.get(entity) {
-            let Ok(world) = space.p0().compute_global_transform(parent.parent()) else { continue; };
-            Some(world)
-        } else { None };
-        space.p1().get_mut(entity).unwrap().rotation = parent_world
-            .map_or(next_rotation, |parent| parent.rotation().inverse() * next_rotation);
-        if let Some(mut rotation) = rotation {
-            rotation.0 = next_rotation;
+        let keep_actor_rotation = hold_air_rotation
+            || (*locomotion == LocomotionState::Grounded && hold_rotation && !aiming && !curve_driven);
+        if !keep_actor_rotation {
+            let (_, pitch, world_roll) = actor_world.rotation().to_euler(EulerRot::YXZ);
+            let next_rotation = Quat::from_euler(EulerRot::YXZ, next_yaw, pitch, world_roll);
+            let parent_world = if let Ok(parent) = parents.get(entity) {
+                let Ok(world) = space.p0().compute_global_transform(parent.parent()) else { continue; };
+                Some(world)
+            } else { None };
+            space.p1().get_mut(entity).unwrap().rotation = parent_world
+                .map_or(next_rotation, |parent| parent.rotation().inverse() * next_rotation);
+            if let Some(mut rotation) = rotation {
+                rotation.0 = next_rotation;
+            }
         }
         runtime.initialized = true;
         runtime.previous_view_yaw = view_yaw.0;
@@ -777,6 +781,7 @@ mod rotation_cap_tests {
                         .with_scale(Vec3::splat(2.0));
                     *app.world_mut().get_mut::<Transform>(parent).unwrap() = parent_transform;
                     let before = parent_transform.rotation * app.world().get::<Transform>(actor).unwrap().rotation;
+                    app.world_mut().get_mut::<Rotation>(actor).unwrap().0 = before;
                     let (_, pitch, roll) = before.to_euler(EulerRot::YXZ);
                     let reference = app.world_mut().spawn((AlsCharacter, Transform::from_rotation(before), Rotation(before),
                         Stance::Standing, Gait::Running, locomotion, mode, AlsViewYaw(0.2), AlsMovementParamsHandle(params.clone()),
@@ -1666,10 +1671,11 @@ mod rotation_cap_tests {
                 .add_systems(Update, rotation_response_system);
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
                 .add(AlsMovementParams::default());
-            let actor_yaw = 0.3_f32;
+            let actor_yaw = -std::f32::consts::FRAC_PI_2;
+            let actor_rotation = Quat::from_rotation_y(actor_yaw);
             let character = app.world_mut().spawn((
                 AlsCharacter, Stance::Standing,
-                Transform::IDENTITY.with_rotation(Quat::from_rotation_y(actor_yaw)),
+                Transform::from_rotation(actor_rotation), Rotation(actor_rotation),
                 Gait::Running, LocomotionState::Air, mode, AlsViewYaw(1.0),
                 AlsMovementParamsHandle(params), LinearVelocity(velocity),
                 AlsInputCommand { move_dir: input, ..default() },
@@ -1681,6 +1687,8 @@ mod rotation_cap_tests {
             app.update();
             let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
             let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+            assert_eq!(app.world().get::<Transform>(character).unwrap().rotation, actor_rotation);
+            assert_eq!(app.world().get::<Rotation>(character).unwrap().0, actor_rotation);
             assert!((yaw - actor_yaw).abs() < 1e-6, "mode={mode:?} input={input:?} yaw={yaw}");
             assert!((response.target_yaw - actor_yaw).abs() < 1e-6);
             assert!((response.smooth_target_yaw - actor_yaw).abs() < 1e-6);
