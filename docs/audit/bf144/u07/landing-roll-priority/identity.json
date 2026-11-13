@@ -1,0 +1,18 @@
+{
+  "character-settings.native.json.gz": {
+    "bytes": 69993,
+    "sha256": "506b0673d3a7304e97c3bb513d3b149f0be845b7a4ac26a867796501ca5ed64f"
+  },
+  "character-settings.reader.report.json": {
+    "bytes": 438,
+    "sha256": "d6f33a24863f91729310728419aa2eb194c3b35dcb497a59d91f5f1ae53fb566"
+  },
+  "focused.stdout.log.gz": {
+    "bytes": 561,
+    "sha256": "4b86849b6fe281530a72654c399ccac732110026c9c18389c7c9cff3ec2b2924"
+  },
+  "focused.watchdog.json": {
+    "bytes": 277,
+    "sha256": "3d8117d779478704bd6e5921eee772e305dfcaf8a54e9184b4c1203f83ff1814"
+  }
+}

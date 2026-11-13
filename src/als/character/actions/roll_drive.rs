@@ -2274,8 +2274,9 @@ pub(crate) mod tests {
 
     #[test]
     fn get_up_input_block_prevents_an_automatic_landing_roll() {
+        use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
         let mut world = World::new();
-        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
+        world.init_resource::<Messages<StateTransitionEvent>>();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_secs_f32(0.05));
         world.insert_resource(time);
@@ -2289,20 +2290,23 @@ pub(crate) mod tests {
                 AlsViewYaw::default(),
                 Transform::default(),
                 LinearVelocity(Vec3::X),
-                AlsAirState {
-                    landing_time: 0.0,
-                    last_impact_vy: 10.0,
+                crate::actual_motion::AlsActualMotion {
+                    world_velocity: Vec3::NEG_Y * 8.0,
                     ..default()
                 },
                 AlsInputCommand::default(),
             ))
             .id();
+        let landing = StateTransitionEvent { entity: character, dimension: Dimension::LocomotionState,
+            from: StateValue::LocomotionState(LocomotionState::Air), to: StateValue::LocomotionState(LocomotionState::Grounded) };
+        world.resource_mut::<Messages<StateTransitionEvent>>().write(landing);
         world.run_system_once(advance_rolls).unwrap();
         world.run_system_once(roll_drive_system).unwrap();
         assert!(!world.get::<AlsRollState>(character).unwrap().active);
         world
             .entity_mut(character)
             .remove::<crate::als::motion::AlsMovementInputBlocked>();
+        world.resource_mut::<Messages<StateTransitionEvent>>().write(landing);
         world.run_system_once(advance_rolls).unwrap();
         world.run_system_once(roll_drive_system).unwrap();
         assert!(world.get::<AlsRollState>(character).unwrap().active);
