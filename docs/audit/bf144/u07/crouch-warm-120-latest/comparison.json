@@ -1,0 +1,15 @@
+{
+  "target_rows": 89,
+  "source_ordinary_rows": 88,
+  "same_original_outputs": 89,
+  "source_positions_metres": "../crouch-warm-120/comparison.json",
+  "excluded_observation_fields": [
+    "arena",
+    "frame",
+    "inputs",
+    "spawn_frame"
+  ],
+  "source_request": "../crouch-warm-120/source.request.json",
+  "source_native": "../crouch-warm-120/source.native.json.gz",
+  "transition_observation": "transition-comparison.json"
+}
