@@ -395,7 +395,7 @@ mod tests {
     #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
     fn layered_local_reconstruction_uses_shared_pose_normalizer() {
         let (skeleton, root, child) = skeleton();
-        let rotation = Quat::from_xyzw(0.171_007_78, 0.669_664_7, 0.722_707_2, 0.000_017_113_984);
+        let rotation = Quat::from_xyzw(0.703_478_6, -0.595_654_4, 0.166_028_14, 0.350_342_6);
         let mut base = Pose::default();
         base.add_bone(BonePose { rotation: Some(Quat::IDENTITY), ..default() }, root);
         base.add_bone(BonePose { rotation: Some(rotation), ..default() }, child);

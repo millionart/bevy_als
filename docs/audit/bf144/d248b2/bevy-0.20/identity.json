@@ -1,0 +1,18 @@
+{
+  "ablation.stdout.log.gz": {
+    "bytes": 921,
+    "sha256": "ac7fe3b86ccc51ade9d9ca2cf0c90b6b75a7999e2c86e871071d1ade703d2096"
+  },
+  "ablation.watchdog.json": {
+    "bytes": 294,
+    "sha256": "8043c57a60b2cbdeb0ca42536842553660c54ec1969ef4894a5ebe224274d05c"
+  },
+  "restored.stdout.log.gz": {
+    "bytes": 1127,
+    "sha256": "43d705a1ca4602baeba81b40faec16c160e3bb39fb3627c534b5d2d94dfd6e11"
+  },
+  "restored.watchdog.json": {
+    "bytes": 286,
+    "sha256": "176a163f2ecdb8eec98e54399610c3e591f20a2152edf791083c3416570a30df"
+  }
+}
