@@ -1,0 +1,87 @@
+{
+  "bytes": 173267,
+  "sha256": "9ab02db8c3f2a2f0458a42930e53c5076ee1c7bb65e9b40a609a89bba5106394",
+  "native_cases": [
+    {
+      "name": "identity",
+      "value": {
+        "local_cm_s": {
+          "x": 100,
+          "y": 1.4210854715202004e-14,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 1.4210854397564648e-16,
+          "z": 0
+        },
+        "forward": 1,
+        "backward": 0,
+        "left": 0,
+        "right": 1.4210854397564648e-16
+      }
+    },
+    {
+      "name": "quarter-turn",
+      "value": {
+        "local_cm_s": {
+          "x": 99.9999771118164,
+          "y": -8.429368790530134e-06,
+          "z": 0
+        },
+        "direction": {
+          "x": 0.9999998807907104,
+          "y": -8.429370268459024e-08,
+          "z": 0
+        },
+        "forward": 0.9999998807907104,
+        "backward": 0,
+        "left": 8.429370268459024e-08,
+        "right": 0
+      }
+    },
+    {
+      "name": "diagonal",
+      "value": {
+        "local_cm_s": {
+          "x": 100,
+          "y": 100,
+          "z": 200
+        },
+        "direction": {
+          "x": 0.25,
+          "y": 0.25,
+          "z": 0.5
+        },
+        "forward": 0.25,
+        "backward": 0,
+        "left": 0,
+        "right": 0.25
+      }
+    },
+    {
+      "name": "stopped",
+      "value": {
+        "local_cm_s": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "forward": 0,
+        "backward": 0,
+        "left": 0,
+        "right": 0
+      }
+    }
+  ],
+  "source": {
+    "Engine/Source/Runtime/Core/Public/Math/Quat.h": "7004f385a524d92a6baba51c545c0460263551526813e4ed06d31ad6edb08300",
+    "Engine/Source/Runtime/Core/Public/Math/Vector.h": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "Source/ALS/Private/AlsAnimationInstance.cpp": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
+  }
+}

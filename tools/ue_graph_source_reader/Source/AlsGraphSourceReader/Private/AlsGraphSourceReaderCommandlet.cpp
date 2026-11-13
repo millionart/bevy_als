@@ -1141,6 +1141,26 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             if (!ReadArray(*Input, TEXT("euler_degrees"), Euler, 3)) { return nullptr; }
             Sample->SetObjectField(TEXT("rotation_from_euler"), CaptureQuaternion(FRotator(Euler[0], Euler[1], Euler[2]).Quaternion()));
         }
+        if ((*Input)->HasField(TEXT("velocity_blend_world_cm_s")))
+        {
+            TArray<double> Velocity;
+            if (!ReadArray(*Input, TEXT("velocity_blend_world_cm_s"), Velocity, 3)) { return nullptr; }
+            const FVector3f Local(Rotation.UnrotateVector(FVector(Velocity[0], Velocity[1], Velocity[2])));
+            FVector3f Unit = Local;
+            FVector3f Direction = FVector3f::ZeroVector;
+            if (Unit.Normalize())
+            {
+                Direction = Unit / (FMath::Abs(Unit.X) + FMath::Abs(Unit.Y) + FMath::Abs(Unit.Z));
+            }
+            const TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetObjectField(TEXT("local_cm_s"), CaptureVector(FVector(Local)));
+            Value->SetObjectField(TEXT("direction"), CaptureVector(FVector(Direction)));
+            Value->SetNumberField(TEXT("forward"), FMath::Clamp(Direction.X, 0.0f, 1.0f));
+            Value->SetNumberField(TEXT("backward"), FMath::Abs(FMath::Clamp(Direction.X, -1.0f, 0.0f)));
+            Value->SetNumberField(TEXT("left"), FMath::Abs(FMath::Clamp(Direction.Y, -1.0f, 0.0f)));
+            Value->SetNumberField(TEXT("right"), FMath::Clamp(Direction.Y, 0.0f, 1.0f));
+            Sample->SetObjectField(TEXT("velocity_blend"), Value);
+        }
         if ((*Input)->HasField(TEXT("foot_lock_rotation")))
         {
             const TSharedPtr<FJsonObject>* Limit = nullptr;

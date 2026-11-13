@@ -290,7 +290,10 @@ mod tests {
         assert!(first_motion.local_velocity.distance(Vec2::X) < 1e-6);
         assert!(second_motion.local_velocity.distance(Vec2::X) < 1e-6);
         assert_eq!(first_motion.velocity_blend.forward, 1.0);
-        assert_eq!(second_motion.velocity_blend.forward, 1.0);
+        #[cfg(target_arch = "aarch64")]
+        assert_eq!(second_motion.velocity_blend.forward, f32::from_bits(0x3f7f_fffe));
+        #[cfg(not(target_arch = "aarch64"))]
+        assert!((second_motion.velocity_blend.forward - 1.0).abs() <= f32::EPSILON);
 
         app.world_mut()
             .entity_mut(first)

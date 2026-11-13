@@ -1,0 +1,60 @@
+{
+  "samples": [
+    {
+      "name": "identity",
+      "rotation_xyzw": [
+        -0.0,
+        -0.0,
+        -0.7071067811865476,
+        0.7071067811865476
+      ],
+      "velocity_blend_world_cm_s": [
+        0.0,
+        -100.0,
+        0.0
+      ]
+    },
+    {
+      "name": "quarter-turn",
+      "rotation_xyzw": [
+        -0.0,
+        -0.0,
+        -0.9999999407388804,
+        4.214684851122641e-08
+      ],
+      "velocity_blend_world_cm_s": [
+        -100.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "diagonal",
+      "rotation_xyzw": [
+        -0.0,
+        -0.0,
+        -0.7071067811865476,
+        0.7071067811865476
+      ],
+      "velocity_blend_world_cm_s": [
+        100.0,
+        -100.0,
+        200.0
+      ]
+    },
+    {
+      "name": "stopped",
+      "rotation_xyzw": [
+        -0.0,
+        -0.0,
+        -0.7071067811865476,
+        0.7071067811865476
+      ],
+      "velocity_blend_world_cm_s": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}
