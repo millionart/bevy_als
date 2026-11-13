@@ -1,0 +1,30 @@
+{
+  "source-root.native.json.gz": {
+    "bytes": 2527355,
+    "sha256": "ef6a5b8cce79a97601fb1252c3387023e05bef755f091fbe82dfbd3975e1b4db"
+  },
+  "u07-batch-failure-observations-stdout.log.gz": {
+    "bytes": 1639,
+    "sha256": "dec51dbca777bb3f02c8f88ebe26fbbe9f161ea0492c1a70f187fbe17d485d21"
+  },
+  "u07-batch-failure-observations-stderr.log.gz": {
+    "bytes": 12838,
+    "sha256": "04a6b26d6eeed5311e512d169bf13cc442cfca24b739b6515bd789a06a2faa2f"
+  },
+  "u07-batch-failure-observations-watchdog.json": {
+    "bytes": 288,
+    "sha256": "202ff9b4b51da9e0106ed3928ee4d4aa0bfe9a65a31f5970d7d91e20df7d0579"
+  },
+  "u07-runtime-fixtures-recheck-stdout.log.gz": {
+    "bytes": 999,
+    "sha256": "f5bcbff9ee87fc05381d811c6a6d45592ed5708ee01151a6cb4b8e42240571b5"
+  },
+  "u07-runtime-fixtures-recheck-stderr.log.gz": {
+    "bytes": 11536,
+    "sha256": "d2e76ced9f95665b49774a799b934ad64498aec49bdf2e0f3330e084c129e0ae"
+  },
+  "u07-runtime-fixtures-recheck-watchdog.json": {
+    "bytes": 286,
+    "sha256": "24e34aaa9abe843d179e040d3b893e0cfe30dd250739e43ce1a13d612efca51b"
+  }
+}

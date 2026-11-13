@@ -1,0 +1,17 @@
+{
+  "pass": false,
+  "issues": [
+    "manual integration timed_out is invalid",
+    "manual integration verdict is not pass",
+    "manual integration result is not covered",
+    "motion window has insufficient pose samples: dynamic_right",
+    "motion window selected the wrong terminal parent state: dynamic_right",
+    "motion window lifecycle is incomplete: dynamic_right"
+  ],
+  "images": [],
+  "validation_scope": "functional",
+  "full_pass": false,
+  "deferred_performance_issues": [
+    "performance budget exceeded: max_frame_p95_ms"
+  ]
+}

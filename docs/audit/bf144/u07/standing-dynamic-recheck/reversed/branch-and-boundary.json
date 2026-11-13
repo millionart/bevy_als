@@ -1,0 +1,192 @@
+{
+  "rows": [
+    {
+      "case": "dynamic_right",
+      "elapsed": 0.5102749466896057,
+      "allow_transitions": 1.0,
+      "dynamic_inputs": [
+        [
+          1.0,
+          0.00464726344944566
+        ],
+        [
+          1.0,
+          0.017110865435830513
+        ]
+      ],
+      "native_dynamic": [
+        105,
+        2.0,
+        105
+      ],
+      "dynamic_probe": [
+        true,
+        true,
+        false
+      ],
+      "transition_profile": [
+        1.0,
+        0.0,
+        1.5,
+        0.20000000298023224,
+        0.20000000298023224,
+        0.0,
+        null
+      ]
+    },
+    {
+      "case": "dynamic_left",
+      "elapsed": 0.5212240815162659,
+      "allow_transitions": 1.0,
+      "dynamic_inputs": [
+        [
+          1.0,
+          0.027732556802224195
+        ],
+        [
+          1.0,
+          0.010017255342260833
+        ]
+      ],
+      "native_dynamic": [
+        178,
+        2.0,
+        178
+      ],
+      "dynamic_probe": [
+        true,
+        true,
+        false
+      ],
+      "transition_profile": [
+        0.0,
+        0.0,
+        1.5,
+        0.20000000298023224,
+        0.20000000298023224,
+        0.0,
+        null
+      ]
+    },
+    {
+      "case": "dynamic_left",
+      "elapsed": 0.908883273601532,
+      "allow_transitions": 1.0,
+      "dynamic_inputs": [
+        [
+          1.0,
+          3.8009786984538607e-07
+        ],
+        [
+          1.0,
+          0.010005052007784343
+        ]
+      ],
+      "native_dynamic": [
+        195,
+        2.0,
+        195
+      ],
+      "dynamic_probe": [
+        true,
+        true,
+        true
+      ],
+      "transition_profile": [
+        1.0,
+        0.0,
+        1.5,
+        0.20000000298023224,
+        0.20000000298023224,
+        0.0,
+        null
+      ]
+    }
+  ],
+  "windows": [
+    {
+      "label": "dynamic_left",
+      "first_failure": "standing_states_fsm: static",
+      "stages": [
+        "foot_relocked",
+        "playing",
+        "settled",
+        "stopped"
+      ],
+      "boundaries": [
+        {
+          "label": "standing_states_fsm",
+          "available_samples": 25,
+          "max_translation_span": 0.0,
+          "max_rotation_span_radians": 0.0
+        },
+        {
+          "label": "standing_graph_output",
+          "available_samples": 25,
+          "max_translation_span": 0.0,
+          "max_rotation_span_radians": 0.0
+        },
+        {
+          "label": "grounded_standing_cache",
+          "available_samples": 25,
+          "max_translation_span": 0.0,
+          "max_rotation_span_radians": 0.0
+        },
+        {
+          "label": "grounded_fsm",
+          "available_samples": 25,
+          "max_translation_span": 0.0,
+          "max_rotation_span_radians": 0.0
+        },
+        {
+          "label": "root_transition_slot",
+          "available_samples": 25,
+          "max_translation_span": 0.13106991,
+          "max_rotation_span_radians": 0.3256664
+        }
+      ]
+    },
+    {
+      "label": "dynamic_right",
+      "first_failure": "standing_states_fsm: static",
+      "stages": [
+        "foot_relocked",
+        "playing",
+        "settled",
+        "stopped"
+      ],
+      "boundaries": [
+        {
+          "label": "standing_states_fsm",
+          "available_samples": 48,
+          "max_translation_span": 0.0,
+          "max_rotation_span_radians": 0.0
+        },
+        {
+          "label": "standing_graph_output",
+          "available_samples": 48,
+          "max_translation_span": 0.0,
+          "max_rotation_span_radians": 0.0
+        },
+        {
+          "label": "grounded_standing_cache",
+          "available_samples": 48,
+          "max_translation_span": 0.0,
+          "max_rotation_span_radians": 0.0
+        },
+        {
+          "label": "grounded_fsm",
+          "available_samples": 48,
+          "max_translation_span": 0.0,
+          "max_rotation_span_radians": 0.0
+        },
+        {
+          "label": "root_transition_slot",
+          "available_samples": 48,
+          "max_translation_span": 0.123962104,
+          "max_rotation_span_radians": 0.32192948
+        }
+      ]
+    }
+  ]
+}

@@ -4507,7 +4507,7 @@ fn drive_manual_integration(
                 state.turn_probe.started_at = Some(elapsed);
                 if !crouching_actions {
                     let forward = *transform.forward();
-                    transform.translation += forward * 0.1;
+                    transform.translation -= forward * 0.1;
                     position.0 = transform.translation;
                 }
             }
@@ -8811,12 +8811,18 @@ fn observe_manual_integration(
             state.coverage.standing_dynamic[index] |= completed;
             let capture = state.stop_playback.is_some() && (observed.is_some() || completed);
             let expected_variant = if crouching_actions { if right > 0.5 { "A_Als_Crouch_DynamicTransition_Right" } else { "A_Als_Crouch_DynamicTransition_Left" } } else { if right > 0.5 { "A_Als_Stand_DynamicTransition_Right" } else { "A_Als_Stand_DynamicTransition_Left" } };
-            let mut chain = generated_stop_quick_source_pose_chain(crouching_actions);
-            chain.push(ManualAnimationPoseBoundary {
-                label: "root_transition_slot", graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
-                node: "Slot 'Transition'\nGroup 'Grounded'", output: "Pose",
-                minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
-            });
+            let chain = vec![
+                ManualAnimationPoseBoundary {
+                    label: "root_transition_slot", graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+                    node: "Slot 'Transition'\nGroup 'Grounded'", output: "Pose",
+                    minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+                },
+                ManualAnimationPoseBoundary {
+                    label: "locomotion_output", graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+                    node: "AB_Als_Locomotion\nLinked Anim Graph", output: "Pose",
+                    minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+                },
+            ];
             **animation_window = ManualAnimationWindowEvidence {
                 label: Some(label), settled: capture, capture_source_window: capture, capture_every_frame: capture,
                 requires_pre_rig_motion: true, requires_final_pose_motion: true,
@@ -12434,35 +12440,46 @@ mod tests {
 
     #[test]
     fn standing_dynamic_input_reaches_both_actual_transition_branches() {
-        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let original = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = original.get_animation_source()
+        else { panic!("Source graph is missing"); };
+        let replacement = AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
+        app.world_mut().entity_mut(player).insert(replacement);
         app.world_mut().entity_mut(character).insert(AlsInputOverride::default());
         for index in 0..2 {
             let old_instances = app.world().get::<AlsTransitionMontageStack>(character)
                 .map(|stack| stack.entries.iter().map(|playback|playback.instance_id).collect::<Vec<_>>()).unwrap_or_default();
             let mut observed = false;
+            let mut moved = false;
             let deadline = Instant::now() + Duration::from_secs(25);
             for frame in 0..420 {
-                if frame == 60 {
+                let ready = frame >= 60 && app.world()
+                    .get::<crate::animation_context_projection::AlsRootAnimationContext>(player)
+                    .and_then(|context| context.f32("AllowTransitions")).is_some_and(crate::als::foot_ik::is_full_animation_weight);
+                if ready && !moved {
                     let world = app.world_mut();
                     let mut query = world.query::<(&mut Transform, &mut Position)>();
                     let (mut transform, mut position) = query.get_mut(world,character).unwrap();
                     let forward = *transform.forward();
-                    transform.translation += forward * 0.1;
+                    transform.translation -= forward * 0.1;
                     position.0 = transform.translation;
+                    moved = true;
                 }
                 let body_yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
                 let view_yaw = app.world().get::<AlsViewYaw>(character).unwrap().0;
                 let mode = *app.world().get::<RotationMode>(character).unwrap();
                 app.world_mut().get_mut::<AlsInputOverride>(character).unwrap().0 = standing_dynamic_command(body_yaw, view_yaw, mode);
                 app.update();
-                observed |= frame >= 60 && app.world().get::<AlsTransitionMontageStack>(character).is_some_and(|stack|
+                observed |= moved && app.world().get::<AlsTransitionMontageStack>(character).is_some_and(|stack|
                     stack.entries.iter().any(|playback| playback.kind == AlsTransitionKind::StandingDynamic && playback.active
                         && !old_instances.contains(&playback.instance_id) && playback.index == STANDING_DYNAMIC_CASES[index].1))
                     && app.world().get::<crate::stop_link::AlsRootTransitionSlotRuntime>(character)
                         .is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
                 assert!(Instant::now() < deadline, "Standing dynamic input fixture made no timely progress");
             }
-            assert!(observed, "Standing dynamic input did not reach its source branch: case={index}");
+            assert!(moved && observed, "Standing dynamic input did not reach its source branch: case={index} moved={moved}");
         }
     }
 
