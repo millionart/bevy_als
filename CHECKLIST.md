@@ -6222,6 +6222,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh `AlsCharacterExample.cpp:156–163,189–194`的Jump与Ragdoll输入都同步调用StopRagdolling；有效落地恢复在该次调用内完成GettingUp和输入阻塞。
   - Target：Jump由`movement/motion.rs:3185–3187`写ragdoll_exit，而`ragdoll_exit_route_system`只排在input_state_request之后；两者都在state_transition之前，却没有彼此的依赖。Ragdoll键在更早的input_state_request写请求，因此没有同一缺口。
   - 反例：未调整调度的完整App曾同帧通过、后续又复现Jump仍Ragdolling/未阻塞且request pending，下一帧才GettingUp。固定当前合法的两种顺序后，direct/Ragdoll/Jump×顺序共6组5PASS/1FAIL，只有退出消费者先于Jump producer时延迟。`bf144_ragdoll_lifecycle_jump_and_ragdoll_input_exit_in_current_frame`，证据`20/jump_order/`；记录可复现的单帧调度差异，不靠增加等待帧让Gate通过。
+  - 2026-11-13 09:51复验，预估10:07。fresh原生Jump优先同步StopRagdolling；已加载角色的同帧退出原用例通过。Bevy 0.20 声明依赖记录系统集合，旧用例从实际System节点直接起步漏掉该边。夹具补层级与依赖共同观察，继续验证现有定序及反例。
+  - 10:02复验结束，提前5分钟，无拆分。仅移除Jump生产者到退出链的边时图断言稳定失败；字节恢复后同target定向9项通过，含三个真实输入同帧GettingUp。证据 `docs/audit/bf144/u07/ragdoll-exit-order/`。实际布娃娃及起身场景见U07第1轮。
 
 - [x] BF144-D68 / P2 — Ragdoll→GetUp未保留中间None动作触发的desired stance提交；静态实现完成，统一验证待执行。
   - 活动：开始2026-11-08 19:02 +08:00；预估结束19:47 +08:00；实际结束19:07 +08:00，提前40分钟；未拆分，测试/消融/Gate暂缓。
@@ -7511,6 +7513,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - U07 09:26:20重审：上一段08:50开始、预估09:06:18，复盘晚20分02秒。D318和79帧冷Root/Rig通过；活动首差仍可独立复现。优化全库2080过／63失败、37项集成通过，已按源分离D124和D277/D278夹具，D319正式Control Rig过，尚有转台与阈值消融。沿完整迁移、功能、数值和旧88帧证据重新核对后，将下一验收边界拆为定向失败和历史首次差异。按末段16分18秒的1.5倍，09:26:20开始、预估09:50:47，先收口足锁并以全库给出净失败集合；之后用当前实际同输入定位首活动曲线和源历史，继续原88帧验证。
   - U07 09:42 source/static：第14轮定向构建2087过／58失败，5个既有失败恢复、0新增。BF102.03旧夹具把方向映射量1.2直接当Running，fresh源CalculateActualGait使用双方向最大步行速度加10cm/s，120cm/s仍Walking；CMC方向映射及图消费保持1.2。开始09:41，预估09:54，核阈值两侧及真实层权重后提交。VelocityBlend的快照复验另沿同Bevy世界四元数读数和原生厘米局部计算。
   - U07 09:49步态层复验：120/190cm/s共同输入的原生映射及加载层均通过，Walking/Running分别匹配185cm/s阈值两侧。09:41开始、预估09:54，提前5分钟，无拆分。第14轮优化库2087过／58失败、37项集成全部通过，失败集合与定向构建相同。证据 `docs/audit/bf144/u07/gait-layer-fixture/` 与 `docs/audit/bf144/u07/bevy-0.20/tests-round-14-lib/`。
+  - U07 09:50:47阶段结束：D319的原生阈值反例、实际Control Rig/转台及恢复均已封存，优化库58个原失败，已定向再恢复步态和速度快照两项。阶段09:26:20开始、预估09:50:47，按时完成首次失败集差分。历史对照段09:50:47开始、预估10:27:27，先沿319帧实际共同位移/角色转向检查首活动前Rig与曲线，再比较原88帧的读点。D67和运动地板按独立已证失败持续核验。
   - U07 全库第11轮（2026-11-13 07:15）：2078过／63失败，较前轮减少1个Rig图用例，新增0。原始日志及失败集合见 `docs/audit/bf144/u07/bevy-0.20/tests-round-11-lib/`。
   - .265补充：真实Locomotion入口与独立同mesh Stand0全部790分量精确，五个相关mesh-space层化模板顺序重放消除245旋转分量供应差，再接原Additive/Head得到真实raw首Root790分量精确；初始化源骨姿态链已闭合，未关闭初始target组合差、曲线反馈或完整原warm→77历史。见 `target/bf144/265/summary.json`，不把源本来具有的层化运算误记成新差异；截图0、性能暂停。
   - .264补充：真实Head Base/Additive及实际alpha/空间模式已读，13次源合成10270分量精确；Additive独立采样匹配，初始Base的245个旋转分量与同mesh Stand0不等，残差供应边进一步缩至Layering→Locomotion→Standing。Head/Rig/Root观察与同输入Head算法不再是未知点；不以该局部闭环关闭初始化Base或完整warm反馈。见 `target/bf144/264/summary.json`，截图0、性能暂停。

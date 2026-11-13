@@ -1837,23 +1837,41 @@ pub(crate) mod tests {
 
     #[test]
     fn ragdoll_exit_is_scheduled_after_jump_request_production() {
-        use bevy::ecs::schedule::NodeId;
+        use bevy::ecs::schedule::{NodeId, graph::Direction};
         let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
         app.update();
         app.world_mut().schedule_scope(Update, |_, schedule| {
             let graph = schedule.graph();
             let dependencies = graph.dependency().graph();
+            let hierarchy = graph.hierarchy().graph();
             let find = |needle: &str| schedule.systems().unwrap()
                 .find(|(_, system)| system.name().contains(needle))
                 .map(|(key, _)| NodeId::System(key)).unwrap_or_else(|| panic!("Missing system: {needle}"));
             let source = find("locomotion_drive_system");
             let target = find("ragdoll_exit_route_system");
-            let mut pending = vec![source];
+            let containing_sets = |system| {
+                let mut nodes = vec![system];
+                let mut index = 0;
+                while index < nodes.len() {
+                    for parent in hierarchy.neighbors_directed(nodes[index], Direction::Incoming) {
+                        if !nodes.contains(&parent) {
+                            nodes.push(parent);
+                        }
+                    }
+                    index += 1;
+                }
+                nodes
+            };
+            let mut pending = containing_sets(source);
+            let target_nodes = containing_sets(target);
             let mut visited = std::collections::HashSet::new();
             let mut reached = false;
             while let Some(node) = pending.pop() {
-                if node == target { reached = true; break; }
-                if visited.insert(node) { pending.extend(dependencies.neighbors(node)); }
+                if !visited.insert(node) { continue; }
+                for next in dependencies.neighbors(node) {
+                    reached |= target_nodes.contains(&next);
+                    pending.push(next);
+                }
             }
             assert!(reached, "Jump request production must precede ragdoll exit routing");
         });
