@@ -1083,6 +1083,26 @@ mod tests {
             value: Option<(f32, f32, f32, RotationMode)>,
         }
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let original = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = original.get_animation_source()
+        else { panic!("Source graph is missing"); };
+        let replacement = AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
+        app.world_mut().entity_mut(player_entity).insert(replacement);
+        let mut idle_ready = false;
+        for _ in 0..60 {
+            app.update();
+            let world = app.world();
+            let context = world.get::<crate::animation_context_projection::AlsRootAnimationContext>(player_entity).unwrap();
+            if context.f32("AllowTransitions").is_some_and(|value| value >= 1.0 - 1e-5) {
+                idle_ready = true;
+                break;
+            }
+        }
+        assert!(idle_ready, "Standing Idle never published AllowTransitions: state={:?} motion={:?} curves={:?}",
+            app.world().get::<crate::standing_layer::AlsStandingGraphTelemetry>(character),
+            app.world().get::<crate::actual_motion::AlsActualMotion>(character),
+            app.world().get::<crate::animation_context_projection::AlsRootAnimationContext>(player_entity));
         app.init_resource::<Capture>().add_systems(PostUpdate, (move |time: Res<Time>, mut capture: ResMut<Capture>,
             actors: Query<(&Transform, &AlsRotationAnimationState, &RotationMode)>| {
             if !capture.armed { return; }
@@ -1091,15 +1111,36 @@ mod tests {
                 animation.yaw_speed_degrees, time.delta_secs(), *mode));
         }).after(crate::crouching_layer::AlsCrouchingLayerSet)
             .after(crate::als::aim::aim_rotation_mode_system).before(AlsRotationResponseSet));
-        app.world_mut().run_system_once(move |mut commands: Commands| {
-            crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
-                SourceTurnRequest { variant: TurnVariant::Right180, yaw: 120.0, crouching: false });
-        }).unwrap();
-        for _ in 0..18 { app.update(); }
+        let before_turn = app.world().get::<AlsViewYaw>(character).unwrap().0;
+        let count = 160.0_f32.to_radians() / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT;
+        app.world_mut().entity_mut(character).insert(crate::als::motion::AlsInputOverride(AlsInputCommand {
+            look_delta: Vec2::X * count,
+            ..default()
+        }));
+        app.update();
+        let yaw_delta = app.world().get::<AlsViewYaw>(character).unwrap().0 - before_turn;
+        assert!((yaw_delta.to_degrees() + 160.0).abs() < 1e-4);
+        app.world_mut().get_mut::<crate::als::motion::AlsInputOverride>(character).unwrap().0.look_delta = Vec2::ZERO;
+        for _ in 0..90 {
+            app.update();
+            if app.world().get::<AlsRotationAnimationState>(character)
+                .is_some_and(|animation| animation.yaw_speed_degrees.abs() > 10.0)
+            {
+                break;
+            }
+        }
+        let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
         assert!(app.world().get::<AlsRotationAnimationState>(character)
             .is_some_and(|animation| animation.yaw_speed_degrees.abs() > 10.0),
-            "The loaded turn did not produce its rotation curve");
-        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().rotation_mode_pressed = true;
+            "Loaded turn has no curve: stack={:?} yaw={:?} allowed={:?} transitions={:?} mode={:?}",
+            stack.entries, player.get_global_input_data("view_state.yaw_angle"),
+            player.get_global_input_data("turn_in_place.allowed"),
+            player.get_global_input_data("transitions_state.b_transitions_allowed"),
+            app.world().get::<RotationMode>(character));
+        assert!(stack.entries.iter().any(|entry| entry.sampling_ready && entry.weight() > 0.0
+            && source_turn_sequence(entry.crouching, entry.is_180, entry.lr) == "A_Als_Turn_180_Right"));
+        app.world_mut().get_mut::<crate::als::motion::AlsInputOverride>(character).unwrap().0.rotation_mode_pressed = true;
         app.world_mut().resource_mut::<Capture>().armed = true;
         app.update();
         let (before, curve, delta, mode) = app.world().resource::<Capture>().value.unwrap();
