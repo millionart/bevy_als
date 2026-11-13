@@ -1415,6 +1415,7 @@ pub(crate) mod tests {
     #[test]
     fn point_notify_chance_matches_native_queue_and_preserves_state_notifies() {
         use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::{edge_data::events::AnimationEvent, event_track::{EventTrack, TrackItemValue}};
         let mut manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
         let source = manifest.clips.iter_mut().find(|source| source.source_asset == SOURCE_SPRINT).unwrap();
         let template = source.events.iter().find(|event| event.class_name == "AlsAnimNotify_CameraShake").unwrap().clone();
@@ -1451,6 +1452,14 @@ pub(crate) mod tests {
             .init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
             .init_resource::<AlsNotifyGraphClipHandles>()
             .add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
+        let mut track = EventTrack { name: "state".to_owned(), events: Vec::new() };
+        track.add_item(TrackItemValue {
+            event: AnimationEvent::StringId("state".to_owned()), start_time: 0.0, end_time: 2.0,
+        });
+        let mut clip = GraphClip::default();
+        clip.event_tracks.insert(track.name.clone(), track);
+        let clip = app.world_mut().resource_mut::<Assets<GraphClip>>().add(clip);
+        app.world_mut().resource_mut::<AlsNotifyGraphClipHandles>().0.insert(graph_clip.clone(), clip);
         let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
         app.insert_resource(AlsNotifyManifestHandle(handle));
         let actors = [0, 1].map(|_| {
@@ -2177,15 +2186,27 @@ pub(crate) mod tests {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
         let skeleton = app.world().resource::<Assets<GraphClip>>().get(&clips[0]).unwrap().skeleton.clone();
-        let sequences = clips.into_iter().map(|clip| AnimationNode::new("sprint", crate::extensions::SourceSequencePlayerNode {
-            clip,
-            synchronization: Some(crate::extensions::source_sequence_player::SourceSequenceSynchronization {
-                key: "sprint.test".to_owned(),
-                delta_seconds_key: "animation.delta_seconds".to_owned(),
+        let manifest = app.world().resource::<AlsNotifyManifestHandle>().0.clone();
+        let manifest = app.world().resource::<Assets<AlsNotifyManifest>>().get(&manifest).unwrap();
+        let sequences = clips.into_iter().zip([SOURCE_SPRINT, SOURCE_SPRINT_ACCELERATION]).map(|(clip, asset)| {
+            let source = manifest.clips.iter().find(|source| source.source_asset == asset).unwrap();
+            let markers = source.sync_markers.iter().map(|marker| crate::extensions::sync_group_phase::SyncMarker {
+                name: marker.name.clone(), time: marker.time,
+            }).collect::<Vec<_>>();
+            let duration = app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap().duration();
+            AnimationNode::new("sprint", crate::extensions::SourceSequencePlayerNode {
+                clip,
+                synchronization: Some(crate::extensions::source_sequence_player::SourceSequenceSynchronization {
+                    key: "sprint.test".to_owned(),
+                    delta_seconds_key: "animation.delta_seconds".to_owned(),
+                    phase_duration: duration,
+                    phase_markers: markers.clone(),
+                    markers,
+                    ..default()
+                }),
                 ..default()
-            }),
-            ..default()
-        })).collect::<Vec<_>>();
+            })
+        }).collect::<Vec<_>>();
         let blend = AnimationNode::new("blend", crate::extensions::SourceMultiWayBlendNode {
             pose_count: 2,
             desired_alpha_keys: vec!["sprint_base_weight".into(), "sprint_accel_weight".into()],
@@ -2222,17 +2243,14 @@ pub(crate) mod tests {
         app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().clear();
         app.update();
         assert!(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error().is_none());
-        assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
-            .filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 0);
-        app.update();
         let events = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().collect::<Vec<_>>();
         assert_eq!(events.iter().filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 0);
         assert_eq!(events.iter().filter(|event| event.class_name == "AuthoredSyncMarker").count(), 1);
         app.update();
-        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-        assert!(player.get_error().is_none(), "{:?}", player.get_error());
-        assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
-            .filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 1);
+        let events = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().collect::<Vec<_>>();
+        let shakes = events.iter().filter(|event| event.class_name == "AlsAnimNotify_CameraShake").collect::<Vec<_>>();
+        assert_eq!(shakes.len(), 1);
+        assert_eq!(shakes[0].source_asset, SOURCE_SPRINT_ACCELERATION);
         assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().count(), 1);
 
         use crate::extensions::sync_group_phase::{SourceSyncGroupRole, SOURCE_SYNC_INERTIAL_SCOPE};
@@ -2428,7 +2446,7 @@ pub(crate) mod tests {
             app.world_mut().entity_mut(player_entity).insert(player);
             app.update();
             let frames = if joins_as_follower { vec![(0.0625, 0.8125, 0.875, Some("current_b")), (0.0625, 0.875, 0.9375, None), (0.03125, 0.9375, 0.96875, None)] }
-                else if resync { vec![(0.1, 0.8, 0.9, Some("sample_b"))] }
+                else if resync { vec![(0.1, 0.2, 0.3, Some("sample_a"))] }
                 else { vec![(0.25, 0.625, 0.875, Some("sample_a")), (0.0625, 0.875, 0.9375, Some("sample_b")), (0.03125, 0.9375, 0.96875, None)] };
             for (delta, previous, current, expected) in frames {
                 let (previous, current) = (previous * sample_duration, current * sample_duration);
@@ -2450,7 +2468,8 @@ pub(crate) mod tests {
                 assert_eq!(context.asset_samples.len(), 1);
                 let clock = context.asset_samples[0].clock.clone();
                 assert_eq!(context.asset_samples[0].clip, clip);
-                assert!((clock.position - current).abs() < 1e-5);
+                assert!((clock.position - current).abs() < 1e-5,
+                    "blendspace={blendspace_leader} resync={resync} follower={joins_as_follower} mode={mode} duration={sample_duration} group_duration={group_duration}: {clock:?} expected={previous}..{current}");
                 if blendspace_leader { assert!(matches!(arena.get_toplevel().node_caches.get_input_time_update(leader.id, StateKey::Default,
                     NormalizedBlendSpaceNode::time_pin("sample")).unwrap(), TimeUpdate::Absolute(time) if (time-current).abs()<1e-5)); }
                 assert_eq!(source_sync_leader(arena, app.world().resource::<Assets<AnimationGraph>>(), "sample.history").unwrap().identity.1,

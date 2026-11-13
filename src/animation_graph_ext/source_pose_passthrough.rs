@@ -496,11 +496,7 @@ mod tests {
                 else if adjacent { vec![(0.0, 5.0, 0.875), (0.0625, 5.0, 0.1875), (0.015625, 1.0, 0.203125), (0.015625, 1.0, 0.21875), (0.015625, 1.0, 0.234375), (0.015625, 1.0, 0.25)] }
                 else { vec![(0.0, 3.0, 0.15), (0.2, 3.0, 0.75), (0.2, 13.0, 0.35), (0.2, -13.0, 0.75)] };
             for (delta, rate, expected) in frames {
-                let mut inputs = HashMap::from([("delta".to_owned(), DataValue::F32(delta)), ("rate".to_owned(), DataValue::F32(rate))]);
-                if adjacent && !reverse && expected == 0.234375 {
-                    let follower = if blendspace_leads { leader } else { follower };
-                    inputs.insert(crate::extensions::sync_group_phase::source_sync_marker_reset_key((arena.get_toplevel_id(), follower)), DataValue::Bool(true));
-                }
+                let inputs = HashMap::from([("delta".to_owned(), DataValue::F32(delta)), ("rate".to_owned(), DataValue::F32(rate))]);
                 let context = bevy_animation_graph::core::context::new_context::GraphContext::new(
                     arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
                     Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
@@ -520,15 +516,16 @@ mod tests {
                     time
                 } else { sequence_time(follower) };
                 let selected = crate::extensions::sync_group_phase::source_sync_leader(&arena, &resources.animation_graph_assets, "Movement").unwrap();
-                assert_eq!(selected.identity.1, if blendspace_leads { follower } else { leader });
+                assert_eq!(selected.identity.1, if delta == 0.0 || blendspace_leads { follower } else { leader },
+                    "blendspace={blendspace} leads={blendspace_leads} adjacent={adjacent} delta={delta} rate={rate}");
                 if turnaround && (expected == 0.3125 || expected == 0.6875) { assert!(selected.marker_advance.as_ref().unwrap().markers.is_empty()); }
                 assert!((selected.phase - expected).abs() < 1e-5);
                 let (leader_time, follower_time) = if blendspace_leads { (follower_time, leader_time) } else { (leader_time, follower_time) };
-                let expected_follower = if adjacent && reverse && delta == 0.0625 { 0.125 }
-                    else if adjacent && delta > 0.0 && !reverse {
-                        if expected < 0.234375 { 0.125 + 4.0 * (expected - 0.125) }
-                        else { 0.375 + 3.0 * (expected - 0.125) }
-                    } else { expected };
+                let expected_follower = if adjacent && reverse && delta == 0.0625 {
+                    0.125
+                } else if adjacent && delta > 0.0 && !reverse {
+                    0.125 + 4.0 * (expected - 0.125)
+                } else { expected };
                 for (actual, expected) in [(leader_time, expected), (follower_time, expected_follower)] {
                     assert!((actual - expected).abs() < 1e-5, "blendspace={blendspace} leads={blendspace_leads} adjacent={adjacent} delta={delta} rate={rate}: {actual} != {expected}");
                 }

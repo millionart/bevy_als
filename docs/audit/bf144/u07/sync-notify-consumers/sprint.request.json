@@ -1,0 +1,159 @@
+{
+  "players": [
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint",
+      "start": 0,
+      "rate": 1,
+      "looping": true
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.A_Als_Sprint_Acceleration",
+      "start": 0,
+      "rate": 1,
+      "looping": true
+    }
+  ],
+  "samples": [
+    {
+      "name": "equal",
+      "steps": [
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "base",
+      "steps": [
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.6,
+            0.4
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.6,
+            0.4
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.6,
+            0.4
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.6,
+            0.4
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.6,
+            0.4
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.6,
+            0.4
+          ]
+        }
+      ]
+    },
+    {
+      "name": "acceleration",
+      "steps": [
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.4,
+            0.6
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.4,
+            0.6
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.4,
+            0.6
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.4,
+            0.6
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.4,
+            0.6
+          ]
+        },
+        {
+          "delta_seconds": 0.05,
+          "weights": [
+            0.4,
+            0.6
+          ]
+        }
+      ]
+    }
+  ]
+}

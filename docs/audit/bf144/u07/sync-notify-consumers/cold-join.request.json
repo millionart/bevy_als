@@ -1,0 +1,79 @@
+{
+  "players": [
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward.BS_Als_WalkRun_Forward",
+      "start": 0.2,
+      "rate": 1,
+      "looping": true,
+      "blend_position": [
+        1,
+        1
+      ]
+    },
+    {
+      "asset": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.A_Als_Crouch_Walk_Forward",
+      "start": 0.9,
+      "rate": 1,
+      "looping": true
+    }
+  ],
+  "samples": [
+    {
+      "name": "cold-blendspace-takes-lead",
+      "steps": [
+        {
+          "delta_seconds": 0,
+          "weights": [
+            null,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.1,
+          "weights": [
+            0.75,
+            0.25
+          ]
+        }
+      ]
+    },
+    {
+      "name": "warm-group-before-blendspace-takes-lead",
+      "steps": [
+        {
+          "delta_seconds": 0.03,
+          "weights": [
+            null,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.1,
+          "weights": [
+            0.75,
+            0.25
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cold-blendspace-follows",
+      "steps": [
+        {
+          "delta_seconds": 0,
+          "weights": [
+            null,
+            1
+          ]
+        },
+        {
+          "delta_seconds": 0.1,
+          "weights": [
+            0.25,
+            0.75
+          ]
+        }
+      ]
+    }
+  ]
+}
