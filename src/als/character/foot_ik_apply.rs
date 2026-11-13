@@ -993,21 +993,27 @@ mod tests {
             let capture = source.clone();
             app.add_systems(PostUpdate,
                 (move |mut states: Query<(&mut AlsFootLockState, &mut AlsFootLockInput, &mut LocomotionState)>,
-                    mut transforms: ParamSet<(Query<&mut Transform>, TransformHelper)>,
+                    mut transforms: ParamSet<(Query<&mut Transform>, TransformHelper,
+                        Query<(&Transform, Option<&AnimationTargetId>)>)>,
+                    parents: Query<&ChildOf>,
+                    players: Query<&AnimationGraphPlayer>, instances: Query<&AnimatedSceneInstance>,
                     mut profile: ResMut<CrAlsRuntimeProfileTemplate>| {
                     transforms.p0().get_mut(pelvis).unwrap().rotation = Quat::IDENTITY;
                     profile.0.target.foot_left_thigh_axis_pelvis_space = Vec3::X.to_array();
                     let target_world = transforms.p1().compute_global_transform(target).unwrap();
                     let mesh = transforms.p1().compute_global_transform(avatar).unwrap();
+                    let player = players.get(instances.get(avatar).unwrap().player_entity()).unwrap();
+                    let sampled_rotation = positive_scale_foot_rotation(target, avatar, &mesh, &parents, &transforms.p2(), Some(player))
+                        .unwrap_or_else(|| target_world.rotation().as_dquat());
                     let (mut lock, mut input, mut mode) = states.get_mut(actor).unwrap();
                     assert!(lock.valid && !lock.became_valid);
                     lock.left.lock_amount = 1.0;
                     lock.left.lock_location = mesh.affine().transform_point3(Vec3::new(0.2, -0.8, 0.0)).as_dvec3();
-                    lock.left.lock_rotation = (delta * target_world.rotation()).normalize().as_dquat();
+                    lock.left.lock_rotation = (delta.as_dquat() * sampled_rotation).normalize();
                     lock.left.lock_rotation_before_foot_limit_armature =
                         (mesh.rotation().as_dquat().conjugate() * lock.left.lock_rotation).as_quat();
                     lock.left.movement_base = None;
-                    let actual_delta = (lock.left.lock_rotation * target_world.rotation().as_dquat().conjugate()).as_quat();
+                    let actual_delta = (lock.left.lock_rotation * sampled_rotation.conjugate()).as_quat();
                     let mut angle = 2.0 * actual_delta.y.atan2(actual_delta.w);
                     while angle > std::f32::consts::PI { angle -= std::f32::consts::TAU; }
                     while angle < -std::f32::consts::PI { angle += std::f32::consts::TAU; }
@@ -1026,8 +1032,9 @@ mod tests {
             let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
             assert!(rig.foot_transforms_valid);
             let mesh = app.world().get::<GlobalTransform>(avatar).unwrap();
-            let actual = (mesh.rotation() * rig.foot_left_rotation_armature).normalize();
-            assert!(actual.angle_between(source) < 1e-4,
+            let actual = (mesh.rotation().as_dquat() * rig.foot_left_rotation_armature.as_dquat()).normalize();
+            let source = source.as_dquat().normalize();
+            assert!((actual - source).length().min((actual + source).length()) < 5e-5,
                 "Source Foot twist differs at the actual Rig: delta={delta:?}, actual={actual:?}, source={source:?}");
         }
     }

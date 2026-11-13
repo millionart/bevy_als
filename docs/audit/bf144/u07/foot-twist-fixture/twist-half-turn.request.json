@@ -1,0 +1,58 @@
+{
+  "samples": [
+    {
+      "name": "foot-half-turn-0.0",
+      "rotation_xyzw": [
+        0,
+        0,
+        -1,
+        0.0
+      ],
+      "foot_lock_rotation": {
+        "target_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "limit_degrees": 40
+      }
+    },
+    {
+      "name": "foot-half-turn-1e-08",
+      "rotation_xyzw": [
+        0,
+        0,
+        -1,
+        1e-08
+      ],
+      "foot_lock_rotation": {
+        "target_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "limit_degrees": 40
+      }
+    },
+    {
+      "name": "foot-half-turn--1e-08",
+      "rotation_xyzw": [
+        0,
+        0,
+        -1,
+        -1e-08
+      ],
+      "foot_lock_rotation": {
+        "target_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "limit_degrees": 40
+      }
+    }
+  ]
+}

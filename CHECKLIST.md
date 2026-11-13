@@ -5298,7 +5298,7 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 证据/漏检：`target/bf144/420/native-limit-check.json`、`delta.native.json`、`findings-check.json`、`consumer-atan.json`与两个端点全匹配矩阵。旧rotation-limit单元仅用目标自身90°/40°端点和宽容差，没有原生float Atan中间值；源reader缺该字段的失败先证明，再新增最小optional probe并完成旧输出兼容、非法输入、同arm64包删除/恢复Gate。单因消费者移除控制退回当前，源码字节恢复同target重编输出恢复；生产未修，完整连续反馈影响/其它数值因素仍未闭。
   - 修复第1轮：开始2026-11-08 08:12 +08:00；预估结束08:42 +08:00。依据：fresh UE `GetTwistAngle`调用float minimax Atan2，D262a已有实际前态与受控原生twist读数；局部引入源算子、保留D260系数并补原生值与限位反例。测试留待全部静态修复和Bevy/依赖迁移后。
   - 08:14 source/static与实现摘要：fresh源确认float minimax的七系数、零输入与象限恢复及Unwind阶段；足限位调用该算子，保留D260系数。已写两个新原生twist、零输入和实际前态衍生阈值反例；旧.420原始报告缺失，引用D262a新原生请求/结果。实现结束08:14、偏差−28分钟；测试、消融与视觉Gate待静态修复及Bevy/依赖迁移后执行。
-
+  - 2026-11-13 09:18复验，预估09:40。fresh原生三份同轴半转均为−180°；旧已加载夹具使用仿射目标，实际按正缩放插槽读取，使半转投影不在同一分支。按同插槽读数与等效双精度弦长比较后，09:37定向通过，提前3分钟。保留两符号、轴和界限控制，未改生产扭转；无需拆分。证据 `docs/audit/bf144/u07/foot-twist-fixture/`。
 
 - [x] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
   - Source：fresh `AlsCharacter.cpp:1248–1255`对真实local controller的ViewRotation执行GetNormalized；`Rotator.h:690–717`的NormalizeAxis将−180和+180均映到+180。随后`AlsAnimationInstance.cpp:387–396`生成ViewState.YawAngle，`601–603`将+180限到+175进入同一Head临界弹簧。
