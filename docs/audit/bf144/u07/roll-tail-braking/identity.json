@@ -1,0 +1,22 @@
+{
+  "braking.request.json": {
+    "bytes": 620,
+    "sha256": "3ffb148666414980426b3e8a9124be52e0d580f9c5aae9ed6f9814a02aad45e2"
+  },
+  "braking.native.json.gz": {
+    "bytes": 55116,
+    "sha256": "7022c2485a03f3cef377e3ae1a96db87411dd775e76283f831ef27c51a3cc07a"
+  },
+  "braking.reader.report.json": {
+    "bytes": 435,
+    "sha256": "86115e489892cb1806f188a9d9c4ed1cfd544b293af228daca121320b7262a74"
+  },
+  "focused.stdout.log.gz": {
+    "bytes": 289,
+    "sha256": "e25663993c2e0e8390f27a920681c858002c7bd59172160caf23bf32254c9c24"
+  },
+  "focused.watchdog.json": {
+    "bytes": 277,
+    "sha256": "d9b87fb48f0c8bb8dc286e0ad00724de8f9ea3ed20d5a003ee473d78824ce03d"
+  }
+}

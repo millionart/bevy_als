@@ -2488,9 +2488,11 @@ mod tests {
         assert_eq!(world.get::<TnuaMotor>(character).unwrap().lin.boost, Vec3::ZERO);
         world.get_mut::<AlsRollState>(character).unwrap().time = 0.9;
         world.run_system_once(grounded_dynamics_motor_system).unwrap();
-        assert!(world.get::<TnuaMotor>(character).unwrap().lin.boost.x < 0.0);
+        let source = Vec3::X * (24.99999888241291_f64 * 0.01) as f32;
+        let motor = world.get::<TnuaMotor>(character).unwrap();
         let dynamics = world.get::<AlsMovementBaseDynamicsState>(character).unwrap();
-        assert_eq!(dynamics.pre_collision_velocity, Some(dynamics.world_velocity + dynamics.motor_boost));
+        assert_eq!(dynamics.pre_collision_velocity, Some(source));
+        assert_eq!(motor.lin.boost, source - dynamics.world_velocity);
     }
 
     #[test]
