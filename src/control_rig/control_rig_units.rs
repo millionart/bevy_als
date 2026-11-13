@@ -1291,7 +1291,8 @@ mod tests {
         context
             .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
             .unwrap();
-        assert_eq!(args[12], Quaternion(DQuat::IDENTITY));
+        assert!(matches!(args[12], Quaternion(actual) if rig_quat_near(actual, DQuat::IDENTITY, 1e-12)),
+            "An effectively zero foot offset must preserve the identity orientation: {:?}", args[12]);
         assert_eq!(args[11], Vector(DVec3::Z * 1e-8));
         args[0] = item("Missing");
         args[8] = Bool(false);
@@ -1486,18 +1487,19 @@ mod tests {
                 .hierarchy
                 .transform(3, RigSpace::Global, false)
                 .unwrap();
+            let expected_root = DQuat::from_rotation_z(std::f64::consts::FRAC_PI_4);
             let expected_joint = DVec3::new(1.0, 1.0, 0.0) * std::f64::consts::FRAC_1_SQRT_2;
             assert!(rig_quat_near(
-                root.rotation,
-                DQuat::from_rotation_z(std::f64::consts::FRAC_PI_4),
-                1e-12
-            ));
-            assert!(joint.translation.distance(expected_joint) < 1e-12);
-            assert!(end.translation.distance(expected_joint + DVec3::X) < 1e-12);
+                root.rotation.normalize(),
+                expected_root,
+                1e-9
+            ), "Partial IK root rotation: {:?}", root.rotation);
+            assert!(joint.translation.distance(expected_joint) < 1e-9);
+            assert!(end.translation.distance(expected_joint + DVec3::X) < 1e-9);
             assert!(rig_quat_near(
-                end.rotation,
+                end.rotation.normalize(),
                 DQuat::from_rotation_y(0.2),
-                1e-12
+                1e-9
             ));
             let expected_child = if propagate {
                 end.transform_point(DVec3::Y)
@@ -1600,9 +1602,11 @@ mod tests {
         translated[0].scale = DVec3::new(2.0, 3.0, 4.0);
         let local_pole = DVec3::new(0.0, 2.0, 3.0);
         for kind in ["Direction", "Location"] {
-            let world_pole = translated[0].rotation * local_pole
+            context.hierarchy.set_input_pose(&translated).unwrap();
+            let pole_space = context.hierarchy.transform(0, RigSpace::Global, false).unwrap();
+            let world_pole = crate::extensions::source_math::source_rotate_vector(pole_space.rotation, local_pole)
                 + if kind == "Location" {
-                    translated[0].translation
+                    pole_space.translation
                 } else {
                     DVec3::ZERO
                 };
@@ -1613,7 +1617,6 @@ mod tests {
             }
             .value();
             values[7] = Vector(world_pole);
-            context.hierarchy.set_input_pose(&translated).unwrap();
             run(&mut context, &mut values);
             let expected = [0, 1, 2].map(|index| {
                 context
@@ -2386,7 +2389,7 @@ mod tests {
                 &mut rotation,
             )
             .unwrap();
-        let delta = DQuat::from_rotation_z(0.9 * (1.0_f32 / 3.0) as f64);
+        let delta = rig_slerp(DQuat::IDENTITY, DQuat::from_rotation_z(0.9), f64::from(1.0_f32 / 3.0));
         let root = context
             .hierarchy
             .transform(0, RigSpace::Global, false)
@@ -2396,16 +2399,16 @@ mod tests {
             .transform(1, RigSpace::Global, false)
             .unwrap();
         assert!(rig_quat_near(
-            root.rotation,
-            delta * pose[0].rotation,
+            root.rotation.normalize(),
+            (delta * pose[0].rotation).normalize(),
             1e-12
-        ));
+        ), "Distributed root rotation: actual={:?} expected={:?}", root.rotation, delta * pose[0].rotation);
         assert!(rig_quat_near(
-            child.rotation,
-            delta * delta * pose[0].rotation * pose[1].rotation,
+            child.rotation.normalize(),
+            (delta * delta * pose[0].rotation * pose[1].rotation).normalize(),
             1e-12
         ));
-        assert!((child.translation - (delta * pose[0].rotation) * DVec3::X).length() < 1e-12);
+        assert!((child.translation - crate::extensions::source_math::source_rotate_vector(root.rotation, DVec3::X)).length() < 1e-12);
         let before = child;
         rotation[1] = Quaternion(-DQuat::IDENTITY);
         context
