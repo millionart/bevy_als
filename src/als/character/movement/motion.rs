@@ -11224,7 +11224,11 @@ mod tests {
             assert!(mantle.active, "scale={scale} pitch={pitch} roll={roll}");
             assert!(mantle.warp_start.translation.abs_diff_eq(transform.translation, 1e-5));
             assert!(mantle.warp_start.scale.abs_diff_eq(transform.scale, 1e-5));
-            assert!(mantle.warp_start.rotation.angle_between(transform.rotation) < 1e-4);
+            let captured = mantle.warp_start.rotation.normalize();
+            let expected = transform.rotation.normalize();
+            let rotation_distance = (captured - expected).length().min((captured + expected).length());
+            assert!(rotation_distance < 2.0 * (1e-4_f32 / 4.0).sin(),
+                "Mantle lost the actor rotation: scale={scale} pitch={pitch} roll={roll} actual={captured:?} expected={expected:?}");
         }
     }
 

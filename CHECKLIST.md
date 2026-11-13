@@ -6204,6 +6204,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧early条件测试直接传入已经更新的枚举/Tag，未跨真实aim producer与Montage consumer阶段核对同帧变化。这里限定为一个帧的淡出延迟，记P3；不据此推测其他图/通知均有相同问题，生产未改。
 
 - [x] BF144-D58 / P2 — Mantle初始化丢失actor scale及完整rotation，起始root消除结果错误；静态实现完成，统一验证待执行。
+  - 2026-11-13 16:32复验开始，预估16:49。旧加载角色在`angle_between <1e-4`失败；当前glam的float点积无法分辨该阈值以下的归一化舍入，先用相同角度导出的四元数弦长判定实际全变换，只有读回值超差才改生产。复用实际缩放/倾斜、Mantle端到端及反向四元数控制。
+  - 16:37正式前：fresh `AlsCharacter_Actions.cpp:511–527` 仍使用完整ActorTransform，原生Low Right五个根时点重新读取。六组实际加载的缩放/俯仰/滚转在原等效角度下通过。正式Base覆盖父空间与动作，截图0。
+  - 2026-11-13 16:40正式后：Base完整功能通过，实际Mantle开始、结束、角色时钟和父空间均覆盖。16:32开始、16:49预估、16:40实际，提前9分钟，未拆分。保留原全库失败和同角度新断言。证据 `docs/audit/bf144/d58/bevy-0.20/`。
   - 活动：开始2026-11-08 18:09 +08:00；预估结束18:54 +08:00；实际结束18:13 +08:00，提前41分钟；未拆分，测试/消融/Gate暂缓。
   - 闭环：fresh ALS完整ActorTransform、UE VQS及根轨道证据保存在`docs/audit/bf144/d58/`；手动/自动入口保留完整变换，已写缩放、倾斜、基座变化与加载角色对照。旧target报告缺失，负缩放与动画Gate待验证。
   - Source：fresh `AlsCharacter_Actions.cpp:521–527`把初始root inverse与完整`GetActorTransform()`相乘；UE `Transform.cpp:98–113`及VQS乘法保留actor scale和完整quat对初始位移的影响。RMS随后只保存start location/rotation，并在`AlsRootMotionSource_Mantling.cpp:97–118`混合后取twist；不能提前丢掉初始pitch/roll或scale。
