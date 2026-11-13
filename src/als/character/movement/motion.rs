@@ -3858,7 +3858,7 @@ fn follow_movement_base_system(
             && bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static) {
             let carried = if phase != MovementBaseFollowPhase::AfterPhysics || custom_position { Vec3::ZERO } else {
                 dynamics.filter(|dynamics| dynamics.entity == Some(target))
-                    .map_or(Vec3::ZERO, |dynamics| dynamics.support_velocity) * time.delta_secs()
+                    .map_or(Vec3::ZERO, |dynamics| dynamics.support_velocity.with_y(0.0)) * time.delta_secs()
             };
             let origin = space.p2().get(entity).unwrap().0.0;
             let offset = Vec3::Y * capsule.shape_scaled().compute_local_aabb().half_extents().y;
