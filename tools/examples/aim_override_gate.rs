@@ -98,7 +98,8 @@ fn setup(
     ));
     let mut bundle = AlsCharacterBundle::new(
         params_assets.add(AlsMovementParams::default()),
-        config_assets.add(AlsControlSchemeConfig::default()),
+        &mut config_assets,
+        AlsControlSchemeConfig::default(),
     );
     bundle.transform = Transform::from_xyz(0.0, 0.92, 0.0);
     bundle.rotation_mode = RotationMode::ViewDirection;

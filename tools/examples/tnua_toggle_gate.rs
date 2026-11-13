@@ -69,8 +69,7 @@ fn setup(
     let mut entities = Vec::with_capacity(toggles.len());
     for (index, toggle) in toggles.into_iter().enumerate() {
         let params = params_assets.add(AlsMovementParams::default());
-        let config = config_assets.add(AlsControlSchemeConfig::default());
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let mut bundle = AlsCharacterBundle::new(params, &mut config_assets, AlsControlSchemeConfig::default());
         bundle.transform = Transform::from_xyz(index as f32 * 2.0 - 4.0, 0.92, 0.0);
         entities.push(
             commands

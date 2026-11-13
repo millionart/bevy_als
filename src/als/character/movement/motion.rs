@@ -1947,10 +1947,7 @@ mod rotation_cap_tests {
             .world_mut()
             .resource_mut::<Assets<AlsMovementParams>>()
             .add(params_value.clone());
-        let config = app
-            .world_mut()
-            .resource_mut::<Assets<AlsControlSchemeConfig>>()
-            .add(initial_als_control_scheme_config(&params_value));
+        let config = initial_als_control_scheme_config(&params_value);
         let beam = app
             .world_mut()
             .spawn((
@@ -1961,7 +1958,7 @@ mod rotation_cap_tests {
             ))
             .id();
         let center = Vec3::new(0.0, params_value.crouch.crouched_capsule_half_height, 0.0);
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         bundle.transform = Transform::from_translation(center);
         bundle.rigid_body = RigidBody::Kinematic;
         bundle.collider = als_character_capsule(
@@ -2317,10 +2314,9 @@ mod rotation_cap_tests {
                 Transform::from_xyz(0.0, ceiling + 0.05, 0.0)));
             let params_value = AlsMovementParams::default();
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
-            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
-                .add(initial_als_control_scheme_config(&params_value));
+            let config = initial_als_control_scheme_config(&params_value);
             let center = Vec3::Y * (params_value.crouch.crouched_capsule_half_height * scale + gap);
-            let mut bundle = AlsCharacterBundle::new(params, config);
+            let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
             bundle.rigid_body = RigidBody::Kinematic;
             bundle.transform = Transform::from_translation(center).with_scale(Vec3::splat(scale));
             bundle.collider = capsule_for(&params_value, Stance::Crouching);
@@ -2367,10 +2363,9 @@ mod rotation_cap_tests {
                 app.finish();
                 let params_value = AlsMovementParams::default();
                 let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
-                let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
-                    .add(initial_als_control_scheme_config(&params_value));
+                let config = initial_als_control_scheme_config(&params_value);
                 let center = Vec3::Y * (params_value.crouch.crouched_capsule_half_height + 0.019);
-                let mut bundle = AlsCharacterBundle::new(params, config);
+                let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
                 bundle.rigid_body = RigidBody::Kinematic;
                 bundle.transform = Transform::from_translation(center);
                 bundle.collider = capsule_for(&params_value, Stance::Crouching);
@@ -2448,10 +2443,9 @@ mod rotation_cap_tests {
         let params_value = AlsMovementParams::default();
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
             .add(params_value.clone());
-        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
-            .add(initial_als_control_scheme_config(&params_value));
+        let config = initial_als_control_scheme_config(&params_value);
         let center = Vec3::Y * params_value.crouch.crouched_capsule_half_height * 2.0;
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         bundle.transform = Transform::from_translation(center).with_scale(Vec3::splat(2.0));
         bundle.rigid_body = RigidBody::Kinematic;
         bundle.collider = als_character_capsule(
@@ -2489,12 +2483,9 @@ mod rotation_cap_tests {
             .world_mut()
             .resource_mut::<Assets<AlsMovementParams>>()
             .add(params_value.clone());
-        let config = app
-            .world_mut()
-            .resource_mut::<Assets<AlsControlSchemeConfig>>()
-            .add(initial_als_control_scheme_config(&params_value));
+        let config = initial_als_control_scheme_config(&params_value);
         let center = Vec3::new(0.0, params_value.crouch.standing_capsule_half_height, 0.0);
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         bundle.rigid_body = RigidBody::Kinematic;
         bundle.transform = Transform::from_translation(center);
         bundle.locomotion_state = LocomotionState::Air;
@@ -2560,14 +2551,10 @@ mod rotation_cap_tests {
             .world_mut()
             .resource_mut::<Assets<AlsMovementParams>>()
             .add(params_value.clone());
-        let config = app
-            .world_mut()
-            .resource_mut::<Assets<AlsControlSchemeConfig>>()
-            .add(initial_als_control_scheme_config(&params_value));
         let characters: Vec<_> = [Vec3::new(-4.0, 0.9, 0.0), Vec3::new(4.0, 0.9, 0.0)]
             .into_iter()
             .map(|position| {
-                let mut bundle = AlsCharacterBundle::new(params.clone(), config.clone());
+                let mut bundle = AlsCharacterBundle::new(params.clone(), &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), initial_als_control_scheme_config(&params_value));
                 bundle.transform = Transform::from_translation(position);
                 bundle.rigid_body = RigidBody::Kinematic;
                 bundle.collider = als_character_capsule(
@@ -7513,8 +7500,8 @@ mod tests {
             let target_position = Vec3::new(0.0, 0.18, -0.8);
             if case == "character" || case == "override" {
                 let params = app.world().get::<AlsMovementParamsHandle>(actor).unwrap().0.clone();
-                let config = app.world().get::<TnuaConfig<AlsControlScheme>>(actor).unwrap().0.clone();
-                let mut bundle = crate::als::character::AlsCharacterBundle::new(params, config);
+                let config = initial_als_control_scheme_config(app.world().resource::<Assets<AlsMovementParams>>().get(&params).unwrap());
+                let mut bundle = crate::als::character::AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
                 bundle.rigid_body = RigidBody::Static;
                 bundle.transform = Transform::from_translation(target_position).with_scale(Vec3::splat(0.2));
                 let target = app.world_mut().spawn(bundle).id();
@@ -10006,8 +9993,8 @@ mod tests {
         app.finish();
         let params_value = AlsMovementParams::default();
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
-        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params_value));
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let config = initial_als_control_scheme_config(&params_value);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         let start_z = if descending { -5.44 } else { 1.0 };
         let floor_y = if descending { 12.0 * rise } else { 0.0 };
         bundle.transform = Transform::from_translation(frame_rotation * Vec3::new(0.0, floor_y + 0.924, start_z))
@@ -10110,14 +10097,15 @@ mod tests {
             app.finish();
             let params = AlsMovementParams::default();
             let params_handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params.clone());
-            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params));
+            let config = initial_als_control_scheme_config(&params);
             let expected_height = params.crouch.standing_capsule_half_height * scale
                 + ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
-            let mut bundle = AlsCharacterBundle::new(params_handle, config.clone());
+            let mut bundle = AlsCharacterBundle::new(params_handle, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
             bundle.transform = Transform::from_xyz(0.0, expected_height, 0.0).with_scale(Vec3::splat(scale));
             let character = app.world_mut().spawn(bundle).id();
             app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
             for _ in 0..30 { app.update(); }
+            let config = app.world().get::<TnuaConfig<AlsControlScheme>>(character).unwrap().0.clone();
             let actual_height = app.world().resource::<Assets<AlsControlSchemeConfig>>().get(&config).unwrap().basis.float_height;
             assert!((actual_height - expected_height).abs() < 1e-5,
                 "Scaled capsule floating height differs: scale={scale}, {actual_height} != {expected_height}");
@@ -10172,8 +10160,8 @@ mod tests {
             app.finish();
             let params = AlsMovementParams::default();
             let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params.clone());
-            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params));
-            let mut bundle = AlsCharacterBundle::new(handle, config);
+            let config = initial_als_control_scheme_config(&params);
+            let mut bundle = AlsCharacterBundle::new(handle, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
             bundle.transform.translation = Vec3::new(0.0, 0.924, 0.0);
             let character = app.world_mut().spawn(bundle).id();
             let gamepad = app.world_mut().spawn(Gamepad::default()).id();
@@ -11953,8 +11941,8 @@ mod tests {
             app.finish();
             let params_value = AlsMovementParams::default();
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
-            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params_value));
-            let mut bundle = AlsCharacterBundle::new(params, config);
+            let config = initial_als_control_scheme_config(&params_value);
+            let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
             bundle.transform = Transform::from_xyz(0.0,
                 ALS_CHARACTER_CAPSULE_HALF_HEIGHT + ALS_CHARACTER_FLOOR_CLEARANCE
                     + 6.2 * 6.2 / (2.0 * 9.81 * params_value.jump.gravity_scale), 0.0);
@@ -12505,6 +12493,39 @@ mod tests {
             assert!((launch_speed - params.jump.jump_z_velocity).abs() < 1e-3,
                 "gravity={gravity:?} launch_speed={launch_speed} source_jump_z_velocity={}", params.jump.jump_z_velocity);
         }
+    }
+
+    #[test]
+    fn characters_sharing_movement_settings_use_independent_tnua_configs() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_tnua::TnuaControllerPlugin;
+        use crate::als::character::AlsCharacterBundle;
+
+        let mut app = App::new();
+        let gravity = Vec3::NEG_Y * 10.0;
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TnuaControllerPlugin::<AlsControlScheme>::new(Update)))
+            .init_asset::<AlsMovementParams>()
+            .insert_resource(Gravity(gravity));
+        let settings = AlsMovementParams::default();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(settings.clone());
+        let inputs = [(1.0, 1.0), (2.0, 0.5)];
+        let actors = inputs.map(|(scale, gravity_scale)| {
+            let mut bundle = AlsCharacterBundle::new(params.clone(), &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), initial_als_control_scheme_config(&settings));
+            bundle.transform.scale = Vec3::splat(scale);
+            app.world_mut().spawn((bundle, LinearVelocity::ZERO, GravityScale(gravity_scale))).id()
+        });
+        app.world_mut().run_system_once(tnua_config_sync_system).unwrap();
+        let configs = app.world().resource::<Assets<AlsControlSchemeConfig>>();
+        let observed = actors.map(|actor| {
+            let config = app.world().get::<TnuaConfig<AlsControlScheme>>(actor).unwrap();
+            let config = configs.get(&config.0).unwrap();
+            (config.basis.float_height, config.jump.height)
+        });
+        let expected = inputs.map(|(scale, gravity_scale)| (
+            settings.crouch.standing_capsule_half_height * scale + ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON,
+            settings.jump.jump_z_velocity.powi(2) / (2.0 * gravity.length() * gravity_scale),
+        ));
+        assert_eq!(observed, expected);
     }
 
     #[test]

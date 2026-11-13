@@ -558,12 +558,11 @@ mod tests {
         app.update();
         let values = AlsMovementParams::default();
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(values.clone());
-        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
-            .add(initial_als_control_scheme_config(&values));
-        let mut supported_bundle = AlsCharacterBundle::new(params.clone(), config.clone());
+        let config = initial_als_control_scheme_config(&values);
+        let mut supported_bundle = AlsCharacterBundle::new(params.clone(), &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), initial_als_control_scheme_config(&values));
         supported_bundle.transform = Transform::from_xyz(-2.0, 0.9215, 0.0);
         let supported = app.world_mut().spawn(supported_bundle).id();
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         bundle.transform = Transform::from_xyz(2.0, 1.5, 0.0);
         let actor = app.world_mut().spawn(bundle).id();
         app.update();
@@ -644,9 +643,8 @@ mod tests {
 
         let params = AlsMovementParams::default();
         let config = initial_als_control_scheme_config(&params);
-        let config = app.world_mut().resource_mut::<Assets<_>>().add(config);
         let params = app.world_mut().resource_mut::<Assets<_>>().add(params);
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<_>>(), config);
         bundle.transform.translation = Vec3::new(-0.99, 1.9215, 0.85);
         let actor = app.world_mut().spawn(bundle).id();
         let platform = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY, SleepingDisabled)).id();
@@ -714,8 +712,8 @@ mod tests {
                         app.finish(); app.update();
                         let value = AlsMovementParams::default();
                         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(value.clone());
-                        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&value));
-                        let mut bundle = AlsCharacterBundle::new(params, config);
+                        let config = initial_als_control_scheme_config(&value);
+                        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
                         bundle.transform.translation = Vec3::new(0.0, 3.174, 0.0);
                         let character = app.world_mut().spawn(bundle).id();
                         let platform = app.world_mut().spawn((support_body, Collider::cuboid(8.0, 0.5, 8.0),
@@ -1197,9 +1195,8 @@ mod tests {
         app.update();
         let value = AlsMovementParams::default();
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(value.clone());
-        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
-            .add(initial_als_control_scheme_config(&value));
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let config = initial_als_control_scheme_config(&value);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         bundle.transform.translation = Vec3::new(0.0, 5.0, edge_start);
         let character = app.world_mut().spawn(bundle).id();
         *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
@@ -1278,9 +1275,8 @@ mod tests {
             let mut value = AlsMovementParams::default();
             value.acceleration.max_acceleration = 0.0;
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(value.clone());
-            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
-                .add(initial_als_control_scheme_config(&value));
-            let mut bundle = AlsCharacterBundle::new(params, config);
+            let config = initial_als_control_scheme_config(&value);
+            let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
             bundle.transform.translation = Vec3::Y * 5.0;
             let character = app.world_mut().spawn((bundle, blocking)).id();
             for _ in 0..3 { app.update(); }
@@ -1358,9 +1354,8 @@ mod tests {
         app.finish();
         let params_value = AlsMovementParams::default();
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
-        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
-            .add(initial_als_control_scheme_config(&params_value));
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let config = initial_als_control_scheme_config(&params_value);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         bundle.transform.translation = Vec3::Y * 0.924;
         let character = app.world_mut().spawn(bundle).id();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 0.2, 10.0),
@@ -1567,9 +1562,8 @@ mod tests {
         app.finish();
         let params_value = AlsMovementParams::default();
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
-        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
-            .add(initial_als_control_scheme_config(&params_value));
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let config = initial_als_control_scheme_config(&params_value);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         bundle.transform.translation = Vec3::Y * 0.924;
         let character = app.world_mut().spawn(bundle).id();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 0.2, 10.0), Transform::from_xyz(0.0, -0.1, 0.0)));

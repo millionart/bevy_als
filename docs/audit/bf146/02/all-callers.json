@@ -1,0 +1,28 @@
+{
+  "command": [
+    "cargo",
+    "check",
+    "--locked",
+    "--offline",
+    "--profile",
+    "play",
+    "--jobs",
+    "2",
+    "--all-targets"
+  ],
+  "target_directory": "target_game",
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": true,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T14:44:47.9781600Z",
+    "last_progress_at_utc": "2026-11-13T14:45:06.4941307Z",
+    "last_progress_source": "all-callers-fixed.stderr",
+    "finished_at_utc": "2026-11-13T14:45:06.6824100Z",
+    "elapsed_seconds": 18.704,
+    "no_progress_seconds": 0.188,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 720,
+    "process_exit_code": 0
+  }
+}

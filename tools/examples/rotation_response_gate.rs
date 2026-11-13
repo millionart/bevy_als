@@ -121,35 +121,35 @@ fn setup(
     let fast = spawn_character(
         &mut commands,
         params_assets.add(fast_params),
-        config_assets.add(AlsControlSchemeConfig::default()),
+        &mut config_assets,
         Vec3::new(-4.0, 0.92, 0.0),
         RotationMode::ViewDirection,
     );
     let slow = spawn_character(
         &mut commands,
         params_assets.add(slow_params),
-        config_assets.add(AlsControlSchemeConfig::default()),
+        &mut config_assets,
         Vec3::new(-2.0, 0.92, 0.0),
         RotationMode::ViewDirection,
     );
     let curve = spawn_character(
         &mut commands,
         params_assets.add(curve_params),
-        config_assets.add(AlsControlSchemeConfig::default()),
+        &mut config_assets,
         Vec3::new(0.0, 0.92, 0.0),
         RotationMode::ViewDirection,
     );
     let moving = spawn_character(
         &mut commands,
         params_assets.add(moving_params),
-        config_assets.add(AlsControlSchemeConfig::default()),
+        &mut config_assets,
         Vec3::new(2.0, 0.92, 0.0),
         RotationMode::ViewDirection,
     );
     let aiming = spawn_character(
         &mut commands,
         params_assets.add(aiming_params),
-        config_assets.add(AlsControlSchemeConfig::default()),
+        &mut config_assets,
         Vec3::new(4.0, 0.92, 0.0),
         RotationMode::Aiming,
     );
@@ -167,11 +167,11 @@ fn setup(
 fn spawn_character(
     commands: &mut Commands,
     params: Handle<AlsMovementParams>,
-    config: Handle<AlsControlSchemeConfig>,
+    config_assets: &mut Assets<AlsControlSchemeConfig>,
     translation: Vec3,
     rotation_mode: RotationMode,
 ) -> Entity {
-    let mut bundle = AlsCharacterBundle::new(params, config);
+    let mut bundle = AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
     bundle.transform = Transform::from_translation(translation);
     bundle.gait = Gait::Running;
     bundle.locomotion_state = LocomotionState::Grounded;

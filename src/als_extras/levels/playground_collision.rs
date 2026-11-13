@@ -704,10 +704,10 @@ mod tests {
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(80.0,0.2,80.0), Transform::from_xyz(0.0,-0.1,-30.0)));
         let barrier = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(6.67,3.0,0.2), Transform::from_xyz(-26.665,6.4,-34.5))).id();
         let params = AlsMovementParams::default();
-        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params));
+        let config = initial_als_control_scheme_config(&params);
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params);
         let start = Vec3::new(-26.665, 6.321502, -35.25028);
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
         bundle.transform.translation = start;
         let actor = app.world_mut().spawn(bundle).id();
         for _ in 0..30 { app.update(); }

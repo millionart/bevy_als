@@ -1,0 +1,39 @@
+{
+  "removed": "Allocate a distinct configuration per bundle. Reuse the first existing handle.",
+  "test": "characters_sharing_movement_settings_use_independent_tnua_configs",
+  "actual": [
+    [
+      1.824,
+      1.7639997
+    ],
+    [
+      1.824,
+      1.7639997
+    ]
+  ],
+  "expected": [
+    [
+      0.92399997,
+      0.88199985
+    ],
+    [
+      1.824,
+      1.7639997
+    ]
+  ],
+  "restored_source_sha256": "e43a5ee5a271752f6b0754c3630cb5a021443313db8f6ee1b562b334f57b58b3",
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": false,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T14:49:17.1797790Z",
+    "last_progress_at_utc": "2026-11-13T14:53:20.3084834Z",
+    "last_progress_source": "ablation-config.stderr",
+    "finished_at_utc": "2026-11-13T14:53:20.3457350Z",
+    "elapsed_seconds": 243.166,
+    "no_progress_seconds": 0.037,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 720,
+    "process_exit_code": 101
+  }
+}

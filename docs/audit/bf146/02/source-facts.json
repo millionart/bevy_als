@@ -1,0 +1,190 @@
+{
+  "native_request": {
+    "asset": "/ALS/ALS/Data/Character/Movement/MS_Als_Normal.MS_Als_Normal",
+    "output": "movement.native.json",
+    "no_progress_seconds": 120
+  },
+  "native_output_sha256": "4fd9a40b49c984a8d07761c414e14bb57522cf6d23c36a07b889e28fcc9671af",
+  "source_uasset_sha256": "9934e80baba0a90db405eefff7c817eb2175f5219300501c73e7753db07d9533",
+  "source_files": {
+    "Private/AlsCharacter.cpp": {
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+      "excerpts": [
+        {
+          "start_line": 124,
+          "lines": [
+            "\tGetMesh()->AddTickPrerequisiteActor(this);",
+            "",
+            "\tAlsCharacterMovement->OnPhysicsRotation.AddUObject(this, &ThisClass::CharacterMovement_OnPhysicsRotation);",
+            "",
+            "\t// Pass current movement settings to the movement component.",
+            "",
+            "\tAlsCharacterMovement->SetMovementSettings(MovementSettings);",
+            "",
+            "\tAnimationInstance = Cast<UAlsAnimationInstance>(GetMesh()->GetAnimInstance());",
+            ""
+          ]
+        },
+        {
+          "start_line": 942,
+          "lines": [
+            "void AAlsCharacter::RefreshGait()",
+            "{",
+            "\tif (LocomotionMode != AlsLocomotionModeTags::Grounded)",
+            "\t{",
+            "\t\treturn;",
+            "\t}",
+            "",
+            "\tconst auto MaxAllowedGait{CalculateMaxAllowedGait()};",
+            "",
+            "\t// Update the character max walk speed to the configured speeds based on the currently max allowed gait.",
+            "",
+            "\tAlsCharacterMovement->SetMaxAllowedGait(MaxAllowedGait);",
+            "",
+            "\tconst auto ActualGait{CalculateActualGait(MaxAllowedGait)};",
+            "",
+            "\tSetGait(ActualGait);",
+            "}"
+          ]
+        }
+      ]
+    },
+    "Private/AlsCharacterMovementComponent.cpp": {
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+      "excerpts": [
+        {
+          "start_line": 894,
+          "lines": [
+            "void UAlsCharacterMovementComponent::SetMovementSettings(UAlsMovementSettings* NewMovementSettings)",
+            "{",
+            "\tALS_ENSURE(IsValid(NewMovementSettings));",
+            "",
+            "\tMovementSettings = NewMovementSettings;",
+            "",
+            "\tRefreshGaitSettings();",
+            "}",
+            "",
+            "void UAlsCharacterMovementComponent::RefreshGaitSettings()",
+            "{",
+            "\tif (!ALS_ENSURE(IsValid(MovementSettings)))",
+            "\t{",
+            "\t\treturn;",
+            "\t}",
+            "",
+            "\tconst auto* StanceSettings{MovementSettings->RotationModes.Find(RotationMode)};",
+            "\tconst auto* NewGaitSettings{ALS_ENSURE(StanceSettings != nullptr) ? StanceSettings->Stances.Find(Stance) : nullptr};",
+            "",
+            "\tGaitSettings = ALS_ENSURE(NewGaitSettings != nullptr) ? *NewGaitSettings : FAlsMovementGaitSettings{};",
+            "}",
+            "",
+            "void UAlsCharacterMovementComponent::SetRotationMode(const FGameplayTag NewRotationMode)",
+            "{",
+            "\tif (RotationMode != NewRotationMode)",
+            "\t{",
+            "\t\tRotationMode = NewRotationMode;",
+            "",
+            "\t\tRefreshGaitSettings();",
+            "\t}",
+            "}",
+            "",
+            "void UAlsCharacterMovementComponent::SetStance(const FGameplayTag NewStance)",
+            "{",
+            "\tif (Stance != NewStance)",
+            "\t{",
+            "\t\tStance = NewStance;",
+            "",
+            "\t\tRefreshGaitSettings();",
+            "\t}"
+          ]
+        },
+        {
+          "start_line": 973,
+          "lines": [
+            "\tconst auto Speed{UE_REAL_TO_FLOAT(Velocity.Size2D())};",
+            "",
+            "\tif (Speed > RunSpeed)",
+            "\t{",
+            "\t\tGaitAmount = FMath::GetMappedRangeValueClamped(FVector2f{RunSpeed, GaitSettings.SprintSpeed}, {2.0f, 3.0f}, Speed);",
+            "\t}",
+            "\telse if (Speed > WalkSpeed)",
+            "\t{",
+            "\t\tGaitAmount = FMath::GetMappedRangeValueClamped(FVector2f{WalkSpeed, RunSpeed}, {1.0f, 2.0f}, Speed);",
+            "\t}",
+            "\telse",
+            "\t{",
+            "\t\tGaitAmount = FMath::GetMappedRangeValueClamped(FVector2f{0.0f, WalkSpeed}, {0.0f, 1.0f}, Speed);",
+            "\t}",
+            "",
+            "\tif (MaxAllowedGait == AlsGaitTags::Walking)",
+            "\t{",
+            "\t\tMaxWalkSpeed = WalkSpeed;",
+            "\t}",
+            "\telse if (MaxAllowedGait == AlsGaitTags::Running)",
+            "\t{",
+            "\t\tMaxWalkSpeed = RunSpeed;",
+            "\t}",
+            "\telse if (MaxAllowedGait == AlsGaitTags::Sprinting)",
+            "\t{",
+            "\t\tMaxWalkSpeed = GaitSettings.SprintSpeed;",
+            "\t}",
+            "\telse",
+            "\t{",
+            "\t\tMaxWalkSpeed = GaitSettings.RunForwardSpeed;",
+            "\t}",
+            "",
+            "\tMaxWalkSpeedCrouched = MaxWalkSpeed;"
+          ]
+        }
+      ]
+    },
+    "Public/AlsCharacterMovementComponent.h": {
+      "sha256": "d9dd7da93f266ebc8e82251f9e8efbba960d42c50ad59e13df0b615fe207fde4",
+      "excerpts": [
+        {
+          "start_line": 88,
+          "lines": [
+            "",
+            "\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State\", Transient)",
+            "\tTObjectPtr<UAlsMovementSettings> MovementSettings;",
+            "",
+            "\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State\", Transient)",
+            "\tFAlsMovementGaitSettings GaitSettings;",
+            "",
+            "\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State\", Transient)",
+            "\tFGameplayTag RotationMode{AlsRotationModeTags::ViewDirection};",
+            "",
+            "\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State\", Transient)",
+            "\tFGameplayTag Stance{AlsStanceTags::Standing};",
+            "",
+            "\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State\", Transient)",
+            "\tFGameplayTag MaxAllowedGait{AlsGaitTags::Running};",
+            "",
+            "\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State\", Transient, Meta = (ClampMin = 0, ClampMax = 3))",
+            "\tfloat GaitAmount{0.0f};",
+            "",
+            "\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"State\", Transient, Meta = (ClampMin = 0, ForceUnits = \"cm/s^2\"))",
+            "\tfloat MaxAccelerationWalking{0.0f};"
+          ]
+        }
+      ]
+    }
+  },
+  "tnua": {
+    "revision": "e7639530e98c1c67da1e6b66eeee7da0bcac2351",
+    "file": "src/controller.rs",
+    "sha256": "3918f3cf933566fe77aea88827755e2df48fd3bdb8b99d2efe4abccd98348b26",
+    "lines": [
+      "        let Some(config) = config_assets.get(&config_handle.0) else {",
+      "            continue;",
+      "        };",
+      "        controller.basis_config = Some({",
+      "            let mut basis_config = config.basis_config().clone();",
+      "            if let Some(current_action) = controller.current_action.as_ref() {",
+      "                current_action.modify_basis_config(&mut basis_config);",
+      "            }",
+      "            basis_config",
+      "        });"
+    ]
+  },
+  "invariant": "The source movement settings asset is shared by reference. Each character movement component owns its selected gait settings, gait amount and maximum walk speeds. The locked Tnua controller consumes its configuration by asset handle."
+}

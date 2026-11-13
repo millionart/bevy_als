@@ -1,0 +1,24 @@
+{
+  "target_directory": "target_game",
+  "profile": "play",
+  "binary_sha256": "b848d7ddddc25191feb6b6684ef3af19e50cffb5436c5f39cf28b377b4f09607",
+  "cases": {
+    "startup": {
+      "coverage": {},
+      "motion_windows": 0,
+      "report": "docs/audit/bf146/02/startup/report.json.gz"
+    },
+    "uphill_jump": {
+      "coverage": {
+        "runtime_assembly": true,
+        "animation_graph": true,
+        "uphill_01": true,
+        "uphill_02": true,
+        "uphill_03": true,
+        "uphill_landing_consistency": true
+      },
+      "motion_windows": 18,
+      "report": "docs/audit/bf146/02/uphill_jump/report.json.gz"
+    }
+  }
+}

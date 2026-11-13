@@ -254,9 +254,9 @@ fn spawn_als_character_internal(
     blueprint: AlsCharacterBlueprint,
 ) -> Entity {
     let params_value = AlsMovementParams::default();
-    let tnua_config_handle = config_assets.add(initial_als_control_scheme_config(&params_value));
+    let config = initial_als_control_scheme_config(&params_value);
     let params = params_assets.add(params_value);
-    let mut bundle = AlsCharacterBundle::new(params, tnua_config_handle);
+    let mut bundle = AlsCharacterBundle::new(params, config_assets, config);
     bundle.transform = blueprint.transform;
     let fwd = bundle.transform.forward();
     let yaw = world_forward_to_yaw(*fwd);

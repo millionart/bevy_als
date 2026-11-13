@@ -141,7 +141,6 @@ fn setup(
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
 ) {
     let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
 
     commands.spawn((
         Name::new("Gate:translation-platform"),
@@ -192,19 +191,19 @@ fn setup(
         Transform::from_xyz(0.0, VERTICAL_PLATFORM_HIGH_Y, -16.0),
     ));
 
-    let mut translation = AlsCharacterBundle::new(params.clone(), config.clone());
+    let mut translation = AlsCharacterBundle::new(params.clone(), &mut config_assets, AlsControlSchemeConfig::default());
     translation.transform = Transform::from_xyz(0.0, 1.4, 0.0);
     commands.spawn((translation, TranslationPassenger));
 
-    let mut rotation = AlsCharacterBundle::new(params.clone(), config.clone());
+    let mut rotation = AlsCharacterBundle::new(params.clone(), &mut config_assets, AlsControlSchemeConfig::default());
     rotation.transform = Transform::from_xyz(1.4, 1.4, -8.0);
     commands.spawn((rotation, RotationPassenger));
 
-    let mut crush = AlsCharacterBundle::new(params.clone(), config.clone());
+    let mut crush = AlsCharacterBundle::new(params.clone(), &mut config_assets, AlsControlSchemeConfig::default());
     crush.transform = Transform::from_xyz(0.0, ALS_CHARACTER_CAPSULE_HALF_HEIGHT, 7.0);
     commands.spawn((crush, CrushPassenger));
 
-    let mut vertical_crush = AlsCharacterBundle::new(params, config);
+    let mut vertical_crush = AlsCharacterBundle::new(params, &mut config_assets, AlsControlSchemeConfig::default());
     vertical_crush.transform = Transform::from_xyz(0.0, ALS_CHARACTER_CAPSULE_HALF_HEIGHT, -16.0);
     commands.spawn((vertical_crush, VerticalCrushPassenger));
 

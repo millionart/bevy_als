@@ -71,14 +71,14 @@ fn setup(
     let reverse = spawn_character(
         &mut commands,
         params_assets.add(AlsMovementParams::default()),
-        config_assets.add(AlsControlSchemeConfig::default()),
+        &mut config_assets,
         Vec3::new(-3.0, 0.92, 3.0),
         Vec2::NEG_Y,
     );
     let slide = spawn_character(
         &mut commands,
         params_assets.add(AlsMovementParams::default()),
-        config_assets.add(AlsControlSchemeConfig::default()),
+        &mut config_assets,
         Vec3::new(0.0, 0.92, 3.0),
         Vec2::new(1.0, 1.0),
     );
@@ -88,11 +88,11 @@ fn setup(
 fn spawn_character(
     commands: &mut Commands,
     params: Handle<AlsMovementParams>,
-    config: Handle<AlsControlSchemeConfig>,
+    config_assets: &mut Assets<AlsControlSchemeConfig>,
     translation: Vec3,
     input: Vec2,
 ) -> Entity {
-    let mut bundle = AlsCharacterBundle::new(params, config);
+    let mut bundle = AlsCharacterBundle::new(params, config_assets, AlsControlSchemeConfig::default());
     bundle.transform = Transform::from_translation(translation)
         .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2));
     bundle.gait = Gait::Running;

@@ -60,8 +60,7 @@ fn setup(
     let characters = std::array::from_fn(|index| {
         let (scale, custom_gravity) = SAMPLES[index];
         let params = params_assets.add(AlsMovementParams::default());
-        let config = config_assets.add(AlsControlSchemeConfig::default());
-        let mut bundle = AlsCharacterBundle::new(params, config);
+        let mut bundle = AlsCharacterBundle::new(params, &mut config_assets, AlsControlSchemeConfig::default());
         bundle.transform = Transform::from_xyz(index as f32 * 8.0, 12.0, 0.0);
         let mut entity = commands.spawn((bundle, GravityScale(scale)));
         if let Some(custom_gravity) = custom_gravity {

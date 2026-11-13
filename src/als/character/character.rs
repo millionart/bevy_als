@@ -451,7 +451,7 @@ pub struct AlsCharacterBundle {
     pub locked_axes: LockedAxes,
     pub speculative_margin: SpeculativeCcd,
     pub controller: TnuaController<AlsControlScheme>,
-    pub tnua_config: TnuaConfig<AlsControlScheme>,
+    tnua_config: TnuaConfig<AlsControlScheme>,
     pub params: AlsMovementParamsHandle,
     pub input_command: AlsInputCommand,
     pub locomotion_state: LocomotionState,
@@ -472,7 +472,8 @@ pub struct AlsCharacterBundle {
 impl AlsCharacterBundle {
     pub fn new(
         params: Handle<AlsMovementParams>,
-        tnua_config: Handle<AlsControlSchemeConfig>,
+        configs: &mut Assets<AlsControlSchemeConfig>,
+        config: AlsControlSchemeConfig,
     ) -> Self {
         Self {
             character: AlsCharacter,
@@ -486,7 +487,7 @@ impl AlsCharacterBundle {
             locked_axes: LockedAxes::ROTATION_LOCKED,
             speculative_margin: SpeculativeCcd::MAX,
             controller: TnuaController::default(),
-            tnua_config: TnuaConfig(tnua_config),
+            tnua_config: TnuaConfig(configs.add(config)),
             params: AlsMovementParamsHandle(params),
             input_command: AlsInputCommand::default(),
             locomotion_state: LocomotionState::Grounded,
@@ -552,7 +553,8 @@ mod tests {
     fn bundle_initial_state_matches_b_als_character() {
         let bundle = AlsCharacterBundle::new(
             Handle::<AlsMovementParams>::default(),
-            Handle::<AlsControlSchemeConfig>::default(),
+            &mut Assets::default(),
+            AlsControlSchemeConfig::default(),
         );
         assert_eq!(bundle.rotation_mode, RotationMode::ViewDirection);
         assert_eq!(bundle.gait, Gait::Running);

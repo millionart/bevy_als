@@ -88,8 +88,8 @@ fn movement_actor_with_world_bounds(capped: bool, world_bounds: bool) -> (App, E
     app.finish();
     let settings = AlsMovementParams::default();
     let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(settings.clone());
-    let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&settings));
-    let mut bundle = AlsCharacterBundle::new(params, config);
+    let config = initial_als_control_scheme_config(&settings);
+    let mut bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
     bundle.transform = Transform::from_xyz(0.0, 0.924, 0.0);
     let actor = app.world_mut().spawn(bundle).id();
     (app, actor, settings)

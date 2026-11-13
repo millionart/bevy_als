@@ -2574,10 +2574,10 @@ pub(crate) mod tests {
                 body
             };
             let params = AlsMovementParams::default();
-            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(crate::als::motion::initial_als_control_scheme_config(&params));
+            let config = crate::als::motion::initial_als_control_scheme_config(&params);
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params);
             let start = Vec3::new(0.0, 2.424, 1.5);
-            let mut actor_bundle = AlsCharacterBundle::new(params, config);
+            let mut actor_bundle = AlsCharacterBundle::new(params, &mut app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>(), config);
             actor_bundle.transform.translation = start;
             let actor = app.world_mut().spawn(actor_bundle).id();
             let mut mantle = AlsMantleState::default();
