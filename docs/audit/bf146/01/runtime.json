@@ -1,0 +1,23 @@
+{
+  "target_directory": "target_game",
+  "profile": "play",
+  "binary_sha256": "a492d273590f3b8254b0162b247ffa5cee2719f91646b5d813b3ba4ed6c9d4ec",
+  "cases": {
+    "startup": {
+      "covered": 0,
+      "required": 0,
+      "motion_windows": 0,
+      "validation": "docs/audit/bf146/01/startup/validation.json",
+      "runner": "docs/audit/bf146/01/startup/runner.json",
+      "report": "docs/audit/bf146/01/startup/report.json.gz"
+    },
+    "foot_ik": {
+      "covered": 22,
+      "required": 22,
+      "motion_windows": 12,
+      "validation": "docs/audit/bf146/01/foot_ik/validation.json",
+      "runner": "docs/audit/bf146/01/foot_ik/runner.json",
+      "report": "docs/audit/bf146/01/foot_ik/report.json.gz"
+    }
+  }
+}

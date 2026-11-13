@@ -12,7 +12,7 @@ use bevy_animation_graph::core::pose::Pose;
 use bevy_gameplay_tag::GameplayTag;
 
 use crate::animation_events::AlsNotifyLocomotionAction;
-use crate::character_assembly::AlsCharacterAvatar;
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, animated_player_for_character};
 use crate::gait_layer::AlsGaitLayerSet;
 use crate::locomotion_layer::AlsLocomotionLayerSet;
 use crate::standing_layer::AlsStandingLayerSet;
@@ -128,6 +128,7 @@ fn root_graph_writer(
     mut characters: Query<
         (
             Entity,
+            &AlsCharacterAssembly,
             &OverlayState,
             &Stance,
             &Gait,
@@ -140,11 +141,12 @@ fn root_graph_writer(
         ),
         With<AlsCharacter>,
     >,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
 ) {
     for (
         entity,
+        assembly,
         overlay,
         stance,
         gait,
@@ -156,63 +158,117 @@ fn root_graph_writer(
         mut grounded_entry,
     ) in &mut characters
     {
-        for (parent, instance) in &avatars {
-            if parent.parent() != entity {
-                continue;
-            }
-            let Ok((mut player, initial)) = players.get_mut(instance.player_entity()) else {
-                continue;
-            };
-            source_inputs.get_mut(instance.player_entity()).unwrap().set_linked_graph_input(OVERLAY_LAYER_BINDING,
-                libraries.get(&library_handle.0).and_then(|library| library.0.get(overlay))
-                    .filter(|definition| assets.is_loaded_with_dependencies(definition.graph_handle.id())).map(|definition| crate::extensions::source_gameplay_tag_input::LinkedGraphInput {
-                    graph: definition.graph_handle.clone(), blend_in: definition.blend_in,
-                    blend_out: definition.blend_out,
-                }),);
-            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("gait", gait_tag(*gait));
-            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("overlay_mode", overlay.tag());
-            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("locomotion_mode",
-                locomotion_mode_tag(*locomotion),);
-            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("stance", stance_tag(*stance));
-            let next_action = locomotion_action_tag(notify_action, mantle, roll);
-            let mut inputs = source_inputs.get_mut(instance.player_entity()).unwrap();
-            let previous_action = inputs.gameplay_tag_input("locomotion_action").unwrap_or_else(|| GameplayTag::new(""));
-            if !previous_action.as_str().eq_ignore_ascii_case(next_action.as_str()) && let Some(entry) = grounded_entry.as_deref_mut() {
-                *entry = crate::grounded_layer::AlsGroundedEntryMode::None;
-            }
-            inputs.set_gameplay_tag_input("locomotion_action", next_action);
-            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("rotation_mode",
-                rotation_mode_tag(*rotation_mode),);
-            for (key, value) in [
-                ("als_animation_delta_seconds", if initial.is_some() { 0.0 } else { time.delta_secs() }),
-            ] {
-                player.set_global_input_data(key, value);
-            }
-            for key in [
-                "als_root_transition_slot_weight",
-                "als_root_post_locomotion_slot_weight",
-                "als_root_transition_slot_layer_weight",
-                "als_root_post_locomotion_slot_layer_weight",
-            ] {
-                set_missing_f32(&mut player, key);
-            }
-            player.set_global_input_data("als_root_defaults_enabled", true);
-            let skeleton = player.skeleton().clone();
-            let elapsed = player.elapsed();
-            player.set_global_input_data(
-                "als_root_reference_pose",
-                DataValue::Pose(Pose {
-                    skeleton,
-                    timestamp: elapsed,
-                    ..default()
-                }),
-            );
+        let Some(player_entity) = animated_player_for_character(entity, Some(assembly), &avatars) else { continue; };
+        let Ok((mut player, initial)) = players.get_mut(player_entity) else { continue; };
+        let Ok(mut inputs) = source_inputs.get_mut(player_entity) else { continue; };
+        inputs.set_linked_graph_input(OVERLAY_LAYER_BINDING,
+            libraries.get(&library_handle.0).and_then(|library| library.0.get(overlay))
+                .filter(|definition| assets.is_loaded_with_dependencies(definition.graph_handle.id())).map(|definition| crate::extensions::source_gameplay_tag_input::LinkedGraphInput {
+                graph: definition.graph_handle.clone(), blend_in: definition.blend_in,
+                blend_out: definition.blend_out,
+            }),);
+        inputs.set_gameplay_tag_input("gait", gait_tag(*gait));
+        inputs.set_gameplay_tag_input("overlay_mode", overlay.tag());
+        inputs.set_gameplay_tag_input("locomotion_mode",
+            locomotion_mode_tag(*locomotion),);
+        inputs.set_gameplay_tag_input("stance", stance_tag(*stance));
+        let next_action = locomotion_action_tag(notify_action, mantle, roll);
+        let previous_action = inputs.gameplay_tag_input("locomotion_action").unwrap_or_else(|| GameplayTag::new(""));
+        if !previous_action.as_str().eq_ignore_ascii_case(next_action.as_str()) && let Some(entry) = grounded_entry.as_deref_mut() {
+            *entry = crate::grounded_layer::AlsGroundedEntryMode::None;
         }
+        inputs.set_gameplay_tag_input("locomotion_action", next_action);
+        inputs.set_gameplay_tag_input("rotation_mode",
+            rotation_mode_tag(*rotation_mode),);
+        for (key, value) in [
+            ("als_animation_delta_seconds", if initial.is_some() { 0.0 } else { time.delta_secs() }),
+        ] {
+            player.set_global_input_data(key, value);
+        }
+        for key in [
+            "als_root_transition_slot_weight",
+            "als_root_post_locomotion_slot_weight",
+            "als_root_transition_slot_layer_weight",
+            "als_root_post_locomotion_slot_layer_weight",
+        ] {
+            set_missing_f32(&mut player, key);
+        }
+        player.set_global_input_data("als_root_defaults_enabled", true);
+        let skeleton = player.skeleton().clone();
+        let elapsed = player.elapsed();
+        player.set_global_input_data(
+            "als_root_reference_pose",
+            DataValue::Pose(Pose {
+                skeleton,
+                timestamp: elapsed,
+                ..default()
+            }),
+        );
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn root_and_provider_inputs_follow_the_selected_avatar() {
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+        use crate::als::{character::AlsMovementParamsHandle, params::AlsMovementParams};
+        use crate::extensions::SourceAnimationInputs;
+        use crate::grounded_layer::AlsGroundedEntryMode;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            bevy_animation_graph::AnimationGraphPlugin::default(),
+            crate::extensions::SourceAnimationInputsPlugin,
+            crate::ab_als_provider::AbAlsProviderPlugin))
+            .init_asset::<AlsMovementParams>()
+            .init_asset::<crate::overlay_object::OverlayLibrary>()
+            .insert_resource(crate::overlay_object::OverlayLibraryHandle(default()))
+            .add_systems(PostUpdate, root_graph_writer.in_set(AlsRootGraphSet));
+        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {
+            schedule.remove_systems_in_set(AnimationGraphSet::Final, world,
+                bevy::ecs::schedule::ScheduleCleanupPolicy::RemoveSystemsOnly).unwrap();
+        });
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
+            AlsMovementParamsHandle(params), Gait::Running, Stance::Standing, RotationMode::ViewDirection,
+            LocomotionState::Grounded, OverlayState::default(), crate::actual_motion::AlsActualMotion::default(),
+            AlsNotifyLocomotionAction::Rolling, AlsGroundedEntryMode::FromRoll)).id();
+        let avatars: [(Entity, Entity); 2] = std::array::from_fn(|_| {
+            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, AnimatedSceneHandle::default(), ChildOf(character))).id();
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(default()), ChildOf(avatar))).id();
+            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            app.world_mut().flush();
+            assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+            (avatar, player)
+        });
+
+        let mut observations = Vec::new();
+        for selected in [0, 1] {
+            let (avatar, player) = avatars[selected];
+            let (_, old_player) = avatars[1 - selected];
+            app.world_mut().entity_mut(character).insert((AlsCharacterAssembly { avatar, camera: None }, AlsGroundedEntryMode::FromRoll));
+            for (_, player) in avatars {
+                *app.world_mut().get_mut::<SourceAnimationInputs>(player).unwrap() = default();
+            }
+            app.world_mut().get_mut::<SourceAnimationInputs>(player).unwrap()
+                .set_gameplay_tag_input("locomotion_action", GameplayTag::new("Als.LocomotionAction.Rolling"));
+            app.world_mut().run_schedule(PostUpdate);
+            let world = app.world();
+            let source = world.get::<SourceAnimationInputs>(player).unwrap();
+            let old_source = world.get::<SourceAnimationInputs>(old_player).unwrap();
+            observations.push((
+                world.get::<AlsGroundedEntryMode>(character) == Some(&AlsGroundedEntryMode::FromRoll),
+                source.gameplay_tag_input("grounded_entry_mode") == Some(AlsGroundedEntryMode::FromRoll.tag()),
+                old_source.gameplay_tag_input("locomotion_action").is_none(),
+                old_source.gameplay_tag_input("grounded_entry_mode").is_none(),
+            ));
+        }
+        assert_eq!(observations, [(true, true, true, true); 2]);
+    }
+
     #[test]
     fn browser_review_tag_action_case_change_preserves_grounded_entry() {
         use bevy::ecs::system::RunSystemOnce;

@@ -1,0 +1,51 @@
+{
+  "test": "ab_als_root::tests::root_and_provider_inputs_follow_the_selected_avatar",
+  "invocation": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--profile",
+    "play",
+    "--jobs",
+    "2",
+    "--lib",
+    "root_and_provider_inputs_follow_the_selected_avatar",
+    "--",
+    "--nocapture"
+  ],
+  "target_directory": "target_game",
+  "removed": "selected avatar lookup in the root and provider systems",
+  "actual": [
+    [
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      false
+    ]
+  ],
+  "restored_source_hashes": {
+    "ab_als_root.rs": "07a04283219ed6a7b05d0fe959496d7c6431b3244de7d32a650456d2a84429c4",
+    "ab_als_provider.rs": "4718596575bf9c7f705aae73688051646745f2382db32b29d7dd8cb1019580a8"
+  },
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": false,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T14:22:01.6826470Z",
+    "last_progress_at_utc": "2026-11-13T14:25:41.3416220Z",
+    "last_progress_source": "ablation-ownership.stderr",
+    "finished_at_utc": "2026-11-13T14:25:41.3591960Z",
+    "elapsed_seconds": 219.677,
+    "no_progress_seconds": 0.018,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 720,
+    "process_exit_code": 101
+  }
+}

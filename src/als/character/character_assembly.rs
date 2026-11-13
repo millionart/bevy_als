@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
 
 use crate::als_camera::{
     AlsCameraFieldOfView,
@@ -47,6 +47,15 @@ pub struct AlsPlayerCharacter;
 pub struct AlsCharacterAssembly {
     pub avatar: Entity,
     pub camera: Option<Entity>,
+}
+
+pub(crate) fn animated_player_for_character(
+    character: Entity,
+    assembly: Option<&AlsCharacterAssembly>,
+    avatars: &Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+) -> Option<Entity> {
+    let (avatar, instance) = avatars.get(assembly?.avatar).ok()?;
+    (avatar.character == character).then_some(instance.player_entity())
 }
 
 pub fn avatar_transform() -> Transform {

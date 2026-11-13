@@ -1,0 +1,52 @@
+{
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": true,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T14:25:56.9412830Z",
+    "last_progress_at_utc": "2026-11-13T14:29:54.8620571Z",
+    "last_progress_source": "restored-ownership.stdout",
+    "finished_at_utc": "2026-11-13T14:29:55.0531640Z",
+    "elapsed_seconds": 238.112,
+    "no_progress_seconds": 0.191,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 720,
+    "process_exit_code": 0
+  },
+  "tests": [
+    [
+      "character_runtime::tests::foot_bones_follow_selected_avatar_when_old_bones_remain_alive",
+      "ok"
+    ],
+    [
+      "ragdoll_link::tests::ragdoll_player_follows_current_assembly_avatar_with_old_player_alive",
+      "ok"
+    ],
+    [
+      "character_runtime::tests::animation_phase_follows_rebuilt_scene_on_retained_avatar",
+      "ok"
+    ],
+    [
+      "ab_als_provider::tests::animation_movement_base_input_reads_the_actual_physics_owner",
+      "ok"
+    ],
+    [
+      "ab_als_provider::tests::animation_input_projection_uses_source_state_through_the_actual_writers",
+      "ok"
+    ],
+    [
+      "ab_als_root::tests::root_and_provider_inputs_follow_the_selected_avatar",
+      "ok"
+    ],
+    [
+      "ab_als_root::tests::browser_review_tag_action_case_change_preserves_grounded_entry",
+      "ok"
+    ],
+    [
+      "ab_als_provider::tests::grounded_entry_tags_reach_the_authored_roll_entry_condition",
+      "ok"
+    ]
+  ],
+  "target_directory": "target_game",
+  "profile": "play"
+}

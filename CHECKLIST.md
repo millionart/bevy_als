@@ -31,6 +31,20 @@
   - 12:47中断复盘：commit/目录对象已完整取得；源码计划204663个文件、182468个唯一blob，首批35个分组完成记录中34个成功、1个被中断终止，尚未checkout，不能声称源码就绪。重新检查实际Git对象后只补缺失项。首轮开始12:14、预估12:44、复盘12:47，偏差+3分钟；本轮开始12:47、预估13:32（上一轮窗口×1.5），依据为每批500对象约50–70秒、12路并发及已有对象，不重做失败整包下载。
   - 完成/估时复盘：204663个源码相关文件已检出，HEAD与tree均匹配指定基线，工作区干净；Character、CMC、SkeletalMeshComponent、PluginManager四个实现文件的实际字节哈希逐项等于Git blob。尾部延误来自单个约37MB的Commit.gitdeps.xml：按对象数量均分没有覆盖大小差异，拆为小对象和独立大对象后，进展同时观察真实pack写入，避免把大对象无控制台输出误判为停滞。13:50:15完成checkout，13:52:22完成身份检查和本地env更新；源码与安装版运行引擎已分开。未运行Setup或编译UE引擎，稀疏范围为引擎/插件源码、Shader、Build与Config；证据`tools/tmp/mac_win/engine-identity.json`。后续同类估时应以缺失字节/最大对象与实测吞吐为依据，不只数对象。
 
+## BF146 — ALS 核心 ECS 重构
+
+- [x] BF134.02B1 有限复开 — 角色装配与主动画输入归属。`AB_Als` 根输入和 Provider 只写当前 `AlsCharacterAssembly.avatar` 对应播放器，复用角色/Avatar/播放器的现有查找规则。Gate：fresh 主图、角色与 `NativeUpdateAnimation`，两种选中顺序的双 Avatar 反例及消融恢复，同 `target_game` 的公开 startup、foot_ik 功能验收。开始：2026-11-13 22:02 +08:00；预估结束：2026-11-13 22:45 +08:00；实际结束：2026-11-13 22:35 +08:00；偏差：−10 分钟；结果：功能 Gate 通过，未拆分。依据：原 BF134.02B1 的 25 分钟源/根图/通知闭包、BF124.A13 的旧 Avatar 控制及 BF134.02B4b 的定向构建/公开 Gate 记录。本项边界为主输入及直接查找调用。
+  - 有限复开依据：前次双 Avatar 反例中，未选中的播放器被根系统写入，且把角色 `FromRoll` 清空；本地 `AlsCharacter.cpp::PostInitializeComponents` 选择当前 Mesh 的 AnimInstance，`AlsAnimationInstance.cpp::NativeUpdateAnimation` 比较该实例自己的动作历史。原 BF134.02B1 校验动作标签切换与派发，后续大小写复验也只有单播放器，均未区分两个存活实例。脚 IK 与 Mantle 的历史选择 Gate 保留原范围。下一步读取角色/根图资产，并在当前版本保留失败反例。
+  - 22:17 source/static：fresh 原生角色、主图、Grounded 分别读取 20/8/120 图。当前 Mesh `CharacterMesh0` 指向 `AB_Als_C`。根图与 Roll 入口 21 个已映射节点的顺序/标题/位置、19 条节点间连线及编辑器检查通过。Bevy 0.20.1/同 `target_game` 上，保留两套 Avatar 并轮流选中时，原根系统与 Provider 的四个断言在两种顺序均失败。旧资产边界工具另报基线 48 个已跟踪 `ALSRuntime` 文件及 `.DS_Store`，只比较同一批报告且保留其失败范围。当前实现已移植现有播放器选择函数，下一步 focused/消融与公开运行。
+  - 22:30 runtime 前：7 项 focused 首轮通过。撤去两个系统的选中 Avatar 查找后，两种顺序再次全红；两文件字节恢复并在同 `target_game/play` 重编后 8 项全过，包含旧 Avatar 留存的布娃娃查找。视觉 validator 54 项及 watchdog self-test 通过。下一步同入口 startup 与 foot_ik，截图 0、功能验收。
+  - 22:33 startup 后 / foot_ik 前：真实入口 startup 通过，报告无功能错误，帧时间 p95 仍归暂停的性能验收。同一启动器继续运行 foot_ik，覆盖保留旧 Avatar、脚骨和相机根重绑。
+  - 22:35 完成：同二进制 `foot_ik` 功能 22/22、12 个姿态窗口，保留旧 Avatar 时脚骨和相机根重绑通过。两个公开报告无图错误、姿态异常或 watchdog 终止。原生、反例、消融、恢复和公开报告见 [BF134.02B1 复验证据](docs/audit/bf146/01/README.md)。
+- [ ] BF146.02 — Tnua 每角色可变配置。依赖 BF134.02B1。Gate：共享同一静态运动参数的两角色独占可变配置，缩放/重力分支和正常装配回归。待开始时登记估时。
+- [ ] BF146.03 — 地面探针与空中状态调度。依赖 .02。Gate：探针同帧配置消费、物理前采样和落地状态实际消费边界。待开始时登记估时。
+- [ ] BF146.04 — 状态请求变更检测。依赖 .03。Gate：空请求、拒绝、排队、同值和实际变化的 change tick 及通知。待开始时登记估时。
+- [ ] BF146.05 — 动作触发的移动模式提交。依赖 .04。Gate：跳跃、攀爬和布娃娃各阶段模式与通知顺序。待开始时登记估时。
+- [ ] BF146.06 — CMC 当帧移动结果。依赖 .05。Gate：按实际生命周期组织碰撞与速度结果，核对根运动、移动基座和动画快照消费。待开始时登记估时。
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。

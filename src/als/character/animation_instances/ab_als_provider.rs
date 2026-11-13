@@ -55,7 +55,7 @@ use crate::{
     ab_als_root::AlsRootGraphSet,
     actual_motion::AlsActualMotion,
     animation_context_projection::AlsRootAnimationContext,
-    character_assembly::AlsCharacterAvatar,
+    character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, animated_player_for_character},
     direction_layer::motion_view_space_direction_angle,
     grounded_layer::AlsGroundedEntryMode,
     ragdolling_layer::AlsRagdollingLayerSet,
@@ -213,6 +213,7 @@ fn ab_als_input_writer(
     characters: Query<
         (
             Entity,
+            &AlsCharacterAssembly,
             &Gait,
             &Stance,
             &RotationMode,
@@ -228,7 +229,7 @@ fn ab_als_input_writer(
         ),
         With<AlsCharacter>,
     >,
-    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>, Option<&crate::extensions::post_physics_animation::InitialAnimation>)>,
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
@@ -237,6 +238,7 @@ fn ab_als_input_writer(
 ) {
     for (
         character,
+        assembly,
         gait,
         stance,
         rotation_mode,
@@ -257,206 +259,200 @@ fn ab_als_input_writer(
         let attach_parent = parents.get(character).ok().map(ChildOf::parent);
         let cursor = attachment_state.entry(character).or_insert((attach_parent, 0));
         let attachment_epoch = update_attachment_epoch(cursor, attach_parent) as f32;
-        for (avatar, parent, instance) in &avatars {
-            if parent.parent() != character {
-                continue;
-            }
-            let Ok(avatar_transform) = transforms.compute_global_transform(avatar) else { continue; };
-            let Ok((mut player, context, tick, initial)) = players.get_mut(instance.player_entity()) else {
-                continue;
-            };
-            if let Some(skeleton) = skeletons.get(player.skeleton()) {
-                write_animation_component_inputs(&mut player, skeleton);
-            }
-            player.set_global_input_data("component.attach_parent_epoch", attachment_epoch);
-            player.set_global_input_data("component.attached_to_actor", attach_parent.is_some());
-            let velocity_yaw_angle_view_space =
-                source_velocity_yaw_angle_view_space(motion, view_yaw.0);
-            let (forward, backward, left, right) =
-                source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
-            let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
-                standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
-            let (animation_speed, has_input) = roll.and_then(|roll| roll.animation_locomotion)
-                .map_or((motion.horizontal_speed, motion.has_input), |locomotion| {
-                    (locomotion.speed, locomotion.has_input)
-                });
-            let delta_seconds = if initial.is_some() { 0.0 } else { time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0) };
-            let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
-            let previous_view = player
-                .get_global_input_data("view_state.rotation_yaw")
-                .and_then(|value| value.as_f32().ok())
-                .unwrap_or(view_degrees);
-            if delta_seconds > 1e-8 {
-                player.set_global_input_data(
-                    "view_state.yaw_speed",
-                    (view_degrees - previous_view).abs() / delta_seconds,
-                );
-            }
-            player.set_global_input_data("view_state.rotation_yaw", view_degrees);
-            player.set_global_input_data("movement_base.b_has_relative_rotation", motion.movement_base_snapshot.is_some());
-            player.set_global_input_data("movement_base.delta_yaw", if !virtual_time.is_paused() {
-                motion.movement_base_delta_yaw_degrees
-            } else { 0.0 });
-            let body_degrees =
-                crate::als::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();
-            player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -motion.input_yaw_degrees);
-            let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("locomotion_action")).is_some_and(|tag| tag.is_valid());
-            if !action_active {
-                player.set_global_input_data(
-                    "view_state.yaw_angle",
-                    crate::turn_layer::character_turn_angle_from_radians(view_yaw.0, body_degrees),
-                );
-            }
-            player.set_global_input_data(
-                "locomotion_state.scale_world_space",
-                avatar_transform.to_scale_rotation_translation().0.y,
-            );
-            let pending_update = player
-                .get_context_arena()
-                .is_none_or(|arena| arena.frame_index() == 0) || tick.is_some_and(|tick| tick.pending_update);
-            player.set_global_input_data("animation.pending_update", pending_update);
-            player.set_global_input_data(
-                "locomotion_state.velocity_world_space",
-                motion.world_velocity,
-            );
-            player.set_global_input_data(
-                "locomotion_state.rotation_quaternion_world_space",
-                if attach_parent.is_some() { transform.rotation() } else { local.rotation },
-            );
-            player.set_global_input_data(
-                "locomotion_state.acceleration_world_space",
-                if pending_update || delta_seconds <= 1e-8 {
-                    Vec3::ZERO
-                } else {
-                    motion.world_acceleration * (time.delta_secs() / delta_seconds)
-                },
-            );
-            player.set_global_input_data(
-                "locomotion_state.max_acceleration",
-                dynamics.map_or(params.acceleration.max_acceleration, |value| {
-                    value.0.acceleration
-                }),
-            );
-            player.set_global_input_data(
-                "locomotion_state.max_braking_deceleration",
-                if locomotion == Some(&LocomotionState::Custom) {
-                    0.0
-                } else {
-                    dynamics.map_or(params.acceleration.braking_deceleration, |value| value.0.braking_deceleration)
-                },
-            );
-            for (key, value) in [
-                (
-                    "rotate_in_place.allowed",
-                    *rotation_mode == RotationMode::Aiming || first_person.is_some(),
-                ),
-                (
-                    "rotate_in_place.first_person_threshold",
-                    first_person.is_some() && *rotation_mode != RotationMode::Aiming,
-                ),
-                (
-                    "turn_in_place.allowed",
-                    *rotation_mode == RotationMode::ViewDirection && first_person.is_none(),
-                ),
-                ("stance.crouching", *stance == Stance::Crouching),
-                (
-                    "transitions_state.b_transitions_allowed",
-                    context
-                        .and_then(|state| state.f32("AllowTransitions"))
-                        .unwrap_or(0.0)
-                        >= 1.0 - 1e-5,
-                ),
-            ] {
-                player.set_global_input_data(key, value);
-            }
-            for (side, foot) in [
-                ("left", feet.map(|state| &state.left)),
-                ("right", feet.map(|state| &state.right)),
-            ] {
-                player.set_global_input_data(
-                    format!("feet_state.{side}.lock_amount"),
-                    foot.map_or(0.0, |foot| foot.lock_amount),
-                );
-                player.set_global_input_data(
-                    format!("feet_state.{side}.target_location"),
-                    foot.map_or(Vec3::ZERO, |foot| foot.target_location.as_vec3()),
-                );
-                player.set_global_input_data(
-                    format!("feet_state.{side}.lock_location"),
-                    foot.map_or(Vec3::ZERO, |foot| foot.lock_location.as_vec3()),
-                );
-            }
-            let has_relative_location = movement_base.and_then(|base| base.entity).is_some_and(|entity| {
-                let owner = owners.get(entity).map_or(entity, |collider| collider.body);
-                bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static)
-            });
-            let pose_gait = context.and_then(|state| state.f32("PoseGait")).unwrap_or(0.0).clamp(0.0, 3.0);
-            let pose_grounded = context.and_then(|state| state.f32("PoseGrounded")).unwrap_or(0.0);
-            let (running, sprinting) = crate::standing_layer::unweighted_gait_amounts(pose_gait, pose_grounded);
-            let speed = animation_speed / avatar_transform.to_scale_rotation_translation().0.y;
-            let stride = crate::standing_source::standing_stride_amount(running, speed);
-            for (key, value) in [
-                ("standing_state.walk_run_blend_amount", if *gait == Gait::Walking { 0.0 } else { 1.0 }),
-                ("standing_state.stride_blend_amount", stride),
-                ("standing_state.sprint_block_amount", context.and_then(|state| state.f32("SprintBlock")).unwrap_or(0.0).clamp(0.0, 1.0)),
-                ("standing_state.play_rate", crate::standing_layer::standing_play_rate(params, speed, stride, running, sprinting)),
-            ] {
-                crate::extensions::source_instance::set_source_frame_input(&mut player, key, value);
-            }
-            player.set_global_input_data("als_standing_gait_is_sprinting", (*gait == Gait::Sprinting) as u8 as f32);
-            let hips_direction_lock = context
-                .and_then(|state| state.f32("HipsDirectionLock"))
-                .unwrap_or(0.0)
-                .clamp(-1.0, 1.0);
-            let mut source = source_inputs.get_mut(instance.player_entity()).unwrap();
-            source.set_gameplay_tag_input("grounded_entry_mode", grounded_entry_mode.copied().unwrap_or_default().tag());
-            source.set_foot_lock_distances_squared_cm(feet.map(|feet| [&feet.left, &feet.right].map(|foot|
-                crate::als::transitions::foot_lock_distance_squared_cm(foot.target_location, foot.lock_location))));
-            for (key, value) in [
-                ("animation.delta_seconds", delta_seconds),
-                (
-                    "grounded_state.rotation_yaw_offsets.forward_angle",
-                    yaw_forward,
-                ),
-                (
-                    "grounded_state.rotation_yaw_offsets.backward_angle",
-                    yaw_backward,
-                ),
-                ("grounded_state.rotation_yaw_offsets.left_angle", yaw_left),
-                ("grounded_state.rotation_yaw_offsets.right_angle", yaw_right),
-                (
-                    "grounded_state.hips_direction_lock_amount",
-                    hips_direction_lock,
-                ),
-                ("locomotion_state.speed", animation_speed),
-            ]
-            .into_iter()
-            .chain(source_pose_curve_inputs(context, feet))
-            .chain(source_crouching_movement_inputs(
-                animation_speed,
-                avatar_transform.to_scale_rotation_translation().0.y,
-                params.crouch.animated_crouch_speed,
-            )) {
-                player.set_global_input_data(key, value);
-            }
-            for (key, value) in [
-                ("grounded_state.movement_direction.b_forward", forward),
-                ("grounded_state.movement_direction.b_backward", backward),
-                ("grounded_state.movement_direction.b_left", left),
-                ("grounded_state.movement_direction.b_right", right),
-                ("locomotion_state.b_has_input", has_input),
-                (
-                    "movement_base.b_has_relative_location",
-                    has_relative_location,
-                ),
-            ]
-            .into_iter()
-            .chain(source_locomotion_flags(has_input, animation_speed))
-            {
-                player.set_global_input_data(key, value);
-            }
-            set_source_slot_defaults(&mut player);
+        let Some(player_entity) = animated_player_for_character(character, Some(assembly), &avatars) else { continue; };
+        let Ok(avatar_transform) = transforms.compute_global_transform(assembly.avatar) else { continue; };
+        let Ok((mut player, context, tick, initial)) = players.get_mut(player_entity) else { continue; };
+        let Ok(mut source) = source_inputs.get_mut(player_entity) else { continue; };
+        if let Some(skeleton) = skeletons.get(player.skeleton()) {
+            write_animation_component_inputs(&mut player, skeleton);
         }
+        player.set_global_input_data("component.attach_parent_epoch", attachment_epoch);
+        player.set_global_input_data("component.attached_to_actor", attach_parent.is_some());
+        let velocity_yaw_angle_view_space =
+            source_velocity_yaw_angle_view_space(motion, view_yaw.0);
+        let (forward, backward, left, right) =
+            source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
+        let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
+            standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
+        let (animation_speed, has_input) = roll.and_then(|roll| roll.animation_locomotion)
+            .map_or((motion.horizontal_speed, motion.has_input), |locomotion| {
+                (locomotion.speed, locomotion.has_input)
+            });
+        let delta_seconds = if initial.is_some() { 0.0 } else { time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0) };
+        let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
+        let previous_view = player
+            .get_global_input_data("view_state.rotation_yaw")
+            .and_then(|value| value.as_f32().ok())
+            .unwrap_or(view_degrees);
+        if delta_seconds > 1e-8 {
+            player.set_global_input_data(
+                "view_state.yaw_speed",
+                (view_degrees - previous_view).abs() / delta_seconds,
+            );
+        }
+        player.set_global_input_data("view_state.rotation_yaw", view_degrees);
+        player.set_global_input_data("movement_base.b_has_relative_rotation", motion.movement_base_snapshot.is_some());
+        player.set_global_input_data("movement_base.delta_yaw", if !virtual_time.is_paused() {
+            motion.movement_base_delta_yaw_degrees
+        } else { 0.0 });
+        let body_degrees =
+            crate::als::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();
+        player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -motion.input_yaw_degrees);
+        let action_active = source.gameplay_tag_input("locomotion_action").is_some_and(|tag| tag.is_valid());
+        if !action_active {
+            player.set_global_input_data(
+                "view_state.yaw_angle",
+                crate::turn_layer::character_turn_angle_from_radians(view_yaw.0, body_degrees),
+            );
+        }
+        player.set_global_input_data(
+            "locomotion_state.scale_world_space",
+            avatar_transform.to_scale_rotation_translation().0.y,
+        );
+        let pending_update = player
+            .get_context_arena()
+            .is_none_or(|arena| arena.frame_index() == 0) || tick.is_some_and(|tick| tick.pending_update);
+        player.set_global_input_data("animation.pending_update", pending_update);
+        player.set_global_input_data(
+            "locomotion_state.velocity_world_space",
+            motion.world_velocity,
+        );
+        player.set_global_input_data(
+            "locomotion_state.rotation_quaternion_world_space",
+            if attach_parent.is_some() { transform.rotation() } else { local.rotation },
+        );
+        player.set_global_input_data(
+            "locomotion_state.acceleration_world_space",
+            if pending_update || delta_seconds <= 1e-8 {
+                Vec3::ZERO
+            } else {
+                motion.world_acceleration * (time.delta_secs() / delta_seconds)
+            },
+        );
+        player.set_global_input_data(
+            "locomotion_state.max_acceleration",
+            dynamics.map_or(params.acceleration.max_acceleration, |value| {
+                value.0.acceleration
+            }),
+        );
+        player.set_global_input_data(
+            "locomotion_state.max_braking_deceleration",
+            if locomotion == Some(&LocomotionState::Custom) {
+                0.0
+            } else {
+                dynamics.map_or(params.acceleration.braking_deceleration, |value| value.0.braking_deceleration)
+            },
+        );
+        for (key, value) in [
+            (
+                "rotate_in_place.allowed",
+                *rotation_mode == RotationMode::Aiming || first_person.is_some(),
+            ),
+            (
+                "rotate_in_place.first_person_threshold",
+                first_person.is_some() && *rotation_mode != RotationMode::Aiming,
+            ),
+            (
+                "turn_in_place.allowed",
+                *rotation_mode == RotationMode::ViewDirection && first_person.is_none(),
+            ),
+            ("stance.crouching", *stance == Stance::Crouching),
+            (
+                "transitions_state.b_transitions_allowed",
+                context
+                    .and_then(|state| state.f32("AllowTransitions"))
+                    .unwrap_or(0.0)
+                    >= 1.0 - 1e-5,
+            ),
+        ] {
+            player.set_global_input_data(key, value);
+        }
+        for (side, foot) in [
+            ("left", feet.map(|state| &state.left)),
+            ("right", feet.map(|state| &state.right)),
+        ] {
+            player.set_global_input_data(
+                format!("feet_state.{side}.lock_amount"),
+                foot.map_or(0.0, |foot| foot.lock_amount),
+            );
+            player.set_global_input_data(
+                format!("feet_state.{side}.target_location"),
+                foot.map_or(Vec3::ZERO, |foot| foot.target_location.as_vec3()),
+            );
+            player.set_global_input_data(
+                format!("feet_state.{side}.lock_location"),
+                foot.map_or(Vec3::ZERO, |foot| foot.lock_location.as_vec3()),
+            );
+        }
+        let has_relative_location = movement_base.and_then(|base| base.entity).is_some_and(|entity| {
+            let owner = owners.get(entity).map_or(entity, |collider| collider.body);
+            bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static)
+        });
+        let pose_gait = context.and_then(|state| state.f32("PoseGait")).unwrap_or(0.0).clamp(0.0, 3.0);
+        let pose_grounded = context.and_then(|state| state.f32("PoseGrounded")).unwrap_or(0.0);
+        let (running, sprinting) = crate::standing_layer::unweighted_gait_amounts(pose_gait, pose_grounded);
+        let speed = animation_speed / avatar_transform.to_scale_rotation_translation().0.y;
+        let stride = crate::standing_source::standing_stride_amount(running, speed);
+        for (key, value) in [
+            ("standing_state.walk_run_blend_amount", if *gait == Gait::Walking { 0.0 } else { 1.0 }),
+            ("standing_state.stride_blend_amount", stride),
+            ("standing_state.sprint_block_amount", context.and_then(|state| state.f32("SprintBlock")).unwrap_or(0.0).clamp(0.0, 1.0)),
+            ("standing_state.play_rate", crate::standing_layer::standing_play_rate(params, speed, stride, running, sprinting)),
+        ] {
+            crate::extensions::source_instance::set_source_frame_input(&mut player, key, value);
+        }
+        player.set_global_input_data("als_standing_gait_is_sprinting", (*gait == Gait::Sprinting) as u8 as f32);
+        let hips_direction_lock = context
+            .and_then(|state| state.f32("HipsDirectionLock"))
+            .unwrap_or(0.0)
+            .clamp(-1.0, 1.0);
+        source.set_gameplay_tag_input("grounded_entry_mode", grounded_entry_mode.copied().unwrap_or_default().tag());
+        source.set_foot_lock_distances_squared_cm(feet.map(|feet| [&feet.left, &feet.right].map(|foot|
+            crate::als::transitions::foot_lock_distance_squared_cm(foot.target_location, foot.lock_location))));
+        for (key, value) in [
+            ("animation.delta_seconds", delta_seconds),
+            (
+                "grounded_state.rotation_yaw_offsets.forward_angle",
+                yaw_forward,
+            ),
+            (
+                "grounded_state.rotation_yaw_offsets.backward_angle",
+                yaw_backward,
+            ),
+            ("grounded_state.rotation_yaw_offsets.left_angle", yaw_left),
+            ("grounded_state.rotation_yaw_offsets.right_angle", yaw_right),
+            (
+                "grounded_state.hips_direction_lock_amount",
+                hips_direction_lock,
+            ),
+            ("locomotion_state.speed", animation_speed),
+        ]
+        .into_iter()
+        .chain(source_pose_curve_inputs(context, feet))
+        .chain(source_crouching_movement_inputs(
+            animation_speed,
+            avatar_transform.to_scale_rotation_translation().0.y,
+            params.crouch.animated_crouch_speed,
+        )) {
+            player.set_global_input_data(key, value);
+        }
+        for (key, value) in [
+            ("grounded_state.movement_direction.b_forward", forward),
+            ("grounded_state.movement_direction.b_backward", backward),
+            ("grounded_state.movement_direction.b_left", left),
+            ("grounded_state.movement_direction.b_right", right),
+            ("locomotion_state.b_has_input", has_input),
+            (
+                "movement_base.b_has_relative_location",
+                has_relative_location,
+            ),
+        ]
+        .into_iter()
+        .chain(source_locomotion_flags(has_input, animation_speed))
+        {
+            player.set_global_input_data(key, value);
+        }
+        set_source_slot_defaults(&mut player);
     }
     attachment_state.retain(|entity, _| characters.contains(*entity));
 }
@@ -772,6 +768,7 @@ mod tests {
             Transform::IDENTITY, AnimatedSceneHandle::default(),
             crate::stance_layer::AlsStanceBlend::with_weight(0.9),
             crate::gait_layer::AlsGaitBlend { weights: crate::als::gait::GaitWeights::from_gait_amount(3.0) })).id();
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
         let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()),
             Name::new("root"), Transform::IDENTITY, ChildOf(avatar))).id();
         app.world_mut().spawn((Name::new("bone"), Transform::IDENTITY, ChildOf(player)));
@@ -864,6 +861,7 @@ mod tests {
             AlsMovementParamsHandle(params))).id();
         let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, ChildOf(character),
             Transform::IDENTITY, AnimatedSceneHandle::default())).id();
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
         let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar))).id();
         app.world_mut().trigger(WorldInstanceReady { entity:avatar,
             instance_id:WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });

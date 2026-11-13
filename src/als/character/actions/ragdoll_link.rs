@@ -44,7 +44,7 @@ use bevy_animation_graph::core::ragdoll::{
 use bevy_animation_graph::core::skeleton::Skeleton;
 use bevy_tnua::TnuaToggle;
 
-use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, animated_player_for_character};
 
 const PELVIS_LABEL: &str = "pelvis";
 pub const RAGDOLL_REFERENCE_SPEED_METERS_PER_SECOND: f32 = 10.0;
@@ -368,15 +368,6 @@ impl AlsRagdollStartEligibility<'_, '_> {
         ["pelvis", "spine_03"].into_iter().all(|label|
             find_body_by_label(spawned, &self.labels, label).is_some_and(|body| self.bodies.contains(body)))
     }
-}
-
-pub(crate) fn animated_player_for_character(
-    character: Entity,
-    assembly: Option<&AlsCharacterAssembly>,
-    avatars: &Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-) -> Option<Entity> {
-    let (avatar, instance) = avatars.get(assembly?.avatar).ok()?;
-    (avatar.character == character).then_some(instance.player_entity())
 }
 
 fn refresh_player_subtree_globals(

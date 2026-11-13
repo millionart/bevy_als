@@ -4442,7 +4442,7 @@ pub(crate) fn capsule_reshape_system(
         let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue; };
         let mut excluded = vec![entity];
         if target == Stance::Standing {
-            if let Some(ragdoll) = crate::ragdoll_link::animated_player_for_character(entity, assembly, &avatars)
+            if let Some(ragdoll) = crate::character_assembly::animated_player_for_character(entity, assembly, &avatars)
                 .and_then(|player| players.get(player).ok())
                 .and_then(|player| player.get_spawned_ragdoll()) {
                 excluded.extend(ragdoll.bodies.values().copied());
