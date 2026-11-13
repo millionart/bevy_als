@@ -1,0 +1,30 @@
+{
+  "character.native.json.gz": {
+    "bytes": 9919026,
+    "sha256": "8de3cb77cca952006e6f5e35401c5f8e8cbe369161ac39fce040b42a23e1682d"
+  },
+  "character.reader.report.json": {
+    "bytes": 440,
+    "sha256": "c32379fdb4143319d2068801641be6f891eccf37a52cfcbbef25fa8438bfccc9"
+  },
+  "before.stdout.log.gz": {
+    "bytes": 685,
+    "sha256": "ced4c867061f79c11cd0a42c56ab4ac61a6f3aff17e226dbec2ee6bb1459f257"
+  },
+  "before.stderr.log.gz": {
+    "bytes": 30151,
+    "sha256": "dfd374abdeacaa283491115b1e7f14618adac2adbb90b1817b0a12f209fb0d35"
+  },
+  "before.watchdog.json": {
+    "bytes": 285,
+    "sha256": "ec052c534b0924c68c95fe7f6651673ff00cdc84dcb283eb28a58f111a5964c3"
+  },
+  "restored.stdout.log.gz": {
+    "bytes": 600,
+    "sha256": "8e6e6e7973cc1a40a3b7d75740a8723b59d1d4101b0032741f3ccc89497016e0"
+  },
+  "restored.watchdog.json": {
+    "bytes": 285,
+    "sha256": "c80fcafaca7a6776b3ebc4fd8f31d8c75f3da4b56cc11d69e72a18cc06d3b166"
+  }
+}

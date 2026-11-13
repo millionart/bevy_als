@@ -8789,17 +8789,20 @@ mod tests {
                         .with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::splat(1.5));
                     let local = if parented { GlobalTransform::from(start).reparented_to(&GlobalTransform::from(parent_transform)) }
                         else { start };
+                    let parent = parented.then(|| app.world_mut().spawn(
+                        (parent_transform, GlobalTransform::from(parent_transform))).id());
                     let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
-                        Collider::capsule(0.3, 1.2), Position(start.translation), Rotation(start.rotation), local,
+                        Position(start.translation), Rotation(start.rotation), local,
                         crate::als::dynamics::AlsMovementBase { entity: Some(base), location: base_start,
                             rotation: Quat::IDENTITY, has_relative_rotation: false },
                         avian3d::prelude::CustomPositionIntegration,
                         crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
-                    let parent = if parented {
-                        let parent = app.world_mut().spawn((parent_transform, GlobalTransform::from(parent_transform))).id();
-                        app.world_mut().entity_mut(actor).insert(ChildOf(parent));
-                        Some(parent)
-                    } else { None };
+                    if let Some(parent) = parent { app.world_mut().entity_mut(actor).insert(ChildOf(parent)); }
+                    app.world_mut().entity_mut(actor).insert(Collider::capsule(0.3, 1.2));
+                    let before = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+                        helper.compute_global_transform(actor).unwrap()
+                    }).unwrap();
+                    assert!(before.translation().abs_diff_eq(start.translation, 1e-5));
                     app.world_mut().run_system_once((|| MovementBaseFollowPhase::AfterPhysics).pipe(follow_movement_base_system)).unwrap();
                     let offset = Vec3::Y * 0.9;
                     let expected = if simulated {
@@ -8811,7 +8814,9 @@ mod tests {
                     }).unwrap();
                     assert!(actual.abs_diff_eq(expected, 1e-5),
                         "parented={parented} dilation={dilation} simulated={simulated} actual={actual:?} expected={expected:?}");
-                    assert!(world.translation().abs_diff_eq(expected, 1e-5));
+                    assert!(world.translation().abs_diff_eq(expected, 1e-5),
+                        "parented={parented} dilation={dilation} simulated={simulated} base={base_transform:?} local={:?} world={world:?} expected={expected:?}",
+                        app.world().get::<Transform>(actor));
                     assert!(world.rotation().angle_between(start.rotation) < 1e-4);
                     assert_eq!(app.world().get::<Rotation>(actor).unwrap().0, start.rotation);
                     app.world_mut().despawn(actor);

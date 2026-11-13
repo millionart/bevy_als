@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 186.903,
+  "exit_reason": "process_failed",
+  "last_progress": "stderr.log",
+  "no_progress_limit_seconds": 240,
+  "no_progress_seconds": 0.0,
+  "process_exit_code": 101,
+  "source": "u07-action-fixtures-round29",
+  "success": false,
+  "timeout_seconds": 3600
+}
