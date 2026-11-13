@@ -1,0 +1,8 @@
+{
+  "bytes": 67298799,
+  "sha256": "b9d0025fcc3338fa4bbd58c28f51597190df5b5a09881908977e30fbbde7a6d0",
+  "frames": 88,
+  "start_height_cm": 150,
+  "initial_mode": "MOVE_Falling",
+  "native_curve_frame_count": 88
+}
