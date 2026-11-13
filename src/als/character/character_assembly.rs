@@ -260,11 +260,23 @@ fn spawn_als_character_internal(
     let mut bundle = AlsCharacterBundle::new(params, tnua_config_handle);
     bundle.transform = blueprint.transform;
     let fwd = bundle.transform.forward();
+    let yaw = world_forward_to_yaw(*fwd);
     let character = commands
         .spawn(bundle)
         .insert((
-            AlsViewYaw(world_forward_to_yaw(*fwd)),
+            AlsViewYaw(yaw),
             AlsViewPitch(fwd.y.atan2(Vec2::new(fwd.x, fwd.z).length())),
+            crate::actual_motion::AlsActualMotion {
+                input_yaw_degrees: yaw.to_degrees(),
+                velocity_yaw_degrees: yaw.to_degrees(),
+                ..default()
+            },
+            crate::als::motion::AlsRotationResponseState {
+                target_yaw: yaw,
+                smooth_target_yaw: yaw,
+                previous_view_yaw: yaw,
+                ..default()
+            },
             AlsCameraTarget,
             crate::als_camera::AlsCameraDefinitionHandle(assets.load("ALSCamera/Data/als_camera.camera_component.ron")),
             AlsAnimationEventPlaybacks::default(),
@@ -419,6 +431,12 @@ mod tests {
                     ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 1.5, 0.0).with_rotation(rotation)) })
         }).unwrap();
         let expected = rotation * Vec3::NEG_Z;
+        let motion = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
+        let response = app.world().get::<crate::als::motion::AlsRotationResponseState>(character).unwrap();
+        assert!((motion.input_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
+        assert!((motion.velocity_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
+        assert!(crate::als::roll::wrap_angle(response.target_yaw - yaw).abs() < 1e-4);
+        assert!(crate::als::roll::wrap_angle(response.smooth_target_yaw - yaw).abs() < 1e-4);
         let camera = app.world().get::<AlsCharacterAssembly>(character).unwrap().camera.unwrap();
         let component = app.world().get::<crate::als_camera::AlsCameraViewSource>(camera).unwrap().0;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);

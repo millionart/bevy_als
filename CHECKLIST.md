@@ -5660,6 +5660,9 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 漏检：`desired_aiming_intent_survives_button_release_and_source_mode_branches` 只枚举 Grounded/Air；旧 Custom 测试验证 actor 不旋转，却没有调用并核对 `RefreshRotationMode`。最小复现源/日志保留在 `target/bf144/probe.rs`、`target/bf144/02/initial/`。本项未修改实现、未复开相邻已完成项。
 
 - [x] BF144-D02 / P2 — VelocityDirection 首次更新没有从出生朝向初始化目标。
+  - 2026-11-13 14:59复开，预估15:20。全库实际出生相机在首个身体图准备前已可用，但旋转响应被出生门控延后，目标和平滑朝向未发布。fresh `AlsCharacter.cpp:92–116,1933–1939` 及四个原生出生角在首world前已设置这些朝向。正式spawn按初始世界朝向发布现有状态，继续让首普通帧沿原运动和相机路径消费。
+  - 15:11正式前：去掉出生发布的旋转响应会复现同target相机夹具读取不到响应，源码字节恢复后五项定向通过，含真实出生、正反俯仰与布娃娃相机所有权。沿正式camera入口复验，截图0。
+  - 2026-11-13 15:15正式后：Camera真实入口通过碰撞、恢复、肩位、第一人称、震动、时间和输入检查。14:59开始、15:20预估、15:15实际，提前5分钟，未拆分。全库第25轮2109过／40失败，D02及两项D208回归恢复，新增0。证据 `docs/audit/bf144/d02/bevy-0.20/`、`docs/audit/bf144/u07/bevy-0.20/tests-round-25-lib/`。
   - 2026-11-08 12:08 开始：预估结束12:28 +08:00。依据.02四出生角反例和现有rotation-response调用闭包，fresh读取源注册初始化与多角真实角色，修复一次性目标种子并覆盖父空间和已有已初始化状态；测试、消融及公共Gate暂缓。
   - 12:11 source/static闭环：fresh非零frame17的0°/45°/−90°/170°注册快照，输入、速度和目标yaw均等于源出生世界角；源setter同步初始化平滑目标。目标首次有效旋转响应以当前世界yaw填目标，原平滑初始化不变，已有initialized状态不覆盖；已写父空间、四角及后续目标保留fixture。源读数/哈希在`docs/audit/bf144/d02/`；实现结束2026-11-08 12:11 +08:00，较预估提前17分钟。测试、消融、图审计与公共Gate待依赖升级后执行，整体资源未就绪时的更早初始化边界仍待后续证据。
   - Source：fresh `AlsCharacter.cpp:92–116` 的 PreRegisterAllComponents 先以 actor yaw 调用 SetTargetYawAngle，并初始化 InputYawAngle/VelocityYawAngle；静止且 blocked 的 VelocityDirection 分支继续使用这个初始目标。
