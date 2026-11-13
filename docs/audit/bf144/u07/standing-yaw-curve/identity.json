@@ -1,0 +1,22 @@
+{
+  "left": {
+    "bytes": 63462,
+    "sha256": "20cebf6c6dd9776270a9d82975d6ddede5a863018a87c727bec898a4143f2394"
+  },
+  "right": {
+    "bytes": 63641,
+    "sha256": "322d95aa5cc8cf80e42b98e96ad6c8398192191aac79dd515c4e54d51320dc55"
+  },
+  "stride-walk": {
+    "bytes": 23057,
+    "sha256": "f0055b8ec751d5ed2d99cba1d9593a75c69c58b16c5c449e4a07e649dffa0832"
+  },
+  "stride-run": {
+    "bytes": 23053,
+    "sha256": "284e5b26e26c43e5f95be5be3116a9f711e2252824c0aa9d01d7357c338c3d9b"
+  },
+  "animation-settings": {
+    "bytes": 106177,
+    "sha256": "66e8b8750ba314881a66ee0a93470d18586adeed99e725813995e61ec23658fa"
+  }
+}

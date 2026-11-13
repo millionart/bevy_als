@@ -3,7 +3,7 @@ import json
 import sys
 from pathlib import Path
 
-from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE, source_heading_yaw_degrees_to_runtime
+from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools/animgraph_authoring'))
@@ -55,7 +55,7 @@ def self_test():
     source = float_curve_fixture([{'Time':-60.0, 'Value':-30.0}, {'Time':60.0, 'Value':30.0}],
                                  pre='RCCE_CycleWithOffset', post='RCCE_CycleWithOffset')
     raw = json.dumps(source)
-    yaw = runtime_curve(source, -1.0, -1.0)
+    yaw = runtime_curve(source, 1.0, 1.0)
     assert yaw['times'] == [-60.0, 60.0] and yaw['values'] == [-30.0, 30.0]
     assert yaw['pre_infinity'] == 'CycleWithOffset' and json.dumps(source) == raw
     source = float_curve_fixture([{'InterpMode':'RCIM_Cubic','LeaveTangent':0.5},
@@ -106,9 +106,9 @@ def main():
         for name, fields, key, scale, value_scale in [
             ('stride_walk', standing, 'StrideBlendAmountWalkCurve', SOURCE_LENGTH_TO_RUNTIME_SCALE, 1.0),
             ('stride_run', standing, 'StrideBlendAmountRunCurve', SOURCE_LENGTH_TO_RUNTIME_SCALE, 1.0),
-            ('yaw_forward_backward', grounded, 'RotationYawOffsetForwardCurve', -1.0, source_heading_yaw_degrees_to_runtime(1.0)),
-            ('yaw_left', grounded, 'RotationYawOffsetLeftCurve', -1.0, source_heading_yaw_degrees_to_runtime(1.0)),
-            ('yaw_right', grounded, 'RotationYawOffsetRightCurve', -1.0, source_heading_yaw_degrees_to_runtime(1.0)),
+            ('yaw_forward_backward', grounded, 'RotationYawOffsetForwardCurve', 1.0, 1.0),
+            ('yaw_left', grounded, 'RotationYawOffsetLeftCurve', 1.0, 1.0),
+            ('yaw_right', grounded, 'RotationYawOffsetRightCurve', 1.0, 1.0),
         ]:
             reference = source_object_path(field(fields, key))
             source_uasset_path(content_root, args.mount, reference)

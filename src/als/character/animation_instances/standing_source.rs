@@ -122,12 +122,13 @@ pub(crate) fn standing_stride_amount(running: f32, speed: f32) -> f32 {
 }
 
 pub(crate) fn standing_rotation_yaw_offsets(runtime_angle: f32) -> (f32, f32, f32, f32) {
-    let forward_backward = CURVES.yaw_forward_backward.sample(runtime_angle);
+    let source_angle = -runtime_angle;
+    let forward_backward = -CURVES.yaw_forward_backward.sample(source_angle);
     (
         forward_backward,
         forward_backward,
-        CURVES.yaw_left.sample(runtime_angle),
-        CURVES.yaw_right.sample(runtime_angle),
+        -CURVES.yaw_left.sample(source_angle),
+        -CURVES.yaw_right.sample(source_angle),
     )
 }
 
@@ -135,6 +136,22 @@ pub(crate) fn standing_rotation_yaw_offsets(runtime_angle: f32) -> (f32, f32, f3
 pub(crate) mod tests {
     use super::*;
     use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
+
+    #[test]
+    fn standing_yaw_offset_samples_native_key_order() {
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/u07/standing-yaw-curve/source-cases.json",
+        )).unwrap();
+        for row in cases.as_array().unwrap() {
+            let native = &row["native"];
+            let angle = native["view_space_degrees"].as_f64().unwrap() as f32;
+            let expected = native["curve"].as_f64().unwrap() as f32;
+            let left = row["left"].as_f64().unwrap() as f32;
+            let right = row["right"].as_f64().unwrap() as f32;
+            assert_eq!(standing_rotation_yaw_offsets(-angle), (-expected, -expected, -left, -right),
+                "{}", row["name"]);
+        }
+    }
 
     pub(crate) fn loaded_montage_app() -> App {
         use bevy_animation_graph::core::{
