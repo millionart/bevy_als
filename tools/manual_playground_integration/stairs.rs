@@ -234,20 +234,24 @@ mod tests {
         app.init_resource::<ManualIntegrationState>().init_resource::<ManualRuntimePhaseEvidence>()
             .init_resource::<Assets<AlsMovementParams>>();
         app.world_mut().run_system_once(drive).unwrap();
-        let (route, intersections, supported) = app.world_mut().run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>| {
+        let (route, intersections, floor) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            colliders: Query<&Collider>, candidates: Query<crate::als::motion::CharacterCollisionCandidates>| {
             let capsule = crate::als::character::als_character_capsule(0.9, 0.3);
             let route = Route::from_collider(colliders.get(stairs).unwrap(), &GlobalTransform::IDENTITY, 0.9,
                 |candidate| supported_tread_center(&spatial, &capsule, Entity::PLACEHOLDER, stairs, candidate, 0.9)).unwrap();
             let intersections = spatial.shape_intersections(&capsule, route.top, Quat::IDENTITY,
                 &SpatialQueryFilter::default());
-            let supported = spatial.cast_shape(&capsule, route.top, Quat::IDENTITY, Dir3::NEG_Y,
-                &ShapeCastConfig::from_max_distance(0.1), &SpatialQueryFilter::default())
-                .is_some_and(|hit| hit.entity == stairs && (hit.distance - 0.024).abs() < 1e-4);
-            (route, intersections, supported)
+            let floor = crate::als::motion::find_ground_floor(&spatial, route.top, 0.9, 0.3,
+                &AlsMovementParams::default().cmc, LocomotionState::Grounded,
+                &SpatialQueryFilter::default(), Entity::PLACEHOLDER, &candidates);
+            (route, intersections, floor)
         }).unwrap();
         assert!(!intersections.contains(&wall), "route endpoint intersects terminal wall: {:?}", route.top);
         assert!(intersections.is_empty(), "route endpoint intersects the stair tread");
-        assert!(supported, "route endpoint has no capsule floor support");
+        let clearance = crate::als::character::ALS_CHARACTER_FLOOR_CLEARANCE
+            + crate::als::character::ALS_CHARACTER_TNUA_FLOAT_EPSILON;
+        assert!(floor.is_some_and(|(center, _, entity)| entity == stairs && (route.top.y - center - clearance).abs() < 1e-4),
+            "Route endpoint has no walkable stair support: route={route:?} floor={floor:?}");
         assert!(route.top.z < -3.0 && route.top.z > -3.74);
     }
 

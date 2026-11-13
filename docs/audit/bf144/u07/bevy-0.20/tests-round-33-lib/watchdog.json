@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 157.302,
+  "exit_reason": "process_failed",
+  "last_progress": "stdout.log",
+  "no_progress_limit_seconds": 240,
+  "no_progress_seconds": 0.0,
+  "process_exit_code": 101,
+  "source": "bevy020-library-round33-current",
+  "success": false,
+  "timeout_seconds": 3600
+}

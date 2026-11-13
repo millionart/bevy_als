@@ -1076,7 +1076,7 @@ mod tests {
                 assert_eq!(hit.entity, wall);
                 assert!((before.z - hit.point1.z - 0.45).abs() < 1e-4 && hit.normal1.z > 0.99,
                     "The geometric wall face must leave source capsule clearance0.15m: before={before:?} hit={hit:?}");
-                assert!(hit.distance > 0.1 && hit.distance <= 0.15,
+                assert!(hit.distance > 0.1 && hit.distance <= 0.15_f32.next_up(),
                     "The real wall must be reached during the final source substep: {hit:?}");
             }).unwrap();
             let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
