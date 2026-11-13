@@ -1,0 +1,124 @@
+{
+  "source_index": 98,
+  "active": 20,
+  "target_same_as_previous_except_observation": 319,
+  "velocity_blend": {
+    "source_right": 0.09887274354696274,
+    "target_right": 0.09887273609638214,
+    "native_target_input_direction": {
+      "local_cm_s": {
+        "x": 49.06298065185547,
+        "y": 45.136112213134766,
+        "z": 0
+      },
+      "direction": {
+        "x": 0.5208434462547302,
+        "y": 0.4791565537452698,
+        "z": 0
+      },
+      "forward": 0.5208434462547302,
+      "backward": 0,
+      "left": 0,
+      "right": 0.4791565537452698
+    }
+  },
+  "source_right_blendspace": {
+    "property": "AnimGraphNode_BlendSpacePlayer_5",
+    "node_type": "/Script/AnimGraphRuntime.AnimNode_BlendSpacePlayer",
+    "asset": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Forward.BS_Als_WalkRun_Right_Forward",
+    "current_asset_time": 0.25536471605300903,
+    "cached_blend_weight": 0.03549308329820633,
+    "sync_read_buffer_tick_present": true,
+    "sync_read_buffer_tick_matches": 1,
+    "tick_group": "Movement",
+    "tick_weight": 0.03549308329820633,
+    "tick_evaluator": false,
+    "tick_previous_valid": true,
+    "tick_previous": 0.20000000298023224,
+    "tick_delta": 0.022807978093624115,
+    "tick_accumulator": 0.22532181441783905,
+    "required_bones_valid": true,
+    "node_guid": "2b4c60ec-450b-24ab-685a-ec94dd294ca0",
+    "blend_samples": [
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.A_Als_Walk_Right_Forward",
+        "time": 0.25536471605300903,
+        "cached_time": 0.25536471605300903,
+        "weight": 0.6495453715324402,
+        "pose_mode_at_observation": "compressed"
+      },
+      {
+        "index": 1,
+        "asset": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.A_Als_Walk_Right_Pose",
+        "time": 0.25536492466926575,
+        "cached_time": 0.25536492466926575,
+        "weight": 0.3504546284675598,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  },
+  "target_right_blendspace_curve": 0.649545431137085,
+  "native_right_sequence_curve": 1.0000001192092896,
+  "right_blendspace_from_source_sample": 0.649545431137085,
+  "standing_multiway": {
+    "curve": 0.3112339377403259,
+    "id": "41fd7093-488e-6d0a-5539-a3a501b0d11f",
+    "name": "Blend Multi",
+    "samples": [
+      {
+        "clock": 0.2494746446609497,
+        "identity": "GraphContextId(19):NodeId(8c0d0f93-4811-e641-6270-b9bc2a1465c2)",
+        "previous": 0.2266666740179062,
+        "weight": 0.5208434462547302
+      },
+      {
+        "clock": 0.25536471605300903,
+        "identity": "GraphContextId(19):NodeId(2b4c60ec-450b-24ab-685a-ec94dd294ca0)",
+        "previous": 0.23289217054843903,
+        "weight": 0.4791565239429474
+      }
+    ]
+  },
+  "source_outer_alpha": 0.07407408207654953,
+  "source_root": 0.023054370656609535,
+  "target_root": 0.023054368793964386,
+  "root_with_only_source_multiway_weight": 0.023054368793964386,
+  "root_with_target_multiway_weight": 0.023054368793964386,
+  "source_virtual_foot_local": {
+    "translation": {
+      "x": 18.30214137733213,
+      "y": -1.0931219097281097,
+      "z": 13.484037610955665
+    },
+    "rotation": {
+      "x": -0.027306149388835774,
+      "y": -0.7067533427783088,
+      "z": -0.02628335719819618,
+      "w": 0.7064441038126319
+    },
+    "scale": {
+      "x": 1.0000000543616152,
+      "y": 0.9999999947568143,
+      "z": 0.9999998755475681
+    }
+  },
+  "target_virtual_foot_local": [
+    [
+      0.1830214112997055,
+      0.13484036922454834,
+      -0.010931218974292278
+    ],
+    [
+      0.027306150645017624,
+      0.02628335729241371,
+      0.7067533135414124,
+      0.7064440846443176
+    ],
+    [
+      1.0,
+      0.9999998807907104,
+      1.0
+    ]
+  ]
+}

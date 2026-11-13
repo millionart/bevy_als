@@ -1,0 +1,18 @@
+{
+  "d282-active-velocity-blend": {
+    "bytes": 179514,
+    "sha256": "78f535556f44cc3251644470453f4d7e78c15177b5c44b35f7b830c89308fe28"
+  },
+  "d282-target-velocity-blend": {
+    "bytes": 179482,
+    "sha256": "d7e9cba9a9744c4115e9d7c6df386264c70535fd75315a6d9bd00d024fb6e397"
+  },
+  "feet-crossing-first-right": {
+    "bytes": 1042787,
+    "sha256": "f92ac276ca3739a20839c4ad92be57cb1231efc77054198b03c20e1729ed98ca"
+  },
+  "feet-crossing-right-pose": {
+    "bytes": 624162,
+    "sha256": "35f39acb4179689ff4477bb508c2aac9a1e80c29df9af26a3610f921f8105be5"
+  }
+}
