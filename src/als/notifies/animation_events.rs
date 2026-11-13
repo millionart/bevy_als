@@ -1516,6 +1516,9 @@ pub(crate) mod tests {
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
         assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 1.3);
         app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>();
+        app.update();
+        assert!(app.world().get::<AlsAnimationEventRuntime>(character).unwrap().dispatched_autonomous_montage);
+        assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 1.3);
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.5e-6)));
         for (frame, expected) in [(0, 1.3), (1, 1.0)] {
             app.update();

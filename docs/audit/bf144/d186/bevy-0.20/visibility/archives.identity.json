@@ -1,0 +1,17 @@
+{
+  "report.json.gz": {
+    "bytes": 12568609,
+    "sha256": "116049d2aaf0b9e648ab31397f38dcc3bc857188d90aef858e37794ebe0e56d4",
+    "redacted": false
+  },
+  "process.stderr.log.gz": {
+    "bytes": 18478,
+    "sha256": "7841b790d98cae954d38129c1b9cdd7d40bcb434e8c77858d372858e4780b575",
+    "redacted": true
+  },
+  "process.stdout.log.gz": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "redacted": false
+  }
+}

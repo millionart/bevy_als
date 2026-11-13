@@ -7189,6 +7189,11 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧`mantle_early_blend_out_uses_source_conditions_and_custom_movement_mode`直接传入bool，只验证条件组合，没有覆盖命令到已消费输入的链路；.17只测未阻止的移动命令。366个实际条件/阶段/实例控制及90条1260帧原生停止对照通过，排除曲线、时长和重复停止算法。证据`95/native.json`、`95/analysis.json`与`bf144_animation_phase95_blocked_input`；输入阻止是受控的现有API状态，未宣称默认攀爬尾段会自行开启。未修生产，也未把原生Stop权重采样称为UE角色通知回调执行。
 
 - [x] BF144-D186 / P3 — 运动排队通知未按槽本帧和上帧相关性筛选。
+  - 2026-11-13 17:08复验，预估17:24。fresh Roll原生派发重现自主派发、首个组件帧保留、第二组件帧结束的1→1→0。旧夹具从完整图直接切到不足1µs的隐藏组件帧，没有上一自主派发。补一帧隐藏自主派发后同target通过，现核正式Visibility。
+  - 17:12正式前：重复定向通过，真实RootScale覆盖原生保留、结束和1µs重新派发。用正式visibility核隐藏与重现时的动画更新合同，截图0。
+  - 17:15正式后：图冻结、Montage时钟、恢复及其余检查通过，旧门槛要求隐藏期间2次震动和2次脚步，实际都是0。图在303帧冻结后才启动Roll。fresh PostLocomotion原生冻结保留旧相关性，未相关时过滤该槽的排队通知；Montage自己的branching动作继续生效。保持真实驱动，观察实际槽相关性并分别断言槽通知和branching生命周期。
+  - 17:22正式前：fresh 原生12个槽相关性读数与封存记录逐值同，真实Roll动作的原生结束触发为0.9334329963s。恢复后正式记录Roll活跃时的冻结槽、结束及完整阶段通知，截图0。
+  - 2026-11-13 17:28复验完成。17:08开始、17:24预估，晚4分钟。两项定向通过，正式Visibility全部10项通过。冻结第363帧内Roll实际开始并结束，槽仍无相关性，震动和脚步均0。原生、旧失败、定向和真实报告见 `docs/audit/bf144/d186/bevy-0.20/`，未拆分。
   - 2026-11-12 06:18 +0800 实际结束，较06:57预估提前39分钟，未拆分。fresh PostLocomotion原生12步与目标图帧合同一致，旧资格错6步；四项消融均失配。已接实际排队派发、根运动倍率及脚步消费者，源和夹具见 `docs/audit/bf144/d186/`；Cargo/Playground待统一验证。
   - 本轮开始2026-11-12 06:00 +08:00，预估结束2026-11-12 06:57 +08:00。核对原生PostLocomotion及双缓冲相关性，沿目标实际图求值和通知派发消费验证本帧、上一帧、隐藏冻结与实例门槛。
   - Source：`AnimInstanceProxy.cpp:1020–1075`只以本帧局部Montage权重>1e−5或上帧相关性允许槽通知；未注册槽拒绝，全图权重不参与。`AnimNotifyQueue.cpp:64,138–149`先用实例权重>=通知阈值筛选，再合并相关槽的队列。`AnimMontage.cpp:2818–2870`把Roll序列的RootMotionScale与GroundedEntryMode通知送入槽队列；Montage上的native branching动作另行处理。fresh AB_Als与AM_Als_Roll确认槽名PostLocomotion。

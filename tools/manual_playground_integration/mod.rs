@@ -4171,7 +4171,11 @@ fn visibility_case_results(rows: &[serde_json::Value]) -> Vec<(&'static str, boo
         ("visibility_pending_resume", stage("resume", 4.5).any(|row| row["pending"] == true && row["update_graph"] == true)),
         ("visibility_montage_graph_stopped", frozen("montage", 8.0)),
         ("visibility_montage_clock", stage("montage", 8.0).any(|row| row["roll_time"].as_f64().is_some_and(|time| time > 0.9))),
-        ("visibility_montage_notifications", stage("montage", 0.0).map(|row| row["shakes"].as_u64().unwrap_or(0)).sum::<u64>() == 2 && stage("montage", 0.0).map(|row| row["footsteps"].as_u64().unwrap_or(0)).sum::<u64>() == 2),
+        ("visibility_montage_notifications", stage("montage", 0.0).all(|row| row["shakes"] == 0 && row["footsteps"] == 0)
+            && stage("montage", 8.0).any(|row| row["update_graph"] == false
+                && row["roll_action"] == true && row["roll_slot_relevant"] == false)
+            && stage("montage", 8.0).any(|row| row["update_graph"] == false && row["roll_action"] == false
+                && row["roll_time"].as_f64().is_some_and(|time| time > 0.9))),
         ("visibility_always_pose", advancing("always_pose", 9.6, false)),
         ("visibility_final_resume", advancing("visible_final", 12.0, true)),
     ]
@@ -4183,6 +4187,7 @@ fn observe_visibility_case(
     instances: Query<&AnimatedSceneInstance>,
     players: Query<(&AnimationGraphPlayer, &crate::extensions::post_physics_animation::AnimationPoseUpdateGate)>,
     rolls: Query<&AlsRollState>,
+    actions: Query<&AlsNotifyLocomotionAction>,
     mut shakes: MessageReader<AlsCameraShakeRequest>,
     mut events: MessageReader<AlsAnimationEvent>,
 ) {
@@ -4196,11 +4201,17 @@ fn observe_visibility_case(
     let pending = player.get_global_input_data("animation.pending_update").and_then(|value| value.as_bool().ok()).unwrap_or(false);
     let shakes = shakes.read().filter(|event| event.target == character).count();
     let footsteps = events.read().filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects").count();
+    let roll_action = actions.get(character).is_ok_and(|action| *action == AlsNotifyLocomotionAction::Rolling);
+    let roll_slot_relevant = crate::extensions::source_slot::relevant_notify_slots(arena)
+        .any(|(slot, _)| slot == "PostLocomotion");
     let bucket = (elapsed * 4.0) as u32;
-    if shakes == 0 && footsteps == 0 && report.direction_trace.last().is_some_and(|row| row["bucket"] == bucket && row["pending"] == pending && row["update_graph"] == gate.update_graph) { return; }
+    if shakes == 0 && footsteps == 0 && report.direction_trace.last().is_some_and(|row| row["bucket"] == bucket
+        && row["pending"] == pending && row["update_graph"] == gate.update_graph
+        && row["roll_action"] == roll_action && row["roll_slot_relevant"] == roll_slot_relevant) { return; }
     report.direction_trace.push(serde_json::json!({"visibility_phase": phase, "bucket": bucket, "elapsed": elapsed, "frame": arena.frame_index(),
         "pending": pending, "update_graph": gate.update_graph, "refresh_bones": gate.refresh_bones,
-        "roll_time": rolls.get(character).map_or(0.0, |roll| roll.time), "shakes": shakes, "footsteps": footsteps}));
+        "roll_time": rolls.get(character).map_or(0.0, |roll| roll.time), "roll_action":roll_action,
+        "roll_slot_relevant":roll_slot_relevant, "shakes": shakes, "footsteps": footsteps}));
     info!("[MANUAL-INTEGRATION][VISIBILITY] phase={phase} elapsed={elapsed:.3} frame={} graph={} bones={} pending={pending}", arena.frame_index(), gate.update_graph, gate.refresh_bones);
 }
 
@@ -11204,31 +11215,31 @@ mod tests {
 
     #[test]
     fn visibility_case_gate_rejects_missing_freeze_pending_clock_and_notifications() {
-        let row = |phase, elapsed, frame, graph, bones, pending, roll_time, shakes, footsteps| serde_json::json!({"visibility_phase":phase,"elapsed":elapsed,"frame":frame,"update_graph":graph,"refresh_bones":bones,"pending":pending,"roll_time":roll_time,"shakes":shakes,"footsteps":footsteps});
+        let row = |phase, elapsed, frame, graph, bones, pending, roll_time, roll_action, shakes, footsteps| serde_json::json!({"visibility_phase":phase,"elapsed":elapsed,"frame":frame,"update_graph":graph,"refresh_bones":bones,"pending":pending,"roll_time":roll_time,"roll_action":roll_action,"roll_slot_relevant":false,"shakes":shakes,"footsteps":footsteps});
         let rows = vec![
-            row("visible", 1.0, 10, true, true, false, 0.0, 0, 0), row("visible", 1.5, 20, true, true, false, 0.0, 0, 0),
-            row("hidden", 3.5, 30, false, false, true, 0.0, 0, 0), row("hidden", 4.0, 30, false, false, true, 0.0, 0, 0),
-            row("resume", 4.6, 31, true, true, true, 0.0, 0, 0),
-            row("montage", 8.1, 60, false, false, true, 0.0, 0, 0), row("montage", 9.0, 60, false, false, true, 1.0, 2, 2),
-            row("always_pose", 9.8, 61, true, false, true, 1.1, 0, 0), row("always_pose", 10.5, 71, true, false, false, 1.2, 0, 0),
-            row("visible_final", 12.0, 81, true, true, false, 1.2, 0, 0), row("visible_final", 12.5, 91, true, true, false, 1.2, 0, 0),
+            row("visible", 1.0, 10, true, true, false, 0.0, false, 0, 0), row("visible", 1.5, 20, true, true, false, 0.0, false, 0, 0),
+            row("hidden", 3.5, 30, false, false, true, 0.0, false, 0, 0), row("hidden", 4.0, 30, false, false, true, 0.0, false, 0, 0),
+            row("resume", 4.6, 31, true, true, true, 0.0, false, 0, 0),
+            row("montage", 8.1, 60, false, false, true, 0.1, true, 0, 0), row("montage", 9.0, 60, false, false, true, 1.0, false, 0, 0),
+            row("always_pose", 9.8, 61, true, false, true, 1.1, false, 0, 0), row("always_pose", 10.5, 71, true, false, false, 1.2, false, 0, 0),
+            row("visible_final", 12.0, 81, true, true, false, 1.2, false, 0, 0), row("visible_final", 12.5, 91, true, true, false, 1.2, false, 0, 0),
         ];
         assert!(visibility_case_results(&rows).iter().all(|(_, passed)| *passed));
         let mut landing_before_montage = rows.clone();
-        landing_before_montage.push(row("visible", 0.31, 5, true, true, false, 0.0, 0, 1));
+        landing_before_montage.push(row("visible", 0.31, 5, true, true, false, 0.0, false, 0, 1));
         assert!(visibility_case_results(&landing_before_montage).iter().all(|(_, passed)| *passed),
             "A visible landing notification must not change the hidden montage notification gate");
         for (index, key, value) in [(3, "frame", serde_json::json!(31)), (4, "pending", serde_json::json!(false)),
-            (6, "roll_time", serde_json::json!(0.0)), (6, "footsteps", serde_json::json!(0)),
-            (6, "footsteps", serde_json::json!(3)), (6, "footsteps", serde_json::json!(4)), (6, "shakes", serde_json::json!(1)),
-            (6, "shakes", serde_json::json!(3)), (6, "visibility_phase", serde_json::json!("visible")),
+            (6, "roll_time", serde_json::json!(0.0)), (5, "roll_action", serde_json::json!(false)),
+            (6, "roll_action", serde_json::json!(true)), (5, "roll_slot_relevant", serde_json::json!(true)),
+            (6, "footsteps", serde_json::json!(1)), (6, "shakes", serde_json::json!(1)), (5, "visibility_phase", serde_json::json!("visible")),
             (8, "frame", serde_json::json!(61))] {
             let mut changed = rows.clone(); changed[index][key] = value;
             assert!(visibility_case_results(&changed).iter().any(|(_, passed)| !passed));
-            if matches!(key, "footsteps" | "shakes" | "visibility_phase") {
+            if matches!(key, "footsteps" | "shakes" | "visibility_phase" | "roll_action" | "roll_slot_relevant") {
                 assert!(!visibility_case_results(&changed).iter()
                     .find(|(name, _)| *name == "visibility_montage_notifications").unwrap().1,
-                    "Montage notification gate must reject missing, extra, or wrong-phase events");
+                    "Montage notification gate must reject queued events without slot relevance and require the branching lifecycle");
             }
         }
         for (time, phase) in [(1.99,"visible"),(2.0,"hidden"),(4.5,"resume"),(6.5,"montage"),(9.5,"always_pose"),(11.5,"visible_final"),(13.5,"finish")] {

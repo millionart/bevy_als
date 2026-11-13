@@ -1,0 +1,42 @@
+{
+  "roll-dispatch.native.json.gz": {
+    "bytes": 1151787,
+    "sha256": "05da2263af73c4fc326b00ba71e1ed075c297740b6d5a6741c9004de534231c6"
+  },
+  "roll-dispatch.reader.report.json": {
+    "bytes": 445,
+    "sha256": "10683bf313814a2bbf5f84e93be1c754887d6d8216c291c36ef0a45eb85e043a"
+  },
+  "first-focused.stdout.log.gz": {
+    "bytes": 685,
+    "sha256": "ced4c867061f79c11cd0a42c56ab4ac61a6f3aff17e226dbec2ee6bb1459f257"
+  },
+  "first-focused.watchdog.json": {
+    "bytes": 285,
+    "sha256": "ec052c534b0924c68c95fe7f6651673ff00cdc84dcb283eb28a58f111a5964c3"
+  },
+  "slot.native.json.gz": {
+    "bytes": 2569511,
+    "sha256": "4d8663d018973e6e7246eeb07bd551f2f2613f363e8f1e511304d2a291e67c2d"
+  },
+  "slot.native.json.reader.report.json": {
+    "bytes": 436,
+    "sha256": "420e1a3787c74836b3005894414b05612555416c97aaba27b2e218dbcb4542ad"
+  },
+  "roll-clock.native.json.gz": {
+    "bytes": 598329,
+    "sha256": "2706794b390338b744d3a49ff2d198c35525832ed27bec1d5788733604fe364c"
+  },
+  "roll-clock.native.json.reader.report.json": {
+    "bytes": 442,
+    "sha256": "46d92f3f9f5f7842ff40c0a047b320dad10761238e65169939738cdfaa2df776"
+  },
+  "restored.stdout.log.gz": {
+    "bytes": 537,
+    "sha256": "02e92c9f8b06c4f7d4c6645ebdce6aeb642533c57d26862b41f22bbbdf8261c9"
+  },
+  "restored.watchdog.json": {
+    "bytes": 275,
+    "sha256": "88b6c178a1893d9542f732bbf42e1980d983f07b1d5c921aab1fb54b290a16a0"
+  }
+}
