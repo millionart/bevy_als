@@ -1,0 +1,32 @@
+{
+  "removed": "Sensor order, required pre-impact sample and post-physics air-state update",
+  "same_frame_actual": "(Airborne, 0.0, None)",
+  "conflicts": [
+    [
+      "bevy_als::als::air::record_pre_impact_velocity_system",
+      "bevy_als::als::air::air_state_system"
+    ],
+    [
+      "bevy_als::als::character::character_sensor_shape_sync_system",
+      "bevy_tnua_avian3d::update_proximity_sensors_system"
+    ]
+  ],
+  "restored_sources": {
+    "src/als/character/character.rs": "c22962c75efbd0bb85271f77cda9178f45e3661c62978b20425c8ab3f13a1ac0",
+    "src/als/state/air.rs": "27a9bc0d950995b57ec45a8d0c67af4f7bef09b8b82a5d55723d5fa99c465c28"
+  },
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": false,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T15:16:48.9166860Z",
+    "last_progress_at_utc": "2026-11-13T15:20:51.1422204Z",
+    "last_progress_source": "ablation-schedule.stderr",
+    "finished_at_utc": "2026-11-13T15:20:51.3930940Z",
+    "elapsed_seconds": 242.476,
+    "no_progress_seconds": 0.251,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 720,
+    "process_exit_code": 101
+  }
+}

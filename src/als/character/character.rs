@@ -5,7 +5,7 @@ use avian3d::prelude::{
 };
 use bevy::asset::Handle;
 use bevy::prelude::*;
-use bevy_tnua::TnuaController;
+use bevy_tnua::{TnuaController, TnuaPipelineSystems};
 use bevy_tnua::controller::TnuaConfig;
 use bevy_tnua_avian3d::TnuaAvian3dSensorShape;
 
@@ -274,7 +274,7 @@ impl Plugin for AlsCharacterPlugin {
                 .in_set(PhysicsSystems::Prepare)
                 .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
                 .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
-            .add_systems(Update, character_sensor_shape_sync_system)
+            .add_systems(Update, character_sensor_shape_sync_system.before(TnuaPipelineSystems::Sensors))
             .add_systems(PhysicsSchedule, character_contacts_system
                 .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
             .add_systems(PhysicsSchedule, sync_child_collider_poses

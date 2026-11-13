@@ -1,4 +1,4 @@
-use avian3d::prelude::{LinearVelocity, ShapeCastConfig, SpatialQueryFilter};
+use avian3d::prelude::{LinearVelocity, PhysicsSystems, ShapeCastConfig, SpatialQueryFilter};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 use bevy_tnua::TnuaPipelineSystems;
@@ -44,6 +44,7 @@ fn clamp01(v: f32) -> f32 {
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
+#[require(AlsPreImpactVelocity)]
 pub struct AlsAirState {
     pub phase: AirPhase,
     pub ground_prediction: Option<GroundPrediction>,
@@ -189,28 +190,28 @@ type AirQueryItem<'w, 's> = (
     Entity,
     &'w LocomotionState,
     &'w LinearVelocity,
-    &'w GlobalTransform,
-    Option<&'s mut AlsAirState>,
-    Option<&'w AlsPreImpactVelocity>,
+    &'s mut AlsAirState,
+    &'w AlsPreImpactVelocity,
     Option<&'w crate::als::character::AlsMovementParamsHandle>,
 );
 #[allow(clippy::type_complexity)]
 fn air_state_system(
-    time: Res<Time>,
+    time: Res<Time<Virtual>>,
     spatial: SpatialQuery,
+    transforms: bevy::transform::helper::TransformHelper,
     mut q: Query<AirQueryItem, With<AlsCharacter>>,
     params_assets: Res<Assets<crate::als::params::AlsMovementParams>>,
     crouched: Query<Has<crate::als::motion::AlsCapsuleCrouched>>,
 ) {
     let dt = time.delta_secs();
-    for (entity, loco, vel, transform, state, pre_impact, handle) in &mut q {
-        if let Some(mut s) = state {
-            s.update_with_pre_impact_velocity(
-                loco,
-                vel.y,
-                pre_impact.map(|record| record.last_air_vertical_velocity),
-                dt,
-            );
+    for (entity, loco, vel, mut state, pre_impact, handle) in &mut q {
+        state.update_with_pre_impact_velocity(
+            loco,
+            vel.y,
+            Some(pre_impact.last_air_vertical_velocity),
+            dt,
+        );
+        if let Ok(transform) = transforms.compute_global_transform(entity) {
             let half_height = handle
                 .and_then(|h| params_assets.get(h.id()))
                 .map(|p| {
@@ -223,7 +224,7 @@ fn air_state_system(
                         .unwrap_or(standing)
                 })
                 .unwrap_or(0.9);
-            s.ground_prediction = Some(ground_prediction_sweep(
+            state.ground_prediction = Some(ground_prediction_sweep(
                 &spatial,
                 entity,
                 transform.translation(),
@@ -323,13 +324,16 @@ pub struct AlsAirPlugin;
 
 impl Plugin for AlsAirPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (ensure_air_state, air_state_system.after(ensure_air_state).after(crate::als::motion::locomotion_state_sync_system)),
-        )
+        app.register_required_components::<AlsCharacter, AlsAirState>()
         .add_systems(
             Update,
-            record_pre_impact_velocity_system.before(TnuaPipelineSystems::Sensors),
+            record_pre_impact_velocity_system
+                .after(crate::als::motion::initialize_spawn_movement_mode)
+                .before(TnuaPipelineSystems::Sensors),
+        )
+        .add_systems(
+            PostUpdate,
+            air_state_system.after(PhysicsSystems::Last).after(crate::als::motion::AlsActualVelocitySet),
         );
     }
 }
@@ -347,20 +351,9 @@ fn record_pre_impact_velocity_system(
     }
 }
 
-fn ensure_air_state(
-    mut commands: Commands,
-    q: Query<Entity, (With<AlsCharacter>, Without<AlsAirState>)>,
-) {
-    for entity in &q {
-        commands
-            .entity(entity)
-            .insert((AlsAirState::default(), AlsPreImpactVelocity::default()));
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use avian3d::prelude::{Collider, PhysicsPlugins, PhysicsSystems, Position, RigidBody};
+    use avian3d::prelude::{Collider, PhysicsPlugins, Position, RigidBody};
     use bevy::asset::AssetEvent;
     use bevy::ecs::system::RunSystemOnce;
 
@@ -464,6 +457,32 @@ mod tests {
             prediction.capsule_radius,
         );
         assert!(passed);
+    }
+
+    #[test]
+    fn air_state_samples_on_spawn_and_observes_landing_in_the_same_frame() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(PostUpdate), AlsAirPlugin))
+            .init_resource::<Assets<Mesh>>()
+            .add_message::<AssetEvent<Mesh>>()
+            .init_resource::<Assets<crate::als::params::AlsMovementParams>>()
+            .add_systems(PostUpdate,
+                (|mut actors: Query<(&mut LocomotionState, &mut LinearVelocity), With<AlsCharacter>>| {
+                    for (mut mode, mut velocity) in &mut actors {
+                        *mode = LocomotionState::Grounded;
+                        velocity.0 = Vec3::ZERO;
+                    }
+                }).in_set(PhysicsSystems::Last));
+        app.finish();
+        app.cleanup();
+        let actor = app.world_mut().spawn((AlsCharacter, LocomotionState::Air,
+            Transform::IDENTITY, LinearVelocity(Vec3::NEG_Y * 8.0),
+            AlsAirState { phase: AirPhase::Airborne, ..default() })).id();
+        app.update();
+        let world = app.world();
+        let state = world.get::<AlsAirState>(actor).unwrap();
+        let impact = world.get::<AlsPreImpactVelocity>(actor).map(|record| record.last_air_vertical_velocity);
+        assert_eq!((state.phase, state.last_impact_vy, impact), (AirPhase::Landing, 8.0, Some(-8.0)));
     }
 
     #[test]

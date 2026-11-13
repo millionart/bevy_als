@@ -1,0 +1,34 @@
+{
+  "tests": [
+    "playable_character_samples_air_velocity_and_refreshes_the_sensor_before_tnua",
+    "air_state_samples_on_spawn_and_observes_landing_in_the_same_frame"
+  ],
+  "same_frame_actual": "(Airborne, 0.0, None)",
+  "same_frame_expected": "(Landing, 8.0, Some(-8.0))",
+  "conflicts": [
+    [
+      "bevy_als::als::air::record_pre_impact_velocity_system",
+      "bevy_als::als::air::air_state_system"
+    ],
+    [
+      "bevy_als::als::character::character_sensor_shape_sync_system",
+      "bevy_tnua_avian3d::update_proximity_sensors_system"
+    ]
+  ],
+  "target_directory": "target_game",
+  "profile": "play",
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": false,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T15:07:28.5530430Z",
+    "last_progress_at_utc": "2026-11-13T15:11:35.3721734Z",
+    "last_progress_source": "red-schedule.stderr",
+    "finished_at_utc": "2026-11-13T15:11:35.5535960Z",
+    "elapsed_seconds": 247.001,
+    "no_progress_seconds": 0.181,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 720,
+    "process_exit_code": 101
+  }
+}

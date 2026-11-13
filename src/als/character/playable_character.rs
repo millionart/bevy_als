@@ -51,6 +51,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn playable_character_samples_air_velocity_and_refreshes_the_sensor_before_tnua() {
+        use bevy::ecs::schedule::LogLevel;
+        use bevy_tnua_avian3d::TnuaAvian3dSensorShape;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            bevy::input::InputPlugin, bevy::gizmos::GizmoPlugin))
+            .init_asset::<bevy::world_serialization::WorldAsset>()
+            .init_asset::<Mesh>().init_asset::<Image>()
+            .add_plugins(AlsPlayableCharacterPlugin);
+        app.finish();
+        app.cleanup();
+        app.world_mut().schedule_scope(Update, |world, schedule| {
+            let mut settings = schedule.get_build_settings();
+            settings.ambiguity_detection = LogLevel::Warn;
+            schedule.set_build_settings(settings);
+            schedule.initialize(world).unwrap();
+            let systems: std::collections::HashMap<_, _> = schedule.systems().unwrap()
+                .map(|(id, system)| (id, system.name().to_string())).collect();
+            let shape = world.component_id::<TnuaAvian3dSensorShape>().unwrap();
+            let impact = world.component_id::<crate::als::air::AlsPreImpactVelocity>().unwrap();
+            let conflicts: Vec<_> = schedule.graph().conflicting_systems().0.iter()
+                .filter(|(_, _, components)| components.contains(&shape) || components.contains(&impact))
+                .map(|(a, b, _)| (&systems[a], &systems[b])).collect();
+            assert!(conflicts.is_empty(), "Unordered sensor shape or pre-impact accesses: {conflicts:?}");
+        });
+    }
+
+    #[test]
     fn playable_character_animation_phases_initialize_with_the_real_physics_schedule() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
