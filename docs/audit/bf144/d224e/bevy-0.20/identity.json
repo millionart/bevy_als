@@ -1,0 +1,34 @@
+{
+  "bow-actor.native.json.gz": {
+    "bytes": 1274663,
+    "sha256": "3ecb73b75ae0c7d81f9ca3a09d5c593926a3ef2e257fe575ca4880acdf1e6a62"
+  },
+  "bow-actor.native.json.reader.report.json": {
+    "bytes": 442,
+    "sha256": "ff20b2aae24d4d81f42d0f195b7d47a310a44b2c3b69c3fb498ea7d3bdda3715"
+  },
+  "character.native.json.gz": {
+    "bytes": 2647160,
+    "sha256": "7db990602dd2576797b6e341e128a95cb026986e6121acc009651cf80d10189a"
+  },
+  "character.native.json.reader.report.json": {
+    "bytes": 441,
+    "sha256": "29c451354a8ef44a28708716fb62b529c12581315db67e8ba53e9e6b6f653565"
+  },
+  "character.request.json": {
+    "bytes": 386,
+    "sha256": "916652217bc1e0d188717062fe639f46adb7052da10ae82c51bb981f1ca12090"
+  },
+  "restored-source.sha256": {
+    "bytes": 217,
+    "sha256": "6a67756caa563407158d7303c4b81d03ec37cc41c6576e3178ae12291ace074c"
+  },
+  "focused.stdout.log.gz": {
+    "bytes": 315,
+    "sha256": "34c24fbf820c3dbe746258afe8b4864720124041733334ce1feabe08dbb7fba6"
+  },
+  "focused.watchdog.json": {
+    "bytes": 279,
+    "sha256": "fe3d5cb33daa6a2f5e0b15b9d9cefca510dbbeda896542fa458f3a9b0e1d35a7"
+  }
+}

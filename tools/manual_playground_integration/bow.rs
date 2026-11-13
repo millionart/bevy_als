@@ -71,7 +71,7 @@ pub(super) fn observe_object(probe: &mut Probe, state: Option<&AlsOverlayObjectS
         let clip = motion.asset_server.get_handle::<bevy_animation_graph::core::animation_clip::GraphClip>("ALS/OverlayObjects/Bow/A_Als_Bow_Draw.anim.ron")?;
         let clip = motion.clips.get(&clip)?;
         let amount = context.map_or(0.0, |context| context.f32("PoseAiming").unwrap_or(0.0));
-        let expected = crate::extensions::source_sequence_player::sample_pose(clip, amount.clamp(0.0, clip.duration()));
+        let (expected, _) = crate::extensions::source_compression::sample_prepared_pose(clip, amount.clamp(0.0, clip.duration()))?;
         sample.pose_error = default_overlay_pose_error(pose, &expected);
         let skeleton = motion.skeletons.get(&pose.skeleton)?;
         let string = skeleton.iter_paths().find(|path| path.parts.last().is_some_and(|name| name.as_str() == "string_mid"))?;
@@ -159,13 +159,12 @@ fn sample(player: &AnimationGraphPlayer, probe: &MotionProbe, root_context: Opti
             if !sequence.use_explicit_frame { continue; }
             let Some(clip) = probe.clips.get(&sequence.clip) else { continue; };
             let Some(DataValue::Pose(actual)) = context.node_caches.get_output_data(node.id, StateKey::Default, "Pose".into()) else { continue; };
-            let source_time = (sequence.explicit_value as f64 / 30.0) as f32;
-            let frame = (source_time * 30.0).floor();
-            let time = (frame * (clip.duration() / 11.0)).clamp(0.0, clip.duration());
-            let expected = crate::extensions::source_sequence_player::sample_pose(clip, time);
+            let time = ((sequence.explicit_value as f64 / sequence.frames_per_second) as f32).clamp(0.0, clip.duration());
             sample.frames.push((sequence.explicit_value, actual.timestamp, time));
-            if actual.timestamp != source_time || default_overlay_pose_error(&actual, &expected).is_none_or(|error| error > 2e-5) {
-                sample.frame_errors.push(format!("frame {} sampled {} instead of {}", sequence.explicit_value, actual.timestamp, time));
+            let pose_error = crate::extensions::source_compression::sample_prepared_pose(clip, time)
+                .and_then(|(expected, _)| default_overlay_pose_error(&actual, &expected));
+            if actual.timestamp != time || pose_error.is_none_or(|error| error > 2e-5) {
+                sample.frame_errors.push(format!("frame {} sampled {} instead of {} with pose error {pose_error:?}", sequence.explicit_value, actual.timestamp, time));
             }
         }
         if path.path() != std::path::Path::new(GRAPH) { continue; }

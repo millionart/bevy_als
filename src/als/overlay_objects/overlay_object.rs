@@ -535,7 +535,7 @@ pub(crate) mod tests {
 
     #[test]
     fn bow_actor_uses_current_owner_curve_and_preserves_component_lifecycle() {
-        use bevy_animation_graph::core::{animation_graph::AnimationGraph, animation_node::AnimationNode, edge_data::DataSpec};
+        use bevy_animation_graph::core::{animation_clip::GraphClip, animation_graph::AnimationGraph, animation_node::AnimationNode, edge_data::DataSpec};
         let (mut app, avatar, owner_player) = loaded_bow_scene();
         OverlayObjectPlugin.build(&mut app);
         crate::extensions::overlay_materials::OverlayMaterialsPlugin.build(&mut app);
@@ -544,7 +544,10 @@ pub(crate) mod tests {
         let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, OverlayState::Bow,
             AlsCharacterAssembly { avatar, camera: None })).id();
         app.world_mut().entity_mut(avatar).insert(ChildOf(character));
-        let clip = app.world().resource::<AssetServer>().load("ALS/OverlayObjects/Bow/A_Als_Bow_Draw.anim.ron");
+        let clip = app.world_mut().resource_mut::<Assets<GraphClip>>().add(GraphClip {
+            duration: 1.0,
+            ..default()
+        });
         let mut graph = AnimationGraph::new();
         let node = AnimationNode::new("Owner aiming curve", crate::extensions::SourceSequenceEvaluatorNode {
             clip, explicit_value_key: "owner_aiming".into(),
