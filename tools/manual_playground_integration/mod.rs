@@ -1159,6 +1159,8 @@ fn head_actor_world_inputs_match(player: &AnimationGraphPlayer, local: &Transfor
 
 fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous: Option<&(u64, AlsHeadState, bool, f32)>) -> HeadGraphSample {
     use crate::als::head::{AlsHeadSettings, AlsHeadUpdateInput, update_head_state};
+    use crate::extensions::normalized_blendspace::NormalizedBlendSpaceNode;
+    use crate::extensions::source_compression::{PreparedPoseKind, sample_prepared_source_pose};
     let scalar = |key| graph_global_f32(player, key).unwrap_or(0.0);
     let boolean = |key| player.get_global_input_data(key).and_then(|value| value.as_bool().ok()).unwrap_or(false);
     let state = crate::head_layer::head_state_from_player(player);
@@ -1208,7 +1210,10 @@ fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previou
         let actual = pose("Apply Mesh Space Additive", "Pose");
         if actual.is_none() { continue; }
         if sample.refreshed != (sample.alpha > 1e-5) { sample.errors.push("Head callback relevance differs from additive alpha".into()); }
+        let look = graph.nodes.values().find(|node| node.name == HEAD_BOUNDARIES[0].1)
+            .and_then(|node| node.try_inner_downcast_ref::<NormalizedBlendSpaceNode>().map(|space| (node.id, space)));
         let mut expected_samples: [Option<Pose>; 3] = default();
+        let mut source_samples = Vec::new();
         for index in 0..3 {
             if sample.weights[index] <= 1e-5 || sample.alpha <= 1e-5 { continue; }
             let name = format!("Blendspace sample {index}");
@@ -1218,6 +1223,22 @@ fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previou
                 .and_then(|field| field.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
                 .and_then(|handle| probe.clips.get(handle)) else { continue; };
             let time = state.yaw_amount.clamp(0.0, 1.0) * clip.duration;
+            if let Some((id, space)) = look && let Some(point) = space.points.get(index)
+                && let Some((source, PreparedPoseKind::MeshAdditive)) = sample_prepared_source_pose(clip, time) {
+                sample.times[index] = context.node_caches.get_input_time_update(id, StateKey::Default,
+                    NormalizedBlendSpaceNode::time_pin(&point.id)).ok().and_then(|update| match update {
+                        bevy_animation_graph::core::animation_graph::TimeUpdate::Absolute(value) => Some(value),
+                        _ => None,
+                    });
+                if sample.times[index].is_none_or(|actual| (actual - time).abs() > 1e-5) {
+                    sample.errors.push(format!("Look sample {index}: incorrect normalized time"));
+                }
+                let mut prepared = Pose { skeleton: clip.skeleton.clone(), timestamp: time, ..default() };
+                source.project_into(&mut prepared);
+                expected_samples[index] = Some(prepared);
+                source_samples.push((source, sample.weights[index]));
+                continue;
+            }
             let clip_pose = pose(&name, "pose");
             sample.times[index] = clip_pose.as_ref().map(|pose| pose.timestamp);
             if sample.times[index].is_none_or(|actual| (actual - time).abs() > 1e-5) { sample.errors.push(format!("Look sample {index}: incorrect normalized time")); }
@@ -1235,16 +1256,37 @@ fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previou
                 check(&mut sample.errors, &difference_name, pose(&difference_name, "pose"), expected_samples[index].clone());
             }
         }
-        let additive = head_weighted_pose(expected_samples, sample.weights);
+        let source_additive = (source_samples.len() == sample.weights.iter().filter(|weight| **weight > 1e-5).count())
+            .then(|| crate::extensions::source_pose::blend_source_poses(
+                source_samples.iter().map(|(pose, weight)| (pose, *weight)),
+                1 + usize::from(source_samples.len() > 1),
+            )).flatten();
+        let additive = if let Some(source) = &source_additive {
+            expected_samples.into_iter().flatten().next().map(|mut pose| {
+                source.project_into(&mut pose);
+                pose
+            })
+        } else {
+            head_weighted_pose(expected_samples, sample.weights)
+        };
         sample.sample_time = data(HEAD_BOUNDARIES[0].1, "sample_time").and_then(|value| value.as_f32().ok());
         if sample.alpha > 1e-5 {
             for (_, name, output) in &HEAD_BOUNDARIES[..3] { check(&mut sample.errors, name, pose(name, output), additive.clone()); }
         }
         if let Some(mut expected) = base
             && let Some(skeleton) = probe.skeletons.get(&expected.skeleton) {
-            crate::extensions::mesh_space_additive::apply_mesh_space_additive(&mut expected, &Pose::default(), 1.0, skeleton);
+            let source_base = graph.nodes.values().find(|node| node.name == "Input Pose\nView Input")
+                .and_then(|node| crate::extensions::animation_context::node_context_state(
+                    &context.node_states, StateKey::Default, node.id))
+                .and_then(|state| state.source_pose_for(&expected).cloned());
+            if source_base.is_none() {
+                crate::extensions::mesh_space_additive::materialize_missing_reference_bones(&mut expected, skeleton);
+            }
             sample.additive_effect = actual.as_ref().and_then(|actual| default_overlay_pose_error(actual, &expected));
-            if let Some(additive) = additive { crate::extensions::mesh_space_additive::apply_mesh_space_additive(&mut expected, &additive, sample.alpha, skeleton); }
+            if let Some(additive) = additive {
+                crate::extensions::mesh_space_additive::apply_source_additive_pose(&mut expected, &additive,
+                    source_base.as_deref().zip(source_additive.as_ref()), sample.alpha, skeleton, true, true);
+            }
             check(&mut sample.errors, "mesh additive", actual.clone(), Some(expected));
             check(&mut sample.errors, "Head output", pose("Output Pose\nAnimGraph", "Pose"), actual);
             sample.ready = sample.alpha > 1e-5 && sample.refreshed && sample.sample_time.is_some() && sample.errors.is_empty();

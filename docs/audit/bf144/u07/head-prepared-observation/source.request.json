@@ -1,0 +1,772 @@
+{
+  "gravity_cm_s2": -981,
+  "initial_engine_frame": 100,
+  "capture_asset_player_ticks": true,
+  "capture_pose_boundaries": true,
+  "cases": [
+    {
+      "name": "down-up-turn",
+      "dynamic_base": false,
+      "local_controller": true,
+      "spawn_height_cm": 92,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": -60,
+            "yaw": 40,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 60,
+            "yaw": -80,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": -170,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 180,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,168 @@
+[
+  {
+    "frame": 11,
+    "head": {
+      "PitchAngle": 0,
+      "YawAngle": 0,
+      "YawAmount": 0.5
+    },
+    "samples": [
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+        "time": 0.5,
+        "cached_time": 0.5,
+        "weight": 1,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  },
+  {
+    "frame": 23,
+    "head": {
+      "PitchAngle": -56.25271987915039,
+      "YawAngle": 38.97525405883789,
+      "YawAmount": 0.6082645654678345
+    },
+    "samples": [
+      {
+        "index": 1,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Down.A_Als_Look_Down",
+        "time": 0.6082645654678345,
+        "cached_time": 0.6082645654678345,
+        "weight": 0.6250302195549011,
+        "pose_mode_at_observation": "compressed"
+      },
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+        "time": 0.6082645654678345,
+        "cached_time": 0.6082645654678345,
+        "weight": 0.3749697804450989,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  },
+  {
+    "frame": 35,
+    "head": {
+      "PitchAngle": 52.73947525024414,
+      "YawAngle": -76.82523345947266,
+      "YawAmount": 0.2865965664386749
+    },
+    "samples": [
+      {
+        "index": 2,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up",
+        "time": 0.2865965664386749,
+        "cached_time": 0.2865965664386749,
+        "weight": 0.5859941244125366,
+        "pose_mode_at_observation": "compressed"
+      },
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+        "time": 0.2865965664386749,
+        "cached_time": 0.2865965664386749,
+        "weight": 0.4140058755874634,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  },
+  {
+    "frame": 47,
+    "head": {
+      "PitchAngle": 3.2938265800476074,
+      "YawAngle": 162.98751831054688,
+      "YawAmount": 0.9527431130409241
+    },
+    "samples": [
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+        "time": 0.9527431130409241,
+        "cached_time": 0.9527431130409241,
+        "weight": 0.9634019136428833,
+        "pose_mode_at_observation": "compressed"
+      },
+      {
+        "index": 2,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up",
+        "time": 0.9527431130409241,
+        "cached_time": 0.9527431130409241,
+        "weight": 0.0365980863571167,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  },
+  {
+    "frame": 59,
+    "head": {
+      "PitchAngle": 0.2057148516178131,
+      "YawAngle": -38.46686935424805,
+      "YawAmount": 0.3931475877761841
+    },
+    "samples": [
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+        "time": 0.3931475877761841,
+        "cached_time": 0.3931475877761841,
+        "weight": 0.9977142810821533,
+        "pose_mode_at_observation": "compressed"
+      },
+      {
+        "index": 2,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up",
+        "time": 0.3931475877761841,
+        "cached_time": 0.3931475877761841,
+        "weight": 0.0022857189178466797,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  },
+  {
+    "frame": 71,
+    "head": {
+      "PitchAngle": 0.01284785382449627,
+      "YawAngle": -92.56978607177734,
+      "YawAmount": 0.24286171793937683
+    },
+    "samples": [
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+        "time": 0.24286171793937683,
+        "cached_time": 0.24286171793937683,
+        "weight": 0.9998571872711182,
+        "pose_mode_at_observation": "compressed"
+      },
+      {
+        "index": 2,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up",
+        "time": 0.24286171793937683,
+        "cached_time": 0.24286171793937683,
+        "weight": 0.00014281272888183594,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  },
+  {
+    "frame": 83,
+    "head": {
+      "PitchAngle": 0.0008024084381759167,
+      "YawAngle": 75.28363800048828,
+      "YawAmount": 0.7091212272644043
+    },
+    "samples": [
+      {
+        "index": 0,
+        "asset": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+        "time": 0.7091212272644043,
+        "cached_time": 0.7091212272644043,
+        "weight": 1,
+        "pose_mode_at_observation": "compressed"
+      }
+    ]
+  }
+]
