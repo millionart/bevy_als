@@ -2363,36 +2363,38 @@ mod tests {
     #[test]
     fn overspeed_turn_reaches_the_actual_motor_without_rewriting_world_velocity() {
         use bevy::ecs::system::RunSystemOnce;
-        for stance in [Stance::Standing, Stance::Crouching] {
-            for amount in [1.0, 0.4] {
-                let mut world = World::new();
-                let delta = 1.0 / 60.0;
-                let mut time = Time::<()>::default();
-                time.advance_by(std::time::Duration::from_secs_f32(delta));
-                world.insert_resource(time);
-                let mut params = Assets::<AlsMovementParams>::default();
-                let handle = params.add(AlsMovementParams::default());
-                world.insert_resource(params);
-                let mut controller = TnuaController::<AlsControlScheme>::default();
-                controller.basis.desired_motion = Vec3::Z * amount;
-                let velocity = Vec3::X * 3.75;
-                let character = world.spawn((AlsCharacter, LocomotionState::Grounded, stance, RotationMode::ViewDirection,
-                    AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Walking), AlsGroundedDynamics::default(),
-                    AlsGaitAmount::default(), Position(Vec3::Y * 0.92), LinearVelocity(velocity),
-                    AlsMovementParamsHandle(handle.clone()), controller, TnuaMotor::default(), AlsCmcAdapterRuntime::default())).id();
-                world.run_system_once(grounded_dynamics_motor_system).unwrap();
-                let dynamics = world.get::<AlsGroundedDynamics>(character).unwrap().0;
-                let max_speed = max_allowed_speed(world.resource::<Assets<AlsMovementParams>>().get(&handle).unwrap(),
-                    stance, RotationMode::ViewDirection, Gait::Walking, velocity, 0.0);
-                let braked = Vec3::X * (3.75 - dynamics.braking_deceleration * delta).max(0.0);
-                let expected = (braked + Vec3::Z * dynamics.acceleration * amount * delta).clamp_length_max(braked.length());
-                assert!(braked.length() > analog_target_speed(max_speed, amount, 0.25));
-                let actual = velocity + world.get::<TnuaMotor>(character).unwrap().lin.boost;
-                assert!(actual.distance(expected) < 1e-5, "stance={stance:?} amount={amount}: {actual:?} != {expected:?}");
-                assert!(actual.z > 0.0);
-                assert_eq!(world.get::<LinearVelocity>(character).unwrap().0, velocity);
-                assert_eq!(world.get::<AlsMovementBaseDynamicsState>(character).unwrap().pre_collision_velocity, Some(actual));
-            }
+        for (stance, amount, expected) in [
+            (Stance::Standing, 1.0, Vec3::new(3.526_083_7, 0.0, 0.331_866_7)),
+            (Stance::Standing, 0.4, Vec3::new(3.539_159_5, 0.0, 0.133_238_96)),
+            (Stance::Crouching, 1.0, Vec3::new(3.601_402_8, 0.0, 0.331_926_52)),
+            (Stance::Crouching, 0.4, Vec3::new(3.614_211_3, 0.0, 0.133_242_82)),
+        ] {
+            let mut world = World::new();
+            let delta = 1.0 / 60.0;
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(delta));
+            world.insert_resource(time);
+            let mut params = Assets::<AlsMovementParams>::default();
+            let handle = params.add(AlsMovementParams::default());
+            world.insert_resource(params);
+            let mut controller = TnuaController::<AlsControlScheme>::default();
+            controller.basis.desired_motion = Vec3::Z * amount;
+            let velocity = Vec3::X * 3.75;
+            let character = world.spawn((AlsCharacter, LocomotionState::Grounded, stance, RotationMode::ViewDirection,
+                AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Walking), AlsGroundedDynamics::default(),
+                AlsGaitAmount::default(), Position(Vec3::Y * 0.92), LinearVelocity(velocity),
+                AlsMovementParamsHandle(handle.clone()), controller, TnuaMotor::default(), AlsCmcAdapterRuntime::default())).id();
+            world.run_system_once(grounded_dynamics_motor_system).unwrap();
+            let dynamics = world.get::<AlsGroundedDynamics>(character).unwrap().0;
+            let max_speed = max_allowed_speed(world.resource::<Assets<AlsMovementParams>>().get(&handle).unwrap(),
+                stance, RotationMode::ViewDirection, Gait::Walking, velocity, 0.0);
+            let braked = Vec3::X * (3.75 - dynamics.braking_deceleration * delta).max(0.0);
+            assert!(braked.length() > analog_target_speed(max_speed, amount, 0.25));
+            let actual = velocity + world.get::<TnuaMotor>(character).unwrap().lin.boost;
+            assert!(actual.distance(expected) < 1e-5, "stance={stance:?} amount={amount}: {actual:?} != {expected:?}");
+            assert!(actual.z > 0.0);
+            assert_eq!(world.get::<LinearVelocity>(character).unwrap().0, velocity);
+            assert_eq!(world.get::<AlsMovementBaseDynamicsState>(character).unwrap().pre_collision_velocity, Some(actual));
         }
     }
 
