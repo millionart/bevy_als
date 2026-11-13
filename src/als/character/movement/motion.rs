@@ -5260,77 +5260,73 @@ pub(crate) fn cmc_movement_transaction_system(
         motor.lin.boost.z = remaining_velocity.z - velocity.z;
         motor.lin.acceleration.x = 0.0;
         motor.lin.acceleration.z = 0.0;
-        let Some(next_y) = next_y else {
-            let destination = if consumed { advanced } else { advanced + remaining.unwrap_or(delta) };
-            if find_ground_floor(&spatial_query, destination, half, radius, &params.cmc, *loco,
-                &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates).is_none() {
-                motor.lin.acceleration.y = -gravity.value.y;
-                if !root_motion_active
-                    && physics_modes.get(entity).is_ok_and(|(body, _, custom)| *body == RigidBody::Dynamic && !custom)
-                    && !walking_floor_penetrates(&spatial_query, destination, half, radius, entity, &candidates) {
-                    let remaining_time = crate::als::dynamics::walking_fall_remaining(0.0, delta_seconds,
-                        delta.length(), destination - center);
-                    let support = base.as_deref().filter(|base| base.entity.is_some())
-                        .map_or(Vec3::ZERO, |base| {
-                            let current = crate::als::dynamics::support_velocity_from_base(base.entity,
-                                destination - Vec3::Y * half, &bases, &owners).1;
-                            base.support_velocity.with_y(current.y)
-                        });
-                    let initial_velocity = base.as_deref().and_then(|base| base.pre_collision_velocity)
-                        .map_or(next_velocity.with_y(0.0) + Vec3::Y * support.y,
-                            |relative| relative.with_y(0.0) + support);
-                    let terminal = physics_modes.get(entity).ok().and_then(|(_, volume, _)| volume)
-                        .unwrap_or(&default_volume.0).terminal_velocity;
-                    let max_speed = runtime.grounded_max_speed;
-                    let mut falling_start = *transform;
-                    falling_start.translation = destination;
-                    falling_start.rotation = world.rotation();
-                    *loco = LocomotionState::Air;
-                    transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
-                        from: StateValue::LocomotionState(LocomotionState::Grounded),
-                        to: StateValue::LocomotionState(LocomotionState::Air) });
-                    let (moved, falling_velocity, _, contact, mode, floor, grounded_max_speed, collision_mode, refreshed) =
-                        falling_movement_transaction(&spatial_query, capsule, falling_start, initial_velocity,
-                            controller.basis.desired_motion, max_speed, params, gravity.value,
-                            grounded, landing, terminal, remaining_time, 1, entity, &mut runtime.random_seed,
-                            &candidates, &step_permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, cached_input_max, impacts.as_deref_mut());
-                    if let (Some(refreshed), Some(dynamics)) = (refreshed, dynamics.as_deref_mut()) { dynamics.0 = refreshed; }
-                    runtime.grounded_max_speed = grounded_max_speed;
-                    runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
-                    runtime.grounded_movement_delta = None;
-                    runtime.grounded_move_start = None;
-                    runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { falling_velocity });
-                    runtime.airborne_sweep_contact |= contact;
-                    *loco = mode;
-                    if mode == LocomotionState::Air && let Some(base) = base.as_deref_mut() { base.entity = None; }
-                    if mode == LocomotionState::None {
-                        commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
-                            crate::als::dynamics::AlsMovementBase::default(), LinearVelocity::ZERO));
-                        if let Some(base) = base.as_deref_mut() { *base = default(); }
-                    }
-                    let world_position = moved.translation;
-                    transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
-                    commands.entity(entity).insert(Position(world_position));
-                    motor.lin.boost = -velocity.0;
-                    motor.lin.acceleration = -gravity.value;
-                    if mode == LocomotionState::None { *motor = default(); }
-                    *margin = SpeculativeCcd::ZERO;
-                    drop(transform);
-                    drop(transform_query);
-                    if mode == LocomotionState::Grounded && let Ok(mut binding) = movement_bases.get_mut(entity) {
-                        bind_walking_base(floor, &mut binding, &transforms.p0());
-                    }
+        let destination = if consumed { world_position } else { world_position + remaining.unwrap_or(delta) };
+        let floor = find_ground_floor(&spatial_query, destination, half, radius, &params.cmc, *loco,
+            &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates).map(|(_, _, floor)| floor);
+        if floor.is_none() {
+            motor.lin.acceleration.y = -gravity.value.y;
+            if !root_motion_active
+                && physics_modes.get(entity).is_ok_and(|(body, _, custom)| *body == RigidBody::Dynamic && !custom)
+                && !walking_floor_penetrates(&spatial_query, destination, half, radius, entity, &candidates) {
+                let remaining_time = crate::als::dynamics::walking_fall_remaining(0.0, delta_seconds,
+                    delta.length(), destination - center);
+                let support = base.as_deref().filter(|base| base.entity.is_some())
+                    .map_or(Vec3::ZERO, |base| {
+                        let current = crate::als::dynamics::support_velocity_from_base(base.entity,
+                            destination - Vec3::Y * half, &bases, &owners).1;
+                        base.support_velocity.with_y(current.y)
+                    });
+                let initial_velocity = base.as_deref().and_then(|base| base.pre_collision_velocity)
+                    .map_or(next_velocity.with_y(0.0) + Vec3::Y * support.y,
+                        |relative| relative.with_y(0.0) + support);
+                let terminal = physics_modes.get(entity).ok().and_then(|(_, volume, _)| volume)
+                    .unwrap_or(&default_volume.0).terminal_velocity;
+                let max_speed = runtime.grounded_max_speed;
+                let mut falling_start = *transform;
+                falling_start.translation = destination;
+                falling_start.rotation = world.rotation();
+                *loco = LocomotionState::Air;
+                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
+                    from: StateValue::LocomotionState(LocomotionState::Grounded),
+                    to: StateValue::LocomotionState(LocomotionState::Air) });
+                let (moved, falling_velocity, _, contact, mode, floor, grounded_max_speed, collision_mode, refreshed) =
+                    falling_movement_transaction(&spatial_query, capsule, falling_start, initial_velocity,
+                        controller.basis.desired_motion, max_speed, params, gravity.value,
+                        grounded, landing, terminal, remaining_time, 1, entity, &mut runtime.random_seed,
+                        &candidates, &step_permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, cached_input_max, impacts.as_deref_mut());
+                if let (Some(refreshed), Some(dynamics)) = (refreshed, dynamics.as_deref_mut()) { dynamics.0 = refreshed; }
+                runtime.grounded_max_speed = grounded_max_speed;
+                runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
+                runtime.grounded_movement_delta = None;
+                runtime.grounded_move_start = None;
+                runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { falling_velocity });
+                runtime.airborne_sweep_contact |= contact;
+                *loco = mode;
+                if mode == LocomotionState::Air && let Some(base) = base.as_deref_mut() { base.entity = None; }
+                if mode == LocomotionState::None {
+                    commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
+                        crate::als::dynamics::AlsMovementBase::default(), LinearVelocity::ZERO));
+                    if let Some(base) = base.as_deref_mut() { *base = default(); }
+                }
+                let world_position = moved.translation;
+                transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
+                commands.entity(entity).insert(Position(world_position));
+                motor.lin.boost = -velocity.0;
+                motor.lin.acceleration = -gravity.value;
+                if mode == LocomotionState::None { *motor = default(); }
+                *margin = SpeculativeCcd::ZERO;
+                drop(transform);
+                drop(transform_query);
+                if mode == LocomotionState::Grounded && let Ok(mut binding) = movement_bases.get_mut(entity) {
+                    bind_walking_base(floor, &mut binding, &transforms.p0());
                 }
             }
             continue;
-        };
+        }
+        if next_y.is_none() { continue; }
         motor.lin.boost.y = -velocity.y;
         motor.lin.acceleration.y = -gravity.value.y;
         *margin = SpeculativeCcd::ZERO;
-        let destination = if stepped_up { advanced.with_y(next_y) }
-            else { (advanced + remaining.unwrap_or(delta)).with_y(next_y) };
-        let floor = find_ground_floor(&spatial_query, destination, half, radius, &params.cmc, *loco,
-            &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates).map(|(_, _, floor)| floor);
         let previous = movement_bases.get(entity).ok().and_then(|binding| binding.entity)
             .or_else(|| base.as_deref().and_then(|state| state.entity));
         if floor.is_some_and(|floor| movement_base_changed(previous, floor, &owners)
@@ -9528,7 +9524,9 @@ mod tests {
             }
             app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
             app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
-            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Air);
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Air,
+                "speed={speed} steps={steps} start={start:?} position={:?} runtime={:?}",
+                app.world().get::<Position>(actor), app.world().get::<AlsCmcAdapterRuntime>(actor));
             let velocity = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
             let expected = speed - if steps == 1 { 0.0 } else { 0.4905 };
             assert!((velocity.y - expected).abs() < 1e-4,
@@ -9808,7 +9806,9 @@ mod tests {
             if supported {
                 assert_eq!(mode, LocomotionState::Grounded);
             } else {
-                assert_eq!(mode, LocomotionState::Air);
+                assert_eq!(mode, LocomotionState::Air,
+                    "wall={wall} start={start:?} position={:?} runtime={:?}",
+                    app.world().get::<Position>(actor), app.world().get::<AlsCmcAdapterRuntime>(actor));
                 let velocity = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
                 if wall { assert!(velocity.y < -0.03 && velocity.y > -0.15, "Refunded time was not integrated: {velocity:?}"); }
                 else { assert!(velocity.y.abs() < 1e-6, "An unobstructed step must not refund time: {velocity:?}"); }

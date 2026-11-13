@@ -1,0 +1,23 @@
+{
+  "ablation.stdout.log.gz": {
+    "bytes": 492,
+    "sha256": "efcf7ef125ab1856f2bdd408fa7af1b7b70b009a09f09e9f8bbac60647ca8377"
+  },
+  "ablation.stderr.log.gz": {
+    "bytes": 9118,
+    "sha256": "f6c45c03ee2f894922036206a06ebc4486463afd132fabaced7fdc8c64a9ef21"
+  },
+  "ablation.watchdog.json": {
+    "bytes": 275,
+    "sha256": "94b2adf1b424699becc8e3486cb7cdb3776c710c07c41721356d6d58f0b4fe96"
+  },
+  "restored_source_sha256": "d5662de3f2af4e0192a1f92fa3fcc81045d4a8cd5b924acf14c6be311ca9ee61",
+  "restored.stdout.log.gz": {
+    "bytes": 1756,
+    "sha256": "9fbf082a5c89cb51588181e2c92e876a62cbda4043b6473a2c2720bbe0e3edc1"
+  },
+  "restored.watchdog.json": {
+    "bytes": 289,
+    "sha256": "7b5df16cbc09b73cde39e32a301578d2345e6f62a827e232289f63979e41477f"
+  }
+}
