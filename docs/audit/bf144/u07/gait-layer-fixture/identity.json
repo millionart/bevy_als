@@ -1,0 +1,14 @@
+{
+  "bytes": 54847,
+  "sha256": "9fe4df436a0a76f5309dc2089f796ad38e7267cad334cba4145b2e5a4a586aef",
+  "native_cases": [
+    {
+      "name": "walking-below-max-direction",
+      "value": 1.2000000476837158
+    },
+    {
+      "name": "running-above-max-direction",
+      "value": 1.899999976158142
+    }
+  ]
+}

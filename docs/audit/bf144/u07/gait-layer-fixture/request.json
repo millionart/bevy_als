@@ -1,0 +1,44 @@
+{
+  "samples": [
+    {
+      "name": "walking-below-max-direction",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "float_range_map": {
+        "input": 120,
+        "input_range": [
+          100,
+          200
+        ],
+        "output_range": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "name": "running-above-max-direction",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "float_range_map": {
+        "input": 190,
+        "input_range": [
+          100,
+          200
+        ],
+        "output_range": [
+          1,
+          2
+        ]
+      }
+    }
+  ]
+}

@@ -109,18 +109,21 @@ mod tests {
             .spawn((ChildOf(character), AlsCharacterAvatar { character }))
             .id();
 
-        app.update();
+        for (speed, expected_gait, expected_amount) in
+            [(1.2, Gait::Walking, 1.2), (1.9, Gait::Running, 1.9)]
+        {
+            app.world_mut().entity_mut(character).insert(AlsActualVelocity {
+                world_velocity: Vec3::Z * speed,
+                horizontal_speed: speed,
+            });
+            app.update();
 
-        let amount = app.world().get::<AlsGaitAmount>(character).unwrap().0;
-        let gait = *app.world().get::<Gait>(character).unwrap();
-        let weights = app.world().get::<AlsGaitBlend>(avatar).unwrap().weights;
-        println!(
-            "[BF102.03] backward_gait={gait:?} gait_amount={amount:.6} animation_running_amount={:.6} animation_sprint_amount={:.6}",
-            weights.running_amount(),
-            weights.sprint_w
-        );
-        assert_eq!(gait, Gait::Running);
-        assert!((amount - 1.2).abs() < 1e-6);
-        assert_eq!(weights, GaitWeights::from_gait_amount(amount));
+            let amount = app.world().get::<AlsGaitAmount>(character).unwrap().0;
+            let gait = *app.world().get::<Gait>(character).unwrap();
+            let weights = app.world().get::<AlsGaitBlend>(avatar).unwrap().weights;
+            assert_eq!(gait, expected_gait, "Backward speed {speed}");
+            assert!((amount - expected_amount).abs() < 1e-6);
+            assert_eq!(weights, GaitWeights::from_gait_amount(amount));
+        }
     }
 }
