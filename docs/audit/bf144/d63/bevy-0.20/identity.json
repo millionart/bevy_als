@@ -1,0 +1,42 @@
+{
+  "high-root.request.json": {
+    "bytes": 334,
+    "sha256": "31da15828b4057e5c953d93a386af215df137321d4cf431827cea9636dcbeb48"
+  },
+  "high-root.reader.report.json": {
+    "bytes": 434,
+    "sha256": "4dcb411369efe8a5a7a20467ccee71ce51674b61db5643428dc1fc1109fcfe88"
+  },
+  "high-root.native.json.gz": {
+    "bytes": 1784176,
+    "sha256": "ce94e629b01f113e3f5973393f81b6a71b7cf28983d50cc1f8b7ae113f147036"
+  },
+  "focused.stdout.log.gz": {
+    "bytes": 300,
+    "sha256": "d3d985c262286b7b4b2ee22d1a2b43b88d9c7f56e025ff34b998d00027f6102b"
+  },
+  "focused.watchdog.json": {
+    "bytes": 278,
+    "sha256": "c863e734e4ef99fce357ede9cd95b622b96fef32859097811c94e256fcbed657"
+  },
+  "ablation.stdout.log.gz": {
+    "bytes": 1350,
+    "sha256": "f707687496afd66ca07a93464cc9f17492e925cf669fe663fc2a5f2ee12c8774"
+  },
+  "ablation.watchdog.json": {
+    "bytes": 287,
+    "sha256": "59f5ad7ef805fd923af4abe92f0a34f115cfeca0c8bfa19c969ff4470f2197f5"
+  },
+  "restored.stdout.log.gz": {
+    "bytes": 300,
+    "sha256": "3c6267115337fbe7916d21a0ab0a9ce3c74f1d80fee54280bc6aa94aa1cf776b"
+  },
+  "restored.watchdog.json": {
+    "bytes": 279,
+    "sha256": "9728e8e34b4e2cc1b0da31f04a3c73cef53110a269839c55029e62baaf8ac008"
+  },
+  "restored_rust": {
+    "path": "src/als/root_motion_sources/mantle_drive.rs",
+    "sha256": "c2f81a0a7f6335096e345cb7d0e8672e634e3f93d89a59ee8d0bd06f09651dca"
+  }
+}

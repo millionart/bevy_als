@@ -6245,7 +6245,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`mantle_drive.rs:603–614`在物理前先结束Mantle并置Grounded；同帧物理后的`movement/motion.rs:4073–4098`再次按无支撑改为Air，`ab_als_root`立即把它发布为`Als.LocomotionMode.InAir`。
   - 反例：完整low Mantle到clip约0.41936s、脚底未受地面/台阶支撑时清动作，源当前帧应Grounded，target及实际SourceAnimationInputs已经InAir；该帧水平退出速度仍与源公式一致。`bf144_mantle_physics_interruption_keeps_source_exit_velocity_and_mode`3组2PASS/1FAIL，起始地面段与已登上台阶段的中断对照通过。证据`target/bf144/19/`；限定一个帧的模式提前，不推测尚未验证的后续轨迹影响。
 
-- [x] BF144-D63 / P3 — Mantle的owner零/极小时钟未保留源重复应用旧rotation delta的行为；静态实现完成，统一验证待执行。
+- [x] BF144-D63 / P3 — Mantle的owner零/极小时钟未保留源重复应用旧rotation delta的行为。
+  - 2026-11-13 16:59复验完成。16:45开始、17:04预估，提前5分钟。有效窗口的两项极小时钟测试通过；移除旧旋转增量的应用后，两项都在最终旋转失败。按原字节恢复并重编同target后均通过。正式Bow功能和渲染通过，证据 `docs/audit/bf144/d63/bevy-0.20/`，未拆分。
+  - 2026-11-13 16:45复验开始，预估17:04。两个旧测试由高度1.5m推得clip起点0.4s，预热0.2s后已到0.64s，超过High旋转warp结束0.6s，且源High根轨为无旋转，不能制造预期非零增量。fresh High根轨与源warp阶段核对后，让夹具在0.3–0.6s中部建立非零旋转，保留零yaw及普通/0/5ns/10ns对照。
+  - 16:47正式前：两项已加载Mantle在真实非零窗口内通过，涵盖0/5ns/10ns及恢复正常推进。沿正式Bow的High Mantle与动作切换复验，截图0。
   - 活动：开始2026-11-08 18:28 +08:00；预估结束19:13 +08:00；实际结束18:32 +08:00，提前41分钟；未拆分，测试/消融/Gate暂缓。
   - 闭环：fresh Clear/Override/旋转乘法、源阈值和High根轨道保存在`docs/audit/bf144/d63/`；目标复用上一旋转增量，已写0/5ns/10ns、重复、恢复及加载角色对照。首次原生请求越过实际片段终点，失败报告与修正读数均已保留；碰撞阻挡及动画Gate待验证。
   - Source：fresh `AnimationAsset.h:781–785,812`证明Clear保留旧transform；`RootMotionSource.cpp:1744–1749`仍返回其中的旧rotation delta，不检查bHasRootMotion或delta。UE `PerformMovement:3090–3097`在位置物理之后把它乘到当前actor quaternion，也没有owner delta门槛；component Tick与ShouldSkipUpdate不会仅因delta0而跳过。这里是源自身的时钟行为，不能以“暂停应该不转”替换其事实。

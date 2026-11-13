@@ -2227,7 +2227,8 @@ pub(crate) mod tests {
             let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(MantleKind::High)).unwrap();
             let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
             let mut mantle = AlsMantleState::default();
-            mantle.begin_with_target_base(MantleKind::High, Vec3::Y, Vec3::new(0.0, 2.5, -0.8), 1.5, yaw, 0.0,
+            mantle.begin_with_target_base_and_start_time(MantleKind::High, Transform::from_xyz(0.0, 1.0, 0.0)
+                .with_rotation(Quat::from_rotation_y(yaw)), Vec3::new(0.0, 2.5, -0.8), 0.2, 0.0,
                 AlsMantleTargetBase { entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
                     scale: Vec3::ONE, relative_location: false });
             mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
@@ -2297,7 +2298,8 @@ pub(crate) mod tests {
         let clip = app.world().resource::<Assets<GraphClip>>().get(app.world().resource::<MantleAssets>().clip(MantleKind::High)).unwrap();
         let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
         let mut mantle = AlsMantleState::default();
-        mantle.begin_with_target_base(MantleKind::High, Vec3::Y * 10.0, Vec3::new(0.0, 11.5, -0.8), 1.5, 0.35, 0.0,
+        mantle.begin_with_target_base_and_start_time(MantleKind::High, Transform::from_xyz(0.0, 10.0, 0.0)
+            .with_rotation(Quat::from_rotation_y(0.35)), Vec3::new(0.0, 11.5, -0.8), 0.2, 0.0,
             AlsMantleTargetBase { entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
                 scale: Vec3::ONE, relative_location: false });
         mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
