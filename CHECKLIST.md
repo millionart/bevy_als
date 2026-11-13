@@ -7430,6 +7430,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检/边界：旧alias验证覆盖条件选择、首次进入及缓存复用，未覆盖旧混合完成而新混合尚活跃时的前态回退。测试使用原状态/条件/转场和完整受控站蹲pose；未宣称默认世界角色已显示A-pose，也未证明其他alias成员或相邻FSM已等价。证据`target/bf144/123/resolved.json`、`analysis.json`；未实施通用alias修复或重写生成资产。
 
 - [x] BF144-D208 / P2 — 零步长标记组仍执行相位对齐，改变新成员时钟及后续姿态。
+  - 2026-11-13 14:43复开，预估15:05。全库正步长加入控制的首差只在前一长度比例。fresh `AnimSequenceBase.cpp:518–550,614–640` 先从对齐前本地时间发布长度比例，再在marker求值内部改写动画实际previous。源`positive_join`的0.4250000119秒对应组previous ratio=0.375，实际采样previous为0.1886816025秒。目标把后一时钟发布成比例。重采原请求并分离两个字段，保留零步长与BlendSpace旁路。
+  - 14:56正式前：fresh原生48帧与封存投影逐值一致。移除组比例修正后 `positive_join` 失败，按字节恢复同步及BlendSpace定向通过；共享marker测试恢复真实唯一播放器ID和显式本地时钟。以Playground正式蹲行验证 Movement 同步和姿态，截图0。
+  - 2026-11-13 14:59正式后：34项同步及BlendSpace测试、实际六方向蹲行、Lean、左右Rotate和Turn通过。14:43开始、15:05预估、14:59实际，提前6分钟，未拆分。证据 `docs/audit/bf144/d208/bevy-0.20/`。另有重复marker完整图夹具仍按其首帧角色和本地时钟复核。
   - 2026-11-12 09:05 +0800 实际结束，较09:47预估提前42分钟，未拆分。fresh Crouch 7条48帧，12次零移动尝试保留本地时钟，5个恢复帧从实际本地时刻开始；去前组终点有效性控制使新leader从约0.13955秒代替原生0.8秒开始。原生请求和resolver夹具见 `docs/audit/bf144/d208/`，Cargo/Playground待统一验证。
   - 本轮开始2026-11-12 08:59 +08:00，预估结束2026-11-12 09:47 +08:00。重采Crouch实际标记组零移动、换leader和下一正步，保留本地时间并区分有效标记终点。
   - Source：fresh `AnimSequenceBase.cpp:522–548`在实际移动delta为0时只按需要建立本地marker索引，不调用TickByMarkerAsLeader或发布有效marker起止；`AnimSync.cpp:219–258`继续按分数尝试候选，所有候选都无有效终点时最后一项成为记录leader。下帧从各自未移动的时间继续。本机原生FAnimSync确认这一行为；Crouch PlayRate源下限0.0001，本反例使用合法rate=1和delta=0。

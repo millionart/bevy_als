@@ -165,6 +165,7 @@ pub struct SourceSyncPlayerStep {
     pub advance: SourceMarkerAdvance,
     pub time: f32,
     pub previous_time: f32,
+    previous_time_before_marker_alignment: f32,
     pub record: Option<SourceMarkerRecord>,
 }
 
@@ -522,6 +523,8 @@ pub fn resolve_source_sync_phases(
             let mut ratios = Vec2::new(step.previous_time, step.time) / leader.duration.max(EPSILON);
             if !common.is_empty() && let Some(clock) = grouped.blend_space_clock {
                 ratios.x = clock.normalized_time;
+            } else if grouped.length_play_rate.is_none() {
+                ratios.x = step.previous_time_before_marker_alignment / leader.duration.max(EPSILON);
             }
             length_ratios = Some(ratios);
             marker_advance = Some(step.advance.clone());
@@ -577,7 +580,9 @@ impl SourceSyncPlayerTick {
         let (time, record) = if let Some(position) = position.filter(|position| position.is_valid()) {
             SourceMarkerRecord::from_position(&markers, self.duration, self.looped, hint, position, self.source_asset.clone())
         } else { (hint, SourceMarkerRecord::at_time(&markers, self.duration, self.looped, hint, self.source_asset.clone())) };
-        self.advance_with_record(time, record)
+        let mut step = self.advance_with_record(time, record);
+        step.previous_time_before_marker_alignment = hint;
+        step
     }
 
     pub fn advance_from_time(&self, previous_time: f32) -> SourceSyncPlayerStep {
@@ -612,6 +617,7 @@ impl SourceSyncPlayerTick {
             .unwrap_or_else(|| time_to_phase(time, self.duration, self.looped));
         SourceSyncPlayerStep { phase, advance, time,
             previous_time: paused_blend_space.map_or(previous_time, |clock| clock.previous_sample_time),
+            previous_time_before_marker_alignment: previous_time,
             record: (!record.markers.is_empty()).then_some(record) }
     }
 }
@@ -2421,6 +2427,7 @@ mod tests {
     #[test]
     fn sync_group_uses_only_marker_names_shared_by_marked_players() {
         let leader = SourceSyncPlayerTick {
+            identity: (GraphContextId::default(), bevy::asset::uuid::Uuid::from_u128(1).into()),
             key: "Movement".into(),
             role: SourceSyncGroupRole::AlwaysLeader,
             weight: 0.6,
@@ -2430,12 +2437,14 @@ mod tests {
             markers: markers(&[("A", 0.0), ("Extra", 0.25), ("B", 0.5)]),
             phase: 0.3,
             previous_phase: 0.2,
+            sample_time_hint: Some(0.2),
             delta_seconds: 0.1,
             play_rate: 1.0,
             looped: true,
             ..default()
         };
         let follower = SourceSyncPlayerTick {
+            identity: (GraphContextId::default(), bevy::asset::uuid::Uuid::from_u128(2).into()),
             key: "Movement".into(),
             role: SourceSyncGroupRole::AlwaysFollower,
             weight: 0.4,
@@ -2467,6 +2476,7 @@ mod tests {
         let mut next = leader.clone();
         next.phase = 0.4;
         next.previous_phase = 0.3;
+        next.sample_time_hint = Some(0.3);
         let changed = resolve_source_sync_phases(&[next.clone(), follower.clone()], &[leader.clone()]);
         assert!((changed[0].phase.unwrap() - 0.64).abs() < EPSILON, "{:?}", changed[0].phase);
         let mut prior_valid = leader;
