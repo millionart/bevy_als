@@ -7484,6 +7484,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.136多组小步长补充：首次delta≤0.0001使源轴过滤保持初值0，下一普通帧才产生新的最高权重样本；原始stride输入始终在0.2–1。36条固定组历史在第1帧各只恢复一次新样本的源marker相位起点，失败帧从3438降到252，剩余近零语义和重建误差分别归D217/D213。原Forward四条历史中前三条各95帧左脚旋转改变，最大分量差约4.88e−5、角差约0.0058°，101µs控制保持；未泛化默认世界自然触发。证据`target/bf144/136/history-analysis.json`、`pose-consumers.json`。
 
 - [x] BF144-D213 / P3 — BlendSpace记录重建误用样本秒数，未保留播放器归一化时间。
+  - 14:23复开。已将外部Sequence夹具的`rem_euclid`改为源严格末点；由此暴露无marker BlendSpace自推进到末点时，leader样本1秒、同长度的次样本0秒，混合曲线0.75。fresh `BlendSpace.cpp` 的无marker路径把相同的clamped normalized current/previous乘各样本长度；原生Look普通循环0.75→1.0保留样本时间1.0，后一步才循环。开始14:23、预估14:46；只修无marker本地样本传播，验证旧同组和prepared Head。
+  - 14:35正式前：同target移除当前/前值的共享归一化传播后，次样本仍回0秒，曲线为0.75；按字节恢复后5项定向通过。沿正式Head场景的prepared Look样本、输入切换和回转运行，截图0。
+  - 2026-11-13 14:39正式后：Head七段功能通过，含上下视角、回转、速度方向和第一人称时间。14:23开始、14:46预估、14:39实际，提前7分钟，未拆分。保存原生请求和响应、消融和恢复以及真实报告于 `docs/audit/bf144/d213/exact-loop-endpoint/`。
   - 2026-11-12 09:35 +0800 实际结束，较10:15预估提前40分钟，未拆分。fresh 7条150帧原生，覆盖归一化乘回、短样本接替及follower previous；保留旧秒数使3条重建路径失配，清理follower本地样本记录使2条previous失配。证据与真实同步出口夹具见 `docs/audit/bf144/d213/`，Cargo/Playground待统一验证。
   - 本轮开始2026-11-12 09:25 +08:00，预估结束2026-11-12 10:15 +08:00。重采原BlendSpace的归一化累计、leader重建与follower previous，保留实例和样本记录的各自生命周期。
   - Source：fresh `BlendSpace.cpp:600,704–710,745`把TimeAccumulator保留为归一化值；组记录无效时，将leader时间重新设为NormalizedCurrentTime×sample length，再建marker记录并推进。先前归一化除法和重入乘法均为float，不能省去这一往返而称为逐值等价。

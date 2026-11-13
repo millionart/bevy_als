@@ -20,7 +20,7 @@ use crate::extensions::source_pose::blend_source_poses;
 use crate::extensions::source_pose_nodes::{accumulate_source_poses, normalize_source_pose_rotations};
 use crate::extensions::sync_group_phase::{
     SourceBlendSpaceClock, SourceSyncPlayerBinding, SourceSyncPlayerTick, blend_space_nearly_zero_delta, resolved_source_sync_phase,
-    resolved_source_sync_markers, marker_phase_sample_time_near, follower_sample_time_near,
+    resolved_source_sync_markers, marker_phase_sample_time_near,
     marker_phase_sample_time_continuous, resolved_source_marker_advance, resolved_source_sync_sample_time,
 };
 use crate::extensions::{AnimationContextState, marker_phase_from_sample_time};
@@ -893,15 +893,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
             } else if let Some(ratios) = length_ratios {
                 (ratios.y * duration, ratios.x * duration)
             } else {
-                (follower_sample_time_near(
-                    phase,
-                    leader_duration,
-                    &leader_markers,
-                    duration,
-                    &point_markers,
-                    point_hint,
-                    sample_looped,
-                ), point_hint)
+                (leader_time / leader_duration * duration, leader_previous_time / leader_duration * duration)
             };
             let time = if self.teleport_to_normalized_time && point.asset_rate_scale < 0.0 { duration - time } else { time };
             sample_times[index] = Some(time);

@@ -378,8 +378,8 @@ mod tests {
                     Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
                 let outputs = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)), context).unwrap();
                 if delta == 0.0 { continue; }
-                own_time = (own_time + delta).rem_euclid(1.0);
-                external_time = (external_time + delta * rate).rem_euclid(1.0);
+                own_time = crate::extensions::source_sequence_player::bound_source_sample_time(own_time + delta, 1.0, true);
+                external_time = crate::extensions::source_sequence_player::bound_source_sample_time(external_time + delta * rate, 1.0, true);
                 let expected = if excluded { own_time } else { external_time };
                 let states = &arena.get_toplevel().node_states;
                 let state = states.get::<NormalizedBlendSpaceState>(player_id, StateKey::Default).unwrap();
