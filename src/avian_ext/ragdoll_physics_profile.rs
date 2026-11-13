@@ -2153,12 +2153,13 @@ mod tests {
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
             avian3d::prelude::PhysicsPlugins::new(PostUpdate), crate::extensions::SourcePhysicsJointPlugin));
         app.finish(); app.cleanup();
-        let world = app.world_mut();
-        let player = world.spawn((AnimationGraphPlayer::new(Handle::default()),
+        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()),
             crate::pa_als::parse_pa_als_profile(), Transform::IDENTITY)).id();
-        let spawned = world.run_system_once(move |mut commands: Commands| {
+        let spawned = app.world_mut().run_system_once(move |mut commands: Commands| {
             spawn_ragdoll_avian(player, &ragdoll, Isometry3d::IDENTITY, None, &mut commands)
         }).unwrap();
+        app.update();
+        let world = app.world_mut();
         let bodies = spawned.bodies.values().map(|entity| (world.get::<BodyLabel>(*entity).unwrap().0.clone(), *entity))
             .collect::<Vec<_>>();
         let colliders = spawned.colliders.values().map(|entity| (world.get::<ColliderLabel>(*entity).unwrap().0.clone(), *entity))
@@ -2174,7 +2175,9 @@ mod tests {
                 let label = expected["label"].as_str().unwrap();
                 let entity = colliders.iter().find(|(name, _)| name == label).unwrap().1;
                 let shape = world.get::<Collider>(entity).unwrap().shape_scaled();
-                let capsule = shape.as_capsule().unwrap();
+                let capsule = shape.as_capsule().unwrap_or_else(|| {
+                    panic!("Expected a capsule at scale {scale} for {label}, found {:?}", shape.shape_type())
+                });
                 let radius = expected["radius_m"].as_f64().unwrap() as f32;
                 let half_length = expected["half_length_m"].as_f64().unwrap() as f32;
                 assert!((capsule.radius - radius).abs() < 1e-7, "scale={scale} collider={label} radius={}", capsule.radius);

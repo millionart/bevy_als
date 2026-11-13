@@ -1,0 +1,4 @@
+Quat(0.0, 0.0, 0.0, 1.0) before (Vec3(1.0, 1.0, 1.0), Capsule, Capsule)
+Quat(0.0, 0.0, 0.0, 1.0) after (Vec3(1.0, 1.0, 1.0), Capsule, Capsule)
+Quat(0.0, 0.0, 0.70710677, 0.70710677) before (Vec3(0.99999994, 0.99999994, 1.0), Capsule, ConvexPolyhedron)
+Quat(0.0, 0.0, 0.70710677, 0.70710677) after (Vec3(1.0, 1.0, 1.0), Capsule, Capsule)
