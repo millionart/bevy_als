@@ -1,0 +1,23 @@
+{
+  "native_sha256": "717abf35beeeeffad16f66adb9f8b89a50a55112304272af7dbbf86a6bfe749b",
+  "bytes": 1531142,
+  "source_pose_identical": true,
+  "logs": {
+    "d124-raw-unbound-control-red.stdout.log.gz": {
+      "bytes": 1084,
+      "sha256": "82f6cd939029f917ce36b5762131f9f4f0a112dbba5afc3d213584c8f8ea175c"
+    },
+    "d124-raw-unbound-control-red.stderr.log.gz": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "d124-raw-unbound-control-restore.stdout.log.gz": {
+      "bytes": 231,
+      "sha256": "5f053b43ade2d029cbbefc5f264012681980b27f48d603c938c789df4644494e"
+    },
+    "d124-raw-unbound-control-restore.stderr.log.gz": {
+      "bytes": 7691,
+      "sha256": "3c072dce962190bacc7fa1ef29331b26564f53f125a94e29160ddce35c3da757"
+    }
+  }
+}

@@ -6645,6 +6645,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
     - 本轮开始2026-11-11 23:27 +08:00，预估结束2026-11-12 00:22 +08:00。fresh UE标准转场的中间姿态保留原始幅值，使用同一原生算子取两层输入、权重与末层结果。只追实际FSM标准转场。
 
 - [x] BF144-D124 / P3 — GetUp虚拟骨骼插值偏离当前源Sequencer模型的逐次生成。
+  - 2026-11-13 09:15复验，预估09:26。fresh GetUp Front逐帧源姿态与封存表完全相同。旧用例将已绑定源时间表的样本与去绑定后普通曲线采样逐值比较；分别使用各自相同采样模式后，双GetUp和Sprint的原生虚拟骨骼对照及消融通过。09:21完成，提前5分钟，证据 `docs/audit/bf144/d124/runtime-recheck/`。运行时资产和采样代码保持原逻辑，无需拆分。
   - 23:56 source/static 闭环。SKM原生11个虚拟骨骼中6个引用上游虚拟骨骼，目标GLTF父级逐项一致。三份已证实Raw glTF依绑定顺序重算，覆盖双向GetUp及SprintAcceleration。28个Raw时点308个虚拟骨骼的同源普通输入复算位置最大7.39e−8cm，冻结依赖的消融最大93.91cm。目标原GLTF重放的GetUp最大位置差降到4.61µm，Sprint降到0.151mm，余差保留普通骨骼采样边界。另有8个原生Compressed控制，强制Raw重算会改变结果。已写实际加载片段的Raw及未绑定控制回归。证据在 `docs/audit/bf144/d124/`。开始23:40，预估次日00:35，实际结束2026-11-11 23:56 +08:00，偏差−39分钟。结果为静态实现完成，目标编译与运行验证按统一阶段执行。
   - 本轮开始2026-11-11 23:40 +08:00，预估结束2026-11-12 00:35 +08:00。以.42和.174的GetUp双向、SprintAcceleration Raw为实际闭包，重读SKM的11组虚拟骨骼绑定和相同容器的Raw/Compressed姿态。
   - Source：fresh两sequence的DataModelInterface实际为AnimationSequencerDataModel；本机未烘焙GetAnimationPose走该活动模型，`AnimSequencerDataModel.cpp:775–799,1466–1494`在采样当前骨骼后，以Target组件变换相对Source组件变换生成11根虚拟骨骼。保留的旧AnimDataModel不能替代当前接口作为oracle。

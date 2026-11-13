@@ -1096,6 +1096,7 @@ mod tests {
                 let frame = &native["sequence_pose_probe"]["frames"][index];
                 let time = frame["time"].as_f64().unwrap() as f32;
                 let baked = sample_pose(clip, time);
+                let unbound_baked = sample_pose(&unbound, time);
                 let reconstructed = sample_raw_source_clip_pose(clip, time, skeletons).unwrap();
                 let control = sample_raw_source_clip_pose(&unbound, time, skeletons).unwrap();
                 let native_bones = frame["bones"].as_array().unwrap();
@@ -1131,9 +1132,10 @@ mod tests {
                     let raw = baked.get_bone(id).unwrap();
                     let result = reconstructed.get_bone(id).unwrap();
                     let unbound = control.get_bone(id).unwrap();
+                    let unbound_sample = unbound_baked.get_bone(id).unwrap();
                     assert_eq!(
                         (unbound.translation, unbound.rotation, unbound.scale),
-                        (raw.translation, raw.rotation, raw.scale)
+                        (unbound_sample.translation, unbound_sample.rotation, unbound_sample.scale)
                     );
                     baked_error =
                         baked_error.max((raw.translation.unwrap() - position).abs().max_element());

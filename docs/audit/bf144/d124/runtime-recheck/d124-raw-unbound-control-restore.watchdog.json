@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 290.326,
+  "exit_reason": "completed",
+  "last_progress": "stdout.log",
+  "no_progress_limit_seconds": 420,
+  "no_progress_seconds": 0.0,
+  "process_exit_code": 0,
+  "source": "d124-raw-unbound-control-restore",
+  "success": true,
+  "timeout_seconds": 3600
+}
