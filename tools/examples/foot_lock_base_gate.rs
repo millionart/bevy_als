@@ -212,7 +212,7 @@ fn lock_snapshot(app: &App, character: Entity) -> LockSnapshot {
         movement_base: state.left.movement_base.map(|base| base.entity),
         world_location: state.left.lock_location.as_vec3(),
         world_rotation: state.left.lock_rotation.as_quat(),
-        base_location: state.left.lock_location_movement_base,
+        base_location: (state.left.lock_location_movement_base_cm.as_dvec3() * 0.01).as_vec3(),
         base_rotation: state.left.lock_rotation_movement_base,
     }
 }

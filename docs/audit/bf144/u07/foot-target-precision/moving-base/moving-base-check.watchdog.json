@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 170.735,
+  "exit_reason": "completed",
+  "last_progress": "stderr.log",
+  "no_progress_limit_seconds": 240,
+  "no_progress_seconds": 0.0,
+  "process_exit_code": 0,
+  "source": "d318-moving-base-check",
+  "success": true,
+  "timeout_seconds": 3600
+}

@@ -1284,6 +1284,25 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             Sample->SetNumberField(TEXT("view_yaw_degrees"), ViewYawDegrees);
             Sample->SetNumberField(TEXT("yaw_difference"), Angle);
         }
+        if ((*Input)->HasField(TEXT("foot_lock_base_position")))
+        {
+            const TSharedPtr<FJsonObject>* Position = nullptr;
+            TArray<double> Start, Lock, End, EndRotation;
+            if (!(*Input)->TryGetObjectField(TEXT("foot_lock_base_position"), Position)
+                || !ReadArray(*Position, TEXT("start_base_cm"), Start, 3)
+                || !ReadArray(*Position, TEXT("lock_world_cm"), Lock, 3)
+                || !ReadArray(*Position, TEXT("end_base_cm"), End, 3)
+                || !ReadArray(*Position, TEXT("end_rotation_xyzw"), EndRotation, 4)) { return nullptr; }
+            const FQuat EndQuat(EndRotation[0], EndRotation[1], EndRotation[2], EndRotation[3]);
+            if (!EndQuat.IsNormalized()) { return nullptr; }
+            const FVector3f Relative(Rotation.Inverse().RotateVector(
+                FVector(Lock[0], Lock[1], Lock[2]) - FVector(Start[0], Start[1], Start[2])));
+            const FVector World = FVector(End[0], End[1], End[2]) + EndQuat.RotateVector(FVector(Relative));
+            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+            Result->SetObjectField(TEXT("relative_cm"), CaptureVector(FVector(Relative)));
+            Result->SetObjectField(TEXT("world_cm"), CaptureVector(World));
+            Sample->SetObjectField(TEXT("foot_lock_base_position"), Result);
+        }
         if ((*Input)->HasField(TEXT("rotation_factors")))
         {
             const TArray<TSharedPtr<FJsonValue>>* Factors = nullptr;

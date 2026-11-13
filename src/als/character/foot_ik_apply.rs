@@ -1443,7 +1443,9 @@ mod tests {
             source_constrain_foot_lock(&mut foot, &GlobalTransform::IDENTITY, &GlobalTransform::IDENTITY, Vec3::X, &AlsFootLockSettings::default());
             let expected = Quat::from_rotation_y(expected_angle.to_radians());
             assert!(foot.lock_location.distance((expected * Vec3::X).as_dvec3()) < 1e-5);
-            assert!(foot.lock_rotation_before_foot_limit_armature.angle_between(expected) < 1e-5);
+            let actual = foot.lock_rotation_before_foot_limit_armature.as_dquat().normalize();
+            let expected = expected.as_dquat().normalize();
+            assert!((actual - expected).length().min((actual + expected).length()) < 5e-6);
         }
     }
 

@@ -10,7 +10,7 @@ use crate::als::state::{LocomotionState, Stance};
 use crate::als::transitions::{
     TransitionConfig, TransitionSelection, foot_lock_distance_squared_cm, select_dynamic_transition,
 };
-use crate::extensions::control_rig_hierarchy::rig_normalize;
+use crate::extensions::{control_rig_hierarchy::rig_normalize, source_math::source_rotate_vector};
 
 pub const FOOT_BONE_NAMES: [&str; 10] = [
     "thigh_l",
@@ -202,7 +202,7 @@ pub struct AlsFootLockFootState {
     pub lock_rotation: DQuat,
     pub lock_rotation_before_foot_limit_armature: Quat,
     pub movement_base: Option<AlsFootLockMovementBase>,
-    pub lock_location_movement_base: Vec3,
+    pub lock_location_movement_base_cm: Vec3,
     pub lock_rotation_movement_base: Quat,
     pub final_location: DVec3,
     pub final_rotation_armature: Quat,
@@ -218,7 +218,7 @@ impl Default for AlsFootLockFootState {
             lock_rotation: DQuat::IDENTITY,
             lock_rotation_before_foot_limit_armature: Quat::IDENTITY,
             movement_base: None,
-            lock_location_movement_base: Vec3::ZERO,
+            lock_location_movement_base_cm: Vec3::ZERO,
             lock_rotation_movement_base: Quat::IDENTITY,
             final_location: DVec3::ZERO,
             final_rotation_armature: Quat::IDENTITY,
@@ -256,7 +256,8 @@ pub fn advance_foot_lock_movement_base(
     let base = latest_base
         .filter(|base| base.entity == saved_base.entity)
         .unwrap_or(saved_base);
-    state.lock_location = (base.translation + base.rotation * state.lock_location_movement_base).as_dvec3();
+    state.lock_location = (base.translation.as_dvec3() * 100.0
+        + source_rotate_vector(base.rotation.as_dquat(), state.lock_location_movement_base_cm.as_dvec3())) * 0.01;
     state.lock_rotation = base.rotation.as_dquat() * state.lock_rotation_movement_base.as_dquat();
     state.movement_base = Some(base);
 }
@@ -267,18 +268,20 @@ pub fn capture_foot_lock_movement_base(
 ) {
     if !is_relevant_animation_weight(state.lock_amount) {
         state.movement_base = None;
-        state.lock_location_movement_base = Vec3::ZERO;
+        state.lock_location_movement_base_cm = Vec3::ZERO;
         state.lock_rotation_movement_base = Quat::IDENTITY;
         return;
     }
     let Some(base) = current_base else {
         state.movement_base = None;
-        state.lock_location_movement_base = Vec3::ZERO;
+        state.lock_location_movement_base_cm = Vec3::ZERO;
         state.lock_rotation_movement_base = Quat::IDENTITY;
         return;
     };
     let inverse = base.rotation.conjugate();
-    state.lock_location_movement_base = inverse * (state.lock_location.as_vec3() - base.translation);
+    state.lock_location_movement_base_cm = source_rotate_vector(
+        inverse.as_dquat(), state.lock_location * 100.0 - base.translation.as_dvec3() * 100.0,
+    ).as_vec3();
     state.lock_rotation_movement_base = (inverse.as_dquat() * state.lock_rotation).as_quat();
     state.movement_base = Some(base);
 }
@@ -353,7 +356,7 @@ pub fn refresh_foot_lock(
         state.lock_rotation = DQuat::IDENTITY;
         state.lock_rotation_before_foot_limit_armature = Quat::IDENTITY;
         state.movement_base = None;
-        state.lock_location_movement_base = Vec3::ZERO;
+        state.lock_location_movement_base_cm = Vec3::ZERO;
         state.lock_rotation_movement_base = Quat::IDENTITY;
         state.final_location = target_location;
         state.final_rotation_armature =
@@ -1354,6 +1357,45 @@ mod tests {
         advance_foot_lock_movement_base(&mut state, Some(moved_base));
         assert!(state.lock_location.distance(DVec3::new(3.0, 0.0, -2.0)) < 1e-5);
         assert!(state.lock_rotation.dot(moved_base.rotation.as_dquat()).abs() > 0.99999);
+    }
+
+    #[test]
+    fn moving_foot_lock_matches_native_centimeter_cache() {
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/audit/bf144/u07/foot-target-precision/moving-base/source-cases.json",
+        )).unwrap();
+        let position = |row: &serde_json::Value| DVec3::new(
+            row[0].as_f64().unwrap(), row[2].as_f64().unwrap(), row[1].as_f64().unwrap(),
+        );
+        let vector = |row: &serde_json::Value| DVec3::new(
+            row["x"].as_f64().unwrap(), row["z"].as_f64().unwrap(), row["y"].as_f64().unwrap(),
+        );
+        let rotation = |row: &serde_json::Value| Quat::from_xyzw(
+            -row[0].as_f64().unwrap() as f32, -row[2].as_f64().unwrap() as f32,
+            -row[1].as_f64().unwrap() as f32, row[3].as_f64().unwrap() as f32,
+        );
+        for row in cases.as_array().unwrap() {
+            let mut state = AlsFootLockFootState {
+                lock_amount: 1.0,
+                lock_location: position(&row["lock_world_cm"]) * 0.01,
+                ..default()
+            };
+            let entity = Entity::PLACEHOLDER;
+            capture_foot_lock_movement_base(&mut state, Some(AlsFootLockMovementBase {
+                entity, translation: (position(&row["start_base_cm"]) * 0.01).as_vec3(),
+                rotation: rotation(&row["start_rotation_xyzw"]),
+            }));
+            assert_eq!(state.lock_location_movement_base_cm,
+                vector(&row["relative_cm"]).as_vec3(), "{}", row["name"]);
+            advance_foot_lock_movement_base(&mut state, Some(AlsFootLockMovementBase {
+                entity, translation: (position(&row["end_base_cm"]) * 0.01).as_vec3(),
+                rotation: rotation(&row["end_rotation_xyzw"]),
+            }));
+            let base = state.movement_base.unwrap().translation.as_dvec3();
+            let source_offset = (vector(&row["world_cm"]) - position(&row["end_base_cm"])) * 0.01;
+            assert!((state.lock_location - base).abs_diff_eq(source_offset, 1e-12),
+                "{} actual {:?} source {:?}", row["name"], state.lock_location - base, source_offset);
+        }
     }
 
     #[test]
