@@ -1,0 +1,5 @@
+{
+  "engine_file": "Engine/Source/Runtime/Engine/Private/SkeletalMeshComponentPhysics.cpp",
+  "sha256": "1613f738b65c022b6de91a3db2dc72dc6affe0c7c7b54d49c3a66ff6fdb858b4",
+  "contract": "Live scaling updates dimensions then takes body transforms from current bones. Initialization scales local offsets."
+}

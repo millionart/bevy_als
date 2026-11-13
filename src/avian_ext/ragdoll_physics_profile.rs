@@ -4380,6 +4380,7 @@ mod tests {
         }}).unwrap();
         app.update();
         let base_mass = app.world().get::<avian3d::prelude::ComputedMass>(pelvis).unwrap().value();
+        let live_body_position = app.world().get::<Transform>(body).unwrap().translation;
         let world = app.world_mut();
         for (scale, scale_factor) in [(0.5, 0.5), (1.0, 2.0), (2.0, 2.0)] {
             let current = SpawnedRagdoll { root: spawned.root, bodies: spawned.bodies.clone(),
@@ -4398,7 +4399,7 @@ mod tests {
                 (position_target, velocity_target), "Geometry scale changed source linear drive targets: scale={scale}");
             assert!(motor.parent_frame.translation.abs_diff_eq(joint_offset * scale, 1e-5));
         }
-        assert!(world.get::<Transform>(body).unwrap().translation.abs_diff_eq(body_offset * 2.0, 1e-5));
+        assert_eq!(world.get::<Transform>(body).unwrap().translation, live_body_position);
         assert!(world.get::<Transform>(collider).unwrap().translation.abs_diff_eq(collider_offset * 2.0, 1e-5));
         let scaled_collider = world.get::<Collider>(collider).unwrap();
         let scaled_extent = scaled_collider.shape_scaled().compute_local_aabb().half_extents();

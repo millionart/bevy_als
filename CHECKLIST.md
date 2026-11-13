@@ -6555,6 +6555,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：world pause，mesh经零点恢复1/0.75/1.5，零期间把pelvis速度设为(0.3,0.2,−0.1)m/s、角速度(0.2,−0.4,0.3)rad/s；actor速度0，source恢复后两者应0，目标完整保留。24组18PASS/6FAIL，先补上D74的Kinematic停用/清零后再写入仍失败；source setter允许Kinematic刚体写入，该对照不依赖“零点没停模拟”。0/5e−5/1e−4的恢复失败，2e−4与未过零控制通过。证据`bf144_ragdoll_phase40_zero_recovery_recreates_velocity_state`、`bf144_ragdoll_phase40_near_zero_threshold_controls`及`40/final/`。
 
 - [x] BF144-D117 / P2 — 活动rig缩放以世界原点缩放刚体位置，偏离mesh原点和当前骨骼姿态。 静态实现完成，统一验证待执行。
+  - 2026-11-13 11:43–11:47夹具复验，预估11:55，提前8分钟。fresh UE活动尺寸更新后读当前骨骼世界位姿。直接profile测试应在live阶段只核碰撞体尺寸、关节frame、质量及已有body位置不变；重建阶段仍核初生局部offset按2倍缩放。正均匀与初始非均匀两项通过。真实骨骼缩放及零恢复另随D116验证。证据 `docs/audit/bf144/u07/ragdoll-positive-scale/`。
   - 20:30 source/static 闭环：profile 的位置乘法限定于初生局部 offset；活动非零均匀缩放和近零恢复在既有 handoff 消费当前骨骼世界位姿。恢复的新 body 同时写入与父级相容的局部 Transform，满足 Avian 初建同步。已写平移/旋转 mesh origin 下0.75/1.5直接缩放及0.75恢复，核位姿与实际 root 身份。证据 `docs/audit/bf144/d117/`；编译、测试、消融和真实入口待统一 Gate。开始20:24，预估21:14，实际结束2026-11-11 20:30 +08:00，偏差−44分钟。结果：静态实现完成。
   - 本轮开始2026-11-11 20:24 +08:00，预估结束21:14 +08:00。依据：fresh UE 常规缩放与恢复重建的骨骼 world pose，21个目标 body mapping 的恒等偏移，D116 已有一次恢复/物理配置。把 live pose 交回实际骨骼 handoff，补非零 origin 的普通/恢复验证。
   - Source：fresh `UpdateRigidBodyScaling:3569–3573`在普通非零缩放后把body重新置于GetBoneTransform；从零恢复则经`InstantiatePhysicsAsset:919–928,1071–1084`从同一当前骨骼世界变换创建。`SkinnedMeshComponent.cpp:2401–2411,2467–2475`以component-space骨骼乘当前mesh世界变换，保留mesh origin。
