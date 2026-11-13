@@ -1,0 +1,234 @@
+{
+  "source_cold": 79,
+  "target_cold": 79,
+  "target_active": 240,
+  "pairs": {
+    "cold": {
+      "counts": {
+        "frames": 79,
+        "matching_position_within_0_1mm": 79,
+        "exact_root_curves": 79,
+        "matching_world_delta": 78,
+        "matching_mode": 78,
+        "same_move_intent": 78
+      },
+      "stages": {
+        "rig_source": {
+          "counts": {
+            "frames_with_missing_bones": 0,
+            "frames_with_extra_bones": 0,
+            "exact_frames_on_shared_bones": 79
+          },
+          "max_error": [
+            0,
+            0,
+            0
+          ],
+          "first": null
+        },
+        "rig_output": {
+          "counts": {
+            "frames_with_missing_bones": 0,
+            "frames_with_extra_bones": 0,
+            "exact_frames_on_shared_bones": 79
+          },
+          "max_error": [
+            0,
+            0,
+            0
+          ],
+          "first": null
+        },
+        "root_result": {
+          "counts": {
+            "frames_with_missing_bones": 0,
+            "frames_with_extra_bones": 0,
+            "exact_frames_on_shared_bones": 79
+          },
+          "max_error": [
+            0,
+            0,
+            0
+          ],
+          "first": null
+        },
+        "rig_local": {
+          "counts": {
+            "frames_with_missing_bones": 0,
+            "frames_with_extra_bones": 0,
+            "exact_frames_on_shared_bones": 79
+          },
+          "max_error": [
+            0,
+            0,
+            0
+          ],
+          "first": null
+        }
+      }
+    },
+    "active": {
+      "counts": {
+        "frames": 240,
+        "matching_world_delta": 240,
+        "matching_mode": 240,
+        "same_move_intent": 240,
+        "matching_position_within_0_1mm": 240,
+        "exact_root_curves": 137
+      },
+      "stages": {
+        "rig_source": {
+          "counts": {
+            "frames_with_missing_bones": 0,
+            "frames_with_extra_bones": 4,
+            "exact_frames_on_shared_bones": 30,
+            "channel_1_different": 11236,
+            "channel_0_different": 6123,
+            "channel_2_different": 4409
+          },
+          "max_error": [
+            8.285045623779297e-06,
+            1.4424324035644531e-05,
+            2.384185791015625e-07
+          ],
+          "first": {
+            "index": 20,
+            "arena": 100,
+            "first_numeric": {
+              "bone": "ik_hand_r",
+              "channel": 1,
+              "source": [
+                2.7755575615628914e-17,
+                -5.551115123125783e-17,
+                0.0,
+                -1.0
+              ],
+              "target": [
+                -2.220446049250313e-16,
+                -1.6653345369377348e-16,
+                -1.1102230246251565e-16,
+                -1.0
+              ]
+            },
+            "missing": [],
+            "extra": []
+          }
+        },
+        "rig_output": {
+          "counts": {
+            "frames_with_missing_bones": 0,
+            "frames_with_extra_bones": 4,
+            "exact_frames_on_shared_bones": 20,
+            "channel_0_different": 6633,
+            "channel_1_different": 11343,
+            "channel_2_different": 4391
+          },
+          "max_error": [
+            8.285045623779297e-06,
+            4.738569259643555e-05,
+            0.00010687112808227539
+          ],
+          "first": {
+            "index": 20,
+            "arena": 100,
+            "first_numeric": {
+              "bone": "calf_l",
+              "channel": 0,
+              "source": [
+                -0.4257205128669739,
+                -4.1061189171021084e-11,
+                3.5721837814139956e-12
+              ],
+              "target": [
+                -0.4257205128669739,
+                -7.105425875293344e-17,
+                0.0
+              ]
+            },
+            "missing": [],
+            "extra": []
+          }
+        },
+        "root_result": {
+          "counts": {
+            "frames_with_missing_bones": 0,
+            "frames_with_extra_bones": 4,
+            "exact_frames_on_shared_bones": 20,
+            "channel_0_different": 6633,
+            "channel_1_different": 11343,
+            "channel_2_different": 4391
+          },
+          "max_error": [
+            8.285045623779297e-06,
+            4.738569259643555e-05,
+            0.00010687112808227539
+          ],
+          "first": {
+            "index": 20,
+            "arena": 100,
+            "first_numeric": {
+              "bone": "calf_l",
+              "channel": 0,
+              "source": [
+                -0.4257205128669739,
+                -4.1061189171021084e-11,
+                3.5721837814139956e-12
+              ],
+              "target": [
+                -0.4257205128669739,
+                -7.105425875293344e-17,
+                0.0
+              ]
+            },
+            "missing": [],
+            "extra": []
+          }
+        },
+        "rig_local": {
+          "counts": {
+            "frames_with_missing_bones": 0,
+            "frames_with_extra_bones": 0,
+            "exact_frames_on_shared_bones": 20,
+            "channel_0_different": 8608,
+            "channel_1_different": 15409,
+            "channel_2_different": 7896
+          },
+          "max_error": [
+            0.0008240212198344921,
+            4.737260622456052e-05,
+            0.00010688054953789106
+          ],
+          "first": {
+            "index": 20,
+            "arena": 100,
+            "first_numeric": {
+              "bone": "VB foot_l",
+              "channel": 0,
+              "source": [
+                18.30214137733213,
+                13.484037610955665,
+                -1.0931219097281097
+              ],
+              "target": [
+                18.302141382023247,
+                13.4840376109556,
+                -1.0931219097287839
+              ]
+            },
+            "missing": [],
+            "extra": []
+          }
+        }
+      },
+      "first_curve_difference": {
+        "index": 22,
+        "values": {
+          "footplanted": [
+            -0.36436009407043457,
+            -0.3643600642681122
+          ]
+        }
+      }
+    }
+  }
+}

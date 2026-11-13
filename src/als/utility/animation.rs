@@ -2,7 +2,12 @@ use bevy::prelude::*;
 use bevy::math::{DQuat, DVec3};
 
 fn velocity_local_f64(world_velocity: Vec3, character_rotation: Quat) -> Vec3 {
-    (character_rotation.as_dquat().inverse() * (world_velocity.as_dvec3() * 100.0)).as_vec3()
+    let half = std::f64::consts::FRAC_1_SQRT_2;
+    let rotation = character_rotation.as_dquat() * DQuat::from_xyzw(0.0, half, 0.0, half);
+    let local = crate::extensions::source_math::source_rotate_vector(
+        rotation.conjugate(), world_velocity.as_dvec3() * 100.0,
+    );
+    Vec3::new(local.z as f32, local.y as f32, -local.x as f32)
 }
 
 fn source_scalar_divide(vector: Vec3, divisor: f32) -> Vec3 {
@@ -10,10 +15,10 @@ fn source_scalar_divide(vector: Vec3, divisor: f32) -> Vec3 {
 }
 
 fn velocity_blend_local_direction(local: Vec3) -> Vec3 {
-    let length_squared = local.length_squared();
+    let length_squared = local.z * local.z + local.x * local.x + local.y * local.y;
     if length_squared > 1e-8 {
         let unit = local * length_squared.sqrt().recip();
-        source_scalar_divide(unit, unit.abs().element_sum())
+        source_scalar_divide(unit, unit.z.abs() + unit.x.abs() + unit.y.abs())
     } else {
         Vec3::ZERO
     }
@@ -67,7 +72,24 @@ mod tests {
         let velocity = Vec3::new(2.0000267, 0.0, -0.00008583068);
         let rotation = Quat::from_xyzw(0.0, -0.4792092, 0.0, 0.87770075);
         let local = velocity_local_f64(velocity, rotation);
-        assert_eq!(local, Vec3::new(108.13764953613281, 0.0, -168.247802734375));
+        assert_eq!(local, Vec3::new(108.13764953613281, 0.0, -168.24778747558594));
+    }
+
+    #[test]
+    fn velocity_blend_uses_the_source_forward_axis_before_unrotation() {
+        for (velocity, rotation, expected_local, expected_direction) in [
+            (Vec3::new(0.6666666865348816, 0.0, -5.091296407044865e-5),
+                Quat::from_xyzw(0.0, -0.40180978178977966, 0.0, 0.9157232046127319),
+                Vec3::new(45.136112213134766, 0.0, -49.06298065185547),
+                Vec3::new(0.4791565537452698, 0.0, -0.5208434462547302)),
+            (Vec3::new(0.271, 1.137, -0.44),
+                Quat::from_xyzw(0.18257418, -0.36514837, 0.5477226, 0.73029673),
+                Vec3::new(47.14666748046875, 18.47332763671875, -114.16666412353516),
+                Vec3::new(0.26223671436309814, 0.10275137424468994, -0.6350118517875671)),
+        ] {
+            assert_eq!(velocity_local_f64(velocity, rotation), expected_local);
+            assert_eq!(velocity_blend_direction(velocity, rotation), expected_direction);
+        }
     }
 
     #[test]

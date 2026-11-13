@@ -5520,7 +5520,14 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - BF144.427动画Pose消费者：fresh Quat.h:1105–1118→UnrealMathVectorCommon.h.inl:375–383→UnrealMathNeon.h:1717–1746与原rig使用同一estimate+两轮refinement方法，目标glam `neon/quat.rs:585–587`→`neon/vec4.rs:548–570,623–627`为sqrt再倒数。真实20层的local1580/lerp-inner652/outer652共2884输入，经既有Geometry空乘法GetNormalized全部source F64 double精确；保当前F32 dot、乘法/权重/N次数，只换reciprocal方法，958 source投影分量恢复，固定actual输入公开五层重放的原/Idle-data域各首帧49/50旋转骨改变。required local首pelvis层clavicle_l x当前0.16441313922405243、同输入native投影及仅F32方法控制0.16441312432289124，最小current合同稳定失败。属于本方法的新consumer，不新增编号，D232精度、D238次数、D163乘法仍独立。
   - 本consumer因子边界/消融：保同一F64 dot只换sqrt/reciprocal方法另2162 double/8投影不同；这8例当前已有6例匹配source，未将8例都当当前缺陷。两个wide整链模式所有F32数组/stage无额外差，故删除整链sqrt模式，保必要primitive对照；public Glam64与same-source-dot std-sqrt另18 raw差也单列，不混作倒数方法。移除F32方法控制使四HeadBase包回original、198最终骨变化全消；移除F64源方法使2162 native primitive恢复丢失而原/其余控制保持。源码bytes恢复同target重编12输出/2884记录byte同。`target/bf144/427/native-check.json`、`current-contract.json`、`controls-check.json`，平台限当前ARM64，未改生产或宣称整个HeadBase/Root恢复。
 
-- [x] BF144-D247 / P3 — Rig向量旋转沿用glam展开式，近单位输入改变源法线和脚偏移。
+- [x] BF144-D247 / P3 — 向量旋转沿用glam展开式，近单位输入改变源法线、脚偏移与VelocityBlend。
+  - 12:55复开。旧Rig Gate覆盖已有消费者，D282只拓宽VelocityBlend的原展开式。fresh实际Standing源的左右输入和原始权重确认同源旋转算式可恢复首FeetCrossing；同目标世界Q/V的12份原生局部及方向读数经公共算子复算逐值。开始12:55、预估13:25，补首移动和倾斜三轴对照，复验正式319帧和Standing Direction。
+  - 12:59正式历史前：两个原生局部反例在旧展开式稳定失败，复用D247公开旋转并显式组合源前轴后，沿同一正式Playground、30Hz和原319帧输入检查首Move、Root、虚拟足及冷段，截图0。D282旧近单位旋转的oracle按fresh源重读更新。
+  - 13:02定向复验发现投影回Bevy的右轴误取反，两项反例均捕获，按相同原生右轴符号更正。首轮启动已取得编译快照，单独保留该轮原始结果，再用更正后的入口重采。
+  - 13:05首轮历史后：功能启动通过但错误右轴使首帧Right为0，Root仍为旧值。第二轮正式历史用已更正的投影，保留相同319帧资格和原播放节点观察。
+  - 13:08定向三轴控制：同一旋转后三个局部分量与原生逐值；加入非零竖直速度时，glam在Bevy轴序归约使L1多一个ULP。源Normalize及L1都按Forward、Right、Up相加，保留此源顺序。平面319帧第二轮不受三轴重排影响，追加最终源码定向回归。
+  - 13:12历史后及正式Standing前：更正右轴后319帧功能通过，首实际Move为0.3112339675426483、Right权重0.47915658354759216、Root FeetCrossing为0.023054370656609535，全部与源一致。观察钩子按字节移除，正常入口复验Standing Direction的方向分支和最终姿态。
+  - 13:16结束，较13:25提前9分钟，无拆分。最终源码11项定向通过，正常Standing Direction通过。冷79帧前Rig与Root继续逐值；活动240中137个完整Root曲线相等，下一首曲线是活动22的FootPlanted一ULP，首活动姿态差保留。原生两级观察去掉后103帧全部精确。证据 `docs/audit/bf144/u07/velocity-blend-first-motion/source-standing-boundary/`。
   - 按调用闭包拆分：D247a实现源四元数/向量旋转并接入RigTransform、射线及层级位置；D247b迁移两骨IK和Pole空间的直接向量旋转调用。各自记录证据并提交，全部静态修复及Bevy/依赖迁移后统一验证。
   - [x] BF144-D247a — RigTransform与射线/层级的源向量旋转。开始2026-11-08 10:39 +08:00；预估结束11:29 +08:00。依据：.463已保存636调用及三个算子消融，需fresh核源坐标映射、NEON cross/FMA、正逆变换和实际unit调用，再写近单位反例。
     - 10:41 source/static闭环：fresh UE `TransformPosition/InverseTransformVector`均经cross形式旋转，ARM64 cross和中间累加使用FMA；源坐标四元数`(-x,-z,-y,w)`、向量`(x,z,y)`需成对映射。目标`RigTransform`的正逆、层级global/local直接调用glam向量乘法，`.463`已证其实际trace normal/point/ray三个消费者；先写近单位yaw保持Up的最小反例。独立两骨IK直接调用留D247b。
