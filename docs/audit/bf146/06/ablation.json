@@ -1,0 +1,32 @@
+{
+  "removed": [
+    "Consume and clear the frame result in post-physics locomotion synchronization",
+    "Apply the pending velocity when Mantle takes over before physics"
+  ],
+  "failures": {
+    "als::motion::tests::side_sweep_locomotion_survives_one_post_physics_sync": "assertion failed: app.world().get::<AlsCmcFrameResult>(actor).unwrap().post_collision_mode.is_none()",
+    "mantle_drive::tests::loaded_mantle_zero_clock_entry_preserves_pending_source_velocity": "Source zero-delta RMS entry retains pending CMC velocity instead of the physical bridge: actual=Vec3(0.0, 0.0, 0.0)",
+    "roll_drive::tests::animation_root_velocity_restoration_preserves_falling_physics_axis": "Source regular CMC velocity remains authoritative when Roll starts after movement: actual=Vec3(3.0, 0.0, -4.0)"
+  },
+  "controls_passed": [
+    "mantle_root_velocity_excludes_the_pre_movement_base_carry"
+  ],
+  "restored_sources": {
+    "src/als/character/movement/motion.rs": "42a997439bf4a37817d38cd396f26d8993a235fb4e47217fb2b83563d0833209",
+    "src/als/root_motion_sources/mantle_drive.rs": "eb46081f98e239b130515f88a291a1955df5bcffbdbc0783748626c1f18d0869"
+  },
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": false,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T16:33:35.6393440Z",
+    "last_progress_at_utc": "2026-11-13T16:37:08.4096506Z",
+    "last_progress_source": "ablation-frame.stderr",
+    "finished_at_utc": "2026-11-13T16:37:08.5246550Z",
+    "elapsed_seconds": 212.885,
+    "no_progress_seconds": 0.115,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 720,
+    "process_exit_code": 101
+  }
+}

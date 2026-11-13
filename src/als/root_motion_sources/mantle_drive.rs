@@ -564,7 +564,7 @@ fn mantle_pose_system(
             &mut LinearVelocity,
             Option<&AlsNotifyLocomotionAction>,
             Option<&mut AlsMantleMontages>,
-            Option<&mut crate::als::character::AlsCmcAdapterRuntime>,
+            Option<&mut crate::als::motion::AlsCmcFrameResult>,
         ),
         With<AlsCharacter>,
     >,
@@ -640,7 +640,7 @@ fn mantle_drive_system(
             Has<CustomPositionIntegration>,
             Has<CustomVelocityIntegration>,
             Has<crate::als::motion::AlsAutoMantlePending>,
-            Option<&mut crate::als::character::AlsCmcAdapterRuntime>,
+            Option<&mut crate::als::motion::AlsCmcFrameResult>,
         ),
         (With<AlsCharacter>, With<Transform>),
     >,
@@ -678,9 +678,10 @@ fn mantle_drive_system(
         {
             continue;
         }
-        if let Some(cmc) = cmc.as_deref_mut() {
-            vel.0 = cmc.grounded_collision_velocity.take().unwrap_or(vel.0);
-
+        if let Some(result) = cmc.as_deref_mut()
+            && let Some(velocity) = result.grounded_collision_velocity {
+            result.grounded_collision_velocity = None;
+            vel.0 = velocity;
         }
         commands.entity(entity).insert((
             AlsMantlePhysicsFrame {
@@ -1935,7 +1936,7 @@ pub(crate) mod tests {
             if missing.is_some() {
                 app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
                 assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
-                assert!(!app.world().get::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap().mantle_exit_grounded);
+                assert!(!app.world().get::<crate::als::motion::AlsCmcFrameResult>(actor).unwrap().mantle_exit_grounded);
             }
         }
     }
@@ -2036,8 +2037,8 @@ pub(crate) mod tests {
                     LinearVelocity(source_initial_velocity), local, ChildOf(parent), GlobalTransform::IDENTITY,
                     Position(before.translation), Rotation(before.rotation), AlsCollisionLayerOwnership::default(),
                     crate::als_camera::AlsCameraCustomTimeDilation(dilation),
-                    crate::als::character::AlsCmcAdapterRuntime { grounded_move_start: Some(before.translation),
-                        grounded_collision_velocity: Some(source_initial_velocity), ..default() })).id();
+                    crate::als::character::AlsCmcAdapterRuntime { grounded_move_start: Some(before.translation), ..default() },
+                    crate::als::motion::AlsCmcFrameResult { grounded_collision_velocity: Some(source_initial_velocity), ..default() })).id();
                 let before_world = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
                     helper.compute_global_transform(actor).unwrap()
                 }).unwrap();

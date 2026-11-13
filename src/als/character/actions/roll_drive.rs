@@ -428,13 +428,13 @@ pub(crate) mod tests {
         app.world_mut().entity_mut(actor).insert((avian3d::prelude::Position(Vec3::Y * 10.0),
             Transform::from_xyz(0.0, 10.0, 0.0), LocomotionState::Air));
         app.world_mut().run_system_once(roll_drive_system).unwrap();
-        let root = app.world().get::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+        let root = app.world().get::<crate::als::motion::AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap();
         app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = root.with_y(-2.1635);
         app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
         let actual = app.world().get::<LinearVelocity>(actor).unwrap().0;
         assert!(actual.abs_diff_eq(root.with_y(-2.1635), 1e-5),
             "Source ConstrainAnimRootMotionVelocity preserves falling physics: actual={actual:?}");
-        app.world_mut().get_mut::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity = Some(Vec3::new(3.0, -1.0, -4.0));
+        app.world_mut().get_mut::<crate::als::motion::AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity = Some(Vec3::new(3.0, -1.0, -4.0));
         app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::new(1.5, 0.0, -2.0);
         app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
         let actual = app.world().get::<LinearVelocity>(actor).unwrap().0;
@@ -460,7 +460,7 @@ pub(crate) mod tests {
                 RootMotionOutput { translation_delta: Vec3::new(0.1, 0.2, 0.0), ..default() }));
             world.run_system_once(roll_drive_system).unwrap();
             assert_eq!(world.get::<LinearVelocity>(actor).unwrap().y, speed);
-            let runtime = world.get::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap();
+            let runtime = world.get::<crate::als::motion::AlsCmcFrameResult>(actor).unwrap();
             assert_eq!(runtime.grounded_collision_velocity.unwrap().y, speed);
             assert!(runtime.has_animation_root_velocity);
         }
@@ -2877,7 +2877,7 @@ fn roll_drive_system(
     mut space: ParamSet<(bevy::transform::helper::TransformHelper,
         Query<(Entity, &AlsRollState, Option<&AlsNotifyLocomotionAction>, &mut Transform, Option<&mut Rotation>,
             &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>, Option<&AlsRollSlotRuntime>,
-            Option<&mut crate::als::character::AlsCmcAdapterRuntime>,
+            (Option<&mut crate::als::character::AlsCmcAdapterRuntime>, Option<&mut crate::als::motion::AlsCmcFrameResult>),
             Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>), With<crate::als::character::AlsCharacter>>)> ,
     sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput), Without<AlsRollTail>>,
     mut players: Query<&mut AnimationGraphPlayer>,
@@ -2902,7 +2902,7 @@ fn roll_drive_system(
             mesh
         } else { actor_world };
         let mut query = space.p1();
-        let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale, runtime, mut cmc, base) = query.get_mut(character).unwrap();
+        let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale, runtime, (mut cmc, mut result), base) = query.get_mut(character).unwrap();
         let custom = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Custom);
         let delta_too_small = if custom { dt <= 0.0 } else { dt <= 1e-5 };
         let grounded_subminimum = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Grounded)
@@ -2913,7 +2913,7 @@ fn roll_drive_system(
         }
 
         let movement_resolved = landings.contains(&character)
-            && cmc.as_deref().is_some_and(|runtime| runtime.grounded_collision_velocity.is_some());
+            && result.as_deref().is_some_and(|result| result.grounded_collision_velocity.is_some());
         let (mut local_translation, mut local_rotation) = sample.map_or((Vec3::ZERO, Quat::IDENTITY),
             |(_, output)| (output.translation_delta, output.rotation_delta));
         if movement_resolved { local_translation = Vec3::ZERO; local_rotation = Quat::IDENTITY; }
@@ -2945,12 +2945,12 @@ fn roll_drive_system(
             let support = base.filter(|base| base.entity.is_some()
                 && modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Grounded))
                 .map_or(Vec3::ZERO, |base| base.support_velocity);
-            if let Some(cmc) = cmc.as_deref_mut() {
+            if let (Some(cmc), Some(result)) = (cmc.as_deref_mut(), result.as_deref_mut()) {
                 let mut root_velocity = if actor_delta > 0.0 { world_translation / actor_delta + support.with_y(0.0) }
-                    else { cmc.grounded_collision_velocity.unwrap_or(vel.0) };
+                    else { result.grounded_collision_velocity.unwrap_or(vel.0) };
                 if falling { root_velocity.y = prior_vertical; }
-                cmc.grounded_collision_velocity = Some(root_velocity);
-                cmc.has_animation_root_velocity = true;
+                result.grounded_collision_velocity = Some(root_velocity);
+                result.has_animation_root_velocity = true;
                 cmc.grounded_movement_delta = None;
                 cmc.grounded_move_start = None;
             }

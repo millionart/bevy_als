@@ -496,7 +496,7 @@ pub fn grounded_dynamics_motor_system(
             &AlsMovementParamsHandle,
             &TnuaController<AlsControlScheme>,
             &mut TnuaMotor,
-            &mut AlsCmcAdapterRuntime,
+            (&mut AlsCmcAdapterRuntime, &mut crate::als::motion::AlsCmcFrameResult),
             Option<&mut AlsMovementBaseDynamicsState>,
         ),
         (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
@@ -522,13 +522,13 @@ pub fn grounded_dynamics_motor_system(
         params_handle,
         controller,
         mut motor,
-        mut cmc_runtime,
+        (mut cmc_runtime, mut result),
         current_base_state,
     ) in &mut q
     {
         let delta_seconds = time.delta_secs() * custom_dilations.get(entity).map_or(1.0, |value| value.0);
         cmc_runtime.grounded_movement_delta = None;
-        cmc_runtime.grounded_collision_velocity = None;
+        if result.grounded_collision_velocity.is_some() { result.grounded_collision_velocity = None; }
         let Ok((roll, mantle)) = actions.get(entity) else {
             continue;
         };
@@ -1298,13 +1298,14 @@ mod tests {
                 let after = app.world().get::<Position>(character).unwrap().0;
                 let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
                 let runtime = app.world().get::<AlsCmcAdapterRuntime>(character).unwrap();
+                let result = app.world().get::<crate::als::motion::AlsCmcFrameResult>(character).unwrap();
                 assert!(runtime.simulation_substeps > 1);
                 assert!((after - before).with_y(0.0).length() <= speed * 0.07051209 + 0.003,
-                    "Source each walking segment advances once: gait={gait:?} frame={frame} before={before:?} after={after:?} velocity={velocity:?} source_tail={:?}", runtime.grounded_collision_velocity);
+                    "Source each walking segment advances once: gait={gait:?} frame={frame} before={before:?} after={after:?} velocity={velocity:?} source_tail={:?}", result.grounded_collision_velocity);
                 assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded),
                     "Source valid stair floors must stay grounded: gait={gait:?} frame={frame} before={before:?} after={after:?} velocity={velocity:?}");
                 assert!((velocity.with_y(0.0).length() - speed).abs() < 0.03,
-                    "Source walkable stair contact must preserve horizontal speed: gait={gait:?} frame={frame} before={before:?} after={after:?} velocity={velocity:?} source_tail={:?}", runtime.grounded_collision_velocity);
+                    "Source walkable stair contact must preserve horizontal speed: gait={gait:?} frame={frame} before={before:?} after={after:?} velocity={velocity:?} source_tail={:?}", result.grounded_collision_velocity);
             }
         }
     }

@@ -200,17 +200,17 @@ fn preserve_unobstructed_grounded_displacement(
     collisions: Collisions,
     mut solver_bodies: ResMut<SolverBodies>,
     mut characters: Query<(Entity, &SolverBodyIndex, &RigidBody, &LocomotionState,
-        &crate::als::character::AlsCmcAdapterRuntime, &crate::als::dynamics::AlsMovementBaseDynamicsState,
+        &crate::als::character::AlsCmcAdapterRuntime, &crate::als::motion::AlsCmcFrameResult, &crate::als::dynamics::AlsMovementBaseDynamicsState,
         Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>), With<AlsCharacter>>,
 ) {
     if substeps.0 == 0 { return; }
-    for (entity, index, rigid_body, locomotion, runtime, base, full_frame, custom) in &mut characters {
+    for (entity, index, rigid_body, locomotion, runtime, result, base, full_frame, custom) in &mut characters {
         let Some(body) = solver_bodies.get_mut(*index) else { continue; };
         let Some(planned) = base.pre_collision_velocity else { continue; };
         let Some(delta) = runtime.grounded_movement_delta else { continue; };
         if *rigid_body != RigidBody::Dynamic || *locomotion != LocomotionState::Grounded
             || full_frame != custom || runtime.grounded_move_start.is_none()
-            || runtime.grounded_collision_velocity.is_some() || runtime.simulation_substeps != 1
+            || result.grounded_collision_velocity.is_some() || runtime.simulation_substeps != 1
             || runtime.simulation_delta_seconds != frame_time.delta_secs()
             || runtime.simulation_delta_seconds != physics_time.delta_secs()
             || base.support_velocity != Vec3::ZERO || body.delta_rotation != Quat::IDENTITY
@@ -247,12 +247,12 @@ fn integrate_character_position(
     mut characters: Query<(Entity, &SolverBodyIndex, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,
         Option<&mut SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
-        &mut crate::als::character::AlsCmcAdapterRuntime,
+        (&mut crate::als::character::AlsCmcAdapterRuntime, &mut crate::als::motion::AlsCmcFrameResult),
         Option<&crate::als::character::AlsMovementParamsHandle>), With<AlsCharacter>>,
 ) {
     let frame_step = frame_time.delta_secs() / substeps.0 as f32;
     let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;
-    for (entity, index, position, collider, locomotion, action, rigid_body, base, mut full_frame, custom_position, mut runtime, handle) in &mut characters {
+    for (entity, index, position, collider, locomotion, action, rigid_body, base, mut full_frame, custom_position, (mut runtime, mut result), handle) in &mut characters {
         let Some(body) = solver_bodies.get_mut(*index) else { continue; };
         let movement = if let Some(frame) = full_frame.as_deref() {
             if *locomotion == LocomotionState::Grounded && runtime.grounded_move_start.is_none()
@@ -277,7 +277,7 @@ fn integrate_character_position(
         let start = position.0 + body.delta_position;
         if *locomotion == LocomotionState::Air {
             let params = params_assets.as_ref().and_then(|assets| handle.and_then(|handle| assets.get(handle.id())));
-            let root_landing = runtime.has_animation_root_velocity && full_frame.is_some() && params.is_some();
+            let root_landing = result.has_animation_root_velocity && full_frame.is_some() && params.is_some();
             let mut walking_time = full_frame.as_deref().filter(|frame| frame.landed).map(|_| frame_step);
             if walking_time.is_none() {
                 let max_speed = runtime.grounded_max_speed;
@@ -289,7 +289,7 @@ fn integrate_character_position(
                     start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, None, landing, entity, &candidates, &shapes, &impact_bodies, None);
                 body.delta_position += applied;
                 body.linear_velocity = velocity;
-                runtime.airborne_sweep_contact |= contact;
+                result.airborne_sweep_contact |= contact;
                 if root_landing && let Some((remaining, last_impact)) = remaining {
                     full_frame.as_deref_mut().unwrap().landed = true;
                     walking_time = Some(if last_impact { 0.0 } else { remaining });
@@ -1364,11 +1364,12 @@ mod tests {
         assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
         app.update();
-        assert_eq!(app.world().resource::<GeometryChanges>().0.last(), Some(&(false, true)));
+        assert_eq!(app.world().resource::<GeometryChanges>().0.last(), Some(&(false, false)));
         app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
         for frame in 0..2 {
             app.update();
-            assert_eq!(app.world().resource::<GeometryChanges>().0.last(), Some(&(frame == 0, true)));
+            assert_eq!(app.world().resource::<GeometryChanges>().0.last(), Some(&(frame == 0, frame == 0)));
+            assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
             let position = app.world().get::<Position>(character).unwrap().0;
             let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
             let mode = app.world().get::<LocomotionState>(character).unwrap();

@@ -1,0 +1,79 @@
+{
+  "test": "source_physics_timing::tests::full_frame_crouch_keeps_the_capsule_on_the_floor",
+  "assertion": [
+    "assertion `left == right` failed",
+    "  left: Some((false, false))",
+    " right: Some((false, true))"
+  ],
+  "suite": [
+    [
+      "FAILED",
+      "2154",
+      "1",
+      "0"
+    ],
+    [
+      "ok",
+      "0",
+      "0",
+      "0"
+    ],
+    [
+      "ok",
+      "12",
+      "0",
+      "0"
+    ],
+    [
+      "ok",
+      "6",
+      "0",
+      "0"
+    ],
+    [
+      "ok",
+      "3",
+      "0",
+      "0"
+    ],
+    [
+      "ok",
+      "1",
+      "0",
+      "0"
+    ],
+    [
+      "ok",
+      "9",
+      "0",
+      "0"
+    ],
+    [
+      "ok",
+      "1",
+      "0",
+      "0"
+    ],
+    [
+      "ok",
+      "5",
+      "0",
+      "0"
+    ]
+  ],
+  "resolution": "Assert collider and stance change only on the transition frame, and assert actual crouched stance on both frames. The position and grounded checks remain.",
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": false,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-13T16:41:15.0407280Z",
+    "last_progress_at_utc": "2026-11-13T16:46:01.8352011Z",
+    "last_progress_source": "full-regression.stderr",
+    "finished_at_utc": "2026-11-13T16:46:02.0897110Z",
+    "elapsed_seconds": 287.049,
+    "no_progress_seconds": 0.255,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 1800,
+    "process_exit_code": 101
+  }
+}

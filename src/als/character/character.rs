@@ -38,6 +38,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::als::dynamics::AlsMovementBase)]
 #[require(crate::als::dynamics::AlsLandingBrakingFriction)]
 #[require(AlsCmcAdapterRuntime)]
+#[require(crate::als::motion::AlsCmcFrameResult)]
 #[require(crate::als::motion::AlsAimingYawConstraint)]
 #[require(crate::als::motion::AlsActualVelocity)]
 #[require(crate::als::motion::AlsCharacterDebug)]
@@ -181,11 +182,6 @@ pub struct AlsCmcAdapterRuntime {
     pub min_analog_speed_applied: bool,
     pub grounded_move_start: Option<Vec3>,
     pub grounded_movement_delta: Option<Vec3>,
-    pub grounded_collision_velocity: Option<Vec3>,
-    pub has_animation_root_velocity: bool,
-    pub airborne_sweep_contact: bool,
-    pub post_collision_mode: Option<LocomotionState>,
-    pub mantle_exit_grounded: bool,
     pub deferred_base_follow: bool,
     pub random_seed: u32,
 }
@@ -201,11 +197,6 @@ impl Default for AlsCmcAdapterRuntime {
             min_analog_speed_applied: false,
             grounded_move_start: None,
             grounded_movement_delta: None,
-            grounded_collision_velocity: None,
-            has_animation_root_velocity: false,
-            airborne_sweep_contact: false,
-            post_collision_mode: None,
-            mantle_exit_grounded: false,
             deferred_base_follow: false,
             random_seed: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |time| time.as_nanos() as u32),
@@ -325,15 +316,15 @@ fn sync_child_collider_poses(
 }
 
 pub(crate) fn character_contacts_system(
-    characters: Query<(Option<&LocomotionState>, &AlsCmcAdapterRuntime, Has<avian3d::prelude::CustomPositionIntegration>), With<AlsCharacter>>,
+    characters: Query<(Option<&LocomotionState>, &crate::als::motion::AlsCmcFrameResult, Has<avian3d::prelude::CustomPositionIntegration>), With<AlsCharacter>>,
     mut contacts: ResMut<ContactGraph>,
 ) {
     for pair in contacts.iter_active_mut() {
         let first = characters.get(pair.body1.unwrap_or(pair.collider1)).ok();
         let second = characters.get(pair.body2.unwrap_or(pair.collider2)).ok();
         if first.is_some() || second.is_some() {
-            let swept = [first, second].into_iter().flatten().any(|(mode, runtime, custom)|
-                custom && mode == Some(&LocomotionState::Air) && runtime.has_animation_root_velocity);
+            let swept = [first, second].into_iter().flatten().any(|(mode, frame, custom)|
+                custom && mode == Some(&LocomotionState::Air) && frame.has_animation_root_velocity);
             for manifold in &mut pair.manifolds {
                 manifold.friction = 0.0;
                 if swept { manifold.points.retain(|point| point.penetration >= 0.0); }
@@ -510,6 +501,33 @@ impl AlsCharacterBundle {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn movement_results_do_not_mark_sensor_configuration_changed() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::state::LocomotionState;
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .init_resource::<Time<avian3d::prelude::Physics>>()
+            .init_resource::<Assets<AlsMovementParams>>();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let actor = app.world_mut().spawn((AlsCharacter, AlsMovementParamsHandle(params),
+            LocomotionState::Grounded, LinearVelocity::ZERO, als_character_ground_sensor(0.3, 0.15, 0.0))).id();
+        app.world_mut().run_system_once(character_sensor_shape_sync_system).unwrap();
+        let tick = app.world().entity(actor).get_ref::<AlsCmcAdapterRuntime>().unwrap().last_changed();
+        let velocity = Vec3::new(3.0, 0.0, -4.0);
+        app.world_mut().get_mut::<crate::als::motion::AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity = Some(velocity);
+        app.world_mut().run_system_once(crate::als::motion::snapshot_actual_velocity_system).unwrap();
+        assert_eq!(app.world().get::<LinearVelocity>(actor).unwrap().0, velocity);
+        assert_eq!(app.world().get::<crate::als::motion::AlsActualVelocity>(actor).unwrap().world_velocity, velocity);
+        let actual = app.world().entity(actor).get_ref::<AlsCmcAdapterRuntime>().unwrap().last_changed();
+        assert_eq!(actual, tick, "Frame result writes must leave the persistent CMC component untouched");
+        assert!(app.world().get::<crate::als::motion::AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.is_none());
+        app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::ZERO;
+        app.world_mut().run_system_once(crate::als::motion::snapshot_actual_velocity_system).unwrap();
+        assert_eq!(app.world().get::<crate::als::motion::AlsActualVelocity>(actor).unwrap().world_velocity, Vec3::ZERO);
+    }
 
     fn crush_recovery_test_app() -> (App, Handle<AlsMovementParams>) {
         let mut app = App::new();

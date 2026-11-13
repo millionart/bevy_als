@@ -1,0 +1,272 @@
+{
+  "source_files": {
+    "UE/CharacterMovementComponent.cpp": {
+      "sha256": "017d191be669dd10c70da577e42394387554880c86e5736caeb9134df6ff8136",
+      "excerpts": [
+        {
+          "start_line": 2170,
+          "lines": [
+            "FVector UCharacterMovementComponent::ConstrainAnimRootMotionVelocity(const FVector& RootMotionVelocity, const FVector& CurrentVelocity) const",
+            "{",
+            "\tFVector Result = RootMotionVelocity;",
+            "",
+            "\t// Do not override Velocity.Z if in falling physics, we want to keep the effect of gravity.",
+            "\tif (IsFalling())",
+            "\t{",
+            "\t\tif (HasCustomGravity())",
+            "\t\t{",
+            "\t\t\tSetGravitySpaceZ(Result, GetGravitySpaceZ(CurrentVelocity));",
+            "\t\t}",
+            "\t\telse",
+            "\t\t{",
+            "\t\t\tResult.Z = CurrentVelocity.Z;",
+            "\t\t}",
+            "\t}",
+            "",
+            "\treturn Result;"
+          ]
+        },
+        {
+          "start_line": 2951,
+          "lines": [
+            "\t\t// Apply Root Motion to Velocity",
+            "\t\tif( CurrentRootMotion.HasOverrideVelocity() || HasAnimRootMotion() )",
+            "\t\t{",
+            "\t\t\t// Animation root motion overrides Velocity and currently doesn't allow any other root motion sources",
+            "\t\t\tif( HasAnimRootMotion() )",
+            "\t\t\t{",
+            "\t\t\t\t// Convert to world space (animation root motion is always local)",
+            "\t\t\t\tUSkeletalMeshComponent * SkelMeshComp = CharacterOwner->GetMesh();",
+            "\t\t\t\tif( SkelMeshComp )",
+            "\t\t\t\t{",
+            "\t\t\t\t\t// Convert Local Space Root Motion to world space. Do it right before used by physics to make sure we use up to date transforms, as translation is relative to rotation.",
+            "\t\t\t\t\tRootMotionParams.Set( ConvertLocalRootMotionToWorld(RootMotionParams.GetRootMotionTransform(), DeltaSeconds) );",
+            "\t\t\t\t}",
+            "",
+            "\t\t\t\t// Then turn root motion to velocity to be used by various physics modes.",
+            "\t\t\t\tif( DeltaSeconds > 0.f )",
+            "\t\t\t\t{",
+            "\t\t\t\t\tAnimRootMotionVelocity = CalcAnimRootMotionVelocity(RootMotionParams.GetRootMotionTransform().GetTranslation(), DeltaSeconds, Velocity);",
+            "\t\t\t\t\tVelocity = ConstrainAnimRootMotionVelocity(AnimRootMotionVelocity, Velocity);",
+            "\t\t\t\t\tif (IsFalling())",
+            "\t\t\t\t\t{",
+            "\t\t\t\t\t\tVelocity += FVector(DecayingFormerBaseVelocity.X, DecayingFormerBaseVelocity.Y, 0.f);",
+            "\t\t\t\t\t}"
+          ]
+        },
+        {
+          "start_line": 2990,
+          "lines": [
+            "\t\t\t\t\tconst FVector VelocityBeforeOverride = Velocity;",
+            "\t\t\t\t\tFVector NewVelocity = Velocity;",
+            "\t\t\t\t\tCurrentRootMotion.AccumulateOverrideRootMotionVelocity(DeltaSeconds, *CharacterOwner, *this, NewVelocity);",
+            "\t\t\t\t\tif (IsFalling())",
+            "\t\t\t\t\t{",
+            "\t\t\t\t\t\tNewVelocity += CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(DecayingFormerBaseVelocity.X, DecayingFormerBaseVelocity.Y, 0.f) : DecayingFormerBaseVelocity;",
+            "\t\t\t\t\t}",
+            "\t\t\t\t\tVelocity = NewVelocity;"
+          ]
+        },
+        {
+          "start_line": 3026,
+          "lines": [
+            "\t\t// Clear jump input now, to allow movement events to trigger it for next update.",
+            "\t\tCharacterOwner->ClearJumpInput(DeltaSeconds);",
+            "\t\tNumJumpApexAttempts = 0;",
+            "",
+            "\t\t// Give one final chance to update the velocity right before doing the actual position change.",
+            "\t\tUpdateVelocityBeforeMovement(DeltaSeconds);",
+            "\t\t",
+            "\t\t// change position",
+            "\t\tStartNewPhysics(DeltaSeconds, 0);",
+            "",
+            "\t\tif (!HasValidData())",
+            "\t\t{",
+            "\t\t\treturn;",
+            "\t\t}",
+            "",
+            "\t\t// Update character state based on change from movement",
+            "\t\tUpdateCharacterStateAfterMovement(DeltaSeconds);",
+            "",
+            "\t\tif (bAllowPhysicsRotationDuringAnimRootMotion || !HasAnimRootMotion())",
+            "\t\t{"
+          ]
+        },
+        {
+          "start_line": 3087,
+          "lines": [
+            "\t\t\t// Root Motion has been used, clear",
+            "\t\t\tRootMotionParams.Clear();",
+            "\t\t}"
+          ]
+        },
+        {
+          "start_line": 3105,
+          "lines": [
+            "\t\tOnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);",
+            "\t} // End scoped movement update",
+            "",
+            "\t// Call external post-movement events. These happen after the scoped movement completes in case the events want to use the current state of overlaps etc.",
+            "\tCallMovementUpdateDelegate(DeltaSeconds, OldLocation, OldVelocity);",
+            "",
+            "\tif (CharacterMovementCVars::BasedMovementMode == 0)",
+            "\t{",
+            "\t\tSaveBaseLocation(); // behaviour before implementing this fix",
+            "\t}",
+            "\telse",
+            "\t{",
+            "\t\tMaybeSaveBaseLocation();",
+            "\t}",
+            "\tUpdateComponentVelocity();",
+            ""
+          ]
+        },
+        {
+          "start_line": 3159,
+          "lines": [
+            "\t\t\t}",
+            "\t\t}",
+            "\t}",
+            "",
+            "\tLastUpdateLocation = NewLocation;",
+            "\tLastUpdateRotation = NewRotation;",
+            "\tLastUpdateVelocity = Velocity;",
+            "}"
+          ]
+        },
+        {
+          "start_line": 5866,
+          "lines": [
+            "\t\t// Allow overlap events and such to change physics state and velocity",
+            "\t\tif (IsMovingOnGround())",
+            "\t\t{",
+            "\t\t\t// Make velocity reflect actual move",
+            "\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)",
+            "\t\t\t{",
+            "\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?",
+            "\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;",
+            "\t\t\t\tMaintainHorizontalGroundVelocity();",
+            "\t\t\t}",
+            "\t\t}",
+            "",
+            "\t\t// If we didn't move at all this iteration then abort (since future iterations will also be stuck)."
+          ]
+        },
+        {
+          "start_line": 6412,
+          "lines": [
+            "void UCharacterMovementComponent::SetPostLandedPhysics(const FHitResult& Hit)",
+            "{",
+            "\tif( CharacterOwner )",
+            "\t{",
+            "\t\tif (CanEverSwim() && IsInWater())",
+            "\t\t{",
+            "\t\t\tSetMovementMode(MOVE_Swimming);",
+            "\t\t}",
+            "\t\telse",
+            "\t\t{",
+            "\t\t\tconst FVector PreImpactAccel = Acceleration + (IsFalling() ? -GetGravityDirection() * GetGravityZ() : FVector::ZeroVector);",
+            "\t\t\tconst FVector PreImpactVelocity = Velocity;",
+            "",
+            "\t\t\tif (DefaultLandMovementMode == MOVE_Walking ||",
+            "\t\t\t\tDefaultLandMovementMode == MOVE_NavWalking ||",
+            "\t\t\t\tDefaultLandMovementMode == MOVE_Falling)",
+            "\t\t\t{",
+            "\t\t\t\tSetMovementMode(GroundMovementMode);",
+            "\t\t\t}",
+            "\t\t\telse",
+            "\t\t\t{",
+            "\t\t\t\tSetDefaultMovementMode();",
+            "\t\t\t}",
+            "\t\t\t",
+            "\t\t\tApplyImpactPhysicsForces(Hit, PreImpactAccel, PreImpactVelocity);",
+            "\t\t}"
+          ]
+        }
+      ]
+    },
+    "ALS/AlsCharacter.cpp": {
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84",
+      "excerpts": [
+        {
+          "start_line": 1372,
+          "lines": [
+            "void AAlsCharacter::RefreshLocomotion()",
+            "{",
+            "\tconst auto bHadVelocity{LocomotionState.bHasVelocity};",
+            "",
+            "\tLocomotionState.Velocity = GetVelocity();",
+            "",
+            "\t// Determine if the character is moving by getting its speed. The speed equals the length",
+            "\t// of the horizontal velocity, so it does not take vertical movement into account. If the",
+            "\t// character is moving, update the last velocity rotation. This value is saved because it might",
+            "\t// be useful to know the last orientation of a movement even after the character has stopped.",
+            "",
+            "\tLocomotionState.Speed = UE_REAL_TO_FLOAT(LocomotionState.Velocity.Size2D());",
+            "",
+            "\tstatic constexpr auto HasSpeedThreshold{1.0f};",
+            "",
+            "\tLocomotionState.bHasVelocity = LocomotionState.Speed >= HasSpeedThreshold;"
+          ]
+        }
+      ]
+    },
+    "ALS/AlsCharacter_Actions.cpp": {
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317",
+      "excerpts": [
+        {
+          "start_line": 494,
+          "lines": [
+            "\t// Clear the character movement mode and set the locomotion action to mantling.",
+            "",
+            "\tGetCharacterMovement()->SetMovementMode(MOVE_Custom);",
+            "\tAlsCharacterMovement->SetMovementModeLocked(true);",
+            "",
+            "\tFMovementBaseInterfaceData MovementBaseData{Parameters.TargetPrimitive.Get()};",
+            "\tGetCharacterMovement()->SetBase(&MovementBaseData);",
+            "",
+            "\t// Create mantling root motion.",
+            "",
+            "\tconst auto RootMotionSource{MakeShared<FAlsRootMotionSource_Mantling>()};",
+            "\tRootMotionSource->InstanceName = __FUNCTION__;",
+            "\tRootMotionSource->MantlingSettings = MantlingSettings;",
+            "\tRootMotionSource->TargetPrimitive = Parameters.TargetPrimitive;",
+            "",
+            "\tconst auto StartTime{CalculateMantlingStartTime(MantlingSettings, Parameters.MantlingHeight)};",
+            "\tconst auto Duration{MantlingSettings->Montage->GetPlayLength() - StartTime};",
+            "\tconst auto PlayRate{MantlingSettings->Montage->RateScale};",
+            ""
+          ]
+        },
+        {
+          "start_line": 698,
+          "lines": [
+            "\tMantlingState.RootMotionSourceId = 0;",
+            "",
+            "\tif (bStopMontage && RootMotionSource != nullptr)",
+            "\t{",
+            "\t\tGetMesh()->GetAnimInstance()->Montage_Stop(Settings->Mantling.BlendOutDuration, RootMotionSource->MantlingSettings->Montage);",
+            "\t}",
+            "",
+            "\tGetCharacterMovement()->NetworkSmoothingMode = ENetworkSmoothingMode::Exponential;",
+            "",
+            "\tAlsCharacterMovement->SetMovementModeLocked(false);",
+            "\tGetCharacterMovement()->SetMovementMode(MOVE_Walking);",
+            "",
+            "\tOnMantlingEnded();"
+          ]
+        }
+      ]
+    }
+  },
+  "phases": [
+    "Root motion may replace CMC velocity before the physics step. Falling preserves the physical vertical axis.",
+    "Walking and Falling resolve movement and floor support during the move.",
+    "The movement component publishes final velocity after movement. The character refresh uses that velocity, and animation consumes the character snapshot."
+  ],
+  "target_contract": [
+    "Movement motor clears the pending collision velocity and produces the walking plan.",
+    "Mantle can take the pending velocity before physics. Roll can replace the pending value and preserve the solved falling axis.",
+    "After physics, locomotion synchronization consumes the collision flags and velocity. The velocity snapshot handles remaining results and keeps the existing free-walking reconstruction."
+  ]
+}

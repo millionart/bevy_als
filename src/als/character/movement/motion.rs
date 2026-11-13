@@ -57,6 +57,15 @@ pub struct AlsActualVelocity {
     pub horizontal_speed: f32,
 }
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsCmcFrameResult {
+    pub grounded_collision_velocity: Option<Vec3>,
+    pub has_animation_root_velocity: bool,
+    pub airborne_sweep_contact: bool,
+    pub post_collision_mode: Option<LocomotionState>,
+    pub mantle_exit_grounded: bool,
+}
+
 pub(crate) fn source_horizontal_speed_centimeters(world_velocity: Vec3) -> f32 {
     (Vec2::new(world_velocity.x, world_velocity.z).as_dvec2() * 100.0).length() as f32
 }
@@ -3183,14 +3192,15 @@ fn accepted_jump_state_system(
     }
 }
 
-fn snapshot_actual_velocity_system(
+pub(crate) fn snapshot_actual_velocity_system(
     frame_time: Res<Time<Virtual>>,
     physics_time: Res<Time<avian3d::prelude::Physics>>,
-    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &mut AlsCmcAdapterRuntime,
+    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &AlsCmcAdapterRuntime, &mut AlsCmcFrameResult,
         &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
 ) {
-    for (mut velocity, mut actual, position, mut runtime, locomotion, mut base) in &mut characters {
-        if let Some(collision_velocity) = runtime.grounded_collision_velocity.take() {
+    for (mut velocity, mut actual, position, runtime, mut result, locomotion, mut base) in &mut characters {
+        if let Some(collision_velocity) = result.grounded_collision_velocity {
+            result.grounded_collision_velocity = None;
             velocity.0 = collision_velocity;
         } else if let Some(start) = runtime.grounded_move_start
             && let Some(position) = position
@@ -5020,7 +5030,7 @@ pub(crate) fn cmc_movement_transaction_system(
             &LinearVelocity,
             &mut TnuaMotor,
             &mut SpeculativeCcd,
-            &mut AlsCmcAdapterRuntime,
+            (&mut AlsCmcAdapterRuntime, &mut AlsCmcFrameResult),
             &AlsEffectiveGravity,
             &mut LocomotionState,
             &TnuaController<AlsControlScheme>,
@@ -5036,7 +5046,7 @@ pub(crate) fn cmc_movement_transaction_system(
     >,
 ) {
     let (bases, owners, mut movement_bases, shapes, impact_bodies) = base_queries;
-    for (entity, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, mut loco, controller, handle, stance, parent, (rotation_mode, view_yaw, max_allowed_gait, mut dynamics, braking, mut base)) in &mut q {
+    for (entity, position, capsule, velocity, mut motor, mut margin, (mut runtime, mut result), gravity, mut loco, controller, handle, stance, parent, (rotation_mode, view_yaw, max_allowed_gait, mut dynamics, braking, mut base)) in &mut q {
         let Some(params) = params_assets.get(handle.id()) else { continue };
         let cached_input_max = runtime.controlled_input_max_acceleration;
         let Ok(world) = transforms.p0().compute_global_transform(entity) else { continue };
@@ -5082,7 +5092,7 @@ pub(crate) fn cmc_movement_transaction_system(
                 &bases, &owners, &shapes, &impact_bodies, &mut transitions, cached_input_max, impacts.as_deref_mut());
             if let (Some(refreshed), Some(dynamics)) = (refreshed, dynamics.as_deref_mut()) { dynamics.0 = refreshed; }
             runtime.grounded_max_speed = grounded_max_speed;
-            runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
+            result.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
             if *loco != mode { *loco = mode; }
             if mode == LocomotionState::None {
                 commands.entity(entity).insert((crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
@@ -5092,8 +5102,8 @@ pub(crate) fn cmc_movement_transaction_system(
             runtime.simulation_delta_seconds = delta_seconds;
             runtime.simulation_substeps = steps;
             runtime.grounded_movement_delta = None;
-            runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { final_velocity });
-            runtime.airborne_sweep_contact |= contact;
+            result.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { final_velocity });
+            result.airborne_sweep_contact |= contact;
             let world_position = moved.translation;
             transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
             commands.entity(entity).insert(Position(moved.translation));
@@ -5119,7 +5129,7 @@ pub(crate) fn cmc_movement_transaction_system(
         let delta = runtime.grounded_movement_delta
             .unwrap_or(next_velocity * delta_seconds).with_y(0.0);
         if delta_seconds < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
-            runtime.grounded_collision_velocity = Some((velocity.0 + motor.lin.boost).with_y(0.0));
+            result.grounded_collision_velocity = Some((velocity.0 + motor.lin.boost).with_y(0.0));
             if delta.length_squared() <= f32::EPSILON {
                 motor.lin.boost = -velocity.0;
                 motor.lin.acceleration = -gravity.value;
@@ -5172,7 +5182,7 @@ pub(crate) fn cmc_movement_transaction_system(
                     &mut runtime.random_seed, &candidates, &step_permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, cached_input_max, impacts.as_deref_mut());
                 if let Some(refreshed) = refreshed { dynamics.0 = refreshed; }
                 runtime.grounded_max_speed = grounded_max_speed;
-                runtime.post_collision_mode = if rejected_base && mode == LocomotionState::Air { Some(mode) }
+                result.post_collision_mode = if rejected_base && mode == LocomotionState::Air { Some(mode) }
                     else { collision_mode.filter(|collision_mode| *collision_mode == mode) };
                 floor = landing_base;
                 if *loco != mode { *loco = mode; }
@@ -5183,10 +5193,10 @@ pub(crate) fn cmc_movement_transaction_system(
                 }
                 current_transform.translation = moved.translation;
                 final_velocity = falling_velocity;
-                runtime.airborne_sweep_contact |= contact;
+                result.airborne_sweep_contact |= contact;
             }
             runtime.grounded_movement_delta = stationary_delta;
-            runtime.grounded_collision_velocity = Some(if *loco == LocomotionState::None { Vec3::ZERO }
+            result.grounded_collision_velocity = Some(if *loco == LocomotionState::None { Vec3::ZERO }
                 else if lost_floor || rejected_base { final_velocity } else { final_velocity + support });
             runtime.grounded_move_start = None;
             if (lost_floor || rejected_base) && *loco == LocomotionState::Air { base.entity = None; }
@@ -5219,7 +5229,7 @@ pub(crate) fn cmc_movement_transaction_system(
             center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions,
             impacts.as_deref_mut().map(|writer| (writer, impact_acceleration, impact_velocity, runtime.grounded_max_speed, &impact_bodies))) else { continue };
         runtime.grounded_move_start = (!penetrating).then_some(center);
-        if penetrating { runtime.grounded_collision_velocity = Some(next_velocity.with_y(0.0)); }
+        if penetrating { result.grounded_collision_velocity = Some(next_velocity.with_y(0.0)); }
         let consumed = stepped_up || swept_movement;
         if consumed { runtime.grounded_movement_delta = None; }
         let advanced = if consumed { advanced + remaining.unwrap_or(delta) } else { advanced };
@@ -5276,11 +5286,11 @@ pub(crate) fn cmc_movement_transaction_system(
                         &candidates, &step_permissions, &bases, &owners, &shapes, &impact_bodies, &mut transitions, cached_input_max, impacts.as_deref_mut());
                 if let (Some(refreshed), Some(dynamics)) = (refreshed, dynamics.as_deref_mut()) { dynamics.0 = refreshed; }
                 runtime.grounded_max_speed = grounded_max_speed;
-                runtime.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
+                result.post_collision_mode = collision_mode.filter(|collision_mode| *collision_mode == mode);
                 runtime.grounded_movement_delta = None;
                 runtime.grounded_move_start = None;
-                runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { falling_velocity });
-                runtime.airborne_sweep_contact |= contact;
+                result.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { falling_velocity });
+                result.airborne_sweep_contact |= contact;
                 *loco = mode;
                 if mode == LocomotionState::Air && let Some(base) = base.as_deref_mut() { base.entity = None; }
                 if mode == LocomotionState::None {
@@ -5319,10 +5329,10 @@ pub(crate) fn cmc_movement_transaction_system(
                 max_allowed_gait.0, walking_velocity, view_yaw.0);
             let jump_velocity = jump_off_velocity(walking_velocity, max_speed, params.jump.jump_z_velocity,
                 params.cmc.jump_off_jump_z_factor, &mut runtime.random_seed);
-            runtime.grounded_collision_velocity = Some(jump_velocity);
+            result.grounded_collision_velocity = Some(jump_velocity);
             runtime.grounded_movement_delta = None;
             runtime.grounded_move_start = None;
-            runtime.post_collision_mode = Some(LocomotionState::Air);
+            result.post_collision_mode = Some(LocomotionState::Air);
             *loco = LocomotionState::Air;
             transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
                 from: StateValue::LocomotionState(LocomotionState::Grounded),
@@ -5626,13 +5636,13 @@ fn resolve_stationary_floor_state(
     params_assets: Res<Assets<AlsMovementParams>>,
     mut characters: Query<(Entity, &Position, &Transform, Option<&ChildOf>, &Collider, &mut LocomotionState,
         &Stance, &AlsMovementParamsHandle, &LinearVelocity, &AlsEffectiveGravity,
-        &mut TnuaMotor, &mut SpeculativeCcd, &mut AlsCmcAdapterRuntime,
+        &mut TnuaMotor, &mut SpeculativeCcd, (&mut AlsCmcAdapterRuntime, &mut AlsCmcFrameResult),
         (Option<&mut crate::als::dynamics::AlsMovementBase>, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>),
         Option<&crate::als_camera::AlsCameraCustomTimeDilation>), With<AlsCharacter>>,
 ) {
     if time.is_paused() { return; }
     for (entity, position, local, parent, capsule, mut mode, stance, handle, velocity, gravity,
-        mut motor, mut margin, mut runtime, (base, dynamics), dilation) in &mut characters {
+        mut motor, mut margin, (mut runtime, mut result), (base, dynamics), dilation) in &mut characters {
         if *mode != LocomotionState::Grounded
             || time.delta_secs() * dilation.map_or(1.0, |value| value.0) < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
             || !runtime.grounded_movement_delta.is_some_and(|delta|
@@ -5672,9 +5682,9 @@ fn resolve_stationary_floor_state(
             if let Some(mut base) = base { *base = default(); }
             if let Some(mut dynamics) = dynamics { *dynamics = default(); }
         }
-        runtime.grounded_collision_velocity = Some(velocity.0.with_y(0.0));
+        result.grounded_collision_velocity = Some(velocity.0.with_y(0.0));
         runtime.grounded_move_start = None;
-        runtime.post_collision_mode = Some(*mode);
+        result.post_collision_mode = Some(*mode);
         motor.lin.boost.y = -velocity.y;
         motor.lin.acceleration.y = -gravity.value.y;
         *margin = SpeculativeCcd::ZERO;
@@ -5819,7 +5829,7 @@ pub(crate) fn locomotion_state_sync_system(
             &AlsMovementParamsHandle,
             &Stance,
             Option<&ChildOf>,
-            &mut AlsCmcAdapterRuntime,
+            (&mut AlsCmcAdapterRuntime, &mut AlsCmcFrameResult),
             (Option<&RotationMode>, &AlsMaxAllowedGait, &AlsViewYaw),
         ),
         (With<AlsCharacter>, Without<crate::als::character::AlsBirthAnimationPending>),
@@ -5827,12 +5837,16 @@ pub(crate) fn locomotion_state_sync_system(
 ) {
     if time.is_paused() { return; }
     for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit,
-        action, handle, stance, parent, mut runtime, (rotation, gait, yaw)) in &mut q {
-        let sweep_contact = std::mem::take(&mut runtime.airborne_sweep_contact);
-        let has_animation_root_velocity = std::mem::take(&mut runtime.has_animation_root_velocity);
-        let collision_mode = std::mem::take(&mut runtime.post_collision_mode);
-        let mantle_exit_grounded = std::mem::take(&mut runtime.mantle_exit_grounded);
-        if let Some(mut source_velocity) = runtime.grounded_collision_velocity.take() {
+        action, handle, stance, parent, (mut runtime, mut result), (rotation, gait, yaw)) in &mut q {
+        let AlsCmcFrameResult {
+            grounded_collision_velocity,
+            has_animation_root_velocity,
+            airborne_sweep_contact: sweep_contact,
+            post_collision_mode: collision_mode,
+            mantle_exit_grounded,
+        } = *result;
+        result.set_if_neq(AlsCmcFrameResult::default());
+        if let Some(mut source_velocity) = grounded_collision_velocity {
             if *current == LocomotionState::Air && has_animation_root_velocity {
                 source_velocity.y = velocity.y;
             }
@@ -6161,12 +6175,11 @@ mod tests {
             {
                 let mut runtime = app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap();
                 runtime.grounded_movement_delta = Some(Vec3::ZERO);
-                runtime.grounded_collision_velocity = None;
-                runtime.post_collision_mode = None;
+                *app.world_mut().get_mut::<AlsCmcFrameResult>(actor).unwrap() = default();
             }
             app.world_mut().run_system_once(resolve_stationary_floor_state).unwrap();
             let position = app.world().get::<Position>(actor).unwrap().0;
-            let runtime = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap();
+            let runtime = app.world().get::<AlsCmcFrameResult>(actor).unwrap();
             if expect_recovery {
                 assert!(position.x < -0.19 && position.y == start.y, "position={position:?}");
                 assert_eq!(runtime.post_collision_mode, Some(LocomotionState::Grounded));
@@ -7001,7 +7014,7 @@ mod tests {
             if already_based {
                 app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().entity = Some(floor);
             }
-            app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap().post_collision_mode = None;
+            app.world_mut().get_mut::<AlsCmcFrameResult>(actor).unwrap().post_collision_mode = None;
             app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
             let mode = *app.world().get::<LocomotionState>(actor).unwrap();
             let base = app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().entity;
@@ -7061,7 +7074,7 @@ mod tests {
             let mode = *app.world().get::<LocomotionState>(actor).unwrap();
             if pawn && !allowed {
                 assert_eq!(mode, LocomotionState::Air, "steps={steps}");
-                let velocity = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+                let velocity = app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap();
                 assert!(velocity.with_y(0.0).length() > 0.0);
                 assert!(app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(actor).unwrap().entity.is_none());
                 app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
@@ -7718,7 +7731,7 @@ mod tests {
             if interrupt {
                 assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(actor),
                     Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling));
-                assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap().y, 0.0,
+                assert_eq!(app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap().y, 0.0,
                     "Source Roll interruption must stop the remaining Falling budget");
             }
         }
@@ -7837,7 +7850,7 @@ mod tests {
         app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
         assert_eq!(app.world().get::<Position>(actor).unwrap().0, position,
             "Ordinary falling movement replaced an active animation root motion owner");
-        assert!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.is_none());
+        assert!(app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.is_none());
     }
 
     #[test]
@@ -8125,7 +8138,7 @@ mod tests {
                 &mut TnuaMotor::default());
             app.world_mut().entity_mut(actor).insert((Position(position), Transform::from_translation(position),
                 LocomotionState::Air, AlsStateRequest::default(), controller));
-            app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap().airborne_sweep_contact = true;
+            app.world_mut().get_mut::<AlsCmcFrameResult>(actor).unwrap().airborne_sweep_contact = true;
             app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
             assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(),
                 if blocker.is_some() { LocomotionState::Air } else { LocomotionState::Grounded },
@@ -8638,7 +8651,7 @@ mod tests {
             Vec3::new(-1.0, 0.0, -1.0).normalize();
         app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
         app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
-        let actual = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+        let actual = app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap();
         let expected = Vec3::new(0.3562477, -0.8726250, 0.3562477);
         assert!(actual.distance(expected) < 0.003, "actual={actual:?} source={expected:?}");
     }
@@ -8963,7 +8976,7 @@ mod tests {
         app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
         app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
         assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
-        assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().post_collision_mode, Some(LocomotionState::Grounded));
+        assert_eq!(app.world().get::<AlsCmcFrameResult>(actor).unwrap().post_collision_mode, Some(LocomotionState::Grounded));
         app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
         assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
     }
@@ -9031,7 +9044,7 @@ mod tests {
             app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
             app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
             app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
-            let actual = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+            let actual = app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap();
             assert!((actual.x - expected).abs() < 0.002, "kind={kind:?} speed={speed} actual={actual:?}");
         }
     }
@@ -9159,7 +9172,7 @@ mod tests {
         app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
         let runtime = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap();
         assert_eq!(runtime.simulation_substeps, 2);
-        assert_eq!(runtime.grounded_collision_velocity.unwrap().x, 0.0);
+        assert_eq!(app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap().x, 0.0);
         assert!((app.world().get::<Position>(actor).unwrap().x - 0.000006).abs() < 1e-8);
     }
 
@@ -9364,10 +9377,10 @@ mod tests {
                 app.world_mut().entity_mut(actor).insert((Position(position), Transform::from_translation(position)));
             }
             *app.world_mut().get_mut::<LocomotionState>(actor).unwrap() = mode;
-            app.world_mut().get_mut::<AlsCmcAdapterRuntime>(actor).unwrap().post_collision_mode = Some(mode);
+            app.world_mut().get_mut::<AlsCmcFrameResult>(actor).unwrap().post_collision_mode = Some(mode);
             app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
             assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), mode);
-            assert!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().post_collision_mode.is_none());
+            assert!(app.world().get::<AlsCmcFrameResult>(actor).unwrap().post_collision_mode.is_none());
         }
     }
 
@@ -9436,7 +9449,7 @@ mod tests {
             app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
             let runtime = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap();
             assert!((runtime.grounded_max_speed - expected_cap).abs() < 1e-5);
-            let actual = runtime.grounded_collision_velocity.unwrap();
+            let actual = app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap();
             assert!((actual.x - expected_speed).abs() < 1e-4, "stance={stance:?} velocity={actual:?}");
         }
     }
@@ -9518,7 +9531,7 @@ mod tests {
             assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Air,
                 "speed={speed} steps={steps} start={start:?} position={:?} runtime={:?}",
                 app.world().get::<Position>(actor), app.world().get::<AlsCmcAdapterRuntime>(actor));
-            let velocity = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+            let velocity = app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap();
             let expected = speed - if steps == 1 { 0.0 } else { 0.4905 };
             assert!((velocity.y - expected).abs() < 1e-4,
                 "Walk-off vertical velocity differs: speed={speed} steps={steps} actual={velocity:?} expected={expected}");
@@ -9572,7 +9585,7 @@ mod tests {
             let mode = *app.world().get::<LocomotionState>(actor).unwrap();
             assert_eq!(mode, if falls { LocomotionState::Air } else { LocomotionState::Grounded });
             if falls {
-                let velocity = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+                let velocity = app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap();
                 assert!((velocity.z - side_speed).abs() < 1e-4, "speed={side_speed} velocity={velocity:?}");
             } else {
                 assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap().entity, Some(new));
@@ -9714,7 +9727,7 @@ mod tests {
         app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
         let runtime = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap();
         assert!(runtime.grounded_move_start.is_none());
-        assert!((runtime.grounded_collision_velocity.unwrap().x - 6.25).abs() < 1e-4);
+        assert!((app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap().x - 6.25).abs() < 1e-4);
         app.world_mut().get_mut::<Position>(actor).unwrap().0.x -= 0.0125;
         app.world_mut().run_system_once(locomotion_state_sync_system).unwrap();
         app.world_mut().run_system_once(snapshot_actual_velocity_system).unwrap();
@@ -9800,7 +9813,7 @@ mod tests {
                 assert_eq!(mode, LocomotionState::Air,
                     "wall={wall} start={start:?} position={:?} runtime={:?}",
                     app.world().get::<Position>(actor), app.world().get::<AlsCmcAdapterRuntime>(actor));
-                let velocity = app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+                let velocity = app.world().get::<AlsCmcFrameResult>(actor).unwrap().grounded_collision_velocity.unwrap();
                 if wall { assert!(velocity.y < -0.03 && velocity.y > -0.15, "Refunded time was not integrated: {velocity:?}"); }
                 else { assert!(velocity.y.abs() < 1e-6, "An unobstructed step must not refund time: {velocity:?}"); }
             }
@@ -10982,13 +10995,13 @@ mod tests {
                 sensors.get_mut(sensor).unwrap().output = None;
             }).after(TnuaPipelineSystems::Sensors).before(TnuaPipelineSystems::Logic));
             *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
-            app.world_mut().get_mut::<AlsCmcAdapterRuntime>(character).unwrap().airborne_sweep_contact =
+            app.world_mut().get_mut::<AlsCmcFrameResult>(character).unwrap().airborne_sweep_contact =
                 contact;
             app.update();
             let expected = if contact { LocomotionState::Grounded } else { LocomotionState::Air };
             assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), expected,
                 "landing requires a blocking contact: {contact}");
-            assert!(!app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().airborne_sweep_contact,
+            assert!(!app.world().get::<AlsCmcFrameResult>(character).unwrap().airborne_sweep_contact,
                 "a consumed sweep contact survived into the next frame");
         }
     }
@@ -11938,8 +11951,8 @@ mod tests {
                 .add_message::<AssetEvent<Mesh>>()
                 .init_resource::<SweptLanding>()
                 .add_systems(PostUpdate, (|mut sample: ResMut<SweptLanding>,
-                    actors: Query<&AlsCmcAdapterRuntime, With<AlsCharacter>>| {
-                    sample.0 = actors.iter().any(|runtime| runtime.airborne_sweep_contact);
+                    actors: Query<&AlsCmcFrameResult, With<AlsCharacter>>| {
+                    sample.0 = actors.iter().any(|result| result.airborne_sweep_contact);
                 }).after(PhysicsSystems::Last).before(locomotion_state_sync_system))
                 .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
             app.finish();
