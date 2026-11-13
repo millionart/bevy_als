@@ -6483,7 +6483,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - 21:30 source/static摘要：fresh PA确认全部21个body的原生回弹值和组合模式，源shape材质及目标manifold消费路径已固化；现按源body索引将完整回弹组件同步到所属shape及其profile刷新。已写加载角色22个shape、单body更新隔离和实际接触manifold对照；测试、消融和Playground待统一Gate，低速阈值归D92。证据`docs/audit/bf144/d91/`。实际结束：2026-11-08 21:30 +08:00；偏差：−37分钟；结果：静态实现完成，未拆分。
 
-- [x] BF144-D98 / P2 — 子碰撞体同步晚于预测包围盒，Ragdoll漏掉当前帧新接触。
+- [x] BF144-D98 / P2 — 子碰撞体同步晚于包围盒更新，Ragdoll漏掉当前帧新接触。
+  - 13:04复开升级回归。fresh Chaos仍先积分再求本步bounds；Avian 0.8默认只在当前子位姿扩接触容差，预测需显式SpeculativeCcd。旧夹具在没有该组件时强制比较预测宽度，并锁死另一引擎的接触时刻。开始13:04、预估13:29；保留加载原PA与30/60Hz、1/6子步，分别验证真实当前子bounds、墙面冲量和无阻挡对照，再消融Finalize中的同步。
+  - 13:11 source/static：同一加载子shape从父刚体写回位置重算tight AABB，30/60Hz与1/6子步的全部8组通过；墙面见正法向冲量，无墙面接触对照按自由运动。沿原正式Ragdoll固定60Hz再次核落地和恢复，截图0，另保留可变帧首次切换时的pelvis异常供U07。
+  - 13:17正式入口前：消融把同步移到Last后，首60Hz对照的当前AABB偏后6.25cm。恢复Finalize字节并重编，先跑原场景固定60Hz落地和恢复；此场景不注入额外CCD。
+  - 13:20正式入口重试前：同target字节恢复后4项通过。首个正式调用读到并行Head观察的未完成类型修改而编译中止，未进入场景；已隔离观察diff，正式入口以当前D98工作树重跑。
+  - 13:24结束，较13:29提前5分钟，无拆分。正式60Hz Ragdoll倒下、碰撞、起身和功能视觉验证均通过。全库第21轮2102过／46失败，恢复旧D98失败并新增一个通过的VelocityBlend原生反例，新增失败0。证据 `docs/audit/bf144/u07/ragdoll-native-bounds/` 与 `docs/audit/bf144/u07/bevy-0.20/tests-round-21-lib/`。
   - 本轮开始：2026-11-08 22:33 +08:00；预计结束：2026-11-08 23:18 +08:00。重读源预测bounds及Avian末帧更新顺序，把已有子碰撞体同步放在solver写回后、AABB预测前；补加载角色连续位移和未到达障碍控制。估时依据：已从真实 head 的形体位置和预测 bounds 读数分离更新时序，本项只改现有入口调度并补回归夹具；执行与消融待统一Gate。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:581,638,650,974–1002`先按本帧积分后P/Q更新bounds，再检测；`CollisionOneShotManifoldsMiscShapes.cpp:80–95`及`ContactPointsMiscShapes.cpp:322–343`用Box.PhiWithNormal−sphere.radius构造实际重叠点，随后位置/速度solver当帧处理。
   - Target：Avian `collider_tree/update.rs:67–71,753–778`在Finalize之后、Last之前，用child Position/Rotation构造velocity-swept AABB；`src/als/character/character.rs:230–245`却到Last才同步这些child pose。Avian原生child同步也只在下一帧First执行。因此恒速运动时bounds覆盖上一段位移，narrow-phase发生在本帧位置积分前又无法补救。
@@ -7570,6 +7575,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - U07 12:12阶段复盘：11:47开始、12:12预估结束，实际12:12。1.2m/s域与原88输入边界复验完成；近零布娃娃重建已闭，定向全库2098过／49失败且新增0。Standing首活动帧的源FSM确为常规无profile过渡，源代码使用独立alpha，先观察实际Idle和Move两路输入，原生两种数值运算本身不足以归因。下一段12:12开始、预估12:49:30，按25分钟×1.5，完成首差实际源观察以及地板、站起和布娃娃边界定向复验；D31单测已将2.5cm偏差缩到首帧，需分别采地板和修正sweep。
   - U07 12:41 source/static：源Standing的Idle缺省该曲线，Move已为0.3112339675426483；真实右BlendSpace与目标均为0.649545431137085。源原始Right为0.09887274354696274，经前/右共同F32归一得0.47915658354759216。只换入目标原始Right就精确复现目标Root。源观察移除并重编后103帧原始行为逐字段保持。沿源GetVelocity与当前实际Q/V，首差可由同输入前向局部厘米值49.06298828125→49.06298065185547单独消除。共享向量旋转合同与D247同源，待D31提交后沿当前VelocityBlend入口做原生反例和真实Gate。证据 `docs/audit/bf144/u07/velocity-blend-first-motion/source-standing-boundary/`。
   - U07 12:49:30阶段复盘：12:12开始、预估和实际复盘均12:49:30。D25定向与实际蹲起通过并提交，D31七项、真实grounded动作已过，消融及无动作场景仍在当前条目。D98已核Avian 0.8的默认tight AABB和可选speculative，下一定向分离当前子位姿和实际阻挡，保持原生碰撞边界。319帧首活动曲线的真实两层原生输入已经闭合，12份相同目标输入的源局部旋转和方向可逐值复算。下一段12:49:30开始、预估13:45:45，按37分30秒×1.5，先完成D31再验证VelocityBlend首差、D98、复验全库净失败集合，并继续88帧及Down-Up/180边界。
+  - U07 13:19 source/static：Head加载观察报`Look sample 0/1`缺少旧Clip节点缓存，实际Head Additive已变化。fresh UE BlendSpace在自身直接调用压缩序列，再做mesh additive；D224c的目标BlendSpace直接消费prepared样本并保留真实输入time pin。沿现有Head观察改为读取该pin并用prepared原生样本重算期望，保留旧图实际节点路径。开始13:19、预估13:44，先验证加载夹具再跑正式Down-Up和回转。
   - U07 10:26第16轮：D320后2090过／56失败，新增Pivot加载夹具一项。该夹具在真实快照系统后覆写旧runtime角和速度，却留下新的源速度角；同一帧输入互相冲突。按三个通知夹具的显式覆写更新，并复验旧启停、速度阈值及实际First Pivot。已确认首Root偏航两个独立原因，曲线阶段登记D321；FeetCrossing仍从图上游比较。
   - 10:30 D320通知夹具复验：10:26开始、预估10:39，提前9分钟，无拆分。测试显式覆写兼容角时同步清除先前物理快照的源角。13项通知回归通过，恢复实际First Pivot和速度阈值，保留反向入场、QuickStop及落地对照。失败集合与恢复见 `docs/audit/bf144/u07/bevy-0.20/tests-round-16-lib/`、`docs/audit/bf144/u07/first-motion-yaw/pivot-fixture/`。
   - U07 全库第11轮（2026-11-13 07:15）：2078过／63失败，较前轮减少1个Rig图用例，新增0。原始日志及失败集合见 `docs/audit/bf144/u07/bevy-0.20/tests-round-11-lib/`。

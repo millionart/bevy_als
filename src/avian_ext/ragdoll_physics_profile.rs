@@ -1920,9 +1920,11 @@ mod tests {
     }
 
     #[test]
-    fn source_ragdoll_child_bounds_track_post_solver_pose_before_prediction() {
-        use avian3d::prelude::{AngularVelocity, ColliderAabb, ColliderDisabled, ComputedCenterOfMass, Gravity,
-            JointDisabled, LinearVelocity, Sleeping, SleepingDisabled, SubstepCount};
+    fn source_ragdoll_child_bounds_track_post_solver_pose_and_reach_contact() {
+        use avian3d::collision::narrow_phase::NarrowPhaseConfig;
+        use avian3d::prelude::{AngularVelocity, ColliderAabb, ColliderDisabled, CollisionMargin, Collisions,
+            ComputedCenterOfMass, Gravity, JointDisabled, LinearVelocity, Sleeping, SleepingDisabled,
+            SpeculativeCcd, SubstepCount};
         use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
         for dt in [1.0_f32 / 60.0, 1.0 / 30.0] {
             for substeps in [1, 6] {
@@ -1961,23 +1963,40 @@ mod tests {
                     let speed = if reaches_wall { 0.25 / dt } else { 0.0625 / dt };
                     app.world_mut().entity_mut(head).insert((Position(start_body), SleepingDisabled,
                         LinearDamping(0.0), AngularDamping(0.0), LinearVelocity(Vec3::X * speed), AngularVelocity::ZERO)).remove::<Sleeping>();
-                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.2, 4.0, 4.0),
+                    let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.2, 4.0, 4.0),
                         Transform::from_translation(Vec3::new(0.0, start_center.y, start_center.z)),
-                        Friction::new(0.0), Restitution::new(0.0)));
+                        Friction::new(0.0), Restitution::new(0.0))).id();
                     app.update();
-                    if reaches_wall {
-                        let aabb = app.world().get::<ColliderAabb>(shape).unwrap();
-                        assert!(aabb.max.x > -0.1, "dt={dt} substeps={substeps} aabb={aabb:?}");
+                    let world = app.world();
+                    assert!(world.get::<SpeculativeCcd>(head).is_none());
+                    let center = world.get::<Position>(head).unwrap().0 + world.get::<Rotation>(head).unwrap().0 * center_local;
+                    let collider_rotation = *world.get::<Rotation>(shape).unwrap();
+                    let margin = world.resource::<NarrowPhaseConfig>().contact_tolerance
+                        * world.resource::<avian3d::dynamics::solver::PhysicsLengthUnit>().0
+                        + world.get::<CollisionMargin>(shape).map_or(0.0, |margin| margin.0);
+                    let expected = world.get::<Collider>(shape).unwrap().aabb(center, collider_rotation, margin);
+                    let bounds = world.get::<ColliderAabb>(shape).unwrap();
+                    assert!(bounds.min.abs_diff_eq(expected.min, 1e-6) && bounds.max.abs_diff_eq(expected.max, 1e-6),
+                        "dt={dt} substeps={substeps} expected={expected:?} bounds={bounds:?}");
+                    let mut impulse = 0.0_f32;
+                    let frames = if reaches_wall { 6 } else { 2 };
+                    for _ in 1..frames {
+                        app.update();
+                        let observed = app.world_mut().run_system_once(move |contacts: Collisions| {
+                            contacts.get(wall, shape).map_or(0.0, |pair| pair.total_normal_impulse_magnitude())
+                        }).unwrap();
+                        impulse = impulse.max(observed);
                     }
-                    app.update();
-                    let final_center = app.world().get::<Position>(head).unwrap().0
-                        + app.world().get::<Rotation>(head).unwrap().0 * center_local;
+                    let final_center = app.world().get::<Position>(head).unwrap().0 + app.world().get::<Rotation>(head).unwrap().0 * center_local;
                     let velocity = app.world().get::<LinearVelocity>(head).unwrap().x;
-                    let expected = if reaches_wall { -0.2 } else { -0.65 + speed * dt * 2.0 };
-                    assert!((final_center.x - expected).abs() < 0.006,
-                        "dt={dt} substeps={substeps} reaches={reaches_wall} actual={final_center:?} source={expected}");
-                    if reaches_wall { assert!(velocity.abs() < 0.01); }
-                    else { assert!((velocity - speed).abs() < 0.01); }
+                    if reaches_wall {
+                        assert!(impulse > 0.0 && final_center.x < -0.1 && velocity < speed,
+                            "The wall must stop the native collision: dt={dt} substeps={substeps} center={final_center:?} velocity={velocity} impulse={impulse}");
+                    } else {
+                        assert_eq!(impulse, 0.0);
+                        assert!((final_center.x - (-0.65 + speed * dt * frames as f32)).abs() < 1e-5);
+                        assert!((velocity - speed).abs() < 1e-5);
+                    }
                 }
             }
         }
