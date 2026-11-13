@@ -1,0 +1,276 @@
+{
+  "samples": [
+    {
+      "name": "7-source",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          123.29499721445137
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30,
+        "half_height_cm": 90,
+        "length_cm": 164.0697479248047
+      }
+    },
+    {
+      "name": "7-target",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          123.294997215271
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30,
+        "half_height_cm": 90,
+        "length_cm": 164.0697479248047
+      }
+    },
+    {
+      "name": "8-source",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          115.1199963617324
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30,
+        "half_height_cm": 90,
+        "length_cm": 179.98947143554688
+      }
+    },
+    {
+      "name": "8-target",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          115.11999368667603
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30,
+        "half_height_cm": 90,
+        "length_cm": 179.98947143554688
+      }
+    },
+    {
+      "name": "9-source",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          105.85499539531757
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30,
+        "half_height_cm": 90,
+        "length_cm": 195.90921020507812
+      }
+    },
+    {
+      "name": "9-target",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          105.85498809814453
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30,
+        "half_height_cm": 90,
+        "length_cm": 195.90921020507812
+      }
+    },
+    {
+      "name": "10-source",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          95.49999431520688
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30,
+        "half_height_cm": 90,
+        "length_cm": 211.82896423339844
+      }
+    },
+    {
+      "name": "10-target",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -50
+        ],
+        "box_half_extents_cm": [
+          5000,
+          5000,
+          50
+        ],
+        "start_cm": [
+          0,
+          0,
+          95.49998641014099
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "radius_cm": 30,
+        "half_height_cm": 90,
+        "length_cm": 211.8289794921875
+      }
+    }
+  ]
+}

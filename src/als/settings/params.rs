@@ -687,9 +687,9 @@ pub struct CrouchParams {
 impl Default for CrouchParams {
     fn default() -> Self {
         Self {
-            standing_capsule_half_height: 90.0 * UE_CM_TO_M,
-            standing_capsule_radius: 30.0 * UE_CM_TO_M,
-            crouched_capsule_half_height: 56.0 * UE_CM_TO_M,
+            standing_capsule_half_height: Self::STANDING_CAPSULE_HALF_HEIGHT_CM * UE_CM_TO_M,
+            standing_capsule_radius: Self::STANDING_CAPSULE_RADIUS_CM * UE_CM_TO_M,
+            crouched_capsule_half_height: Self::CROUCHED_CAPSULE_HALF_HEIGHT_CM * UE_CM_TO_M,
             animated_crouch_speed: 150.0 * UE_CM_TO_M,
             max_walk_speed_crouched: 150.0 * UE_CM_TO_M,
         }
@@ -697,6 +697,25 @@ impl Default for CrouchParams {
 }
 
 impl CrouchParams {
+    pub(crate) const STANDING_CAPSULE_HALF_HEIGHT_CM: f32 = 90.0;
+    pub(crate) const STANDING_CAPSULE_RADIUS_CM: f32 = 30.0;
+    pub(crate) const CROUCHED_CAPSULE_HALF_HEIGHT_CM: f32 = 56.0;
+
+    pub(crate) fn source_capsule_dimensions_cm(&self, stance: Stance) -> (f32, f32) {
+        let source_centimeters = |meters: f32, default_cm: f32| {
+            if meters == default_cm * UE_CM_TO_M { default_cm }
+            else { (f64::from(meters) * 100.0) as f32 }
+        };
+        let radius = source_centimeters(self.standing_capsule_radius, Self::STANDING_CAPSULE_RADIUS_CM);
+        let half_height = if stance == Stance::Crouching {
+            source_centimeters(self.crouched_capsule_half_height, Self::CROUCHED_CAPSULE_HALF_HEIGHT_CM)
+                .max(radius).max(0.0)
+        } else {
+            source_centimeters(self.standing_capsule_half_height, Self::STANDING_CAPSULE_HALF_HEIGHT_CM)
+        };
+        (radius, half_height)
+    }
+
     pub(crate) fn actual_crouched_half_height(&self) -> f32 {
         self.crouched_capsule_half_height.max(self.standing_capsule_radius).max(0.0)
     }
