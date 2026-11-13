@@ -4,7 +4,7 @@ use crate::als::foot_ik::{
     AlsFootLockMovementBase, AlsFootLockSettings, AlsFootLockState, AlsFootLockTeleported,
     AlsFootTargetSelection, FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M, FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
     build_foot_bone_map, capture_foot_lock_movement_base, constrain_foot_lock_rotation,
-    foot_lock_location_constraint_rotation, is_relevant_animation_weight, refresh_foot_lock,
+    foot_lock_location_constraint_rotation_cm, is_relevant_animation_weight, refresh_foot_lock,
     source_foot_final_rotation,
 };
 use crate::als::state::{LocomotionState, Stance};
@@ -530,19 +530,20 @@ fn source_constrain_foot_lock(
     let pelvis_rotation_armature =
         armature_rotation_from_world(armature, WorldRotation(pelvis_world.rotation())).0;
     let thigh_axis_armature = pelvis_rotation_armature * thigh_axis_pelvis_space;
-    let component = foot_component_transform(armature);
+    let mut component = foot_component_transform(armature);
+    component.translation *= 100.0;
     let mut lock_location_armature =
-        component.inverse().transform_point(state.lock_location).as_vec3();
+        component.inverse().transform_point(state.lock_location * 100.0).as_vec3();
     let mut lock_rotation_armature =
         (armature.rotation().as_dquat().conjugate() * state.lock_rotation).as_quat();
-    if let Some(offset_rotation) = foot_lock_location_constraint_rotation(
+    if let Some(offset_rotation) = foot_lock_location_constraint_rotation_cm(
         thigh_axis_armature,
         lock_location_armature,
         settings.thigh_angle_limit_degrees,
     ) {
         lock_location_armature = offset_rotation * lock_location_armature;
         lock_rotation_armature = (offset_rotation * lock_rotation_armature).normalize();
-        state.lock_location = component.transform_point(lock_location_armature.as_dvec3());
+        state.lock_location = component.transform_point(lock_location_armature.as_dvec3()) * 0.01;
         state.lock_rotation = armature.rotation().as_dquat() * lock_rotation_armature.as_dquat();
         capture_foot_lock_movement_base(state, state.movement_base);
         state.lock_rotation_before_foot_limit_armature = lock_rotation_armature;
@@ -1047,14 +1048,17 @@ mod tests {
                     mut transforms: ParamSet<(Query<&mut Transform>, TransformHelper)>,
                     mut profile: ResMut<CrAlsRuntimeProfileTemplate>| {
                     transforms.p0().get_mut(pelvis).unwrap().rotation = Quat::IDENTITY;
+                    transforms.p0().get_mut(actor).unwrap().rotation = Quat::IDENTITY;
+                    transforms.p0().get_mut(avatar).unwrap().rotation = Quat::IDENTITY;
                     profile.0.target.foot_left_thigh_axis_pelvis_space = Vec3::X.to_array();
                     let (mut lock, mut input, mut mode) = states.get_mut(actor).unwrap();
                     assert!(lock.valid && !lock.became_valid);
                     lock.left.lock_amount = 1.0;
                     let mesh = transforms.p1().compute_global_transform(avatar).unwrap();
-                    lock.left.lock_location = mesh.affine().transform_point3(source_lock).as_dvec3();
-                    let recovered = mesh.affine().inverse().transform_point3(lock.left.lock_location.as_vec3());
-                    assert!(recovered.distance(source_lock) < 1e-6);
+                    let component = foot_component_transform(&mesh);
+                    lock.left.lock_location = component.transform_point(source_lock.as_dvec3());
+                    let recovered = component.inverse().transform_point(lock.left.lock_location);
+                    assert!(recovered.distance(source_lock.as_dvec3()) < 1e-12);
                     if source_lock.z == 0.0 { assert_eq!(recovered.z, 0.0, "Fixture must preserve exact collinear component axes"); }
                     lock.left.lock_rotation = DQuat::IDENTITY;
                     lock.left.lock_rotation_before_foot_limit_armature = Quat::IDENTITY;
@@ -1410,6 +1414,15 @@ mod tests {
             Vec3::X, &AlsFootLockSettings::default());
         assert!((foot.lock_rotation.length_squared() - 1.0).abs() > 1e-9);
         assert_eq!(foot.final_rotation_armature, foot.lock_rotation.normalize().as_quat());
+    }
+
+    #[test]
+    fn source_thigh_limit_keeps_the_world_position_at_the_centimeter_boundary() {
+        let lock_location = DVec3::new(-5.233595781302253e-8, -0.8, 9.9862956471346e-7);
+        let mut foot = AlsFootLockFootState { lock_amount: 1.0, lock_location, ..default() };
+        source_constrain_foot_lock(&mut foot, &GlobalTransform::IDENTITY, &GlobalTransform::IDENTITY,
+            Vec3::X, &AlsFootLockSettings::default());
+        assert_eq!(foot.lock_location, lock_location);
     }
 
     #[test]

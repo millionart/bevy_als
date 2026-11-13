@@ -1284,6 +1284,36 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             Sample->SetNumberField(TEXT("view_yaw_degrees"), ViewYawDegrees);
             Sample->SetNumberField(TEXT("yaw_difference"), Angle);
         }
+        if ((*Input)->HasField(TEXT("foot_lock_thigh_angle")))
+        {
+            const TSharedPtr<FJsonObject>* Thigh = nullptr;
+            TArray<double> Axis, Location;
+            double LimitDegrees;
+            if (!(*Input)->TryGetObjectField(TEXT("foot_lock_thigh_angle"), Thigh)
+                || !ReadArray(*Thigh, TEXT("axis"), Axis, 3) || !ReadArray(*Thigh, TEXT("location_cm"), Location, 3)
+                || !(*Thigh)->TryGetNumberField(TEXT("limit_degrees"), LimitDegrees)
+                || !FMath::IsFinite(LimitDegrees) || LimitDegrees < 0 || LimitDegrees > 180) { return nullptr; }
+            const FVector3f Foot(Location[0], Location[1], Location[2]);
+            FVector2f From(Axis[0], Axis[1]);
+            FVector2f To(Foot);
+            const bool bFromNormalized = From.Normalize();
+            const bool bToNormalized = To.Normalize();
+            const float Cross = From ^ To;
+            const float Degrees = FMath::RadiansToDegrees(FMath::Acos(From | To)) * FMath::Sign(Cross);
+            const float Limit = static_cast<float>(LimitDegrees);
+            const bool bLimited = FMath::Abs(Degrees) > Limit + UE_KINDA_SMALL_NUMBER;
+            const FQuat4f Offset = bLimited ? FQuat4f(FVector3f::UpVector,
+                FMath::DegreesToRadians(FMath::Clamp(Degrees, -Limit, Limit) - Degrees)) : FQuat4f::Identity;
+            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+            Result->SetBoolField(TEXT("axis_normalized"), bFromNormalized);
+            Result->SetBoolField(TEXT("location_normalized"), bToNormalized);
+            Result->SetNumberField(TEXT("cross"), Cross);
+            Result->SetNumberField(TEXT("angle_degrees"), Degrees);
+            Result->SetBoolField(TEXT("limited"), bLimited);
+            Result->SetObjectField(TEXT("rotation"), CaptureQuaternion(FQuat(Offset)));
+            Result->SetObjectField(TEXT("location_cm"), CaptureVector(FVector(bLimited ? Offset.RotateVector(Foot) : Foot)));
+            Sample->SetObjectField(TEXT("foot_lock_thigh_angle"), Result);
+        }
         if ((*Input)->HasField(TEXT("foot_lock_base_position")))
         {
             const TSharedPtr<FJsonObject>* Position = nullptr;

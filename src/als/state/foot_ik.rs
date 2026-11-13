@@ -558,14 +558,21 @@ pub fn foot_lock_location_constraint_rotation(
     lock_location: Vec3,
     thigh_angle_limit_degrees: f32,
 ) -> Option<Quat> {
-    let mut horizontal_relative = Vec2::new(lock_location.x, lock_location.z);
-    let mut horizontal_axis = Vec2::new(thigh_axis.x, thigh_axis.z);
-    horizontal_relative = if horizontal_relative.length_squared() > 1e-12 {
-        horizontal_relative.normalize()
-    } else { Vec2::ZERO };
-    horizontal_axis = if horizontal_axis.length_squared() > 1e-8 {
-        horizontal_axis.normalize()
-    } else { Vec2::ZERO };
+    foot_lock_location_constraint_rotation_cm(thigh_axis, (lock_location.as_dvec3() * 100.0).as_vec3(),
+        thigh_angle_limit_degrees)
+}
+
+pub(crate) fn foot_lock_location_constraint_rotation_cm(
+    thigh_axis: Vec3,
+    lock_location_cm: Vec3,
+    thigh_angle_limit_degrees: f32,
+) -> Option<Quat> {
+    let normalize = |value: Vec2| {
+        let squared = value.length_squared();
+        if squared > 1e-8 { value * squared.sqrt().recip() } else { Vec2::ZERO }
+    };
+    let horizontal_relative = normalize(Vec2::new(lock_location_cm.x, lock_location_cm.z));
+    let horizontal_axis = normalize(Vec2::new(thigh_axis.x, thigh_axis.z));
     let cross = horizontal_axis.y * horizontal_relative.x - horizontal_axis.x * horizontal_relative.y;
     let sign = if cross > 0.0 { 1.0 } else if cross < 0.0 { -1.0 } else { 0.0 };
     let angle = horizontal_axis.dot(horizontal_relative).clamp(-1.0, 1.0).acos().to_degrees() * sign;
@@ -1248,6 +1255,28 @@ mod tests {
         let constrained = constrain_foot_lock_rotation(lock_rotation.as_dquat(), DQuat::IDENTITY, 40.0);
         let (_, constrained_yaw, _) = constrained.as_quat().to_euler(EulerRot::XYZ);
         assert!((constrained_yaw - 40.0_f32.to_radians()).abs() < 1e-6);
+    }
+
+    #[test]
+    fn foot_thigh_constraint_matches_native_centimeter_angles() {
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/audit/bf144/u07/foot-thigh-angle/source-cases.json",
+        )).unwrap();
+        let location = |row: &serde_json::Value| Vec3::new(
+            row[0].as_f64().unwrap() as f32, row[2].as_f64().unwrap() as f32, row[1].as_f64().unwrap() as f32,
+        );
+        for row in cases.as_array().unwrap() {
+            let source = &row["source"];
+            let axis = location(&row["axis"]);
+            let point = location(&row["location_cm"]);
+            let offset = foot_lock_location_constraint_rotation_cm(axis, point, row["limit_degrees"].as_f64().unwrap() as f32);
+            assert_eq!(offset.is_some(), source["limited"].as_bool().unwrap(), "{}", row["name"]);
+            let actual = offset.map_or(point, |offset| offset * point);
+            let expected = &source["location_cm"];
+            let expected = Vec3::new(expected["x"].as_f64().unwrap() as f32,
+                expected["z"].as_f64().unwrap() as f32, expected["y"].as_f64().unwrap() as f32);
+            assert!(actual.abs_diff_eq(expected, 1e-5), "{} actual {actual:?} source {expected:?}", row["name"]);
+        }
     }
 
     #[test]

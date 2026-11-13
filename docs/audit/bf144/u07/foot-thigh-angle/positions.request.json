@@ -1,0 +1,212 @@
+{
+  "samples": [
+    {
+      "name": "reverse-collinear",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "foot_lock_thigh_angle": {
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "location_cm": [
+          -20,
+          0,
+          -80
+        ],
+        "limit_degrees": 90
+      }
+    },
+    {
+      "name": "reverse-near-collinear",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "foot_lock_thigh_angle": {
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "location_cm": [
+          -20,
+          4.465722e-14,
+          -80
+        ],
+        "limit_degrees": 90
+      }
+    },
+    {
+      "name": "forward-collinear",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "foot_lock_thigh_angle": {
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "location_cm": [
+          20,
+          0,
+          -80
+        ],
+        "limit_degrees": 90
+      }
+    },
+    {
+      "name": "side",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "foot_lock_thigh_angle": {
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "location_cm": [
+          -10,
+          17.320508,
+          -80
+        ],
+        "limit_degrees": 90
+      }
+    },
+    {
+      "name": "below-source-normalize-boundary",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "foot_lock_thigh_angle": {
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "location_cm": [
+          -0.0002,
+          0.00034641016,
+          -80
+        ],
+        "limit_degrees": 90
+      }
+    },
+    {
+      "name": "above-source-normalize-boundary",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "foot_lock_thigh_angle": {
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "location_cm": [
+          -0.002,
+          0.0034641016,
+          -80
+        ],
+        "limit_degrees": 90
+      }
+    },
+    {
+      "name": "signed-negative",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "foot_lock_thigh_angle": {
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "location_cm": [
+          -10,
+          -17.320508,
+          -80
+        ],
+        "limit_degrees": 90
+      }
+    },
+    {
+      "name": "foot-half-turn-0.0",
+      "rotation_xyzw": [
+        0,
+        0,
+        -1,
+        0.0
+      ],
+      "foot_lock_rotation": {
+        "target_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "limit_degrees": 40
+      }
+    },
+    {
+      "name": "foot-half-turn-1e-08",
+      "rotation_xyzw": [
+        0,
+        0,
+        -1,
+        1e-08
+      ],
+      "foot_lock_rotation": {
+        "target_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "limit_degrees": 40
+      }
+    },
+    {
+      "name": "foot-half-turn--1e-08",
+      "rotation_xyzw": [
+        0,
+        0,
+        -1,
+        -1e-08
+      ],
+      "foot_lock_rotation": {
+        "target_rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "limit_degrees": 40
+      }
+    }
+  ]
+}
