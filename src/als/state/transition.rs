@@ -241,8 +241,8 @@ pub struct StateTransitionRejectedEvent {
 fn process_dimension<T: Copy + PartialEq>(
     entity: Entity,
     dimension: Dimension,
-    request_slot: &mut Option<T>,
-    current: &mut T,
+    mut request_slot: Mut<Option<T>>,
+    mut current: Mut<T>,
     verdict: Option<Verdict>,
     to_value: impl Fn(T) -> StateValue,
     transitions: &mut MessageWriter<StateTransitionEvent>,
@@ -254,9 +254,7 @@ fn process_dimension<T: Copy + PartialEq>(
     match verdict {
         Verdict::Accept => {
             *request_slot = None;
-            if requested != *current {
-                let from = *current;
-                *current = requested;
+            if let Some(from) = current.replace_if_neq(requested) {
                 transitions.write(StateTransitionEvent {
                     entity,
                     dimension,
@@ -280,8 +278,8 @@ fn process_dimension<T: Copy + PartialEq>(
 
 fn process_stance_dimension(
     entity: Entity,
-    request_slot: &mut Option<Stance>,
-    current: &mut Stance,
+    mut request_slot: Mut<Option<Stance>>,
+    mut current: Mut<Stance>,
     desired: Option<Mut<AlsDesiredStance>>,
     verdict: Option<Verdict>,
     transitions: &mut MessageWriter<StateTransitionEvent>,
@@ -294,10 +292,8 @@ fn process_stance_dimension(
         Verdict::Accept => {
             *request_slot = None;
             if let Some(mut desired) = desired {
-                desired.0 = requested;
-            } else if requested != *current {
-                let from = *current;
-                *current = requested;
+                desired.set_if_neq(AlsDesiredStance(requested));
+            } else if let Some(from) = current.replace_if_neq(requested) {
                 transitions.write(StateTransitionEvent {
                     entity,
                     dimension: Dimension::Stance,
@@ -352,22 +348,23 @@ pub fn state_transition_system(
         entity,
         is_character,
         mut req,
-        mut loco,
-        mut stance,
+        loco,
+        stance,
         desired_stance,
-        mut gait,
-        mut rotation,
-        mut overlay,
+        gait,
+        rotation,
+        overlay,
         mut action,
         mantle,
     ) in &mut actors
     {
         let mode_locked = locomotion_mode_locked(*loco, mantle, action.as_deref());
-        if mode_locked {
+        if mode_locked && req.locomotion_state.is_some() {
             req.locomotion_state = None;
         }
-        if std::mem::take(&mut req.ragdoll_start)
-            && action.as_deref() != Some(&AlsNotifyLocomotionAction::Ragdolling)
+        let ragdoll_start = req.ragdoll_start;
+        if ragdoll_start { req.ragdoll_start = false; }
+        if ragdoll_start && action.as_deref() != Some(&AlsNotifyLocomotionAction::Ragdolling)
             && (!is_character || ragdoll_eligibility.allows(entity))
         {
             req.ragdoll_exit = false;
@@ -392,8 +389,8 @@ pub fn state_transition_system(
         process_dimension(
             entity,
             Dimension::LocomotionState,
-            &mut req.locomotion_state,
-            &mut *loco,
+            req.reborrow().map_unchanged(|request| &mut request.locomotion_state),
+            loco,
             verdicts.locomotion_state,
             StateValue::LocomotionState,
             &mut transitions,
@@ -401,8 +398,8 @@ pub fn state_transition_system(
         );
         process_stance_dimension(
             entity,
-            &mut req.stance,
-            &mut *stance,
+            req.reborrow().map_unchanged(|request| &mut request.stance),
+            stance,
             desired_stance,
             verdicts.stance,
             &mut transitions,
@@ -411,8 +408,8 @@ pub fn state_transition_system(
         process_dimension(
             entity,
             Dimension::Gait,
-            &mut req.gait,
-            &mut *gait,
+            req.reborrow().map_unchanged(|request| &mut request.gait),
+            gait,
             verdicts.gait,
             StateValue::Gait,
             &mut transitions,
@@ -421,8 +418,8 @@ pub fn state_transition_system(
         process_dimension(
             entity,
             Dimension::RotationMode,
-            &mut req.rotation_mode,
-            &mut *rotation,
+            req.reborrow().map_unchanged(|request| &mut request.rotation_mode),
+            rotation,
             verdicts.rotation_mode,
             StateValue::RotationMode,
             &mut transitions,
@@ -431,8 +428,8 @@ pub fn state_transition_system(
         process_dimension(
             entity,
             Dimension::OverlayState,
-            &mut req.overlay_state,
-            &mut *overlay,
+            req.map_unchanged(|request| &mut request.overlay_state),
+            overlay,
             verdicts.overlay_state,
             StateValue::OverlayState,
             &mut transitions,
@@ -577,6 +574,62 @@ mod tests {
             StateValue::from(LocomotionState::Air).dimension(),
             Dimension::LocomotionState
         );
+    }
+
+    #[test]
+    fn state_change_ticks_follow_accepted_value_changes() {
+        let mut app = App::new();
+        app.add_plugins(AlsStateTransitionPlugin);
+        let actor = app.world_mut().spawn((LocomotionState::Air, Stance::Standing, Gait::Walking,
+            RotationMode::ViewDirection, OverlayState::Default, AlsDesiredStance(Stance::Standing),
+            AlsStateRequest::default())).id();
+        let ticks = |world: &World| {
+            let actor = world.entity(actor);
+            [actor.get_ref::<LocomotionState>().unwrap().last_changed(),
+                actor.get_ref::<Stance>().unwrap().last_changed(),
+                actor.get_ref::<Gait>().unwrap().last_changed(),
+                actor.get_ref::<RotationMode>().unwrap().last_changed(),
+                actor.get_ref::<OverlayState>().unwrap().last_changed(),
+                actor.get_ref::<AlsDesiredStance>().unwrap().last_changed(),
+                actor.get_ref::<AlsStateRequest>().unwrap().last_changed()]
+        };
+        let mut differences = Vec::new();
+        let unchanged = [false; 7];
+        let cases = [
+            ("empty", AlsStateRequest::default(), unchanged, vec![], false, None),
+            ("queued", AlsStateRequest::default().with_gait(Gait::Running), unchanged, vec![], false, Some(Gait::Running)),
+            ("rejected", AlsStateRequest::default().with_gait(Gait::Running).with_policy(InvalidRequestPolicy::Reject),
+                [false, false, false, false, false, false, true], vec![], true, None),
+            ("same", AlsStateRequest::default().with_locomotion_state(LocomotionState::Air).with_stance(Stance::Standing)
+                .with_gait(Gait::Walking).with_rotation_mode(RotationMode::ViewDirection).with_overlay_state(OverlayState::Default),
+                [false, false, false, false, false, false, true], vec![], false, None),
+            ("desired", AlsStateRequest::default().with_stance(Stance::Crouching),
+                [false, false, false, false, false, true, true], vec![], false, None),
+            ("commit", AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded)
+                .with_rotation_mode(RotationMode::VelocityDirection).with_overlay_state(OverlayState::Rifle),
+                [true, false, false, true, true, false, true],
+                vec![Dimension::LocomotionState, Dimension::RotationMode, Dimension::OverlayState], false, None),
+            ("gait", AlsStateRequest::default().with_gait(Gait::Running),
+                [false, false, true, false, false, false, true], vec![Dimension::Gait], false, None),
+        ];
+        for (label, request, changes, dimensions, rejected, pending_gait) in cases {
+            *app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap() = request;
+            let before = ticks(app.world());
+            app.update();
+            let after = ticks(app.world());
+            let transitions = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
+                .map(|event| event.dimension).collect::<Vec<_>>();
+            let rejections = app.world_mut().resource_mut::<Messages<StateTransitionRejectedEvent>>().drain().count();
+            let pending = app.world().get::<AlsStateRequest>(actor).unwrap().gait;
+            let actual = std::array::from_fn::<_, 7, _>(|i| before[i] != after[i]);
+            if actual != changes {
+                differences.push((label, actual, changes));
+            }
+            assert_eq!(transitions, dimensions);
+            assert_eq!(rejections, usize::from(rejected));
+            assert_eq!(pending, pending_gait);
+        }
+        assert!(differences.is_empty(), "Unexpected component change ticks: {differences:?}");
     }
 
     #[test]
