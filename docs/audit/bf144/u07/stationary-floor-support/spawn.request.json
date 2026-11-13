@@ -1,0 +1,417 @@
+{
+  "gravity_cm_s2": -981,
+  "advance_before_first_world_tick": true,
+  "initial_engine_frame": 100,
+  "cases": [
+    {
+      "name": "gap-1.8",
+      "dynamic_base": false,
+      "local_controller": true,
+      "spawn_height_cm": 91.8,
+      "spawn_xy_cm": [
+        -1500.0,
+        -1500.0
+      ],
+      "spawn_yaw_degrees": 0,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ],
+      "floor_half_extent_x_cm": 1500,
+      "landing_deck_top_cm": -50,
+      "landing_deck_x_cm": 2000,
+      "simulate_landing_deck": false,
+      "enable_impact": false
+    },
+    {
+      "name": "gap-2.0",
+      "dynamic_base": false,
+      "local_controller": true,
+      "spawn_height_cm": 92.0,
+      "spawn_xy_cm": [
+        -1500.0,
+        -1500.0
+      ],
+      "spawn_yaw_degrees": 0,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ],
+      "floor_half_extent_x_cm": 1500,
+      "landing_deck_top_cm": -50,
+      "landing_deck_x_cm": 2000,
+      "simulate_landing_deck": false,
+      "enable_impact": false
+    },
+    {
+      "name": "gap-2.15",
+      "dynamic_base": false,
+      "local_controller": true,
+      "spawn_height_cm": 92.15,
+      "spawn_xy_cm": [
+        -1500.0,
+        -1500.0
+      ],
+      "spawn_yaw_degrees": 0,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ],
+      "floor_half_extent_x_cm": 1500,
+      "landing_deck_top_cm": -50,
+      "landing_deck_x_cm": 2000,
+      "simulate_landing_deck": false,
+      "enable_impact": false
+    },
+    {
+      "name": "gap-2.35",
+      "dynamic_base": false,
+      "local_controller": true,
+      "spawn_height_cm": 92.35,
+      "spawn_xy_cm": [
+        -1500.0,
+        -1500.0
+      ],
+      "spawn_yaw_degrees": 0,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ],
+      "floor_half_extent_x_cm": 1500,
+      "landing_deck_top_cm": -50,
+      "landing_deck_x_cm": 2000,
+      "simulate_landing_deck": false,
+      "enable_impact": false
+    },
+    {
+      "name": "gap-2.5",
+      "dynamic_base": false,
+      "local_controller": true,
+      "spawn_height_cm": 92.5,
+      "spawn_xy_cm": [
+        -1500.0,
+        -1500.0
+      ],
+      "spawn_yaw_degrees": 0,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "delta_seconds": 0.03333333333333333,
+          "rendered": true,
+          "control_rotation_degrees": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "desired_gait": "Als.Gait.Running",
+          "desired_stance": "Als.Stance.Standing",
+          "movement_input_world": {
+            "x": 0.0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ],
+      "floor_half_extent_x_cm": 1500,
+      "landing_deck_top_cm": -50,
+      "landing_deck_x_cm": 2000,
+      "simulate_landing_deck": false,
+      "enable_impact": false
+    }
+  ]
+}

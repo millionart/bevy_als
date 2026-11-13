@@ -5659,7 +5659,11 @@ fn resolve_stationary_floor_state(
         let mut rejected = None;
         let floor = find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc,
             *mode, &filter, entity, &candidates, None, Some(&mut rejected));
-        if floor.is_some() { continue; }
+        if floor.is_some() {
+            motor.lin.boost.y = -velocity.y;
+            motor.lin.acceleration.y = -gravity.value.y;
+            continue;
+        }
         if rejected.is_none() && dynamics.as_deref().is_some_and(|state|
             state.entity.is_some() && state.support_velocity != Vec3::ZERO) { continue; }
         if let Some(hit) = rejected {
