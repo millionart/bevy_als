@@ -1,0 +1,118 @@
+[
+  {
+    "ordinary_step": 11,
+    "target_provider": {
+      "direction": [
+        1.2800505544419138e-07,
+        0.0,
+        -0.9999998807907104
+      ],
+      "rotation": [
+        0.0,
+        -0.7071067094802856,
+        0.0,
+        0.7071067690849304
+      ],
+      "velocity": [
+        0.5333333611488342,
+        0.0,
+        2.3312741959102823e-08
+      ]
+    },
+    "native_same_q_and_velocity": {
+      "x": 0.9999998807907104,
+      "y": 1.2800505544419138e-07,
+      "z": 0
+    },
+    "native_character_forward": 1,
+    "native_character_pose_gait": 0.07407408207654953,
+    "target_pose_gait": 0.07407407462596893
+  },
+  {
+    "ordinary_step": 12,
+    "target_provider": {
+      "direction": [
+        1.280050696550461e-07,
+        0.0,
+        -0.9999998807907104
+      ],
+      "rotation": [
+        0.0,
+        -0.7071067094802856,
+        0.0,
+        0.7071067690849304
+      ],
+      "velocity": [
+        1.2000000476837158,
+        0.0,
+        5.245366807571372e-08
+      ]
+    },
+    "native_same_q_and_velocity": {
+      "x": 0.9999998807907104,
+      "y": 1.280050696550461e-07,
+      "z": 0
+    },
+    "native_character_forward": 1,
+    "native_character_pose_gait": 0.25925928354263306,
+    "target_pose_gait": 0.25925925374031067
+  },
+  {
+    "ordinary_step": 15,
+    "target_provider": {
+      "direction": [
+        1.280050696550461e-07,
+        0.0,
+        -0.9999998807907104
+      ],
+      "rotation": [
+        0.0,
+        -0.7071067094802856,
+        0.0,
+        0.7071067690849304
+      ],
+      "velocity": [
+        1.2000000476837158,
+        0.0,
+        5.245366807571372e-08
+      ]
+    },
+    "native_same_q_and_velocity": {
+      "x": 0.9999998807907104,
+      "y": 1.280050696550461e-07,
+      "z": 0
+    },
+    "native_character_forward": 1,
+    "native_character_pose_gait": 0.9259259700775146,
+    "target_pose_gait": 0.9259258508682251
+  },
+  {
+    "ordinary_step": 16,
+    "target_provider": {
+      "direction": [
+        1.280050696550461e-07,
+        0.0,
+        -0.9999998807907104
+      ],
+      "rotation": [
+        0.0,
+        -0.7071067094802856,
+        0.0,
+        0.7071067690849304
+      ],
+      "velocity": [
+        1.2000000476837158,
+        0.0,
+        5.245366807571372e-08
+      ]
+    },
+    "native_same_q_and_velocity": {
+      "x": 0.9999998807907104,
+      "y": 1.280050696550461e-07,
+      "z": 0
+    },
+    "native_character_forward": 1,
+    "native_character_pose_gait": 1,
+    "target_pose_gait": 0.9999998211860657
+  }
+]
