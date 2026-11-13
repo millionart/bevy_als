@@ -11693,9 +11693,6 @@ mod tests {
                 let offset = if child { Vec3::X * 0.25 } else { Vec3::ZERO };
                 let body = app.world_mut().spawn((kind, Transform::from_translation(Vec3::new(0.0, 0.4, 4.6) - offset),
                     avian3d::prelude::GravityScale(0.0), AlsMantleTargetPermission { allows_step_up: allowed })).id();
-                if let Some(speed) = reported {
-                    app.world_mut().entity_mut(body).insert(crate::als::dynamics::AlsComponentVelocity(Vec3::X * speed));
-                }
                 let target = if child {
                     app.world_mut().spawn((ChildOf(body), Transform::from_translation(offset), Collider::cuboid(2.4, 0.8, 1.2))).id()
                 } else {
@@ -11704,6 +11701,9 @@ mod tests {
                 };
                 app.world_mut().entity_mut(target).insert(avian3d::prelude::CollisionLayers::new(
                     [crate::als::character::AlsCollisionLayer::Default, crate::als::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL));
+                if let Some(speed) = reported {
+                    app.world_mut().entity_mut(target).insert(crate::als::dynamics::AlsComponentVelocity(Vec3::X * speed));
+                }
                 app.world_mut().entity_mut(character).insert(AlsMantleControlSettings { draw_failed_grounded_traces: child, ..default() });
                 if let Some(allows_step_up) = override_permission {
                     app.world_mut().entity_mut(target).insert(AlsMantleTargetPermission { allows_step_up });
@@ -11719,7 +11719,7 @@ mod tests {
                 assert_eq!(app.world().get::<AlsCharacterDebug>(character).unwrap().0.mantle_probe.unwrap().draw_failed_traces, child);
                 let mantle = app.world().get::<AlsMantleState>(character).unwrap();
                 let expected = override_permission.unwrap_or(allowed)
-                    && (if kind == RigidBody::Dynamic { speed } else { reported.unwrap_or(0.0) }) <= crate::als::mantle::MANTLE_TARGET_SPEED_THRESHOLD;
+                    && (if !child && kind == RigidBody::Dynamic { speed } else { reported.unwrap_or(0.0) }) <= crate::als::mantle::MANTLE_TARGET_SPEED_THRESHOLD;
                 if mantle.active != expected {
                     failures.push(format!("child={child} kind={kind:?} speed={speed} reported={reported:?} allowed={allowed} active={}", mantle.active));
                     continue;

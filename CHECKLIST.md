@@ -6168,7 +6168,10 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 反例：完整已播放Roll的Air角色、初始vy0，在4m静态平台上方5/20mm，50/100ms内实际落地。源应调整到1.9–2.4cm带内，target已Grounded但离地仅0.040/0.021mm；无Roll两组为21.499mm。`bf144_roll_root_landing_enters_walking_before_remaining_move`6组2PASS/4FAIL；夹具只关闭角色solver约束、仍保留floor sweep的两组也仅0.046/0.138mm，证据`target/bf144/15/landing_walking/`。
   - 漏检：旧Roll落地检查mode/velocity，没有比较切Walking的当帧floor合同；模式对照8组全通过也掩盖了这里的缺口。消融证明缺失高度不是单靠接触摩擦产生，D45以初始vy0排除；附带横向轨迹偏移尚不单独归因或登记。生产实现未改。
 
-- [x] BF144-D53 / P2 — Mantle的速度许可读取父刚体，丢失命中组件身份；静态实现完成，统一验证待执行。
+- [x] BF144-D53 / P2 — Mantle的速度许可读取父刚体，丢失命中组件身份。
+  - 2026-11-13 17:30复开，预估17:49。旧compound矩阵的四个失败均把父速度当命中子Primitive的速度。fresh 组件速度读取及原生10cm/s门槛重核，夹具改为单独设置子速度、声明子非模拟，并以父速度作对照。生产沿D53既有命中实体读取。
+  - 17:37正式前：compound 30组与两组实际父子相反速度通过。沿正式moving_base验证可移动目标上的实际Mantle，截图0。
+  - 2026-11-13 17:44复验完成。17:30开始、17:49预估，提前5分钟。实际32组命中组件速度和权限通过；生产字节一致的正式moving_base见D60。证据 `docs/audit/bf144/d53/bevy-0.20/`，未拆分。
   - 活动：开始2026-11-08 17:40 +08:00；预估结束18:10 +08:00；实际结束17:43 +08:00，提前27分钟；未拆分，测试/消融/Gate暂缓。
   - 闭环：fresh ALS/UE命中组件速度与原生10cm/s阈值证据保存在`docs/audit/bf144/d53/`；目标读取命中实体并保留模拟刚体优先规则，已写父子反向、阈值、模拟体和加载角色对照。旧target报告缺失，焊接模拟子组件及动画Gate待验证。
   - Source：fresh ALS `AlsCharacter_Actions.cpp:235–242`直接读取ForwardTraceHit的TargetPrimitive.GetComponentVelocity；UE `PrimitiveComponentPhysics.cpp:1333–1344`对非simulated组件返回该组件自己的ComponentVelocity，`SceneComponent.cpp:3022–3024`没有转取父刚体。`MovementComponent.cpp:382–388`也将velocity写给实际UpdatedComponent。
