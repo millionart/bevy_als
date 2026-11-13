@@ -1,7 +1,7 @@
 use avian3d::prelude::SpatialQueryFilter;
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
-use bevy::math::DQuat;
+use bevy::math::{DQuat, DVec3};
 
 use bevy::animation::AnimationTargetId;
 
@@ -196,15 +196,15 @@ pub struct AlsFootLockMovementBase {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AlsFootLockFootState {
     pub lock_amount: f32,
-    pub target_location: Vec3,
+    pub target_location: DVec3,
     pub target_rotation: DQuat,
-    pub lock_location: Vec3,
+    pub lock_location: DVec3,
     pub lock_rotation: DQuat,
     pub lock_rotation_before_foot_limit_armature: Quat,
     pub movement_base: Option<AlsFootLockMovementBase>,
     pub lock_location_movement_base: Vec3,
     pub lock_rotation_movement_base: Quat,
-    pub final_location: Vec3,
+    pub final_location: DVec3,
     pub final_rotation_armature: Quat,
 }
 
@@ -212,15 +212,15 @@ impl Default for AlsFootLockFootState {
     fn default() -> Self {
         Self {
             lock_amount: 0.0,
-            target_location: Vec3::ZERO,
+            target_location: DVec3::ZERO,
             target_rotation: DQuat::IDENTITY,
-            lock_location: Vec3::ZERO,
+            lock_location: DVec3::ZERO,
             lock_rotation: DQuat::IDENTITY,
             lock_rotation_before_foot_limit_armature: Quat::IDENTITY,
             movement_base: None,
             lock_location_movement_base: Vec3::ZERO,
             lock_rotation_movement_base: Quat::IDENTITY,
-            final_location: Vec3::ZERO,
+            final_location: DVec3::ZERO,
             final_rotation_armature: Quat::IDENTITY,
         }
     }
@@ -228,10 +228,11 @@ impl Default for AlsFootLockFootState {
 
 pub fn reset_foot_lock_to_target(
     state: &mut AlsFootLockFootState,
-    target_location: Vec3,
+    target_location: impl Into<DVec3>,
     target_rotation: DQuat,
     armature_rotation: Quat,
 ) {
+    let target_location = target_location.into();
     let local_rotation = (armature_rotation.as_dquat().conjugate() * target_rotation).as_quat();
     *state = AlsFootLockFootState {
         target_location,
@@ -255,7 +256,7 @@ pub fn advance_foot_lock_movement_base(
     let base = latest_base
         .filter(|base| base.entity == saved_base.entity)
         .unwrap_or(saved_base);
-    state.lock_location = base.translation + base.rotation * state.lock_location_movement_base;
+    state.lock_location = (base.translation + base.rotation * state.lock_location_movement_base).as_dvec3();
     state.lock_rotation = base.rotation.as_dquat() * state.lock_rotation_movement_base.as_dquat();
     state.movement_base = Some(base);
 }
@@ -277,7 +278,7 @@ pub fn capture_foot_lock_movement_base(
         return;
     };
     let inverse = base.rotation.conjugate();
-    state.lock_location_movement_base = inverse * (state.lock_location - base.translation);
+    state.lock_location_movement_base = inverse * (state.lock_location.as_vec3() - base.translation);
     state.lock_rotation_movement_base = (inverse.as_dquat() * state.lock_rotation).as_quat();
     state.movement_base = Some(base);
 }
@@ -303,7 +304,7 @@ pub fn is_full_animation_weight(value: f32) -> bool {
 #[allow(clippy::too_many_arguments)]
 pub fn refresh_foot_lock(
     state: &mut AlsFootLockFootState,
-    target_location: Vec3,
+    target_location: impl Into<DVec3>,
     target_rotation: DQuat,
     armature_rotation: Quat,
     ik_amount: f32,
@@ -315,6 +316,7 @@ pub fn refresh_foot_lock(
     delta_seconds: f32,
     current_base: Option<AlsFootLockMovementBase>,
 ) {
+    let target_location = target_location.into();
     state.target_location = target_location;
     state.target_rotation = target_rotation;
 
@@ -347,7 +349,7 @@ pub fn refresh_foot_lock(
         || !is_relevant_animation_weight(ik_amount.clamp(0.0, 1.0) * new_lock_amount)
     {
         state.lock_amount = 0.0;
-        state.lock_location = Vec3::ZERO;
+        state.lock_location = DVec3::ZERO;
         state.lock_rotation = DQuat::IDENTITY;
         state.lock_rotation_before_foot_limit_armature = Quat::IDENTITY;
         state.movement_base = None;
@@ -382,14 +384,14 @@ pub fn refresh_foot_lock(
     advance_foot_lock_movement_base(state, current_base);
     state.lock_rotation_before_foot_limit_armature =
         (armature_rotation.as_dquat().conjugate() * state.lock_rotation).as_quat();
-    state.final_location = target_location.lerp(state.lock_location, state.lock_amount);
+    state.final_location = target_location.lerp(state.lock_location, f64::from(state.lock_amount));
     let final_rotation = source_foot_final_rotation(target_rotation, state.lock_rotation, state.lock_amount);
     state.final_rotation_armature =
         (armature_rotation.as_dquat().conjugate() * final_rotation).as_quat();
 }
 
 pub fn foot_lock_distance_squared(state: &AlsFootLockFootState) -> f32 {
-    state.target_location.distance_squared(state.lock_location)
+    state.target_location.distance_squared(state.lock_location) as f32
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1334,7 +1336,7 @@ mod tests {
     fn foot_lock_tracks_translation_and_rotation_of_its_movement_base() {
         let mut state = AlsFootLockFootState {
             lock_amount: 1.0,
-            lock_location: Vec3::new(2.0, 0.0, 0.0),
+            lock_location: DVec3::new(2.0, 0.0, 0.0),
             lock_rotation: DQuat::IDENTITY,
             ..Default::default()
         };
@@ -1350,7 +1352,7 @@ mod tests {
             rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
         };
         advance_foot_lock_movement_base(&mut state, Some(moved_base));
-        assert!(state.lock_location.distance(Vec3::new(3.0, 0.0, -2.0)) < 1e-5);
+        assert!(state.lock_location.distance(DVec3::new(3.0, 0.0, -2.0)) < 1e-5);
         assert!(state.lock_rotation.dot(moved_base.rotation.as_dquat()).abs() > 0.99999);
     }
 
@@ -1358,7 +1360,7 @@ mod tests {
     fn foot_lock_rebases_and_detaches_without_losing_its_world_transform() {
         let mut state = AlsFootLockFootState {
             lock_amount: 1.0,
-            lock_location: Vec3::new(1.0, 0.0, 0.0),
+            lock_location: DVec3::new(1.0, 0.0, 0.0),
             lock_rotation: DQuat::IDENTITY,
             ..Default::default()
         };
@@ -1386,7 +1388,7 @@ mod tests {
         );
         capture_foot_lock_movement_base(&mut state, None);
         assert_eq!(state.movement_base, None);
-        assert!(state.lock_location.distance(Vec3::new(3.0, 0.0, 0.0)) < 1e-5);
+        assert!(state.lock_location.distance(DVec3::new(3.0, 0.0, 0.0)) < 1e-5);
     }
 
     #[test]
@@ -1401,15 +1403,15 @@ mod tests {
                 for became_valid in [false, true] {
                     let mut state = AlsFootLockFootState {
                         lock_amount: previous_amount,
-                        lock_location: Vec3::X,
-                        final_location: Vec3::Z,
+                        lock_location: DVec3::X,
+                        final_location: DVec3::Z,
                         final_rotation_armature: Quat::from_rotation_y(0.3),
                         ..default()
                     };
                     refresh_foot_lock(&mut state, Vec3::Y, DQuat::IDENTITY, Quat::IDENTITY, 1.0, 1.0, true, false, true, became_valid, 0.01, current_base);
                     let captured = became_valid.then_some(Vec3::Y).unwrap_or(Vec3::Z);
                     let expected = if became_valid || previous_amount <= 0.9 || current_base.is_some() { captured } else { Vec3::X };
-                    assert!(state.lock_location.distance(expected) < 1e-5, "Relock differs: {previous_amount}, {became_valid}, {current_base:?}");
+                    assert!(state.lock_location.distance(expected.as_dvec3()) < 1e-5, "Relock differs: {previous_amount}, {became_valid}, {current_base:?}");
                     assert_eq!(state.movement_base, current_base);
                     let location = state.lock_location;
                     let rotation = state.lock_rotation;
@@ -1452,8 +1454,8 @@ mod tests {
             ..Default::default()
         };
         foot_lock.left.lock_amount = 1.0;
-        foot_lock.left.target_location = Vec3::new(0.2, 0.0, 0.0);
-        foot_lock.left.lock_location = Vec3::ZERO;
+        foot_lock.left.target_location = DVec3::new(0.2, 0.0, 0.0);
+        foot_lock.left.lock_location = DVec3::ZERO;
         let mut dynamic = AlsDynamicTransitionState::default();
         let selected = dynamic
             .update(
@@ -1488,8 +1490,8 @@ mod tests {
             ..Default::default()
         };
         foot_lock.left.lock_amount = 1.0;
-        foot_lock.left.target_location = Vec3::new(0.12, 0.0, 0.0);
-        foot_lock.left.lock_location = Vec3::ZERO;
+        foot_lock.left.target_location = DVec3::new(0.12, 0.0, 0.0);
+        foot_lock.left.lock_location = DVec3::ZERO;
         let mut dynamic = AlsDynamicTransitionState::default();
         let blocked = dynamic.update(
             &foot_lock,

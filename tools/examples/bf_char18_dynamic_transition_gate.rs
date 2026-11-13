@@ -50,8 +50,8 @@ fn drive_gate(
     match phase.0 {
         0 => {
             foot_lock.left.lock_amount = 1.0;
-            foot_lock.left.target_location = Vec3::ZERO;
-            foot_lock.left.lock_location = Vec3::ZERO;
+            foot_lock.left.target_location = bevy::math::DVec3::ZERO;
+            foot_lock.left.lock_location = bevy::math::DVec3::ZERO;
             let none = dynamic
                 .update(&foot_lock, true, 1.0, *stance, &config)
                 .is_none();
@@ -61,7 +61,7 @@ fn drive_gate(
             );
         }
         1 => {
-            foot_lock.left.target_location = Vec3::new(0.2, 0.0, 0.0);
+            foot_lock.left.target_location = Vec3::new(0.2, 0.0, 0.0).as_dvec3();
             let selection = dynamic.update(&foot_lock, true, 1.0, *stance, &config);
             let pass = selection.is_some_and(|selection| {
                 selection.sequence == TransitionSequence::StandingLeft

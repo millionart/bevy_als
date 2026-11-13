@@ -1,0 +1,82 @@
+{
+  "world-foot-lock-tests.stdout.log.gz": {
+    "bytes": 9257,
+    "sha256": "366c7faf648177614625113a3140dbf7ebb3f014664e6775683d5d2396865c88",
+    "redacted": false
+  },
+  "world-foot-lock-tests.stderr.log.gz": {
+    "bytes": 7776,
+    "sha256": "f298a5bce7d142504804a4e1787d702f0769537c808a22f3e07a0be0046bd758",
+    "redacted": true
+  },
+  "world-rotation-base-restored.stdout.log.gz": {
+    "bytes": 956,
+    "sha256": "f86abcb313de7f276ed606542a12bce09dcffb58697974e06b916cf8cc3412e0",
+    "redacted": false
+  },
+  "world-rotation-base-restored.stderr.log.gz": {
+    "bytes": 7722,
+    "sha256": "651b88d4b9afeefa9eed4347c90d21f8d2a616f0c37b48541c791f0a4673419a",
+    "redacted": true
+  },
+  "world-base-compatible.stdout.log.gz": {
+    "bytes": 400,
+    "sha256": "9b53eaff028e662c1482aa223e5c576cb95ed61f29bf0f9fe7a1507bc8f3fd0e",
+    "redacted": false
+  },
+  "world-base-compatible.stderr.log.gz": {
+    "bytes": 7734,
+    "sha256": "b348982b3239c7c5c4562b58103149daea41f8722c5760740c79de010fbe97d8",
+    "redacted": true
+  },
+  "world-final-tests.stdout.log.gz": {
+    "bytes": 9784,
+    "sha256": "a06440d68ff8c9de2e931339dff0bf5d932b1a9f27cbae3fd7d93a856abe3621",
+    "redacted": false
+  },
+  "world-final-tests.stderr.log.gz": {
+    "bytes": 7722,
+    "sha256": "863a3cdaba2e1d31bfd4bf7ac758786308ba14d79a085c8cd11ec020b1d786c2",
+    "redacted": true
+  },
+  "world-final-all-targets.stdout.log.gz": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "redacted": false
+  },
+  "world-final-all-targets.stderr.log.gz": {
+    "bytes": 9287,
+    "sha256": "23904e6d81405715d255266a189e78c5656e62525e3de50ceb88dba9dd647837",
+    "redacted": true
+  },
+  "world-restore-audit.stdout.log.gz": {
+    "bytes": 3730,
+    "sha256": "f21d91024eb7d72c02b0568913776447b607b57c2b5d04da6a5c49c32d542a83",
+    "redacted": false
+  },
+  "world-restore-audit.stderr.log.gz": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "redacted": false
+  },
+  "world-publish-identity-test.stdout.log.gz": {
+    "bytes": 547,
+    "sha256": "a8e764a81f1050896d7ec38fe765695d5c7eee0f69a90a5780566e124ca1a402",
+    "redacted": false
+  },
+  "world-publish-identity-test.stderr.log.gz": {
+    "bytes": 7680,
+    "sha256": "a82667e6504b0746d5d51c54e9e0f9a0c42ab98ef79ef750b9f4e0c26153a8a5",
+    "redacted": true
+  },
+  "world-identity-all-targets.stdout.log.gz": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "redacted": false
+  },
+  "world-identity-all-targets.stderr.log.gz": {
+    "bytes": 9233,
+    "sha256": "de79aef3b9f510a59b494b6d5790c5ff7268db96a3436a06bcea046b0b00f18d",
+    "redacted": true
+  }
+}

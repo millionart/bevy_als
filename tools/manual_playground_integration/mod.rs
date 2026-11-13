@@ -278,8 +278,8 @@ fn standing_dynamic_foot_restored(unlocked: bool, foot: Option<&crate::als::foot
         && dynamic_distance_squared_cm(foot.target_location, foot.lock_location) <= dynamic_threshold_squared_cm(scale))
 }
 
-fn dynamic_distance_squared_cm(target: Vec3, locked: Vec3) -> f64 {
-    let delta = target.as_dvec3() * 100.0 - locked.as_dvec3() * 100.0;
+fn dynamic_distance_squared_cm(target: impl Into<bevy::math::DVec3>, locked: impl Into<bevy::math::DVec3>) -> f64 {
+    let delta = target.into() * 100.0 - locked.into() * 100.0;
     delta.x.powi(2) + delta.z.powi(2) + delta.y.powi(2)
 }
 
@@ -12409,7 +12409,7 @@ mod tests {
         foot.lock_amount = 0.5;
         assert!(!standing_dynamic_foot_restored(true, Some(&foot), 1.0));
         foot.lock_amount = 1.0;
-        foot.target_location = Vec3::X * 0.09;
+        foot.target_location = bevy::math::DVec3::X * 0.09_f32 as f64;
         assert!(!standing_dynamic_foot_restored(true, Some(&foot), 1.0));
         assert!(standing_dynamic_foot_restored(true, Some(&foot), 2.0));
         let mut playing = AlsTransitionPlayback::standing_dynamic(0.0);

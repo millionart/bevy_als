@@ -170,8 +170,8 @@ pub fn select_stance_transition(
     })
 }
 
-pub(crate) fn foot_lock_distance_squared_cm(target: Vec3, locked: Vec3) -> f64 {
-    let [x, y, z] = (target.as_dvec3() * 100.0 - locked.as_dvec3() * 100.0).to_array();
+pub(crate) fn foot_lock_distance_squared_cm(target: impl Into<bevy::math::DVec3>, locked: impl Into<bevy::math::DVec3>) -> f64 {
+    let [x, y, z] = (target.into() * 100.0 - locked.into() * 100.0).to_array();
     x * x + z * z + y * y
 }
 
@@ -300,8 +300,8 @@ mod tests {
             let mut state = AlsFootLockState { valid: true, ..Default::default() };
             let mut distances = [0.0; 2];
             for (index, foot) in [&mut state.left, &mut state.right].into_iter().enumerate() {
-                foot.target_location = Vec3::from_array(case.targets[index]);
-                foot.lock_location = Vec3::from_array(case.locks[index]);
+                foot.target_location = Vec3::from_array(case.targets[index]).as_dvec3();
+                foot.lock_location = Vec3::from_array(case.locks[index]).as_dvec3();
                 foot.lock_amount = case.amounts[index];
                 distances[index] = foot_lock_distance_squared_cm(foot.target_location, foot.lock_location);
             }

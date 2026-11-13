@@ -380,7 +380,7 @@ pub(super) fn observe(
         .map(|(camera, transform, _)| serde_json::json!({
             "position":transform.translation,"rotation":transform.rotation,"viewport":camera.logical_viewport_size(),
             "foot_pixels":feet.map(|feet| [&feet.left, &feet.right].map(|foot|
-                camera.world_to_viewport(&GlobalTransform::from(*transform), foot.target_location).ok())),
+                camera.world_to_viewport(&GlobalTransform::from(*transform), foot.target_location.as_vec3()).ok())),
         })).unwrap_or(serde_json::Value::Null);
     snapshot["takeoff_ready"] = serde_json::Value::Bool(probe.stage == Stage::Exit
         && probe.anchor.is_some_and(|anchor| (local - anchor).with_y(0.0).length() >= TAKEOFF_DISTANCE));
@@ -547,7 +547,7 @@ mod tests {
                 probe.observe_steps(Some(&feet), Some(&playback), Some(&slot), 1.0);
                 let foot = if side == 0 { &mut feet.left } else { &mut feet.right };
                 foot.lock_amount = 1.0;
-                if missing == "relock" { foot.lock_location = Vec3::X; }
+                if missing == "relock" { foot.lock_location = bevy::math::DVec3::X; }
                 playback.clip_time = if missing == "release" { 0.5 } else { 0.55 };
                 probe.observe_steps(Some(&feet), Some(&playback), Some(&slot), 1.0);
             }

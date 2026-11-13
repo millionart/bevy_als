@@ -379,11 +379,11 @@ fn ab_als_input_writer(
                 );
                 player.set_global_input_data(
                     format!("feet_state.{side}.target_location"),
-                    foot.map_or(Vec3::ZERO, |foot| foot.target_location),
+                    foot.map_or(Vec3::ZERO, |foot| foot.target_location.as_vec3()),
                 );
                 player.set_global_input_data(
                     format!("feet_state.{side}.lock_location"),
-                    foot.map_or(Vec3::ZERO, |foot| foot.lock_location),
+                    foot.map_or(Vec3::ZERO, |foot| foot.lock_location.as_vec3()),
                 );
             }
             let has_relative_location = movement_base.and_then(|base| base.entity).is_some_and(|entity| {
@@ -408,8 +408,10 @@ fn ab_als_input_writer(
                 .and_then(|state| state.f32("HipsDirectionLock"))
                 .unwrap_or(0.0)
                 .clamp(-1.0, 1.0);
-            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("grounded_entry_mode",
-                grounded_entry_mode.copied().unwrap_or_default().tag());
+            let mut source = source_inputs.get_mut(instance.player_entity()).unwrap();
+            source.set_gameplay_tag_input("grounded_entry_mode", grounded_entry_mode.copied().unwrap_or_default().tag());
+            source.set_foot_lock_distances_squared_cm(feet.map(|feet| [&feet.left, &feet.right].map(|foot|
+                crate::als::transitions::foot_lock_distance_squared_cm(foot.target_location, foot.lock_location))));
             for (key, value) in [
                 ("animation.delta_seconds", delta_seconds),
                 (

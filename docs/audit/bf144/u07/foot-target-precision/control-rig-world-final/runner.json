@@ -1,0 +1,13 @@
+{
+  "format": "als_animation_visual_runner_v1",
+  "case": "control_rig",
+  "frame_delta_seconds": null,
+  "frame_hitch_seconds": null,
+  "manual_exit_code": 0,
+  "report_path": "docs/audit/bf144/u07/foot-target-precision/control-rig-world-final/report.json",
+  "report_exists": true,
+  "validation_exit_code": 0,
+  "validation_scope": "functional",
+  "render_effects_passed": true,
+  "decal_renderer_passed": true
+}

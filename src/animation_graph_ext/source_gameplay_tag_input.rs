@@ -17,6 +17,7 @@ struct SourceInputValues {
     slots: HashMap<String, crate::extensions::animation_context::AnimationContextState>,
     rig_query: Option<crate::extensions::control_rig_query::RigQueryContext>,
     rig_foot_locations_cm: Option<[Vec3; 2]>,
+    foot_lock_distances_squared_cm: Option<[f64; 2]>,
     graphs: HashMap<String, LinkedGraphInput>,
 }
 
@@ -83,6 +84,10 @@ impl SourceAnimationInputs {
         self.0.rig_foot_locations_cm
     }
 
+    pub(crate) fn set_foot_lock_distances_squared_cm(&mut self, distances: Option<[f64; 2]>) {
+        Arc::make_mut(&mut self.0).foot_lock_distances_squared_cm = distances;
+    }
+
     pub fn evaluate<T>(&self, entity: Entity, evaluate: impl FnOnce() -> T) -> T {
         struct Restore(Option<(Entity, SourceAnimationInputs)>);
         impl Drop for Restore {
@@ -126,6 +131,10 @@ pub(crate) fn active_rig_query_context(entity: Entity) -> Option<crate::extensio
 
 pub(crate) fn active_rig_foot_locations_cm(entity: Entity) -> Option<[Vec3; 2]> {
     current_inputs(entity)?.rig_foot_locations_cm()
+}
+
+pub(crate) fn active_foot_lock_distances_squared_cm(entity: Entity) -> Option<[f64; 2]> {
+    current_inputs(entity)?.0.foot_lock_distances_squared_cm
 }
 
 #[derive(Reflect, Clone, Debug, Default)]

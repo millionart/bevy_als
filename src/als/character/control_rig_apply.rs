@@ -19,8 +19,7 @@ use crate::extensions::{control_rig_hierarchy::RigTransform, control_rig_query::
 
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::actual_motion::AlsActualMotion;
-use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, AVATAR_CAPSULE_BOTTOM_OFFSET,
-    AVATAR_CAPSULE_BOTTOM_OFFSET_CM};
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, authored_avatar_translation};
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
 
@@ -447,15 +446,9 @@ pub(crate) fn publish_control_rig_inputs(
                     Arc::new(RigQueryWorld { colliders, mesh_ray_data })
                 }).clone();
                 let transform = transform.compute_transform();
-                let translation = if mount.is_some_and(|mount| mount.translation == Vec3::Y * AVATAR_CAPSULE_BOTTOM_OFFSET)
-                    && parent.is_some_and(|parent| parent.parent() == entity)
-                    && let Ok(actor) = transforms.compute_global_transform(entity)
-                {
-                    let vertical = Vec3::from(actor.affine().matrix3.y_axis).as_dvec3();
-                    (actor.translation().as_dvec3() * 100.0 + vertical * AVATAR_CAPSULE_BOTTOM_OFFSET_CM) * 0.01
-                } else {
-                    transform.translation.as_dvec3()
-                };
+                let translation = mount.filter(|_| parent.is_some_and(|parent| parent.parent() == entity))
+                    .and_then(|mount| authored_avatar_translation(transforms.compute_global_transform(entity).ok()?, mount))
+                    .unwrap_or_else(|| transform.translation.as_dvec3());
                 RigQueryContext { world, filter, channel: "ECC_Visibility".to_owned(),
                     to_world: RigTransform { translation, rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
             }))

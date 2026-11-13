@@ -6,6 +6,8 @@
 
 D318 A段使Rig消费源F32厘米组件位置。旧Vec3调用保留米制合同。单因素反例、6项定向、319帧和正式Control Rig功能通过，冷首六有效帧的36个真实寄存器分量均记录源F32厘米投影。世界足位置差继续在B段处理。
 
+D318 B段保留实际已发布的骨骼厘米TQS，从同一实体链合成双精度世界目标。临时观察恢复后，冷首六个有效帧的双侧Rig位置全部精确。完整的79帧冷段中，前Rig、Rig层级、最终Root及曲线比较均精确。移除组件单位旋转会重新引入水平分量的ULP差异。活动阶段和移动基座相对缓存的余差仍有各自的原始报告。
+
 ```sh
 python docs/audit/bf144/u07/foot-target-precision/factors.py <native.json> docs/audit/bf144/u07/foot-target-precision/target-before/root-history.json.gz
 ```

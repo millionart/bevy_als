@@ -363,15 +363,15 @@ impl AlsSourceRefreshNode {
                     set_source_property(ctx, "dynamic_transitions_state.frame_delay", delay - 1.0)?;
                 } else if boolean("transitions_state.b_transitions_allowed", false)? {
                     let config = TransitionConfig::default();
-                    let vector = |key| source_input_data(ctx, key).map_or(Ok(Vec3::ZERO), |value| value.as_vec3());
-                    let left = foot_lock_distance_squared_cm(
-                        vector("feet_state.left.target_location")?, vector("feet_state.left.lock_location")?,
-                    );
-                    let right = foot_lock_distance_squared_cm(
-                        vector("feet_state.right.target_location")?, vector("feet_state.right.lock_location")?,
-                    );
+                    let distances = if let Some(distances) = crate::extensions::source_gameplay_tag_input::active_foot_lock_distances_squared_cm(ctx.graph_context.root_entity) {
+                        distances
+                    } else {
+                        let vector = |key| source_input_data(ctx, key).map_or(Ok(Vec3::ZERO), |value| value.as_vec3());
+                        [foot_lock_distance_squared_cm(vector("feet_state.left.target_location")?, vector("feet_state.left.lock_location")?),
+                            foot_lock_distance_squared_cm(vector("feet_state.right.target_location")?, vector("feet_state.right.lock_location")?)]
+                    };
                     let selection = select_dynamic_transition(
-                        [left, right],
+                        distances,
                         [scalar("feet_state.left.lock_amount", 0.0)?, scalar("feet_state.right.lock_amount", 0.0)?],
                         scalar("locomotion_state.scale_world_space", 1.0)?,
                         if boolean("stance.crouching", false)? {

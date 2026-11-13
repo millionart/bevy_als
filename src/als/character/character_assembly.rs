@@ -55,6 +55,15 @@ pub fn avatar_transform() -> Transform {
         .with_rotation(Quat::from_rotation_y(AVATAR_FORWARD_YAW))
 }
 
+pub(crate) fn authored_avatar_translation(
+    actor: GlobalTransform,
+    mount: &Transform,
+) -> Option<bevy::math::DVec3> {
+    if mount.translation != Vec3::Y * AVATAR_CAPSULE_BOTTOM_OFFSET { return None; }
+    let vertical = Vec3::from(actor.affine().matrix3.y_axis).as_dvec3();
+    Some((actor.translation().as_dvec3() * 100.0 + vertical * AVATAR_CAPSULE_BOTTOM_OFFSET_CM) * 0.01)
+}
+
 pub(crate) fn sync_avatar_stance_offset(
     params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<(Ref<crate::als::state::Stance>, &crate::als::character::AlsMovementParamsHandle), With<crate::als::character::AlsCharacter>>,

@@ -5,8 +5,8 @@ use avian3d::prelude::{PhysicsSystems, Position, Rotation};
 use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, math::{Affine3A, Isometry3d}, prelude::*, transform::TransformSystems};
 use bevy_animation_graph::core::{
     animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance},
-    animation_graph::DEFAULT_OUTPUT_RAGDOLL_CONFIG,
-    animation_graph_player::AnimationGraphPlayer,
+    animation_graph::{AnimationGraph, DEFAULT_OUTPUT_RAGDOLL_CONFIG},
+    animation_graph_player::{AnimationGraphPlayer, AnimationSource},
     context::{pose_fallback::PoseFallbackContext, system_resources::SystemResources},
     id::BoneId,
     physics_systems_avian::{read_back_poses_avian, spawn_missing_ragdolls_avian,
@@ -20,6 +20,7 @@ use bevy_animation_graph::core::{
     space_conversion::SpaceConversionContext,
     systems::{RootMotionOutput, animation_player, debug_draw_animation_players, extract_root_motion, run_animation_player},
 };
+use crate::extensions::control_rig_hierarchy::{RigTransform, rig_normalize};
 
 #[derive(Component)]
 pub struct PostPhysicsAnimation;
@@ -37,6 +38,23 @@ pub struct AnimationPoseUpdateGate {
     pub update_graph: bool,
     pub refresh_bones: bool,
     pub pending_update: bool,
+}
+
+#[derive(Component)]
+pub(crate) struct PublishedSourceBone {
+    pub(crate) local_cm: RigTransform,
+    graph_rotation: Quat,
+    visible_rotation: Quat,
+}
+
+impl PublishedSourceBone {
+    pub(crate) fn new(local_cm: RigTransform, graph_rotation: Quat, visible_rotation: Quat) -> Self {
+        Self { local_cm, graph_rotation, visible_rotation }
+    }
+
+    pub(crate) fn matches_rotation(&self, rotation: Quat) -> bool {
+        rotation == self.graph_rotation || rotation == self.visible_rotation
+    }
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -226,15 +244,23 @@ fn normalize_scaled_readback_pose(
 }
 
 fn apply_readback_pose(
-    mut targets: Query<(&mut Transform, &AnimationTargetId, &AnimatedBy)>,
+    mut commands: Commands,
+    mut targets: Query<(Entity, &mut Transform, &AnimationTargetId, &AnimatedBy, Option<&PublishedSourceBone>)>,
     players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,
 ) {
-    for (mut transform, id, animated_by) in &mut targets {
+    for (entity, mut transform, id, animated_by, precise) in &mut targets {
         let Ok((player, gate)) = players.get(animated_by.0) else { continue; };
         if gate.is_some_and(|gate| !gate.refresh_bones) || !has_physics_readback(player) { continue; }
         let Some(pose) = player.get_default_output_pose() else { continue; };
         let Some(index) = pose.paths.get(&BoneId::from(*id)) else { continue; };
         let bone = &pose.bones[*index];
+        if precise.is_some_and(|precise| {
+            bone.translation.is_some_and(|value| value != (precise.local_cm.translation * 0.01).as_vec3())
+                || bone.rotation.is_some_and(|value| !precise.matches_rotation(value))
+                || bone.scale.is_some_and(|value| value != precise.local_cm.scale.as_vec3())
+        }) {
+            commands.entity(entity).remove::<PublishedSourceBone>();
+        }
         if let Some(value) = bone.translation { transform.translation = value; }
         if let Some(value) = bone.rotation { transform.rotation = value; }
         if let Some(value) = bone.scale { transform.scale = value; }
@@ -278,14 +304,59 @@ pub fn evaluate_players<F: QueryFilter>(
 }
 
 fn apply_animation_to_visible_targets(
-    mut targets: Query<(&mut Transform, Option<&mut bevy::mesh::morph::MorphWeights>, &AnimationTargetId, &AnimatedBy)>,
+    mut commands: Commands,
+    graphs: Option<Res<Assets<AnimationGraph>>>,
+    skeletons: Option<Res<Assets<Skeleton>>>,
+    mut targets: Query<(Entity, &mut Transform, Option<&mut bevy::mesh::morph::MorphWeights>, &AnimationTargetId,
+        &AnimatedBy, Option<&mut PublishedSourceBone>)>,
     players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,
 ) {
-    for (mut transform, morphs, id, animated_by) in &mut targets {
+    let mut rig_hierarchies = bevy::platform::collections::HashMap::new();
+    for (entity, mut transform, morphs, id, animated_by, published) in &mut targets {
         let Ok((player, gate)) = players.get(animated_by.0) else { continue; };
         if gate.is_some_and(|gate| !gate.refresh_bones) { continue; }
         let Some(pose) = player.get_default_output_pose() else { continue; };
-        let Some(bone) = pose.get_bone(BoneId::from(*id)) else { continue; };
+        let id = BoneId::from(*id);
+        let Some(bone) = pose.get_bone(id) else { continue; };
+        let precise = gate.and_then(|_| {
+            let AnimationSource::Graph(graph) = player.get_animation_source() else { return None; };
+            let graph = graphs.as_ref()?.get(graph)?;
+            let root = crate::animation_context_projection::root_pose_source_node(graph)?;
+            let context = crate::extensions::animation_context::player_animation_context_state(player, root);
+            let exact = context.and_then(|context| context.source_pose.as_ref()).and_then(|source| {
+                let (_, value) = source.bones.iter().find(|(bone, _)| *bone == id)?;
+                let mut projection = bevy_animation_graph::core::pose::BonePose::default();
+                crate::extensions::source_compression::project_bone_transform(&mut projection, *value, source.length_scale);
+                Some((RigTransform {
+                    translation: bevy::math::DVec3::new(value.translation.x, value.translation.z, value.translation.y)
+                        * (source.length_scale * 100.0),
+                    rotation: bevy::math::DQuat::from_xyzw(-value.rotation.x, -value.rotation.z, -value.rotation.y, value.rotation.w),
+                    scale: bevy::math::DVec3::new(value.scale.x, value.scale.z, value.scale.y),
+                }, projection))
+            });
+            if let Some((value, projection)) = exact
+                && (projection.translation, projection.rotation, projection.scale) == (bone.translation, bone.rotation, bone.scale) {
+                return Some(RigTransform { rotation: rig_normalize(value.rotation), ..value });
+            }
+            let (context, node, state) = crate::extensions::root_graph_boundaries::current_control_rig(player, graphs.as_ref()?)?;
+            let cached = context.node_caches.get_output_data(node.id,
+                bevy_animation_graph::core::context::node_states::StateKey::Default, "Pose".into())?;
+            let rig_bone = cached.as_pose().ok()?.get_bone(id)?;
+            if (rig_bone.translation, rig_bone.rotation, rig_bone.scale) != (bone.translation, bone.rotation, bone.scale) {
+                return None;
+            }
+            let skeleton = skeletons.as_ref()?.get(&pose.skeleton)?;
+            let path = skeleton.id_to_path(id)?;
+            let name = path.parts.last()?;
+            let definition = node.try_inner_downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigBoundaryNode>()?
+                .definition.as_ref()?;
+            let index = definition.bones.iter().position(|bone| bone.name.eq_ignore_ascii_case(name.as_str()))?;
+            let hierarchy = rig_hierarchies.entry(animated_by.0).or_insert_with(|| state.snapshot_hierarchy());
+            let local = hierarchy.as_mut()?.transform(index,
+                crate::extensions::control_rig_hierarchy::RigSpace::Local, false).ok()?;
+            Some(RigTransform { translation: local.translation * (state.meters_per_unit() * 100.0),
+                rotation: rig_normalize(local.rotation), ..local })
+        });
         if let Some(value) = bone.translation { transform.translation = value; }
         if let Some(value) = bone.rotation {
             transform.rotation = if gate.is_some() {
@@ -303,6 +374,14 @@ fn apply_animation_to_visible_targets(
             } else { value };
         }
         if let Some(value) = bone.scale { transform.scale = value; }
+        let precise = precise.zip(bone.rotation).map(|(local_cm, graph_rotation)|
+            PublishedSourceBone::new(local_cm, graph_rotation, transform.rotation));
+        match (published, precise) {
+            (Some(mut old), Some(value)) => *old = value,
+            (None, Some(value)) => { commands.entity(entity).insert(value); }
+            (Some(_), None) => { commands.entity(entity).remove::<PublishedSourceBone>(); }
+            (None, None) => {}
+        }
         if let Some(weights) = &bone.weights && let Some(mut morphs) = morphs {
             for (target, source) in morphs.weights_mut().iter_mut().zip(weights) { *target = *source; }
         }

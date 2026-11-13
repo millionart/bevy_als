@@ -140,21 +140,21 @@ fn setup(mut commands: Commands) {
                 valid: true,
                 left: AlsFootLockFootState {
                     lock_amount: 1.0,
-                    target_location: Vec3::new(0.25, 0.1, -0.4),
+                    target_location: bevy::math::DVec3::new(0.25, 0.1, -0.4),
                     target_rotation: Quat::from_rotation_y(0.2).as_dquat(),
-                    lock_location: Vec3::new(0.25, 0.1, -0.4),
+                    lock_location: bevy::math::DVec3::new(0.25, 0.1, -0.4),
                     lock_rotation: Quat::from_rotation_y(0.2).as_dquat(),
-                    final_location: Vec3::new(0.25, 0.1, -0.4),
+                    final_location: bevy::math::DVec3::new(0.25, 0.1, -0.4),
                     final_rotation_armature: Quat::from_rotation_y(0.2),
                     ..default()
                 },
                 right: AlsFootLockFootState {
                     lock_amount: 1.0,
-                    target_location: Vec3::new(-0.25, 0.1, -0.4),
+                    target_location: bevy::math::DVec3::new(-0.25, 0.1, -0.4),
                     target_rotation: Quat::from_rotation_y(-0.2).as_dquat(),
-                    lock_location: Vec3::new(-0.25, 0.1, -0.4),
+                    lock_location: bevy::math::DVec3::new(-0.25, 0.1, -0.4),
                     lock_rotation: Quat::from_rotation_y(-0.2).as_dquat(),
-                    final_location: Vec3::new(-0.25, 0.1, -0.4),
+                    final_location: bevy::math::DVec3::new(-0.25, 0.1, -0.4),
                     final_rotation_armature: Quat::from_rotation_y(-0.2),
                     ..default()
                 },
@@ -210,7 +210,7 @@ fn lock_snapshot(app: &App, character: Entity) -> LockSnapshot {
     let state = app.world().get::<AlsFootLockState>(character).unwrap();
     LockSnapshot {
         movement_base: state.left.movement_base.map(|base| base.entity),
-        world_location: state.left.lock_location,
+        world_location: state.left.lock_location.as_vec3(),
         world_rotation: state.left.lock_rotation.as_quat(),
         base_location: state.left.lock_location_movement_base,
         base_rotation: state.left.lock_rotation_movement_base,
