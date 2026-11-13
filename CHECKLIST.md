@@ -7521,6 +7521,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - U07 09:49步态层复验：120/190cm/s共同输入的原生映射及加载层均通过，Walking/Running分别匹配185cm/s阈值两侧。09:41开始、预估09:54，提前5分钟，无拆分。第14轮优化库2087过／58失败、37项集成全部通过，失败集合与定向构建相同。证据 `docs/audit/bf144/u07/gait-layer-fixture/` 与 `docs/audit/bf144/u07/bevy-0.20/tests-round-14-lib/`。
   - U07 09:50:47阶段结束：D319的原生阈值反例、实际Control Rig/转台及恢复均已封存，优化库58个原失败，已定向再恢复步态和速度快照两项。阶段09:26:20开始、预估09:50:47，按时完成首次失败集差分。历史对照段09:50:47开始、预估10:27:27，先沿319帧实际共同位移/角色转向检查首活动前Rig与曲线，再比较原88帧的读点。D67和运动地板按独立已证失败持续核验。
   - U07 10:11第15轮：2090过／55失败，恢复快照、步态层、布娃娃退出定序，新增0。首活动差分已证D320速度角；原生Root的FeetCrossing、RotationYawOffset在Base Provider输入就已存在，Head/Rig按原样传递。首个偏航已隔离源锁存角及独立曲线逆序，当前修复仅覆盖前者。证据 `docs/audit/bf144/u07/bevy-0.20/tests-round-15-lib/`。
+  - U07 10:26第16轮：D320后2090过／56失败，新增Pivot加载夹具一项。该夹具在真实快照系统后覆写旧runtime角和速度，却留下新的源速度角；同一帧输入互相冲突。按三个通知夹具的显式覆写更新，并复验旧启停、速度阈值及实际First Pivot。已确认首Root偏航两个独立原因，曲线阶段登记D321；FeetCrossing仍从图上游比较。
+  - 10:30 D320通知夹具复验：10:26开始、预估10:39，提前9分钟，无拆分。测试显式覆写兼容角时同步清除先前物理快照的源角。13项通知回归通过，恢复实际First Pivot和速度阈值，保留反向入场、QuickStop及落地对照。失败集合与恢复见 `docs/audit/bf144/u07/bevy-0.20/tests-round-16-lib/`、`docs/audit/bf144/u07/first-motion-yaw/pivot-fixture/`。
   - U07 全库第11轮（2026-11-13 07:15）：2078过／63失败，较前轮减少1个Rig图用例，新增0。原始日志及失败集合见 `docs/audit/bf144/u07/bevy-0.20/tests-round-11-lib/`。
   - .265补充：真实Locomotion入口与独立同mesh Stand0全部790分量精确，五个相关mesh-space层化模板顺序重放消除245旋转分量供应差，再接原Additive/Head得到真实raw首Root790分量精确；初始化源骨姿态链已闭合，未关闭初始target组合差、曲线反馈或完整原warm→77历史。见 `target/bf144/265/summary.json`，不把源本来具有的层化运算误记成新差异；截图0、性能暂停。
   - .264补充：真实Head Base/Additive及实际alpha/空间模式已读，13次源合成10270分量精确；Additive独立采样匹配，初始Base的245个旋转分量与同mesh Stand0不等，残差供应边进一步缩至Layering→Locomotion→Standing。Head/Rig/Root观察与同输入Head算法不再是未知点；不以该局部闭环关闭初始化Base或完整warm反馈。见 `target/bf144/264/summary.json`，截图0、性能暂停。

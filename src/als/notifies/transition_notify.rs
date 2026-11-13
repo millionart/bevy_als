@@ -606,6 +606,7 @@ mod tests {
             motion.horizontal_speed = input.0;
             motion.world_velocity = Quat::from_rotation_y(input.1.to_radians()) * Vec3::NEG_Z * input.0;
             motion.velocity_yaw_degrees = input.1;
+            motion.source_velocity_yaw_degrees = None;
             motion.local_velocity = Vec2::new(motion.world_velocity.x, -motion.world_velocity.z);
             motion.signed_direction_radians = input.1.to_radians();
             motion.has_input = input.0 > 0.0;
@@ -670,6 +671,7 @@ mod tests {
             motion.horizontal_speed = input.0;
             motion.world_velocity = Quat::from_rotation_y(input.1.to_radians()) * Vec3::NEG_Z * input.0;
             motion.velocity_yaw_degrees = input.1;
+            motion.source_velocity_yaw_degrees = None;
             motion.local_velocity = Vec2::new(motion.world_velocity.x, -motion.world_velocity.z);
             motion.signed_direction_radians = input.1.to_radians();
             motion.has_input = input.0 > 0.0;
@@ -739,6 +741,7 @@ mod tests {
             motion.horizontal_speed = input.0;
             motion.world_velocity = Quat::from_rotation_y(input.1.to_radians()) * Vec3::NEG_Z * input.0;
             motion.velocity_yaw_degrees = input.1;
+            motion.source_velocity_yaw_degrees = None;
             motion.local_velocity = Vec2::new(motion.world_velocity.x, -motion.world_velocity.z);
             motion.signed_direction_radians = input.1.to_radians();
             motion.has_input = consumed_input || input.0 > 0.0;
