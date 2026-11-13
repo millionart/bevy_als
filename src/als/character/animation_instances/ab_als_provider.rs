@@ -940,15 +940,19 @@ mod tests {
     fn roll_branching_action_end_keeps_the_native_trigger_offset() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-        let delta = 1.0 / 60.0;
         let end = 0.933333_f32;
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
         app.update();
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+        for _ in 0..36 { app.update(); }
         for clip_time in [end - 0.01, end + 0.00005, end + 0.00015] {
-            app.world_mut().get_mut::<crate::als::roll::AlsRollState>(character).unwrap().time =
-                clip_time / crate::als::roll::ROLL_PLAY_RATE - delta;
+            let position = app.world().get::<crate::als::roll::AlsRollState>(character).unwrap().clip_time();
+            assert!(position < clip_time);
+            let delta = (clip_time - position) / crate::als::roll::ROLL_PLAY_RATE;
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
             app.update();
+            let position = app.world().get::<crate::als::roll::AlsRollState>(character).unwrap().clip_time();
+            assert!((position - clip_time).abs() < 2e-7, "Expected clip {clip_time}, observed {position}");
             let source = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap();
             let expected = if clip_time <= end + 0.0001 { "Als.LocomotionAction.Rolling" } else { "" };
             assert_eq!(source.gameplay_tag_input("locomotion_action").unwrap().as_str(), expected,
