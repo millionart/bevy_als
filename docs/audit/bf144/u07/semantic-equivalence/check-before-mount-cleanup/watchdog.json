@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 20.113,
+  "exit_reason": "completed",
+  "last_progress": "stderr.log",
+  "no_progress_limit_seconds": 240,
+  "no_progress_seconds": 0.0,
+  "process_exit_code": 0,
+  "source": "u07-semantic-cleanup-check-retry",
+  "success": true,
+  "timeout_seconds": 3600
+}

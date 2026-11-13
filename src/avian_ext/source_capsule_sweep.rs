@@ -9,7 +9,7 @@ pub(crate) enum CapsuleSweepResult {
     Miss,
     InitialOverlap { depth: f32, point: Vec3, normal: Vec3 },
     DeepOverlap,
-    Hit { distance: f32, distance_cm: f32, point: Vec3, normal: Vec3 },
+    Hit { distance: f32, point: Vec3, normal: Vec3 },
 }
 
 #[derive(Clone, Copy, Default)]
@@ -173,7 +173,7 @@ fn support(direction: Vec3, extents: Vec3, a: Vec3, b: Vec3, axis: Vec3) -> Vert
 
 pub(crate) fn capsule_cuboid_sweep(
     capsule: &Capsule, origin: Vec3, rotation: Quat, cuboid: &Cuboid, center: Vec3,
-    cuboid_rotation: Quat, direction: Vec3, limit: f32, source_dimensions_cm: Option<(f32, f32)>,
+    cuboid_rotation: Quat, direction: Vec3, distance: f32,
 ) -> CapsuleSweepResult {
     let box_rotation = DQuat::from_xyzw(cuboid_rotation.x as f64, cuboid_rotation.y as f64,
         cuboid_rotation.z as f64, cuboid_rotation.w as f64);
@@ -183,10 +183,8 @@ pub(crate) fn capsule_cuboid_sweep(
     let segment = capsule.segment.b - capsule.segment.a;
     let segment_axis = segment.normalize_or_zero();
     let segment_center = (capsule.segment.a + capsule.segment.b) * 0.5;
-    let (radius, half_height) = source_dimensions_cm.unwrap_or_else(|| (
-        (f64::from(capsule.radius) * 100.0) as f32,
-        (f64::from(segment.length() * 0.5 + capsule.radius) * 100.0) as f32,
-    ));
+    let radius = (capsule.radius as f64 * 100.0) as f32;
+    let half_height = ((segment.length() * 0.5 + capsule.radius) as f64 * 100.0) as f32;
     let half_segment = (half_height - radius).max(1e-4);
     let start = (origin.as_dvec3() - center.as_dvec3()) * 100.0
         + capsule_rotation * (segment_center.as_dvec3() * 100.0
@@ -198,6 +196,7 @@ pub(crate) fn capsule_cuboid_sweep(
     let axis = axes(local_axis).as_vec3();
     let extents = axes(cuboid.half_extents.as_dvec3() * 100.0).as_vec3();
     let direction = axes(box_inverse * direction.as_dvec3()).as_vec3();
+    let limit = (distance as f64 * 100.0) as f32;
     let mut simplex = Simplex::default();
     let initial = support(direction, extents, a, b, axis);
     simplex.vertices[0] = initial;
@@ -275,7 +274,7 @@ pub(crate) fn capsule_cuboid_sweep(
     let contact = position + (-normal).mul_add(Vec3::splat(radius), moving_point);
     let world_point = center.as_dvec3() + box_rotation * (from_source(contact) * 0.01);
     let world_normal = (box_rotation * from_source(normal)).normalize().as_vec3();
-    CapsuleSweepResult::Hit { distance: time * 0.01, distance_cm: time, point: world_point.as_vec3(), normal: world_normal }
+    CapsuleSweepResult::Hit { distance: time * 0.01, point: world_point.as_vec3(), normal: world_normal }
 }
 
 #[cfg(test)]
@@ -317,8 +316,8 @@ mod tests {
             let result = capsule_cuboid_sweep(&capsule, source_vector(&query["start_cm"], 0.01),
                 Quat::IDENTITY, &box_shape, source_vector(&query["box_translation_cm"], 0.01),
                 orientation, source_vector(&query["direction"], 1.0),
-                query["length_cm"].as_f64().unwrap() as f32, None);
-            let CapsuleSweepResult::Hit { distance, point, normal, .. } = result else {
+                (query["length_cm"].as_f64().unwrap() * 0.01) as f32);
+            let CapsuleSweepResult::Hit { distance, point, normal } = result else {
                 panic!("Native sweep {name} missed: {result:?}");
             };
             let expected_distance = (output["distance_cm"].as_f64().unwrap() * 0.01) as f32;
@@ -338,7 +337,7 @@ mod tests {
         let capsule = Capsule::new_y(0.6, 0.3);
         let box_shape = Cuboid::new(Vec3::ONE);
         let result = capsule_cuboid_sweep(&capsule, Vec3::new(3.0, 0.0, 0.0), Quat::IDENTITY,
-            &box_shape, Vec3::ZERO, Quat::IDENTITY, Vec3::X, 500.0, None);
+            &box_shape, Vec3::ZERO, Quat::IDENTITY, Vec3::X, 5.0);
         assert_eq!(result, CapsuleSweepResult::Miss);
     }
 
@@ -350,7 +349,7 @@ mod tests {
                 let box_shape = Cuboid::new(Vec3::new(width * 0.5, 0.1, width * 0.5));
                 let result = capsule_cuboid_sweep(&capsule, Vec3::Y * (0.9 - expected_depth),
                     Quat::IDENTITY, &box_shape, Vec3::new(0.0, -0.1, 0.0), Quat::IDENTITY,
-                    Vec3::NEG_Y, 50.0, None);
+                    Vec3::NEG_Y, 0.5);
                 let CapsuleSweepResult::InitialOverlap { depth, point, normal } = result else {
                     panic!("Initial floor overlap was not detected: {result:?}");
                 };

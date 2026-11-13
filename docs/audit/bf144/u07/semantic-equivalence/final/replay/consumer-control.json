@@ -1,0 +1,7 @@
+{
+  "frame": 18,
+  "curve": "FootPlanted",
+  "control": 1.0,
+  "expected": "stop_foot_selection",
+  "result": "rejected"
+}

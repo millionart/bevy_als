@@ -699,19 +699,7 @@ impl RagdollSpatialQuery<'_, '_> {
             return self.spatial.cast_shape_predicate(shape, origin, rotation, direction, config, filter,
                 &|entity| self.queryable(entity) && predicate(entity));
         };
-        self.cast_shape_with_capsule_core(shape, capsule, origin, rotation, direction, config, filter, predicate, None, None)
-            .map(|(hit, _)| hit)
-    }
-
-    pub(crate) fn cast_source_capsule(
-        &self, shape: &Collider, origin: Vec3, direction: Dir3, distance_cm: f32,
-        dimensions_cm: (f32, f32), filter: &SpatialQueryFilter,
-    ) -> Option<(ShapeHitData, f32)> {
-        let capsule = shape.shape_scaled().as_capsule()?;
-        let config = ShapeCastConfig::from_max_distance((f64::from(distance_cm) * 0.01) as f32);
-        self.cast_shape_with_capsule_core(shape, capsule, origin, Quat::IDENTITY, direction,
-            &config, filter, &|_| true, Some(distance_cm), Some(dimensions_cm))
-            .map(|(hit, time)| (hit, time.unwrap_or(hit.distance / config.max_distance)))
+        self.cast_shape_with_capsule_core(shape, capsule, origin, rotation, direction, config, filter, predicate)
     }
 
     pub(crate) fn cast_source_sphere_predicate(
@@ -727,8 +715,8 @@ impl RagdollSpatialQuery<'_, '_> {
         let core = Capsule::new(Vec3::ZERO, Vec3::ZERO, radius);
         self.cast_shape_with_capsule_core(
             sphere, &core, origin, Quat::IDENTITY, direction,
-            &ShapeCastConfig::from_max_distance(distance), filter, predicate, None, None,
-        ).map(|(hit, _)| hit)
+            &ShapeCastConfig::from_max_distance(distance), filter, predicate,
+        )
     }
 
     fn cast_shape_with_capsule_core(
@@ -741,16 +729,13 @@ impl RagdollSpatialQuery<'_, '_> {
         config: &ShapeCastConfig,
         filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
-        source_distance_cm: Option<f32>,
-        source_dimensions_cm: Option<(f32, f32)>,
-    ) -> Option<(ShapeHitData, Option<f32>)> {
+    ) -> Option<ShapeHitData> {
         use avian3d::parry::{math::Pose3, query::{cast_shapes, contact, ShapeCastOptions}};
         use crate::extensions::source_capsule_sweep::{capsule_cuboid_sweep, CapsuleSweepResult};
 
         let scaled = shape.shape_scaled();
         let swept_pose = Pose3::from_parts(origin, rotation);
         let bounds = shape.aabb(origin, rotation, 0.0);
-        let distance_cm = source_distance_cm.unwrap_or((f64::from(config.max_distance) * 100.0) as f32);
         let mut best_rank = config.max_distance;
         let mut closest = None;
         for tree in self.trees.iter_trees() {
@@ -764,8 +749,7 @@ impl RagdollSpatialQuery<'_, '_> {
                 let fixed_pose = Pose3::from_parts(position.0, obstacle_rotation.0);
                 let fixed_shape = collider.shape_scaled();
                 let mut result = fixed_shape.as_cuboid().map(|cuboid| capsule_cuboid_sweep(capsule, origin, rotation,
-                    cuboid, position.0, obstacle_rotation.0, *direction, distance_cm,
-                    source_dimensions_cm));
+                    cuboid, position.0, obstacle_rotation.0, *direction, config.max_distance));
                 if matches!(result, Some(CapsuleSweepResult::DeepOverlap))
                     && let Ok(Some(contact)) = contact(&fixed_pose, fixed_shape.as_ref(), &swept_pose, scaled.as_ref(), 0.0)
                     && contact.dist < 0.0 {
@@ -784,13 +768,9 @@ impl RagdollSpatialQuery<'_, '_> {
                         point2: swept_pose * hit.witness2 + *direction * hit.time_of_impact,
                         normal1: fixed_pose.rotation * hit.normal1, normal2: swept_pose.rotation * hit.normal2 })
                 };
-                let source_time = match result {
-                    Some(CapsuleSweepResult::Hit { distance_cm: hit_distance, .. }) => source_distance_cm.map(|length| hit_distance / length),
-                    _ => None,
-                };
                 let hit = match result {
                     Some(CapsuleSweepResult::Miss) => None,
-                    Some(CapsuleSweepResult::Hit { distance, point, normal, .. }) => Some(ShapeHitData {
+                    Some(CapsuleSweepResult::Hit { distance, point, normal }) => Some(ShapeHitData {
                         entity, distance, point1: point, point2: point, normal1: normal, normal2: -normal,
                     }),
                     Some(CapsuleSweepResult::InitialOverlap { depth, point, normal }) => {
@@ -805,7 +785,7 @@ impl RagdollSpatialQuery<'_, '_> {
                     else { hit.distance };
                 if rank < best_rank {
                     best_rank = rank;
-                    closest = Some((hit, source_time));
+                    closest = Some(hit);
                 }
                 hit.distance
             });

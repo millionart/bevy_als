@@ -1,0 +1,92 @@
+{
+  "samples": [
+    {
+      "name": "source-crouched-80-percent",
+      "velocity_cm_s": {
+        "x": 118.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "acceleration_cm_s2": {
+        "x": 1600.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "delta_seconds": 0.03333333507180214,
+      "friction": 4.0,
+      "braking_deceleration_cm_s2": 1250.0,
+      "friction_factor": 0.0,
+      "braking_substep_seconds": 0.03030303120613098,
+      "max_speed_cm_s": 150.0,
+      "max_acceleration_cm_s2": 2000.0,
+      "min_analog_speed_cm_s": 0.0,
+      "analog_input_modifier": 0.800000011920929
+    },
+    {
+      "name": "source-full-run",
+      "velocity_cm_s": {
+        "x": 372.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "acceleration_cm_s2": {
+        "x": 2000.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "delta_seconds": 0.03333333507180214,
+      "friction": 4.0,
+      "braking_deceleration_cm_s2": 1250.0,
+      "friction_factor": 0.0,
+      "braking_substep_seconds": 0.03030303120613098,
+      "max_speed_cm_s": 375.0,
+      "max_acceleration_cm_s2": 2000.0,
+      "min_analog_speed_cm_s": 0.0,
+      "analog_input_modifier": 1.0
+    },
+    {
+      "name": "signed-crouched",
+      "velocity_cm_s": {
+        "x": -118.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "acceleration_cm_s2": {
+        "x": -1600.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "delta_seconds": 0.03333333507180214,
+      "friction": 4.0,
+      "braking_deceleration_cm_s2": 1250.0,
+      "friction_factor": 0.0,
+      "braking_substep_seconds": 0.03030303120613098,
+      "max_speed_cm_s": 150.0,
+      "max_acceleration_cm_s2": 2000.0,
+      "min_analog_speed_cm_s": 0.0,
+      "analog_input_modifier": 0.800000011920929
+    },
+    {
+      "name": "source-overspeed",
+      "velocity_cm_s": {
+        "x": 124.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "acceleration_cm_s2": {
+        "x": 1600.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "delta_seconds": 0.03333333507180214,
+      "friction": 4.0,
+      "braking_deceleration_cm_s2": 1250.0,
+      "friction_factor": 0.0,
+      "braking_substep_seconds": 0.03030303120613098,
+      "max_speed_cm_s": 150.0,
+      "max_acceleration_cm_s2": 2000.0,
+      "min_analog_speed_cm_s": 0.0,
+      "analog_input_modifier": 0.800000011920929
+    }
+  ]
+}

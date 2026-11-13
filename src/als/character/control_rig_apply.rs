@@ -19,7 +19,7 @@ use crate::extensions::{control_rig_hierarchy::RigTransform, control_rig_query::
 
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::actual_motion::AlsActualMotion;
-use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, authored_avatar_translation, character_mesh_entity};
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, character_mesh_entity};
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
 
@@ -391,7 +391,7 @@ pub(crate) fn publish_control_rig_inputs(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     characters: Query<(Entity, &AlsControlRigInput, Option<&AlsControlRigFootLocationsCm>,
         Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
-    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance, Option<&Transform>, Option<&ChildOf>)>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
     transforms: TransformHelper,
     parents: Query<&ChildOf>,
@@ -403,7 +403,8 @@ pub(crate) fn publish_control_rig_inputs(
     let mut world: Option<Arc<RigQueryWorld>> = None;
     for (entity, input, foot_locations, assembly) in &characters {
         let Some(assembly) = assembly else { continue; };
-        let Ok((avatar, owner, instance, mount, parent)) = avatars.get(assembly.avatar) else { continue; };
+        let avatar = assembly.avatar;
+        let Ok((owner, instance)) = avatars.get(avatar) else { continue; };
         if owner.character != entity { continue; }
         let root = instance.player_entity();
         let Ok(mut player) = players.get_mut(root) else { continue; };
@@ -448,17 +449,9 @@ pub(crate) fn publish_control_rig_inputs(
                     Arc::new(RigQueryWorld { colliders, mesh_ray_data })
                 }).clone();
                 let transform = transform.compute_transform();
-                let translation = transform.translation.as_dvec3();
-                let translation = mount.filter(|_| parent.is_some_and(|parent| parent.parent() == entity))
-                    .filter(|_| mesh == avatar || parents.iter_ancestors(mesh).any(|parent| parent == avatar))
-                    .and_then(|mount| {
-                        let exact = authored_avatar_translation(transforms.compute_global_transform(entity).ok()?, mount)?;
-                        if mesh == avatar { return Some(exact); }
-                        let rounded = transforms.compute_global_transform(avatar).ok()?.translation().as_dvec3();
-                        Some(translation + (exact - rounded))
-                    }).unwrap_or(translation);
                 RigQueryContext { world, filter, channel: "ECC_Visibility".to_owned(),
-                    to_world: RigTransform { translation, rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
+                    to_world: RigTransform { translation: transform.translation.as_dvec3(),
+                        rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
             }))
         } else { None };
         let mut source = source_inputs.get_mut(root).unwrap();
@@ -604,11 +597,14 @@ mod tests {
         }
 
         let actor_transform = *app.world().get::<Transform>(actor).unwrap();
-        app.world_mut().entity_mut(actor).insert(Transform::from_xyz(-15.0, 0.919_999_96, -15.0));
-        app.world_mut().entity_mut(avatar).insert(crate::character_assembly::avatar_transform());
+        let spawn_transform = Transform::from_xyz(-15.0, 0.919_999_96, -15.0);
+        let default_mount = crate::character_assembly::avatar_transform();
+        app.world_mut().entity_mut(actor).insert(spawn_transform);
+        app.world_mut().entity_mut(avatar).insert(default_mount);
         app.world_mut().run_schedule(PostUpdate);
         let query = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().rig_query_context().unwrap();
-        assert_eq!(query.to_world.translation, bevy::math::DVec3::new(-15.0, -4.291_534_423_828_125e-8, -15.0));
+        let mesh_world = GlobalTransform::from(spawn_transform).mul_transform(default_mount);
+        assert_eq!(query.to_world.translation, mesh_world.translation().as_dvec3());
         let left = bevy::math::DVec3::new(17.076_301_574_707_03, 13.465_350_151_062_012, -5.072_169_780_731_201);
         let right = bevy::math::DVec3::new(-17.076_314_926_147_46, 13.465_192_794_799_805, -5.072_188_854_217_529);
         app.world_mut().entity_mut(actor).insert(AlsControlRigFootLocationsCm([left.as_vec3(), right.as_vec3()]));

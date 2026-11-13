@@ -21,7 +21,7 @@ use crate::extensions::{control_rig_hierarchy::{RigSpace, RigTransform, rig_norm
     control_rig_program::{RigDefinition, RigInstruction}, root_graph_boundaries::{ControlRigBoundaryNode, ControlRigNodeState, RigCallSample, current_control_rig}};
 
 use crate::animation_context_projection::AlsRootAnimationContextSet;
-use crate::character_assembly::{AlsCharacterAssembly, authored_avatar_translation, character_mesh_entity};
+use crate::character_assembly::{AlsCharacterAssembly, character_mesh_entity};
 use crate::extensions::post_physics_animation::PublishedSourceBone;
 use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigFootLocationsCm, AlsControlRigInput,
     CrAlsRuntimeProfileTemplate};
@@ -684,27 +684,8 @@ fn refresh_foot_lock_inputs(
             character_mesh_entity(assembly.avatar, instance.player_entity(), &parents)
         });
         let Ok(armature) = transforms.compute_global_transform(mesh) else { continue };
-        let Ok(mount_world) = transforms.compute_global_transform(assembly.avatar) else { continue };
         let player = instance.and_then(|instance| players.get(instance.player_entity()).ok());
         let mut component = foot_component_transform(&armature);
-        if let Ok((mount, _)) = local_transforms.get(assembly.avatar)
-            && parents.get(assembly.avatar).is_ok_and(|parent| parent.parent() == entity)
-            && let Ok(actor) = transforms.compute_global_transform(entity)
-            && let Some(translation) = authored_avatar_translation(actor, mount) {
-            if mesh == assembly.avatar {
-                component.translation = translation;
-            } else if parents.iter_ancestors(mesh).any(|parent| parent == assembly.avatar) {
-                component.translation += translation - mount_world.translation().as_dvec3();
-            }
-            if armature.affine().matrix3 == mount_world.affine().matrix3
-                && parents.get(entity).is_err() && let Ok((actor, _)) = local_transforms.get(entity)
-                && actor.scale.min_element() >= 0.0 && mount.scale.min_element() >= 0.0 {
-                component.rotation = crate::extensions::control_rig_math::rig_quat_product(
-                    rig_normalize(actor.rotation.as_dquat()), rig_normalize(mount.rotation.as_dquat()),
-                );
-                component.scale = actor.scale.as_dvec3() * mount.scale.as_dvec3();
-            }
-        }
         let current_character_transform = armature.compute_transform();
         if !pending && !lock_state.valid
             && let Ok(pelvis_parent) = parents.get(bones.left_thigh)

@@ -9,9 +9,7 @@ use crate::als::{
     },
 };
 use crate::extensions::source_instance::{set_source_frame_input, source_player_property};
-use avian3d::prelude::{Collider, SpatialQueryFilter};
-#[cfg(test)]
-use avian3d::prelude::ShapeCastConfig;
+use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQueryFilter};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -116,34 +114,40 @@ fn ground_prediction_amount(
     spatial: &SpatialQuery,
     origin: Vec3,
     velocity: Vec3,
-    capsule: (&Collider, (f32, f32)),
+    capsule: &Collider,
     mesh_scale: f32,
     walkable_floor_cos: f32,
     filter: &SpatialQueryFilter,
     allowance: f32,
 ) -> (f32, Option<AlsGroundPredictionTrace>) {
-    let (capsule, dimensions_cm) = capsule;
     let settings = &*IN_AIR_SETTINGS;
     if velocity.y > settings.prediction_velocity_threshold || allowance <= 1e-4 {
         return (0.0, None);
     }
-    let vertical = velocity.y.clamp(settings.prediction_min_velocity, settings.prediction_max_velocity);
+    let vertical = velocity.y.clamp(
+        settings.prediction_min_velocity,
+        settings.prediction_max_velocity,
+    );
     let direction = Dir3::new(Vec3::new(velocity.x, vertical, velocity.z)).unwrap();
-    let to_centimeters = |meters: f32| (f64::from(meters) * 100.0) as f32;
-    let minimum_speed = to_centimeters(settings.prediction_min_velocity);
-    let maximum_speed = to_centimeters(settings.prediction_max_velocity);
-    let amount = (to_centimeters(vertical) - maximum_speed) / (minimum_speed - maximum_speed);
-    let minimum_distance = to_centimeters(settings.prediction_min_distance);
-    let maximum_distance = to_centimeters(settings.prediction_max_distance);
-    let distance_cm = (f64::from(minimum_distance + (maximum_distance - minimum_distance) * amount)
-        * f64::from(mesh_scale)) as f32;
-    let distance = (f64::from(distance_cm) * 0.01) as f32;
-    let hit = spatial.cast_source_capsule(capsule, origin, direction, distance_cm, dimensions_cm, filter)
-        .filter(|(hit, _)| crate::als::motion::source_sweep_impact_normal(
-            spatial, hit, *direction * distance, origin, Quat::IDENTITY, capsule).y >= walkable_floor_cos);
-    (hit.map_or(0.0, |(_, time)| settings.ground_prediction.sample(time) * allowance),
+    let amount = (vertical - settings.prediction_max_velocity)
+        / (settings.prediction_min_velocity - settings.prediction_max_velocity);
+    let distance = settings
+        .prediction_min_distance
+        .lerp(settings.prediction_max_distance, amount)
+        * mesh_scale;
+    let hit = spatial.cast_shape(
+        capsule,
+        origin,
+        Quat::IDENTITY,
+        direction,
+        &ShapeCastConfig::from_max_distance(distance),
+        filter,
+    );
+    let hit = hit.as_ref().filter(|hit| crate::als::motion::source_sweep_impact_normal(
+        spatial, hit, *direction * distance, origin, Quat::IDENTITY, capsule).y >= walkable_floor_cos);
+    (hit.map_or(0.0, |hit| settings.ground_prediction.sample(hit.distance / distance) * allowance),
         Some(AlsGroundPredictionTrace { start: origin, end: origin + direction * distance, shape: capsule.clone(),
-            hit: hit.map(|(hit, _)| (origin + direction * hit.distance, hit.point1)) }))
+            hit: hit.map(|hit| (origin + direction * hit.distance, hit.point1)) }))
 }
 
 #[allow(clippy::type_complexity)]
@@ -203,15 +207,13 @@ fn locomotion_input_writer(
         let scale = transform.to_scale_rotation_translation().0;
         let half = if *stance == crate::als::state::Stance::Crouching { params.crouch.actual_crouched_half_height() }
             else { params.crouch.standing_capsule_half_height } * scale.y;
-        let radius_scale = scale.x.min(scale.z);
         let capsule = crate::als::character::als_character_capsule(half,
-            params.crouch.standing_capsule_radius * radius_scale);
-        let (radius_cm, half_cm) = params.crouch.source_capsule_dimensions_cm(*stance);
+            params.crouch.standing_capsule_radius * scale.x.min(scale.z));
         let (prediction, trace) = ground_prediction_amount(
             &spatial,
             position.0,
             motion.world_velocity,
-            (&capsule, (radius_cm * radius_scale, half_cm * scale.y)),
+            &capsule,
             mesh.to_scale_rotation_translation().0.y,
             config.basis.max_slope.cos(),
             &filter,
@@ -292,33 +294,6 @@ mod tests {
     }
 
     #[test]
-    fn ground_prediction_preserves_native_centimeter_query_time() {
-        use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default(), TransformPlugin,
-            avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
-            .init_resource::<Assets<Mesh>>().add_message::<bevy::asset::AssetEvent<Mesh>>();
-        app.world_mut().spawn((avian3d::prelude::RigidBody::Static,
-            Collider::cuboid(100.0, 1.0, 100.0), Transform::from_xyz(0.0, -0.5, 0.0)));
-        app.finish();
-        app.update();
-        app.update();
-        app.world_mut().run_system_once(|spatial: crate::extensions::RagdollSpatialQuery| {
-            let capsule = crate::als::character::als_character_capsule(0.9, 0.3);
-            for (origin, speed, expected) in [
-                (1.23294997215271_f32, -2.2890000343322754_f32, 0.6267969012260437_f32),
-                (1.1511999368667603, -2.616000175476074, 0.7335219383239746),
-            ] {
-                let (amount, trace) = ground_prediction_amount(&spatial, Vec3::Y * origin, Vec3::Y * speed,
-                    (&capsule, (30.0, 90.0)), 1.0, 0.71, &SpatialQueryFilter::default(), 1.0);
-                let trace = trace.unwrap();
-                assert_eq!(amount, expected, "Ground prediction at {origin} m and {speed} m/s: end={:?} hit={:?}",
-                    trace.end, trace.hit);
-            }
-        }).unwrap();
-    }
-
-    #[test]
     fn falling_ground_prediction_starts_at_the_current_actor_position() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
@@ -351,7 +326,7 @@ mod tests {
                     let config = configs.get(&config.0).unwrap();
                     let filter = SpatialQueryFilter::from_excluded_entities(characters.iter())
                         .with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
-                    ground_prediction_amount(&spatial, position, velocity, (capsule, (30.0, 90.0)),
+                    ground_prediction_amount(&spatial, position, velocity, capsule,
                         avatars.get(avatar).unwrap().to_scale_rotation_translation().0.y,
                         config.basis.max_slope.cos(), &filter, allowance).0
                 }).unwrap();
@@ -494,7 +469,7 @@ mod tests {
                 let filter = SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
                 let contact = spatial.cast_shape(&capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
                     &ShapeCastConfig::from_max_distance(5.0), &filter).unwrap();
-                let (animation, trace) = ground_prediction_amount(&spatial, origin, velocity, (&capsule, (30.0, 90.0)),
+                let (animation, trace) = ground_prediction_amount(&spatial, origin, velocity, &capsule,
                     1.0, crate::als::air::WALKABLE_FLOOR_COS, &filter, 1.0);
                 let state = crate::als::air::ground_prediction_sweep(&spatial, Entity::PLACEHOLDER,
                     origin, velocity, 0.9, 0.3);
@@ -680,7 +655,7 @@ mod tests {
                     &spatial,
                     Vec3::Y * 3.0,
                     Vec3::NEG_Y * 2.0,
-                    (&capsule, (30.0, (f64::from(half_height) * 100.0) as f32)),
+                    &capsule,
                     scale,
                     0.71,
                     if filtered {

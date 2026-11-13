@@ -1,0 +1,296 @@
+[
+  {
+    "frame": 12,
+    "stride": {
+      "filtered": [
+        0.48927971720695496,
+        0.0
+      ],
+      "raw": [
+        0.48927971720695496,
+        0.0
+      ]
+    },
+    "foot_planted": -0.07407408207654953,
+    "sample": {
+      "asset": 0.25088974833488464,
+      "foot_planted": -1.0,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 13,
+    "stride": {
+      "filtered": [
+        0.731237530708313,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": -0.2581317722797394,
+    "sample": {
+      "asset": 0.2783227264881134,
+      "foot_planted": -1.0,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 14,
+    "stride": {
+      "filtered": [
+        0.8149211406707764,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": -0.48859721422195435,
+    "sample": {
+      "asset": 0.3057554364204407,
+      "foot_planted": -1.0,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 15,
+    "stride": {
+      "filtered": [
+        0.8618718981742859,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": -0.6937150955200195,
+    "sample": {
+      "asset": 0.33318814635276794,
+      "foot_planted": -1.0,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 16,
+    "stride": {
+      "filtered": [
+        0.897192656993866,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": -0.801388680934906,
+    "sample": {
+      "asset": 0.3606208562850952,
+      "foot_planted": -1.0,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 17,
+    "stride": {
+      "filtered": [
+        0.9310534000396729,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": -0.7560327053070068,
+    "sample": {
+      "asset": 0.3880535662174225,
+      "foot_planted": -1.0,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 18,
+    "stride": {
+      "filtered": [
+        0.9720752835273743,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": -0.2614876627922058,
+    "sample": {
+      "asset": 0.41548627614974976,
+      "foot_planted": -0.435812771320343,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 19,
+    "stride": {
+      "filtered": [
+        0.9720752835273743,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": 0.09338566660881042,
+    "sample": {
+      "asset": 0.4433284401893616,
+      "foot_planted": 0.21438144147396088,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 20,
+    "stride": {
+      "filtered": [
+        0.9720752835273743,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": 0.06518426537513733,
+    "sample": {
+      "asset": 0.471170574426651,
+      "foot_planted": 0.21438144147396088,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 21,
+    "stride": {
+      "filtered": [
+        0.9720752835273743,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": 0.04325154051184654,
+    "sample": {
+      "asset": 0.4990127682685852,
+      "foot_planted": 0.21438144147396088,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 22,
+    "stride": {
+      "filtered": [
+        0.9720752835273743,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": 0.026814304292201996,
+    "sample": {
+      "asset": 0.526854932308197,
+      "foot_planted": 0.21438144147396088,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 23,
+    "stride": {
+      "filtered": [
+        0.9720751643180847,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": 0.017620492726564407,
+    "sample": {
+      "asset": 0.5546970963478088,
+      "foot_planted": 0.2501758635044098,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 24,
+    "stride": {
+      "filtered": [
+        0.9720751643180847,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": 0.009244205430150032,
+    "sample": {
+      "asset": 0.5825393199920654,
+      "foot_planted": 0.2702309489250183,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  },
+  {
+    "frame": 25,
+    "stride": {
+      "filtered": [
+        0.9720751643180847,
+        0.0
+      ],
+      "raw": [
+        0.9720752239227295,
+        0.0
+      ]
+    },
+    "foot_planted": 0.0034588214475661516,
+    "sample": {
+      "asset": 0.6103814840316772,
+      "foot_planted": 0.2702309489250183,
+      "gait": 1.0,
+      "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+      "node": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement"
+    }
+  }
+]

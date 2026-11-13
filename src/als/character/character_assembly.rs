@@ -12,7 +12,7 @@ use crate::als::input::{AlsInputMap, spawn_als_actions};
 use crate::als::motion::{AlsViewYaw, initial_als_control_scheme_config};
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::params::AlsMovementParams;
-use crate::als::view::{AlsSourceViewYaw, AlsViewPitch};
+use crate::als::view::AlsViewPitch;
 use crate::extensions::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverride};
 
 use crate::animation_events::{
@@ -21,8 +21,7 @@ use crate::animation_events::{
 };
 
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
-pub(crate) const AVATAR_CAPSULE_BOTTOM_OFFSET_CM: f64 = -92.0;
-pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = (AVATAR_CAPSULE_BOTTOM_OFFSET_CM * 0.01) as f32;
+pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
 pub const AVATAR_MESH_ROOT_WORLD_Y: f32 = -0.02;
 pub const ALS_LINKED_ANIMATED_SCENE: &str = "ALS/Character/B_Als.animscn.ron";
 pub const ALS_RENDERED_MESH_LOD: i32 = 0;
@@ -53,15 +52,6 @@ pub struct AlsCharacterAssembly {
 pub fn avatar_transform() -> Transform {
     Transform::from_xyz(0.0, AVATAR_CAPSULE_BOTTOM_OFFSET, 0.0)
         .with_rotation(Quat::from_rotation_y(AVATAR_FORWARD_YAW))
-}
-
-pub(crate) fn authored_avatar_translation(
-    actor: GlobalTransform,
-    mount: &Transform,
-) -> Option<bevy::math::DVec3> {
-    if mount.translation != Vec3::Y * AVATAR_CAPSULE_BOTTOM_OFFSET { return None; }
-    let vertical = Vec3::from(actor.affine().matrix3.y_axis).as_dvec3();
-    Some((actor.translation().as_dvec3() * 100.0 + vertical * AVATAR_CAPSULE_BOTTOM_OFFSET_CM) * 0.01)
 }
 
 pub(crate) fn sync_avatar_stance_offset(
@@ -269,7 +259,6 @@ fn spawn_als_character_internal(
         ))
         .insert((
             AlsViewYaw(yaw),
-            AlsSourceViewYaw::from_spawn(blueprint.transform.rotation, yaw),
             AlsViewPitch(fwd.y.atan2(Vec2::new(fwd.x, fwd.z).length())),
             crate::actual_motion::AlsActualMotion {
                 input_yaw_degrees: yaw.to_degrees(),

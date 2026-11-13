@@ -1,0 +1,68 @@
+{
+  "asset": "A_Als_Land_Light",
+  "sample_seconds": 0.03333333507180214,
+  "source_weight": 1,
+  "inertialization_duration_seconds": 0.1,
+  "samples": {
+    "ball_l_source": {
+      "source_angle_error_degrees": 0.0,
+      "runtime_angle_error_degrees": 0.004368254145748148,
+      "output": [
+        4.205194230283494e-05,
+        9.702305537680297e-06,
+        -0.7186337729686266,
+        -0.6953887391138682
+      ]
+    },
+    "ball_l_projected_source": {
+      "source_angle_error_degrees": 0.003741654250182683,
+      "runtime_angle_error_degrees": 0.0006266000011908904,
+      "output": [
+        1.934604445614493e-05,
+        3.316720236545148e-05,
+        -0.7186337722687371,
+        -0.6953887401162546
+      ]
+    },
+    "ball_l_runtime_locomotion": {
+      "source_angle_error_degrees": 0.004368254070411932,
+      "runtime_angle_error_degrees": 3.931122243300031e-07,
+      "output": [
+        1.5543578870719297e-05,
+        3.709677445856156e-05,
+        -0.7186337720766313,
+        -0.6953887402116449
+      ]
+    },
+    "ball_r_source": {
+      "source_angle_error_degrees": 0.0,
+      "runtime_angle_error_degrees": 0.004368254145748148,
+      "output": [
+        4.205194230283494e-05,
+        9.702305537680297e-06,
+        -0.7186337729686266,
+        -0.6953887391138682
+      ]
+    },
+    "ball_r_projected_source": {
+      "source_angle_error_degrees": 0.003741654250182683,
+      "runtime_angle_error_degrees": 0.0006266000011908904,
+      "output": [
+        1.934604445614493e-05,
+        3.316720236545148e-05,
+        -0.7186337722687371,
+        -0.6953887401162546
+      ]
+    },
+    "ball_r_runtime_locomotion": {
+      "source_angle_error_degrees": 0.004368254070411932,
+      "runtime_angle_error_degrees": 3.931122243300031e-07,
+      "output": [
+        1.5543578870719297e-05,
+        3.709677445856156e-05,
+        -0.7186337720766313,
+        -0.6953887402116449
+      ]
+    }
+  }
+}

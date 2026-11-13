@@ -1,0 +1,136 @@
+{
+  "ordinary_frames": 88,
+  "modes": {
+    "Air": 10,
+    "Grounded": 78
+  },
+  "mode_transitions": [
+    [
+      1,
+      "Grounded",
+      "Air"
+    ],
+    [
+      11,
+      "Air",
+      "Grounded"
+    ]
+  ],
+  "machine_frames": {
+    "Locomotion": 16,
+    "Grounded": 16
+  },
+  "matching_consumer_classification": {
+    "stop_foot_selection": 89,
+    "allow_transitions": 89,
+    "left_ik_relevant": 89,
+    "right_ik_relevant": 89,
+    "left_lock_relevant": 89,
+    "right_lock_relevant": 89,
+    "sprint_blend_children": 89,
+    "footstep_default_volume_relevant": 89,
+    "forward_input": 60
+  },
+  "world_maxima": {
+    "position_m": {
+      "absolute_error": 3.0466799842868344e-06,
+      "frame": 72
+    },
+    "velocity_mps": {
+      "absolute_error": 2.872198821002314e-07,
+      "frame": 10
+    },
+    "movement_input": {
+      "absolute_error": 3.6945193783386246e-08,
+      "frame": 12
+    }
+  },
+  "root_curve_differences": {
+    "sprintblock": 5,
+    "footstepsoundblock": 6,
+    "footleftik": 2,
+    "footrightik": 2,
+    "footplanted": 6
+  },
+  "root_curve_maxima": {
+    "sprintblock": {
+      "absolute_error": 1.1920928955078125e-07,
+      "frame": 8
+    },
+    "footstepsoundblock": {
+      "absolute_error": 1.1920928955078125e-07,
+      "frame": 8
+    },
+    "footleftik": {
+      "absolute_error": 2.384185791015625e-07,
+      "frame": 9
+    },
+    "footrightik": {
+      "absolute_error": 2.384185791015625e-07,
+      "frame": 9
+    },
+    "footplanted": {
+      "absolute_error": 6.705522537231445e-08,
+      "frame": 19
+    }
+  },
+  "source_attributes": "empty in all three pose boundaries",
+  "pose_rows": {
+    "rig_source": 7031,
+    "rig_output": 7031,
+    "root_result": 7031
+  },
+  "pose_maxima": {
+    "rig_source": {
+      "translation_m": {
+        "absolute_error": 1.2991530133540148e-07,
+        "frame": 12,
+        "bone": "VB ik_hand_l"
+      },
+      "rotation_degrees": {
+        "absolute_error": 0.004382461822588395,
+        "frame": 11,
+        "bone": "ball_r"
+      },
+      "scale": {
+        "absolute_error": 1.0323853566663336e-07,
+        "frame": 73,
+        "bone": "VB hand_l_to_ik_hand_gun"
+      }
+    },
+    "rig_output": {
+      "translation_m": {
+        "absolute_error": 2.4043464282112583e-06,
+        "frame": 6,
+        "bone": "pelvis"
+      },
+      "rotation_degrees": {
+        "absolute_error": 0.004382461822588395,
+        "frame": 11,
+        "bone": "ball_r"
+      },
+      "scale": {
+        "absolute_error": 2.0647654623614278e-07,
+        "frame": 73,
+        "bone": "foot_r"
+      }
+    },
+    "root_result": {
+      "translation_m": {
+        "absolute_error": 2.4043464282112583e-06,
+        "frame": 6,
+        "bone": "pelvis"
+      },
+      "rotation_degrees": {
+        "absolute_error": 0.004382461822588395,
+        "frame": 11,
+        "bone": "ball_r"
+      },
+      "scale": {
+        "absolute_error": 2.0647654623614278e-07,
+        "frame": 73,
+        "bone": "foot_r"
+      }
+    }
+  }
+}

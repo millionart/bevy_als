@@ -4,7 +4,6 @@ use crate::als::movement_direction::{
     AlsMovementDirectionState, normalize_angle180, unwrap_angle_continuous, update_direction,
 };
 use crate::als::orientation::world_forward_to_yaw;
-use crate::als::view::AlsSourceViewYaw;
 use crate::als::state::{Gait, RotationMode};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -33,9 +32,9 @@ pub fn view_space_direction_angle_from_radians(
     crate::als::head::unwind_degrees(relative as f32)
 }
 
-pub(crate) fn motion_view_space_direction_angle(motion: &AlsActualMotion, view_yaw: f32, source: Option<&AlsSourceViewYaw>) -> f32 {
+pub(crate) fn motion_view_space_direction_angle(motion: &AlsActualMotion, view_yaw: f32) -> f32 {
     if let Some(velocity_yaw) = motion.source_velocity_yaw_degrees {
-        let view_yaw = AlsSourceViewYaw::degrees(view_yaw, source);
+        let view_yaw = (-f64::from(view_yaw) - std::f64::consts::FRAC_PI_2).to_degrees();
         return crate::als::head::unwind_degrees((f64::from(velocity_yaw) - view_yaw) as f32);
     }
     view_space_direction_angle_from_radians(motion.velocity_yaw_degrees, view_yaw)
@@ -62,12 +61,12 @@ type DirectionAvatarQuery = (
 
 fn direction_angle_driver(
     mut commands: Commands,
-    characters: Query<(&AlsActualMotion, &AlsViewYaw, Option<&AlsSourceViewYaw>, &RotationMode, &Gait), With<AlsCharacter>>,
+    characters: Query<(&AlsActualMotion, &AlsViewYaw, &RotationMode, &Gait), With<AlsCharacter>>,
     mut avatars: Query<DirectionAvatarQuery, With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (entity, child_of, state, instance) in avatars.iter_mut() {
-        let Ok((motion, view_yaw, source_view_yaw, rotation_mode, gait)) = characters.get(child_of.parent()) else {
+        let Ok((motion, view_yaw, rotation_mode, gait)) = characters.get(child_of.parent()) else {
             continue;
         };
         let hspeed = motion.horizontal_speed;
@@ -80,7 +79,7 @@ fn direction_angle_driver(
                 if *gait == Gait::Sprinting {
                     0.0
                 } else {
-                    motion_view_space_direction_angle(motion, view_yaw.0, source_view_yaw)
+                    motion_view_space_direction_angle(motion, view_yaw.0)
                 }
             }
         };

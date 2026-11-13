@@ -1471,7 +1471,7 @@ fn update_standing_inputs(
     gait_is_sprinting: f32,
     sprint_block_amount: f32,
     rotation_mode: RotationMode,
-    angle: f32,
+    view_yaw: f32,
     input: &AlsInputCommand,
     _direction_state: Option<&AlsMovementDirectionState>,
     transition: Option<&AlsTransitionPlayback>,
@@ -1550,6 +1550,7 @@ fn update_standing_inputs(
     } else {
         0.0
     };
+    let angle = motion_view_space_direction_angle(actual_motion, view_yaw);
     let direction = direction_for(
         angle,
         rotation_mode,
@@ -2225,7 +2226,7 @@ fn standing_layer_writer(
             &Stance,
             &Gait,
             &RotationMode,
-            (&AlsViewYaw, Option<&crate::als::view::AlsSourceViewYaw>),
+            &AlsViewYaw,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
             Option<&AlsMovementDirectionState>,
@@ -2265,7 +2266,7 @@ fn standing_layer_writer(
             stance,
             gait,
             rotation_mode,
-            (view_yaw, source_view_yaw),
+            view_yaw,
             command,
             override_command,
             direction,
@@ -2336,7 +2337,7 @@ fn standing_layer_writer(
             gait_is_sprinting,
             sprint_block_amount,
             *rotation_mode,
-            motion_view_space_direction_angle(actual_motion, view_yaw.0, source_view_yaw),
+            view_yaw.0,
             input,
             direction,
             transition,
