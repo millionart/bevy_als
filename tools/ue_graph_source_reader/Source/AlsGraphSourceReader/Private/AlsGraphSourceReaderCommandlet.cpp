@@ -1101,7 +1101,7 @@ bool CaptureCookedTrimeshGeometry(const Chaos::FTriangleMeshImplicitObject& Core
     return true;
 }
 
-TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
+TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(UObject* Asset, const FString& RequestPath)
 {
     FString Text;
     TSharedPtr<FJsonObject> Request;
@@ -1303,6 +1303,27 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             const float Angle = FMath::UnwindDegrees(DifferenceAngle);
             Sample->SetNumberField(TEXT("view_yaw_degrees"), ViewYawDegrees);
             Sample->SetNumberField(TEXT("yaw_difference"), Angle);
+        }
+        if ((*Input)->HasField(TEXT("velocity_yaw")))
+        {
+            const TSharedPtr<FJsonObject>* Direction = nullptr;
+            TArray<double> Velocity;
+            double ViewYaw;
+            if (!(*Input)->TryGetObjectField(TEXT("velocity_yaw"), Direction)
+                || !ReadArray(*Direction, TEXT("velocity_cm_s"), Velocity, 3)
+                || !(*Direction)->TryGetNumberField(TEXT("view_yaw_degrees"), ViewYaw)
+                || !FMath::IsFinite(ViewYaw)) { return nullptr; }
+            const UCurveFloat* Curve = Cast<UCurveFloat>(Asset);
+            if (Curve == nullptr) { return nullptr; }
+            const float VelocityYaw = static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Velocity[1], Velocity[0])));
+            const float ViewSpace = static_cast<float>(VelocityYaw - ViewYaw);
+            if (!FMath::IsFinite(ViewSpace) || FMath::Abs(ViewSpace) > 720.0f) { return nullptr; }
+            const float Relative = FMath::UnwindDegrees(ViewSpace);
+            const TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetNumberField(TEXT("world_degrees"), VelocityYaw);
+            Value->SetNumberField(TEXT("view_space_degrees"), Relative);
+            Value->SetNumberField(TEXT("curve"), Curve->GetFloatValue(Relative));
+            Sample->SetObjectField(TEXT("velocity_yaw"), Value);
         }
         if ((*Input)->HasField(TEXT("foot_lock_thigh_angle")))
         {
@@ -8317,7 +8338,7 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     FString GeometryQueryProbePath;
     if (FParse::Value(*Params, TEXT("GeometryQueryProbe="), GeometryQueryProbePath))
     {
-        const TSharedPtr<FJsonObject> Probe = CaptureGeometryQueryProbe(GeometryQueryProbePath);
+        const TSharedPtr<FJsonObject> Probe = CaptureGeometryQueryProbe(Asset, GeometryQueryProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("geometry_query_probe"), Probe.ToSharedRef());
     }

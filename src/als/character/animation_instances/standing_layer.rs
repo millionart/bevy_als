@@ -33,7 +33,7 @@ use bevy_animation_graph::core::state_machine::{
 use crate::actual_motion::AlsActualMotion;
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::direction_layer::view_space_direction_angle_from_radians;
+use crate::direction_layer::motion_view_space_direction_angle;
 use crate::standing_source::{standing_rotation_yaw_offsets, standing_stride_amount};
 use crate::stop_link::{AlsTransitionKind, AlsTransitionPlayback, AlsTransitionMontageStack};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
@@ -1268,8 +1268,7 @@ fn turn_montage_sequence_curves(
 }
 
 fn direction_for(
-    velocity_yaw: f32,
-    view_yaw: f32,
+    angle: f32,
     rotation_mode: RotationMode,
     gait: Gait,
     current_state: AlsMovementDirection,
@@ -1277,7 +1276,6 @@ fn direction_for(
     if rotation_mode == RotationMode::VelocityDirection || gait == Gait::Sprinting {
         AlsMovementDirection::Forward
     } else {
-        let angle = view_space_direction_angle_from_radians(velocity_yaw, view_yaw);
         advance_standing_movement_state(current_state, classify_grounded_movement_intent(angle))
     }
 }
@@ -1552,16 +1550,15 @@ fn update_standing_inputs(
     } else {
         0.0
     };
+    let angle = motion_view_space_direction_angle(actual_motion, view_yaw);
     let direction = direction_for(
-        actual_motion.velocity_yaw_degrees,
-        view_yaw,
+        angle,
         rotation_mode,
         gait,
         runtime.movement_state.direction(),
     );
     let direction_index = direction_index(direction);
     let movement_state_index = movement_state_index(direction);
-    let velocity_yaw = actual_motion.velocity_yaw_degrees;
     let pivot = runtime.pivot_pending;
     let source_curve = |name| {
         source_context
@@ -1666,7 +1663,7 @@ fn update_standing_inputs(
         runtime.movement_transition_request = None;
     }
     let movement_transition_index = runtime.movement_transition_request.unwrap_or(-1.0);
-    let yaw_angle = -view_space_direction_angle_from_radians(velocity_yaw, view_yaw);
+    let yaw_angle = -angle;
     let target_yaw_offset = rotation_yaw_offset(runtime.movement_state.direction(), yaw_angle);
     let yaw_offset = runtime
         .movement_transition_source
@@ -2445,8 +2442,7 @@ mod tests {
     fn standing_direction_converts_target_yaw_to_source_sign() {
         assert_eq!(
             direction_for(
-                -90.0,
-                0.0,
+                90.0,
                 RotationMode::Aiming,
                 Gait::Running,
                 AlsMovementDirection::Forward,

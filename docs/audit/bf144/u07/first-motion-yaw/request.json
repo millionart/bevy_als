@@ -1,0 +1,259 @@
+{
+  "samples": [
+    {
+      "name": "actual-target-20",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          66.66666865348816,
+          -0.005091296407044865,
+          0.0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-native-20",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          66.66666994919204,
+          -0.005091296293853434,
+          0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-target-21",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          133.33333730697632,
+          -0.007994439511094242,
+          0.0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-native-21",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          133.3333403029364,
+          -0.007994440037752456,
+          0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-target-22",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          200.0,
+          -0.009381417476106435,
+          0.0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-native-22",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          200.00001093876506,
+          -0.009381418135064412,
+          0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-target-23",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          266.66667461395264,
+          -0.009744056296767667,
+          0.0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-native-23",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          266.6666817664198,
+          -0.009744057023214549,
+          0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-target-24",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          333.3333492279053,
+          -0.009565736399963498,
+          0.0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "actual-native-24",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          333.33335269624945,
+          -0.009565736885599457,
+          0
+        ],
+        "view_yaw_degrees": 2.5044781608585254e-06
+      }
+    },
+    {
+      "name": "east",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          100,
+          0,
+          0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "small-positive",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          100,
+          0.005,
+          0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "small-negative",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          100,
+          -0.005,
+          0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "positive-half-turn",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          -100,
+          0,
+          0
+        ],
+        "view_yaw_degrees": 0
+      }
+    },
+    {
+      "name": "negative-half-turn",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "velocity_yaw": {
+        "velocity_cm_s": [
+          100,
+          0,
+          0
+        ],
+        "view_yaw_degrees": 180
+      }
+    }
+  ]
+}

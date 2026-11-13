@@ -25,6 +25,7 @@ pub struct AlsActualMotion {
     pub local_velocity: Vec2,
     pub horizontal_speed: f32,
     pub velocity_yaw_degrees: f32,
+    pub source_velocity_yaw_degrees: Option<f32>,
     pub has_input: bool,
     pub input_yaw_degrees: f32,
     pub signed_direction_radians: f32,
@@ -36,11 +37,13 @@ impl AlsActualMotion {
         let motion = horizontal_motion_from_world_velocity(world_velocity, character_rotation);
         let direction =
             crate::als::animation::velocity_blend_direction(world_velocity, character_rotation);
+        let horizontal_speed = crate::als::motion::source_horizontal_speed_meters(world_velocity);
         Self {
             world_velocity,
             local_velocity: motion.local_velocity,
-            horizontal_speed: crate::als::motion::source_horizontal_speed_meters(world_velocity),
+            horizontal_speed,
             velocity_yaw_degrees: world_forward_to_yaw(world_velocity).to_degrees(),
+            source_velocity_yaw_degrees: None,
             signed_direction_radians: motion.signed_direction_radians,
             velocity_blend: HorizontalVelocityBlend {
                 forward: (-direction.z).max(0.0),
@@ -127,10 +130,16 @@ fn snapshot_actual_motion_system(
         } else {
             current.as_deref().map_or(initial_yaw, |previous| previous.input_yaw_degrees)
         };
-        if !crate::als::motion::locomotion_movement_flags(next.has_input, next.horizontal_speed).0 {
+        if crate::als::motion::locomotion_movement_flags(next.has_input, next.horizontal_speed).0 {
+            let x = f64::from(next.world_velocity.x) * 100.0;
+            let y = f64::from(next.world_velocity.z) * 100.0;
+            next.source_velocity_yaw_degrees = Some(y.atan2(x).to_degrees() as f32);
+        } else {
             next.velocity_yaw_degrees = current
                 .as_deref()
                 .map_or(initial_yaw, |previous| previous.velocity_yaw_degrees);
+            next.source_velocity_yaw_degrees =
+                current.as_deref().and_then(|previous| previous.source_velocity_yaw_degrees);
         }
         if let Some(mut current) = current {
             *current = next;
@@ -143,6 +152,43 @@ fn snapshot_actual_motion_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn motion_snapshot_preserves_native_velocity_yaw_before_the_view_difference() {
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../docs/audit/bf144/u07/first-motion-yaw/source-cases.json",
+        )).unwrap();
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).add_systems(PostUpdate, snapshot_actual_motion_system);
+        let actor = app.world_mut().spawn((AlsCharacter, Transform::default(),
+            LinearVelocity::ZERO, LocomotionState::Grounded)).id();
+        for row in data.as_array().unwrap() {
+            if row["name"].as_str().unwrap().starts_with("actual-native") {
+                continue;
+            }
+            let velocity = row["velocity_cm_s"].as_array().unwrap();
+            let axis = |index: usize| (velocity[index].as_f64().unwrap() * 0.01) as f32;
+            app.world_mut().entity_mut(actor).insert(LinearVelocity(Vec3::new(axis(0), axis(2), axis(1))));
+            app.world_mut().run_schedule(PostUpdate);
+            let motion = app.world().get::<AlsActualMotion>(actor).unwrap();
+            let view = (-row["view_yaw_degrees"].as_f64().unwrap().to_radians()
+                - std::f64::consts::FRAC_PI_2) as f32;
+            let native = &row["native"];
+            assert_eq!(motion.source_velocity_yaw_degrees,
+                Some(native["world_degrees"].as_f64().unwrap() as f32), "{}", row["name"]);
+            let native_angle = native["view_space_degrees"].as_f64().unwrap() as f32;
+            let actual = crate::direction_layer::motion_view_space_direction_angle(motion, view);
+            if row["name"].as_str().unwrap().starts_with("actual-target") {
+                assert_eq!(actual, native_angle, "{}", row["name"]);
+            } else {
+                assert!(crate::als::head::unwind_degrees(actual - native_angle).abs() <= 1e-5);
+            }
+        }
+        let saved = app.world().get::<AlsActualMotion>(actor).unwrap().source_velocity_yaw_degrees;
+        app.world_mut().entity_mut(actor).insert(LinearVelocity::ZERO);
+        app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(app.world().get::<AlsActualMotion>(actor).unwrap().source_velocity_yaw_degrees, saved);
+    }
 
     #[test]
     fn actor_motion_reads_current_parent_world_rotation() {

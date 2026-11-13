@@ -56,7 +56,7 @@ use crate::{
     actual_motion::AlsActualMotion,
     animation_context_projection::AlsRootAnimationContext,
     character_assembly::AlsCharacterAvatar,
-    direction_layer::view_space_direction_angle_from_radians,
+    direction_layer::motion_view_space_direction_angle,
     grounded_layer::AlsGroundedEntryMode,
     ragdolling_layer::AlsRagdollingLayerSet,
     standing_layer::{AlsStandingLayerSet, source_moving_smooth},
@@ -120,7 +120,7 @@ fn source_crouching_movement_inputs(
 }
 
 fn source_velocity_yaw_angle_view_space(motion: &AlsActualMotion, view_yaw: f32) -> f32 {
-    view_space_direction_angle_from_radians(motion.velocity_yaw_degrees, view_yaw)
+    motion_view_space_direction_angle(motion, view_yaw)
 }
 
 fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool); 2] {

@@ -32,6 +32,14 @@ pub fn view_space_direction_angle_from_radians(
     crate::als::head::unwind_degrees(relative as f32)
 }
 
+pub(crate) fn motion_view_space_direction_angle(motion: &AlsActualMotion, view_yaw: f32) -> f32 {
+    if let Some(velocity_yaw) = motion.source_velocity_yaw_degrees {
+        let view_yaw = (-f64::from(view_yaw) - std::f64::consts::FRAC_PI_2).to_degrees();
+        return crate::als::head::unwind_degrees((f64::from(velocity_yaw) - view_yaw) as f32);
+    }
+    view_space_direction_angle_from_radians(motion.velocity_yaw_degrees, view_yaw)
+}
+
 fn graph_direction_angle(raw: f32) -> f32 {
     normalize_angle180(raw)
 }
@@ -71,10 +79,7 @@ fn direction_angle_driver(
                 if *gait == Gait::Sprinting {
                     0.0
                 } else {
-                    view_space_direction_angle_from_radians(
-                        velocity_yaw_deg(motion.world_velocity),
-                        view_yaw.0,
-                    )
+                    motion_view_space_direction_angle(motion, view_yaw.0)
                 }
             }
         };
