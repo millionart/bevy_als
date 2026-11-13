@@ -1500,7 +1500,7 @@ pub(crate) mod tests {
     #[test]
     fn loaded_mantle_override_updates_velocity_below_minimum_without_moving() {
         use std::sync::{Arc, Mutex};
-        for delta in [1.0e-8_f32, 2.0e-8, 0.5e-6, 1.0e-6, 0.1] {
+        for delta in [0.0_f32, 5.0e-9, 1.0e-8, 2.0e-8, 0.5e-6, 1.0e-6, 0.1] {
             let (mut app, character, _) = loaded_roll_character();
             let start = app.world().get::<Transform>(character).unwrap().translation;
             app.world_mut().get_mut::<crate::als::mantle::AlsMantleState>(character).unwrap().begin(
@@ -1511,6 +1511,8 @@ pub(crate) mod tests {
             assert!(mantle.active && mantle.root_motion_ready);
             assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Custom);
             let before = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+            let previous_velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert!(previous_velocity.length() > 0.1);
             app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
             let source_velocity = Arc::new(Mutex::new(Vec3::ZERO));
             let capture = source_velocity.clone();
@@ -1518,13 +1520,13 @@ pub(crate) mod tests {
                 *capture.lock().unwrap() = actors.get(character).unwrap().0;
             }).after(crate::mantle_drive::AlsMantleDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
             app.update();
-            let expected = if delta <= 1.0e-8 { Vec3::ZERO } else { *source_velocity.lock().unwrap() };
+            let expected = if delta <= 1.0e-8 { previous_velocity } else { *source_velocity.lock().unwrap() };
             if delta >= 0.5e-6 {
                 assert!(expected.length() > 0.1, "Actual Mantle must publish its current override velocity: delta={delta} velocity={expected:?}");
             }
             let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
             assert!(velocity.abs_diff_eq(expected, 1e-4),
-                "Source cleared Mantle parameters contribute zero override velocity: delta={delta} expected={expected:?} actual={velocity:?}");
+                "Source Mantle override keeps its stored velocity at a cleared step: delta={delta} expected={expected:?} actual={velocity:?}");
             let movement = if delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { Vec3::ZERO } else { expected * delta };
             let actual = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - before;
             assert!(actual.abs_diff_eq(movement, 1e-7),
