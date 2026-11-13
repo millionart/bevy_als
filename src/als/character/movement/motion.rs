@@ -8652,7 +8652,7 @@ mod tests {
                     Transform::from_translation(start).with_rotation(world_rotation)
                 };
                 app.world_mut().entity_mut(actor).insert((Position(start), local, LocomotionState::Air,
-                    LinearVelocity(Vec3::NEG_Z * 12.0), TnuaMotor::default(),
+                    LinearVelocity(Vec3::NEG_Z * 20.0), TnuaMotor::default(),
                     crate::als::character::AlsEffectiveGravity::default(), AlsCmcAdapterRuntime::default()));
                 app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(actor).unwrap().basis.desired_motion = Vec3::ZERO;
                 app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));

@@ -5799,6 +5799,8 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧falling_slide单元测试只核对给定delta的几何投影/向上限位，steep_contact测试只核对保持Air；没有比较接触后的输入限制与速度。仅登记，不改空中算法或坡度阈值。
 
 - [x] BF144-D18 / P2 — 空中胶囊sweep把局部旋转当成世界旋转；静态实现完成，统一验证待执行。
+  - 2026-11-13 11:29复验，预估11:45。fresh PhysFalling使用component世界Q并按实际步长扫掠。旧加载夹具从1m处以12m/s推进50ms只到0.4m，直立半径0.3m，无法接触墙；保留局部旋转与父级对照并使各组确实到达阻挡。重新读取原生直立/倾斜几何，复核PullBack及生产位置。
+  - 11:32定向结束，较预估提前13分钟，无拆分。保持50ms与原角度，用20m/s确保直立、yaw、pitch六个world/parent形体控制均撞墙；平台携带旋转对照也通过。fresh两原生查询与原数据逐值一致。证据 `docs/audit/bf144/u07/falling-world-rotation/`。
   - 活动：开始2026-11-08 14:12 +08:00；预估结束14:52 +08:00；实际结束14:15 +08:00，提前37分钟；未拆分，测试/消融/Gate暂缓。
   - 闭环：fresh UE世界quat源与直立/倾斜胶囊原生等价几何探针保存在`docs/audit/bf144/d18/`；Air及两种Walk→Air入口传世界旋转、写回保留局部旋转，已写加载角色直接/父级及yaw对照，目标测试与真实Gate尚未执行。
   - Source：fresh UE `PhysFalling:4909–4910,5044`以UpdatedComponent的GetComponentQuat构造PawnRotation，并交给SafeMoveUpdatedComponent；实际移动查询使用component世界形体。
