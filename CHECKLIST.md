@@ -7701,6 +7701,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - U07 19:06 Standing Dynamic再跑后：真实两侧都完成选片、解锁、回锁和Idle。视觉Gate仍把Transition槽上游四个稳定Idle节点判为静态失败；两侧槽均有约0.32rad活动。fresh主ABP取证：Grounded Linked Graph→Transition槽→Locomotion Linked Graph。将运动证据起点设在实际注入该蒙太奇的槽、再核直接下游和原前／最终姿态；上游Idle仍由实际状态和完整源回调验收。
   - U07 19:14 Standing Dynamic正式前：再跑两侧实例与视觉，由源Transition槽开始检查活动姿态，接着核下游Locomotion、最终姿态和回锁。用独立刚落地加载用例核实先前缺失的AllowTransitions；截图0。
   - U07 19:18 Standing Dynamic正式后：左右两侧均通过公共功能、源槽到下游姿态活动、脚解锁和回锁、Idle终态及分支区别。加载真实原图回归同时通过，18:57开始、19:17预估、晚1分钟。旧位移与旧上游活动门槛的两个失败分别保留。证据 `docs/audit/bf144/u07/standing-dynamic-recheck/`。
+  - U07 19:17 Mantle移动支撑观察，预估19:38。fresh ALS Mantle的RMS取当前TargetPrimitive世界变换，普通非模拟基座更新在移动前。四个目标见证都在最后Custom帧落后刚由Avian物理推进的平台一轮；角色位置与实际保存的基座位置精确相同。切Walking后在首帧恢复相同相对位置，基座持续绑定。夹具从最后Custom实际消费的基座时点采偏移，仍要求之后20帧相对位置、模式、实体完全稳定。普通模式测试也改为在真实None/Ragdolling状态发起退出请求，旧强写Grounded与原版Ragdoll模式冲突。
+  - U07 19:30 Mantle夹具通过。19:17开始、19:38预估、提前8分钟，四种根／子碰撞体与两个时钟，20帧相对偏移持续保持；已有正式移动台通过证据见D317。旧取样时点的四个反例及恢复见 `docs/audit/bf144/u07/mantle-support-handoff/`。
   - U07 17:30落地优先级夹具，预估17:49：fresh CS_Als_Default 与 AAlsCharacter 证实10m/s优先触发Ragdoll，Roll域为7至10m/s以下。旧GetUp输入锁用例以10m/s做解锁后Roll控制，持续失败。改用源域8m/s并发实际落地事件，保留受阻与放行两端。
   - U07 17:37落地优先级夹具通过，17:30开始、17:49预估，提前12分钟。8m/s落地事件在锁定时拒绝、解锁控制接受；同一轮另外四项动作定向均通过。正式GetUp功能证据见既有scaled-get-up目录。
   - U07 10:26第16轮：D320后2090过／56失败，新增Pivot加载夹具一项。该夹具在真实快照系统后覆写旧runtime角和速度，却留下新的源速度角；同一帧输入互相冲突。按三个通知夹具的显式覆写更新，并复验旧启停、速度阈值及实际First Pivot。已确认首Root偏航两个独立原因，曲线阶段登记D321；FeetCrossing仍从图上游比较。

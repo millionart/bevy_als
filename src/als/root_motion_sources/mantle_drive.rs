@@ -2592,7 +2592,10 @@ pub(crate) mod tests {
             }
             assert!(!app.world().get::<AlsMantleState>(actor).unwrap().active);
             app.update();
-            let offset = app.world().get::<Position>(actor).unwrap().0 - app.world().get::<Position>(body).unwrap().0;
+            assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Custom));
+            let bound_base = app.world().get::<crate::als::dynamics::AlsMovementBase>(actor).unwrap();
+            assert_eq!(bound_base.entity, Some(target));
+            let offset = app.world().get::<Position>(actor).unwrap().0 - bound_base.location;
             app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
             for frame in 0..20 {
                 app.update();
