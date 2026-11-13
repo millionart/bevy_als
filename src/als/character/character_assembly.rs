@@ -12,7 +12,7 @@ use crate::als::input::{AlsInputMap, spawn_als_actions};
 use crate::als::motion::{AlsViewYaw, initial_als_control_scheme_config};
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::params::AlsMovementParams;
-use crate::als::view::AlsViewPitch;
+use crate::als::view::{AlsSourceViewYaw, AlsViewPitch};
 use crate::extensions::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverride};
 
 use crate::animation_events::{
@@ -269,6 +269,7 @@ fn spawn_als_character_internal(
         ))
         .insert((
             AlsViewYaw(yaw),
+            AlsSourceViewYaw::from_spawn(blueprint.transform.rotation, yaw),
             AlsViewPitch(fwd.y.atan2(Vec2::new(fwd.x, fwd.z).length())),
             crate::actual_motion::AlsActualMotion {
                 input_yaw_degrees: yaw.to_degrees(),

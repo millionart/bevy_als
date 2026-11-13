@@ -177,7 +177,7 @@ mod tests {
             assert_eq!(motion.source_velocity_yaw_degrees,
                 Some(native["world_degrees"].as_f64().unwrap() as f32), "{}", row["name"]);
             let native_angle = native["view_space_degrees"].as_f64().unwrap() as f32;
-            let actual = crate::direction_layer::motion_view_space_direction_angle(motion, view);
+            let actual = crate::direction_layer::motion_view_space_direction_angle(motion, view, None);
             if row["name"].as_str().unwrap().starts_with("actual-target") {
                 assert_eq!(actual, native_angle, "{}", row["name"]);
             } else {

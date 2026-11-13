@@ -119,10 +119,6 @@ fn source_crouching_movement_inputs(
     ]
 }
 
-fn source_velocity_yaw_angle_view_space(motion: &AlsActualMotion, view_yaw: f32) -> f32 {
-    motion_view_space_direction_angle(motion, view_yaw)
-}
-
 fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool); 2] {
     [
         (
@@ -217,7 +213,7 @@ fn ab_als_input_writer(
             &Stance,
             &RotationMode,
             &AlsActualMotion,
-            &AlsViewYaw,
+            (&AlsViewYaw, Option<&crate::als::view::AlsSourceViewYaw>),
             Option<&AlsMovementBase>,
             Option<&AlsGroundedEntryMode>,
             Option<&AlsFirstPersonView>,
@@ -241,7 +237,7 @@ fn ab_als_input_writer(
         stance,
         rotation_mode,
         motion,
-        view_yaw,
+        (view_yaw, source_view_yaw),
         movement_base,
         grounded_entry_mode,
         first_person,
@@ -271,7 +267,7 @@ fn ab_als_input_writer(
             player.set_global_input_data("component.attach_parent_epoch", attachment_epoch);
             player.set_global_input_data("component.attached_to_actor", attach_parent.is_some());
             let velocity_yaw_angle_view_space =
-                source_velocity_yaw_angle_view_space(motion, view_yaw.0);
+                motion_view_space_direction_angle(motion, view_yaw.0, source_view_yaw);
             let (forward, backward, left, right) =
                 source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
@@ -1080,7 +1076,7 @@ mod tests {
             app.update();
             let motion = app.world().get::<AlsActualMotion>(entity).unwrap();
             assert_eq!(motion.world_velocity, velocity);
-            let actual = source_velocity_yaw_angle_view_space(motion, view_yaw);
+            let actual = motion_view_space_direction_angle(motion, view_yaw, None);
             assert!(
                 (actual - expected).abs() < 1e-5,
                 "velocity={velocity:?} view={view_yaw} angle={actual} expected={expected}"
@@ -1176,7 +1172,7 @@ mod tests {
             (-5.0, -view, -115.0, (false, false, true, false)),
         ] {
             let motion = AlsActualMotion { velocity_yaw_degrees: velocity, ..default() };
-            let angle = source_velocity_yaw_angle_view_space(&motion, view);
+            let angle = motion_view_space_direction_angle(&motion, view, None);
             assert_eq!(angle, expected_angle);
             assert_eq!(source_direction_inputs(RotationMode::ViewDirection, Gait::Running, angle), direction);
         }

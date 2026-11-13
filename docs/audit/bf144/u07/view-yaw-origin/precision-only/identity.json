@@ -1,0 +1,26 @@
+{
+  "root-history.json.gz": {
+    "bytes": 5727614,
+    "sha256": "4760d5a96c278e70a7706f3b2b963fbaa85c7dab6cfa84ab83696465eaa47e96"
+  },
+  "report.json.gz": {
+    "bytes": 3094415,
+    "sha256": "71bb53cf554e995292a63df97c66b3b8ac7efb6b70303edddc5ebce83f819fa5"
+  },
+  "comparison.json": {
+    "bytes": 4168,
+    "sha256": "3f0f5d26990ae3bfd41c14f06dce36b0e16dce3534685ff49c72fab8e910abdc"
+  },
+  "process.report.json": {
+    "bytes": 408,
+    "sha256": "0565b38556142c1b1d3ef4260a6b64be062ffd2e3bb66b46e90de4665d1d74e2"
+  },
+  "validation.json": {
+    "bytes": 253,
+    "sha256": "c28ff04daafe5db76a3784d81333a1db0a3c478d95d29ea9ef00b544bb9c6e62"
+  },
+  "process.stderr.log.gz": {
+    "bytes": 4540,
+    "sha256": "a2b2a0adb86d293d49bea787d4e19afa6160adde8f204f4a5f4274e9cb152585"
+  }
+}

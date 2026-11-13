@@ -23,6 +23,30 @@ pub struct AlsViewSmoothed(pub f32);
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsPlayerViewYaw(pub f32);
 
+#[derive(Component)]
+pub struct AlsSourceViewYaw {
+    degrees: f64,
+    runtime: f32,
+}
+
+impl AlsSourceViewYaw {
+    pub(crate) fn from_rotation(rotation: Quat) -> f64 {
+        let forward = rotation.as_dquat() * bevy::math::DVec3::NEG_Z;
+        forward.z.atan2(forward.x).to_degrees()
+    }
+
+    pub(crate) fn from_spawn(rotation: Quat, runtime: f32) -> Self {
+        Self { degrees: Self::from_rotation(rotation), runtime }
+    }
+
+    pub(crate) fn degrees(runtime: f32, source: Option<&Self>) -> f64 {
+        source.filter(|source| source.runtime.to_bits() == runtime.to_bits()).map_or_else(
+            || (-f64::from(runtime) - std::f64::consts::FRAC_PI_2).to_degrees(),
+            |source| source.degrees,
+        )
+    }
+}
+
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct AlsPlayerViewReadiness {
     pub source: Entity,
@@ -47,6 +71,7 @@ pub fn apply_view_input_system(
     mut characters: Query<
         (
             &mut AlsViewYaw,
+            Option<&mut AlsSourceViewYaw>,
             &mut AlsViewPitch,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
@@ -61,12 +86,22 @@ pub fn apply_view_input_system(
     } else {
         virtual_time.delta_secs() / dilation
     };
-    for (mut yaw, mut pitch, command, override_command) in &mut characters {
+    for (mut yaw, source_yaw, mut pitch, command, override_command) in &mut characters {
         let effective = override_command
             .map(|override_command| &override_command.0)
             .unwrap_or(command);
         let delta = look_delta_radians(effective, delta_seconds);
+        let previous_yaw = yaw.0;
         yaw.0 -= delta.x;
+        if let Some(mut source) = source_yaw {
+            let mouse = effective.look_delta.x * LOOK_RIGHT_MOUSE_SENSITIVITY;
+            let rate = effective.look_rate.x * LOOK_RIGHT_RATE_DEGREES_PER_SECOND * delta_seconds;
+            let degrees = AlsSourceViewYaw::degrees(previous_yaw, Some(&source));
+            let next = (degrees + (f64::from(mouse) + f64::from(rate))) % 360.0;
+            source.degrees = if next > 180.0 { next - 360.0 }
+                else if next < -180.0 { next + 360.0 } else { next };
+            source.runtime = yaw.0;
+        }
         pitch.0 = clamp_pitch(pitch.0 - delta.y);
     }
 }
@@ -105,6 +140,41 @@ pub fn view_pitch_norm(pitch_radians: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_view_keeps_distinct_headings_with_the_same_runtime_yaw() {
+        use bevy::ecs::system::RunSystemOnce;
+        let runtime_yaw = -std::f32::consts::FRAC_PI_2;
+        let mut app = App::new();
+        app.init_resource::<Time<Real>>().init_resource::<Time<Virtual>>();
+        let actor = app.world_mut().spawn((AlsCharacter, AlsViewYaw(runtime_yaw), AlsViewPitch::default(),
+            AlsSourceViewYaw::from_spawn(Quat::from_rotation_y(runtime_yaw), runtime_yaw),
+            AlsInputCommand::default())).id();
+        let motion = crate::actual_motion::AlsActualMotion {
+            source_velocity_yaw_degrees: Some(2.5044780613825424e-6),
+            ..default()
+        };
+        let angle = |app: &App| {
+            let runtime = app.world().get::<AlsViewYaw>(actor).unwrap().0;
+            crate::direction_layer::motion_view_space_direction_angle(&motion, runtime, app.world().get(actor))
+        };
+        let movement = |app: &App| {
+            let runtime = app.world().get::<AlsViewYaw>(actor).unwrap().0;
+            crate::als::motion::source_view_move_input(Vec2::Y * 0.8, AlsSourceViewYaw::degrees(runtime, app.world().get(actor)))
+        };
+        assert_eq!(angle(&app), 2.5044780613825424e-6);
+        assert_eq!(movement(&app), Vec3::X * 0.8);
+        let input = 2.5044781608585254e-6_f32;
+        app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().look_delta.x = input;
+        app.world_mut().run_system_once(apply_view_input_system).unwrap();
+        assert_eq!(app.world().get::<AlsViewYaw>(actor).unwrap().0, runtime_yaw);
+        assert_eq!(angle(&app), 0.0);
+        assert!(movement(&app).z > 0.0);
+        app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().look_delta.x = 0.0;
+        app.world_mut().get_mut::<AlsViewYaw>(actor).unwrap().0 = 0.2;
+        app.world_mut().run_system_once(apply_view_input_system).unwrap();
+        assert_eq!(angle(&app), crate::direction_layer::motion_view_space_direction_angle(&motion, 0.2, None));
+    }
 
     #[test]
     fn pitch_clamps_to_limit() {

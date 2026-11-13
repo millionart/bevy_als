@@ -5,7 +5,7 @@ use crate::als::dynamics::{
 use crate::als::input::AlsInputCommand;
 use crate::actual_motion::AlsActualMotion;
 use crate::als::motion::{
-    AlsActualVelocity, AlsInputOverride, AlsRotationResponseState, AlsViewYaw, view_relative_move_direction,
+    AlsActualVelocity, AlsInputOverride, AlsRotationResponseState, AlsViewYaw,
 };
 use crate::als::orientation::world_forward_to_yaw;
 use crate::als::params::AlsMovementParams;
@@ -767,7 +767,7 @@ pub fn stop_link_system(
             &Stance,
             &RotationMode,
             &Transform,
-            (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>),
+            (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>, Option<&crate::als::view::AlsSourceViewYaw>),
             &crate::als::character::AlsMovementParamsHandle,
             Option<&AlsGroundedDynamics>,
             Option<&AlsLandingBrakingFriction>,
@@ -788,7 +788,7 @@ pub fn stop_link_system(
         stance,
         rotation_mode,
         transform,
-        (view_yaw, player_view),
+        (view_yaw, player_view, source_view_yaw),
         handle,
         dynamics,
         landing_braking,
@@ -806,7 +806,10 @@ pub fn stop_link_system(
     let hspeed = vel.horizontal_speed;
     let input_move = effective.move_dir.length();
     if input_move > STOP_RELEASE_INPUT_EPSILON {
-        let direction = view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0));
+        let source_yaw = player_view.map_or_else(
+            || crate::als::view::AlsSourceViewYaw::degrees(view_yaw.0, source_view_yaw),
+            |view| crate::als::view::AlsSourceViewYaw::degrees(view.0, None));
+        let direction = crate::als::motion::source_view_move_input(effective.move_dir, source_yaw).normalize_or_zero();
         if direction.length_squared() > 1e-6 {
             m.last_input_yaw = Some(world_forward_to_yaw(direction));
         }
@@ -1656,7 +1659,7 @@ mod tests {
                         ..default()
                     },
                     AlsActualMotion { has_input: input != Vec2::ZERO,
-                        input_yaw_degrees: world_forward_to_yaw(view_relative_move_direction(input, 0.0)).to_degrees(),
+                        input_yaw_degrees: world_forward_to_yaw(crate::als::motion::view_relative_move_direction(input, 0.0)).to_degrees(),
                         ..default() },
                     crate::als::motion::AlsRotationResponseState {
                         initialized: true,

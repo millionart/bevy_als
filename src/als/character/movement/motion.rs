@@ -230,11 +230,15 @@ pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
 }
 
 pub fn view_relative_move_input(move_dir: Vec2, view_yaw: f32) -> Vec3 {
+    let source_yaw = crate::als::view::AlsSourceViewYaw::degrees(view_yaw, None);
+    source_view_move_input(move_dir, source_yaw)
+}
+
+pub(crate) fn source_view_move_input(move_dir: Vec2, source_yaw: f64) -> Vec3 {
     let mut move_dir = move_dir.as_dvec2();
     let input_length_squared = move_dir.length_squared();
     if input_length_squared > 1.0 { move_dir *= input_length_squared.sqrt().recip(); }
-    let source_degrees = (-(view_yaw as f64) - std::f64::consts::FRAC_PI_2).to_degrees() as f32;
-    let (sin, cos) = crate::extensions::control_rig_math::rig_sin_cos(source_degrees.to_radians());
+    let (sin, cos) = crate::extensions::control_rig_math::rig_sin_cos((source_yaw as f32).to_radians());
     let (sin, cos) = (f64::from(sin), f64::from(cos));
     let mut world = bevy::math::DVec3::new(cos * move_dir.y - sin * move_dir.x, 0.0,
         sin * move_dir.y + cos * move_dir.x);
@@ -4134,7 +4138,8 @@ fn mantle_target_base(
 type DriveQueryItem<'a> = (
     Entity,
     &'a mut TnuaController<AlsControlScheme>,
-    (&'a AlsViewYaw, Option<&'a crate::als::view::AlsPlayerViewYaw>, Option<&'a crate::als::view::AlsPlayerViewReadiness>),
+    (&'a AlsViewYaw, Option<&'a crate::als::view::AlsPlayerViewYaw>, Option<&'a crate::als::view::AlsPlayerViewReadiness>,
+        Option<&'a crate::als::view::AlsSourceViewYaw>),
     &'a GlobalTransform,
     &'a LocomotionState,
     Option<&'a crate::actual_motion::AlsActualMotion>,
@@ -4171,7 +4176,7 @@ pub(crate) fn locomotion_drive_system(
     for (
         entity,
         mut controller,
-        (view_yaw, player_view, readiness),
+        (view_yaw, player_view, readiness, source_view_yaw),
         gtf,
         loco,
         motion,
@@ -4203,10 +4208,10 @@ pub(crate) fn locomotion_drive_system(
 
         let movement_yaw = player_view.map_or_else(|| {
             if readiness.is_some_and(|readiness| !readiness.has_published) {
-                world_forward_to_yaw(gtf.forward().as_vec3())
-            } else { view_yaw.0 }
-        }, |view| view.0);
-        let world_input = view_relative_move_input(effective.move_dir, movement_yaw);
+                crate::als::view::AlsSourceViewYaw::from_rotation(gtf.rotation())
+            } else { crate::als::view::AlsSourceViewYaw::degrees(view_yaw.0, source_view_yaw) }
+        }, |view| crate::als::view::AlsSourceViewYaw::degrees(view.0, None));
+        let world_input = source_view_move_input(effective.move_dir, movement_yaw);
 
         let desired_forward = if roll.is_some_and(|state| state.active) {
             None
