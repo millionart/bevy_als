@@ -1,0 +1,140 @@
+{
+  "samples": [
+    {
+      "name": "roof-initial",
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          185.99999
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          5
+        ],
+        "start_cm": [
+          0,
+          0,
+          92.151
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "length_cm": 5e-05,
+        "radius_cm": 30,
+        "half_height_cm": 90.001
+      },
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "roof-retry",
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          185.99999
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          5
+        ],
+        "start_cm": [
+          0,
+          0,
+          90.002
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "length_cm": 5e-05,
+        "radius_cm": 30,
+        "half_height_cm": 90.001
+      },
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "floor-retry",
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -10
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          10
+        ],
+        "start_cm": [
+          0,
+          0,
+          90.002
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 5e-05,
+        "radius_cm": 30,
+        "half_height_cm": 90.001
+      },
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "floor-penetrates",
+      "capsule_sweep": {
+        "box_translation_cm": [
+          0,
+          0,
+          -10
+        ],
+        "box_half_extents_cm": [
+          200,
+          200,
+          10
+        ],
+        "start_cm": [
+          0,
+          0,
+          89.995
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "length_cm": 5e-05,
+        "radius_cm": 30,
+        "half_height_cm": 90.001
+      },
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    }
+  ]
+}

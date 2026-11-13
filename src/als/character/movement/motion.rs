@@ -4522,9 +4522,18 @@ fn apply_capsule_for_stance(
                 + (standing_half - current_half) * effective_scale + STAND_UP_SWEEP_INFLATION,
                 radius * scale.x.min(scale.z));
             target_center.y += STAND_UP_SWEEP_INFLATION;
-            let mut blocked = spatial_query
-                .shape_intersections(&standing_capsule, target_center, Quat::IDENTITY, &filter)
-                .into_iter().any(|candidate| character_blocks_collider(entity, candidate, candidates));
+            let overlaps = |center| spatial_query
+                .shape_intersections(&standing_capsule, center, Quat::IDENTITY, &filter)
+                .into_iter().any(|candidate| {
+                    character_blocks_collider(entity, candidate, candidates)
+                        && spatial_query.collider_geometry(candidate).is_none_or(|(position, rotation, obstacle)| {
+                            obstacle.shape_scaled().as_cuboid().is_none()
+                                || avian3d::collision::collider::contact_query::contact(&standing_capsule, center,
+                                    Quat::IDENTITY, obstacle, position.0, rotation.0, 0.0)
+                                .map_or(true, |contact| contact.is_some_and(|contact| contact.penetration > 0.0))
+                        })
+                });
+            let mut blocked = overlaps(target_center);
             if blocked && locomotion == LocomotionState::Grounded {
                 let (half, radius) = capsule_dimensions(params, *stance);
                 if let Some((floor_center, _, _)) = find_ground_floor(spatial_query, center,
@@ -4532,9 +4541,7 @@ fn apply_capsule_for_stance(
                     let floor_distance = center.y - floor_center;
                     if floor_distance > STAND_UP_MIN_FLOOR_DISTANCE {
                         target_center.y -= floor_distance - STAND_UP_MIN_FLOOR_DISTANCE;
-                        blocked = spatial_query
-                            .shape_intersections(&standing_capsule, target_center, Quat::IDENTITY, &filter)
-                            .into_iter().any(|candidate| character_blocks_collider(entity, candidate, candidates));
+                        blocked = overlaps(target_center);
                     }
                 }
             }
