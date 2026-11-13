@@ -1,0 +1,39 @@
+{
+  "root-landing.request.json": {
+    "bytes": 4950,
+    "sha256": "149cc642706cb49cd23a84a0f373c63d955688a9e96ecdeeca361c0f070edc17"
+  },
+  "root-landing.native.json.gz": {
+    "bytes": 9925781,
+    "sha256": "fe7aadcb11de79149d4d9293f91c35d4d3df6dcb41d41bea98851684fc6813ca"
+  },
+  "root-landing.native.json.reader.report.json": {
+    "bytes": 430,
+    "sha256": "9447fa51c9a465967e4dcec8cff8c8b3d5bceebc4338445b8048759dcd486727"
+  },
+  "before.txt": {
+    "bytes": 959,
+    "sha256": "9a447bc3b306b3baaff047db01581f3fcac2b381bd9bace52d3c0c5b2f4dc6fc"
+  },
+  "ablation.stdout.log.gz": {
+    "bytes": 593,
+    "sha256": "9963bd5d678ad6d8d562caf2bf60beca1d3dadb9f98c1c7a72e9d9fbfb83d771"
+  },
+  "ablation.stderr.log.gz": {
+    "bytes": 8418,
+    "sha256": "4ff53de0557343276fc39d694584398cfbd2b003694979db82703241870827c0"
+  },
+  "ablation.watchdog.json": {
+    "bytes": 289,
+    "sha256": "357ce0d276a948adc5688bff3793ea81fe57035be07de53250a8d39bac1617d1"
+  },
+  "restored_source_sha256": "ba7959c31f59d0b822f37a1cadd7dd03ce896fe5c4ac32edf0845f33ca96509d",
+  "restored.stdout.log.gz": {
+    "bytes": 1271,
+    "sha256": "100894f179b2cda240d220e87cf4fdbb63d9759ae1a04d0e48b83ff01019b5be"
+  },
+  "restored.watchdog.json": {
+    "bytes": 288,
+    "sha256": "5dc21750ebd1ba13b90017543042de05494282c30e2dfc287b7bb08dc65aad94"
+  }
+}

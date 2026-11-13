@@ -275,7 +275,7 @@ impl Plugin for AlsCharacterPlugin {
                 .after(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::UpdateColliderMassProperties)
                 .before(avian3d::dynamics::rigid_body::mass_properties::MassPropertySystems::QueueRecomputation))
             .add_systems(Update, character_sensor_shape_sync_system)
-            .add_systems(PhysicsSchedule, character_contact_friction_system
+            .add_systems(PhysicsSchedule, character_contacts_system
                 .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
             .add_systems(PhysicsSchedule, sync_child_collider_poses
                 .in_set(PhysicsStepSystems::Finalize));
@@ -324,15 +324,19 @@ fn sync_child_collider_poses(
     }
 }
 
-pub(crate) fn character_contact_friction_system(
-    characters: Query<(), With<AlsCharacter>>,
+pub(crate) fn character_contacts_system(
+    characters: Query<(Option<&LocomotionState>, &AlsCmcAdapterRuntime, Has<avian3d::prelude::CustomPositionIntegration>), With<AlsCharacter>>,
     mut contacts: ResMut<ContactGraph>,
 ) {
     for pair in contacts.iter_active_mut() {
-        if characters.contains(pair.body1.unwrap_or(pair.collider1))
-            || characters.contains(pair.body2.unwrap_or(pair.collider2)) {
+        let first = characters.get(pair.body1.unwrap_or(pair.collider1)).ok();
+        let second = characters.get(pair.body2.unwrap_or(pair.collider2)).ok();
+        if first.is_some() || second.is_some() {
+            let swept = [first, second].into_iter().flatten().any(|(mode, runtime, custom)|
+                custom && mode == Some(&LocomotionState::Air) && runtime.has_animation_root_velocity);
             for manifold in &mut pair.manifolds {
                 manifold.friction = 0.0;
+                if swept { manifold.points.retain(|point| point.penetration >= 0.0); }
             }
         }
     }

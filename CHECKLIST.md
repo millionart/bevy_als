@@ -6173,6 +6173,12 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - 漏检：旧最小tick回归压低world时间或只覆盖Custom，没有用正常world时间×微小owner倍率穿过Roll的两种不同门槛。影响量级极小但条件与源不同，记P3，未改阈值或引入补偿。
 
 - [x] BF144-D52 / P2 — Roll落地没有进入源Walking交接，漏掉当帧floor高度调整；静态实现完成，统一验证待执行。
+  - 2026-11-13 19:25复开，19:48预估。50ms/5mm实跑首落地已Grounded但只有1.249969mm。fresh OnMovementModeChanged在Walking入口调到1.9–2.4cm再执行余时。先在实际Roll drive→Clamp→子步→模式sync采原root标记及真实落地接触，复盘已有Gate只看mode/落地速，保留50ms/20mm无接触及100ms两档对照。
+  - 19:48源码与实际求解：Roll根输入正常、已启用完整帧。Avian在自定义位置扫掠前先施加预测接触，末速度从应有−0.4905m/s提前变为−0.1500m/s，50ms扫掠只下落3.75mm，故漏过5mm地面，后sync却依据solver接触发布Grounded。原生同根位移的5mm扫掠确实命中，20mm不命中。沿Roll产生空中根速度时复用普通CMC已用的零预测距离，实际重叠接触仍由现有物理响应处理。
+  - 19:54消融方向：只将SpeculativeCcd置零后1.249969mm失败逐值不变，已撤回。Avian窄相仍用全局contact tolerance作最小预测距离。沿现有角色接触阶段，仅空中根速度由项目扫掠接管时剔除负penetration的未来点，保留实际接触点、站姿角色和布娃娃的求解。
+  - 20:00正式前：第34轮实际加载的Roll落地测试通过，包括50/100ms、5/20/100mm、1/6求解子步及普通落地控制。正式走原场景Locomotion并核通知边界；随后保留定向旧预测接触消融，截图0。
+  - 20:04正式后：真实起跳、Fall、预测、轻落地、混合落地、移动落地和图阶段均通过，待按字节消融恢复。
+  - 20:13完成，19:25开始、19:48预估，晚25分钟。去掉未来接触过滤，50ms／5mm再次稳定落在1.249969mm；按字节恢复并重编后12组落地/无碰撞对照及11项同轮定向通过。正式Locomotion和原生同根扫掠、失败及恢复身份见 `docs/audit/bf144/d52/bevy-0.20/`。
   - 活动：开始2026-11-08 17:27 +08:00；预估结束18:22 +08:00；实际结束17:39 +08:00，提前43分钟；未拆分，测试/消融/Gate暂缓。
   - 闭环：fresh UE落地→Walking/floor调整/根运动和原生四组读数保存在`docs/audit/bf144/d52/`；目标子步接通落地校验、高度调整和余步Walking，已写加载角色与子步对照。fresh源50ms/20mm未接触、仍为Falling，与旧反例中该组合的落地预期不同；旧target报告缺失，动态基座与动作中断组合未复测，动画Gate待执行。
   - Source：fresh UE `ProcessLanded:6373–6409`先SetPostLandedPhysics再StartNewPhysics(remainingTime)；`6412–6441`切Walking后，`OnMovementModeChanged:1441–1452`立即FindFloor、AdjustFloorHeight及SetBaseFromFloor。该交接在animation root motion期间同样执行，源允许离地带为1.9–2.4cm。
