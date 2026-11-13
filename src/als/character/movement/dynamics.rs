@@ -1675,30 +1675,29 @@ mod tests {
 
     #[test]
     fn actual_landing_callback_retains_source_input_and_publishes_friction() {
-        let release_frame = 6;
-        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
-        let mut transform = *app.world().get::<Transform>(character).unwrap();
-        transform.translation.y += 0.5;
-        app.world_mut().entity_mut(character).insert((Position(transform.translation), transform,
-            GlobalTransform::from(transform), LinearVelocity(Vec3::X * 0.2)));
-        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
-        let mut airborne = false;
-        let mut captured = None;
-        for frame in 0..80 {
-            let saved_input = app.world().get::<AlsActualMotion>(character).unwrap().has_input;
-            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir =
-                if frame < release_frame { Vec2::Y } else { Vec2::ZERO };
-            app.update();
-            let mode = *app.world().get::<LocomotionState>(character).unwrap();
-            airborne |= mode == LocomotionState::Air;
-            if airborne && mode == LocomotionState::Grounded {
-                if frame == release_frame && saved_input {
-                    captured = Some((frame, if saved_input { 0.5 } else { 3.0 }));
+        let run = |release_frame: Option<usize>| {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            let mut transform = *app.world().get::<Transform>(character).unwrap();
+            transform.translation.y = 1.15;
+            app.world_mut().entity_mut(character).insert((Position(transform.translation), transform,
+                GlobalTransform::from(transform), LinearVelocity(Vec3::X * 0.2), LocomotionState::Air));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+            for frame in 0..20 {
+                let saved_input = app.world().get::<AlsActualMotion>(character).unwrap().has_input;
+                app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir =
+                    if release_frame.is_some_and(|release| frame >= release) { Vec2::ZERO } else { Vec2::Y };
+                app.update();
+                if app.world().get::<LocomotionState>(character) == Some(&LocomotionState::Grounded) {
+                    assert!(saved_input, "The character must retain input from an earlier airborne step");
+                    return (app, character, frame);
                 }
-                break;
             }
-        }
-        let (frame, expected_factor) = captured.expect("Actual low landing must reach the held-to-released source callback");
+            panic!("The falling character never reached its ordinary landing callback");
+        };
+        let (_, _, release_frame) = run(None);
+        let (mut app, character, landing_frame) = run(Some(release_frame));
+        assert_eq!(landing_frame, release_frame);
+        let expected_factor = LANDING_BRAKING_FRICTION_WITH_INPUT;
         assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(character),
             Some(&crate::als::state::AlsNotifyLocomotionAction::None));
         assert!(!app.world().get::<AlsActualMotion>(character).unwrap().has_input);
