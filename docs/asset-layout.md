@@ -5,6 +5,7 @@
 | 资产根 | 对标与内容 |
 |---|---|
 | `assets/ALS/` | Character、Character/AnimationInstances、Animations、Data、OverlayObjects、Material；包括角色网格、骨架、PA_Als、CR_Als、动画蓝图和角色逻辑配置 |
+| `assets/ALSRuntime/` | ALS 动画的离线派生数据，包括修正末帧的 glTF 副本、运行时采样数据和 Bow PerTrack 数据 |
 | `assets/ALSCamera/` | SKM_Als_Camera、AB_Als_Camera、Data，以及相机组件/调试映射 |
 | `assets/ALSExtras/` | Levels、Environment、UI；包括 Playground、场景逻辑配置、环境模型/材质和 W_Als_Hud/OverlayModeMenu 的目标定义 |
 | `assets/Validation/` | 旧手工图、旧演示场景和作者性审计夹具；正式资源不引用它们 |
@@ -38,4 +39,4 @@ BF129.4 迁移基线为 1071 个跟踪文件，移除 4 个空目录占位。350
 
 全部 15 个已安装动画蓝图根及递归依赖必须从本地 uasset 重读并重生成；完整产物比对区分路径/包装标题变化与语义变化。移除 generated 命名不允许修改算法、源节点身份、时序、坐标或数值。既有生成器用目标图路径派生的辅助节点/条件上下文 ID 会随目录改变；这些 ID 必须双向唯一地重映射，所有边和布局一并核对，且不得改变原生源 GUID 或遗留旧 ID 引用。生成规则和资源导入器都写入新的正式目录，避免下次导入恢复旧布局。
 
-正式项目可选择 ALS、ALSCamera、ALSExtras 模块资源；移除某个模块时也应停用对应插件/入口及其调用。Validation 与导出/审计说明不属于正式运行依赖，不需要复制到正式项目。
+正式项目可选择 ALS、ALSCamera、ALSExtras 模块资源；使用 ALS 时同时保留 `ALSRuntime/`。移除某个模块时也应停用对应插件/入口及其调用。Validation 与导出/审计说明不属于正式运行依赖，不需要复制到正式项目。

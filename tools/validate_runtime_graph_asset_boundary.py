@@ -7,7 +7,7 @@ from pathlib import Path
 AUDIT_DIRECTORY_NAMES = {"source_conditions"}
 AUDIT_FILE_PREFIXES = ("ue_source_transition_",)
 RETIRED_OVERLAY_PATHS = ("graphs/ab_als/overlays/", "graphs/overlay_objects/bow.animgraph.ron", "graphs/ab_als/ab_als.animgraph.ron")
-FORMAL_ROOTS = {"ALS", "ALSCamera", "ALSExtras", "Engine", "Bevy"}
+FORMAL_ROOTS = {"ALS", "ALSCamera", "ALSExtras", "ALSRuntime", "Engine", "Bevy"}
 ASSET_ROOTS = FORMAL_ROOTS | {"Validation", "docs"}
 
 
@@ -18,7 +18,7 @@ def audit(assets_root: Path) -> list[str]:
     for path in assets_root.rglob("*"):
         relative = path.relative_to(assets_root).as_posix()
         owner = relative.split("/", 1)[0]
-        if path.is_file() and owner not in ASSET_ROOTS and relative != "README.md":
+        if path.is_file() and owner not in ASSET_ROOTS and relative != "README.md" and path.name != ".DS_Store":
             issues.append(f"asset has no source module: {relative}")
         if owner in FORMAL_ROOTS and "generated" in relative.lower():
             issues.append(f"formal asset has a generated path: {relative}")
@@ -74,17 +74,31 @@ def run_self_test() -> dict:
         fixture = root / "Validation/Graphs/old.animgraph.ron"
         fixture.parent.mkdir(parents=True)
         fixture.write_text("()\n", encoding="utf-8")
-        assert not audit(root)
+        runtime = root / "ALSRuntime/Animations/A_Test.gltf"
+        runtime.parent.mkdir(parents=True)
+        runtime.touch()
+        (root / ".DS_Store").touch()
+        (runtime.parent / ".DS_Store").touch()
+        issues = audit(root)
+        assert not issues, issues
+        unknown = root / "Unknown/.DS_Store.backup"
+        unknown.parent.mkdir()
+        unknown.touch()
+        assert audit(root) == ["asset has no source module: Unknown/.DS_Store.backup"]
+        unknown.unlink()
         formal.write_text('graph: "Validation/Graphs/old.animgraph.ron"', encoding="utf-8")
         assert any("validation content" in issue for issue in audit(root))
         formal.write_text("()\n", encoding="utf-8")
         (formal.parent / "generated_root.animgraph.ron").write_text("()\n", encoding="utf-8")
         assert any("generated path" in issue for issue in audit(root))
+        (runtime.parent / "generated_test.gltf").touch()
+        assert "formal asset has a generated path: ALSRuntime/Animations/generated_test.gltf" in audit(root)
     return {
         "audit_only_graphs_rejected_from_runtime_assets": "PASS",
         "runtime_reference_to_audit_graph_rejected": "PASS",
         "retired_manual_overlay_and_reference_rejected": "PASS",
         "source_module_assets_and_separate_validation_fixtures": "PASS",
+        "derived_als_assets_and_finder_metadata_classified": "PASS",
     }
 
 

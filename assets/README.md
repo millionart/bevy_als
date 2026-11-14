@@ -3,6 +3,7 @@
 资源与蓝图按源模块放在同一棵树中：
 
 - `ALS/`：角色、动画蓝图、Control Rig、物理资产、动画、曲线、OverlayObjects 与脚步材质。
+- `ALSRuntime/`：从 ALS 源动画离线生成的运行时片段和采样数据，供角色和 Bow 道具使用。
 - `ALSCamera/`：相机模型、动画蓝图、组件设置和曲线。
 - `ALSExtras/`：Core/Environment/Levels/UI 的场景与逻辑定义、模型、材质、贴图和界面。
 - `ALS/Material/Footprint/` 包含脚印贴图与 shader；环境使用的默认网格贴图位于 `ALSExtras/Environment/Materials/`。
