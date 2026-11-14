@@ -1,0 +1,409 @@
+{
+  "authoring": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:19:47.7809960Z",
+      "last_progress_at_utc": "2026-11-14T00:19:48.0654544Z",
+      "last_progress_source": "authoring.stdout",
+      "finished_at_utc": "2026-11-14T00:19:48.0946680Z",
+      "elapsed_seconds": 0.314,
+      "no_progress_seconds": 0.029,
+      "no_progress_limit_seconds": 90,
+      "timeout_seconds": 150,
+      "process_exit_code": 0
+    },
+    "result": {
+      "id": "source_camera_first_evaluation",
+      "pass": true,
+      "failures": [],
+      "graphs": 1,
+      "graph_nodes": 1,
+      "graph_edges": 1,
+      "fsms": 0,
+      "fsm_states": 0,
+      "fsm_transitions": 0,
+      "commands": [
+        {
+          "label": "runtime_asset_boundary_inventory",
+          "scope": "source",
+          "exit_code": 0
+        },
+        {
+          "label": "camera_positions",
+          "scope": "layout",
+          "exit_code": 0
+        },
+        {
+          "label": "camera_editor",
+          "scope": "editor",
+          "exit_code": 0
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/source.json",
+          "hash_kind": "bytes",
+          "matches": true
+        },
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/camera-component.json.gz",
+          "hash_kind": "bytes",
+          "matches": true
+        },
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/camera-graph.json.gz",
+          "hash_kind": "bytes",
+          "matches": true
+        }
+      ]
+    },
+    "full_camera_tree_before_manifest_simplification": {
+      "id": "source_camera_first_evaluation",
+      "pass": true,
+      "failures": [],
+      "graphs": 14,
+      "graph_nodes": 97,
+      "graph_edges": 130,
+      "fsms": 1,
+      "fsm_states": 3,
+      "fsm_transitions": 6,
+      "commands": [
+        {
+          "label": "runtime_asset_boundary",
+          "scope": "source",
+          "exit_code": 0
+        },
+        {
+          "label": "camera_positions",
+          "scope": "layout",
+          "exit_code": 0
+        },
+        {
+          "label": "camera_editor",
+          "scope": "editor",
+          "exit_code": 0
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/source.json",
+          "hash_kind": "bytes",
+          "matches": true
+        },
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/camera-component.json.gz",
+          "hash_kind": "bytes",
+          "matches": true
+        },
+        {
+          "path": "docs/audit/bf116/01c2a-camera-first-evaluation/camera-graph.json.gz",
+          "hash_kind": "bytes",
+          "matches": true
+        }
+      ]
+    }
+  },
+  "editor-repair": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:04:05.4622130Z",
+      "last_progress_at_utc": "2026-11-14T00:04:05.5184672Z",
+      "last_progress_source": "editor-repair.stdout",
+      "finished_at_utc": "2026-11-14T00:04:05.7488560Z",
+      "elapsed_seconds": 0.287,
+      "no_progress_seconds": 0.23,
+      "no_progress_limit_seconds": 90,
+      "timeout_seconds": 150,
+      "process_exit_code": 0
+    },
+    "result": {
+      "fix": true,
+      "checked_files": 14,
+      "repairs": {},
+      "failures": {},
+      "self_transitions": []
+    }
+  },
+  "boundary": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": false,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:04:09.6165320Z",
+      "last_progress_at_utc": "2026-11-14T00:04:09.7902780Z",
+      "last_progress_source": "boundary.stdout",
+      "finished_at_utc": "2026-11-14T00:04:09.9225330Z",
+      "elapsed_seconds": 0.306,
+      "no_progress_seconds": 0.132,
+      "no_progress_limit_seconds": 90,
+      "timeout_seconds": 150,
+      "process_exit_code": 1
+    },
+    "result": {
+      "issues": [
+        "asset has no source module: .DS_Store",
+        "asset has no source module: ALSRuntime/Animations/Air/Jump/A_Als_Jump_Run_Left.bin",
+        "asset has no source module: ALSRuntime/Animations/Air/Jump/A_Als_Jump_Run_Left.gltf",
+        "asset has no source module: ALSRuntime/Animations/Air/Jump/A_Als_Jump_Run_Right.bin",
+        "asset has no source module: ALSRuntime/Animations/Air/Jump/A_Als_Jump_Run_Right.gltf",
+        "asset has no source module: ALSRuntime/Animations/Air/Jump/A_Als_Jump_Walk_Left.bin",
+        "asset has no source module: ALSRuntime/Animations/Air/Jump/A_Als_Jump_Walk_Left.gltf",
+        "asset has no source module: ALSRuntime/Animations/Air/Jump/A_Als_Jump_Walk_Right.bin",
+        "asset has no source module: ALSRuntime/Animations/Air/Jump/A_Als_Jump_Walk_Right.gltf",
+        "asset has no source module: ALSRuntime/Animations/Base/A_Als_Stand_Pose.bin",
+        "asset has no source module: ALSRuntime/Animations/Base/A_Als_Stand_Pose.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Backward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Backward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Forward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.gltf",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.bin",
+        "asset has no source module: ALSRuntime/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.gltf",
+        "asset has no source module: ALSRuntime/Animations/als_prepared_acl.bin",
+        "asset has no source module: ALSRuntime/Animations/als_raw_additive_references.json",
+        "asset has no source module: ALSRuntime/Animations/als_raw_fk_controls.bin",
+        "asset has no source module: ALSRuntime/Animations/als_raw_rotation_timelines.json",
+        "asset has no source module: ALSRuntime/Animations/als_raw_sequencer_curves.json",
+        "asset has no source module: ALSRuntime/OverlayObjects/Bow/als_prepared_per_track.json"
+      ]
+    },
+    "matches_recorded_baseline": true
+  },
+  "self-test": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:04:09.6238580Z",
+      "last_progress_at_utc": "2026-11-14T00:04:10.0841488Z",
+      "last_progress_source": "self-test.stdout",
+      "finished_at_utc": "2026-11-14T00:04:10.1845910Z",
+      "elapsed_seconds": 0.561,
+      "no_progress_seconds": 0.1,
+      "no_progress_limit_seconds": 90,
+      "timeout_seconds": 150,
+      "process_exit_code": 0
+    },
+    "result": {
+      "runtime_report_and_png_checked": "PASS",
+      "stairs_source_speed_and_pose_windows_checked": "PASS",
+      "uphill_capsule_landing_and_animation_recovery_checked": "PASS",
+      "moving_base_source_path_ride_jump_mantle_and_handoff_checked": "PASS",
+      "rotating_base_clock_coordinates_steps_and_mantle_checked": "PASS",
+      "stairs_missing_routes_gaits_and_hotkey_recovery_rejected": "PASS",
+      "fault_rejected": "PASS",
+      "startup_graph_error_rejected": "PASS",
+      "structured_graph_failure_reported": "PASS",
+      "graph_failure_context_diagnostic_required": "PASS",
+      "missing_graph_failure_diagnostic_rejected": "PASS",
+      "automation_watchdog_record_required": "PASS",
+      "ambiguous_graph_candidate_preserved": "PASS",
+      "a_pose_failure_classification_rejected": "PASS",
+      "temporal_anomaly_schema_required": "PASS",
+      "instant_limb_deformation_rejected": "PASS",
+      "temporal_anomaly_stage_required": "PASS",
+      "temporal_anomaly_trigger_required": "PASS",
+      "foot_lock_teleport_evidence_required": "PASS",
+      "foot_ik_teleport_case_required": "PASS",
+      "runtime_phase_evidence_required": "PASS",
+      "physics_step_stage_required": "PASS",
+      "state_machine_direction_evidence_required": "PASS",
+      "sprint_source_curve_relay_required": "PASS",
+      "shared_pre_rig_motion_window_required": "PASS",
+      "missing_required_motion_window_rejected": "PASS",
+      "source_pose_chain_required": "PASS",
+      "first_static_source_boundary_reported": "PASS",
+      "wrong_parent_fsm_state_rejected": "PASS",
+      "wrong_requested_parent_fsm_state_rejected": "PASS",
+      "wrong_terminal_parent_fsm_state_rejected": "PASS",
+      "automatic_transition_tail_allowed": "PASS",
+      "static_dynamic_window_rejected": "PASS",
+      "source_motion_floor_required": "PASS",
+      "motion_window_span_required": "PASS",
+      "static_root_graph_pose_rejected": "PASS",
+      "reference_root_pose_rejected": "PASS",
+      "static_final_pose_rejected": "PASS",
+      "actor_yaw_motion_required": "PASS",
+      "actor_yaw_convergence_required": "PASS",
+      "positive_but_insufficient_actor_yaw_rejected": "PASS",
+      "actor_yaw_trace_required": "PASS",
+      "inactive_clip_yaw_curve_rejected": "PASS",
+      "active_curve_stack_entry_required": "PASS",
+      "wrong_animation_variant_rejected": "PASS",
+      "insufficient_signed_yaw_not_mislabeled_opposite": "PASS",
+      "opposite_actor_yaw_rejected": "PASS",
+      "turn_lifecycle_completion_required": "PASS",
+      "collapsed_direction_signatures_rejected": "PASS",
+      "montage_clip_signature_contract_checked": "PASS",
+      "montage_clip_trace_without_actor_yaw_checked": "PASS",
+      "wrong_direction_state_rejected": "PASS",
+      "single_airborne_frame_hitch_verified": "PASS",
+      "source_landing_selector_classification_checked": "PASS"
+    }
+  },
+  "closure": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:08:59.2783320Z",
+      "last_progress_at_utc": "2026-11-14T00:09:53.1524105Z",
+      "last_progress_source": "closure.stdout",
+      "finished_at_utc": "2026-11-14T00:09:53.3489910Z",
+      "elapsed_seconds": 54.071,
+      "no_progress_seconds": 0.197,
+      "no_progress_limit_seconds": 90,
+      "timeout_seconds": 150,
+      "process_exit_code": 0
+    },
+    "result": {
+      "pass": true,
+      "source_assets": 1,
+      "source_scope": "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera",
+      "compiled_assets": 14,
+      "source_subgraphs": 8,
+      "source_pose_links": 73,
+      "source_pose_nodes": 80,
+      "pose_graphs": 4,
+      "fsms": 1,
+      "condition_graphs": 3,
+      "failures": [],
+      "graphs": [
+        {
+          "source_asset": "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera",
+          "source_graph": "AnimGraph",
+          "target_graph": "ALSCamera/AB_Als_Camera/AnimGraph.animgraph.ron",
+          "nodes": 23
+        },
+        {
+          "source_asset": "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera",
+          "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Look States.AnimStateNode_2.Aiming",
+          "target_graph": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S2_Aiming.animgraph.ron",
+          "nodes": 19
+        },
+        {
+          "source_asset": "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera",
+          "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Look States.AnimStateNode_1.View Direction",
+          "target_graph": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S1_View_Direction.animgraph.ron",
+          "nodes": 19
+        },
+        {
+          "source_asset": "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera",
+          "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Look States.AnimStateNode_0.Velocity Direction",
+          "target_graph": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S0_Velocity_Direction.animgraph.ron",
+          "nodes": 19
+        }
+      ]
+    },
+    "spec": {
+      "file": "camera.spec.json.gz",
+      "sha256": "cdbb1ac3a7f338c537cb4ef92e905427f592b1e8288cdc7c62da064f1c63fed5",
+      "uncompressed_bytes": 195486,
+      "watchdog": {
+        "format": "ue_source_reader_watchdog_v1",
+        "success": true,
+        "exit_reason": "completed",
+        "started_at_utc": "2026-11-14T00:07:02.1160870Z",
+        "last_progress_at_utc": "2026-11-14T00:07:02.1181827Z",
+        "last_progress_source": "spec.stderr",
+        "finished_at_utc": "2026-11-14T00:07:06.9365900Z",
+        "elapsed_seconds": 4.821,
+        "no_progress_seconds": 4.818,
+        "no_progress_limit_seconds": 90,
+        "timeout_seconds": 150,
+        "process_exit_code": 0
+      }
+    }
+  },
+  "watchdog_self_test": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-13T23:55:05.6606510Z",
+      "last_progress_at_utc": "2026-11-13T23:55:08.6711564Z",
+      "last_progress_source": "self-test.stdout",
+      "finished_at_utc": "2026-11-13T23:55:08.7150740Z",
+      "elapsed_seconds": 3.054,
+      "no_progress_seconds": 0.044,
+      "no_progress_limit_seconds": 12,
+      "timeout_seconds": 240,
+      "process_exit_code": 0
+    },
+    "result": {
+      "stalled_process_terminated": "PASS",
+      "stalled_child_process_terminated": "PASS",
+      "completed_process_preserved": "PASS",
+      "machine_readable_report_written": "PASS",
+      "missing_stale_and_current_reader_build": "PASS",
+      "empty_quoted_and_spaced_arguments": "PASS"
+    }
+  },
+  "lint": {
+    "clippy": {
+      "scope": "library, pedantic warnings",
+      "watchdog": {
+        "format": "ue_source_reader_watchdog_v1",
+        "success": true,
+        "exit_reason": "completed",
+        "started_at_utc": "2026-11-14T00:16:13.5888150Z",
+        "last_progress_at_utc": "2026-11-14T00:17:19.2004107Z",
+        "last_progress_source": "clippy.stderr",
+        "finished_at_utc": "2026-11-14T00:17:19.3309030Z",
+        "elapsed_seconds": 65.742,
+        "no_progress_seconds": 0.13,
+        "no_progress_limit_seconds": 360,
+        "timeout_seconds": 1200,
+        "process_exit_code": 0
+      },
+      "warnings": 2839,
+      "camera_diagnostics": "Existing Bevy system parameter and signature warnings, and existing style diagnostics."
+    },
+    "format": {
+      "watchdog": {
+        "format": "ue_source_reader_watchdog_v1",
+        "success": false,
+        "exit_reason": "completed",
+        "started_at_utc": "2026-11-13T23:55:25.1829270Z",
+        "last_progress_at_utc": "2026-11-13T23:55:30.3868949Z",
+        "last_progress_source": "format.stdout",
+        "finished_at_utc": "2026-11-13T23:55:30.5253140Z",
+        "elapsed_seconds": 5.342,
+        "no_progress_seconds": 0.138,
+        "no_progress_limit_seconds": 30,
+        "timeout_seconds": 240,
+        "process_exit_code": 1
+      },
+      "baseline_diff_sections": 6386
+    }
+  }
+}

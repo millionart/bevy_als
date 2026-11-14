@@ -1,0 +1,147 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--profile",
+    "play",
+    "--jobs",
+    "2",
+    "--lib",
+    "--tests",
+    "--no-fail-fast",
+    "--",
+    "--test-threads=2"
+  ],
+  "target_directory": "target_game",
+  "profile": "play",
+  "unit_passed": 2156,
+  "integration_passed": 37,
+  "failed": 0,
+  "suites": {
+    "unittests src/lib.rs": {
+      "passed": 2156,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 185.66,
+      "binary": "target_game/play/deps/bevy_als-591b2b1069600f04",
+      "outcome": "ok",
+      "sha256": "a9b3f1ad453d8cef603cdfbd64ff777a6e86f2d21aba81a3a3cbbb411ad88c2e"
+    },
+    "unittests src/main.rs": {
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 0.0,
+      "binary": "target_game/play/deps/bevy_als-9ee3fd2868725af5",
+      "outcome": "ok"
+    },
+    "tools/tests/actor_movement_clock.rs": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 1.62,
+      "binary": "target_game/play/deps/actor_movement_clock-b59066ceea0e9017",
+      "outcome": "ok"
+    },
+    "tools/tests/als_curves_data.rs": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 0.01,
+      "binary": "target_game/play/deps/als_curves_data-352123dc15d19510",
+      "outcome": "ok"
+    },
+    "tools/tests/animgraph_assets.rs": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 0.04,
+      "binary": "target_game/play/deps/animgraph_assets-56417432a8c5048a",
+      "outcome": "ok"
+    },
+    "tools/tests/curve_import.rs": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 0.02,
+      "binary": "target_game/play/deps/curve_import-3de2c45174b278ed",
+      "outcome": "ok"
+    },
+    "tools/tests/notify_event_tracks.rs": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 0.0,
+      "binary": "target_game/play/deps/notify_event_tracks-f02accfd453c85f0",
+      "outcome": "ok"
+    },
+    "tools/tests/prev_mock_probe.rs": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 0.01,
+      "binary": "target_game/play/deps/prev_mock_probe-98d9bb18ddaa4348",
+      "outcome": "ok"
+    },
+    "tools/tests/ragdoll_assets.rs": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "elapsed_seconds": 0.01,
+      "binary": "target_game/play/deps/ragdoll_assets-78f841a9ac99d8a0",
+      "outcome": "ok"
+    }
+  },
+  "watchdog": {
+    "format": "ue_source_reader_watchdog_v1",
+    "success": true,
+    "exit_reason": "completed",
+    "started_at_utc": "2026-11-14T00:12:08.3244060Z",
+    "last_progress_at_utc": "2026-11-14T00:18:13.5376851Z",
+    "last_progress_source": "full-parallel.stdout",
+    "finished_at_utc": "2026-11-14T00:18:13.5828990Z",
+    "elapsed_seconds": 365.258,
+    "no_progress_seconds": 0.045,
+    "no_progress_limit_seconds": 360,
+    "timeout_seconds": 1800,
+    "process_exit_code": 0
+  },
+  "archives": {
+    "full-parallel.stdout.log.gz": {
+      "original_sha256": "8db4475daa5ba18b5f3fc2bc7dc99aa9d7eae6003511f299021edd8b1a5d877d",
+      "archived_sha256": "8db4475daa5ba18b5f3fc2bc7dc99aa9d7eae6003511f299021edd8b1a5d877d",
+      "compressed_sha256": "a6f7b83342c6d17e046a05c198212785aca9c1a362cf598e5b3f6f7090ef863e",
+      "bytes": 215726,
+      "redacted": false
+    },
+    "full-parallel.stderr.log.gz": {
+      "original_sha256": "b8c2b8c0e800eabe8cbf6213a04b5a41fbb504b3c46e31d30fff9682b29fa1ce",
+      "archived_sha256": "b8c36ca7de5d8cf4be4bbb0b9545a4a4ea2aa9b2d7178b62ff383ac3fd1af7ea",
+      "compressed_sha256": "d488de9ecea87cc5eb9fda1948229209e1c514bbb0fcf0ed7854b77c55d995ce",
+      "bytes": 439001,
+      "redacted": true
+    }
+  },
+  "quick_stop_passed": true,
+  "delayed_camera_definition_passed": true
+}

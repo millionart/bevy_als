@@ -11,6 +11,7 @@ use crate::als::{
     aim::AlsLastFreeRotationMode,
     state::{Gait, LocomotionState, RotationMode, Stance},
 };
+use crate::extensions::post_physics_animation::ManualAnimationPlayer;
 use bevy::{
     prelude::*,
     time::{Real, Virtual},
@@ -84,6 +85,7 @@ fn initialize_components(
     mut commands: Commands,
     definitions: Res<Assets<AlsCameraDefinition>>,
     characters: Query<&AlsCameraDefinitionHandle>,
+    unclaimed_players: Query<(), (With<AnimationGraphPlayer>, Without<ManualAnimationPlayer>)>,
     mut frames: Query<&mut AlsCameraAnimationFrame>,
     mut components: Query<(
         Entity,
@@ -101,7 +103,11 @@ fn initialize_components(
             }
             continue;
         };
-        if component.bound_player == Some(scene.player_entity()) {
+        let player = scene.player_entity();
+        if unclaimed_players.contains(player) {
+            commands.entity(player).insert(ManualAnimationPlayer);
+        }
+        if component.bound_player == Some(player) {
             continue;
         }
         let Ok(handle) = characters.get(owner.character) else {
@@ -120,9 +126,6 @@ fn initialize_components(
         } else {
             Visibility::Inherited
         };
-        commands
-            .entity(scene.player_entity())
-            .insert(crate::extensions::post_physics_animation::ManualAnimationPlayer);
         if component.bound_player.is_none() {
             if definition.auto_activate {
                 component.activate(false);
@@ -140,7 +143,7 @@ fn initialize_components(
                     ));
             }
         }
-        component.bound_player = Some(scene.player_entity());
+        component.bound_player = Some(player);
     }
 }
 
@@ -281,7 +284,7 @@ fn update_camera_animation(
 pub(crate) mod tests {
     use super::*;
     use bevy::world_serialization::WorldSerializationPlugin;
-    use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+    use bevy_animation_graph::core::animated_scene::{AnimatedScene, AnimatedSceneHandle};
 
     #[test]
     fn movement_view_uses_the_completed_render_transform_and_clears_invalid_views() {
@@ -388,7 +391,7 @@ pub(crate) mod tests {
         assert!(desired.abs_diff_eq(Vec3::X, 1e-6), "Cold player view selected the control target: {desired:?}");
     }
 
-    pub(crate) fn loaded_camera_scene() -> (App, Entity, Entity, Handle<bevy_animation_graph::core::animated_scene::AnimatedScene>) {
+    fn camera_scene() -> (App, Entity, Entity, Handle<AnimatedScene>) {
         let mut app = App::new();
         app.register_required_components::<crate::character_assembly::AlsCharacterAvatar, crate::animation_visibility::AlsAnimationTickOption>();
         app.add_plugins((
@@ -464,6 +467,11 @@ pub(crate) mod tests {
         ));
         app.finish();
         app.cleanup();
+        (app, character, component, scene)
+    }
+
+    pub(crate) fn loaded_camera_scene() -> (App, Entity, Entity, Handle<AnimatedScene>) {
+        let (mut app, character, component, scene) = camera_scene();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
         loop {
             app.update();
@@ -495,6 +503,94 @@ pub(crate) mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         (app, character, component, scene)
+    }
+
+    #[test]
+    fn camera_player_waits_for_its_definition_before_first_evaluation() {
+        use crate::extensions::SourceAnimationInputs;
+        use bevy_animation_graph::core::animation_graph_player::AnimationSource;
+
+        let (mut app, character, camera, _) = camera_scene();
+        let definition = app
+            .world()
+            .get::<AlsCameraDefinitionHandle>(character)
+            .unwrap()
+            .0
+            .clone();
+        let pending = app
+            .world()
+            .resource::<Assets<AlsCameraDefinition>>()
+            .reserve_handle();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsCameraDefinitionHandle(pending));
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
+        let player_entity = loop {
+            app.update();
+            let world = app.world();
+            if let Some(scene) = world.get::<AnimatedSceneInstance>(camera) {
+                let entity = scene.player_entity();
+                let player = world.get::<AnimationGraphPlayer>(entity).unwrap();
+                let AnimationSource::Graph(graph) = player.get_animation_source() else {
+                    panic!("Expected the source camera graph");
+                };
+                if world.resource::<AssetServer>().is_loaded_with_dependencies(graph)
+                    && world
+                        .resource::<Assets<AlsCameraDefinition>>()
+                        .get(&definition)
+                        .is_some()
+                {
+                    assert!(player.get_error().is_none(), "{:?}", player.get_error());
+                    assert!(world.get::<ManualAnimationPlayer>(entity).is_some());
+                    assert!(player.get_default_output_pose().is_none());
+                    assert!(
+                        player
+                            .get_global_input_data("animation.evaluate_pose")
+                            .is_none()
+                    );
+                    assert!(!world.get::<AlsCameraAnimationFrame>(camera).unwrap().active);
+                    break entity;
+                }
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Camera graph and definition load timed out"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        };
+        let ownership_tick = app
+            .world()
+            .entity(player_entity)
+            .get_ref::<ManualAnimationPlayer>()
+            .unwrap()
+            .last_changed();
+        app.update();
+        assert_eq!(
+            app.world()
+                .entity(player_entity)
+                .get_ref::<ManualAnimationPlayer>()
+                .unwrap()
+                .last_changed(),
+            ownership_tick,
+        );
+
+        app.world_mut()
+            .entity_mut(character)
+            .insert(AlsCameraDefinitionHandle(definition));
+        app.update();
+        let world = app.world();
+        let player = world.get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert!(player.get_error().is_none(), "{:?}", player.get_error());
+        assert!(player.get_default_output_pose().is_some());
+        assert!(world.get::<AlsCameraAnimationFrame>(camera).unwrap().active);
+        assert!(
+            world
+                .get::<SourceAnimationInputs>(player_entity)
+                .unwrap()
+                .gameplay_tag_input("locomotion_action")
+                .is_some()
+        );
     }
 
     #[test]

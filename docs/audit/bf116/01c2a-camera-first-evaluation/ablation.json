@@ -1,0 +1,73 @@
+{
+  "ablate-filter": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": false,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:03:53.1214710Z",
+      "last_progress_at_utc": "2026-11-14T00:07:44.6581535Z",
+      "last_progress_source": "ablate-filter.stderr",
+      "finished_at_utc": "2026-11-14T00:07:44.6821650Z",
+      "elapsed_seconds": 231.561,
+      "no_progress_seconds": 0.024,
+      "no_progress_limit_seconds": 360,
+      "timeout_seconds": 1800,
+      "process_exit_code": 101
+    },
+    "stdout": [
+      "",
+      "running 1 test",
+      "test camera_component::tests::camera_player_waits_for_its_definition_before_first_evaluation ... FAILED",
+      "",
+      "failures:",
+      "",
+      "failures:",
+      "    camera_component::tests::camera_player_waits_for_its_definition_before_first_evaluation",
+      "",
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2155 filtered out; finished in 0.12s",
+      ""
+    ],
+    "change": "Remove the query that excludes players already marked ManualAnimationPlayer and insert the marker unconditionally.",
+    "failure": [
+      "left: Tick { tick: 2186 }",
+      " right: Tick { tick: 1491 }"
+    ]
+  },
+  "restored": {
+    "watchdog": {
+      "format": "ue_source_reader_watchdog_v1",
+      "success": true,
+      "exit_reason": "completed",
+      "started_at_utc": "2026-11-14T00:07:54.4516260Z",
+      "last_progress_at_utc": "2026-11-14T00:12:02.5043617Z",
+      "last_progress_source": "restored.stdout",
+      "finished_at_utc": "2026-11-14T00:12:02.7516920Z",
+      "elapsed_seconds": 248.3,
+      "no_progress_seconds": 0.247,
+      "no_progress_limit_seconds": 360,
+      "timeout_seconds": 1800,
+      "process_exit_code": 0
+    },
+    "stdout": [
+      "",
+      "running 11 tests",
+      "test camera_component::tests::actual_camera_scene_loads_binds_and_evaluates_once_with_source_inputs ... ok",
+      "test camera_component::tests::actual_ragdoll_root_retains_camera_actor_ownership_after_detachment ... ok",
+      "test camera_component::tests::camera_view_cleanup_tracks_source_lifetime_and_owner ... ok",
+      "test camera_component::tests::camera_player_waits_for_its_definition_before_first_evaluation ... ok",
+      "test camera_component::tests::camera_view_history_resets_on_cuts_and_preserves_stable_frames ... ok",
+      "test camera_component::tests::inactive_source_camera_uses_character_eye_view_without_resetting_owner ... ok",
+      "test camera_component::tests::movement_view_uses_the_completed_render_transform_and_clears_invalid_views ... ok",
+      "test camera_component::tests::player_view_readiness_tracks_publication_and_camera_replacement ... ok",
+      "test camera_component::tests::ragdoll_collision_ownership_does_not_collapse_third_person_camera ... ok",
+      "test camera_component::tests::cold_camera_drives_the_player_from_actor_rotation ... ok",
+      "test camera_component::tests::source_camera_pause_preserves_animation_lag_and_view_until_resume ... ok",
+      "",
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 2145 filtered out; finished in 1.10s",
+      ""
+    ]
+  },
+  "target_directory": "target_game",
+  "profile": "play",
+  "restored_source_sha256": "e8d84455406d6a91d114f41f77ed35b32ca636fa647f3765e8686c4d741b7661"
+}
